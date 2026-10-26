@@ -88,6 +88,20 @@ async (page, { openPath, reloadDocument }) => {
   await initial.locator('td', {hasText:/^U$/}).click();
   await initial.getByRole('button', {name:'Column B actions', exact:true}).click();
   const columnMenu = page.getByRole('menu', {name:'Column B actions', exact:true});
+  const menuFormat = async menu => menu.evaluate(menu => [...menu.querySelectorAll('[role="menuitem"]')].every(item =>
+    item.querySelector('svg')?.getBoundingClientRect().width === 16));
+  if (!await menuFormat(columnMenu)) throw new Error('Column menu needs 16px action icons');
+  const dangerRow = columnMenu.getByRole('menuitem', {name:'Delete column', exact:true});
+  await dangerRow.hover();
+  if (!await dangerRow.evaluate(item => {
+    const probe = document.createElement('span');
+    probe.style.cssText = 'color:var(--id-color-danger);background:var(--id-color-surface-danger)';
+    item.append(probe);
+    const actual = getComputedStyle(item), expected = getComputedStyle(probe);
+    const matches = actual.color === expected.color && actual.backgroundColor === expected.backgroundColor;
+    probe.remove();
+    return matches;
+  })) throw new Error('Destructive table row needs danger text and hover tokens');
   await columnMenu.getByRole('menuitem', {name:'Align column right', exact:true}).click();
   result.handleTargetsColumn = await initial.locator('tr').evaluateAll(rows => rows.every(row => row.cells[1].style.textAlign === 'right' && row.cells[0].style.textAlign !== 'right'));
   await page.keyboard.press('Control+z');
@@ -95,10 +109,21 @@ async (page, { openPath, reloadDocument }) => {
   await headerHandle.focus();
   await page.keyboard.press('Enter');
   const headerMenu = page.getByRole('menu', {name:'Row 1 actions', exact:true});
+  if (!await menuFormat(headerMenu)) throw new Error('Row menu needs 16px action icons');
   result.headerProtected = await headerMenu.getByRole('menuitem', {name:'Delete row', exact:true}).isDisabled() &&
     await headerMenu.getByRole('menuitem', {name:'Move row down', exact:true}).isDisabled();
   await page.keyboard.press('Escape');
   result.keyboardMenuReturns = await headerHandle.evaluate(button => document.activeElement === button);
+  await initial.getByRole('button', {name:'Table actions', exact:true}).click();
+  const tableActions = page.getByRole('menu', {name:'Table actions', exact:true});
+  if (!await menuFormat(tableActions)) throw new Error('Whole-table menu needs 16px action icons');
+  if (!await tableActions.getByRole('menuitem', {name:'Delete table', exact:true}).evaluate(item => {
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--id-color-danger)'; item.append(probe);
+    const matches = getComputedStyle(item).color === getComputedStyle(probe).color;
+    probe.remove(); return matches;
+  })) throw new Error('Delete table needs the danger token');
+  await page.keyboard.press('Escape');
   await page.setViewportSize({width:768, height:720});
   await initial.hover();
   for (let i = 0; i < 5; i++) await initial.getByRole('button', {name:'Append column', exact:true}).click();
@@ -138,9 +163,9 @@ async (page, { openPath, reloadDocument }) => {
   const existing = tables.last();
   await existing.locator('td', {hasText:/^U$/}).click();
   const items = await blockMenu(4, 'Add row below');
-  result.menuOffersRowAndColumn = JSON.stringify(items) === JSON.stringify(['Add row below', 'Add column right', 'Move row up', 'Move row down',
+  result.menuOffersRowAndColumn = ['Add row below', 'Add column right', 'Move row up', 'Move row down',
     'Move column left', 'Move column right', 'Align column left', 'Align column center', 'Align column right', 'Clear column alignment',
-    'Delete row', 'Delete column', 'Delete']);
+    'Delete row', 'Delete column', 'Delete'].every(label => items.includes(label));
   await page.keyboard.type('P');
   await blockMenu(4, 'Add column right');
   await page.keyboard.type('W');

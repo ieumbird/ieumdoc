@@ -261,6 +261,12 @@ tools are unchanged; there is no frontmatter title. The title stays first. One C
 
 ## Sections
 
+Block-menu Move up/down (#516) reuse the drag reorder transaction and Core
+`moveBlock` Save replay (CLI `move-block`). Each swaps one adjacent body block in
+one Undo step; a heading moves alone, independently of the existing section commands
+below. Title/label, endnote, boundary and active-draft restrictions match drag.
+See [unified menu behavior](editor-ux-shell-v1.md#unified-action-menus-516).
+
 A section can be moved or deleted. It is computed from the current
 top-level blocks: a heading, the label targets directly before it, and the blocks up to
 the next heading of the same or a higher level. It has no identity or Markdown syntax

@@ -8,6 +8,8 @@ export type CommandMenuItem = {
   id: string;
   label: string;
   disabled?: boolean;
+  disabledReason?: string;
+  danger?: boolean;
   /** Consecutive items of one group are divided from the previous group by a separator. */
   group?: string;
   /** A short secondary text, such as the Markdown shortcut for the same block. */
@@ -79,8 +81,10 @@ export function CommandMenu({ label, items, style, activeIndex, focusOnOpen, emp
               role="menuitem"
               // The hint is secondary text; the item is named by its label alone.
               aria-label={item.label}
-              className={`command-menu-item${index === activeIndex ? " active" : ""}`}
+              className={`command-menu-item${index === activeIndex ? " active" : ""}${item.danger ? " danger" : ""}`}
               disabled={item.disabled}
+              title={item.disabledReason}
+              aria-description={item.disabled ? item.disabledReason : undefined}
               // Keep the editor selection for slash commands.
               onMouseDown={event => event.preventDefault()}
               onClick={() => onSelect(item.id)}
