@@ -220,6 +220,19 @@ test("command center searches document paths and translated commands, with an ex
   assert.deepEqual(ids("> 경로 복사"), ["copy"]);
   assert.deepEqual(ids("unknown"), []);
   assert.equal(filterCommandCenterItems(items, "> save")[0]?.disabled, true);
+  const ranked: CommandCenterItem[] = [
+    { id: "path", kind: "file", label: "guide.md", detail: "C:/settings/guide.md", icon: FileText, run() {} },
+    { id: "refresh", kind: "command", label: "Refresh folder", detail: "C:/settings", icon: FileText, run() {} },
+    { id: "alias", kind: "command", label: "설정", keywords: ["settings"], icon: FileText, run() {} },
+    { id: "settings", kind: "command", label: "Settings", icon: FileText, run() {} },
+    { id: "document-settings", kind: "command", label: "Document settings…", icon: FileText, run() {} },
+    { id: "named-file", kind: "document", label: "settings.md", icon: FileText, run() {} },
+  ];
+  const order = (query: string) => filterCommandCenterItems(ranked, query).map(item => item.id);
+  assert.deepEqual(order("ＳＥＴＴＩＮＧＳ"), ["settings", "document-settings", "named-file", "path", "refresh", "alias"]);
+  assert.deepEqual(order("> settings"), ["settings", "document-settings", "refresh", "alias"]);
+  assert.deepEqual(order(""), ranked.map(item => item.id));
+  assert.deepEqual(order(">"), ["refresh", "alias", "settings", "document-settings"]);
 });
 
 test("bundled languages cover keys and interpolation parameters without relying on fallback", () => {

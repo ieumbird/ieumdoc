@@ -44,7 +44,7 @@ type TopBarProps = {
 };
 
 /**
- * The centered document/location button opens the command center. Status has its own left cell,
+ * The centered Find documents and commands button opens the command center. Status has its own left cell,
  * so an unsaved/saved notice never moves the center or actions.
  * Document settings stays in the document area. On the right: Visual/Source, Wide document and
  * Outline, then Save and File actions. Only Save with unsaved changes takes the accent.
@@ -72,12 +72,12 @@ export function TopBar({
       const style = getComputedStyle(button);
       const gap = parseFloat(style.columnGap);
       const available = button.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-      const filename = commandName.current?.scrollWidth ?? 0;
+      const action = commandName.current?.scrollWidth ?? 0;
       const shortcut = commandShortcut.current?.scrollWidth ?? 0;
       const icon = button.querySelector("svg")?.getBoundingClientRect().width ?? 0;
-      const withShortcut = icon + filename + shortcut + gap * 2;
-      // Folder segments yield first, then the shortcut; only the remaining filename ellipsizes.
-      setCommandDetail(available >= withShortcut + 28 ? "path" : available >= withShortcut ? "shortcut" : "name");
+      const withShortcut = icon + action + shortcut + gap * 2;
+      // The secondary location yields first, then the shortcut; the action ellipsizes last.
+      setCommandDetail(available >= withShortcut + 70 ? "path" : available >= withShortcut ? "shortcut" : "name");
     };
     const observer = new ResizeObserver(measure);
     observer.observe(button);
@@ -123,15 +123,16 @@ export function TopBar({
         </p>
       </div>
       <Button ref={commandButton} type="button" variant="outline" className="command-center-trigger" data-detail={commandDetail}
-        aria-label={i18n.t("Command center")} title={i18n.t("Command center ({{shortcut}})", { shortcut: COMMAND_CENTER_SHORTCUT.label })}
+        aria-label={i18n.t("Find documents and commands")} title={i18n.t("Find documents and commands ({{shortcut}})", { shortcut: COMMAND_CENTER_SHORTCUT.label })}
         aria-haspopup="dialog" aria-keyshortcuts={COMMAND_CENTER_SHORTCUT.aria} onClick={onOpenCommandCenter}
         onMouseDown={event => { if (event.button === 0) event.preventDefault(); }}>
         <Search aria-hidden="true" />
-        <span className="document-path" title={documentPath || undefined}>
+        <span ref={commandName} className="command-center-action">{i18n.t("Find documents and commands")}</span>
+        <span className="document-path" title={documentPath || undefined} aria-hidden="true">
           {documentPath ? location.map((folder, index) => (
             <span className="document-path-folder" key={index}>{folder}<span className="document-path-separator" aria-hidden="true">/</span></span>
           )) : null}
-          <span ref={commandName} className={documentPath ? "document-path-name" : undefined} data-testid="current-file" title={documentPath || undefined}>
+          <span className={documentPath ? "document-path-name" : undefined} data-testid="current-file" title={documentPath || undefined}>
             {documentPath ? name : i18n.t("No file opened")}
           </span>
         </span>
