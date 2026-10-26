@@ -21,7 +21,7 @@ git diff --check
 
 CI quality는 문서 전용 PR에서 문서·checker tests, diff/whitespace, issue 정책, AI provenance validator·PR commit 검사와 경로 분류 회귀만 실행한다. 제품 테스트·typecheck·Editor build는 생략한다. 문서 allowlist와 전체 실행 조건은 [Verification matrix](../../CONTRIBUTING.md#verification-matrix)를 따른다. `node --test scripts/ci-quality-mode.test.mjs`는 문서 전용·혼합·미분류·master push와 실제 Git diff/rename, whitespace 거부 및 workflow 조건을 검증한다. `merge_group`이 docs-only를 선택하지 않고 paths-filter 없이 browser 4개 shard·HTTP 양쪽 OS·Desktop 설치/업데이트를 모두 선택하며, queue head별 CI가 서로 취소되지 않는지도 검사한다. 별도 임시 PR은 필요하지 않다.
 
-병합은 [독립 승인 후 merge queue 절차](../../CONTRIBUTING.md#review-and-sequential-merge)를 따른다. Queue는 최신 master와 합친 결과를 전체 검증하고 필수 검사 `Core, CLI, Editor, and browser regressions`를 보고한다. `node --test scripts/commit-provenance.test.mjs`는 PR 고유 commit과 agent 작성 merge 검사를 유지하면서 GitHub 생성 queue merge는 건너뛰는지 확인한다. Queue 실패는 artifact부터 조사한다. 실제 `merge_group` 이벤트와 queue 병합은 workflow 병합 후 통합 담당자가 ruleset을 활성화해야 검증할 수 있다. 로컬 probe와 PR CI만으로 실제 queue 병합 성공을 주장하지 않는다.
+병합은 [독립 승인 후 merge queue 절차](../../CONTRIBUTING.md#review-and-sequential-merge)와 [Enqueue 명령·상태 확인](../../CONTRIBUTING.md#enqueue)을 따른다. Queue는 최신 master와 합친 결과를 전체 검증하고 필수 검사 `Core, CLI, Editor, and browser regressions`를 보고한다. `node --test scripts/commit-provenance.test.mjs`는 PR 고유 commit과 agent 작성 merge 검사를 유지하면서 GitHub 생성 queue merge는 건너뛰는지 확인한다. Queue 실패는 artifact부터 조사한다. Queue는 2026-10-26부터 활성화되어 있으며, [#537 검증 기록](https://github.com/ieumbird/ieumdoc/issues/537)에 [PR #543](https://github.com/ieumbird/ieumdoc/pull/543)의 실제 [merge_group 실행](https://github.com/ieumbird/ieumdoc/actions/runs/40313330979)과 queue 병합 결과가 있다. 이후 PR도 해당 queue head의 실제 실행 결과를 확인하며, 로컬 probe와 PR CI만으로 실제 queue 병합 성공을 주장하지 않는다.
 
 ## Browser regression
 
@@ -48,6 +48,13 @@ remains pending before checking the unchanged canonical-byte assertion (#489).
 The citation-Remove gate explicitly checks that the focus helper's promise is still pending while
 BODY has focus, before releasing callbacks. Replacing that helper with a resolved promise must fail
 this same assertion; releasing focus before Undo alone does not prove that the helper waited.
+
+`layout-rules` waits for Settings' language select to receive actual focus before changing the
+language and pressing Escape, then for the dialog to detach and its Settings opener to regain
+focus (#541). It uses Playwright's shared `expect(locator).toBeFocused()`; `waitForEditorFocus`
+checks an EditorView, not a shell control. The phone-width regression holds the real initial
+focus call and verifies that readiness remains pending before releasing it. It neither focuses
+the select early nor reopens a sidebar accidentally dismissed by Escape.
 
 ### Native focus selection regression (#542)
 
@@ -228,6 +235,23 @@ profile removal and another origin/device are outside that proof. The 500ms inte
 Past local execution, required CI and proof artifacts: [Host recovery execution history](#host-recovery-execution-history-296-pr3).
 
 ## Evidence and history
+
+### Settings initial-focus race (#541)
+
+Run 40297651538 attempt 1, job 121487564515, artifact `editor-browser-ci-logs-2`
+fails at the 390px Korean-to-English pass: the Sidebar's **Open folder…** click, after
+`language('en')`, times out at 15000ms. Input event 70 sends Escape to **Settings**,
+not the language select; events 71–73 move focus to **Expand sidebar**. The failure
+state and screenshot show a closed sidebar and no visible dialog. The click trace
+never resolves its target or reports pointer interception. This is an initial-focus
+readiness race, not evidence of a lingering modal backdrop or failed final focus.
+
+`selectOption` can finish without focusing the select while Base UI still owes its
+animation-frame initial focus. Escape on the opener then also dismisses the phone
+sidebar. Holding that actual focus call reproduces the original click timeout; the
+fixed readiness assertion stays pending until release and the full scenario passes.
+Replacing the wait with an immediately resolved promise fails the pending assertion.
+All existing typography, geometry and document-preservation assertions remain.
 
 ### Focus and selection race investigation (#489)
 
