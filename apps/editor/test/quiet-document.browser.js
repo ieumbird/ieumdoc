@@ -75,6 +75,28 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     ['code','math'].every(kind=>[true,false].every(heading=>wrapping.some(n=>n.kind===kind&&n.heading===heading)))&&
     wrapping.every(n=>n.wordBreak===(n.heading?'keep-all':'normal')&&n.overflowWrap==='break-word'),
     `Code/math lost contextual wrapping: ${JSON.stringify(wrapping)}`);
+  // Callout content follows body prose even when the document font/size is customized.
+  const calloutType = await page.evaluate(() => {
+    const root=document.documentElement;
+    const type=selector=>{
+      const n=document.querySelector(selector);if(!n)throw Error(`Missing callout typography target: ${selector}`);
+      const s=getComputedStyle(n);return [s.fontFamily,s.fontSize,s.lineHeight];
+    };
+    const read=()=>({body:type('.paragraph'),content:type('.admonition-body'),label:type('.admonition-label')});
+    const before=read();
+    const overrides={'--font-family-document':'monospace','--font-size-document':'23px','--line-height-document':'2'};
+    const saved=Object.keys(overrides).map(name=>[name,root.style.getPropertyValue(name),root.style.getPropertyPriority(name)]);
+    try {
+      for(const [name,value] of Object.entries(overrides))root.style.setProperty(name,value);
+      return {before,after:read()};
+    } finally {
+      for(const [name,value,priority] of saved)value?root.style.setProperty(name,value,priority):root.style.removeProperty(name);
+    }
+  });
+  check([calloutType.before,calloutType.after].every(t=>JSON.stringify(t.body)===JSON.stringify(t.content))&&
+    JSON.stringify(calloutType.before.label)===JSON.stringify(calloutType.after.label)&&
+    JSON.stringify(calloutType.before.content)!==JSON.stringify(calloutType.after.content),
+    `Callout content must follow body typography without changing its label: ${JSON.stringify(calloutType)}`);
   const checkUIIsolation = async selectors => page.evaluate(selectors => {
     const root=document.documentElement;
     const read=()=>selectors.map(selector=>{
