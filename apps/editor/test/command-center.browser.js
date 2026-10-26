@@ -25,6 +25,113 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const result = {};
 
+  // Compare the two entry points on identical file state, including input-rule Undo precedence.
+  const inputRuleResults = [];
+  for (const route of ['keyboard', 'command']) {
+    await editor().evaluate(n => {
+      let start;
+      n.editor.state.doc.forEach((node, pos) => { if (start === undefined && node.type.name === 'paragraph') start = pos + 1; });
+      if (start === undefined) throw Error('Missing paragraph for input-rule regression');
+      n.editor.commands.setTextSelection(start); n.editor.view.focus();
+    });
+    await page.keyboard.type('## ');
+    check(await editor().evaluate(n => n.editor.state.selection.$from.parent.type.name === 'heading'), 'Heading input rule did not apply');
+    if (route === 'keyboard') await page.keyboard.press('Control+z');
+    else await run('undo');
+    const undone = await editor().evaluate(n => ({ document:n.editor.getJSON(), selection:n.editor.state.selection.toJSON(),
+      text:n.editor.state.selection.$from.parent.textContent, canRedo:n.editor.can().redo() }));
+    check(undone.text.startsWith('## '), `${route} Undo lost the input-rule space: ${undone.text}`);
+    check(await editor().evaluate(n => n === document.activeElement), `${route} input-rule Undo lost editor focus`);
+    // Input-rule Undo is not native history Undo. Undo its transaction before comparing Redo too.
+    await page.keyboard.press('Control+z');
+    check(await editor().evaluate(n => n.editor.can().redo()), 'Missing history step for Redo comparison');
+    if (route === 'keyboard') await page.keyboard.press('Control+y');
+    else await run('redo');
+    const redone = await editor().evaluate(n => ({ document:n.editor.getJSON(), selection:n.editor.state.selection.toJSON() }));
+    check(await editor().evaluate(n => n === document.activeElement), `${route} Redo lost editor focus`);
+    inputRuleResults.push({undone, redone});
+    await run('reload');
+    await page.getByRole('button',{name:'Discard and reload',exact:true}).click();
+    await page.getByRole('dialog').waitFor({state:'detached'}); await ready();
+  }
+  check(JSON.stringify(inputRuleResults[0]) === JSON.stringify(inputRuleResults[1]), 'Keyboard and command history differ after input-rule conversion');
+  result.inputRuleHistoryParity = true;
+
+  // #471: use the active editor's native history; each dispatch is exactly one step.
+  const snapshot = () => editor().evaluate(n => JSON.stringify(n.editor.getJSON()));
+  const baseline471 = await snapshot();
+  await editor().evaluate(n => { n.editor.commands.setTextSelection(2); n.editor.view.focus(); });
+  await page.keyboard.type('first471');
+  const first471 = await snapshot();
+  // A formatting transaction separates the two history events without a timed delay.
+  await editor().evaluate(n => n.editor.commands.setTextSelection({from:2,to:10}));
+  await page.keyboard.press('Control+b');
+  const second471 = await snapshot();
+  await page.getByRole('button', {name:'Command center',exact:true}).click();
+  await waitForInput();
+  await input().fill('> Undo');
+  if (screenshots) await page.screenshot({path:'tmp/command-center/history-471.png'});
+  const undo471 = center().getByRole('option', {name:'Undo',exact:true});
+  if (await undo471.count() !== 1) {
+    await input().fill('> keyboard shortcuts');
+    check(await center().getByRole('option', {name:'Keyboard shortcuts',exact:true}).count() === 1,
+      'Undo command and Keyboard shortcuts entry are missing');
+    throw Error('Undo command is missing');
+  }
+  check(await undo471.locator('kbd').textContent() === 'Ctrl+Z', 'Undo shortcut hint missing');
+  await undo471.click(); await center().waitFor({state:'detached'});
+  check(await snapshot() === first471, 'Undo did not apply exactly one history step');
+  check(await editor().evaluate(n => n === document.activeElement), 'Undo did not return editor focus');
+  await run('undo');
+  check(await snapshot() === baseline471, 'Second Undo did not reach the original document');
+  await open('> undo');
+  check(await undo471.getAttribute('aria-disabled') === 'true', 'Undo available with empty history');
+  await input().fill('> redo');
+  check((await center().getByRole('option', {name:'Redo',exact:true}).innerText()).includes('Ctrl+Y'), 'Redo shortcut hint missing');
+  await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
+  check(await snapshot() === first471, 'Redo did not apply exactly one history step');
+  check(await editor().evaluate(n => n === document.activeElement), 'Redo did not return editor focus');
+  await run('redo');
+  check(await snapshot() === second471, 'Second Redo did not restore formatting');
+  await open('> redo');
+  check(await center().getByRole('option', {name:'Redo',exact:true}).getAttribute('aria-disabled') === 'true', 'Redo available with empty future history');
+  await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
+  await run('undo'); await run('undo');
+
+  for (const dismissal of ['Escape', 'Close', 'outside click']) {
+    const fromTrigger = dismissal === 'Close';
+    if (fromTrigger) {
+      await page.getByRole('button', {name:'Command center',exact:true}).focus();
+      await page.getByRole('button', {name:'Command center',exact:true}).click();
+      await waitForInput();
+      await input().fill('> keyboard shortcuts');
+      await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
+    } else await run('keyboard shortcuts');
+    const guide = page.getByRole('dialog', {name:'Keyboard shortcuts',exact:true});
+    await guide.waitFor();
+    check((await guide.innerText()).includes('Line break inside a block') &&
+      (await guide.innerText()).includes('Shift+Enter'), 'Line-break shortcut is missing from the guide');
+    check((await guide.innerText()).includes('Ctrl+/') && (await guide.innerText()).includes('Ctrl+S'), 'General shortcut hints missing');
+    if (dismissal === 'Escape') for (const [label, hint] of [
+      ['Toggle bullet list','Ctrl+Shift+8'], ['Toggle numbered list','Ctrl+Shift+7'],
+      ['Toggle code block','Ctrl+Alt+C'], ['Move to the document end','Ctrl+End'],
+    ]) {
+      await guide.getByText(label,{exact:true}).scrollIntoViewIfNeeded();
+      check(await guide.getByText(hint,{exact:true}).isVisible(), `${label} shortcut is missing or unreachable`);
+    }
+    if (screenshots) await page.screenshot({path:'tmp/command-center/shortcuts-471.png'});
+    if (dismissal === 'Escape') await page.keyboard.press('Escape');
+    else if (dismissal === 'outside click') await page.locator('[data-slot="dialog-overlay"]').click({position:{x:8,y:8}});
+    else await guide.getByRole('button', {name:'Close',exact:true}).click();
+    await guide.waitFor({state:'detached'});
+    const focus = fromTrigger ? page.getByRole('button', {name:'Command center',exact:true}) : editor();
+    check(await focus.evaluate(n => n === document.activeElement), `${dismissal} did not restore focus from the shortcut guide`);
+    check(await snapshot() === baseline471, 'Shortcut guide edited the document');
+    // The next shortcut opens from the editor, as the first one did.
+    await editor().focus();
+  }
+  result.historyAndShortcutGuide = true;
+
   for (const shiftKey of [false, true]) {
     const allowed = await page.evaluate(shiftKey => window.dispatchEvent(new KeyboardEvent('keydown',
       {key:'p',code:'KeyP',ctrlKey:true,shiftKey,bubbles:true,cancelable:true})), shiftKey);
@@ -71,6 +178,10 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await input().fill('> save');
   check(await center().getByRole('option', {name:'Save',exact:true}).locator('kbd').textContent() === 'Ctrl+S', 'Save shortcut label mismatch');
   check(await center().getByRole('option', {name:'Save',exact:true}).getAttribute('aria-disabled') === 'true', 'Save available without a document');
+  for (const name of ['Undo', 'Redo']) {
+    await input().fill(`> ${name}`);
+    check(await center().getByRole('option', {name,exact:true}).getAttribute('aria-disabled') === 'true', `${name} available without a document`);
+  }
   await page.keyboard.press('Enter');
   check(await center().isVisible(), 'Disabled command dismissed the center');
   await input().fill('no-match-zzzz');
@@ -323,6 +434,9 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await page.getByTestId('equation-latex').fill('command center draft');
   const dirty = await editor().evaluate(n => JSON.stringify(n.editor.getJSON()));
   await openPath(page, file('technical-2.md'));
+  await open('> undo');
+  check(await center().getByRole('option',{name:'Undo',exact:true}).getAttribute('aria-disabled') === 'true', 'Undo targeted the inactive dirty tab');
+  await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
   await open('technical-1');
   await page.keyboard.press('Enter');
   await center().waitFor({state:'detached'});
@@ -330,9 +444,9 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   check(await editor().evaluate(n => n.editor === window.commandCenterEditor && JSON.stringify(n.editor.getJSON())) === dirty, 'Tab search replaced the editor or dirty content');
   check(await page.getByTestId('equation-latex').inputValue() === 'command center draft', 'Tab search lost property draft');
   await page.getByTestId('equation-cancel').click();
-  await editor().focus(); await page.keyboard.press('Control+z');
+  await run('undo');
   check(!(await editor().innerText()).includes('command center edit'), 'Tab search lost undo');
-  await page.keyboard.press('Control+Shift+z');
+  await run('redo');
   // Hold the actual Save response to observe the same disabled actions and tab restrictions.
   let releaseSave;
   const saveGate = new Promise(resolve => { releaseSave = resolve; });
@@ -346,6 +460,10 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     await page.locator('[data-testid="status"][data-operation="saving"]').waitFor();
     await open('> save');
     check(await center().getByRole('option',{name:'Save',exact:true}).getAttribute('aria-disabled')==='true', 'Save was available while saving');
+    for (const name of ['Undo', 'Redo']) {
+      await input().fill(`> ${name}`);
+      check(await center().getByRole('option',{name,exact:true}).getAttribute('aria-disabled')==='true', `${name} was available while saving`);
+    }
     await input().fill('technical-2');
     check(await center().getByRole('option',{name:'technical-2.md',exact:true}).getAttribute('aria-disabled')==='true', 'Tab switch was available while saving');
     await page.keyboard.press('Enter');
@@ -375,6 +493,9 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   result.tabStateAndSaveReload = true;
   await run('source');
   await activeDocument(page).getByTestId('source-view').waitFor();
+  await open('> undo');
+  check(await center().getByRole('option',{name:'Undo',exact:true}).getAttribute('aria-disabled')==='true', 'History available in Source view');
+  await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
   await open('technical-2');
   await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
   await open('technical-1');
@@ -410,6 +531,22 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     check(popup.x>=0 && popup.x+popup.width<=width && popup.y>=0 && popup.y+popup.height<=900, `Popup clipped at ${width}`);
     if (screenshots) await page.screenshot({path:`tmp/command-center/search-${width}.png`});
     await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
+    if (width === 1440 || width === 375) {
+      await run('keyboard shortcuts');
+      const guide = page.getByRole('dialog',{name:'Keyboard shortcuts',exact:true});
+      await guide.waitFor();
+      const bounds = await guide.boundingBox();
+      check(bounds && bounds.x >= 0 && bounds.x + bounds.width <= width && bounds.y >= 0 && bounds.y + bounds.height <= 900,
+        `Shortcut guide clipped at ${width}`);
+      check(await guide.evaluate(n => n.scrollWidth <= n.clientWidth), `Shortcut guide overflows at ${width}`);
+      if (screenshots) await page.screenshot({path:`tmp/command-center/shortcuts-${width}-471.png`});
+      await guide.getByText('Toggle code block',{exact:true}).scrollIntoViewIfNeeded();
+      check(await guide.getByText('Ctrl+Alt+C',{exact:true}).isVisible(), `Code shortcut unreachable at ${width}`);
+      if (screenshots) await page.screenshot({path:`tmp/command-center/shortcuts-code-${width}-471.png`});
+      await guide.getByText('Submit a single-line form / cancel; in Citation, Enter first adds the typed key',{exact:true}).scrollIntoViewIfNeeded();
+      check(await guide.evaluate(n => n.scrollWidth <= n.clientWidth), `Lower shortcut groups overflow at ${width}`);
+      await page.keyboard.press('Escape'); await guide.waitFor({state:'detached'});
+    }
   }
   result.responsiveCenter = true;
   await run('expand sidebar');
@@ -431,6 +568,16 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   check(await korean.getByRole('option',{name:'저장',exact:true}).count()===1, 'Korean command search failed');
   check(await korean.getByTestId('command-center-count').innerText() === '검색 결과 1개', 'Korean result count missing');
   if (screenshots) await page.screenshot({path:'tmp/command-center/search-ko-375.png'});
+  await korean.getByRole('combobox').fill('> keyboard shortcuts');
+  await page.keyboard.press('Enter'); await korean.waitFor({state:'detached'});
+  const koreanGuide = page.getByRole('dialog',{name:'키보드 단축키',exact:true});
+  await koreanGuide.waitFor();
+  check((await koreanGuide.innerText()).includes('블록 안 줄바꿈') && (await koreanGuide.innerText()).includes('Shift+Enter'),
+    'Korean shortcut guide is missing the line-break entry');
+  check(await koreanGuide.evaluate(n => n.scrollWidth <= n.clientWidth), 'Korean guide overflows on phone');
+  if (screenshots) await page.screenshot({path:'tmp/command-center/shortcuts-ko-375-471.png'});
+  await page.keyboard.press('Escape'); await koreanGuide.waitFor({state:'detached'});
+  await page.getByRole('button',{name:'커맨드 센터',exact:true}).click(); await waitForInput();
   await korean.getByRole('combobox').fill('> settings');
   await page.keyboard.press('Enter');
   await page.getByTestId('ui-language').selectOption('en');

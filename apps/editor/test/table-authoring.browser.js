@@ -341,6 +341,23 @@ async (page, { openPath, reloadDocument }) => {
     await page.keyboard.press('Control+z');
     if (JSON.stringify(await grid(tables.last())) !== JSON.stringify(beforeDelete)) throw new Error('Keyboard Undo must restore the deleted table');
   };
+  // Command history uses the keyboard keymap; it must also revoke the guarded notice action.
+  const historyCommand = async name => {
+    await page.keyboard.press('Control+Slash');
+    const center = page.getByRole('dialog', {name:'Command center',exact:true});
+    await center.getByRole('combobox').fill(`> ${name}`);
+    await page.keyboard.press('Enter');
+    await center.waitFor({state:'detached'});
+  };
+  await deleteLastTable();
+  await historyCommand('Undo');
+  result.commandUndoRestoresTableAndRevokesNotice = JSON.stringify(await grid(tables.last())) === JSON.stringify(beforeDelete) &&
+    await editorFocused() && await notice.count() === 0;
+  await historyCommand('Redo');
+  result.commandRedoDoesNotReviveNoticeAction = await tables.count() === 1 && await editorFocused() &&
+    await notice.getByRole('button', {name:'Undo',exact:true}).count() === 0;
+  result.commandRedoKeepsReferenceWarning = (await notice.innerText()).includes('Deleting this target broke a reference.');
+  await restoreWithKeyboard();
   await deleteLastTable();
   let releaseSource, sourceRequested;
   const sourceGate = new Promise(resolve => { releaseSource = resolve; });
