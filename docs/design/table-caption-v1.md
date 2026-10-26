@@ -153,6 +153,12 @@ canonical-format and number assertions to that coverage.
 Post-merge checks: Editor targets 110/110, `table-authoring` and `table-caption` browser
 scenarios, workspace typecheck, Editor build and docs/whitespace all passed.
 
+The first PR CI's external-HTML paste artifact showed a successful Save with the new
+directive; its two expected Markdown strings still assumed plain GFM. They now include
+the canonical wrapper. The exact Source/disk comparison and Reload structure equality
+remain unchanged. Local `external-html-paste` passes after this expectation correction;
+no timeout, retry or state-wait change was needed.
+
 Manual captures compare baseline `586a9b61ac1d06dd0708466faead6717396bb74e` with this
 change through `pnpm browser:test table-caption --screenshots`. Both use the same scratch
 document, open tabs, preferences, scroll, loaded fonts, DPR 1 and 100% zoom on the same

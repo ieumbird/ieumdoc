@@ -73,7 +73,7 @@ async (page, { openPath }) => {
   const saved = '---\nieumdoc: 1\n---\n\n# External\n\n## Web *heading*\n\n' +
     'Text with **bold *both***, {del}`gone`, `x = 1` and [a link](https://example.com/a "Example").\n\n' +
     '*   One\n\n    *   Nested\n*   Two\n\n3.  Third\n\n> Quoted red text.\n\nPress Ctrl+C and see Example.\n\n' +
-    '```python\ndef f():\n    return 1\n```\n\n---\n\n| Key | Value |\n| --: | ----- |\n|   a | 1     |\n\nOmega.\n';
+    '```python\ndef f():\n    return 1\n```\n\n---\n\n:::{table}\n\n| Key | Value |\n| --: | ----- |\n|   a | 1     |\n:::\n\nOmega.\n';
   assert(disk === preview && disk === saved, `Save writes the canonical Markdown Source showed: ${JSON.stringify(disk)}`);
   await page.getByRole('button', {name:'File actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
@@ -97,7 +97,7 @@ async (page, { openPath }) => {
       `<p class=MsoListParagraphCxSpLast style='margin-left:72.0pt;mso-list:l0 level2 lfo1'><![if !supportLists]><span style='font-family:"Courier New"'><span style='mso-list:Ignore'>o<span>&nbsp; </span></span></span><![endif]>Second<o:p></o:p></p>` +
       `<p class=MsoNormal><o:p>&nbsp;</o:p></p>` +
       `<table class=MsoTableGrid border=1><tr><td width=200 valign=top><p class=MsoNormal><b>Name</b><o:p></o:p></p></td><td><p class=MsoNormal>Size</p></td></tr><tr><td><p class=MsoNormal>A</p></td><td><p class=MsoNormal>1</p></td></tr></table><!--EndFragment--></body></html>`,
-      '# Word heading\n\n*   First\n\n    *   Second\n\n| **Name** | Size |\n| -------- | ---- |\n| A        | 1    |\n\nOmega.\n',
+      '# Word heading\n\n*   First\n\n    *   Second\n\n:::{table}\n\n| **Name** | Size |\n| -------- | ---- |\n| A        | 1    |\n:::\n\nOmega.\n',
       'Pasted with normalization: unsupported visual styles were removed; table headers now use the first row only.'],
     // A fragment link stays an ordinary link, never a cross-reference. Sub/superscript tags
     // and Word's vertical-align spans are kept.
