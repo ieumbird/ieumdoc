@@ -2,7 +2,8 @@
 
 - Status: Implemented
 - Body-heading authoring verification: 2026-10-26 (#472 Editor unit/browser checks; Core/CLI and numbering behavior unchanged). [Verification details](document-editing-v1.md).
-- Last verified: 2026-10-26 (#462 caption-template Core/CLI/Editor tests and cross-reference browser Undo/Redo, Source and Save → Reload).
+- Last verified: 2026-10-26 (#511 generated-number color: Editor tests, typecheck/build, Outline/layout-rules/quiet-document/visual-states browser checks and 1440px manual comparison).
+- Previous verification: 2026-10-26 (#462 caption-template Core/CLI/Editor tests and cross-reference browser Undo/Redo, Source and Save → Reload).
 - Reference-template verification: 2026-10-25 (#445 Core/CLI/Editor tests and cross-reference browser Save → Reload).
 - Previous verification: 2026-10-14 (#232 native metadata contract).
 - Scope: Core-owned settings and Editor/CLI projection; [Native document support](document-support-v1.md).
@@ -21,6 +22,48 @@ In the sidebar's Display panel, Number headings belongs to Saved in document. It
 CLI: `ieumdoc update-heading-numbering <file> --enabled true|false`. `inspect --format json` reports computed `headingNumber` values. Figure/equation numbering is independent.
 
 Verification covers Core default-policy equivalence to MyST, native metadata writes, CLI edits, Editor path retention, Outline agreement, Undo/Redo and Save → Reload.
+
+## Generated number color (#511 / #503)
+
+When Number headings is on, H2–H6 generated numbers and non-current Outline numbers
+use `--id-color-document-heading-number` (`#0e7c86`), a commented document adjustable
+value in `styles/tokens.css`. The teal comes from the app icon's cyan family and
+distinguishes generated numbering from authored heading text. It has 4.95:1 contrast
+on the white paper (`--id-color-surface`), exceeding 4.5:1 even for H4–H6 at
+18px, 16px and 14px. Heading text retains the normal text color. The current Outline
+row, including its number, retains the existing selected text color; hover and focus
+keep their existing rules.
+
+The heading's existing `::before` supplies the number; Outline wraps only the
+Core-computed number in an inline span, retaining its full text/accessibility label.
+No punctuation, number/title spacing, font size/weight, editor selection/copy behavior,
+file content or section-reference display (`2절` / `Section 2`) changes. No gap styling
+is introduced: both surfaces retain their existing single U+0020 space. This is an
+IeumDoc display rule, like other Editor presentation rules: MyST renderers show the
+numbers without this color. Core and CLI are unchanged; no semantic operation or CLI
+command is needed.
+
+The existing Outline browser flow checks computed number/title colors, current-row
+selection, unchanged accessible names and a root-variable override reaching both
+surfaces. The existing token test checks the default once; browser assertions resolve
+the variable instead of repeating the hex value.
+
+Before the style change, the new assertions failed: the variable was absent, then
+with the token alone the heading number remained `rgb(32, 36, 44)` instead of the
+variable's `rgb(14, 124, 134)`. The default-token assertion also failed before the token
+was added. The contrast calculated from sRGB relative luminance is 4.9458556:1 on white.
+
+Manual visual comparison, [before](assets/heading-number-color-511/before-1440.png) /
+[after](assets/heading-number-color-511/after-1440.png): same scratch document after
+the Outline scenario's section edits, Number headings on, Display open, first numbered
+section current, scroll (0, 0), no hover or focused control; 1440×1000, DPR 1, zoom 1,
+Windows headless Chrome with bundled Pretendard loaded. The clean base is
+`1dc1e2d235019ec73b6ad986b62b8964a36e32be`; the after image uses this change. Both
+were captured through `pnpm browser:test outline` with a temporary capture at the same
+scenario state, using this worktree's persistent profile and its Vite server on port
+5391. Only generated number colors change; the selected Outline number remains blue,
+and title positions, spacing and typography stay aligned. These images are manual
+review evidence, not pixel assertions or user visual approval.
 
 ## Reference templates (#445)
 

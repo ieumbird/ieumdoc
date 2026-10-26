@@ -19,8 +19,8 @@ test("the outline lists top-level headings in order", () => {
   for (const item of documentOutline(doc)) assert.equal(doc.nodeAt(item.pos), doc.child(item.index));
   const numbered = toTiptapDocument(loadEditableDocument(markdown));
   numbered.attrs = { headingNumbering: defaultHeadingNumbering(true)! };
-  assert.deepEqual(documentOutline(schema.nodeFromJSON(numbered)).map(item => item.text), [
-    "Title", "1 Plain section", "1.1 Formatted section", "2 Last",
+  assert.deepEqual(documentOutline(schema.nodeFromJSON(numbered)).map(item => [item.number, item.text]), [
+    [undefined, "Title"], ["1", "1 Plain section"], ["1.1", "1.1 Formatted section"], ["2", "2 Last"],
   ]);
 });
 
