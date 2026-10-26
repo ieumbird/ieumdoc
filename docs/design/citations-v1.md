@@ -2,7 +2,8 @@
 
 - Status: Implemented
 - Nested authoring verification: 2026-10-24 (#377: Editor slash tests and `citation-authoring` menu/insertion/Save → Reload on lists, quotes, simple admonitions, endnote definitions, cells, Figure captions and headings, including a citation-only list item).
-- Last verified: 2026-10-26 (#473: conditional References and shared Display/command-center connections; verification below).
+- Last verified: 2026-10-27 (#463: Editor-styled citation key candidates; verification below).
+- Previous verification: 2026-10-26 (#473: conditional References and shared Display/command-center connections; verification below).
 - Previous verification: 2026-10-25 (#438: Editor bibliography connections apply on Save; verification below).
 - Previous verification: 2026-10-23 (units A, B and C; execution results recorded below).
 - Scope: [ADR-0008](../adr/0008-citations-and-bibliography.md) units A, B and C, under [Native document support](document-support-v1.md). Unit D extensions remain separate decisions.
@@ -114,9 +115,18 @@ Quote; use `/quote`, `/blockquote` or `/인용문` for that block. A query
 also lists up to 20 readable entries whose key or display words start with it, inserted directly as
 `cite:p`. A citation chip's edit button opens the same form with its stored role and keys. The form
 chooses `cite:p` (default), `cite:t` or `cite`, keeps an ordered key group, and searches every readable
-entry through the browser's own list suggestion. Typed keys absent from the bibliography remain citable
+entry through an Editor-styled combobox/listbox. Candidates show the key and the existing evaluated
+bibliography text, including available author and title; long display text wraps rather than hiding
+the title behind a long author list. No additional bibliography parsing is done.
+Search matches key or display text case-insensitively, then renders up to 50 results with a narrowing
+notice when more match. The command center's Base UI combobox and list styles are reused locally.
+Up/Down highlights a candidate while focus stays in the input; Enter or a pointer selection adds it
+to the key group without applying the form. Without a highlighted candidate, Enter adds the typed
+key. Tab proceeds to Add. Escape first closes an open candidate list without changing the draft;
+Escape with the list closed cancels the form. Native composition keys (including legacy keyCode 229)
+do not navigate, select, apply or cancel. Typed keys absent from the bibliography remain citable
 and show as unresolved; keys Core refuses are rejected in the form. Apply uses Core's canonical
-citation (multi-key `cite` becomes `cite:t`); Escape or leaving the form cancels; Remove deletes the
+citation (multi-key `cite` becomes `cite:t`); leaving the form cancels; Remove deletes the
 atom and keeps the surrounding text. Entries follow the tab's last loaded resource snapshot (Open/Reload or Save of a changed declaration), so a tab whose
 folder cannot read the declared file offers typed keys only. The Editor never writes `.bib` files.
 
@@ -510,3 +520,37 @@ and scroll top. The phone capture uses 375×812 and the existing long-name fixtu
 | Unused document, Files | [Before](assets/references-473/before-unused-1280.png) | [After](assets/references-473/after-unused-1280.png) |
 | Unused document, Display | [Before](assets/references-473/before-display-1280.png) | [After](assets/references-473/after-display-1280.png) |
 | Shared connection Dialog, phone | — | [Candidates](assets/references-473/candidates-375.png) |
+
+### Citation key candidate verification (#463)
+
+The citation form reuses the command center's Base UI Combobox, list rows and selection tokens,
+with the existing reference form surface, shared Input/Button and a bounded scrolling list.
+Only the citation form owns this composition; there is no new shared combobox abstraction or
+Core operation. CLI parity is unchanged because this is an Editor-only interaction.
+
+The extended `citation-authoring` scenario checks author/title filtering, Korean display-text
+filtering, pointer and Up/Down/Enter selection, active-descendant/listbox wiring, input focus,
+Escape dismissal/reopening, 375px overflow bounds and preservation of typed/unknown/invalid keys.
+Browser-dispatched composition events and legacy keyCode 229 check that IME keys cannot select,
+apply or cancel. These are automated event checks, not a physical Windows IME session.
+Existing role/key editing, Remove, Undo/Redo and Save → Reload checks remain, including unchanged
+BibTeX bytes. `bibliography-connection` now locates the same loaded key through its listbox option.
+
+Windows local verification (2026-10-26–27): Editor tests 291/291, repository typecheck, Editor production build,
+documentation and diff checks; `citation-authoring`, `bibliography-connection`, `citations`,
+`layout-rules` and `quiet-document --screenshots`. Packaging and other OS checks remain CI work.
+
+Same-worktree product captures were directly inspected. Before is clean product HEAD
+`ff37a32e273dfad90bde84a9c30e2a28ec5e3af3`; After is this implementation. Chrome/Windows uses
+the checkout-owned persistent profile, DPR 1, default 100% zoom and bundled Pretendard after
+fonts load. Both desktop captures use 1280×720, the same `authoring.md` fixture after slash
+insertion of `conference`, and the newly opened form with an empty focused key input. The
+375×812 capture uses that same form with the responsive sidebar closed. Temporary capture
+instrumentation was removed; generated traces and bulk captures are not committed.
+The quiet-document rest pair at 375px is byte-identical; the 1440px pair differs only at two
+near-white edge pixels (335,630 and 335,845), with no document layout change.
+
+| State | Before | After |
+| --- | --- | --- |
+| Citation form, 1280px | [Browser datalist input](assets/citation-key-list-463/before-1280.png) | [Visible candidates](assets/citation-key-list-463/after-1280.png) |
+| Citation form, 375px | — | [Wrapped candidates](assets/citation-key-list-463/after-375.png) |

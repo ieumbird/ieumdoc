@@ -63,7 +63,58 @@ async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, 
   await page.keyboard.type(' /cite');
   await page.getByRole('menuitem', { name: 'Citation…', exact: true }).click();
   await form.waitFor();
-  assert(await form.locator('datalist option').count() === 10, 'Every readable entry is searchable in the form');
+  const keyInput = page.getByTestId('citation-key');
+  const choices = form.getByRole('listbox', { name: 'Citation keys', exact: true });
+  assert(await keyInput.getAttribute('role') === 'combobox' && await keyInput.getAttribute('aria-expanded') === 'true', 'Key search exposes an expanded combobox');
+  assert(await keyInput.getAttribute('aria-controls') === await choices.getAttribute('id'), 'Combobox controls the bibliography list');
+  assert(await choices.getByRole('option', { name: /article.*W\. Zhang.*Control Study/ }).count() === 1, 'Candidates show their key, author and title');
+  await page.setViewportSize({ width: 375, height: 812 });
+  const phone = await form.evaluate(element => {
+    const list = element.querySelector('[role="listbox"]');
+    const rect = element.getBoundingClientRect();
+    return { left: rect.left, right: rect.right, width: element.clientWidth, scroll: element.scrollWidth,
+      listWidth: list.clientWidth, listScroll: list.scrollWidth, pageWidth: document.documentElement.scrollWidth };
+  });
+  assert(phone.left >= 0 && phone.right <= 375 && phone.scroll <= phone.width && phone.listScroll <= phone.listWidth && phone.pageWidth <= 375,
+    'Phone candidate list stays within its form and viewport: ' + JSON.stringify(phone));
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await keyInput.fill('feedb');
+  assert(await choices.getByRole('option').count() === 1, 'Title filters the loaded entries');
+  await keyInput.press('ArrowDown');
+  const active = await keyInput.getAttribute('aria-activedescendant');
+  assert(active && await choices.getByRole('option').getAttribute('id') === active, 'Arrow navigation exposes the active candidate');
+  await keyInput.press('Enter');
+  assert(await form.getByTestId('citation-keys').locator('[data-key="conference"]').count() === 1, 'Enter adds the selected candidate without submitting the form');
+  assert(await keyInput.evaluate(input => input === document.activeElement), 'Selection keeps input focus');
+  await form.getByRole('button', { name: 'Remove key conference', exact: true }).click();
+  await keyInput.fill('zhang');
+  assert(await choices.getByRole('option').count() === 1, 'Author filters the loaded entries');
+  await choices.getByRole('option').click();
+  await form.getByRole('button', { name: 'Remove key article', exact: true }).click();
+  await keyInput.fill('');
+  await keyInput.press('ArrowDown');
+  const first = await keyInput.getAttribute('aria-activedescendant');
+  await keyInput.press('ArrowDown');
+  assert(await keyInput.getAttribute('aria-activedescendant') !== first, 'Down moves to the next candidate');
+  await keyInput.press('ArrowUp');
+  assert(await keyInput.getAttribute('aria-activedescendant') === first, 'Up returns to the previous candidate');
+  // Browser-dispatched composition events exercise both native isComposing and legacy 229 paths.
+  await keyInput.dispatchEvent('compositionstart', { data: '한' });
+  for (const key of ['ArrowDown', 'ArrowUp', 'Enter', 'Escape']) {
+    await keyInput.dispatchEvent('keydown', { key, code: key, isComposing: true });
+    assert(await keyInput.getAttribute('aria-activedescendant') === first, `IME ${key} does not navigate or select`);
+  }
+  assert(await form.getByTestId('citation-keys').count() === 0 && await form.isVisible(), 'Composition does not add keys or apply/cancel the form');
+  await keyInput.dispatchEvent('compositionend', { data: '한' });
+  await keyInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 229 });
+  assert(await form.getByTestId('citation-keys').count() === 0 && await form.isVisible(), 'Legacy IME Enter cannot add a highlighted candidate or submit');
+  await keyInput.fill('한글');
+  assert(await choices.getByRole('option', { name: /unicode.*한글/ }).count() === 1, 'Committed Korean text filters candidates');
+  await keyInput.press('Escape');
+  assert(await keyInput.getAttribute('aria-expanded') === 'false' && await form.isVisible() && await keyInput.inputValue() === '한글', 'Escape closes suggestions and preserves the draft');
+  await keyInput.press('ArrowDown');
+  assert(await choices.isVisible() && await keyInput.getAttribute('aria-activedescendant'), 'Down reopens the list after Escape');
+  await keyInput.press('Escape');
   await page.getByTestId('citation-key').fill('bad key');
   await page.getByTestId('citation-add').click();
   assert(await form.getByRole('alert').isVisible(), 'An invalid key is refused in the form');
@@ -92,6 +143,7 @@ async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, 
   assert(tiny.every((m,i)=>m.width===(i?16:18)&&m.height===(i?16:18)&&m.line==='0px'&&m.radius===m.expectedRadius),
     `Inline control exception changed: ${JSON.stringify(tiny)}`);
   await page.getByTestId('citation-role').selectOption('cite:t');
+  await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   await form.waitFor({ state: 'detached' });
   assert(await citations() === inserted, 'Escape cancels the form without changes');
@@ -265,6 +317,7 @@ async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, 
       await center.waitFor({ state: 'detached' });
       await form.waitFor();
       await page.keyboard.press('Escape');
+      await page.keyboard.press('Escape');
       await form.waitFor({ state: 'detached' });
     } else {
       await page.keyboard.press('Escape');
@@ -399,6 +452,7 @@ async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, 
   for (const [label, testId] of [['Insert citation…', 'citation-form'], ['Insert cross-reference…', 'reference-form']]) {
     await openInsert(label);
     await page.getByTestId(testId).waitFor();
+    if (testId === 'citation-form') await page.keyboard.press('Escape');
     await page.keyboard.press('Escape');
     await page.getByTestId(testId).waitFor({ state: 'detached' });
     assert(await hasFocus() && await position() === insertionCaret && await snapshot() === beforeInsert,

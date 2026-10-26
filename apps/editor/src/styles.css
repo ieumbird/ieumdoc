@@ -2184,6 +2184,23 @@ ol.list { list-style: decimal; }
   flex: 1 1 12rem;
 }
 
+.citation-candidates {
+  flex-basis: 100%;
+  min-width: 0;
+  border: var(--border-width) solid var(--id-color-border);
+  border-radius: var(--id-radius-md);
+  background: var(--id-color-surface);
+}
+
+.citation-candidates .command-center-results {
+  max-height: min(var(--layout-folder-picker-list-height), 25dvh);
+}
+
+.citation-candidates .command-center-result-detail {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .citation-keys {
   display: flex;
   flex-basis: 100%;
