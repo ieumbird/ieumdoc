@@ -71,12 +71,12 @@ async (page, { openPath }) => {
     if (hold && !check.held) throw new Error("ProseMirror's post-focus selection check was not scheduled; recheck the prosemirror-view patch");
   }, hold);
   // Tab from the final header control into the editor after selection has left it (as after a click elsewhere),
-  // recording the DOM caret the browser left when focus arrived.
+  // recording the browser caret before the engine handles focus.
   const tabIn = async () => {
     await editor.evaluate(el => el.addEventListener('focus', () => {
       const dom = getSelection();
       window.__focusDom = dom.anchorNode && el.contains(dom.anchorNode) ? el.editor.view.posAtDOM(dom.anchorNode, dom.anchorOffset) : null;
-    }, {once: true}));
+    }, {once: true, capture: true}));
     await page.getByRole('button', {name:'Close focus.md', exact:true}).focus();
     await page.evaluate(() => getSelection().removeAllRanges());
     await page.keyboard.press('Tab');

@@ -49,22 +49,42 @@ The citation-Remove gate explicitly checks that the focus helper's promise is st
 BODY has focus, before releasing callbacks. Replacing that helper with a resolved promise must fail
 this same assertion; releasing focus before Undo alone does not prove that the helper waited.
 
-`citation-authoring` also waits for the **native collapsed caret** to match the retained
-`codeBlock` position after Command center dismissal (#542). EditorView focus and EditorState's
-position can already be correct while Chromium's native caret is briefly at the title; typing
-then edits the title and opens its valid slash menu. The scenario reuses `waitForEditorFocus`,
-checks native/engine position agreement before typing, and requires both no menu and literal
-`Code. /` content in the code block. It never resets the selection to make the check pass.
+### Native focus selection regression (#542)
 
-A local forced-order probe reproduced the old `Code keeps literal slash input` failure with
-10× CPU throttling, the real 20ms post-focus selection check held, and native title
-`selectionchange` delivery held until input. The first space moved EditorState from code
-position 176 to heading position 2, then `/` opened the heading menu. With the native-caret
-wait, its promise remained pending during the same mismatch; releasing the held selection
-work restored the code caret and the unchanged menu assertion plus literal-content assertion
-passed. This classifies the reproduced path as test readiness, not a code slash-trigger defect.
-The original one-off review failure has no artifact, so its exact event order is unconfirmed.
-No product code, sleep, retry or timeout increase is part of this correction.
+**Classification: product defect.** The earlier test-readiness diagnosis was incomplete.
+A real code-block click followed within 300ms by Command center → Escape can replace the
+retained code selection with H1 position 1, before further input. Typing even hundreds of
+milliseconds later then edits the title. Waiting for a native code caret after Escape cannot
+repair that lost engine selection; that wait has been removed.
+
+Base UI returns focus through the editor DOM element's native `focus()`. Chromium puts a
+native caret at the document start. ProseMirror's existing start-of-document heuristic ignores
+resets within 300ms of a pointer/touch, including a click **before** the dialog opened. This
+age condition is upstream, not an addition from #495. If the observer accepts the reset first,
+the later 20ms check only restores the now-wrong H1 selection. The pinned engine patch now
+writes its retained selection synchronously on focus, before `DOMObserver.stop()` can flush
+the browser caret. The #144 key counters and #495 later-pointer/touch guard remain unchanged.
+
+`citation-authoring` uses an actual code click, awaits only the initial click's native/engine
+caret agreement (#416 is separate), opens the center immediately, escapes, and types ` /`.
+It requires selection retention **before** input, literal `Code. /` in the code block and no
+slash menu. The second case holds the engine's real 20ms check until after typing; the new
+focus synchronization must work without that callback. There is no post-Escape caret polling,
+selection assignment, sleep, retry or timeout increase. Both cases failed with the master
+product patch (shortcut 91ms/64ms after the real click; title input and one menu), and passed
+with the focus change (100ms/49ms; retained code selection and literal text).
+
+`focus-caret` records the browser's initial focus caret in capture phase, before the engine
+synchronizes it. Its existing caret-key, modifier and delayed-restore assertions stay intact.
+`document-title` retains the forced later-pointer regression from #495. `command-center`
+also checks that the shortcut-guide dialog's Escape, Close and outside dismissal preserve
+the retained engine selection as well as the existing focus/content checks.
+
+**#502 remains open.** Reference navigation already dispatches a table NodeSelection and calls
+`view.focus()`. The #502 report records resets 382ms/866.5ms after focus; this change acts only
+on a real focus event and does not filter later native selection changes. Passing the existing
+table-authoring scenario does not establish that the unexplained late NodeView reset is fixed.
+No broad `nodeReset` guard or #502 resolution is claimed.
 
 `link-authoring` reports a missing selection toolbar within 15 seconds, including the scenario phase, requested range and actual ProseMirror/DOM selection.
 

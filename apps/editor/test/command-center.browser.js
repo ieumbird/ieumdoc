@@ -99,6 +99,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await run('undo'); await run('undo');
 
   for (const dismissal of ['Escape', 'Close', 'outside click']) {
+    const guideSelection = await editor().evaluate(n => JSON.stringify(n.editor.state.selection.toJSON()));
     const fromTrigger = dismissal === 'Close';
     if (fromTrigger) {
       await page.getByRole('button', {name:'Command center',exact:true}).focus();
@@ -127,6 +128,8 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     const focus = fromTrigger ? page.getByRole('button', {name:'Command center',exact:true}) : editor();
     check(await focus.evaluate(n => n === document.activeElement), `${dismissal} did not restore focus from the shortcut guide`);
     check(await snapshot() === baseline471, 'Shortcut guide edited the document');
+    check(await editor().evaluate(n => JSON.stringify(n.editor.state.selection.toJSON())) === guideSelection,
+      `${dismissal} changed the retained editor selection through the shortcut guide`);
     // The next shortcut opens from the editor, as the first one did.
     await editor().focus();
   }

@@ -123,6 +123,72 @@ async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, 
   // Exercise the same insertion paths on every supported inline surface, then persist them.
   const nestedFile = [root, 'chapters', 'nested.md'].join(sep);
   await openPath(page, nestedFile);
+  // #542: real code click -> immediate shortcut -> Escape -> typing, including a
+  // held engine post-focus check. Only the initial click's caret is awaited.
+  const codeFocusCases = [];
+  for (const holdCheck of [false, true]) {
+    await editor.evaluate(element => {
+      const probe = window.codeFocusProbe = { events: new AbortController() };
+      element.addEventListener('pointerdown', () => { probe.clicked = performance.now(); }, { signal: probe.events.signal });
+      element.addEventListener('keydown', event => {
+        if ((event.ctrlKey || event.metaKey) && event.key === '/') probe.openClickAge = performance.now() - probe.clicked;
+      }, { signal: probe.events.signal });
+    });
+    await editor.locator('pre').filter({ hasText: 'Code.' }).click();
+    await page.waitForFunction(() => {
+      const e = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+      const native = getSelection();
+      return e.state.selection.$from.parent.type.name === 'codeBlock' && native.isCollapsed &&
+        e.view.dom.contains(native.anchorNode) && e.view.posAtDOM(native.anchorNode, native.anchorOffset) === e.state.selection.from;
+    });
+    const clickedCaret = await editor.evaluate(element => element.editor.state.selection.from);
+    await page.keyboard.press('ControlOrMeta+/');
+    const codeCenter = page.getByRole('dialog', { name: 'Command center', exact: true });
+    await codeCenter.getByRole('combobox').waitFor();
+    if (holdCheck) await page.evaluate(() => {
+      const schedule = window.setTimeout;
+      window.codeFocusProbe.restore = () => { window.setTimeout = schedule; };
+      window.setTimeout = (callback, ms, ...args) => {
+        if (ms === 20 && String(callback).includes('selectionToDOM')) {
+          window.codeFocusProbe.check = callback;
+          return 0;
+        }
+        return schedule(callback, ms, ...args);
+      };
+    });
+    try {
+      await page.keyboard.press('Escape');
+      await codeCenter.waitFor({ state: 'detached' });
+      await waitForEditorFocus(page);
+      const returned = await editor.evaluate((element, clickedCaret) => {
+        const e = element.editor, native = getSelection();
+        return { openClickAge: window.codeFocusProbe.openClickAge,
+          retained: e.state.selection.from === clickedCaret && native.isCollapsed &&
+            e.view.dom.contains(native.anchorNode) && e.view.posAtDOM(native.anchorNode, native.anchorOffset) === clickedCaret,
+          checkHeld: typeof window.codeFocusProbe.check === 'function' };
+      }, clickedCaret);
+      await page.keyboard.type(' /');
+      const typed = await editor.evaluate(element => ({
+        parent: element.editor.state.selection.$from.parent.type.name,
+        text: element.editor.state.selection.$from.parent.textContent,
+      }));
+      const menus = await page.getByRole('menu', { name: 'Insert block', exact: true }).count();
+      codeFocusCases.push({ holdCheck, ...returned, ...typed, menus });
+    } finally {
+      await page.evaluate(() => {
+        const probe = window.codeFocusProbe;
+        probe.events.abort();
+        probe.restore?.();
+        probe.check?.();
+      });
+    }
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Backspace');
+    await page.keyboard.press('Backspace');
+  }
+  assert(codeFocusCases.every(c => c.retained && c.parent === 'codeBlock' && c.text === 'Code. /' &&
+    c.menus === 0 && (!c.holdCheck || c.checkHeld)),
+    'A recent real code click survives Command center Escape: ' + JSON.stringify(codeFocusCases));
   const caret = async (text, replace = false) => editor.evaluate((element, { text, replace }) => {
     const instance = element.editor;
     let range;
@@ -198,18 +264,6 @@ async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, 
   await checkInsertionAvailability(false, 'Ordinary paragraph text selection');
   await caret('Code.');
   await checkInsertionAvailability(false, 'Code');
-  // Dialog final focus can precede the engine's native caret restoration.
-  // EditorState alone still points to Code while Chromium's caret is at the title.
-  const codeCaret = await editor.evaluate(element => element.editor.state.selection.from);
-  await page.waitForFunction(position => {
-    const instance = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
-    const selection = instance.state.selection;
-    const native = window.getSelection();
-    return instance.view.hasFocus() && selection.empty && selection.from === position &&
-      selection.$from.parent.type.name === 'codeBlock' && native?.isCollapsed && native.anchorNode &&
-      instance.view.dom.contains(native.anchorNode) &&
-      instance.view.posAtDOM(native.anchorNode, native.anchorOffset) === position;
-  }, codeCaret);
   await page.keyboard.type(' /');
   assert(await menu.count() === 0, 'Code keeps literal slash input');
   assert(await editor.evaluate(element => {
@@ -356,5 +410,5 @@ async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, 
   } finally {
     await page.evaluate(() => localStorage.setItem('ieumdoc.uiLanguage', 'en'));
   }
-  return { commandInsertion: true, slashInsert: true, formInsert: true, editRemove: true, undoRedo: true, saveReload: true, nestedInline: true, citationOnlyList: true, nestedReferenceRename: true, bibHash };
+  return { codeFocusCases, commandInsertion: true, slashInsert: true, formInsert: true, editRemove: true, undoRedo: true, saveReload: true, nestedInline: true, citationOnlyList: true, nestedReferenceRename: true, bibHash };
 }

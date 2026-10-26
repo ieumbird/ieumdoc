@@ -1,6 +1,7 @@
 # Continuous document editing v1
 
 - Status: Implemented
+- Native focus selection: 2026-10-26 (#542: restore the retained selection before the observer can accept Chromium's native focus caret; real-click Command center and held-check browser regressions. #502 remains separate).
 - Selection-race scope: 2026-10-26 (#489: citation-form focus, closing Reload focus and empty-title pointer selection. The separate table selection investigation is #502. Per-scenario evidence and the #421/#416 boundary are recorded in the [test guide](../test/README.md#focus-and-selection-race-investigation-489)).
 - Body-heading verification: 2026-10-26 (#472: Editor 287/287, typecheck/build, docs check; new-document, structural-block-authoring, document-title, basic-blocks and markdown-input browser regressions with the worktree's persistent Chrome profile. New insertion/menu unit assertions and browser insert/H2 promotion regressions failed on unchanged implementation before the fix).
 - Double-click verification: 2026-10-26 (#470: equation-insertion checks display-formula entry through Edit, LaTeX-field focus, Cancel/Escape caret restoration, unchanged document and Undo/Redo, and an existing draft; the new entry assertion failed before the change).
@@ -150,6 +151,12 @@ A changed document recomputes numbering; source semantics and canonical output a
   still restores its own caret when focus arrives without a key (Tab, or a DOM `focus()`
   after which the browser resets the caret), also when only a modifier is pressed. A pinned
   `prosemirror-view` patch provides this ([cause and removal condition](../reviews/prosemirror-focus-caret-2026-10-09.md)).
+- Native DOM focus (including Tab and shell dialog/menu focus return) synchronizes the
+  retained engine selection before the DOM observer can read Chromium's document-start caret
+  (#542). A recent click before opening a dialog must not disable this restoration. It adds
+  no content/history event and applies only at focus, without blocking later native caret
+  movement. The pinned `prosemirror-view` patch owns this ordering; remove this addition when
+  upstream passes both real-click and held-check `citation-authoring` cases without it.
 - A post-focus selection check must also preserve a later pointer or touch destination (#489).
   The same pinned engine patch snapshots pointer/touch activity when focus arrives; its delayed
   check only restores the old caret if neither has changed. It must not move a paragraph click
