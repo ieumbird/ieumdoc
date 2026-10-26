@@ -158,6 +158,10 @@ directive; its two expected Markdown strings still assumed plain GFM. They now i
 the canonical wrapper. The exact Source/disk comparison and Reload structure equality
 remain unchanged. Local `external-html-paste` passes after this expectation correction;
 no timeout, retry or state-wait change was needed.
+The next CI's table-cell-editing artifact passed editing, formatting, grid preservation
+and Save/Reload; only its old GFM-to-following-paragraph regex failed. It now explicitly
+requires the directive opener and closer around the same exact grid. Local
+`table-cell-editing` passes; all other product CI jobs on that head had passed.
 
 Manual captures compare baseline `586a9b61ac1d06dd0708466faead6717396bb74e` with this
 change through `pnpm browser:test table-caption --screenshots`. Both use the same scratch
