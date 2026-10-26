@@ -341,15 +341,20 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await page.keyboard.press('ArrowDown');
   const visual = center().getByRole('option',{name:'Visual',exact:true});
   check(await visual.getAttribute('data-highlighted') !== null, 'First Down after typing did not move to the next result');
-  const highlightedSurface = await visual.evaluate(n => getComputedStyle(n).backgroundColor);
+  const highlighted = await visual.evaluate(n => {
+    const probe=document.createElement('span');n.append(probe);
+    probe.style.background='var(--id-color-surface-selected)';probe.style.color='var(--id-color-text-selected)';probe.style.borderRadius='var(--id-radius-md)';
+    const c=getComputedStyle(n),p=getComputedStyle(probe),result={background:c.backgroundColor,selected:p.backgroundColor,text:c.color===p.color,radius:c.borderRadius===p.borderRadius,shadow:c.boxShadow};
+    probe.style.background='var(--id-color-surface-selected-hover)';result.selectedHover=getComputedStyle(probe).backgroundColor;probe.remove();return result;
+  });
   const settings = center().getByRole('option',{name:'Settings',exact:true});
   await settings.hover();
   check(await settings.getAttribute('data-highlighted') !== null &&
     await center().locator('[data-highlighted]').count() === 1 &&
     await input().getAttribute('aria-activedescendant') === await settings.getAttribute('id'), 'Hover and keyboard active result diverged');
-  check(highlightedSurface !== 'rgba(0, 0, 0, 0)' &&
-    await settings.evaluate(n => getComputedStyle(n).backgroundColor) === highlightedSurface,
-    'Hover has no selected-surface feedback');
+  check(highlighted.background === highlighted.selected && highlighted.text && highlighted.radius && highlighted.shadow === 'none' &&
+    await settings.evaluate(n => getComputedStyle(n).backgroundColor) === highlighted.selectedHover && highlighted.selectedHover !== highlighted.selected,
+    'Command center must use selected background/text, selected-hover and control radius without a marker');
   if (screenshots) await page.screenshot({path:'tmp/command-center/keyboard-hover-386.png'});
   await page.keyboard.press('ArrowUp');
   check(await center().getByRole('option',{name:'Collapse sidebar',exact:true}).getAttribute('data-highlighted') !== null,

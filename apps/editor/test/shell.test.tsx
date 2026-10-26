@@ -486,7 +486,8 @@ test("document panel holds only the outline, and the TopBar Outline toggle shows
   assert.match(panel, />Outline</);
   assert.match(panel, /aria-label="Hide outline"/);
   assert.match(panel, /data-testid="outline"/);
-  assert.match(panel, /aria-current="location"[^>]*>Detail</);
+  const currentText = panel.match(/<button\b[^>]*aria-current="location"[^>]*>([\s\S]*?)<\/button>/)?.[1];
+  assert.equal(currentText?.replace(/<[^>]+>/g, ""), "Detail");
   // Outline only: no tabs or other document tools.
   assert.doesNotMatch(panel, /role="tab/);
   for (const open of [true, false]) {
