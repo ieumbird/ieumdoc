@@ -112,6 +112,20 @@ Rules:
 - Never copy model metadata from previous commits. Verify the actual
   model used for the current implementation.
 - Do not add duplicate provenance trailers.
+- Put both required trailers exactly once in the final contiguous trailer
+  block, separated from the body by one blank line. Never put a blank line
+  between trailers. Text that looks like metadata but is outside Git's parsed
+  trailer block does not satisfy this policy.
+- Write multi-line commit messages through a UTF-8 message file (`git commit
+  --file <file>`); do not pass each trailer as a separate `-m` paragraph.
+- Immediately after every commit and before push, inspect
+  `git log -1 --format='%H%n%(trailers:only)'` and verify Git reads exactly
+  one `AI-Agent` and one `AI-Model` with the actual implementation values.
+  A visual inspection of the raw message or a successful optional hook is
+  insufficient.
+- Before approval, reviewers must inspect the final PR commit range with
+  Git's parsed-trailer check in CONTRIBUTING, including authored merge commits,
+  and confirm the provenance CI check passed for the reviewed head SHA.
 
 `AI-Agent` / `AI-Model` name the agent and model that performed the
 implementation. A model that only reviewed the work is not the

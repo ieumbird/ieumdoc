@@ -92,6 +92,10 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          # Validate event base/head histories, not the synthetic merge alone.
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -107,6 +111,13 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: AI commit provenance regressions
+        run: node --test scripts/commit-provenance.test.mjs
+
+      - name: Check real PR commit provenance
+        if: github.event_name == 'pull_request'
+        run: node scripts/commit-provenance.mjs pr-event "$GITHUB_EVENT_PATH"
 
       - name: Documentation checks
         run: |
