@@ -346,7 +346,7 @@ async (page, { openPath, withBlockHover }) => {
       const rail=await page.getByRole('button',{name:'Display',exact:true}).evaluate(n=>{
         const probe=document.createElement('span');n.append(probe);
         probe.style.background='var(--id-color-surface)';probe.style.color='var(--id-color-text)';
-        probe.style.boxShadow='0 0 0 var(--border-width) var(--id-color-border), var(--shadow-segment)';
+        probe.style.boxShadow='0 0 0 var(--border-width) var(--id-color-border-control), var(--shadow-segment)';
         const c=getComputedStyle(n),p=getComputedStyle(probe),r=n.getBoundingClientRect();
         const result={current:n.getAttribute('aria-pressed'),expanded:n.getAttribute('aria-expanded'),name:n.getAttribute('aria-label'),
           face:c.backgroundColor===p.backgroundColor&&c.color===p.color&&c.boxShadow===p.boxShadow,

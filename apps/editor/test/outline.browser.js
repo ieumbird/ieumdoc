@@ -292,7 +292,7 @@ async (page, { openDocument, reloadDocument, expect }) => {
       headings: headings.map(heading => ({ number: getComputedStyle(heading, '::before').color, text: getComputedStyle(heading).color })),
       selectedSurface: resolve('--id-color-surface-selected'),
       outline: numbered.map(row => ({ current: row.hasAttribute('aria-current'), number: getComputedStyle(row.querySelector('.document-outline-number')).color, text: getComputedStyle(row).color,
-        background:getComputedStyle(row).backgroundColor,marker:getComputedStyle(row,'::before').content })),
+        background:getComputedStyle(row).backgroundColor,marker:getComputedStyle(row,'::before').content,weight:Number(getComputedStyle(row).fontWeight) })),
     };
   });
   const checkNumberColors = colors => {
@@ -305,6 +305,7 @@ async (page, { openDocument, reloadDocument, expect }) => {
     for (const row of colors.outline) {
       expect(row.number).toBe(row.current ? colors.selected : colors.number);
       expect(row.text).toBe(row.current ? colors.selected : colors.outlineText);
+      expect(row.weight).toBe(row.current ? 600 : 400);
       if(row.current) { expect(row.background).toBe(colors.selectedSurface); expect(row.marker).toBe('none'); }
     }
   };

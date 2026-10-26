@@ -478,14 +478,12 @@ button {
 
 .document-outline-item {
   position: relative;
-  display: -webkit-box;
+  display: grid;
   width: 100%;
   padding: var(--space-1) var(--space-3);
   /* One adjustable step per heading level below H1, capped so deep headings stay readable. */
   padding-left: calc(var(--space-3) + min(var(--outline-depth, 0), 3) * var(--space-outline-indent));
   overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
   overflow-wrap: anywhere;
   border: 0;
   border-radius: var(--id-radius-md);
@@ -498,8 +496,25 @@ button {
   cursor: pointer;
 }
 
-/* File and heading current use only background/text, independently of hover and keyboard focus.
- * No state changes font metrics, row height or the text's starting position. */
+/* Reserve the semibold line extent so current changes never jump the following Outline rows.
+ * The generated copy is hidden from painting/accessibility and adds no duplicate DOM text. */
+.document-outline-copy,
+.document-outline-item::after {
+  grid-area: 1 / 1;
+  min-width: 0;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.document-outline-item::after {
+  content: attr(data-outline-label);
+  visibility: hidden;
+  font-weight: var(--font-weight-semibold);
+}
+
+/* File and heading current add semibold as a non-color cue, independently of hover/focus.
+ * Glyph widths may change; row insets, clipping and the two-line Outline clamp stay unchanged. */
 .sidebar-tree-item:hover,
 .document-outline-item:hover {
   background: var(--id-color-surface-hover);
@@ -515,6 +530,7 @@ button {
 .document-outline-item[aria-current="location"] {
   background: var(--id-color-surface-selected);
   color: var(--id-color-text-selected);
+  font-weight: var(--font-weight-semibold);
 }
 
 .sidebar-tree-item[aria-current="page"]:hover,
@@ -573,7 +589,7 @@ button {
 .document-tab[data-selected="true"]:hover {
   color: var(--id-color-text);
   background: var(--id-color-surface);
-  box-shadow: 0 0 0 var(--border-width) var(--id-color-border), var(--shadow-segment);
+  box-shadow: 0 0 0 var(--border-width) var(--id-color-border-control), var(--shadow-segment);
 }
 
 .document-tab:hover { color: var(--id-color-text); }
@@ -1938,6 +1954,7 @@ ol.list { list-style: decimal; }
 .command-menu-item.active {
   background: var(--id-color-surface-selected);
   color: var(--id-color-text-selected);
+  font-weight: var(--font-weight-semibold);
 }
 
 .command-menu-item.active:hover {
@@ -2343,7 +2360,7 @@ ol.list { list-style: decimal; }
 .view-toggle .view-toggle-option[aria-pressed="true"],
 .view-toggle .view-toggle-option[aria-pressed="true"]:hover {
   background: var(--id-color-surface);
-  box-shadow: 0 0 0 var(--border-width) var(--id-color-border), var(--shadow-segment);
+  box-shadow: 0 0 0 var(--border-width) var(--id-color-border-control), var(--shadow-segment);
 }
 
 /* Source wraps visually, keeping one number per Markdown line and the Visual text axis. */
@@ -2676,7 +2693,7 @@ ol.list { list-style: decimal; }
 .sidebar-tools .sidebar-tool[aria-pressed="true"]:hover {
   background: var(--id-color-surface);
   color: var(--id-color-text);
-  box-shadow: 0 0 0 var(--border-width) var(--id-color-border), var(--shadow-segment);
+  box-shadow: 0 0 0 var(--border-width) var(--id-color-border-control), var(--shadow-segment);
 }
 .top-bar-toggle[aria-pressed="true"] { border-color: transparent; }
 .top-bar-toggle:not([aria-pressed="true"]):hover:not(:disabled, [aria-disabled="true"]) {
@@ -2689,7 +2706,7 @@ ol.list { list-style: decimal; }
 }
 .sidebar-tools .sidebar-tool[aria-pressed="true"]:focus-visible,
 .view-toggle .view-toggle-option[aria-pressed="true"]:focus-visible {
-  box-shadow: var(--focus-ring-inset), 0 0 0 var(--border-width) var(--id-color-border), var(--shadow-segment);
+  box-shadow: var(--focus-ring-inset), 0 0 0 var(--border-width) var(--id-color-border-control), var(--shadow-segment);
 }
 
 /* An open menu's ghost trigger keeps a quiet pressed face, without a border box. */

@@ -320,13 +320,19 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
     const resolve = (property,value) => { probe.style.setProperty(property,value); return getComputedStyle(probe).getPropertyValue(property); };
     const tokens = {track:resolve('background-color','var(--id-color-surface-pressed)'),face:resolve('background-color','var(--id-color-surface)'),
       text:resolve('color','var(--id-color-text)'),muted:resolve('color','var(--id-color-text-muted)'),
-      shadow:resolve('box-shadow','0 0 0 var(--border-width) var(--id-color-border), var(--shadow-segment)'),
+      shadow:resolve('box-shadow','0 0 0 var(--border-width) var(--id-color-border-control), var(--shadow-segment)'),
       height:resolve('height','var(--layout-document-tab-height)'),close:resolve('height','var(--size-control-compact)')}; probe.remove();
+    const rgb = color => color.match(/[\d.]+/g).slice(0,3).map(Number);
+    const lum = color => rgb(color).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);
+    const ratio = (a,b) => { const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05); };
     return {tokens,track:getComputedStyle(row).backgroundColor,tabs:[...row.querySelectorAll('.document-tab')].map(n=>{
-      const c=getComputedStyle(n); return {selected:n.dataset.selected,background:c.backgroundColor,color:c.color,shadow:c.boxShadow,height:n.getBoundingClientRect().height,
+      const c=getComputedStyle(n),edge=c.boxShadow.match(/^(rgba?\([^)]+\)) 0px 0px 0px [\d.]+px(?:,|$)/)?.[1];
+      return {selected:n.dataset.selected,background:c.backgroundColor,color:c.color,shadow:c.boxShadow,height:n.getBoundingClientRect().height,
+        edgeContrasts:edge?[c.backgroundColor,getComputedStyle(row).backgroundColor,getComputedStyle(document.querySelector('.top-bar')).backgroundColor].map(bg=>ratio(edge,bg)):[],
         close:n.querySelector('.document-tab-close').getBoundingClientRect().height};
     })};
   });
+  check(tabFaces.tabs.filter(t=>t.selected==='true').every(t=>t.edgeContrasts.length===3&&t.edgeContrasts.every(r=>r>=3)), `Current tab border needs 3:1 against face, track and header ${JSON.stringify(tabFaces)}`);
   check(tabFaces.track === tabFaces.tokens.track && tabFaces.tabs.every(t => t.selected === 'true'
     ? t.background === tabFaces.tokens.face && t.color === tabFaces.tokens.text && t.shadow === tabFaces.tokens.shadow
     : t.color === tabFaces.tokens.muted && t.shadow === 'none'), `Document tabs need raised current / muted inactive segments ${JSON.stringify(tabFaces)}`);

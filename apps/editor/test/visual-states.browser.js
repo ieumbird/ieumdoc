@@ -23,6 +23,13 @@ async (page, { withBlockHover }) => {
     const inset = [...c.boxShadow.matchAll(/(rgba?\([^)]+\)) 0px 0px 0px ([\d.]+)px inset/g)].map(([, color, spread]) => ({color, spread: Number(spread)}))
       .filter(s => s.spread > 0).sort((a, b) => b.spread - a.spread)[0];
     const base = surface(n);
+    // The raised face's painted border is the existing zero-offset, positive-spread outer shadow.
+    // Measure its real color against the white face, the track and the surrounding panel/header.
+    const edge = [...c.boxShadow.matchAll(/(rgba?\([^)]+\)) 0px 0px 0px ([\d.]+)px( inset)?/g)]
+      .find(([, , spread, inset]) => !inset && Number(spread) > 0);
+    const edgeColor = edge?.[1];
+    const adjacent = [base, surface(n.parentElement), surface(n.closest('.sidebar, .top-bar') ?? n.parentElement)];
+    const edgeContrasts = edgeColor ? adjacent.map(bg => ratio(over(rgba(edgeColor), bg), bg)) : [];
     const ringContrast = inset ? ratio(over(rgba(inset.color), base), base) : 0, ringWidth = inset ? inset.spread : 0;
     const resolve = (property, value) => { const probe = document.createElement('span'); probe.style.setProperty(property, value); n.append(probe);
       const result = getComputedStyle(probe).getPropertyValue(property); probe.remove(); return result; };
@@ -31,11 +38,11 @@ async (page, { withBlockHover }) => {
     return { background: c.backgroundColor, color: c.color, border: c.borderColor, radius: c.borderRadius, opacity: c.opacity,
       outline: c.outlineStyle, outlineColor: c.outlineColor, outlineOffset: c.outlineOffset, ring: c.boxShadow,
       marker: marker.content, markerColor: marker.backgroundColor, markerWidth: parseFloat(marker.width),
-      textRects, textContrast: ratio(rgba(c.color), base),
+      textRects, textContrast: ratio(rgba(c.color), base), weight: Number(c.fontWeight), edgeColor, edgeContrasts,
       selected: resolve('background-color','var(--id-color-surface-selected)'), selectedHover: resolve('background-color','var(--id-color-surface-selected-hover)'),
       selectedText: resolve('color','var(--id-color-text-selected)'), surface: resolve('background-color','var(--id-color-surface)'),
       track: resolve('background-color','var(--id-color-surface-pressed)'), text: resolve('color','var(--id-color-text)'), muted: resolve('color','var(--id-color-text-muted)'),
-      segment: resolve('box-shadow','0 0 0 var(--border-width) var(--id-color-border), var(--shadow-segment)'),
+      segment: resolve('box-shadow','0 0 0 var(--border-width) var(--id-color-border-control), var(--shadow-segment)'),
       rect: [r.x, r.y, r.width, r.height], focused: n.matches(':focus-visible'), ringContrast, ringWidth, ringColor: inset?.color, active: document.activeElement === n };
   });
   await page.setViewportSize({width:1440, height:1000});
@@ -73,6 +80,7 @@ async (page, { withBlockHover }) => {
     ['outline', page.locator('.document-outline-item').first(), page.locator('.document-outline-item').nth(1), 'ArrowDown'],
   ]) {
     const rest = await state(current), otherRest = await state(other);
+    check(rest.weight === 600 && rest.weight > otherRest.weight, `${label}: current needs semibold as a non-color cue ${JSON.stringify({current:rest.weight,normal:otherRest.weight})}`);
     await other.hover(); const hover = await state(other);
     check(rest.background !== hover.background, `${label}: current and ordinary hover share a surface`);
     check(rest.background === rest.selected && rest.color === rest.selectedText && rest.textContrast >= 4.5 && rest.marker === 'none' && rest.ring === 'none',
@@ -128,6 +136,7 @@ async (page, { withBlockHover }) => {
   const visual = page.getByTestId('view-visual'), source = page.getByTestId('view-source');
   await page.mouse.move(0,0); await settle();
   const active = await state(visual), inactiveRest = await state(source);
+  check(active.edgeContrasts.length === 3 && active.edgeContrasts.every(r => r >= 3), `Visual segment border needs 3:1 contrast ${JSON.stringify(active.edgeContrasts)}`);
   check(active.background !== inactiveRest.background && active.ring !== 'none' && inactiveRest.ring === 'none' &&
     await marker(visual) === 'none' && await marker(source) === 'none', 'Chosen view lacks its raised segment');
   // Hovering the other view darkens its text without a face.
@@ -140,6 +149,7 @@ async (page, { withBlockHover }) => {
   const files = page.getByRole('button', {name:'Files',exact:true}), display = page.getByRole('button', {name:'Display',exact:true});
   await page.mouse.move(0,0);
   const filesRest = await state(files), displayRest = await state(display), track = await state(page.getByRole('group',{name:'Sidebar tools'}));
+  check(filesRest.edgeContrasts.length === 3 && filesRest.edgeContrasts.every(r => r >= 3), `Sidebar segment border needs 3:1 contrast ${JSON.stringify(filesRest.edgeContrasts)}`);
   check(track.background === filesRest.track && filesRest.background === filesRest.surface && filesRest.color === filesRest.text && filesRest.ring === filesRest.segment &&
     displayRest.color === displayRest.muted && await marker(files) === 'none', 'Sidebar tools must reuse the raised segment tokens');
   await display.hover(); const displayHover = await state(display);
@@ -189,6 +199,8 @@ async (page, { withBlockHover }) => {
   await page.keyboard.type('/');
   const choice = page.locator('.command-menu-item.active'); await choice.waitFor();
   await page.mouse.move(0,0); const choiceRest = await state(choice);
+  const ordinaryChoice = await state(page.locator('.command-menu-item:not(.active)').first());
+  check(choiceRest.weight === 600 && choiceRest.weight > ordinaryChoice.weight, 'Command active choice needs semibold as a non-color cue');
   check(choiceRest.background === choiceRest.selected && choiceRest.color === choiceRest.selectedText && choiceRest.ring === 'none' && choiceRest.textContrast >= 4.5,
     'Command active choice must use only selected background/text');
   await choice.hover(); const choiceHover = await state(choice);
@@ -280,5 +292,41 @@ async (page, { withBlockHover }) => {
     return pairs.map(([fg,bg,min]) => {const a=lum(rgb(fg)),b=lum(rgb(bg)); return {fg,bg,min,ratio:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)};});
   });
   check(contrasts.every(c => c.ratio >= c.min), `Contrast failure: ${JSON.stringify(contrasts.filter(c => c.ratio < c.min))}`);
-  return {navigation:results, filesRest, filesFocus, choiceRest, choiceHover, choiceFocus, ghostHover, menuOpen, pressed, field, contrasts};
+  // The approved non-color cue may change glyph widths. It must not jump these rows vertically,
+  // remove Files ellipsis, exceed Outline's two-line clamp or overflow the real menu at either width.
+  const weightGeometry = [];
+  const rows = async (selector, kind) => {
+    const measured = await page.locator(selector).evaluateAll((nodes, kind) => {
+      const snapshot = () => nodes.map(n => { const c=getComputedStyle(n),r=n.getBoundingClientRect();
+        return {y:r.y,height:r.height,overflow:n.scrollWidth>n.clientWidth,lineHeight:parseFloat(c.lineHeight),
+          clamp:getComputedStyle(n.querySelector('.document-outline-copy')??n).webkitLineClamp,ellipsis:n.querySelector('.sidebar-tree-name') ? getComputedStyle(n.querySelector('.sidebar-tree-name')).textOverflow : null}; });
+      const styles=nodes.map(n=>n.style.fontWeight);
+      try {
+        nodes.forEach(n=>n.style.fontWeight='400'); const normal=snapshot();
+        nodes.forEach(n=>n.style.fontWeight='600'); return {kind,normal,current:snapshot()};
+      } finally { nodes.forEach((n,i)=>n.style.fontWeight=styles[i]); }
+    }, kind);
+    check(measured.normal.length > 0 && measured.current.every((r,i)=>!r.overflow && r.height===measured.normal[i].height && r.y===measured.normal[i].y &&
+      (kind!=='outline'||r.clamp==='2'&&r.height<=2*r.lineHeight+8) && (kind!=='files'||r.ellipsis==='ellipsis')),
+      `Semibold must retain ${kind} row height/bounds ${JSON.stringify(measured)}`);
+    return measured;
+  };
+  for (const width of [1440,390]) {
+    await page.setViewportSize({width,height:1000});
+    if(width===390)await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+    const files = await rows('.sidebar-tree-item', 'files');
+    if(width===390) {
+      await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
+      await page.getByRole('button',{name:'Outline',exact:true}).click();
+    }
+    const outline = await rows('.document-outline-item','outline');
+    if(width===390)await page.getByRole('button',{name:'Outline',exact:true}).click();
+    await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n=>{n.editor.commands.setTextSelection(n.editor.state.doc.firstChild.nodeSize+1);n.editor.view.focus();});
+    await page.keyboard.type('/'); await page.locator('.command-menu-item.active').waitFor();
+    const menu = await rows('.command-menu-item','menu');
+    await page.keyboard.press('Escape');
+    await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n=>n.editor.commands.undo());
+    weightGeometry.push({width,files,outline,menu});
+  }
+  return {navigation:results, filesRest, filesFocus, active, choiceRest, choiceHover, choiceFocus, ghostHover, menuOpen, pressed, field, contrasts, weightGeometry};
 }
