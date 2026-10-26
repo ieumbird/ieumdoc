@@ -104,10 +104,21 @@ Slash keeps its controlled highlight with editor focus. No new menu engine is ad
 
 Destructive rows use `--id-color-danger` for text and icon, and
 `--id-color-surface-danger` on enabled hover. Disabled rows remain announced and
-skipped by arrow navigation, with no hover fill; title/endnote/draft move reasons
+skipped by arrow navigation, with no hover fill; boundary/title/endnote/draft move reasons
 are accessible descriptions/tooltips. Current body heading level is omitted; the
 title retains its disabled current-level row. Markdown-input hints remain key chips;
 no unbound action shortcut is invented. See [menu behavior and same-state evidence](editor-ux-shell-v1.md#unified-action-menus-516).
+
+Review correction (#523): the CommandMenu row's local radius declaration now uses
+the shared `--id-radius-md` control token directly. On `842965f`, the later common
+list-row rule already overrode the stale small-radius declaration, producing 6px
+in the real browser. The existing insert/block menu computed-style checks now
+assert that shared radius too; they passed on that baseline. Row height and padding
+are unchanged. Actual 1440×900 English `tables.md` captures with the `+` menu opened
+by keyboard, first-row focus and pointer away are byte-identical:
+[before](assets/unified-menus-516-review/before-radius.png) /
+[after](assets/unified-menus-516-review/after-radius.png). These are manual review
+evidence; no screenshot assertion is added.
 
 ## Document title (#255)
 
