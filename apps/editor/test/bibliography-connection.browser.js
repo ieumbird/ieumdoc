@@ -167,8 +167,7 @@ async (page, { openPath, reloadDocument, waitForEditorFocus, bibliographyFixture
   await type(' /citation'); await page.keyboard.press('Enter');
   await page.getByTestId('citation-form').waitFor();
   const input = page.getByTestId('citation-key');
-  const list = await input.getAttribute('list');
-  assert(await page.locator(`[id="${list}"] option[value="book"]`).count() === 1, 'Citation form offers loaded keys');
+  assert(await page.getByTestId('citation-form').getByRole('option', { name: /^book / }).count() === 1, 'Citation form offers loaded keys');
   await input.fill('book'); await page.getByTestId('citation-apply').click();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();

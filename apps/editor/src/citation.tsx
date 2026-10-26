@@ -1,4 +1,5 @@
 import { createContext, useContext, useId, useRef, useState, type CSSProperties } from "react";
+import { flushSync } from "react-dom";
 import type { BibliographyEntry, BibliographyEvaluation } from "@ieumdoc/core";
 import { Node, type Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
@@ -10,6 +11,7 @@ import { canonicalCitation, citationContentError, citationKeys, citationText, ty
 import { endnoteOrder, firstReferenceNumbers } from "@ieumdoc/core/numbering";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
+import { Combobox } from "@base-ui/react/combobox";
 import { useEditorVisible } from "./editor-visibility.ts";
 import { endnoteBlocks } from "./endnotes.ts";
 import { i18n } from "./i18n.ts";
@@ -185,12 +187,18 @@ export function CitationForm({ entries, current, className, style, onApply, onRe
   const [role, setRole] = useState<CitationRole>(current?.role ?? "cite:p");
   const [keys, setKeys] = useState<string[]>(current?.keys ?? []);
   const [draft, setDraft] = useState("");
+  const [listOpen, setListOpen] = useState(true);
+  const composing = useRef(false);
   const [error, setError] = useMessageState("");
   const bounds = useOverlayBounds<HTMLFormElement>();
   const text = new Map((entries ?? []).map(entry => [entry.key, entry.text]));
+  // As in the command center, search every entry before bounding the rendered list.
+  const needle = draft.trim().toLowerCase();
+  const matches = (entries ?? []).filter(entry => `${entry.key} ${entry.text}`.toLowerCase().includes(needle));
+  const choices = matches.slice(0, 50);
   // The typed key joins the group; undefined means it was refused.
-  const withDraft = (): string[] | undefined => {
-    const key = draft.trim();
+  const withDraft = (value = draft): string[] | undefined => {
+    const key = value.trim();
     if (!key) return keys;
     if (citationContentError({ kind: "citation", role, keys: [key] })) {
       setError({ key: "A citation key cannot contain spaces, commas, semicolons, braces, brackets, backticks or backslashes." });
@@ -198,11 +206,12 @@ export function CitationForm({ entries, current, className, style, onApply, onRe
     }
     return keys.includes(key) ? keys : [...keys, key];
   };
-  const add = () => {
-    const next = withDraft();
+  const add = (value = draft) => {
+    const next = withDraft(value);
     if (!next) return;
     setKeys(next);
     setDraft("");
+    setListOpen(false);
     setError("");
   };
   const apply = () => {
@@ -215,9 +224,9 @@ export function CitationForm({ entries, current, className, style, onApply, onRe
   return (
     <form ref={bounds} className={`selection-toolbar reference-form citation-form ${className ?? ""}`} contentEditable={false}
       role="dialog" aria-label={i18n.t("Citation")} data-testid="citation-form" style={style}
-      onSubmit={event => { event.preventDefault(); apply(); }}
+      onSubmit={event => { event.preventDefault(); if (!composing.current) apply(); }}
       onKeyDown={event => {
-        if (event.key !== "Escape") return;
+        if (event.key !== "Escape" || composing.current || event.nativeEvent.isComposing) return;
         event.preventDefault();
         onClose();
       }}
@@ -239,19 +248,64 @@ export function CitationForm({ entries, current, className, style, onApply, onRe
         </li>)}
       </ol> : null}
       <label className="form-label" htmlFor={`${id}-key`}>{i18n.t("Citation key")}</label>
-      <Input ref={keyInput} id={`${id}-key`} autoFocus list={`${id}-entries`} data-testid="citation-key" value={draft}
-        placeholder={entries?.length ? i18n.t("Search the bibliography") : i18n.t("Type a key")}
-        aria-invalid={error ? true : undefined}
-        onChange={event => { setDraft(event.target.value); setError(""); }}
-        onKeyDown={event => {
-          if (event.key !== "Enter" || !draft.trim()) return;
-          event.preventDefault();
-          add();
-        }} />
-      {entries?.length ? <datalist id={`${id}-entries`}>
-        {entries.map(entry => <option key={entry.key} value={entry.key} label={entry.text} />)}
-      </datalist> : null}
-      <Button size="sm" variant="outline" type="button" data-testid="citation-add" onClick={add}>{i18n.t("Add")}</Button>
+      <Combobox.Root<BibliographyEntry> inline open={listOpen} onOpenChange={setListOpen}
+        items={choices} filteredItems={choices} value={null} inputValue={draft}
+        itemToStringLabel={entry => entry.key} isItemEqualToValue={(a, b) => a.key === b.key}
+        onInputValueChange={(value, details) => {
+          // This is a free-form key field: closing/blurring the inline list must not clear it.
+          if (details.reason !== "input-change") { details.cancel(); return; }
+          setDraft(value); setListOpen(true); setError("");
+        }}
+        onValueChange={entry => { if (entry) add(entry.key); }}>
+        <Combobox.Input ref={keyInput} id={`${id}-key`} autoFocus data-testid="citation-key"
+          render={<Input />} placeholder={entries?.length ? i18n.t("Search the bibliography") : i18n.t("Type a key")}
+          aria-expanded={listOpen && Boolean(entries?.length)}
+          {...(!listOpen ? { "aria-activedescendant": undefined } : {})}
+          aria-invalid={error ? true : undefined}
+          onFocus={() => setListOpen(true)}
+          onCompositionStart={() => { composing.current = true; }}
+          onCompositionEnd={() => { composing.current = false; }}
+          onKeyDown={event => {
+            // Leave IME keys to the native input, including engines that report only keyCode 229.
+            if (composing.current || event.nativeEvent.isComposing || event.keyCode === 229) {
+              event.preventBaseUIHandler();
+              event.stopPropagation();
+              return;
+            }
+            // Navigation skips hidden rows: expose them before Base UI handles this same key.
+            if (!listOpen && (event.key === "ArrowDown" || event.key === "ArrowUp")) flushSync(() => setListOpen(true));
+            if (event.key === "Escape") {
+              event.preventBaseUIHandler();
+              if (listOpen && entries?.length) {
+                event.preventDefault();
+                event.stopPropagation();
+                setListOpen(false);
+              }
+            } else if (event.key === "Enter" && draft.trim() && (!listOpen || !event.currentTarget.getAttribute("aria-activedescendant"))) {
+              event.preventBaseUIHandler();
+              event.preventDefault();
+              add();
+            }
+          }} />
+        {/* Keep the library's item registry available when an arrow reopens the inline list. */}
+        {entries?.length ? <div className="citation-candidates" hidden={!listOpen}>
+          <Combobox.Empty className="command-center-empty">{i18n.t("No matches")}</Combobox.Empty>
+          <Combobox.List className="command-center-results" aria-label={i18n.t("Citation keys")}
+            onMouseDown={event => event.preventDefault()}>
+            {(entry: BibliographyEntry, index: number) => <Combobox.Item key={entry.key} value={entry} index={index}
+              className="command-center-result">
+              <span className="command-center-result-copy">
+                <span className="command-center-result-label">{entry.key}</span>
+                <span className="command-center-result-detail" title={entry.text}>{entry.text}</span>
+              </span>
+            </Combobox.Item>}
+          </Combobox.List>
+          {matches.length > choices.length ? <Combobox.Status className="command-center-footer">
+            {i18n.t("Showing {{shown}} of {{total}} results. Type more to narrow your search.", { shown: choices.length, total: matches.length })}
+          </Combobox.Status> : null}
+        </div> : null}
+      </Combobox.Root>
+      <Button size="sm" variant="outline" type="button" data-testid="citation-add" onClick={() => add()}>{i18n.t("Add")}</Button>
       <Button size="sm" type="submit" data-testid="citation-apply">{i18n.t("Apply")}</Button>
       {onRemove ? <Button size="sm" variant="outline" type="button" data-testid="citation-remove" onClick={onRemove}>{i18n.t("Remove")}</Button> : null}
       {error ? <p className="link-form-error" role="alert">{error}</p> : null}
