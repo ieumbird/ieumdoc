@@ -160,7 +160,18 @@ async (page, { openPath, expect }) => {
   await page.getByRole('dialog', {name:'Discard local changes?'}).getByRole('button', {name:'Keep editing',exact:true}).click();
   await page.getByRole('button', {name:'Close math.md',exact:true}).click();
   await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:'Cancel',exact:true}).click();
-  await forms.filter({has:page.locator('input[value="uncommitted-first"]')}).getByTestId('inline-math-cancel').click();
+  const firstDraft = forms.filter({has:page.locator('input[value="uncommitted-first"]')});
+  const firstSourceId = await firstDraft.getByTestId('inline-math-source').getAttribute('id');
+  // Both independent popovers may overlap; activate the chosen Cancel by keyboard.
+  const cancelFirst = firstDraft.getByTestId('inline-math-cancel');
+  await cancelFirst.focus();
+  await cancelFirst.press('Enter');
+  // Check focus/content immediately. Base UI may retain the closed portal until the next frame,
+  // as for block properties; count the remaining form only after that portal has detached.
+  const afterCancel = await editor.locator('.ProseMirror').evaluate(el => ({focused:el.editor.view.hasFocus(),
+    document:JSON.stringify(el.editor.getJSON()),empty:el.editor.state.selection.empty}));
+  expect(afterCancel).toEqual({focused:true,document:appliedBeforeDraft,empty:true});
+  await forms.filter({has:page.locator(`[id="${firstSourceId}"]`)}).waitFor({state:'detached'});
   expect(await forms.count(), 'Cancelling one instance keeps the other').toBe(1);
   expect(await forms.getByTestId('inline-math-source').inputValue()).toBe('uncommitted-second');
   expect(await page.getByTestId('draft-notice').isVisible()).toBe(true);
