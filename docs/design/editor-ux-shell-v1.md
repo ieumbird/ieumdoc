@@ -648,7 +648,7 @@ Historical layout-specific failures and browser probes: [Shortcut layout verific
 
 - The leading level-1 heading is the [document title](document-editing-v1.md#document-title-255) and stays first: its handle opens block actions but does not drag, nothing drops above it, and Enter in it continues below it. A document without one shows Add a title above its first block; an empty title shows `Title` and is removed if left empty.
 - Hover or keyboard focus reveals the current block's `+` and drag/action handle. Pointer travel into tools preserves them; hover does not change document state. On devices without hover, tools remain visible. A single empty editable paragraph is the starting-state exception: its `+` is always visible, its drag handle hidden, and a non-persistent hint says `Start writing, or type / to add a block.` Typing hides the hint; undo restores it. Clicking the paper below the content continues writing through the existing editor operation.
-- `+` and `/` share supported insert commands, grouped by dividers with an icon and, as a key chip, the Markdown shortcut that makes the same block: Text (Paragraph, Heading 2–3; Heading 4–6 only when the query matches), Lists, Blocks (Note, Warning, Quote, Divider), Technical (Code block, Equation, Figure, Table); slash also offers Endnote ([Endnotes](footnotes-v1.md)) and actual Equation/Figure/Table targets and section references. H1 is never an insert choice, including without a title (#472); Add a title remains the title entry point. The block menu groups conversions, table, section and block actions the same way. Slash keeps editor focus. Gutter-opened menus focus their first item. The command center has inline citation/reference insertion, but no heading insertion items.
+- `+` and `/` share supported insert commands, grouped by dividers with an icon and, as a key chip, the Markdown shortcut that makes the same block: Text (Paragraph, Heading 2–6, including without a search query; #575), Lists, Blocks (Note, Warning, Quote, Divider), Technical (Code block, Equation, Figure, Table); slash also offers Endnote ([Endnotes](footnotes-v1.md)) and actual Equation/Figure/Table targets and section references. H1 is never an insert choice, including without a title (#472); Add a title remains the title entry point. The block menu groups conversions, table, section and block actions the same way. Slash keeps editor focus. Gutter-opened menus focus their first item. The command center has inline citation/reference insertion, but no heading insertion items.
 - Slash reference choices show computed display numbers with caption summaries (Equation: label), and search caption words, labels, kinds and display prefix/number; template-based forms such as `Figure 2`, `식 (3)` and `Table 1` remain one slash query. Section choices keep their heading names and creation behavior. Ordering and overflow use the existing shared menu; see [reference search and menu names](section-references-v1.md#editor).
 - `/ref`, `/reference` and `/참조` list all reference kinds, including unlabeled headings. Figure and Table kind keywords (`figure` / `그림`, `table` / `표`) match their respective kinds. Empty queries retain labeled targets only, and unrelated queries do not list references unless their labels, captions or heading words match.
 - Body Paragraph/Heading block menus convert between prose and H2–H6 while preserving supported inline content; line breaks prevent conversion to a Heading. Existing body H1 blocks retain their level on open/edit/Save → Reload and offer H2–H6 and Paragraph. The title's own block menu and explicit title changes remain unchanged. Heading Shift+Tab stops at body H2 (and leaves existing H1 unchanged); the Markdown `# ` input rule still creates H1. This is an Editor authoring choice; Core/CLI H1 support is unchanged. See [document title](document-editing-v1.md#document-title-255). Admonition menus change among the standard kinds.
@@ -725,6 +725,26 @@ The re-review regression on `7284bd6` also reproduced boundary reasons hiding an
 open Equation draft's reason at both body edges. `block-move` now opens real drafts
 in the first and last body Equations and checks the draft reason in both tooltip
 and accessible description before retaining the existing boundary/Undo/Save coverage.
+
+### Default heading choices (#575)
+
+The default `+` and slash insert lists show Heading 2–6 in their existing Text
+order. Search aliases, group order, insertion and H1 restrictions stay unchanged.
+This changes Editor command discovery only; no Core semantic operation or CLI
+surface is needed.
+
+Same-state slash captures use the basic-blocks scratch document, English UI,
+installed Windows Chrome, Pretendard, DPR 1 and default zoom at 1440×844 and
+390×844. Before runs the unchanged command implementation from
+`97a73bb55aa93f31d67ed6b043cfaaa468ad29e4`; After includes this change.
+The menu moves upward to stay in the viewport as the list grows. At these sizes
+all choices fit; basic-blocks checks every choice's viewport bounds during arrow
+navigation, wrapping, editor focus and the existing H5 insertion/Save → Reload.
+
+| Width | Before | After |
+| --- | --- | --- |
+| 1440px | [Before](assets/slash-heading-575/before-1440.png) | [After](assets/slash-heading-575/after-1440.png) |
+| 390px | [Before](assets/slash-heading-575/before-390.png) | [After](assets/slash-heading-575/after-390.png) |
 
 ### Nested inline slash menu (#377)
 

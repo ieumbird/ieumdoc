@@ -28,8 +28,6 @@ export type InsertCommand = {
   group: string;
   /** The Markdown input shortcut that makes the same block, shown beside the label. */
   hint?: string;
-  /** Rarely used: listed only when a slash query matches it, so the full menu stays short. */
-  onlyWhenSearched?: boolean;
   keywords: string[];
   run(state: EditorState, index: number, slash?: SlashRange): Transaction;
 };
@@ -62,7 +60,6 @@ export const INSERT_COMMANDS: InsertCommand[] = [
     get label() { return i18n.t("Heading {{level}}", { level: index + 2 }); },
     get group() { return i18n.t("Text"); },
     hint: "#".repeat(index + 2),
-    ...(index >= 2 ? { onlyWhenSearched: true } : {}),
     keywords: ["heading", `h${index + 2}`],
     run: (state, block, slash) => insertHeadingAfter(state, block, index + 2, slash),
   })),
@@ -324,7 +321,7 @@ export function blockCommandGroup(id: string): string {
 
 export function filterInsertCommands(query: string): InsertCommand[] {
   const needle = query.trim().toLowerCase();
-  if (!needle) return INSERT_COMMANDS.filter(command => !command.onlyWhenSearched);
+  if (!needle) return INSERT_COMMANDS;
   // Reserve /인용 for Citation; /인용문 still finds Quote in either UI language.
   if (needle === "인용") return [];
   return INSERT_COMMANDS.filter(command =>

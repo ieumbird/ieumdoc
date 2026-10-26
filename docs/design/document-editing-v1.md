@@ -256,7 +256,7 @@ Cell merge has no GFM form and is not supported.
 ## Document title (#255)
 
 Owner decision (2026-10-26, #472): body sections start at H2. Editor slash/insert
-menus offer H2–H6 (H4–H6 only for a matching search), and body Paragraph/Heading
+menus offer H2–H6 without a search query (#575), and body Paragraph/Heading
 block menus offer H2–H6, plus Paragraph for headings. They never offer H1,
 including for an existing body H1 or an untitled document. The title's own block
 menu and explicit title changes below remain unchanged, as do Add a title and
