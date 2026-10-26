@@ -2,7 +2,7 @@
 // Exercises Figure editing, insertion, Apply/Cancel, Save and Reload against a real file.
 // The file is a scratch copy under the repository's ignored tmp/ directory; prepare it first
 // (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
-async (page, { openDocument, expect }) => {
+async (page, { openDocument, expect, screenshots }) => {
   const problems = [];
   const onConsole = message => {
     if (message.type() === 'error' || message.type() === 'warning') problems.push(`${message.type()}: ${message.text()}`);
@@ -11,6 +11,8 @@ async (page, { openDocument, expect }) => {
   page.on('console', onConsole);
   page.on('pageerror', onPageError);
   await page.unrouteAll();
+  // Keep the compact before/after fixture independent of earlier scenarios' recent folders.
+  await page.evaluate(() => localStorage.removeItem('ieumdoc.recentFolders'));
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
 
@@ -134,6 +136,11 @@ async (page, { openDocument, expect }) => {
     const beforeDelete = await snapshot();
     for (const key of ['Backspace', 'Delete']) {
       await page.getByText('The current reference is calculated from the active power command.', {exact:true}).filter({visible:true}).click();
+      // Undo restores AllSelection; wait for the real click's caret before sending Select all.
+      await page.waitForFunction(() => {
+        const {editor} = document.querySelector('[data-document-tab][data-active=true] .document-editor');
+        return editor.view.hasFocus() && editor.state.selection.empty && editor.state.selection.$from.parent.type.name === 'paragraph';
+      });
       await page.keyboard.press('ControlOrMeta+a');
       await page.keyboard.press(key);
       expect(await figures.count(), 'Select all deletes the Figure').toBe(0);
@@ -168,6 +175,31 @@ async (page, { openDocument, expect }) => {
     expect(await listedImages(), 'Selecting an image keeps sibling images listed (#461)').toEqual(imageNames);
     expect(await picker.getByRole('option', {name:'diagram.svg', exact:true}).getAttribute('aria-selected')).toBe('true');
     expect(await pathField.inputValue()).toBe(filePath.replace('technical-document.md', 'diagram.svg'));
+    // Manual same-state comparison only; these images are not automated visual assertions.
+    if (screenshots) {
+      const viewport = page.viewportSize();
+      await page.mouse.move(0, 0);
+      await page.evaluate(() => document.fonts.ready);
+      const image = picker.getByRole('region', {name:'Read-only image preview'}).locator('img');
+      if (await image.count()) await image.evaluate(async image => {
+        if (!image.complete) await new Promise(resolve => { image.addEventListener('load', resolve, {once:true}); image.addEventListener('error', resolve, {once:true}); });
+      });
+      for (const width of [1440, 375]) {
+        await page.setViewportSize({width, height:1000});
+        await picker.screenshot({path:`tmp/image-picker-preview/selected-${width}.png`, animations:'disabled'});
+      }
+      await page.setViewportSize({width:375, height:667});
+      await picker.screenshot({path:'tmp/image-picker-preview/compact-375-667.png', animations:'disabled'});
+      await page.setViewportSize({width:1366, height:768});
+      await picker.screenshot({path:'tmp/image-picker-preview/desktop-1366-768.png', animations:'disabled'});
+      await page.setViewportSize(viewport);
+    }
+    const preview = picker.getByRole('region', {name:'Read-only image preview'});
+    const previewImage = preview.getByRole('img', {name:'diagram.svg', exact:true});
+    await expect(previewImage, 'The clicked image has a preview before Use (#480)').toBeVisible();
+    await expect.poll(() => previewImage.evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
+    expect(await pathField.inputValue()).toBe(filePath.replace('technical-document.md', 'diagram.svg'));
+    await expect(pathField).toBeFocused();
     await pathField.press('End');
     await pathField.press('Backspace');
     expect(await listedImages(), 'Editing the clicked path resumes filtering').toEqual(['diagram.svg']);
@@ -221,6 +253,139 @@ async (page, { openDocument, expect }) => {
     } finally {
       await page.unroute('**/api/folder-browse?*', caseSensitiveListing);
     }
+    // #480: only the active entry loads; an older response cannot replace a newer preview.
+    const previewRequests = [];
+    let releasePreview;
+    let previewWaiting = false;
+    const previewGate = new Promise(resolve => { releasePreview = resolve; });
+    let delayedFinished = false;
+    const imageListing = async route => {
+      const response = await route.fetch();
+      const listing = await response.json();
+      const path = name => filePath.replace('technical-document.md', name);
+      // Equivalent root spelling gives these requests fresh URLs: decoded images from the
+      // preceding click tests must not bypass the controlled response order via browser reuse.
+      await route.fulfill({response, json:{...listing, path:listing.path + separator, crumbs:listing.crumbs.slice(-1), entries:[
+        {name:'subfolder', kind:'folder', path:path('subfolder')},
+        ...['diagram.svg', 'diagram-v2.svg'].map(name => listing.entries.find(entry => entry.name === name)),
+        {name:'broken.svg', kind:'image', path:path('broken.svg')},
+      ]}});
+    };
+    const previewRoute = async route => {
+      const path = decodeURIComponent(route.request().url().match(/[?&]path=([^&]*)/)[1].replace(/\+/g, ' '));
+      previewRequests.push(path);
+      if (path.endsWith('broken.svg')) return route.fulfill({contentType:'image/svg+xml', body:'not an image'});
+      const response = await route.fetch();
+      if (path.endsWith('diagram.svg')) {
+        previewWaiting = true;
+        await previewGate;
+        await route.fulfill({response});
+        delayedFinished = true;
+      } else await route.fulfill({response});
+    };
+    // A root-bounded Host layout leaves the pre-preview actions visible even on a short phone.
+    const imagePlaces = route => route.fulfill({json:{places:[{kind:'root', name:'Images', path:filePath.slice(0, -'technical-document.md'.length)}]}});
+    await page.route('**/api/folder-browse?*', imageListing);
+    await page.route('**/api/file-preview?*', previewRoute);
+    await page.route('**/api/folder-places', imagePlaces);
+    try {
+      await page.getByRole('button', {name:'Choose…', exact:true}).click();
+      await picker.getByRole('option', {name:'subfolder', exact:true}).waitFor();
+      await expect(pathField).toBeFocused();
+      const typedPath = await pathField.inputValue();
+      expect(previewRequests, 'Listing does not preload thumbnails').toEqual([]);
+      await pathField.press('ArrowDown');
+      expect(await preview.count(), 'A keyboard-active folder has no preview').toBe(0);
+      expect(previewRequests).toEqual([]);
+      // A folder has the pre-preview layout. Compare the same listing and controls at phone size.
+      const compactLayout = async () => {
+        const list = await picker.getByRole('listbox').boundingBox();
+        const bounds = await picker.evaluate(dialog => ({top:dialog.getBoundingClientRect().top + dialog.clientTop,
+          bottom:dialog.getBoundingClientRect().top + dialog.clientTop + dialog.clientHeight, scrollTop:dialog.scrollTop}));
+        const visible = async button => {
+          const box = await button.boundingBox();
+          return box !== null && box.y >= Math.max(bounds.top, 0) && box.y + box.height <= Math.min(bounds.bottom, 667);
+        };
+        return {listHeight:list.height, scrollTop:bounds.scrollTop,
+          cancel:await visible(picker.getByRole('button', {name:'Cancel', exact:true})),
+          use:await visible(picker.getByTestId('folder-open'))};
+      };
+      await page.setViewportSize({width:375, height:667});
+      await page.evaluate(() => document.fonts.ready);
+      const beforePreview = await compactLayout();
+      expect(beforePreview.listHeight, 'The pre-preview listing has usable height').toBeGreaterThan(0);
+      expect(beforePreview.scrollTop).toBe(0);
+      expect(beforePreview, 'The root-bounded pre-preview fixture fits both actions').toMatchObject({cancel:true, use:true});
+      await page.setViewportSize({width:1280, height:720});
+      const entries = await picker.getByRole('option').allTextContents();
+      const moveTo = async name => {
+        for (let i = 0; i < entries.length; i++) {
+          await pathField.press('ArrowDown');
+          if (await picker.getByRole('option', {name, exact:true}).getAttribute('aria-selected') === 'true') return;
+        }
+        throw new Error(`Could not activate ${name}`);
+      };
+      await moveTo('diagram.svg');
+      await expect.poll(() => previewWaiting).toBe(true);
+      await moveTo('diagram-v2.svg');
+      const current = preview.getByRole('img', {name:'diagram-v2.svg', exact:true});
+      await expect(current).toBeVisible();
+      await expect.poll(() => current.evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
+      releasePreview();
+      await expect.poll(() => delayedFinished).toBe(true);
+      // Give the retired image's event a render turn; no reload or polling can hide a stale frame.
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      expect(await preview.getByRole('img').getAttribute('alt')).toBe('diagram-v2.svg');
+      expect(previewRequests.map(path => path.split(/[\\/]/).at(-1))).toEqual(['diagram.svg', 'diagram-v2.svg']);
+      expect(await pathField.inputValue(), 'Keyboard preview does not choose an image').toBe(typedPath);
+      expect(await page.getByTestId('figure-image-url').inputValue()).toBe('./diagram-v2.svg');
+      await expect(pathField).toBeFocused();
+      expect(await pathField.getAttribute('aria-activedescendant')).toBe(await picker.getByRole('option', {name:'diagram-v2.svg', exact:true}).getAttribute('id'));
+      for (const [width, height] of [[1440, 1000], [1366, 768], [375, 667]]) {
+        await page.setViewportSize({width, height});
+        const layout = await picker.evaluate(dialog => ({
+          client:dialog.clientWidth, scroll:dialog.scrollWidth,
+          children:[...dialog.children].map(element => ({tag:element.tagName, class:element.className,
+            width:element.getBoundingClientRect().width, client:element.clientWidth, scroll:element.scrollWidth})),
+        }));
+        expect(layout.scroll, `${width}px dialog has no horizontal overflow: ${JSON.stringify(layout)}`).toBeLessThanOrEqual(layout.client);
+        expect(await picker.evaluate(dialog => { const box = dialog.getBoundingClientRect(); return box.left >= 0 && box.right <= innerWidth; })).toBe(true);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        if (width === 375) {
+          const compact = await compactLayout();
+          if (screenshots) await picker.screenshot({path:'tmp/image-picker-preview/compact-375-667.png', animations:'disabled'});
+          expect(compact.listHeight, `Preview preserves pre-PR list height: ${JSON.stringify({beforePreview, compact})}`).toBeGreaterThanOrEqual(beforePreview.listHeight);
+          expect(compact.scrollTop, 'Compact checks never scroll the dialog to reach actions').toBe(0);
+          if (beforePreview.cancel) expect(compact.cancel, 'Cancel stays visible without scrolling').toBe(true);
+          if (beforePreview.use) expect(compact.use, 'Use stays visible without scrolling').toBe(true);
+          expect(await preview.count(), `Phone layout collapses the preview: ${JSON.stringify({beforePreview, compact})}`).toBe(0);
+        } else {
+          await expect(current, `${width}×${height} retains the preview`).toBeVisible();
+          const fits = await current.evaluate(image => {
+            const box = image.getBoundingClientRect(), parent = image.parentElement.getBoundingClientRect();
+            return box.width <= parent.width && box.height <= parent.height && Math.abs(box.width / box.height - image.naturalWidth / image.naturalHeight) < 0.01;
+          });
+          expect(fits, 'Preview fits without distorting the image').toBe(true);
+        }
+      }
+      await page.setViewportSize({width:1280, height:720});
+      await moveTo('broken.svg');
+      await expect(preview.getByText('The image could not be previewed. It may be unavailable, damaged, unsupported, or larger than 10 MiB.')).toBeVisible();
+      expect(await preview.getByRole('img').isVisible()).toBe(false);
+      expect(await preview.getByRole('alert').count(), 'Preview failure is quiet').toBe(0);
+      await expect(pathField).toBeFocused();
+      expect(await pathField.inputValue()).toBe(typedPath);
+      await moveTo('subfolder');
+      expect(await preview.count()).toBe(0);
+      await picker.getByRole('button', {name:'Cancel', exact:true}).click();
+      await picker.waitFor({state:'hidden'});
+    } finally {
+      releasePreview();
+      await page.unroute('**/api/file-preview?*', previewRoute);
+      await page.unroute('**/api/folder-browse?*', imageListing);
+      await page.unroute('**/api/folder-places', imagePlaces);
+    }
+    await page.setViewportSize({width:1280, height:720});
     result.existingLabelInForm = await page.getByTestId('figure-label').inputValue() === 'fig-control' &&
       await editor.locator('input').count() === 4;
     await page.getByTestId('figure-image-url').fill('./diagram-v2.svg');

@@ -1,7 +1,8 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-26 (#476: Source soft wrapping; Editor tests/typecheck/build, Source/layout/quiet-document browser checks and [1440/375px Before/After](editor-ux-shell-v1.md#source-wrapping-476)).
+- Last verified: 2026-10-26 (#480: bounded active-image picker preview, layout-rules/quiet-document, same-state 1440px/375px [captures](folder-picker-v1.md#active-image-preview-480) and byte-identical quiet-document rest pairs).
+- Source wrapping verification: 2026-10-26 (#476: Source soft wrapping; Editor tests/typecheck/build, Source/layout/quiet-document browser checks and [1440/375px Before/After](editor-ux-shell-v1.md#source-wrapping-476)).
 - Table deletion verification: 2026-10-26 (#474: existing MessageArea/ghost Undo action, 1280/375px English/Korean captures and byte-identical quiet-document rest pairs; [verification](table-interaction-v1.md#table-deletion-notice-verification-474)).
 - Previous verification: 2026-10-25 (#438: bibliography connection controls, bilingual notices, 1280/375px captures and unchanged quiet-document rest pairs; [verification](citations-v1.md#bibliography-connection-verification-438)).
 - Previous verification: 2026-10-25 (#425: collapsible folder sections; Editor tests/typecheck/build, folder-navigation/folder-memory/command-center/editor-shell/layout-rules/ui-language/quiet-document and [desktop/phone captures](editor-ux-shell-v1.md#section-disclosure-verification-and-captures)).
@@ -150,6 +151,12 @@ A change to the Editor's look or a new visible control states which rule above (
 IeumDoc keeps one stylesheet; comparison captures do not need a runtime old/new theme toggle. Record the actual HEAD, viewport, DPR/zoom, scroll/interaction state and font environment. CSS studies and mockups are not product Before images.
 
 ## Adjustable values and preferences
+
+- Image picker (#480): `--layout-folder-picker-preview-height` (10rem / 160px) bounds the
+  active image below the list at desktop widths. Below the existing `40rem` phone boundary the
+  preview collapses, preserving the list and action space. Its structural border, subtle surface,
+  radius, 12px helper inset and muted text reuse existing product tokens. It adds no control;
+  the image keeps its aspect ratio and the dialog retains its viewport scrolling.
 
 Values meant to be tuned by hand, or that change with a user's taste, are shared variables, never numbers repeated in rules or scripts.
 
