@@ -2345,9 +2345,9 @@ ol.list { list-style: decimal; }
 .inline-math-form { padding: var(--space-3); }
 
 /* The Document panel docks only where the document keeps a readable width beside both panels
- * (1280 - 240 - 256 = 784px). Below it the panel never narrows the document; opened, it overlays.
+ * (1424 - 240 - 256 = 928px, the Standard column). Below it the panel never narrows the document; opened, it overlays.
  * The same width is PANEL_OVERLAY_LAYOUT in App.tsx. */
-@media (width < 80rem) {
+@media (width < 89rem) {
   .app-shell { --shell-panel: 0px; }
   /* Media styles apply before the matchMedia handler closes the docked panel.
    * Do not let its padding/header overflow the now zero-width grid column. */

@@ -64,7 +64,7 @@ async (page, { openPath, withBlockHover, expect }) => {
   };
   for(const width of [1440,390])for(const locale of ['en','ko']){
   await page.setViewportSize({width,height:1000});
-  await page.getByTestId('document-panel').waitFor({state:width>=1280?'visible':'detached'});
+  await page.getByTestId('document-panel').waitFor({state:width>=1424?'visible':'detached'});
   await language(locale,width===390&&locale==='en');
   await page.getByTestId('sidebar').getByRole('button',{name:locale==='ko'?'폴더 열기…':'Open folder…',exact:true}).click();
   await page.getByTestId('folder-path').fill(file.slice(0,file.lastIndexOf(sep)+1));
@@ -75,7 +75,7 @@ async (page, { openPath, withBlockHover, expect }) => {
   const isolation = await page.evaluate(() => {
     const root=document.documentElement;
     // The narrow layout deliberately unmounts the closed Outline; its desktop coverage stays required.
-    const selectors=[...(innerWidth>=1280?['.document-outline-item']:[]),'.sidebar-tree-item','[data-testid="save"]','.figure-edit','.equation-edit','.folder-picker-crumb',
+    const selectors=[...(innerWidth>=1424?['.document-outline-item']:[]),'.sidebar-tree-item','[data-testid="save"]','.figure-edit','.equation-edit','.folder-picker-crumb',
       '.table-row-handle','.table-column-handle','.table-extend','.table-action-bar button',
       '.code-language','.block-metadata','.label-target-edit','.cross-reference-edit','[role="dialog"]',
       // Caption/table families stay UI-owned; their sizes have separate document tokens.
@@ -154,7 +154,7 @@ async (page, { openPath, withBlockHover, expect }) => {
   await page.getByRole('button',{name:'Collapse sidebar',exact:true}).waitFor();
   await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate((element,original)=>element.editor.commands.setContent(original),isolationDocument);
   await withBlockHover(page, async () => {
-    for(const width of [1440,1280,1279,1025,1024,768,705,704]) {
+    for(const width of [1440,1424,1423,1280,1279,1025,1024,768,705,704]) {
       await page.setViewportSize({width,height:1000});
       for(const collapsed of [false,true]) {
         if(collapsed) await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
@@ -207,11 +207,11 @@ async (page, { openPath, withBlockHover, expect }) => {
           const token=name=>{const v=getComputedStyle(document.documentElement).getPropertyValue(name).trim();if(!v.endsWith('rem'))throw Error(`Unexpected ${name}: ${v}`);return parseFloat(v)*parseFloat(getComputedStyle(document.documentElement).fontSize);};
           const sidebarWidth=rect('.sidebar').width;
           const expectedSidebar=collapsed?token('--layout-sidebar-rail-width'):token(innerWidth<=1024?'--layout-sidebar-width-narrow':'--layout-sidebar-width');
-          // The document panel starts open (docked) from the 1280px docking width and closed below it,
+          // The document panel starts open (docked) from the 1424px docking width and closed below it,
           // independently of the 1024px narrow sidebar.
           const panel=document.querySelector('.document-panel')?.getBoundingClientRect();
           const panelWidth=panel?Math.min(panel.right,innerWidth+1)-panel.left:0;
-          const expectedPanel=innerWidth<1280?0:token('--layout-document-panel-width');
+          const expectedPanel=innerWidth<1424?0:token('--layout-document-panel-width');
           const type=s=>{const cs=getComputedStyle(required(s));return {size:parseFloat(cs.fontSize),line:parseFloat(cs.lineHeight),weight:cs.fontWeight,font:cs.fontFamily};};
           const headings=[1,2,3,4,5,6].map(n=>type('h'+n+'.heading'));
           const body=type('.paragraph'),caption=type('.caption'),table=type('.table');
@@ -243,6 +243,9 @@ async (page, { openPath, withBlockHover, expect }) => {
         const fail=result.centerDelta>1||result.blockDelta>1||result.gutterGap<11||Math.abs(before-after)>0.5||result.standard!==32||result.compact.some(h=>h!==28)||result.shellOverflow.length||!matchesType(result.body,expected.body)||result.headings.some((t,i)=>!matchesType(t,expected.headings[i])||t.weight!==expected.headings[i].weight)||!matchesType(result.caption,expected.caption)||!matchesType(result.table,expected.table)||Math.abs(result.sidebarWidth-result.expectedSidebar)>0.5||Math.abs(result.panelWidth-result.expectedPanel)>0.5||(!collapsed&&(Math.max(...result.labels)-Math.min(...result.labels)>1||!result.rowIcons.length||Math.max(...result.rowIcons)-Math.min(...result.rowIcons)>1||result.icons.some(i=>i.w!==16||i.h!==16)));
         // The center gets its own row when the header's actual width is below 56rem,
         // independently of how much width the sidebar and outline occupy.
+        if(width>=1280&&width<=1424&&result.header!==48)throw Error(`Docking boundary wrapped TopBar: ${JSON.stringify(result)}`);
+        if(width>=1279&&Math.abs(await page.locator('.document-column').evaluate(n=>n.getBoundingClientRect().width)-928)>0.5)
+          throw Error(`Docking reduced Standard column at ${width}px`);
         const stacked=result.headerWidth<896;
         if(fail||result.sidebarHeader!==48||result.commandCenterDelta>1||(!stacked&&result.header!==48)||
           (stacked&&(result.header<=48||result.actionsTop<result.centerBottom+7)))throw Error(JSON.stringify(result));
@@ -324,7 +327,7 @@ async (page, { openPath, withBlockHover, expect }) => {
     });
     return {main:rect('.app-main').width,column:rect('.document-column').width,panelLeft:panel?.left??null,panelRight:panel?.right??null,panelTop:panel?.top??null,panelBottom:panel?.bottom??null,headerBottom:rect('.app-header').bottom,uncovered,token,overflow:document.documentElement.scrollWidth>innerWidth};
   });
-  for(const width of [1279,1024,768,704]) {
+  for(const width of [1423,1280,1279,1024,768,704]) {
     await page.setViewportSize({width,height:1000});
     await page.locator('.document-panel').waitFor({state:'detached'});
     const closed=await shell();
@@ -352,6 +355,32 @@ async (page, { openPath, withBlockHover, expect }) => {
   await page.getByTestId('outline').waitFor();
   if(Math.abs(hidden.main-docked.main-docked.token)>0.5||Math.abs(docked.panelRight-docked.panelLeft-docked.token)>0.5||!hiddenFocus)
     throw Error(`Docked document panel: ${JSON.stringify({docked,hidden,hiddenFocus})}`);
+  // Let resize events and React commit before reading an unchanged closed state: that state
+  // alone cannot tell whether the overlay transition has happened yet.
+  const resizePanel = async width => {
+    await page.setViewportSize({width,height:1000});
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  };
+  // A docked choice survives both directions; overlay dismissal must not overwrite it.
+  for(const close of [async()=>page.getByRole('button',{name:'Hide outline',exact:true}).click(),async()=>outlineToggle.click()]) {
+    await close();
+    await expect(outlineToggle).toHaveAttribute('aria-pressed','false');
+    await resizePanel(1423);
+    await resizePanel(1424);
+    await expect(outlineToggle).toHaveAttribute('aria-pressed','false');
+    await outlineToggle.click();
+    await resizePanel(1423);
+    await expect(outlineToggle).toHaveAttribute('aria-pressed','false');
+    await outlineToggle.click();
+    await page.getByRole('button',{name:'Hide outline',exact:true}).click();
+    await resizePanel(1424);
+    await expect(outlineToggle).toHaveAttribute('aria-pressed','true');
+  }
+  // Session-only: reloading forgets explicit closure and restores the wide default.
+  await outlineToggle.click();
+  await page.reload();
+  await page.getByTestId('outline').waitFor();
+  results.push({dockedChoiceSurvivesResize:true,overlayDismissalPreservesDockedChoice:true,reloadRestoresDefault:true});
   // Editing shows the interaction-colored caret, not a frame around the whole document, whether
   // focus comes from a click or the keyboard.
   const editing=async()=>page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n=>{
@@ -416,7 +445,7 @@ async (page, { openPath, withBlockHover, expect }) => {
   for(const width of [1920,1440,1280,1024,768,375]) {
     await page.setViewportSize({width,height:800});
     // CSS responds before React's matchMedia handler closes/opens the Outline. Measure the committed layout.
-    await page.getByTestId('document-panel').waitFor({state:width>=1280?'visible':'detached'});
+    await page.getByTestId('document-panel').waitFor({state:width>=1424?'visible':'detached'});
     // Crossing 640px closes the sidebar; at phone widths it has no rail, so the TopBar opens it before Display.
     // Like the panel above, wait for the committed layout: the matchMedia handler closes it a frame later.
     if(width<640)await page.getByRole('button',{name:'Expand sidebar',exact:true}).waitFor();
