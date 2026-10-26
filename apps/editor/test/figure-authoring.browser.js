@@ -11,6 +11,8 @@ async (page, { openDocument, expect, screenshots }) => {
   page.on('console', onConsole);
   page.on('pageerror', onPageError);
   await page.unrouteAll();
+  // Keep the compact before/after fixture independent of earlier scenarios' recent folders.
+  await page.evaluate(() => localStorage.removeItem('ieumdoc.recentFolders'));
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
 
