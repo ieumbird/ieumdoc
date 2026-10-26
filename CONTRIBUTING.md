@@ -40,7 +40,7 @@ pnpm --filter @ieumdoc/editor build
 ## Contribution workflow
 
 - 하나의 문제에 하나의 응집된 PR을 만든다. 관련 issue가 있으면 연결한다.
-- `master`는 repository ruleset `Protect master` (ID `24910269`)로 보호한다. 2026-10-23에 읽기 전용 API로 확인한 설정은 active, bypass 대상 없음, GitHub required approval count 0이다. 직접 push, force push, 삭제는 거부되고 PR merge만 허용된다. 필수 CI aggregate 검사는 `Core, CLI, Editor, and browser regressions`다. 독립 승인 후 통합 담당자가 `strict_required_status_checks_policy=true`, `required_review_thread_resolution=true`를 적용했고, 같은 날 읽기 전용 API로 두 값과 나머지 설정 보존을 확인했다(설정 수정 시각: `2026-10-23T15:11:07.360+09:00`). 최신 base 기준 필수 검사와 review thread 해결을 서버에서도 요구한다. 규칙을 바꿀 때는 API로 확인하고 이 설정 기록도 함께 갱신한다.
+- `master`는 repository ruleset `Protect master` (ID `24910269`)로 보호한다. 2026-10-26에 읽기 전용 API로 확인한 설정은 active, bypass 대상 없음, GitHub required approval count 0, `required_review_thread_resolution=true`다. 직접 push, force push, 삭제는 거부되고 PR은 아래 merge queue 절차로 병합한다. Queue와 필수 검사 설정은 [Enqueue](#enqueue)를 따른다. 규칙을 바꿀 때는 API로 확인하고 이 설정 기록도 함께 갱신한다.
 - 가장 작고 단순한 변경을 우선하고, 확인되지 않은 필요를 위한 abstraction이나 infrastructure를 추가하지 않는다.
 - current behavior를 바꾸면 관련 design document도 같은 PR에서 갱신한다. 새 문서는 [docs index](docs/README.md)에 직접 연결한다.
 - historical review의 당시 결과를 현재 계약처럼 고쳐 쓰지 않는다. 상태와 현재 authority를 링크한다.
@@ -48,7 +48,7 @@ pnpm --filter @ieumdoc/editor build
 
 ### Review and sequential merge
 
-모든 PR은 다음 순서를 따른다. 구현은 독립 worktree에서 병렬로 진행할 수 있으며, 통합 담당자가 승인된 PR을 GitHub merge queue에 넣는다. Queue가 최신 master와 앞선 PR을 합친 결과를 검증하고 순서대로 병합한다. 이 절차는 #537의 workflow가 master에 병합된 뒤 통합 담당자가 ruleset에서 queue를 활성화하여 적용한다. 활성화 전에는 기존 최신 master 반영·재검토 절차를 유지한다.
+모든 PR은 다음 순서를 따른다. 구현은 독립 worktree에서 병렬로 진행할 수 있으며, 통합 담당자가 승인된 PR을 GitHub merge queue에 넣는다. Queue가 최신 master와 앞선 PR을 합친 결과를 검증하고 순서대로 병합한다. Queue는 2026-10-26부터 활성화되어 있다([#537 검증 기록](https://github.com/ieumbird/ieumdoc/issues/537)).
 
 1. PR의 정확한 현재 head에서 필수 CI 검사가 모두 통과해야 한다. 이전 head의 성공으로 대신하지 않는다. master가 이동했다는 이유만으로 최신 master를 PR branch에 직접 merge하거나 다시 검토받을 필요는 없다.
 2. 구현에 참여하지 않은 별도 agent가 최종 diff, 관련 계약과 검증 근거를 독립 검토한다. PR 댓글에 reviewer agent 식별자, `APPROVE` verdict와 검토한 정확한 전체 head SHA를 기록한다. 구현자 자신의 판단은 이 승인을 대신하지 않는다.
@@ -56,6 +56,36 @@ pnpm --filter @ieumdoc/editor build
 3. GitHub required approval count 0은 GitHub 서버의 승인 수 설정이며, 별도 agent 승인을 생략한다는 뜻이 아니다. 같은 GitHub 계정을 사용하는 agent는 PR 작성자 자신의 PR에 GitHub approve review를 제출할 수 없다. PR 댓글의 독립 승인 기록은 운영상 승인 근거이며 GitHub의 approved review로 계산되지 않는다.
 4. 통합 담당자는 enqueue 직전에 PR head가 독립 승인 SHA와 같은지, 해당 head의 필수 CI가 모두 통과했는지, review thread가 모두 해결되었는지 확인한다. 하나라도 충족하지 않으면 queue에 넣지 않는다. Queue는 최신 master와 합친 결과에서 전체 CI와 필수 aggregate 검사를 실행한다.
 5. 수정 commit, 수동 conflict 해결, queue가 보고한 충돌 때문에 필요한 master merge 등으로 PR head SHA가 달라지면 기존 승인은 재사용하지 않는다. 새 head에서 필수 CI와 별도 agent의 새 `APPROVE`를 받은 뒤 통합 담당자가 다시 enqueue한다. Queue 실패도 일반 CI 실패처럼 artifact부터 확인하여 원인을 조사한다. PR head가 그대로라면 master 이동이나 queue 재구성만으로 독립 재승인을 요구하지 않는다.
+
+### Enqueue
+
+Ruleset `Protect master`의 `merge_queue` 설정은 merge method `MERGE`, build concurrency 1, group size 최소/최대 1/1, `ALLGREEN`, check timeout 60분이다. 필수 검사는 `Core, CLI, Editor, and browser regressions`이며, queue가 켜져 있는 동안 strict up-to-date (`strict_required_status_checks_policy`)는 OFF다. Queue를 비활성화할 때는 strict를 다시 ON으로 설정한다.
+
+위 2단계의 독립 승인 PR 댓글은 다음 형식으로 남긴다.
+
+```text
+Reviewer agent: <reviewer-agent-id>
+Verdict: APPROVE
+Head SHA: <full-approved-head-sha>
+Required CI: PASSED
+Unresolved review threads: NONE
+```
+
+위 4단계 확인 후 저장소 루트에서 아래 Bash 명령의 `<N>`과 `<approved-sha>`를 PR 번호와 승인된 전체 head SHA로 바꿔 실행한다. `expectedHeadOid`가 승인 이후 head 변경을 거부한다. `gh pr merge`는 이 저장소에서 허용하지 않는 auto-merge (`enablePullRequestAutoMerge`)를 시도하므로 사용하지 않는다.
+
+```bash
+id=$(gh pr view <N> --json id --jq .id)
+gh api graphql -f query='mutation($id:ID!,$oid:GitObjectID!){enqueuePullRequest(input:{pullRequestId:$id,expectedHeadOid:$oid}){mergeQueueEntry{position state}}}' -f id="$id" -f oid=<approved-sha>
+```
+
+Queue의 PR 번호·순서·상태·검증 head와 `merge_group` 실행은 다음 읽기 전용 명령으로 확인한다. Queue의 `headCommit.oid`와 run의 `headSha`를 대조하고 해당 실행의 결과·artifact를 확인한다.
+
+```bash
+gh api graphql -f query='query{repository(owner:"ieumbird",name:"ieumdoc"){mergeQueue(branch:"master"){entries(first:100){nodes{position state pullRequest{number} headCommit{oid}}}}}}'
+gh run list --event merge_group --json databaseId,headSha,status,conclusion,url
+```
+
+충돌이나 CI 실패로 PR이 queue에서 제거되면 해당 실행의 로그·artifact부터 조사한다(`gh run view <run-id>`, `gh run download <run-id>`). 재등록은 위 4–5단계를 따른다. Head를 수정해야 하면 새 head의 필수 CI와 새 `APPROVE`를 받은 뒤 다시 enqueue한다.
 
 ## Verification matrix
 
