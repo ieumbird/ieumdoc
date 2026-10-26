@@ -112,6 +112,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Classify quality mode and check diff whitespace
+        id: mode
+        run: node scripts/ci-quality-mode.mjs "$GITHUB_EVENT_NAME" "$GITHUB_EVENT_PATH"
+
+      - name: CI quality path classification regressions
+        run: node --test scripts/ci-quality-mode.test.mjs
+
       - name: AI commit provenance regressions
         run: node --test scripts/commit-provenance.test.mjs
 
@@ -125,6 +132,7 @@ jobs:
           pnpm docs:check
 
       - name: Typecheck
+        if: steps.mode.outputs.docs_only != 'true'
         run: pnpm typecheck
 
       - name: Issue forms and registration checks
@@ -133,13 +141,15 @@ jobs:
           pnpm issues:test
 
       - name: Run Core, CLI, Editor, and Desktop tests
+        if: steps.mode.outputs.docs_only != 'true'
         run: pnpm test
 
       - name: Build Editor for production
+        if: steps.mode.outputs.docs_only != 'true'
         run: pnpm --filter @ieumdoc/editor build
 
   browser:
-    name: Editor browser regressions (${{ matrix.shard }}/2)
+    name: Editor browser regressions (${{ matrix.shard }}/4)
     needs: changes
     if: needs.changes.outputs.browser == 'true'
     runs-on: ubuntu-latest
@@ -147,9 +157,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4]
     env:
-      IEUMDOC_BROWSER_SHARD: ${{ matrix.shard }}/2
+      IEUMDOC_BROWSER_SHARD: ${{ matrix.shard }}/4
 
     steps:
       - name: Check out repository

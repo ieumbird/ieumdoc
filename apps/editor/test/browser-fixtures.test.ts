@@ -44,7 +44,7 @@ test("every scratch directory a browser scenario opens is prepared", () => {
 });
 
 test("browser shards cover the full stable suite once, with balanced nonempty groups", () => {
-  for (const count of [1, 2, 3]) {
+  for (const count of [1, 2, 3, 4]) {
     const groups = Array.from({ length: count }, (_, index) => selectBrowserScenarios([`--shard=${index + 1}/${count}`]).scenarios);
     assert.deepEqual(groups.flat().sort(), [...STABLE_SCENARIOS].sort(), "no missing or duplicate scenarios");
     const lengths = groups.map(group => group.length);

@@ -61,13 +61,14 @@ pnpm --filter @ieumdoc/editor build
 
 로컬에서는 변경의 고유한 위험에 맞는 관련 패키지 테스트·browser 시나리오를 지정해 실행한다. 영향 범위가 여러 계층에 걸치는 경우가 아니면 전체 `pnpm test`와 전체 `pnpm browser:test`는 로컬 필수가 아니다. 아래 표는 로컬 최소 검증이며, PR의 필수 CI 검사는 모두 통과해야 한다.
 
-CLI/Desktop `package`, `test:packaged`, release/artifact 검증, 설치·업데이트 회귀와 다른 OS 검증은 해당 패키징·설치/업데이트·배포 경계를 변경한 경우가 아니면 필수 CI에 맡긴다. [CI](.github/workflows/ci.yml)는 항상 quality(전체 테스트·typecheck·문서/issue 검사·Editor build)를 실행하고, PR에서는 아래 경로 요약에 따라 추가 job을 선택한다. 실제 GitHub 업데이트·서명·수동 확인은 이 CI의 보장 범위가 아니므로 해당 변경·릴리즈의 별도 절차를 유지한다.
+CLI/Desktop `package`, `test:packaged`, release/artifact 검증, 설치·업데이트 회귀와 다른 OS 검증은 해당 패키징·설치/업데이트·배포 경계를 변경한 경우가 아니면 필수 CI에 맡긴다. [CI](.github/workflows/ci.yml)는 항상 quality를 실행한다. 문서 전용 PR에서는 문서 검사·checker 테스트, diff/whitespace, issue forms·등록 정책, AI provenance 회귀·실제 PR commit 검사와 CI 경로 분류 테스트만 실행한다. 나머지 PR과 `master` push에서는 전체 제품 테스트·typecheck·Editor build도 실행한다. PR의 추가 job은 아래 경로 요약으로 선택한다. 실제 GitHub 업데이트·서명·수동 확인은 이 CI의 보장 범위가 아니므로 해당 변경·릴리즈의 별도 절차를 유지한다.
 
 | Change type | Required verification |
 | --- | --- |
 | Documentation only | `pnpm docs:check`, `git diff --check` |
 | Issue forms / registration tooling | `pnpm issues:forms --check`, `pnpm issues:test`, `pnpm docs:check`, `git diff --check` |
 | Commit provenance tooling / policy | `node --test scripts/commit-provenance.test.mjs`, `pnpm docs:check`, `git diff --check`; 실제 commit의 Git parsed trailers 확인 |
+| CI quality 경로 / browser shard 설정 | `node --test scripts/ci-quality-mode.test.mjs`, `pnpm --filter @ieumdoc/editor exec tsx --test test/browser-fixtures.test.ts`, `pnpm docs:check`, `git diff --check`; PR의 실제 shard CI 결과 확인 |
 | Core semantics | Core tests, `pnpm typecheck`, 관련 canonical round-trip/거부 regression |
 | CLI | Core/CLI tests, `pnpm typecheck`, 실제 파일 write 및 실패 시 원본 보존 |
 | Editor logic | Editor tests, `pnpm typecheck`, `pnpm --filter @ieumdoc/editor build` |
@@ -79,6 +80,8 @@ CLI/Desktop `package`, `test:packaged`, release/artifact 검증, 설치·업데�
 
 문서 checker를 바꾸면 `pnpm exec tsx --test scripts/check-docs.test.ts`도 실행한다. 검증 명령의 자세한 사용법은 [검증 안내](docs/test/README.md)에 있다.
 
+quality의 문서 전용 판정은 [ci-quality-mode.mjs](scripts/ci-quality-mode.mjs)의 보수적인 allowlist다. 루트 `*.md`, `.github` 바로 아래 `*.md`, `docs/**`의 `md/png/jpg/jpeg/gif/svg/webp/ico/pdf/json`만 허용한다. 제품 fixture일 수 있는 `apps/**`·`packages/**` Markdown, tooling·설정, issue form, 미분류 경로가 하나라도 섞이면 전체 quality를 실행한다. 삭제도 변경 경로에 포함하고 rename의 이전·이후 경로를 모두 검사한다. PR merge-base diff로 판정하며 `master` push에는 문서 전용 생략을 적용하지 않는다.
+
 CI 경로 규칙의 기준은 [ci.yml의 changes job](.github/workflows/ci.yml)이며, 다음 표는 요약이다. 여러 경로를 바꾸면 필요한 job의 합집합을 실행한다. `master` push와 PR 이외 이벤트는 경로와 무관하게 전체 job과 `test:update`를 실행한다. **미분류 경로가 하나라도 있으면 전체 실행**한다.
 
 | PR 변경 경로 요약 | quality 외 추가 검증 |
@@ -89,7 +92,7 @@ CI 경로 규칙의 기준은 [ci.yml의 changes job](.github/workflows/ci.yml)�
 | `apps/desktop/**`, Editor의 업데이트 화면(`apps/editor/shared/desktop-bridge.ts`, `apps/editor/src/shell/SettingsDialog.tsx`, `apps/editor/src/shell/MessageArea.tsx`) | desktop + `test:update` (Editor 파일은 Editor 규칙도 함께 적용) |
 | 공용 설정·도구 (`package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `patches/**`, 루트 `tsconfig*`, `.github/workflows/**`, `scripts/**`) 또는 미분류 경로 | browser, http, desktop + `test:update` |
 
-패키지 내부 Markdown은 fixture나 배포 입력일 수 있어 패키지 경로 규칙을 적용한다. browser는 Editor 2개 shard, http는 Windows/Linux CLI package·`test:packaged`·HTTP browser 회귀를 실행한다. desktop이 선택되면 clean package·release 자산 검증·`test:packaged`는 항상 실행하고, 로컬 feed 설치·업데이트 단계만 `update` 출력으로 선택한다. 이 설치·업데이트 e2e는 Editor의 Settings·업데이트 알림·Desktop bridge를 직접 조작하므로 해당 파일도 `update` 대상이다. `App.tsx`의 재시작 거부 판단처럼 그 밖의 Editor 변경은 browser `desktop-updates`(mock bridge)와 Desktop packaged 회귀로 검증하고, 실제 설치·업데이트는 `master` push의 전체 실행에서 확인한다. Editor와 CLI는 Core/File commit을 공유하고, Desktop은 Editor 코드와 Host를 직접 사용하며 HTTP용 CLI package도 Editor를 빌드하므로 이 의존 경로를 함께 검증한다.
+패키지 내부 Markdown은 fixture나 배포 입력일 수 있어 패키지 경로 규칙을 적용한다. browser는 Editor 4개 shard로 stable 시나리오를 정확히 한 번씩 실행한다. 목록 순서의 순환 분배를 사용하며 각 shard의 배정은 CI 로그에 출력한다. http는 Windows/Linux CLI package·`test:packaged`·HTTP browser 회귀를 실행한다. desktop이 선택되면 clean package·release 자산 검증·`test:packaged`는 항상 실행하고, 로컬 feed 설치·업데이트 단계만 `update` 출력으로 선택한다. 이 설치·업데이트 e2e는 Editor의 Settings·업데이트 알림·Desktop bridge를 직접 조작하므로 해당 파일도 `update` 대상이다. `App.tsx`의 재시작 거부 판단처럼 그 밖의 Editor 변경은 browser `desktop-updates`(mock bridge)와 Desktop packaged 회귀로 검증하고, 실제 설치·업데이트는 `master` push의 전체 실행에서 확인한다. Editor와 CLI는 Core/File commit을 공유하고, Desktop은 Editor 코드와 Host를 직접 사용하며 HTTP용 CLI package도 Editor를 빌드하므로 이 의존 경로를 함께 검증한다.
 
 필수 aggregate 검사 `Core, CLI, Editor, and browser regressions`는 changes와 quality의 성공을 요구하고, 경로 규칙이 선택한 browser/http/desktop은 반드시 성공해야 하고, 선택하지 않은 job만 skipped여야 한다. 실패·취소는 통과하지 않는다. 같은 PR에 새 커밋을 push하면 이전 CI 실행을 취소하며, `master` push 실행은 커밋별로 유지한다.
 
