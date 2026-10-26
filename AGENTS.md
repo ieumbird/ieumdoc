@@ -46,6 +46,7 @@
 - `docs/design/editor-visual-language-v1.md` — Editor typography, surface, 상태 및 overlay 표현 기준.
 - `docs/test/` — 자동 검증 실행 방법과 자동화가 판정하지 않는 수동 확인 항목.
 - `.githooks/` — optional shared Git hooks, including commit-msg AI provenance checks.
+- `.agents/skills/` — project-only agent skills shared by Codex and Claude Code (`.claude/skills/` holds thin entry points). `ieumdoc-orchestrator` runs multi-issue orchestration only on explicit invocation.
 - `README.md` — 제품 목적과 장기적인 아키텍처 방향.
 
 ## Documentation authority and lifecycle
