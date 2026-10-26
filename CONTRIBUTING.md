@@ -48,20 +48,20 @@ pnpm --filter @ieumdoc/editor build
 
 ### Review and sequential merge
 
-모든 PR은 다음 순서를 따른다. 구현은 독립 worktree에서 병렬로 진행할 수 있지만, 병합은 통합 담당자 한 명이 한 PR씩 순차로 수행한다. 별도 merge bot이나 queue는 두지 않는다.
+모든 PR은 다음 순서를 따른다. 구현은 독립 worktree에서 병렬로 진행할 수 있으며, 통합 담당자가 승인된 PR을 GitHub merge queue에 넣는다. Queue가 최신 master와 앞선 PR을 합친 결과를 검증하고 순서대로 병합한다. 이 절차는 #537의 workflow가 master에 병합된 뒤 통합 담당자가 ruleset에서 queue를 활성화하여 적용한다. 활성화 전에는 기존 최신 master 반영·재검토 절차를 유지한다.
 
-1. 최신 `origin/master`를 fetch하고 PR branch에 반영한다. 현재 head가 최신 master를 포함하는지 확인하고, 그 head에서 필수 CI 검사가 모두 통과해야 한다. 이전 head의 성공이나 변경 전 base의 검사로 대신하지 않는다.
-2. 구현에 참여하지 않은 별도 agent가 최종 diff, 관련 계약과 검증 근거를 독립 검토한다. 승인 기록에는 reviewer agent 식별자, `APPROVE` verdict와 검토한 정확한 전체 head SHA를 남긴다. 구현자 자신의 판단은 이 승인을 대신하지 않는다.
+1. PR의 정확한 현재 head에서 필수 CI 검사가 모두 통과해야 한다. 이전 head의 성공으로 대신하지 않는다. master가 이동했다는 이유만으로 최신 master를 PR branch에 직접 merge하거나 다시 검토받을 필요는 없다.
+2. 구현에 참여하지 않은 별도 agent가 최종 diff, 관련 계약과 검증 근거를 독립 검토한다. PR 댓글에 reviewer agent 식별자, `APPROVE` verdict와 검토한 정확한 전체 head SHA를 기록한다. 구현자 자신의 판단은 이 승인을 대신하지 않는다.
    승인 전에 [Git parsed-trailer 검사](#ai-commit-provenance)로 PR 고유 commit 전체(작성된 merge 포함)의 provenance와 같은 head의 CI 검사 통과를 확인한다.
-3. GitHub required approval count 0은 GitHub 서버의 승인 수 설정이며, 별도 agent 승인을 생략한다는 뜻이 아니다. 같은 GitHub 계정을 사용하는 agent는 PR 작성자 자신의 PR에 GitHub approve review를 제출할 수 없으므로, 이 경우 별도 agent의 독립 검토 verdict와 SHA를 PR 댓글로 기록한다. 이 댓글은 운영상 승인 근거이며 GitHub의 approved review로 계산되지 않는다.
-4. 통합 담당자는 병합 직전에 PR head가 승인 SHA와 같은지, 최신 master를 포함하는지, 해당 head의 필수 CI가 모두 통과했는지, review thread가 모두 해결되었는지 확인한다. 하나라도 충족하지 않으면 병합하지 않는다. 다른 PR 병합으로 master가 바뀌면 최신 master를 반영하고 CI와 별도 agent 검토를 다시 받는다.
-5. 수정 commit, conflict 해결, merge/rebase 등으로 head SHA가 달라지면 기존 승인은 재사용하지 않는다. 새 head에서 검증과 별도 agent의 `APPROVE`를 받은 뒤 통합 담당자가 병합한다. 다음 PR은 변경된 master를 기준으로 같은 순서를 반복한다.
+3. GitHub required approval count 0은 GitHub 서버의 승인 수 설정이며, 별도 agent 승인을 생략한다는 뜻이 아니다. 같은 GitHub 계정을 사용하는 agent는 PR 작성자 자신의 PR에 GitHub approve review를 제출할 수 없다. PR 댓글의 독립 승인 기록은 운영상 승인 근거이며 GitHub의 approved review로 계산되지 않는다.
+4. 통합 담당자는 enqueue 직전에 PR head가 독립 승인 SHA와 같은지, 해당 head의 필수 CI가 모두 통과했는지, review thread가 모두 해결되었는지 확인한다. 하나라도 충족하지 않으면 queue에 넣지 않는다. Queue는 최신 master와 합친 결과에서 전체 CI와 필수 aggregate 검사를 실행한다.
+5. 수정 commit, 수동 conflict 해결, queue가 보고한 충돌 때문에 필요한 master merge 등으로 PR head SHA가 달라지면 기존 승인은 재사용하지 않는다. 새 head에서 필수 CI와 별도 agent의 새 `APPROVE`를 받은 뒤 통합 담당자가 다시 enqueue한다. Queue 실패도 일반 CI 실패처럼 artifact부터 확인하여 원인을 조사한다. PR head가 그대로라면 master 이동이나 queue 재구성만으로 독립 재승인을 요구하지 않는다.
 
 ## Verification matrix
 
 로컬에서는 변경의 고유한 위험에 맞는 관련 패키지 테스트·browser 시나리오를 지정해 실행한다. 영향 범위가 여러 계층에 걸치는 경우가 아니면 전체 `pnpm test`와 전체 `pnpm browser:test`는 로컬 필수가 아니다. 아래 표는 로컬 최소 검증이며, PR의 필수 CI 검사는 모두 통과해야 한다.
 
-CLI/Desktop `package`, `test:packaged`, release/artifact 검증, 설치·업데이트 회귀와 다른 OS 검증은 해당 패키징·설치/업데이트·배포 경계를 변경한 경우가 아니면 필수 CI에 맡긴다. [CI](.github/workflows/ci.yml)는 항상 quality를 실행한다. 문서 전용 PR에서는 문서 검사·checker 테스트, diff/whitespace, issue forms·등록 정책, AI provenance 회귀·실제 PR commit 검사와 CI 경로 분류 테스트만 실행한다. 나머지 PR과 `master` push에서는 전체 제품 테스트·typecheck·Editor build도 실행한다. PR의 추가 job은 아래 경로 요약으로 선택한다. 실제 GitHub 업데이트·서명·수동 확인은 이 CI의 보장 범위가 아니므로 해당 변경·릴리즈의 별도 절차를 유지한다.
+CLI/Desktop `package`, `test:packaged`, release/artifact 검증, 설치·업데이트 회귀와 다른 OS 검증은 해당 패키징·설치/업데이트·배포 경계를 변경한 경우가 아니면 필수 CI에 맡긴다. [CI](.github/workflows/ci.yml)는 항상 quality를 실행한다. 문서 전용 PR에서는 문서 검사·checker 테스트, diff/whitespace, issue forms·등록 정책, AI provenance 회귀·실제 PR commit 검사와 CI 경로 분류 테스트만 실행한다. 나머지 PR과 `master` push, `merge_group`에서는 전체 제품 테스트·typecheck·Editor build도 실행한다. `merge_group`은 paths-filter 없이 browser 4개 shard, HTTP 양쪽 OS, Desktop package·설치/업데이트를 모두 실행한다. PR의 추가 job은 아래 경로 요약으로 선택한다. 실제 GitHub 업데이트·서명·수동 확인은 이 CI의 보장 범위가 아니므로 해당 변경·릴리즈의 별도 절차를 유지한다.
 
 | Change type | Required verification |
 | --- | --- |
@@ -92,9 +92,9 @@ CI 경로 규칙의 기준은 [ci.yml의 changes job](.github/workflows/ci.yml)�
 | `apps/desktop/**`, Editor의 업데이트 화면(`apps/editor/shared/desktop-bridge.ts`, `apps/editor/src/shell/SettingsDialog.tsx`, `apps/editor/src/shell/MessageArea.tsx`) | desktop + `test:update` (Editor 파일은 Editor 규칙도 함께 적용) |
 | 공용 설정·도구 (`package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `patches/**`, 루트 `tsconfig*`, `.github/workflows/**`, `scripts/**`) 또는 미분류 경로 | browser, http, desktop + `test:update` |
 
-패키지 내부 Markdown은 fixture나 배포 입력일 수 있어 패키지 경로 규칙을 적용한다. browser는 Editor 4개 shard로 stable 시나리오를 정확히 한 번씩 실행한다. 목록 순서의 순환 분배를 사용하며 각 shard의 배정은 CI 로그에 출력한다. http는 Windows/Linux CLI package·`test:packaged`·HTTP browser 회귀를 실행한다. desktop이 선택되면 clean package·release 자산 검증·`test:packaged`는 항상 실행하고, 로컬 feed 설치·업데이트 단계만 `update` 출력으로 선택한다. 이 설치·업데이트 e2e는 Editor의 Settings·업데이트 알림·Desktop bridge를 직접 조작하므로 해당 파일도 `update` 대상이다. `App.tsx`의 재시작 거부 판단처럼 그 밖의 Editor 변경은 browser `desktop-updates`(mock bridge)와 Desktop packaged 회귀로 검증하고, 실제 설치·업데이트는 `master` push의 전체 실행에서 확인한다. Editor와 CLI는 Core/File commit을 공유하고, Desktop은 Editor 코드와 Host를 직접 사용하며 HTTP용 CLI package도 Editor를 빌드하므로 이 의존 경로를 함께 검증한다.
+패키지 내부 Markdown은 fixture나 배포 입력일 수 있어 패키지 경로 규칙을 적용한다. browser는 Editor 4개 shard로 stable 시나리오를 정확히 한 번씩 실행한다. 목록 순서의 순환 분배를 사용하며 각 shard의 배정은 CI 로그에 출력한다. http는 Windows/Linux CLI package·`test:packaged`·HTTP browser 회귀를 실행한다. desktop이 선택되면 clean package·release 자산 검증·`test:packaged`는 항상 실행하고, 로컬 feed 설치·업데이트 단계만 `update` 출력으로 선택한다. 이 설치·업데이트 e2e는 Editor의 Settings·업데이트 알림·Desktop bridge를 직접 조작하므로 해당 파일도 `update` 대상이다. `App.tsx`의 재시작 거부 판단처럼 그 밖의 Editor 변경은 browser `desktop-updates`(mock bridge)와 Desktop packaged 회귀로 검증하고, 실제 설치·업데이트는 `master` push와 `merge_group`의 전체 실행에서 확인한다. Editor와 CLI는 Core/File commit을 공유하고, Desktop은 Editor 코드와 Host를 직접 사용하며 HTTP용 CLI package도 Editor를 빌드하므로 이 의존 경로를 함께 검증한다.
 
-필수 aggregate 검사 `Core, CLI, Editor, and browser regressions`는 changes와 quality의 성공을 요구하고, 경로 규칙이 선택한 browser/http/desktop은 반드시 성공해야 하고, 선택하지 않은 job만 skipped여야 한다. 실패·취소는 통과하지 않는다. 같은 PR에 새 커밋을 push하면 이전 CI 실행을 취소하며, `master` push 실행은 커밋별로 유지한다.
+필수 aggregate 검사 `Core, CLI, Editor, and browser regressions`는 changes와 quality의 성공을 요구하고, 경로 규칙이 선택한 browser/http/desktop은 반드시 성공해야 하고, 선택하지 않은 job만 skipped여야 한다. 실패·취소는 통과하지 않는다. Queue에서도 정확히 같은 검사 이름을 보고한다. 같은 PR에 새 커밋을 push하면 이전 CI 실행을 취소하며, `master` push와 `merge_group` 실행은 이벤트·head SHA별로 유지하고 서로 취소하지 않는다.
 
 ## HTTP Host builds
 
@@ -141,6 +141,8 @@ Unsigned Beta의 SHA-512/SHA-256은 무결성 검증이다. 악의적인 게시�
 ## AI commit provenance
 
 필수 trailer 형식과 구현자 기록 의무는 [AGENTS.md](AGENTS.md#ai-commit-provenance)를 따른다. 두 필수 키는 **최종 연속 trailer 블록에 각각 정확히 한 번** 있어야 한다. 본문과 블록 사이에는 빈 줄을 두고, trailer 사이에는 빈 줄을 넣지 않는다. 행이 본문에 보이는 것만으로는 충분하지 않다. Git이 실제로 두 값을 읽어야 한다.
+
+예외: GitHub merge queue가 생성한 merge commit은 플랫폼 생성 commit이며 AI trailer를 넣지 않는다. Provenance는 validator가 검사하는 PR 고유 commit에 남는다. Agent가 수동 작성한 merge commit(예: PR branch에 master merge)은 여전히 필수 trailer 대상이다.
 
 ```text
 fix: preserve machine-readable provenance
@@ -202,7 +204,7 @@ git log origin/master..HEAD --format='%H%n%(trailers:only)'
 
 `.githooks/commit-msg`와 CI quality는 같은 [validator](scripts/commit-provenance.mjs)의 `git interpret-trailers --parse` 결과로 누락·중복·빈 값·모델 형식·블록 밖 metadata를 검사한다. Git의 [trailer 형식](https://git-scm.com/docs/git-interpret-trailers)을 재구현하지 않는다. AI provenance가 전혀 없는 사람 commit과 선택적인 `AI-Reviewed-By`, 다른 정상 trailer는 허용한다. 검증기는 사람이 작성한 commit인지 또는 모델 기록이 사실인지 자동 판별하지 않는다.
 
-CI는 PR event의 `pull_request.base.sha..pull_request.head.sha`를 검사한다. base에서 이미 도달 가능한 기존 이력과 GitHub의 synthetic merge는 제외하지만 PR에서 작성된 merge commit은 포함한다. event JSON은 파일로 읽으며 shell 명령에 값을 삽입하지 않는다. push event에는 과거 master 이력의 provenance 감사를 추가하지 않는다.
+CI는 `event <event-name> <event.json>`으로 PR event의 `pull_request.base.sha..pull_request.head.sha`를 검사한다. base에서 이미 도달 가능한 기존 이력과 GitHub의 synthetic merge는 제외하지만 PR에서 작성된 merge commit은 포함한다. `merge_group`에서는 enqueue 전에 PR 고유 commit이 검증되었으므로 provenance 범위 검사를 명시적으로 건너뛴다. GitHub 생성 queue merge commit에 AI trailer를 요구하지 않는다. event JSON은 파일로 읽으며 shell 명령에 값을 삽입하지 않는다. push event에는 과거 master 이력의 provenance 감사를 추가하지 않는다.
 
 Hook은 선택 설치이며 CI 검사의 대체물이 아니다. Node.js와 Git이 필요하다. Enable the shared hooks in a local clone with:
 

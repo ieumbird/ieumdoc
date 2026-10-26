@@ -87,6 +87,11 @@
 Every commit created primarily by an AI coding agent MUST include
 machine-readable provenance trailers.
 
+Exception: merge commits created by GitHub's merge queue are platform-generated
+and carry no AI trailers. Provenance stays in the PR's own commits, which the
+validator checks on `pull_request`. Manually authored merges by an AI agent
+(for example, merging master into a PR branch) still require the trailers below.
+
 Required:
 
 ```

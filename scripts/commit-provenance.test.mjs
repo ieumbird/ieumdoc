@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { validateMessage, validatePullRequestEvent } from './commit-provenance.mjs';
+import { validateEvent, validateMessage, validatePullRequestEvent } from './commit-provenance.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const valid = 'AI-Agent: Codex\nAI-Model: openai/gpt-6.1-sol';
@@ -134,4 +134,35 @@ test('CLI reads event JSON as data and rejects missing or hostile SHAs', t => {
   for (const input of [{}, event('--all', head), event(base, '$(echo injected)'), event(base, '0'.repeat(40))]) {
     assert.notEqual(run(input).status, 0);
   }
+});
+
+test('merge_group skips GitHub queue merges while PR events still validate authored commits', t => {
+  const { cwd, git } = repo(t);
+  const base = commitObject(git, 'Base');
+  const feature = commitObject(git, `PR implementation\n\n${valid}`, [base]);
+  const queueMerge = commitObject(git, 'GitHub-generated queue merge without AI trailers', [base, feature]);
+  git('checkout', '--detach', queueMerge);
+  const queueEvent = { merge_group: { base_sha: base, head_sha: queueMerge } };
+  assert.equal(validateEvent('merge_group', queueEvent, cwd), null);
+  assert.deepEqual(validateEvent('pull_request', event(base, feature), cwd), [feature]);
+  const authoredMerge = commitObject(git, `Agent-authored merge\n\n${broken}`, [feature, base]);
+  assert.throws(() => validateEvent('pull_request', event(base, authoredMerge), cwd), /AI-Agent/);
+  assert.throws(() => validateEvent('unexpected', queueEvent, cwd), /Unsupported provenance event/);
+
+  const file = path.join(cwd, 'queue-event.json');
+  writeFileSync(file, JSON.stringify(queueEvent));
+  const result = spawnSync(process.execPath, [path.join(root, 'scripts/commit-provenance.mjs'),
+    'event', 'merge_group', file], { cwd, encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /skipping GitHub-generated queue merges/);
+  writeFileSync(file, JSON.stringify(event(base, feature)));
+  const accepted = spawnSync(process.execPath, [path.join(root, 'scripts/commit-provenance.mjs'),
+    'event', 'pull_request', file], { cwd, encoding: 'utf8' });
+  assert.equal(accepted.status, 0, accepted.stderr);
+  assert.match(accepted.stdout, /checked 1 PR-only commits/);
+  writeFileSync(file, JSON.stringify(event(base, authoredMerge)));
+  const rejected = spawnSync(process.execPath, [path.join(root, 'scripts/commit-provenance.mjs'),
+    'event', 'pull_request', file], { cwd, encoding: 'utf8' });
+  assert.notEqual(rejected.status, 0);
+  assert.match(rejected.stderr, /AI-Agent/);
 });
