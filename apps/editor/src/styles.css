@@ -470,6 +470,10 @@ button {
   list-style: none;
 }
 
+.document-outline-item:not([aria-current="location"]) .document-outline-number {
+  color: var(--id-color-document-heading-number);
+}
+
 .document-outline-item {
   position: relative;
   display: -webkit-box;
@@ -2418,7 +2422,10 @@ ol.list { list-style: decimal; }
 .table-block .caption .inline-math-rendered:hover { background: none; box-shadow: none; }
 .table-block .caption .cross-reference[data-resolved="true"] .cross-reference-chip:hover { text-decoration: none; }
 
-[data-block="heading"][data-heading-number]::before { content: attr(data-heading-number) " "; }
+[data-block="heading"][data-heading-number]::before {
+  content: attr(data-heading-number) " ";
+  color: var(--id-color-document-heading-number);
+}
 
 /* Open folder: a path field with its folder list, recent folders and starting places. */
 .folder-picker {
