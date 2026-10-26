@@ -1,6 +1,6 @@
 // Citation authoring: slash search and insertion, the citation form's key group and role,
 // Cancel/Apply/Remove, Undo/Redo and Save → Reload. The external BibTeX file is never written.
-async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture }) => {
+async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, bibliographyFixture }) => {
   page.setDefaultTimeout(15000);
   const assert = (ok, message) => { if (!ok) throw Error(message); };
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: 'attached' });
@@ -107,6 +107,7 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture 
   const removed = JSON.stringify(['cite:p:standard', 'cite:t:missing-key,book']);
   assert(await citations() === removed, 'Remove deletes the citation atom');
   assert((await editor.innerText()).includes('Write here.'), 'Surrounding text remains');
+  await waitForEditorFocus(page);
 
   await page.keyboard.press('Control+z');
   assert(JSON.parse(await citations()).includes('cite:p:conference'), 'Undo restores the removed citation');
@@ -123,6 +124,105 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture 
   // Exercise the same insertion paths on every supported inline surface, then persist them.
   const nestedFile = [root, 'chapters', 'nested.md'].join(sep);
   await openPath(page, nestedFile);
+  // #542: real code click -> immediate shortcut -> Escape -> typing, including a
+  // held engine post-focus check. Observe restoration within the focus event,
+  // before a later selectionchange or timer could hide a missing synchronous write.
+  const codeFocusCases = [];
+  for (const holdCheck of [false, true]) {
+    await editor.evaluate(element => {
+      const probe = window.codeFocusProbe = { events: new AbortController() };
+      element.addEventListener('pointerdown', () => { probe.clicked = performance.now(); }, { signal: probe.events.signal });
+      element.addEventListener('keydown', event => {
+        if ((event.ctrlKey || event.metaKey) && event.key === '/') probe.openClickAge = performance.now() - probe.clicked;
+      }, { signal: probe.events.signal });
+    });
+    await editor.locator('pre').filter({ hasText: 'Code.' }).click();
+    await page.waitForFunction(() => {
+      const e = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+      const native = getSelection();
+      return e.state.selection.$from.parent.type.name === 'codeBlock' && native.isCollapsed &&
+        e.view.dom.contains(native.anchorNode) && e.view.posAtDOM(native.anchorNode, native.anchorOffset) === e.state.selection.from;
+    });
+    const clickedCaret = await editor.evaluate(element => element.editor.state.selection.from);
+    await page.keyboard.press('ControlOrMeta+/');
+    const codeCenter = page.getByRole('dialog', { name: 'Command center', exact: true });
+    await codeCenter.getByRole('combobox').waitFor();
+    await editor.evaluate(element => {
+      const view = element.editor.view, probe = window.codeFocusProbe;
+      const snapshot = () => {
+        const native = getSelection(), selection = view.state.selection;
+        return { from: selection.from, to: selection.to, parent: selection.$from.parent.type.name,
+          native: native.isCollapsed && view.dom.contains(native.anchorNode)
+            ? view.posAtDOM(native.anchorNode, native.anchorOffset) : null };
+      };
+      let focusEvent;
+      // ProseMirror registered its non-capture listener when creating this view.
+      // Capture precedes it; our later non-capture listener follows it at the same target.
+      view.dom.addEventListener('focus', event => {
+        focusEvent = event;
+        probe.beforeFocus = snapshot();
+      }, { capture: true, once: true, signal: probe.events.signal });
+      view.dom.addEventListener('focus', event => {
+        probe.sameFocusEvent = event === focusEvent;
+        probe.afterFocus = snapshot();
+      }, { once: true, signal: probe.events.signal });
+    });
+    if (holdCheck) await page.evaluate(() => {
+      const schedule = window.setTimeout;
+      window.codeFocusProbe.restore = () => { window.setTimeout = schedule; };
+      window.setTimeout = (callback, ms, ...args) => {
+        if (ms === 20 && String(callback).includes('selectionToDOM')) {
+          window.codeFocusProbe.check = callback;
+          return 0;
+        }
+        return schedule(callback, ms, ...args);
+      };
+    });
+    try {
+      await page.keyboard.press('Escape');
+      await codeCenter.waitFor({ state: 'detached' });
+      await waitForEditorFocus(page);
+      const returned = await editor.evaluate((element, clickedCaret) => {
+        const e = element.editor, native = getSelection();
+        const probe = window.codeFocusProbe;
+        return { openClickAge: probe.openClickAge, clickedCaret,
+          beforeFocus: probe.beforeFocus, afterFocus: probe.afterFocus, sameFocusEvent: probe.sameFocusEvent,
+          retained: e.state.selection.from === clickedCaret && native.isCollapsed &&
+            e.view.dom.contains(native.anchorNode) && e.view.posAtDOM(native.anchorNode, native.anchorOffset) === clickedCaret,
+          checkHeld: typeof window.codeFocusProbe.check === 'function' };
+      }, clickedCaret);
+      await page.keyboard.type(' /');
+      const typed = await editor.evaluate(element => ({
+        parent: element.editor.state.selection.$from.parent.type.name,
+        text: element.editor.state.selection.$from.parent.textContent,
+      }));
+      const menus = await page.getByRole('menu', { name: 'Insert block', exact: true }).count();
+      codeFocusCases.push({ holdCheck, ...returned, ...typed, menus });
+    } finally {
+      await page.evaluate(() => {
+        const probe = window.codeFocusProbe;
+        probe.events.abort();
+        probe.restore?.();
+        probe.check?.();
+      });
+    }
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Backspace');
+    await page.keyboard.press('Backspace');
+  }
+  for (const { holdCheck, openClickAge } of codeFocusCases) {
+    assert(Number.isFinite(openClickAge) && openClickAge < 300,
+      `Code focus regression missed the upstream 300ms click window: pointerdown -> Ctrl+/ took ${openClickAge}ms (held check: ${holdCheck})`);
+  }
+  assert(codeFocusCases.every(c => c.sameFocusEvent && c.beforeFocus?.native === 1 &&
+    c.beforeFocus.parent === 'codeBlock' && c.beforeFocus.from === c.clickedCaret && c.beforeFocus.to === c.clickedCaret),
+    'Focus must actually encounter a native document-start reset with the retained code caret: ' + JSON.stringify(codeFocusCases));
+  assert(codeFocusCases.every(c => c.afterFocus?.native === c.clickedCaret &&
+    c.afterFocus.parent === 'codeBlock' && c.afterFocus.from === c.clickedCaret && c.afterFocus.to === c.clickedCaret),
+    'The same focus event must synchronously restore native/engine code-caret agreement: ' + JSON.stringify(codeFocusCases));
+  assert(codeFocusCases.every(c => c.retained && c.parent === 'codeBlock' && c.text === 'Code. /' &&
+    c.menus === 0 && (!c.holdCheck || c.checkHeld)),
+    'A recent real code click survives Command center Escape: ' + JSON.stringify(codeFocusCases));
   const caret = async (text, replace = false) => editor.evaluate((element, { text, replace }) => {
     const instance = element.editor;
     let range;
@@ -170,7 +270,7 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture 
       await page.keyboard.press('Escape');
       await center.waitFor({ state: 'detached' });
     }
-    await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.hasFocus());
+    await waitForEditorFocus(page);
     assert(await editor.evaluate(element => element.editor.state.selection.from) === caretBefore, `${location}: center dismissal retains caret`);
   };
   const surfaces = ['Item.', 'Nested item.', 'Quote.', 'Callout.', 'Header', 'Cell.', 'Caption.', 'Heading.', 'Nested inline', 'Definition.'];
@@ -200,6 +300,10 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture 
   await checkInsertionAvailability(false, 'Code');
   await page.keyboard.type(' /');
   assert(await menu.count() === 0, 'Code keeps literal slash input');
+  assert(await editor.evaluate(element => {
+    const { $from } = element.editor.state.selection;
+    return $from.parent.type.name === 'codeBlock' && $from.parent.textContent === 'Code. /';
+  }), 'The literal slash is inserted in Code');
   // Code edits with newly added endnotes hit a pre-existing, separate Core count check.
   // Restore this literal probe; this scenario persists the supported inline insertions above.
   await page.keyboard.press('Backspace');
@@ -340,5 +444,5 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture 
   } finally {
     await page.evaluate(() => localStorage.setItem('ieumdoc.uiLanguage', 'en'));
   }
-  return { commandInsertion: true, slashInsert: true, formInsert: true, editRemove: true, undoRedo: true, saveReload: true, nestedInline: true, citationOnlyList: true, nestedReferenceRename: true, bibHash };
+  return { codeFocusCases, commandInsertion: true, slashInsert: true, formInsert: true, editRemove: true, undoRedo: true, saveReload: true, nestedInline: true, citationOnlyList: true, nestedReferenceRename: true, bibHash };
 }

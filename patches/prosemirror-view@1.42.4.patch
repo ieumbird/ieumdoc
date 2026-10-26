@@ -32,12 +32,14 @@ index c6dc574fc427b11448e5ec6f800356d903ef2e51..27234cbe870d787301ed63d13aef77fc
  function inOrNearComposition(view, event) {
    if (view.composing) return true;
    if (safari && Math.abs(Date.now() - view.input.compositionEndedAt) < 500) {
-@@ -3662,13 +3671,16 @@ function handleDrop(view, event, dragging) {
+@@ -3662,13 +3671,18 @@ function handleDrop(view, event, dragging) {
  }
  handlers.focus = function (view) {
    view.input.lastFocus = Date.now();
 +  view.input.selectionKeysAtFocus = view.input.selectionKeys;
    if (!view.focused) {
++    // Restore before selectionchange flushes Chromium's focus caret into EditorState.
++    selectionToDOM(view);
      view.domObserver.stop();
      view.dom.classList.add("ProseMirror-focused");
      view.domObserver.start();
@@ -94,12 +96,14 @@ index 18d421a500137fe92f48d9f3895703257df6f7d0..7025cf2df27022fae48439eab31df8f4
  function inOrNearComposition(view, event) {
      if (view.composing)
          return true;
-@@ -3904,13 +3914,16 @@ function handleDrop(view, event, dragging) {
+@@ -3904,13 +3914,18 @@ function handleDrop(view, event, dragging) {
  }
  handlers.focus = view => {
      view.input.lastFocus = Date.now();
 +    view.input.selectionKeysAtFocus = view.input.selectionKeys;
      if (!view.focused) {
++        // Restore before selectionchange flushes Chromium's focus caret into EditorState.
++        selectionToDOM(view);
          view.domObserver.stop();
          view.dom.classList.add("ProseMirror-focused");
          view.domObserver.start();

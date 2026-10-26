@@ -114,6 +114,94 @@ checks an EditorView, not a shell control. The phone-width regression holds the 
 focus call and verifies that readiness remains pending before releasing it. It neither focuses
 the select early nor reopens a sidebar accidentally dismissed by Escape.
 
+### Native focus selection regression (#542)
+
+**Classification: product defect.** The earlier test-readiness diagnosis was incomplete.
+A real code-block click followed within 300ms by Command center → Escape can replace the
+retained code selection with H1 position 1, before further input. Typing even hundreds of
+milliseconds later then edits the title. Waiting for a native code caret after Escape cannot
+repair that lost engine selection; that wait has been removed.
+
+Base UI returns focus through the editor DOM element's native `focus()`. Chromium puts a
+native caret at the document start. ProseMirror's existing start-of-document heuristic ignores
+resets within 300ms of a pointer/touch, including a click **before** the dialog opened. This
+age condition is upstream, not an addition from #495. If the observer accepts the reset first,
+the later 20ms check only restores the now-wrong H1 selection. The pinned engine patch now
+writes its retained selection synchronously in the focus handler, before a later
+`selectionchange` invokes `DOMObserver.flush()` and can adopt the browser caret. `stop()`
+itself takes queued records, disconnects, and may schedule a flush after 20ms. The #144 key
+counters and #495 later-pointer/touch guard remain unchanged.
+
+`citation-authoring` uses an actual code click, awaits only the initial click's native/engine
+caret agreement (#416 is separate), opens the center immediately, escapes, and types ` /`.
+Both cases require pointerdown-to-shortcut age strictly below 300ms, but that alone does not
+prove synchronous restoration: a slow dialog can move the later observer flush outside the
+upstream click window, where its old heuristic can restore the caret. The test therefore
+records selection snapshots within the **same root focus event**. Its capture listener must
+observe a native document-start caret while the engine still retains the clicked code caret;
+its non-capture listener must observe native/engine agreement at that code caret. ProseMirror
+registers its non-capture listener at view creation, before this test's listener; capture runs
+before it at the target and registration order puts the second snapshot after it. Later
+selectionchange/flush or timers cannot repair the recorded snapshots.
+
+The test also requires selection retention **before** input, literal `Code. /` in the code block
+and no slash menu. The second case holds the engine's real 20ms check until after typing;
+this does not hold the observer's direct start-caret heuristic or DOM-selection adoption.
+There is no post-Escape caret polling, selection assignment, sleep, retry or timeout increase.
+The earlier master/fix comparisons (shortcut 91ms/64ms versus 100ms/49ms) remain historical
+evidence of the user-path defect, not proof that shortcut age bounds the later flush.
+
+With only the synchronous focus write removed, fresh fast and delayed-dialog controls both
+passed the capture precondition (engine code position 143, native position 1), then failed the
+same-event post snapshot (native still 1). A temporary 400ms dialog delay exposed the old
+test's gap: shortcuts at 69ms/58ms, direct heuristic flush at click age 575ms/547ms (focus age
+8ms), and all later code-text/menu assertions passed, including with the 20ms check held.
+Restoring the write passed both fast and delayed controls with native/engine position 143
+inside that same event. Diagnostic delay, runtime markers and logging were removed afterward;
+the committed regression observes the real fast path without injecting timing or selection.
+
+`focus-caret` records the browser's initial focus caret in capture phase, before the engine
+synchronizes it. Its existing caret-key, modifier and delayed-restore assertions stay intact.
+`document-title` retains the forced later-pointer regression from #495. `command-center`
+also checks that the shortcut-guide dialog's Escape, Close and outside dismissal preserve
+the retained engine selection as well as the existing focus/content checks.
+
+#### Focus audit and product judgement
+
+The retained engine selection is authoritative when focus returns. A real pointer focuses
+contenteditable before placing its new native caret; later pointer/touch selection is still
+protected by #495. Assigning a native range in an unfocused editor is a test setup operation,
+not that pointer path. `figure-authoring` now clicks its Copy source and uses the shared focus
+helper before assigning the range. CI run 40318255136 had assigned the range at
+11:54:46.238 while the file tree had focus; the editor focused at 46.253 and correctly restored
+its engine selection, so the old selected-text wait hung. A helper alone cannot create focus
+when the file tree retains it; the real click is required. All rich Copy/Paste assertions remain.
+
+The audit searched all 59 browser-scenario files for native Selection writes and dependent keys
+around admission, dialog/form close and tab switches. `citation-authoring` also now waits for
+Citation Remove's queued Tiptap focus before Undo (#421's separate Redo cause is not claimed).
+The other native-range Copy setup, `table-cell-editing`, already edits a focused cell before
+assigning its Copy range. Source/footnotes PRE selection is read-only and outside the engine;
+quiet-document/visual-states ranges only measure geometry; focus-caret writes are intentional
+restore probes. The remaining reads and native-key setups already use real clicks, synchronous
+engine focus, or observable caret readiness. Immediate handoff regressions in new-document,
+command-center, property-drafts and continuous-editing remain immediate. Toolbar pointer
+buttons prevent mousedown focus loss; keyboard return checks already wait for editor focus.
+
+Electron removes its application menu and has no `findInPage`/`stopFindInPage` integration.
+The authorized headless Chrome runner did not open native find UI for Ctrl+F (typing edited
+the scratch document), so native Chrome find-bar compatibility is **not verified**. A separate
+`window.find()` API probe from an unfocused shell control returned a match and focused the
+editor, but focus restoration retained the engine caret instead of that programmatic range.
+This is a non-pointer selection-before-focus producer; it is not a verified native find-bar
+user path. No browser/Electron find feature or compatibility guarantee is introduced here.
+
+**#502 remains open.** Reference navigation already dispatches a table NodeSelection and calls
+`view.focus()`. The #502 report records resets 382ms/866.5ms after focus; this change acts only
+on a real focus event and does not filter later native selection changes. Passing the existing
+table-authoring scenario does not establish that the unexplained late NodeView reset is fixed.
+No broad `nodeReset` guard or #502 resolution is claimed.
+
 `link-authoring` reports a missing selection toolbar within 15 seconds, including the scenario phase, requested range and actual ProseMirror/DOM selection.
 
 ### Scenario coverage
