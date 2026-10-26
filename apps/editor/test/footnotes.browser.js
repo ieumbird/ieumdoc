@@ -180,7 +180,11 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   assert(regionsSource !== regionsPlaced, 'Fixture already places its endnotes');
   const originalState = await editor.evaluate(element => JSON.stringify(element.editor.getJSON()));
   // The region's decorative label is not a heading: the Outline lists the document's one heading.
+  // At the default 1280px viewport the Outline is an explicit overlay.
+  await page.getByRole('button',{name:'Outline',exact:true}).click();
+  await page.getByTestId('outline').waitFor();
   assert(JSON.stringify(await page.getByTestId('outline').locator('button').allInnerTexts()) === '["Notes in context"]', 'Region label entered the Outline');
+  await page.getByRole('button',{name:'Outline',exact:true}).click();
   const presentation = () => editor.evaluate(element => {
     const {view, state} = element.editor;
     const probe=document.createElement('div');
