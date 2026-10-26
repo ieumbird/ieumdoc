@@ -111,6 +111,7 @@ function Outline({ outline: store, onSelect }: { outline: OutlineStore; onSelect
               <button
                 type="button"
                 className="document-outline-item"
+                data-outline-label={item.text || i18n.t("Untitled heading")}
                 style={{ "--outline-depth": item.level - 1 } as CSSProperties}
                 aria-current={index === outline.current ? "location" : undefined}
                 title={item.text || undefined}
@@ -123,8 +124,10 @@ function Outline({ outline: store, onSelect }: { outline: OutlineStore; onSelect
                   onSelect(item);
                 }}
               >
-                {item.number ? <><span className="document-outline-number">{item.number}</span>{item.text.slice(item.number.length)}</>
-                  : item.text || <span className="document-outline-untitled">{i18n.t("Untitled heading")}</span>}
+                <span className="document-outline-copy">
+                  {item.number ? <><span className="document-outline-number">{item.number}</span>{item.text.slice(item.number.length)}</>
+                    : item.text || <span className="document-outline-untitled">{i18n.t("Untitled heading")}</span>}
+                </span>
               </button>
             </li>
           ))}
