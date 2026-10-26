@@ -2400,11 +2400,13 @@ ol.list { list-style: decimal; }
 
 /* Open folder: a path field with its folder list, recent folders and starting places. */
 .folder-picker {
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
 }
 
 .folder-picker-field {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: var(--space-2);
   height: var(--size-control);
@@ -2514,6 +2516,34 @@ ol.list { list-style: decimal; }
 
 .folder-picker-list:empty {
   display: none;
+}
+
+.folder-picker-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: var(--layout-folder-picker-preview-height);
+  border: var(--border-width) solid var(--id-color-border);
+  border-radius: var(--id-radius-md);
+  background: var(--id-color-surface-subtle);
+}
+
+.folder-picker-preview .file-preview-image {
+  min-width: 0;
+  max-height: 100%;
+}
+
+.folder-picker-preview p {
+  margin: 0;
+  padding: var(--space-3);
+  color: var(--id-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* Reuse the shell's phone boundary: image preview must not crowd the list or its actions. */
+@media (width < 40rem) {
+  .folder-picker-preview { display: none; }
 }
 
 .folder-picker-option {
