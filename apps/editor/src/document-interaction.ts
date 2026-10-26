@@ -12,6 +12,7 @@ import { ASSET_FORMATS } from "../shared/asset-policy.ts";
 import { addTableRowBelow, changeHeadingLevel } from "./block-commands.ts";
 import { normalizeExternalHTML, type ExternalHTML } from "./external-html.ts";
 import { freshBlockPath, TABLE_CELL_SOURCE_ATTR } from "./tiptap-document.ts";
+import { REDO_SHORTCUT, UNDO_SHORTCUT } from "./shortcuts.ts";
 
 const TYPES = new Set(["paragraph", "heading", "admonition", "quote", "divider", "equation", "figure", "table", "tableRow", "tableCell", "bulletList", "orderedList", "listItem", "codeBlock", "text", "hardBreak", "inlineMath", "crossReference", "footnoteReference", "citation"]);
 const COPY_RESTRICTION = "This selection cannot be copied losslessly. Use Source to copy its original Markdown. The selection is kept.";
@@ -144,8 +145,8 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
         // Selected text keeps its toolbar Tab; only an editable top-level heading caret changes level.
         if (!this.editor.isEditable || !selection.empty || $from.depth !== 1 || $from.parent.type.name !== "heading") return false;
         const level = Number($from.parent.attrs.level) + (backward ? -1 : 1);
-        if (level >= 1 && level <= 6) view.dispatch(changeHeadingLevel(state, $from.index(0), level));
-        // At H1/H6, retain focus rather than falling through to browser Tab navigation.
+        if (level >= 2 && level <= 6) view.dispatch(changeHeadingLevel(state, $from.index(0), level));
+        // Body headings stop at H2; existing H1 and H6 boundaries also retain focus.
         return true;
       };
       const join = (backward: boolean) => {
@@ -293,6 +294,17 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
           node.type.name === "figure" ? `![${node.attrs.imageAlt}](${node.attrs.imageUrl})` : ""),
         handleDOMEvents: {
           keydown: (view, event) => {
+            if (!isMacOS() && this.editor.isEditable && !view.composing && event.ctrlKey && !event.metaKey) {
+              const key = UNDO_SHORTCUT.matches(event, { opaqueOnly: true }) ? "z"
+                : REDO_SHORTCUT.matches(event, { opaqueOnly: true }) ? "y" : undefined;
+              if (key) {
+                // IME Process/229 has no character for the engine keymap to resolve.
+                // Reuse that keymap, including Markdown input-rule Undo, with a visible key.
+                view.someProp("handleKeyDown", handler => handler(view, new KeyboardEvent("keydown", { key, ctrlKey: true })));
+                event.preventDefault();
+                return true;
+              }
+            }
             const { selection } = view.state;
             // prosemirror-view ignores IME keydown (229). Prepare the text caret before
             // Chromium establishes its composition range; moving it at compositionstart

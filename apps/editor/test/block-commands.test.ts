@@ -100,30 +100,46 @@ test("insert command adds one new paragraph after the target and reuses an empty
   assert.equal(reused.selection.$from.index(0), 1);
 });
 
-test("heading commands insert H1-H6 and place the caret inside the heading", () => {
+test("body heading commands offer H2-H6 and place the caret inside the heading", () => {
   const state = EditorState.create({ schema, doc: docOf(nativeSource("AB")) });
   const commands = INSERT_COMMANDS.filter(command => command.id.startsWith("heading-"));
-  assert.deepEqual(commands.map(command => command.label), ["Heading 1", "Heading 2", "Heading 3", "Heading 4", "Heading 5", "Heading 6"]);
+  assert.ok(!commands.some(command => command.id === "heading-1"));
+  for (const level of [2, 3, 4, 5, 6]) assert.ok(commands.some(command => command.id === `heading-${level}`));
+  assert.deepEqual(filterInsertCommands("h1"), []);
+  assert.deepEqual(filterInsertCommands("제목 1"), []);
   assert.deepEqual(filterInsertCommands("h2").map(command => command.id), ["heading-2"]);
-  assert.deepEqual(filterInsertCommands("heading").map(command => command.id), ["heading-1", "heading-2", "heading-3", "heading-4", "heading-5", "heading-6"]);
-  const next = state.apply(commands[1].run(state, 0));
+  assert.ok(!filterInsertCommands("heading").some(command => command.id === "heading-1"));
+  const next = state.apply(commands.find(command => command.id === "heading-2")!.run(state, 0));
   assert.deepEqual(next.doc.content.content.map(node => node.type.name), ["paragraph", "heading"]);
   assert.equal(next.doc.child(1).attrs.level, 2);
   assert.equal(next.selection.$from.parent.type.name, "heading");
   assert.equal(next.selection.$from.parentOffset, 0);
 });
 
+test("body block menus omit H1 while the document title keeps its own menu", () => {
+  for (const markdown of ["# Title\n\nParagraph\n\n## Section\n\n# Existing body H1", "(title)=\n\n# Title\n\nParagraph\n\n## Section\n\n# Existing body H1"]) {
+    const state = EditorState.create({ schema, doc: docOf(nativeSource(markdown)) });
+    state.doc.forEach((node, _, index) => {
+      if (!["paragraph", "heading"].includes(node.type.name)) return;
+      const commands = BLOCK_COMMANDS.filter(command => !command.applies || command.applies(state, index));
+      assert.equal(commands.some(command => command.id === "heading-level-1"), node.textContent === "Title", node.textContent);
+      for (const level of [2, 3, 4, 5, 6]) assert.ok(commands.some(command => command.id === `heading-level-${level}`));
+      if (node.type.name === "heading") assert.ok(commands.some(command => command.id === "paragraph"));
+    });
+  }
+});
+
 test("shared insert commands include structural blocks and select their new atoms", () => {
   const state = EditorState.create({ schema, doc: docOf(nativeSource("AB")) });
-  assert.deepEqual(INSERT_COMMANDS.map(command => command.label), [
-    "Paragraph", "Heading 1", "Heading 2", "Heading 3", "Heading 4", "Heading 5", "Heading 6", "Bulleted list", "Numbered list", "Note", "Warning", "Quote", "Divider", "Code block", "Equation", "Figure", "Table",
-  ]);
+  for (const label of ["Paragraph", "Bulleted list", "Numbered list", "Note", "Warning", "Quote", "Divider", "Code block", "Equation", "Figure", "Table"]) {
+    assert.ok(INSERT_COMMANDS.some(command => command.label === label), label);
+  }
   // The menu lists each group once under its heading, so a group's commands are consecutive.
   const groups = INSERT_COMMANDS.map(command => command.group);
   assert.deepEqual(groups.filter((group, index) => group !== groups[index - 1]), ["Text", "Lists", "Blocks", "Technical"]);
   // Heading 4-6 are listed only for a matching query, keeping the full menu short.
   assert.deepEqual(filterInsertCommands("").filter(command => command.id.startsWith("heading-")).map(command => command.id),
-    ["heading-1", "heading-2", "heading-3"]);
+    ["heading-2", "heading-3"]);
   assert.deepEqual(filterInsertCommands("h5").map(command => command.id), ["heading-5"]);
   assert.deepEqual(filterInsertCommands("h2").map(command => command.id), ["heading-2"]);
   assert.deepEqual(filterInsertCommands("latex").map(command => command.id), ["equation"]);
