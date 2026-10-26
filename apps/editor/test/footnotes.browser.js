@@ -183,6 +183,12 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   assert(JSON.stringify(await page.getByTestId('outline').locator('button').allInnerTexts()) === '["Notes in context"]', 'Region label entered the Outline');
   const presentation = () => editor.evaluate(element => {
     const {view, state} = element.editor;
+    const probe=document.createElement('div');
+    probe.style.cssText='font-size:var(--font-size-document-endnote);line-height:var(--line-height-document-endnote);padding-left:var(--space-document-endnote-indent);margin-top:var(--space-document-endnotes);margin-bottom:var(--space-document-endnote-gap)';
+    document.body.append(probe);
+    const computed=getComputedStyle(probe);
+    const expected={fontSize:computed.fontSize,lineHeight:computed.lineHeight,indent:computed.paddingLeft,regionGap:computed.marginTop,noteGap:computed.marginBottom};
+    probe.remove();
     const isDefinition = node => node.type.name === 'footnoteDefinition';
     const notes = [];
     state.doc.forEach((node, pos, index) => {
@@ -205,7 +211,7 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
         bounds: {left: dom.getBoundingClientRect().left, right: dom.getBoundingClientRect().right},
       });
     });
-    return {notes, overflow: document.documentElement.scrollWidth - innerWidth};
+    return {notes, expected, overflow: document.documentElement.scrollWidth - innerWidth};
   });
   const displays = [];
   for (const width of [1440, 768, 375]) {
@@ -219,12 +225,13 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
     displays.push({width, ...await presentation()});
   }
   for (const display of displays) {
+    const expected=display.expected;
     assert(display.notes.length > 0, 'No definitions to review');
     for (const note of display.notes) {
       assert(note.startsGroup ? note.heading === '"미주"' && note.border === '1px' : note.heading !== '"미주"', `Group heading: ${JSON.stringify(note)}`);
-      assert(note.fontSize === '16px' && note.lineHeight === '24px', `Note typography: ${JSON.stringify(note)}`);
-      assert(note.numberSize === '16px' && note.numberAlign === 'baseline', `Definition number: ${JSON.stringify(note)}`);
-      assert(note.indent === '24px' && note.marginTop === (note.startsGroup ? '24px' : '8px') && note.marginBottom === (note.endsGroup ? '24px' : '8px'), `Note spacing: ${JSON.stringify(note)}`);
+      assert(note.fontSize === expected.fontSize && note.lineHeight === expected.lineHeight, `Note typography: ${JSON.stringify(note)}`);
+      assert(note.numberSize === expected.fontSize && note.numberAlign === 'baseline', `Definition number: ${JSON.stringify(note)}`);
+      assert(note.indent === expected.indent && note.marginTop === (note.startsGroup ? expected.regionGap : expected.noteGap) && note.marginBottom === (note.endsGroup ? expected.regionGap : expected.noteGap), `Note spacing: ${JSON.stringify(note)}`);
       assert(note.bounds.left >= 0 && note.bounds.right <= display.width && display.overflow <= 1, `Viewport overflow: ${JSON.stringify(display)}`);
     }
   }

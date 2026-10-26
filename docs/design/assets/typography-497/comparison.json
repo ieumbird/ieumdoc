@@ -1,0 +1,224 @@
+{
+  "issue": 497,
+  "date": "2026-10-26",
+  "baseline": "6352fa661b5e4583db75597e70c146cd4e815646",
+  "method": "Buffer.equals on complete PNG files plus SHA-256; deepStrictEqual on collected computed styles. Captures are manual-review evidence, not screenshot assertions in the browser suite.",
+  "environment": [
+    {
+      "width": 1440,
+      "viewportHeight": 1000,
+      "dpr": 1,
+      "zoom": 1,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36"
+    },
+    {
+      "width": 375,
+      "viewportHeight": 1000,
+      "dpr": 1,
+      "zoom": 1,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36"
+    }
+  ],
+  "fixtureSHA256": "7bc8238435ca15e0ebacf6fa937f1b9bd31258c4bea990815b21bd00977afe17",
+  "styleInputsSHA256": {
+    "tokens": "c42bead928e36e21aac91abc036de8714129118a68d625f3dbdb1d017bf4a678",
+    "rules": "724391d04a952b828bb12ae494e6192d814978809c11b33afed075e376332738"
+  },
+  "computedStylesIdentical": true,
+  "coverage": [
+    {
+      "width": 1440,
+      "selectors": [
+        {
+          "selector": ".document-editor",
+          "count": 2
+        },
+        {
+          "selector": ".document-editor .heading",
+          "count": 11
+        },
+        {
+          "selector": ".document-editor .paragraph",
+          "count": 17
+        },
+        {
+          "selector": ".document-editor .list",
+          "count": 3
+        },
+        {
+          "selector": ".document-editor .quote",
+          "count": 1
+        },
+        {
+          "selector": ".document-editor .admonition",
+          "count": 3
+        },
+        {
+          "selector": ".document-editor .code-block pre",
+          "count": 1
+        },
+        {
+          "selector": ".document-editor :not(pre)>code",
+          "count": 1
+        },
+        {
+          "selector": ".document-editor .caption",
+          "count": 3
+        },
+        {
+          "selector": ".document-editor .table",
+          "count": 3
+        },
+        {
+          "selector": ".document-editor .table td",
+          "count": 18
+        },
+        {
+          "selector": ".document-editor .equation",
+          "count": 2
+        },
+        {
+          "selector": ".document-editor [data-footnote-definition]",
+          "count": 2
+        },
+        {
+          "selector": ".footnote-definition",
+          "count": 2
+        },
+        {
+          "selector": ".sidebar-tree-item",
+          "count": 5
+        },
+        {
+          "selector": ".document-outline-item",
+          "count": 6
+        }
+      ]
+    },
+    {
+      "width": 375,
+      "selectors": [
+        {
+          "selector": ".document-editor",
+          "count": 2
+        },
+        {
+          "selector": ".document-editor .heading",
+          "count": 11
+        },
+        {
+          "selector": ".document-editor .paragraph",
+          "count": 17
+        },
+        {
+          "selector": ".document-editor .list",
+          "count": 3
+        },
+        {
+          "selector": ".document-editor .quote",
+          "count": 1
+        },
+        {
+          "selector": ".document-editor .admonition",
+          "count": 3
+        },
+        {
+          "selector": ".document-editor .code-block pre",
+          "count": 1
+        },
+        {
+          "selector": ".document-editor :not(pre)>code",
+          "count": 1
+        },
+        {
+          "selector": ".document-editor .caption",
+          "count": 3
+        },
+        {
+          "selector": ".document-editor .table",
+          "count": 3
+        },
+        {
+          "selector": ".document-editor .table td",
+          "count": 18
+        },
+        {
+          "selector": ".document-editor .equation",
+          "count": 2
+        },
+        {
+          "selector": ".document-editor [data-footnote-definition]",
+          "count": 2
+        },
+        {
+          "selector": ".footnote-definition",
+          "count": 2
+        },
+        {
+          "selector": ".sidebar-tree-item",
+          "count": 5
+        },
+        {
+          "selector": ".document-outline-item",
+          "count": 6
+        }
+      ]
+    }
+  ],
+  "pairs": [
+    {
+      "name": "capture-1440-document-outline.png",
+      "width": 1440,
+      "height": 2701,
+      "beforeSHA256": "2374c3ad872ec397fa32e6ff0d295d4551d48680103dc1498302324f1ae8128b",
+      "afterSHA256": "2374c3ad872ec397fa32e6ff0d295d4551d48680103dc1498302324f1ae8128b",
+      "byteIdentical": true,
+      "pixelDifference": 0
+    },
+    {
+      "name": "capture-1440-document.png",
+      "width": 1440,
+      "height": 2701,
+      "beforeSHA256": "a3586abf26857b9e2cc24d364fc583a4db223531d3eb349d6574d8f964476384",
+      "afterSHA256": "a3586abf26857b9e2cc24d364fc583a4db223531d3eb349d6574d8f964476384",
+      "byteIdentical": true,
+      "pixelDifference": 0
+    },
+    {
+      "name": "capture-1440-sidebar.png",
+      "width": 1440,
+      "height": 1000,
+      "beforeSHA256": "ce852f33e663873e2beef7d8e2f0f760e2ba07818c7439e57bfa2c49b34de047",
+      "afterSHA256": "ce852f33e663873e2beef7d8e2f0f760e2ba07818c7439e57bfa2c49b34de047",
+      "byteIdentical": true,
+      "pixelDifference": 0
+    },
+    {
+      "name": "capture-375-document-outline.png",
+      "width": 375,
+      "height": 3527,
+      "beforeSHA256": "ff6c801d3eb501f8db642205599f3262955333a1fa2796d7208b1f874699cb9a",
+      "afterSHA256": "ff6c801d3eb501f8db642205599f3262955333a1fa2796d7208b1f874699cb9a",
+      "byteIdentical": true,
+      "pixelDifference": 0
+    },
+    {
+      "name": "capture-375-document.png",
+      "width": 375,
+      "height": 3527,
+      "beforeSHA256": "6e87a7a6e1da771144b2b9a559bca51d8f5c753d51327d4d87738bc534ecddb9",
+      "afterSHA256": "6e87a7a6e1da771144b2b9a559bca51d8f5c753d51327d4d87738bc534ecddb9",
+      "byteIdentical": true,
+      "pixelDifference": 0
+    },
+    {
+      "name": "capture-375-sidebar.png",
+      "width": 375,
+      "height": 1000,
+      "beforeSHA256": "23f6b180f2eb16569e496086f333e9b0cc0f8422431ea133e726bdb4f689cced",
+      "afterSHA256": "23f6b180f2eb16569e496086f333e9b0cc0f8422431ea133e726bdb4f689cced",
+      "byteIdentical": true,
+      "pixelDifference": 0
+    }
+  ]
+}

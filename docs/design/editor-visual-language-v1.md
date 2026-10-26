@@ -1,7 +1,8 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-26 (#480: bounded active-image picker preview, layout-rules/quiet-document, same-state 1440px/375px [captures](folder-picker-v1.md#active-image-preview-480) and byte-identical quiet-document rest pairs).
+- Last verified: 2026-10-26 (#497: document presentation token refactor; Editor tests, typecheck/build, layout-rules/quiet-document/footnotes and [byte-identical 1440px/375px comparisons](#document-presentation-token-verification-497)).
+- Previous verification: 2026-10-26 (#480: bounded active-image picker preview, layout-rules/quiet-document, same-state 1440px/375px [captures](folder-picker-v1.md#active-image-preview-480) and byte-identical quiet-document rest pairs).
 - Source wrapping verification: 2026-10-26 (#476: Source soft wrapping; Editor tests/typecheck/build, Source/layout/quiet-document browser checks and [1440/375px Before/After](editor-ux-shell-v1.md#source-wrapping-476)).
 - Table deletion verification: 2026-10-26 (#474: existing MessageArea/ghost Undo action, 1280/375px English/Korean captures and byte-identical quiet-document rest pairs; [verification](table-interaction-v1.md#table-deletion-notice-verification-474)).
 - Previous verification: 2026-10-26 (#469: typing/IME hover suppression, offset-aware Figure/Equation corners, targeted browser regressions and [1440px comparison](#typing-and-outline-verification-469)).
@@ -198,6 +199,33 @@ pixel-diff assertions or a substitute for user visual approval.
 
 ## Adjustable values and preferences
 
+- Document presentation (#497): the following document-only tokens retain the previous
+  values exactly. Changing them does not change Sidebar, button or dialog typography.
+  Embedded UI buttons explicitly retain the UI font stack; the start-screen title uses
+  separate `--font-size-start-title` / `--line-height-start-title` UI tokens.
+  Native table tools use the UI stack and `--line-height-table-tool`, retaining their
+  original 20.4px line box independently of document preferences.
+
+  | Controls | Adjustable variables |
+  | --- | --- |
+  | Body | `--font-family-document`, `--font-size-document`, `--line-height-document` |
+  | H1–H6 sizes (H1 also controls the title slot) | `--font-size-document-h1`, `--font-size-document-h2`, `--font-size-document-h3`, `--font-size-document-h4`, `--font-size-document-h5`, `--font-size-document-h6` |
+  | Heading/title-slot weight and line spacing | `--font-weight-document-heading`, `--line-height-document-heading` |
+  | Heading margins (title slot uses the after gap) | `--space-document-heading-before`, `--space-document-heading-after` |
+  | Top-level paragraph, list, quote, equation, code, figure, table and admonition gap | `--space-document-block` |
+  | List/quote indentation | `--space-document-list-indent`, `--space-document-quote-indent` |
+  | Quote/admonition left accent rule | `--size-document-side-rule` |
+  | Figure/table caption size, line spacing and gap | `--font-size-document-caption`, `--line-height-document-caption`, `--space-document-caption` |
+  | Table text and cell padding | `--font-size-document-table`, `--line-height-document-table`, `--space-document-table-cell-block`, `--space-document-table-cell-inline` |
+  | Code block size/line spacing; inline code size (line spacing inherited) | `--font-size-document-code`, `--line-height-document-code`, `--font-size-document-inline-code` |
+  | Endnote size, line spacing, region separation, internal gap and number inset | `--font-size-document-endnote`, `--line-height-document-endnote`, `--space-document-endnotes`, `--space-document-endnote-gap`, `--space-document-endnote-indent` |
+  | Navigation indentation per level (separate from document text) | `--space-sidebar-tree-indent`, `--space-outline-indent` |
+
+  The endnotes separator label remains UI metadata. Existing depth caps, row insets and
+  other structural dimensions are unchanged. These are hand-tuned variables with no new
+  preference UI, Core operation or CLI command: they change presentation only.
+  See [same-state comparison](#document-presentation-token-verification-497).
+
 - Image picker (#480): `--layout-folder-picker-preview-height` (10rem / 160px) bounds the
   active image below the list at desktop widths. Below the existing `40rem` phone boundary the
   preview collapses, preserving the list and action space. Its structural border, subtle surface,
@@ -267,6 +295,80 @@ Shared Settings/Local recovery and Desktop About reuse the existing dialog, Butt
 | Folder `⋯` menu | Base UI Menu: Enter/Space or click opens it, arrows move between items, Escape or an outside click closes and returns focus to `⋯`. An item that opens a dialog hands focus to the dialog, whose closing returns it to `⋯`. |
 
 ## Evidence and verification
+
+### Document presentation token verification (#497)
+
+Scope: value extraction only, with no default visual change. Baseline is
+`6352fa661b5e4583db75597e70c146cd4e815646`. A disposable native Markdown file extends
+the existing quiet-document fixture with nested/ordered lists, a quote, inline code, a
+code block, a captioned table and two endnotes. It also contains the title, H2–H6,
+paragraphs, admonitions, captioned figure and equation. The Sidebar expands
+`nested/child/leaf.md`; the Outline shows the nested headings.
+
+Manual captures used `pnpm browser:test` in this worktree with its persistent Chrome
+profile and its own Vite server at `127.0.0.1:5297`. Both runs use Windows Chrome 155,
+1440×1000 / 375×1000 viewports, DPR 1, 100% zoom, scroll top, no editor focus or hover,
+and loaded fonts/images. The document-only capture closes the Outline; the Outline
+capture opens it (docked at 1440px, overlaid at 375px); the phone Sidebar capture opens
+the full-screen Sidebar. The existing quiet-document regression checks actual bundled
+Pretendard glyphs. Captures are manual review artifacts, not new screenshot tests.
+
+| State | Before | After | Comparison |
+| --- | --- | --- | --- |
+| 1440px document | [PNG](assets/typography-497/before/capture-1440-document.png) | [PNG](assets/typography-497/after/capture-1440-document.png) | Byte-identical, 0 pixels changed |
+| 1440px document + Outline | [PNG](assets/typography-497/before/capture-1440-document-outline.png) | [PNG](assets/typography-497/after/capture-1440-document-outline.png) | Byte-identical, 0 pixels changed |
+| 1440px nested Sidebar | [PNG](assets/typography-497/before/capture-1440-sidebar.png) | [PNG](assets/typography-497/after/capture-1440-sidebar.png) | Byte-identical, 0 pixels changed |
+| 375px document | [PNG](assets/typography-497/before/capture-375-document.png) | [PNG](assets/typography-497/after/capture-375-document.png) | Byte-identical, 0 pixels changed |
+| 375px document + Outline | [PNG](assets/typography-497/before/capture-375-document-outline.png) | [PNG](assets/typography-497/after/capture-375-document-outline.png) | Byte-identical, 0 pixels changed |
+| 375px nested Sidebar | [PNG](assets/typography-497/before/capture-375-sidebar.png) | [PNG](assets/typography-497/after/capture-375-sidebar.png) | Byte-identical, 0 pixels changed |
+
+Comparison uses complete PNG byte equality (`Buffer.equals`) and SHA-256, which also
+proves pixel equality. The [comparison manifest](assets/typography-497/comparison.json)
+records each pair's hashes, dimensions, environment, fixture/style input hashes and
+selector coverage. Deep equality of the collected [before](assets/typography-497/before/styles.json)
+and [after](assets/typography-497/after/styles.json) computed styles also passes: font
+family/size/weight, line-height, margins, padding and side-rule width for the document
+blocks and navigation. This evidence does not imply coverage of every possible document
+or operating-system font fallback.
+
+`layout-rules` now reads document typography variables and temporarily overrides the
+document size/family to verify that Sidebar, Outline, Save, embedded Figure/Equation
+buttons and dialog typography stay unchanged. `footnotes` reads endnote variables for
+type, spacing and number inset. Editor tests (289), typecheck, Editor build and the
+layout-rules/quiet-document/footnotes browser regressions pass.
+
+PR #500 P2 follow-up: the expanded isolation check also covers native table row/column
+handles, Append row/column, the table action bar, code-language input, Figure/Equation/
+table metadata, section-label controls and reference-edit icons. With the original
+`d1b8717` styles, overriding the document family to monospace and line-height to 2
+reproduces the table tools changing from Pretendard / 20.4px to monospace / 24px.
+The fixed styles retain the UI family and original line box; layout-rules and
+quiet-document pass. Code-language and block metadata already have explicit UI family
+and line-height. Section-label controls inherit fixed monospace metadata typography;
+property inputs, equation LaTeX, reference/citation forms and menu buttons inherit their
+UI dialog/toolbar typography (LaTeX stays monospace). Reference-edit icons now explicitly
+use the UI family and keep their zero-height icon line box; their em positioning still
+follows the reference text, while the visible SVG size is independent of document type.
+The title slot, equation numbering, inline reference text and endnote numbers remain
+document presentation rather than UI controls.
+
+After incorporating master `288375d` (#498 Keyboard shortcuts dialog), the P2 fix keeps
+the 1440×1000 hovered table and Figure states byte-identical to `d1b8717` (0 changed
+pixels), including visible row/column handles, the table action bar and authoring
+metadata. The collected control styles are also identical; table-tool line-height is
+exactly 20.4px. The [P2 comparison manifest](assets/typography-497/p2/comparison.json)
+contains hashes, viewport/state, style inputs and merge base. Manual review pairs:
+[table before](assets/typography-497/p2/before/table-block-1440.png) /
+[after](assets/typography-497/p2/after/table-block-1440.png),
+[Figure before](assets/typography-497/p2/before/figure-1440.png) /
+[after](assets/typography-497/p2/after/figure-1440.png).
+The [baseline isolation failure](assets/typography-497/p2/baseline-isolation-failure.json)
+records the regression using the final expanded test against `d1b8717` styles.
+After restoring those baseline files for the negative control, the Vite server was
+restarted to remove a stale imported-token compilation; the served CSS was checked for
+the UI token before the final successful isolation/capture run.
+Post-merge local verification: Editor tests (290), typecheck, Editor build, docs check,
+layout-rules, quiet-document, editor-shell and command-center browser regressions pass.
 
 [Static UI v3 verification and same-state product captures](../reviews/static-ui-v3-2026-10-08.md) preserves that refinement's baseline, measurements and limits.
 

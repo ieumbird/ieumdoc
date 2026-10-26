@@ -1,0 +1,56 @@
+{
+  "baseline": "d1b8717fda54cc635f9b82a678ca31a54946cca2",
+  "fixCommit": "42744cf",
+  "mergedMaster": "288375dab63463972adf44146fec9ed005deccf0",
+  "viewport": {
+    "width": 1440,
+    "height": 1000,
+    "dpr": 1,
+    "zoom": 1
+  },
+  "states": "hovered table with row/column tools and hovered figure; same scroll positions, fonts/images loaded, persistent checkout Chrome, own Vite port 5297",
+  "method": "Buffer.equals and SHA-256 on PNGs, deepStrictEqual on control computed styles",
+  "computedStylesIdentical": true,
+  "tableToolLineBox": [
+    {
+      "class": "table-column-handle",
+      "text": "A",
+      "lineHeight": "20.4px"
+    },
+    {
+      "class": "table-column-handle",
+      "text": "B",
+      "lineHeight": "20.4px"
+    },
+    {
+      "class": "table-row-handle",
+      "text": "1",
+      "lineHeight": "20.4px"
+    },
+    {
+      "class": "table-row-handle",
+      "text": "2",
+      "lineHeight": "20.4px"
+    }
+  ],
+  "styleInputsSHA256": {
+    "tokens": "bc67a438d6f1384f887098bf0743b65933f8f93ec62160c13f7569d979e8435c",
+    "rules": "a417a26973312616b526f57898c5cde57490f166a54c7c857e4a3c89636400c9"
+  },
+  "pairs": [
+    {
+      "name": "table-block-1440.png",
+      "beforeSHA256": "36bff174f9f25b631ad2fb2afa4d1137ce49faad86088dc294ea8380b35855ea",
+      "afterSHA256": "36bff174f9f25b631ad2fb2afa4d1137ce49faad86088dc294ea8380b35855ea",
+      "byteIdentical": true,
+      "pixelDifference": 0
+    },
+    {
+      "name": "figure-1440.png",
+      "beforeSHA256": "078f1d2f708aff17f46a13ea4db760d5e7379281c7550bbb4a57df08b2332977",
+      "afterSHA256": "078f1d2f708aff17f46a13ea4db760d5e7379281c7550bbb4a57df08b2332977",
+      "byteIdentical": true,
+      "pixelDifference": 0
+    }
+  ]
+}

@@ -1,0 +1,233 @@
+{
+  "uiUnchanged": false,
+  "changes": [
+    {
+      "selector": ".table-row-handle",
+      "before": [
+        [
+          "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "12px",
+          "20.4px",
+          "400"
+        ],
+        [
+          "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "12px",
+          "20.4px",
+          "400"
+        ],
+        [
+          "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "12px",
+          "20.4px",
+          "400"
+        ],
+        [
+          "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "12px",
+          "20.4px",
+          "400"
+        ]
+      ],
+      "after": [
+        [
+          "Consolas, \"Courier New\", monospace",
+          "12px",
+          "24px",
+          "400"
+        ],
+        [
+          "Consolas, \"Courier New\", monospace",
+          "12px",
+          "24px",
+          "400"
+        ],
+        [
+          "Consolas, \"Courier New\", monospace",
+          "12px",
+          "24px",
+          "400"
+        ],
+        [
+          "Consolas, \"Courier New\", monospace",
+          "12px",
+          "24px",
+          "400"
+        ]
+      ]
+    },
+    {
+      "selector": ".table-column-handle",
+      "before": [
+        [
+          "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "12px",
+          "20.4px",
+          "400"
+        ],
+        [
+          "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "12px",
+          "20.4px",
+          "400"
+        ],
+        [
+          "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "12px",
+          "20.4px",
+          "400"
+        ],
+        [
+          "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "12px",
+          "20.4px",
+          "400"
+        ]
+      ],
+      "after": [
+        [
+          "Consolas, \"Courier New\", monospace",
+          "12px",
+          "24px",
+          "400"
+        ],
+        [
+          "Consolas, \"Courier New\", monospace",
+          "12px",
+          "24px",
+          "400"
+        ],
+        [
+          "Consolas, \"Courier New\", monospace",
+          "12px",
+          "24px",
+          "400"
+        ],
+        [
+          "Consolas, \"Courier New\", monospace",
+          "12px",
+          "24px",
+          "400"
+        ]
+      ]
+    },
+    {
+      "selector": ".table-extend",
+      "before": [
+        [
+          "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "12px",
+          "20.4px",
+          "400"
+        ],
+        [
+          "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "12px",
+          "20.4px",
+          "400"
+        ]
+      ],
+      "after": [
+        [
+          "Consolas, \"Courier New\", monospace",
+          "12px",
+          "24px",
+          "400"
+        ],
+        [
+          "Consolas, \"Courier New\", monospace",
+          "12px",
+          "24px",
+          "400"
+        ]
+      ]
+    },
+    {
+      "selector": ".table-action-bar button",
+      "before": [
+        [
+          "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "12px",
+          "20.4px",
+          "400"
+        ],
+        [
+          "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "12px",
+          "20.4px",
+          "400"
+        ],
+        [
+          "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "12px",
+          "20.4px",
+          "400"
+        ]
+      ],
+      "after": [
+        [
+          "Consolas, \"Courier New\", monospace",
+          "12px",
+          "24px",
+          "400"
+        ],
+        [
+          "Consolas, \"Courier New\", monospace",
+          "12px",
+          "24px",
+          "400"
+        ],
+        [
+          "Consolas, \"Courier New\", monospace",
+          "12px",
+          "24px",
+          "400"
+        ]
+      ]
+    },
+    {
+      "selector": ".cross-reference-edit",
+      "before": [
+        [
+          "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "12px",
+          "0px",
+          "400"
+        ],
+        [
+          "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "12px",
+          "0px",
+          "400"
+        ],
+        [
+          "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+          "12px",
+          "0px",
+          "400"
+        ]
+      ],
+      "after": [
+        [
+          "Consolas, \"Courier New\", monospace",
+          "12px",
+          "0px",
+          "400"
+        ],
+        [
+          "Consolas, \"Courier New\", monospace",
+          "12px",
+          "0px",
+          "400"
+        ],
+        [
+          "Consolas, \"Courier New\", monospace",
+          "12px",
+          "0px",
+          "400"
+        ]
+      ]
+    }
+  ],
+  "documentChanged": true
+}
