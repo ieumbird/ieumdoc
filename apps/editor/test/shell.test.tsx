@@ -436,11 +436,12 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
     pending: new Map(),
   };
   const html = renderToStaticMarkup(
-    <Sidebar open documentPath={String.raw`C:\docs\guides\guide.md`} display={display} folders={[folder]} onToggle={noop} onOpenFolder={noop} />,
+    <Sidebar open documentPath={String.raw`C:\docs\guides\guide.md`} display={display} folders={[folder]} onToggle={noop} onOpenFolder={noop} onNewDocument={noop} />,
   );
   assert.match(html, /title="C:\\docs"/);
   assert.match(html, />docs</);
   assert.match(html, /role="tree"/);
+  assert.match(html, />New document<\/button>/, "Files offers New document as visible text beside its existing tree");
   assert.match(html, /<button\b(?=[^>]*aria-label="Collapse folder docs")(?=[^>]*aria-expanded="true")(?=[^>]*aria-controls="[^"]+")/);
   assert.match(html, /<li\b(?=[^>]*role="treeitem")(?=[^>]*aria-level="1")(?=[^>]*aria-expanded="true")[^>]*title="C:\\docs\\guides"/);
   assert.match(html, /<li\b(?=[^>]*role="treeitem")(?=[^>]*aria-level="2")(?=[^>]*aria-current="page")[^>]*title="C:\\docs\\guides\\guide.md"/);

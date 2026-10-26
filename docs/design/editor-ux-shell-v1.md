@@ -1,6 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- New-document entry verification: 2026-10-27 (#553: Editor 291 tests, workspace typecheck/build/docs; new-document, command-center, folder-navigation, editor-shell, ui-language, layout-rules and quiet-document; [behavior and visual comparison](#new-document-entry-553)).
 - Folder refresh verification: 2026-10-26 (#494: Editor 291 tests, typecheck/build, folder-tree failure guard and folder-navigation/image-assets/command-center/folder-memory/layout-rules/quiet-document; actual menu comparison below).
 - Menu verification: 2026-10-26 (#516: action icons/danger tokens, adjacent block movement/Undo/Save→Reload, title/endnote/draft/boundary restrictions, conversions and slash editor focus; [contract and evidence](#unified-action-menus-516)).
 - Body-heading verification: 2026-10-26 (#472: Editor 287/287, typecheck/build, docs check and new-document, structural-block-authoring, document-title, basic-blocks, markdown-input browser regressions; persistent Chrome in the implementation worktree).
@@ -66,9 +67,69 @@ New asks for a filename, adds `.md` if omitted and uses the existing creation ch
 opens the document in a new tab and lists its folder again. When the modal closes after successful creation,
 focus moves to the first paragraph for immediate typing. Cancel/Escape, including after a
 rejected creation, returns focus to the New button.
-It is the only New entry point. See [Folder New](folder-picker-v1.md#new-document-in-a-sidebar-folder).
+The start screen, Files area and command center also enter this same creation flow (#553).
+See [Folder New](folder-picker-v1.md#new-document-in-a-sidebar-folder).
 The heading's New folder uses the same Location and starting destination for a folder name;
 success shows the folder in the tree and returns focus to New folder. See [New folder](folder-picker-v1.md#new-folder).
+
+### New document entry (#553)
+
+The start screen says **Start an IeumDoc document / 이음독 문서 시작하기**, with purpose-focused
+guidance about creating or continuing an IeumDoc document. **New document / 새 문서** is the
+primary text button, followed by the secondary **Open folder… / 폴더 열기…**. Files has a quiet
+text New document button above its existing folder/empty content; the Sidebar header, tool switch
+and per-folder controls retain their structure. The command center offers **New document… / 새 문서…**
+with Korean and English document/file aliases, available without an open document and disabled
+during pending work or a close confirmation.
+
+With no opened folder, New document opens the existing FolderDialog, including New folder.
+Successful Open adds the Host-normalized folder to the Sidebar and recent/opened preferences,
+then, after the picker closes, opens the existing filename form in that exact folder. Cancelling
+the picker opens nothing. Cancelling the filename leaves the selected folder open and creates
+no document. Both cancellations return focus to the invoking control. A failed location stays
+in the picker; a failed creation stays in the filename form.
+
+With opened folders, the common entry defaults to the current document's containing folder in
+its opened tree, or the first opened folder if none contains that document. The per-folder `+`
+retains its section-specific default. The form is titled **New document / 새 문서** and explains
+the `.md` suffix once. All entries reuse Host/Core creation and the existing tab/focus protections;
+no temporary untitled document, autosave, new semantic operation or CLI command is introduced.
+
+#### New document visual comparison
+
+Before is clean base `ff37a32e273dfad90bde84a9c30e2a28ec5e3af3`; After is that base plus #553.
+Both use the same checkout-owned persistent headless Windows Chrome profile and Vite origin
+`127.0.0.1:5173`, bundled Pretendard, DPR/viewport scale/CSS zoom 1, scroll top, no focused control
+and pointer at the top right. A Host start response with no sample/recent/recovery is used for
+both. These are manual product captures, separate from automated assertions; the temporary
+capture-only walk is removed before commit. Shared Button sizes, spacing and surfaces follow
+[Layout Rules](editor-layout-rules-v1.md#controls-and-spacing) and
+[Visual Language](editor-visual-language-v1.md#reviewing-a-visual-change); no new token or CSS is needed.
+
+| Language / viewport | Before | After |
+| --- | --- | --- |
+| English / 1440×900 | [PNG](assets/new-document-553/new-entry-before-en-1440.png) | [PNG](assets/new-document-553/new-entry-after-en-1440.png) |
+| English / 390×900 | [PNG](assets/new-document-553/new-entry-before-en-390.png) | [PNG](assets/new-document-553/new-entry-after-en-390.png) |
+| Korean / 1440×900 | [PNG](assets/new-document-553/new-entry-before-ko-1440.png) | [PNG](assets/new-document-553/new-entry-after-ko-1440.png) |
+| Korean / 390×900 | [PNG](assets/new-document-553/new-entry-before-ko-390.png) | [PNG](assets/new-document-553/new-entry-after-ko-390.png) |
+
+Direct review confirms reachable primary/secondary text actions and readable Korean/English guidance
+at both widths, with the existing Sidebar header unchanged. The browser assertions cover the three
+entries, Korean/English command aliases, location cancellation, New folder → filename handoff,
+Host-normalized Sidebar/destination agreement, filename cancellation and immediate focus, real-file
+Save/Reload, and preservation of an existing unsaved tab. The initial chained-dialog attempt failed
+the direct filename-focus assertion: the outgoing picker restored focus to the start button.
+The handoff now waits for closing completion, suppresses that return only during handoff, and uses
+the filename field as explicit initial focus. No timeout, retry or polling allowance was increased.
+Windows BadPasswordAttempts was 0 before the first profile launch, 3 at subsequent pre-run checks,
+and 5 before the final integrated run; the persistent profile was reused. Traces and capture-only
+scripts remain uncommitted. After integrating master `3a8be3e` (#552), Editor 291 tests,
+workspace typecheck, Editor build, docs/whitespace and new-document/command-center/layout-rules/
+quiet-document passed again. Its docking change leaves the captured 1440/390px states unchanged.
+The later master `425eab7` (#494) integration retains the Refresh callback and its shared
+folder-creation refresh, alongside New document. Editor tests/typecheck/build/docs are rechecked;
+browser integration coverage is left to PR CI because the final local account counter reached 6.
+No Edge, packaged Desktop or alternate-profile probe is run locally.
 
 The folder-tree hook owns the live opened list and the preference derived from it. User Open/Close
 remembers the latest reduced list; if startup restoration is pending, writing waits until every
