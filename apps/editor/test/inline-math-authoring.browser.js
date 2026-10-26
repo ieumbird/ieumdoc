@@ -155,16 +155,27 @@ async (page, { openPath, expect }) => {
   await page.locator(`#${mathTabId}`).click();
   await forms.nth(1).waitFor();
   expect(await forms.getByTestId('inline-math-source').evaluateAll(inputs => inputs.map(input => input.value).sort())).toEqual(['uncommitted-first','uncommitted-second']);
-  await page.getByRole('button', {name:'File actions',exact:true}).click();
+  const fileActions = page.getByRole('button', {name:'File actions',exact:true});
+  await fileActions.click();
   await page.getByRole('menuitem', {name:'Reload',exact:true}).click();
-  await page.getByRole('dialog', {name:'Discard local changes?'}).getByRole('button', {name:'Keep editing',exact:true}).click();
-  await page.getByRole('button', {name:'Close math.md',exact:true}).click();
-  await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:'Cancel',exact:true}).click();
+  const reloadGuard = page.getByRole('dialog', {name:'Discard local changes?'});
+  await reloadGuard.getByRole('button', {name:'Keep editing',exact:true}).click();
+  await reloadGuard.waitFor({state:'detached'});
+  await expect(fileActions).toBeFocused();
+  const closeMath = page.getByRole('button', {name:'Close math.md',exact:true});
+  await closeMath.click();
+  const closeGuard = page.getByRole('dialog', {name:'Save changes?',exact:true});
+  await closeGuard.getByRole('button', {name:'Cancel',exact:true}).click();
+  // Finish the prior modal's dismissal and finalFocus before starting a property action.
+  // Otherwise its late return to Close math.md can receive Enter and reopen this dialog.
+  await closeGuard.waitFor({state:'detached'});
+  await expect(closeMath).toBeFocused();
   const firstDraft = forms.filter({has:page.locator('input[value="uncommitted-first"]')});
   const firstSourceId = await firstDraft.getByTestId('inline-math-source').getAttribute('id');
   // Both independent popovers may overlap; activate the chosen Cancel by keyboard.
   const cancelFirst = firstDraft.getByTestId('inline-math-cancel');
   await cancelFirst.focus();
+  await expect(cancelFirst).toBeFocused();
   await cancelFirst.press('Enter');
   // Check focus/content immediately. Base UI may retain the closed portal until the next frame,
   // as for block properties; count the remaining form only after that portal has detached.
