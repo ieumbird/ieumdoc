@@ -20,7 +20,8 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     await page.getByRole('menuitem', {name:'Close folder', exact:true}).click();
     await page.evaluate(async () => {
       await document.fonts.ready;
-      await Promise.all([...document.images].map(img => img.decode()));
+      // ProseMirror's src-less separator img is a caret shim, not a document image.
+      await Promise.all([...document.querySelectorAll('[data-document-tab][data-active=true] img[src]')].map(img => img.decode()));
     });
   };
   const rest = async () => {
@@ -58,6 +59,234 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     check(result.scrollWidth<=result.clientWidth+1&&result.children.every(c=>c.x>=result.x-1&&c.right<=result.right+1), `${label}: controls clipped horizontally`);
     results.push({label,...result});
   };
+  // #506: measure actual glyph lines, not just the declared word-break property.
+  await open('korean-wrap.md');
+  const readWrapComparison=async()=>{
+    await page.setViewportSize({width:1440,height:1000});
+    await page.evaluate(async()=>{await document.fonts.ready;});
+    const visual=await page.evaluate(()=>{
+      const host=document.querySelector('[data-document-tab][data-active=true] .document-editor');
+      const breaks=(n,pseudo=null)=>{const s=getComputedStyle(n,pseudo);return {wordBreak:s.wordBreak,overflowWrap:s.overflowWrap};};
+      const required=selector=>{const n=document.querySelector(selector);if(!n)throw Error(`Missing baseline target: ${selector}`);return n;};
+      const excluded=[...host.querySelectorAll('code,.katex')].map(n=>({
+        kind:n.matches('code')?'code':'math',
+        context:n.closest('.heading,.paragraph,.quote-body,.caption,[data-table-cell],.footnote-definition-body,pre')?.className||n.parentElement.tagName,
+        ...breaks(n),
+      }));
+      const ui=['[data-testid="save"]','.sidebar-tool','.document-outline-item','.document-outline-number','.code-language','.figure-edit','.table-column-handle']
+        .map(selector=>({selector,...breaks(required(selector))}));
+      const table=[...host.querySelectorAll('.table')].at(-1);
+      const properties=(n,names)=>Object.fromEntries(names.map(name=>[name,getComputedStyle(n).getPropertyValue(name)]));
+      const type=['box-sizing','font-family','font-size','font-weight','font-style','font-feature-settings','line-height','letter-spacing','white-space','word-break','overflow-wrap','text-align','text-indent','text-transform'];
+      const tableModel={
+        table:properties(table,[...type,'width','table-layout','border-collapse','border-spacing']),
+        th:properties(table.querySelector('th'),[...type,'min-width','padding','border-top','border-right','border-bottom','border-left']),
+        td:properties(table.querySelector('td'),[...type,'min-width','padding','border-top','border-right','border-bottom','border-left']),
+      };
+      const numbered=[...host.querySelectorAll('.heading[data-heading-number]')].map(n=>({
+        number:n.dataset.headingNumber,...breaks(n),before:breaks(n,'::before'),color:getComputedStyle(n,'::before').color,
+      }));
+      return {excluded,ui,numbered,tableModel,columns:[...table.rows[0].cells].map(cell=>cell.getBoundingClientRect().width)};
+    });
+    await page.getByRole('button',{name:'Source',exact:true}).click();
+    await page.getByTestId('source-view').waitFor();
+    const source=await page.getByTestId('source-view').evaluate(n=>['.source-view-text','.source-line'].map(selector=>{
+      const target=n.querySelector(selector);if(!target)throw Error(`Missing Source target: ${selector}`);
+      const s=getComputedStyle(target);return {selector,wordBreak:s.wordBreak,overflowWrap:s.overflowWrap};
+    }));
+    await page.getByRole('button',{name:'Visual',exact:true}).click();
+    await page.locator('[data-document-tab][data-active=true] .document-editor').waitFor();
+    return {...visual,source};
+  };
+  const comparison=await readWrapComparison();
+  // Review images only; the assertions below use computed styles and Range geometry.
+  if(screenshots)for(const width of [1440,375]) {
+    await page.setViewportSize({width,height:1000});
+    await rest();
+    await page.locator('[data-document-tab][data-active=true] .heading').filter({has:page.locator('code')})
+      .screenshot({path:`tmp/visual-refinement/after-korean-inline-code-${width}.png`});
+  }
+  // MASTER_COMPARISON: the capture helper also records this same probe against master CSS.
+  const masterResponse=await page.request.get(`${origin}/test/browser/fixtures/quiet-document-wrap-master.json`);
+  check(masterResponse.ok(),'Master typography baseline missing');
+  const master=await masterResponse.json();
+  check(JSON.stringify(comparison.excluded)===JSON.stringify(master.visual.excluded),
+    `Inline code/math differ from master: ${JSON.stringify({actual:comparison.excluded,master:master.visual.excluded})}`);
+  check(JSON.stringify(comparison.ui)===JSON.stringify(master.visual.ui)&&JSON.stringify(comparison.source)===JSON.stringify(master.visual.source),
+    `UI/Source wrapping differs from master: ${JSON.stringify(comparison)}`);
+  check(comparison.numbered.length>0&&JSON.stringify(comparison.numbered)===JSON.stringify(master.visual.numbered),
+    `Numbered heading wrapping/color differ from master: ${JSON.stringify(comparison.numbered)}`);
+  // Reflow the actual table with master-computed geometry/type in an isolated shadow root.
+  // This retains a strict comparison without treating Windows/Linux glyph rounding as a change.
+  const referenceColumns=await page.evaluate(model=>{
+    const table=[...document.querySelectorAll('[data-document-tab][data-active=true] .table')].at(-1);
+    const host=document.createElement('div');
+    host.style.cssText=`position:fixed;left:0;top:0;width:${model.table.width};visibility:hidden;pointer-events:none`;
+    const shadow=host.attachShadow({mode:'closed'}),reference=table.cloneNode(true);
+    const apply=(n,values)=>{n.removeAttribute('style');for(const [name,value] of Object.entries(values))n.style.setProperty(name,value);};
+    apply(reference,model.table);
+    for(const cell of reference.querySelectorAll('th,td'))apply(cell,model[cell.tagName.toLowerCase()]);
+    shadow.append(reference);document.body.append(host);
+    try { return [...reference.rows[0].cells].map(cell=>cell.getBoundingClientRect().width); }
+    finally { host.remove(); }
+  },master.visual.tableModel);
+  check(comparison.columns.length===referenceColumns.length&&comparison.columns.every((width,i)=>Math.abs(width-referenceColumns[i])<0.1),
+    `Multi-column table widths differ from master: ${JSON.stringify({actual:comparison.columns,master:referenceColumns})}`);
+  results.push({masterComparison:{master:master.revision,...comparison,referenceColumns}});
+  const wrapResults = [];
+  const prose = page.locator('[data-document-tab][data-active=true] .document-editor > .paragraph').first();
+  const wrapDocument = await json();
+  for (const width of [1440,375]) {
+    await page.setViewportSize({width,height:1000});
+    await rest();
+    await page.evaluate(async () => { await document.fonts.ready; });
+    await shot(`korean-wrap-${width}`);
+    wrapResults.push(await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate((host,width) => {
+      const surfaces=['.heading','.paragraph','.list .paragraph','.quote-body','.admonition-body','.caption','[data-table-cell]','.footnote-definition-body'];
+      const splitWords=[];
+      const coverage=surfaces.map(selector => {
+        const nodes=[...host.querySelectorAll(selector)];
+        for(const node of nodes) {
+          const walker=document.createTreeWalker(node,NodeFilter.SHOW_TEXT);
+          while(walker.nextNode()) {
+            const text=walker.currentNode;
+            if(text.parentElement.closest('code,.katex'))continue;
+            for(const match of text.textContent.matchAll(/[가-힣]+/g)) {
+              const range=document.createRange();
+              range.setStart(text,match.index); range.setEnd(text,match.index+match[0].length);
+              const rects=[...range.getClientRects()].filter(r=>r.width>0);
+              const lines=new Set(rects.map(r=>Math.round(r.top))),style=getComputedStyle(node);
+              const available=node.getBoundingClientRect().width-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight);
+              // A word wider than an empty line must use the emergency fallback.
+              if(lines.size>1&&rects.reduce((sum,r)=>sum+r.width,0)<=available+1)splitWords.push({selector,word:match[0]});
+            }
+          }
+        }
+        return {selector,count:nodes.length};
+      });
+      const paragraph=host.querySelector(':scope > .paragraph'), text=paragraph.firstChild;
+      const lines=[];
+      for(let i=0;i<text.length;i++) {
+        if(/\s/.test(text.textContent[i]))continue;
+        const range=document.createRange();range.setStart(text,i);range.setEnd(text,i+1);
+        const rect=range.getBoundingClientRect(), y=Math.round(rect.top);
+        let line=lines.find(line=>line.y===y);
+        if(!line)lines.push(line={y,start:i,end:i});
+        line.end=i;
+      }
+      const brokenEdges=lines.filter(line=>(line.start>0&&!/\s/.test(text.textContent[line.start-1])) ||
+        (line.end+1<text.length&&!/\s/.test(text.textContent[line.end+1])));
+      const strandedPunctuation=lines.filter(line=>/^[」』）)、。，．！？]/.test(text.textContent.slice(line.start)));
+      const urls=[...host.querySelectorAll(':scope > .paragraph,[data-table-cell]')]
+        .filter(n=>n.textContent.startsWith('https://')).map(n=>{
+          const range=document.createRange();range.selectNodeContents(n);
+          const box=n.getBoundingClientRect();
+          return {cell:n.matches('[data-table-cell]'),inside:[...range.getClientRects()].every(r=>r.left>=box.left-1&&r.right<=box.right+1),
+            scrollWidth:n.scrollWidth,clientWidth:n.clientWidth};
+        });
+      const compounds=[...host.querySelectorAll(':scope > .paragraph,[data-table-cell]')]
+        .filter(n=>n.textContent.startsWith('전력변환시스템출력전압제어기전류측정결과분석')).map(n=>{
+          const range=document.createRange();range.selectNodeContents(n);
+          const rects=[...range.getClientRects()].filter(r=>r.width>0),box=n.getBoundingClientRect();
+          return {cell:n.matches('[data-table-cell]'),wraps:new Set(rects.map(r=>Math.round(r.top))).size>1,
+            inside:rects.every(r=>r.left>=box.left-1&&r.right<=box.right+1),scrollWidth:n.scrollWidth,clientWidth:n.clientWidth};
+        });
+      const mixed=[...host.querySelectorAll(':scope > .paragraph')].find(n=>n.textContent.startsWith('정격출력은'));
+      if(!mixed)throw Error('Missing mixed Korean/numeric sentence');
+      const mixedTokens=['11 kW','(1)','(2)'].map(token=>{
+        const start=mixed.firstChild.textContent.indexOf(token);if(start<0)throw Error(`Missing mixed token: ${token}`);
+        const range=document.createRange();range.setStart(mixed.firstChild,start);range.setEnd(mixed.firstChild,start+token.length);
+        return {token,lines:new Set([...range.getClientRects()].filter(r=>r.width>0).map(r=>Math.round(r.top))).size};
+      });
+      return {width,coverage,splitWords,lines,brokenEdges,strandedPunctuation,urls,compounds,mixedTokens,
+        pageOverflow:document.documentElement.scrollWidth>innerWidth,
+        paperOverflow:host.scrollWidth>host.clientWidth+1,
+        environment:{userAgent:navigator.userAgent,dpr:devicePixelRatio,zoom:visualViewport.scale,font:getComputedStyle(paragraph).fontFamily}};
+    },width));
+  }
+  // Both same-state review captures are preserved even when the baseline fails here.
+  check(wrapResults.every(r=>r.coverage.every(c=>c.count>0)&&r.lines.length>1), 'Missing Korean wrapping coverage');
+  check(wrapResults.every(r=>!r.splitWords.length&&!r.brokenEdges.length&&!r.strandedPunctuation.length),
+    `Korean words split across lines: ${JSON.stringify(wrapResults)}`);
+  check(wrapResults.every(r=>r.urls.some(u=>u.cell)&&r.urls.some(u=>!u.cell)&&
+    r.urls.every(u=>u.inside&&u.scrollWidth<=u.clientWidth+1)&&!r.pageOverflow&&!r.paperOverflow),
+    `Long URL overflow: ${JSON.stringify(wrapResults)}`);
+  check(wrapResults.every(r=>r.compounds.some(c=>c.cell)&&r.compounds.some(c=>!c.cell&&c.wraps)&&
+    r.compounds.every(c=>c.inside&&c.scrollWidth<=c.clientWidth+1)),`Korean compound overflow: ${JSON.stringify(wrapResults)}`);
+  check(wrapResults.every(r=>r.mixedTokens.every(t=>t.lines===1)),`Mixed sentence split a unit or parenthesis: ${JSON.stringify(wrapResults)}`);
+  // Tables normally size to their content and scroll locally. Also exercise a constrained
+  // real cell, so an intrinsically wide cell cannot make the token fallback assertions vacuous.
+  const constrainedTokens=await page.locator('[data-document-tab][data-active=true] [data-table-cell]').evaluateAll(cells=>{
+    const tokens=cells.filter(cell=>/^(https:\/\/|전력변환시스템출력전압제어기전류측정결과분석)/.test(cell.textContent));
+    const saved=tokens.map(cell=>cell.style.maxWidth);
+    try {
+      for(const cell of tokens)cell.style.maxWidth='180px';
+      return tokens.map(cell=>{
+        const range=document.createRange();range.selectNodeContents(cell);
+        const rects=[...range.getClientRects()].filter(r=>r.width>0),box=cell.getBoundingClientRect();
+        return {kind:cell.textContent.startsWith('https://')?'URL':'Korean compound',wraps:new Set(rects.map(r=>Math.round(r.top))).size>1,
+          inside:rects.every(r=>r.left>=box.left-1&&r.right<=box.right+1),width:box.width,scrollWidth:cell.scrollWidth,clientWidth:cell.clientWidth};
+      });
+    } finally { tokens.forEach((cell,i)=>cell.style.maxWidth=saved[i]); }
+  });
+  check(constrainedTokens.some(t=>t.kind==='URL')&&constrainedTokens.some(t=>t.kind==='Korean compound')&&
+    constrainedTokens.every(t=>t.wraps&&t.inside&&t.scrollWidth<=t.clientWidth+1),`Constrained table token overflow: ${JSON.stringify(constrainedTokens)}`);
+  // Click at a real wrapped-line start and select across its preceding line break.
+  await prose.scrollIntoViewIfNeeded();
+  const caret=await prose.evaluate(n=>{
+    const text=n.firstChild,range=document.createRange();let previousY;
+    for(let i=0;i<text.length;i++) {
+      if(/\s/.test(text.textContent[i]))continue;
+      range.setStart(text,i);range.setEnd(text,i+1);const r=range.getBoundingClientRect();
+      if(previousY!==undefined&&r.top>previousY+1)return {x:r.left+r.width/4,y:r.top+r.height/2,pos:n.closest('.document-editor').editor.view.posAtDOM(text,i),offset:i};
+      previousY=r.top;
+    }
+    throw Error('Paragraph did not wrap');
+  });
+  const nativeSelection=()=>prose.evaluate(async n=>{
+    const selection=window.getSelection(), editor=n.closest('.document-editor').editor;
+    // Capture the native result immediately; only the engine's selectionchange observer is async.
+    const {anchorNode,anchorOffset,focusNode,focusOffset}=selection;
+    const anchor=editor.view.posAtDOM(anchorNode,anchorOffset),focus=editor.view.posAtDOM(focusNode,focusOffset);
+    const from=Math.min(anchor,focus),to=Math.max(anchor,focus),text=selection.toString();
+    const lines=new Set([...selection.getRangeAt(0).getClientRects()].filter(r=>r.width>0).map(r=>Math.round(r.top))).size;
+    if(editor.state.selection.from!==from||editor.state.selection.to!==to)await new Promise((resolve,reject)=>{
+      const updated=()=>{clearTimeout(timeout);editor.off('selectionUpdate',updated);resolve();};
+      const timeout=setTimeout(()=>{editor.off('selectionUpdate',updated);reject(Error('Native selectionUpdate missing'));},1000);
+      editor.on('selectionUpdate',updated);
+    });
+    return {from,to,anchorOffset,anchorInText:anchorNode===n.firstChild,lines,
+      engineMatches:editor.state.selection.from===from&&editor.state.selection.to===to&&editor.state.doc.textBetween(from,to)===text&&
+        selection.anchorNode===anchorNode&&selection.anchorOffset===anchorOffset&&selection.focusNode===focusNode&&selection.focusOffset===focusOffset};
+  });
+  await page.mouse.click(caret.x,caret.y);
+  const clicked=await nativeSelection();
+  check(clicked.anchorInText&&clicked.anchorOffset===caret.offset&&clicked.from===caret.pos&&clicked.to===caret.pos&&clicked.engineMatches,
+    `Wrapped-line click placed the caret incorrectly: ${JSON.stringify(clicked)}`);
+  await page.keyboard.press('ArrowRight');
+  check((await nativeSelection()).engineMatches,'ArrowRight native/engine selection mismatch');
+  await page.keyboard.press('Shift+ArrowUp');
+  const selected=await nativeSelection();
+  check(selected.from<caret.pos&&selected.to>caret.pos&&selected.lines>1&&selected.engineMatches,
+    `Selection across a wrapped line changed text or positions: ${JSON.stringify(selected)}`);
+  // Chromium's native composition protocol at the preceding line end. OS IME UI is manual.
+  await prose.evaluate((n,pos)=>{
+    const editor=n.closest('.document-editor').editor;
+    editor.commands.setTextSelection(pos-1);editor.view.focus();
+  },caret.pos);
+  const beforeComposition=await prose.textContent();
+  const wrapCDP=await page.context().newCDPSession(page);
+  try {
+    await wrapCDP.send('Input.imeSetComposition',{text:'한글',selectionStart:2,selectionEnd:2});
+    await wrapCDP.send('Input.imeSetComposition',{text:'한글입력',selectionStart:4,selectionEnd:4});
+    await wrapCDP.send('Input.insertText',{text:'한글입력'});
+  } finally { await wrapCDP.detach(); }
+  check(await prose.textContent()===beforeComposition.slice(0,caret.offset-1)+'한글입력'+beforeComposition.slice(caret.offset-1),
+    'Composition at a wrapped line end lost or reordered text');
+  await page.keyboard.press('Control+z');
+  check(await json()===wrapDocument,'Wrapped-line composition undo did not restore the document');
+  results.push({koreanWrapping:wrapResults,constrainedTokens,wrappedCaretSelection:true,wrappedCompositionUndo:true});
+  await page.setViewportSize({width:1280,height:720});
   await open('quiet-document.md');
   // A CSS family list also passes when a system fallback is used. Inspect the actual
   // glyph fonts so a missing font import/asset cannot silently pass on developer PCs.
