@@ -177,6 +177,14 @@ export function App() {
   const [error, setError] = useMessageState("");
   // Restore folder context before opening tabs, including their bibliography resources.
   const folders = useFolderTrees(requestFolder, setError);
+  const foldersRef = useRef(folders);
+  foldersRef.current = folders;
+  // Tab reporting rerenders the shell; keep this memoized tab prop stable and read live trees.
+  const onAssetChange = useCallback((documentPath: string, assetPath: string) => {
+    const { directory } = splitDocumentPath(documentPath);
+    const separator = documentPath.includes("\\") ? "\\" : "/";
+    foldersRef.current.refreshParents(directory + assetPath.replace(/^\.\//, "").replaceAll("/", separator));
+  }, []);
   const [notice, setNotice] = useMessageState("");
   const [openRefusal, setOpenRefusal] = useState<{ path: string; reason: string; action: string; code?: string } | null>(null);
   const openRefusalReturnFocus = useRef<HTMLElement | null>(null);
@@ -479,6 +487,7 @@ export function App() {
   async function createFolder(parent: string, name: string): Promise<string> {
     try {
       await requestCreateFolder(parent, name);
+      folders.refresh(parent);
       return "";
     } catch (cause) {
       return messageOf(cause);
@@ -646,6 +655,9 @@ export function App() {
     })),
     { id: "open-folder", kind: "command", label: i18n.t("Open folder…"), icon: FolderOpen, takesFocus: true,
       keywords: ["open folder", "폴더 열기"], run: () => { dialogReturnFocus.current = commandReturnFocus.current; setFolderDialog(true); } },
+    ...folders.trees.map(tree => ({ id: 'refresh-folder:' + tree.root, kind: "command" as const,
+      label: i18n.t("Refresh folder"), detail: tree.root, icon: RotateCw,
+      keywords: ["refresh folder", "폴더 새로고침"], run: () => folders.refreshRoot(tree.root) })),
     { id: "save", kind: "command", label: i18n.t("Save"), icon: Save, disabled: !document || busy,
       keywords: ["save", "저장"], shortcut: SAVE_SHORTCUT.label, run: () => { void save(); } },
     { id: "reload", kind: "command", label: i18n.t("Reload"), icon: RotateCcw, disabled: !document || busy, takesFocus: true,
@@ -731,6 +743,7 @@ export function App() {
           if (sidebarOverlay) setSidebarOpen(false);
           void openFolderDocument(path);
         }}
+        onRefreshFolder={folders.refreshRoot}
         onCloseFolder={folders.close}
         onSettings={(returnFocus) => {
           settingsReturnFocus.current = returnFocus;
@@ -798,7 +811,7 @@ export function App() {
               })}
             />
           ) : null}
-          {tabs.map(tab => <DocumentTab key={tab.id} id={tab.id} file={tab.file} restored={tab.restored} recoveryId={tab.recoveryId} active={tab.id === activeId} report={reportSession} />)}
+          {tabs.map(tab => <DocumentTab key={tab.id} id={tab.id} file={tab.file} restored={tab.restored} recoveryId={tab.recoveryId} active={tab.id === activeId} report={reportSession} onAssetChange={onAssetChange} />)}
         </main>
       </div>
       {panelOpen ? (
@@ -839,12 +852,7 @@ export function App() {
         browse={browseHostFolder}
         places={folderPlaces}
         onOpen={openFolder}
-        onCreateFolder={async (parent, name) => {
-          const message = await createFolder(parent, name);
-          // Creating while choosing changes no expansion; an already listed folder shows it.
-          if (!message) folders.refresh(parent);
-          return message;
-        }}
+        onCreateFolder={createFolder}
         returnFocus={dialogReturnFocus}
         onClose={() => setFolderDialog(false)}
       />

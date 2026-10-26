@@ -115,7 +115,8 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
     for (const more of await section.getByRole('button', {name:'More actions', exact:true}).all()) {
       await more.click();
       await page.getByRole('menuitem', {name:'Close folder', exact:true}).waitFor();
-      assert(JSON.stringify(await page.getByRole('menuitem').allInnerTexts()) === JSON.stringify(['Close folder']), 'Folder menu must contain only Close folder');
+      if (screenshots && state === 'one') await page.screenshot({path:'tmp/picker-capture/folder-refresh-menu.png'});
+      assert(JSON.stringify(await page.getByRole('menuitem').allInnerTexts()) === JSON.stringify(['Refresh', 'Close folder']), 'Folder menu must contain Refresh and Close folder');
       await page.keyboard.press('Escape');
       await page.getByRole('menu').waitFor({state:'detached'});
       assert(await more.evaluate(node => node === document.activeElement), 'Folder menu Escape must restore focus');
@@ -411,6 +412,45 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
     folderRequests.length === requestsBeforeSwitch, 'Reopening Files reset the tree or reloaded its folder');
   await page.setViewportSize(viewport);
   result.toolSwitchPreservesTree = true;
+
+  // #494: manual refresh updates cached children without scanning unknown folders or touching tabs.
+  const tabsBeforeRefresh = await page.getByRole('tab').allTextContents();
+  const editorBeforeRefresh = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n => ({doc:n.editor.getJSON(), selection:n.editor.state.selection.toJSON()}));
+  const preferencesBeforeRefresh = await page.evaluate(() => [localStorage.getItem('ieumdoc.openFolders'), localStorage.getItem('ieumdoc.collapsedFolderSections')]);
+  const refreshRoute = async route => {
+    const response = await route.fetch();
+    const listing = await response.json();
+    if (listing.path === folder || listing.path === guidesPath) {
+      listing.entries = listing.entries.filter(entry => entry.name !== 'index.md');
+      listing.entries.push({name:'refresh-added.md', path:listing.path + sep + 'refresh-added.md', kind:'document', native:true});
+    }
+    await route.fulfill({response, json:listing});
+  };
+  await page.route('**/api/folder?*', refreshRoute);
+  folderRequests.length = 0;
+  await folderMenu('Refresh');
+  await row('refresh-added.md').last().waitFor();
+  assert(await row('refresh-added.md').count() === 2 && await row('index.md').count() === 0, 'Refresh must update root and loaded child additions/removals');
+  assert(JSON.stringify([...folderRequests].sort()) === JSON.stringify([folder, guidesPath].sort()), 'Refresh reads only loaded reachable folders');
+  assert(await row('guides').getAttribute('aria-expanded') === 'true' && await row('install.md').getAttribute('aria-current') === 'page', 'Refresh retains expansion and active selection');
+  assert(JSON.stringify(await page.getByRole('tab').allTextContents()) === JSON.stringify(tabsBeforeRefresh) && await current() === 'install.md', 'Refresh retains tabs including removed files');
+  assert(JSON.stringify(await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n => ({doc:n.editor.getJSON(), selection:n.editor.state.selection.toJSON()}))) === JSON.stringify(editorBeforeRefresh), 'Refresh preserves editor content and selection');
+  await page.unroute('**/api/folder?*', refreshRoute);
+  // The center uses the same root handler even with the entire section hidden.
+  await toggle.click();
+  folderRequests.length = 0;
+  await page.keyboard.press('Control+Slash');
+  const refreshCenter = page.getByRole('dialog', {name:'Command center', exact:true});
+  await refreshCenter.getByRole('combobox').fill('> refresh folder');
+  await page.keyboard.press('Enter');
+  await refreshCenter.waitFor({state:'detached'});
+  await page.waitForFunction(() => ![...document.querySelectorAll('.sidebar-tree-name')].some(n => n.textContent === 'refresh-added.md'));
+  assert(await toggle.getAttribute('aria-expanded') === 'false', 'Center refresh retains collapsed section');
+  assert(JSON.stringify([...folderRequests].sort()) === JSON.stringify([folder, guidesPath].sort()), 'Center refresh reuses the loaded-list handler');
+  await toggle.click();
+  assert(JSON.stringify(await items()) === JSON.stringify(expandedTree), 'Refresh restores actual Host listing');
+  assert(JSON.stringify(await page.evaluate(() => [localStorage.getItem('ieumdoc.openFolders'), localStorage.getItem('ieumdoc.collapsedFolderSections')])) === JSON.stringify(preferencesBeforeRefresh), 'Refresh itself must not write preferences');
+  result.refreshLoadedFolders = true;
 
   // Keyboard: Left goes to the parent and then collapses; Right expands and then enters;
   // Home, End and the arrows move through visible items; Enter toggles a folder.

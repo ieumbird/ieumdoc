@@ -29,7 +29,9 @@ export type DocumentSessionSnapshot = {
 };
 
 /** One document's state and operations. The shell owns the shared work-loss confirmation. */
-export function useDocumentSession(initial: DocumentFileResponse, restored?: Pick<DocumentSessionSnapshot, "editor" | "savedEdits">, recoveryId?: string) {
+export function useDocumentSession(initial: DocumentFileResponse, restored?: Pick<DocumentSessionSnapshot, "editor" | "savedEdits">, recoveryId?: string, onAssetChange?: (documentPath: string, assetPath: string) => void) {
+  const assetChangeRef = useRef(onAssetChange);
+  assetChangeRef.current = onAssetChange;
   const [initialEditorSnapshot, setInitialEditorSnapshot] = useState(() => restored?.editor && structuredClone(restored.editor));
   const editorRef = useRef<DocumentEditorHandle>(null);
   const [recoveryError, setRecoveryError] = useMessageState("");
@@ -110,6 +112,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
       onNotice: (message: UiMessage, action?: () => void) => { if (isCurrent()) setNotice(message, action); },
       onDraftChange: (active: boolean) => { if (isCurrent()) setDraftActive(active); },
       onAssetPendingChange: (active: boolean) => { if (isCurrent()) setAssetPending(active); },
+      onAssetChange: (path: string) => assetChangeRef.current?.(openedPath, path),
       onAssetError: (reason: string) => { if (isCurrent()) setError(reason); },
       onAppliedEdit: (dirty: boolean) => { if (isCurrent()) recorder?.edit(dirty); },
       onDirtyChange: (dirty: boolean) => { if (isCurrent()) setDocumentDirty(dirty); },
@@ -287,8 +290,9 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
     const { documentPath, resolve } = imageChoice;
     try {
       const { path, rollbackToken } = await chooseHostImage(documentPath, source);
+      if (rollbackToken) assetChangeRef.current?.(documentPath, path);
       // A copy no Figure ends up using is removed; a linked image is never touched.
-      const discard = rollbackToken === undefined ? undefined : () => void rollbackAsset({ path, rollbackToken }, documentPath).catch((cause: unknown) => {
+      const discard = rollbackToken === undefined ? undefined : () => void rollbackAsset({ path, rollbackToken }, documentPath).finally(() => assetChangeRef.current?.(documentPath, path)).catch((cause: unknown) => {
         if (isCurrent()) setError({ key: "The unused copied image remains at {{path}}: {{reason}}", values: { path: path, reason: messageOf(cause) } });
       });
       if (!isCurrent() || imageChoiceRef.current !== imageChoice) {

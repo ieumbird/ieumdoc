@@ -2,7 +2,7 @@ import { FilePreviewDialog } from "./FilePreviewDialog.tsx";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { useId, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
-import { ChevronRight, Ellipsis, File, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelLeftOpen, Plus, Settings, SlidersHorizontal, X } from "lucide-react";
+import { ChevronRight, Ellipsis, File, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelLeftOpen, Plus, RotateCw, Settings, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -31,6 +31,7 @@ type SidebarProps = {
   onToggleSection?(root: string): void;
   onOpenDocument?(path: string): void;
   onCloseFolder?(root: string): void;
+  onRefreshFolder?(root: string): void;
   /** The Desktop app's Settings; the browser Editor has none. Names the control focus returns to. */
   onSettings?(returnFocus: HTMLElement): void;
   display: Omit<DisplaySettingsProps, "documentPath">;
@@ -39,7 +40,7 @@ type SidebarProps = {
 /** One sidebar switches between Files and Display. Outline remains independent on the right. */
 export function Sidebar({
   open, documentPath, onToggle, toggleRef, onDismiss, onOpenFolder, recent = [], onOpenRecent, onNew, onNewFolder,
-  folders = [], onToggleFolder, onToggleSection, onOpenDocument, onCloseFolder, onSettings, display,
+  folders = [], onToggleFolder, onToggleSection, onOpenDocument, onCloseFolder, onRefreshFolder, onSettings, display,
 }: SidebarProps) {
   useTranslation();
   const [tool, setTool] = useState<"files" | "display">("files");
@@ -103,6 +104,7 @@ export function Sidebar({
             onOpenDocument={path => onOpenDocument?.(path)}
             onNew={button => onNew?.(tree.root, button)}
             onNewFolder={button => onNewFolder?.(tree.root, button)}
+            onRefresh={() => onRefreshFolder?.(tree.root)}
             onClose={() => onCloseFolder?.(tree.root)}
           />
         )) : (
@@ -158,11 +160,12 @@ type FolderTreeProps = {
   onOpenDocument(path: string): void;
   onNew(button: HTMLButtonElement): void;
   onNewFolder(button: HTMLButtonElement): void;
+  onRefresh(): void;
   onClose(): void;
 };
 
 /** One opened folder as a tree: folders expand in place, documents open. */
-function FolderTree({ tree, documentPath, onToggleFolder, onToggleSection, onOpenDocument, onNew, onNewFolder, onClose }: FolderTreeProps) {
+function FolderTree({ tree, documentPath, onToggleFolder, onToggleSection, onOpenDocument, onNew, onNewFolder, onRefresh, onClose }: FolderTreeProps) {
   useTranslation();
   const treeId = useId();
   // Host paths are resolved, so only a filesystem root ends in a separator; it shows as itself.
@@ -212,6 +215,8 @@ function FolderTree({ tree, documentPath, onToggleFolder, onToggleSection, onOpe
               <Ellipsis />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onRefresh}>
+                <RotateCw aria-hidden="true" />{i18n.t("Refresh")}</DropdownMenuItem>
               <DropdownMenuItem onClick={onClose}>
                 <X aria-hidden="true" />{i18n.t("Close folder")}</DropdownMenuItem>
             </DropdownMenuContent>

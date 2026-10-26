@@ -63,6 +63,11 @@ test("a failed listing collapses its folder; a stale failure does not", () => {
   assert.equal(folderTreeReducer(state, { type: "loadFailure", root: ROOT, path: "/r/a", request: 1 }), state);
   state = folderTreeReducer(state, { type: "loadFailure", root: ROOT, path: "/r/a", request: 2 })!;
   assert.equal(state.expanded.has("/r/a"), false);
+  state = folderTreeReducer(state, { type: "expand", path: "/r/a" })!;
+  state = folderTreeReducer(state, { type: "loadStart", root: ROOT, path: "/r/a", request: 3 })!;
+  state = folderTreeReducer(state, { type: "loadFailure", root: ROOT, path: "/r/a", request: 3, preserveExpansion: true })!;
+  assert.equal(state.expanded.has("/r/a"), true, "refresh failure retains the user's expansion");
+  assert.equal(state.pending.size, 0);
 });
 
 test("known folders are the chosen folder and every listed sub-folder, in tree order, expanded or not", () => {
