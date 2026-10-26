@@ -1,6 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Document settings verification: 2026-10-27 (#554: existing document operations and device width preference; [integration, checks and captures](#document-settings-placement-554)).
 - New-document entry verification: 2026-10-27 (#553: Editor 291 tests, workspace typecheck/build/docs; new-document, command-center, folder-navigation, editor-shell, ui-language, layout-rules and quiet-document; [behavior and visual comparison](#new-document-entry-553)).
 - Folder refresh verification: 2026-10-26 (#494: Editor 291 tests, typecheck/build, folder-tree failure guard and folder-navigation/image-assets/command-center/folder-memory/layout-rules/quiet-document; actual menu comparison below).
 - Menu verification: 2026-10-26 (#516: action icons/danger tokens, adjacent block movement/Undo/Save→Reload, title/endnote/draft/boundary restrictions, conversions and slash editor focus; [contract and evidence](#unified-action-menus-516)).
@@ -39,6 +40,22 @@ focus handoff. A bibliography connection releases document settings before openi
 dialog, returning to the original opener after selection or dismissal. No document operation,
 file format or device preference storage changes.
 
+Local verification: Editor **295/295**, workspace typecheck, Editor build, docs check and
+whitespace check passed. Fourteen targeted browser scenarios passed across the integrated run
+and focused follow-ups: editor-shell, layout-rules, quiet-document, source-view-pending,
+bibliography-connection, cross-reference, outline, folder-navigation, visual-states, open-files,
+ui-language, bibliography, citation-authoring and new-document. The shell scenario independently
+checks both document-settings command aliases and focus return. The layout scenario checks 32
+English/Korean combinations of 1280/1423/1424/1440px, expanded/collapsed Sidebar and open/closed
+Outline (docked from 1424px, overlay below it): 48px TopBar, centered button of at least 160px,
+visible controls without overlap, and the folder/shortcut/filename reduction order.
+
+Known separate failure: `command-center` times out opening app Settings after its synthetic IME
+sequence (`run('settings')`, line 413). It reproduced identically on clean master
+`34436c7cf0240fd2ebf0dcdaa74b3c5a226f7066` with the same checkout, origin and persistent profile.
+No timeout, immediate assertion or product behavior was weakened here. The owner assigned its
+fix separately; PR CI remains the final integration check. Edge and packaged Desktop run in CI.
+
 Same-state manual comparison (Korean UI, the default technical document, clean loaded state):
 
 | Width | Before: Sidebar Display | After: Document settings | After: shell |
@@ -47,6 +64,7 @@ Same-state manual comparison (Korean UI, the default technical document, clean l
 | 390px | [Before](assets/document-settings-554/before-390.png) | [After](assets/document-settings-554/after-390.png) | [Shell](assets/document-settings-554/after-shell-390.png) |
 
 Captures were made through `pnpm browser:test` using this checkout's persistent Chrome profile.
+Before uses `ff37a32`; After includes master integration through `a414cb5` (#553/#555/#559/#552/#568/#565), so unrelated merged color and document-type changes are not attributed to #554.
 At phone width the former full-screen Sidebar is replaced by the shared viewport-capped modal;
 the underlying document remains in place. These images support manual layout review; automated
 checks separately assert geometry, operations, availability and focus. Historical Display captures

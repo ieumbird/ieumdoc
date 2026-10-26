@@ -1,6 +1,7 @@
 # Heading numbering v1
 
 - Status: Implemented
+- Document settings verification: 2026-10-27 (#554: existing document operations and device width preference; [integration, checks and captures](editor-ux-shell-v1.md#document-settings-placement-554)).
 - Accent verification: 2026-10-27 (#559: generated heading/Outline numbers share the local accent; all presets checked by the token contrast and existing Outline browser tests).
 - Body-heading authoring verification: 2026-10-26 (#472 Editor unit/browser checks; Core/CLI and numbering behavior unchanged). [Verification details](document-editing-v1.md).
 - Last verified: 2026-10-26 (#511 generated-number color: Editor tests, typecheck/build, Outline/layout-rules/quiet-document/visual-states browser checks and 1440px manual comparison).

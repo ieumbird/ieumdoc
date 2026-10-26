@@ -1,6 +1,7 @@
 # Citations v1
 
 - Status: Implemented
+- Document settings verification: 2026-10-27 (#554: existing document operations and device width preference; [integration, checks and captures](editor-ux-shell-v1.md#document-settings-placement-554)).
 - Nested authoring verification: 2026-10-24 (#377: Editor slash tests and `citation-authoring` menu/insertion/Save → Reload on lists, quotes, simple admonitions, endnote definitions, cells, Figure captions and headings, including a citation-only list item).
 - Last verified: 2026-10-27 (#463: Editor-styled citation key candidates; verification below).
 - Previous verification: 2026-10-26 (#473: conditional References and shared Display/command-center connections; verification below).

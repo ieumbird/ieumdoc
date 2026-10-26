@@ -1,6 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
+- Document settings verification: 2026-10-27 (#554: existing document operations and device width preference; [integration, checks and captures](editor-ux-shell-v1.md#document-settings-placement-554)).
 - Type-scale verification: 2026-10-27 ([#558](https://github.com/ieumbird/ieumdoc/issues/558): Editor tests, typecheck/build, layout-rules and quiet-document pass; 1440px 15/16px manual comparison remains pending because the Windows account failure counter reached the owner stop threshold of 6).
 - Accent verification: 2026-10-27 (#559: six local accent presets, shared interaction/selection/number colors and neutral information states; [contract and contrast results](#single-accent-presets-559)).
 - Table handle verification: 2026-10-26 (#517: B2 transparent-rest line handles with S4 neutral current/open states, accessible address names/tooltips, keyboard discovery and touch fallback; [verification and actual Before/After](table-interaction-v1.md#light-handle-verification-and-comparison)).
