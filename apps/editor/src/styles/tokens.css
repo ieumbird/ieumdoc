@@ -58,6 +58,75 @@
   /* Shared reference/citation underline distance, including unchecked citations. */
   --reference-underline-offset: 3px;
 
+  /* Document body font; UI text retains the shared sans stack. */
+  --font-family-document: var(--font-family-sans);
+  /* Document body text size. */
+  --font-size-document: 1.0625rem;
+  /* Document body line spacing. */
+  --line-height-document: 1.7;
+  /* Document H1 and title-slot text size. */
+  --font-size-document-h1: 2.125rem;
+  /* Document H2 text size. */
+  --font-size-document-h2: 1.5rem;
+  /* Document H3 text size. */
+  --font-size-document-h3: 1.25rem;
+  /* Document H4 text size. */
+  --font-size-document-h4: 1.125rem;
+  /* Document H5 text size. */
+  --font-size-document-h5: 1rem;
+  /* Document H6 text size. */
+  --font-size-document-h6: 0.875rem;
+  /* Document heading and title-slot weight. */
+  --font-weight-document-heading: 700;
+  /* Document heading and title-slot line spacing. */
+  --line-height-document-heading: 1.35;
+  /* Space above document headings, except the first block. */
+  --space-document-heading-before: var(--space-8);
+  /* Space below document headings and the title slot. */
+  --space-document-heading-after: var(--space-3);
+  /* Vertical gap around top-level document blocks. */
+  --space-document-block: var(--space-4);
+  /* Indentation at each document list level. */
+  --space-document-list-indent: var(--space-6);
+  /* Inset between a quote's side rule and its text. */
+  --space-document-quote-indent: var(--space-4);
+  /* Left accent rule shared by document quotes and admonitions. */
+  --size-document-side-rule: 3px;
+  /* Figure and table caption text size. */
+  --font-size-document-caption: 0.875rem;
+  /* Figure and table caption line spacing. */
+  --line-height-document-caption: 1.25rem;
+  /* Gap above Figure and table captions. */
+  --space-document-caption: var(--space-2);
+  /* Document table text size. */
+  --font-size-document-table: 0.875rem;
+  /* Document table line spacing. */
+  --line-height-document-table: 1.25rem;
+  /* Vertical padding inside document table cells. */
+  --space-document-table-cell-block: var(--space-2);
+  /* Horizontal padding inside document table cells. */
+  --space-document-table-cell-inline: var(--space-3);
+  /* Code block text size. */
+  --font-size-document-code: 0.875rem;
+  /* Code block line spacing. */
+  --line-height-document-code: 1.5;
+  /* Inline code size relative to its surrounding text; line spacing is inherited. */
+  --font-size-document-inline-code: 0.9em;
+  /* Endnote definition text size; the separator label remains UI metadata. */
+  --font-size-document-endnote: 1rem;
+  /* Endnote definition line spacing. */
+  --line-height-document-endnote: 1.5;
+  /* Separation before and after the endnotes region. */
+  --space-document-endnotes: var(--space-6);
+  /* Gap between endnotes and below their separator label. */
+  --space-document-endnote-gap: var(--space-2);
+  /* Inset reserving the endnote number beside its definition. */
+  --space-document-endnote-indent: var(--space-6);
+  /* Sidebar file-tree indentation per level; row insets stay structural. */
+  --space-sidebar-tree-indent: var(--space-3);
+  /* Outline indentation per heading level; row insets stay structural. */
+  --space-outline-indent: var(--space-3);
+
   --id-color-surface: #ffffff;
   --id-color-surface-subtle: #f6f7f9;
   --id-color-surface-muted: #eef0f4;
@@ -93,21 +162,15 @@
   --id-color-warning: #875717;
 
   --font-family-sans: "Pretendard Variable", Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", sans-serif;
-  --font-family-document: var(--font-family-sans);
   --font-family-mono: Consolas, "Courier New", monospace;
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-md: 1rem;
-  --font-size-document: 1.0625rem;
-  --font-size-h1: 2.125rem;
-  --font-size-h2: 1.5rem;
-  --font-size-h3: 1.25rem;
-  --font-size-h4: 1.125rem;
+  --font-size-start-title: 1.5rem;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
   --line-height-body: 1.5;
-  --line-height-document: 1.7;
-  --line-height-heading: 1.35;
+  --line-height-start-title: 1.35;
   --line-height-label: 1.25rem;
   --line-height-meta: 1rem;
 

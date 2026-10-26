@@ -16,6 +16,31 @@ async (page, { openPath, withBlockHover }) => {
   await page.getByRole('dialog').waitFor({state:'detached'});
   await page.getByTestId('folder').getByRole('treeitem',{name:'quiet-document.md',exact:true}).waitFor();
   await page.evaluate(async()=>{await document.fonts.ready; await Promise.all([...document.images].map(i=>i.decode()));});
+  // Document preferences must not resize or restyle navigation, controls or dialog text.
+  await page.getByTestId('sidebar').getByRole('button',{name:'Open folder…',exact:true}).click();
+  const isolation = await page.evaluate(() => {
+    const root=document.documentElement;
+    const selectors=['.sidebar-tree-item','[data-testid="save"]','.document-outline-item','.figure-edit','.equation-edit','[role="dialog"]'];
+    const type=n=>{const s=getComputedStyle(n);return [s.fontFamily,s.fontSize,s.lineHeight,s.fontWeight];};
+    const ui=()=>selectors.map(selector=>{
+      const nodes=[...document.querySelectorAll(selector)];
+      if(!nodes.length)throw Error(`Missing UI isolation target: ${selector}`);
+      return nodes.map(type);
+    });
+    const before=ui(), body=document.querySelector('.document-editor'), original=type(body);
+    const overrides={'--font-size-document':`calc(${original[1]} * 1.25)`,'--font-family-document':'var(--font-family-mono)'};
+    const saved=Object.keys(overrides).map(name=>[name,root.style.getPropertyValue(name),root.style.getPropertyPriority(name)]);
+    try {
+      for(const [name,value] of Object.entries(overrides))root.style.setProperty(name,value);
+      const after=ui();
+      return {uiUnchanged:JSON.stringify(before)===JSON.stringify(after),before,after,documentChanged:type(body)[0]!==original[0]&&parseFloat(type(body)[1])>parseFloat(original[1])};
+    } finally {
+      for(const [name,value,priority] of saved) value?root.style.setProperty(name,value,priority):root.style.removeProperty(name);
+    }
+  });
+  if(!isolation.uiUnchanged||!isolation.documentChanged)throw Error(`Document typography leaked into UI: ${JSON.stringify(isolation)}`);
+  await page.keyboard.press('Escape');
+  await page.getByRole('dialog').waitFor({state:'detached'});
   const results=[];
   await withBlockHover(page, async () => {
     for(const width of [1440,1280,1279,1025,1024,768,705,704]) {
@@ -79,14 +104,27 @@ async (page, { openPath, withBlockHover }) => {
           const type=s=>{const cs=getComputedStyle(required(s));return {size:parseFloat(cs.fontSize),line:parseFloat(cs.lineHeight),weight:cs.fontWeight,font:cs.fontFamily};};
           const headings=[1,2,3,4,5,6].map(n=>type('h'+n+'.heading'));
           const body=type('.paragraph'),caption=type('.caption'),table=type('.table');
+          const expectedType=(size,line,weight='--font-weight-document-heading')=>{
+            const probe=document.createElement('span');
+            probe.style.fontSize=`var(${size})`;probe.style.lineHeight=`var(${line})`;probe.style.fontWeight=`var(${weight})`;
+            document.body.append(probe);
+            const s=getComputedStyle(probe), value={size:parseFloat(s.fontSize),line:parseFloat(s.lineHeight),weight:s.fontWeight};
+            probe.remove();return value;
+          };
+          const expectedTypeValues={body:expectedType('--font-size-document','--line-height-document'),
+            headings:[1,2,3,4,5,6].map(n=>expectedType(`--font-size-document-h${n}`,'--line-height-document-heading')),
+            caption:expectedType('--font-size-document-caption','--line-height-document-caption'),
+            table:expectedType('--font-size-document-table','--line-height-document-table')};
           const family=body.font.split(',').map(s=>s.trim().replaceAll('"',''));
           const expected=['Pretendard Variable','Pretendard','Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic','Segoe UI','sans-serif'];
           if(JSON.stringify(family)!==JSON.stringify(expected)||[...headings,caption,table].some(t=>t.font!==body.font)||getComputedStyle(document.body).fontFamily!==body.font)throw Error('Shared sans font contract changed');
           const shellOverflow=['.app-shell','.sidebar','.app-main','.top-bar','.document-column','[data-document-tab][data-active=true] .document','[data-document-tab][data-active=true] .document-editor','.figure','.equation','.table-block'].filter(s=>{const r=rect(s);return r.left<0||r.right>innerWidth+1;});
           const center=rect('.command-center-trigger'), actions=rect('.top-bar-actions');
-          return {width,collapsed,header:rect('.top-bar').height,headerWidth:main.width,commandCenterDelta:Math.abs(center.left+center.width/2-(main.left+main.width/2)),centerBottom:center.bottom,actionsTop:actions.top,sidebarHeader:rect('.sidebar-header').height,centerDelta:Math.abs(main.left+main.width/2-column.left-column.width/2),blockDelta:Math.max(...starts)-Math.min(...starts),gutterGap:doc.left-controls.right,standard,compact,icons:icons?.map(r=>({x:r.x,w:r.width,h:r.height}))??null,rowIcons,labels,sidebarWidth,expectedSidebar,panelWidth,expectedPanel,body,headings,caption,table,shellOverflow};
+          return {width,collapsed,header:rect('.top-bar').height,headerWidth:main.width,commandCenterDelta:Math.abs(center.left+center.width/2-(main.left+main.width/2)),centerBottom:center.bottom,actionsTop:actions.top,sidebarHeader:rect('.sidebar-header').height,centerDelta:Math.abs(main.left+main.width/2-column.left-column.width/2),blockDelta:Math.max(...starts)-Math.min(...starts),gutterGap:doc.left-controls.right,standard,compact,icons:icons?.map(r=>({x:r.x,w:r.width,h:r.height}))??null,rowIcons,labels,sidebarWidth,expectedSidebar,panelWidth,expectedPanel,body,headings,caption,table,expectedTypeValues,shellOverflow};
         },{collapsed,width});
-        const fail=result.centerDelta>1||result.blockDelta>1||result.gutterGap<11||Math.abs(before-after)>0.5||result.standard!==32||result.compact.some(h=>h!==28)||result.shellOverflow.length||result.body.size!==17||Math.abs(result.body.line-28.9)>0.1||result.headings.some((t,i)=>t.size!==[34,24,20,18,16,14][i]||t.weight!=='700')||result.caption.size!==14||result.table.size!==14||Math.abs(result.sidebarWidth-result.expectedSidebar)>0.5||Math.abs(result.panelWidth-result.expectedPanel)>0.5||(!collapsed&&(Math.max(...result.labels)-Math.min(...result.labels)>1||!result.rowIcons.length||Math.max(...result.rowIcons)-Math.min(...result.rowIcons)>1||result.icons.some(i=>i.w!==16||i.h!==16)));
+        const matchesType=(actual,expected)=>Math.abs(actual.size-expected.size)<0.1&&Math.abs(actual.line-expected.line)<0.1;
+        const expected=result.expectedTypeValues;
+        const fail=result.centerDelta>1||result.blockDelta>1||result.gutterGap<11||Math.abs(before-after)>0.5||result.standard!==32||result.compact.some(h=>h!==28)||result.shellOverflow.length||!matchesType(result.body,expected.body)||result.headings.some((t,i)=>!matchesType(t,expected.headings[i])||t.weight!==expected.headings[i].weight)||!matchesType(result.caption,expected.caption)||!matchesType(result.table,expected.table)||Math.abs(result.sidebarWidth-result.expectedSidebar)>0.5||Math.abs(result.panelWidth-result.expectedPanel)>0.5||(!collapsed&&(Math.max(...result.labels)-Math.min(...result.labels)>1||!result.rowIcons.length||Math.max(...result.rowIcons)-Math.min(...result.rowIcons)>1||result.icons.some(i=>i.w!==16||i.h!==16)));
         // The center gets its own row when the header's actual width is below 56rem,
         // independently of how much width the sidebar and outline occupy.
         const stacked=result.headerWidth<896;

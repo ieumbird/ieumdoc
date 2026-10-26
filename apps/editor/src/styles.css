@@ -300,7 +300,7 @@ button {
   align-items: center;
   column-gap: var(--space-1);
   padding: var(--space-1) var(--space-3);
-  padding-left: calc(var(--space-3) + min(var(--tree-depth, 0), 5) * var(--space-3));
+  padding-left: calc(var(--space-3) + min(var(--tree-depth, 0), 5) * var(--space-sidebar-tree-indent));
   border-radius: var(--id-radius-md);
   color: var(--id-color-text-muted);
   font-size: var(--font-size-sm);
@@ -475,8 +475,8 @@ button {
   display: -webkit-box;
   width: 100%;
   padding: var(--space-1) var(--space-3);
-  /* One 12px step per heading level below H1, at most three, so deep headings stay readable. */
-  padding-left: calc(var(--space-3) + min(var(--outline-depth, 0), 3) * var(--space-3));
+  /* One adjustable step per heading level below H1, capped so deep headings stay readable. */
+  padding-left: calc(var(--space-3) + min(var(--outline-depth, 0), 3) * var(--space-outline-indent));
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -1017,9 +1017,9 @@ button {
 .document-start-title {
   margin: 0;
   color: var(--id-color-text);
-  font-size: var(--font-size-h2);
+  font-size: var(--font-size-start-title);
   font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-heading);
+  line-height: var(--line-height-start-title);
 }
 
 .document-start-text {
@@ -1137,6 +1137,11 @@ button {
   background: var(--id-color-interaction-soft);
 }
 
+/* Embedded UI controls keep the UI stack when the document font is adjusted. */
+.document-editor [data-slot="button"] {
+  font-family: var(--font-family-sans);
+}
+
 /* A decoration, never document text. Keep its first line aligned with the real caret. */
 .document--empty .document-editor > p:first-child::before {
   content: attr(data-placeholder);
@@ -1159,16 +1164,16 @@ button {
 
 .document-title-slot {
   display: block;
-  margin: 0 0 var(--space-3);
+  margin: 0 0 var(--space-document-heading-after);
   padding: 0;
   border: 0;
   border-radius: var(--id-radius-sm);
   background: transparent;
   color: var(--id-color-text-subtle);
   font-family: var(--font-family-document);
-  font-size: var(--font-size-h1);
-  font-weight: var(--font-weight-bold);
-  line-height: var(--line-height-heading);
+  font-size: var(--font-size-document-h1);
+  font-weight: var(--font-weight-document-heading);
+  line-height: var(--line-height-document-heading);
   text-align: left;
   cursor: text;
 }
@@ -1183,30 +1188,30 @@ button {
 }
 
 .heading {
-  margin: var(--space-8) 0 var(--space-3);
-  font-weight: var(--font-weight-bold);
-  line-height: var(--line-height-heading);
+  margin: var(--space-document-heading-before) 0 var(--space-document-heading-after);
+  font-weight: var(--font-weight-document-heading);
+  line-height: var(--line-height-document-heading);
   text-wrap: pretty;
   word-break: keep-all;
 }
 
 h1.heading {
-  font-size: var(--font-size-h1);
+  font-size: var(--font-size-document-h1);
 }
 
 h2.heading {
-  font-size: var(--font-size-h2);
+  font-size: var(--font-size-document-h2);
 }
 
-h3.heading { font-size: var(--font-size-h3); }
-h4.heading { font-size: var(--font-size-h4); }
-h5.heading { font-size: var(--font-size-md); }
-h6.heading { font-size: var(--font-size-sm); }
+h3.heading { font-size: var(--font-size-document-h3); }
+h4.heading { font-size: var(--font-size-document-h4); }
+h5.heading { font-size: var(--font-size-document-h5); }
+h6.heading { font-size: var(--font-size-document-h6); }
 .document-editor > :first-child { margin-top: 0; }
 
 .paragraph,
 .document-editor > .paragraph {
-  margin: var(--space-4) 0;
+  margin: var(--space-document-block) 0;
   padding: 0;
 }
 
@@ -1227,17 +1232,17 @@ h6.heading { font-size: var(--font-size-sm); }
 .admonition,
 .figure,
 .equation {
-  margin: var(--space-4) 0;
+  margin: var(--space-document-block) 0;
 }
 
 .document-editor > .list {
-  margin: var(--space-4) 0;
+  margin: var(--space-document-block) 0;
 }
 
 .document-editor > .quote {
-  margin: var(--space-4) 0;
-  padding-left: var(--space-4);
-  border-left: 3px solid var(--id-color-border-strong);
+  margin: var(--space-document-block) 0;
+  padding-left: var(--space-document-quote-indent);
+  border-left: var(--size-document-side-rule) solid var(--id-color-border-strong);
   color: var(--id-color-text-muted);
 }
 
@@ -1256,7 +1261,7 @@ h6.heading { font-size: var(--font-size-sm); }
 }
 
 .list {
-  padding-left: var(--space-6);
+  padding-left: var(--space-document-list-indent);
 }
 
 ul.list { list-style: disc; }
@@ -1268,7 +1273,7 @@ ol.list { list-style: decimal; }
 }
 
 .document-editor > .code-block {
-  margin: var(--space-4) 0;
+  margin: var(--space-document-block) 0;
 }
 
 .code-block pre {
@@ -1279,8 +1284,8 @@ ol.list { list-style: decimal; }
   overflow-x: auto;
   background: var(--id-color-surface-muted);
   font-family: var(--font-family-mono);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-body);
+  font-size: var(--font-size-document-code);
+  line-height: var(--line-height-document-code);
   white-space: pre;
   tab-size: 4;
 }
@@ -1328,12 +1333,12 @@ ol.list { list-style: decimal; }
   border-radius: var(--id-radius-sm);
   background: var(--id-color-surface-muted);
   font-family: var(--font-family-mono);
-  font-size: 0.9em;
+  font-size: var(--font-size-document-inline-code);
 }
 
 .admonition {
   padding: var(--space-3) var(--space-4);
-  border-left: 3px solid var(--id-color-info);
+  border-left: var(--size-document-side-rule) solid var(--id-color-info);
   border-radius: var(--id-radius-lg);
   background: var(--id-color-surface-info);
   font-family: var(--font-family-sans);
@@ -1408,10 +1413,10 @@ ol.list { list-style: decimal; }
 
 .caption {
   display: block;
-  margin-top: var(--space-2);
+  margin-top: var(--space-document-caption);
   color: var(--id-color-text-readonly);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-label);
+  font-size: var(--font-size-document-caption);
+  line-height: var(--line-height-document-caption);
   font-family: var(--font-family-sans);
 }
 
@@ -1481,14 +1486,14 @@ ol.list { list-style: decimal; }
   margin: 0;
   border-collapse: collapse;
   font-family: var(--font-family-sans);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-label);
+  font-size: var(--font-size-document-table);
+  line-height: var(--line-height-document-table);
 }
 
 .table th,
 .table td {
   min-width: 7rem;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-document-table-cell-block) var(--space-document-table-cell-inline);
   border: var(--border-width) solid var(--id-color-border);
   text-align: left;
 }
@@ -1639,21 +1644,21 @@ ol.list { list-style: decimal; }
  * Its heading is presentation only; explicit conversion owns source placement. */
 .document-editor > [data-footnote-definition="true"] {
   position: relative;
-  margin: var(--space-6) 0;
-  font-size: var(--font-size-md);
-  line-height: var(--line-height-body);
+  margin: var(--space-document-endnotes) 0;
+  font-size: var(--font-size-document-endnote);
+  line-height: var(--line-height-document-endnote);
 }
 
 .document-editor > [data-footnote-definition="true"] + [data-footnote-definition="true"] {
-  margin-top: var(--space-2);
+  margin-top: var(--space-document-endnote-gap);
 }
 
 .document-editor > [data-footnote-definition="true"]:has(+ [data-footnote-definition="true"]) {
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-document-endnote-gap);
 }
 
 .document-editor > [data-footnote-definition="true"]:not([data-footnote-definition="true"] + [data-footnote-definition="true"]) {
-  padding-top: calc(var(--border-width) + var(--space-3) + var(--line-height-meta) + var(--space-2));
+  padding-top: calc(var(--border-width) + var(--space-3) + var(--line-height-meta) + var(--space-document-endnote-gap));
 }
 
 .document-editor > [data-footnote-definition="true"]:not([data-footnote-definition="true"] + [data-footnote-definition="true"])::before {
@@ -1673,7 +1678,7 @@ ol.list { list-style: decimal; }
 .footnote-definition {
   position: relative;
   margin: 0;
-  padding-left: var(--space-6);
+  padding-left: var(--space-document-endnote-indent);
   color: var(--id-color-text);
 }
 
