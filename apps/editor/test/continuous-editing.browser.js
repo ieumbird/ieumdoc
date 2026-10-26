@@ -297,10 +297,15 @@ async (page, { openDocument }) => {
     await page.keyboard.press('Enter');
     await page.keyboard.type('/Equation');
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Equation', exact:true}).click();
+    const number = await page.locator('[data-document-tab][data-active=true] [data-block="equation"][data-editing="true"]').getByTestId('equation-number').innerText();
+    const properties = page.getByRole('dialog', {name:`Equation ${number} properties`, exact:true});
     const latex = `x_{${continuation.length}}`;
-    await page.getByTestId('equation-latex').fill(latex);
-    await page.getByTestId('equation-apply').click();
+    await properties.getByTestId('equation-latex').fill(latex);
+    await properties.getByTestId('equation-apply').click();
     const applied = await continuationState();
+    // Base UI can retain the closed portal until the next frame. Keep the immediate
+    // focus/selection snapshot above, then observe its removal before continuing.
+    await properties.waitFor({state:'detached'});
     // Navigate back from Apply's end gap to select the final Equation through the engine keymap.
     if (mode.startsWith('selected ')) await page.keyboard.press('ArrowLeft');
     const beforeKey = await continuationState();
