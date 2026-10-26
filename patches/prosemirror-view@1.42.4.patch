@@ -1,5 +1,5 @@
 diff --git a/dist/index.cjs b/dist/index.cjs
-index c6dc574fc427b11448e5ec6f800356d903ef2e51..5c7373b18f987b29d0bc4afbce108d417d8ce484 100644
+index c6dc574fc427b11448e5ec6f800356d903ef2e51..27234cbe870d787301ed63d13aef77fc7cad857f 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
 @@ -2947,6 +2947,8 @@ var InputState = _createClass(function InputState() {
@@ -50,30 +50,17 @@ index c6dc574fc427b11448e5ec6f800356d903ef2e51..5c7373b18f987b29d0bc4afbce108d41
      }, 20);
    }
  };
-@@ -4445,6 +4457,9 @@ var DOMObserver = function () {
-     key: "setCurSelection",
-     value: function setCurSelection() {
-       this.currentSelection.set(this.view.domSelectionRange());
-+      this.selectionClick = this.view.input.lastClick;
-+      this.selectionTouch = this.view.input.lastTouch;
-+      this.selectionKeys = this.view.input.selectionKeys;
-     }
-   }, {
-     key: "ignoreSelectionChange",
-@@ -4561,7 +4576,10 @@ var DOMObserver = function () {
+@@ -4561,7 +4573,7 @@ var DOMObserver = function () {
          }
        }
        var readSel = null;
 -      if (from < 0 && newSel && view.input.lastFocus > Date.now() - 200 && Math.max(view.input.lastTouch, view.input.lastClick.time) < Date.now() - 300 && selectionCollapsed(sel) && (readSel = selectionFromDOM(view)) && readSel.eq(prosemirrorState.Selection.near(view.state.doc.resolve(0), 1))) {
-+      // Chrome may collapse a block node range to the document start before the next keydown.
-+      // Keep the engine's node selection only if no pointer, touch or key has moved it since it was written.
-+      var nodeReset = chrome && view.state.selection instanceof prosemirrorState.NodeSelection && view.state.selection.node.isBlock && this.selectionClick == view.input.lastClick && this.selectionTouch == view.input.lastTouch && this.selectionKeys == view.input.selectionKeys;
-+      if (from < 0 && newSel && (nodeReset || view.input.lastFocus > Date.now() - 200 && !keyedSinceFocus(view) && Math.max(view.input.lastTouch, view.input.lastClick.time) < Date.now() - 300) && selectionCollapsed(sel) && (readSel = selectionFromDOM(view)) && readSel.eq(prosemirrorState.Selection.near(view.state.doc.resolve(0), 1))) {
++      if (from < 0 && newSel && view.input.lastFocus > Date.now() - 200 && !keyedSinceFocus(view) && Math.max(view.input.lastTouch, view.input.lastClick.time) < Date.now() - 300 && selectionCollapsed(sel) && (readSel = selectionFromDOM(view)) && readSel.eq(prosemirrorState.Selection.near(view.state.doc.resolve(0), 1))) {
          view.input.lastFocus = 0;
          selectionToDOM(view);
          this.currentSelection.set(sel);
 diff --git a/dist/index.js b/dist/index.js
-index 18d421a500137fe92f48d9f3895703257df6f7d0..bd7d5a2b3db2cf809eea18943aab5615fc38ef89 100644
+index 18d421a500137fe92f48d9f3895703257df6f7d0..7025cf2df27022fae48439eab31df8f442bd7a3b 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -3113,6 +3113,8 @@ class InputState {
@@ -125,29 +112,12 @@ index 18d421a500137fe92f48d9f3895703257df6f7d0..bd7d5a2b3db2cf809eea18943aab5615
                  selectionToDOM(view);
          }, 20);
      }
-@@ -4770,6 +4783,9 @@ class DOMObserver {
-     }
-     setCurSelection() {
-         this.currentSelection.set(this.view.domSelectionRange());
-+        this.selectionClick = this.view.input.lastClick;
-+        this.selectionTouch = this.view.input.lastTouch;
-+        this.selectionKeys = this.view.input.selectionKeys;
-     }
-     ignoreSelectionChange(sel) {
-         if (!sel.focusNode)
-@@ -4858,8 +4874,13 @@ class DOMObserver {
+@@ -4858,7 +4871,7 @@ class DOMObserver {
          // If it looks like the browser has reset the selection to the
          // start of the document after focus, restore the selection from
          // the state
 -        if (from < 0 && newSel && view.input.lastFocus > Date.now() - 200 &&
--            Math.max(view.input.lastTouch, view.input.lastClick.time) < Date.now() - 300 &&
-+        // Chrome may collapse a block node range to the document start before the next keydown.
-+        // Keep the engine's node selection only if no pointer, touch or key has moved it since it was written.
-+        let nodeReset = chrome && view.state.selection instanceof NodeSelection && view.state.selection.node.isBlock &&
-+            this.selectionClick == view.input.lastClick && this.selectionTouch == view.input.lastTouch &&
-+            this.selectionKeys == view.input.selectionKeys;
-+        if (from < 0 && newSel && (nodeReset || view.input.lastFocus > Date.now() - 200 && !keyedSinceFocus(view) &&
-+            Math.max(view.input.lastTouch, view.input.lastClick.time) < Date.now() - 300) &&
++        if (from < 0 && newSel && view.input.lastFocus > Date.now() - 200 && !keyedSinceFocus(view) &&
+             Math.max(view.input.lastTouch, view.input.lastClick.time) < Date.now() - 300 &&
              selectionCollapsed(sel) && (readSel = selectionFromDOM(view)) &&
              readSel.eq(Selection.near(view.state.doc.resolve(0), 1))) {
-             view.input.lastFocus = 0;

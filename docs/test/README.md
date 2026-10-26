@@ -188,31 +188,27 @@ Past local execution, required CI and proof artifacts: [Host recovery execution 
 ### Focus and selection race investigation (#489)
 
 The downloaded run artifacts (input events, browser state, trace and console errors) distinguish
-test readiness from product selection handling. Console/page errors were empty in all five cases.
+test readiness from product selection handling in the three fixed paths. Console/page errors
+were empty in these preserved failures.
 
 | Scenario / artifact | Cause and classification | Regression boundary |
 | --- | --- | --- |
 | `bibliography-connection`, run 40248680852 / job 121335724273 | Test wait: Remove unmounted the citation form, leaving BODY focused. Ctrl+Z at 3392.4ms (event 142) preceded editor focus at 3393.6ms (145), so no Undo transaction ran. | Hold Remove's queued animation-frame callbacks; wait for actual editor focus before Undo. References and Undo assertions are unchanged. |
-| `table-authoring`, run 40250078219 / job 121339875529 | Product/engine defect: reference navigation selected the table at 59–102 (674), then Chromium's native range collapsed to H1 (676) without new pointer input. The engine accepted TextSelection 1 (677), before Backspace (678). Its existing document-start reset heuristic only covered recent focus. | The pinned engine patch also preserves a block NodeSelection when no pointer, touch or key has occurred since writing its DOM range. Replay the native collapse and selectionchange before Delete/Backspace; real title clicks and Control+Home still move the caret. |
 | `document-title`, run 40252460131 / first attempt | Product/engine defect: after Add a title focused H1, the delayed 20ms focus check could overwrite the paragraph's native caret before selectionchange read it. The retained state stayed at H1 position 1 (133–138). | Hold that actual engine callback and release it at paragraph mouseup. The check must respect the later pointer; the original empty-title removal and clean-document assertions remain. |
 | `citations`, run 40246268525 / job 121328398849 | Test wait: the #448 helper could mistake the closing Reload modal's enabled buttons and retained focus for an interactive discard prompt. It returned before final focus reached File actions (134); Backspace went to that button (135). | A prompt must still have `data-open`. Hold the final File actions focus and assert Reload has not returned, then retain the exact canonical-byte comparison. |
 
-The table order was also reproduced on Windows Chrome with CPU throttling and an early delivery
-of the pending selectionchange before the deletion keymap. Waiting for both the engine and native
-table selection did not prevent the subsequent reset, so adding a test wait would not fix it.
-The engine guard resolves that order without changing reference navigation or adding a timeout.
+The table selection reset is tracked separately in [#502](https://github.com/ieumbird/ieumdoc/issues/502).
+`table-authoring` remains identical to master, including its failure-only diagnostics. No wait is
+added to conceal that reset, and this PR does not claim to fix it.
 
-Local verification on 2026-10-26 restored the pre-fix dependency/helper/input ordering and failed
-all four forced regressions at those boundaries. The fixed Editor passed the ten related browser
-scenarios, then five sequential runs of the four affected scenarios plus unchanged
-`citation-authoring` (25/25). Editor tests passed 289/289, with typecheck, build and docs checks.
-All browser runs used the worktree's own Vite server and persistent Chrome profile, workers=1,
-retries=0. No arbitrary wait or increased timeout was added.
+The final bibliography proof checks that the helper remains pending while BODY has focus: the
+same test fails with an immediate-return helper and passes with the real focus wait. The title
+scenario holds the actual post-focus callback until paragraph mouseup, and citations holds the
+closing Reload focus handoff. These checks retain the original assertions and existing timeouts.
 
 Run 40076829146 for #421 has no input-events recording. Its trace confirms Undo succeeded and
 Redo left the citation present, but cannot establish the key target or history transaction at
-failure. The new node-reset guard is limited to **block** nodes; citation authoring's unchanged
-Redo assertions remain. #421 and the separate fast text-caret synchronization issue #416 are
+failure. Citation authoring's Redo assertions remain unchanged. #421 and the separate fast text-caret synchronization issue #416 are
 not claimed fixed by #489.
 
 ### Cross-reference regression history (#407)
