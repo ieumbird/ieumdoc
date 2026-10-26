@@ -8,6 +8,8 @@ IeumDoc은 Git의 plain-text 문서를 단일 진실 공급원(SSOT)으로 사�
 
 사람은 WYSIWYG Visual Editor로 작성하고 CLI는 동일한 headless semantic Core로 문서를 읽고 수정합니다. AI·automation도 같은 Core를 사용하도록 설계되어 있지만, 전용 AI/MCP interface는 아직 제공하지 않습니다.
 
+![이음독 데모: 렌더링 화면에서 바로 heading, 수식, 상호참조를 편집하고 저장하는 모습](docs/design/assets/ieumdoc-demo.gif)
+
 먼저 원하는 경로를 선택하세요.
 
 - **설치해서 사용하기**: [Windows Desktop](#windows-desktop)
