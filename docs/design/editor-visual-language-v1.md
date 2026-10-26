@@ -541,6 +541,7 @@ Failure output: [30px table](assets/control-rules-514/table-30px.txt),
 An additional [30px `.figure-edit` mutation](assets/control-rules-514/named-control-30px.txt)
 also fails, proving that JSX-owned control classes are covered even without `button`
 in their CSS selector. It too was reverted before the passing guard run.
+Stored stdout logs have trailing spaces/tabs removed; commands, rejection diagnostics and results are unchanged.
 `layout-rules` checks computed geometry/radii, UI-font isolation (including changed
 controls), and token-resolved selected/focus colors in both locales at 1440/390px.
 The existing citation-authoring scenario additionally fixes the deliberate 18px/16px
