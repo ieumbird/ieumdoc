@@ -50,10 +50,18 @@ editable table, including after clearing and reopening. No Add caption button is
 Read-only captions retain existing content and official numbers, like Figure captions,
 but omit the editable empty-input hint. Save omits empty caption content. Cell and row coordinates remain
 unchanged. Core read models, canonical MyST and CLI surfaces are unchanged.
-Pasted tables receive the same empty surface in the existing clipboard Slice conversion.
+The Editor schema requires exactly one caption after the rows. Native parsing and
+replacement therefore retain the surface even when a range deletion removes everything
+after the final cell while keeping the table. No repair transaction or Undo step is added.
 Previously recorded valid Editor snapshots that omit an empty caption receive the
 same transient surface in both current and saved checkpoints, after lossless validation.
 Restoring does not mutate the stored record or create a false dirty difference.
+
+Whole-table clipboard output retains the empty structural `<caption>` element in HTML
+and the existing trailing block separator (`\n\n`) in plain text. The input hint and
+generated number are never copied; canonical Save still omits empty caption content.
+Changing `setEditable(false)` at runtime removes the hint; reenabling editing restores it,
+without changing document content, dirty state or Undo history.
 
 The caption stays below the table. Its computed number follows the document's authored
 Table reference template, retaining the existing `. ` separator; without a template,
@@ -122,6 +130,18 @@ retry or relaxed comparison.
 The corrected product also passes local `external-html-paste` and
 `continuous-editing`, the unchanged exact Save/Reload comparison, Editor **296/296**,
 Editor typecheck/build and docs/whitespace checks.
+
+Independent review reproduced a range-deletion hole at `f0e80d2`: after selecting from
+the last cell to trailing prose and Backspace, the table remained but its caption count
+was **0**. The regression checks the surface and unchanged cells immediately after
+deletion, Undo and Redo. The schema now requires `tableRow+ tableCaption`, so native
+ProseMirror replacement owns that invariant. The earlier paste-only filler is removed;
+DOM/clipboard parsing fills required children. Older captionless snapshots retain their
+lossless compatibility preparation in both checkpoints before schema validation.
+Review-fix checks: Editor **296/296**, workspace typecheck, Editor build,
+`table-authoring`, `table-caption` (including runtime editable transitions),
+`external-html-paste`, `recovery-structure`, `continuous-editing`, docs and whitespace
+all pass. The range-deletion assertions do not poll after deletion, Undo or Redo.
 
 Manual captures use the same fresh scratch document, open tabs, preferences, scroll
 position, loaded fonts, DPR 1 and 100% zoom at 1440/390×900px. Capture-only

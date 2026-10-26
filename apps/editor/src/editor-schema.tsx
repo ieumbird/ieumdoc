@@ -444,7 +444,7 @@ const Table = Node.create({
   name: "table",
   allowGapCursor: false,
   group: "block",
-  content: "tableRow+ tableCaption?",
+  content: "tableRow+ tableCaption",
   isolating: true,
   selectable: true,
   draggable: false,
@@ -476,6 +476,7 @@ const TableCaption = Node.create({
 
 function TableCaptionView({ node, editor, getPos }: ReactNodeViewProps) {
   useTranslation();
+  const editable = useEditorState({ editor, selector: ({ editor: current }) => current.isEditable });
   const numbered = useCaptionNumberText(editor, getPos, "table");
   return <NodeViewWrapper className="caption" data-testid="table-caption" data-number={numbered} onMouseDown={(event: ReactMouseEvent) => {
     if (!editor.isEditable || node.content.size !== 0 || event.button !== 0) return;
@@ -486,7 +487,7 @@ function TableCaptionView({ node, editor, getPos }: ReactNodeViewProps) {
     editor.view.focus();
   }}>
     <NodeViewContent as="div" aria-label={i18n.t("Table caption")}
-      data-placeholder={editor.isEditable && node.content.size === 0 ? i18n.t("Table caption") : undefined} />
+      data-placeholder={editable && node.content.size === 0 ? i18n.t("Table caption") : undefined} />
   </NodeViewWrapper>;
 }
 

@@ -59,6 +59,43 @@ async (page, { openPath, reloadDocument }) => {
     await initial.getByRole('button', {name:'Add caption',exact:true}).count() === 0;
   result.openingKeepsCleanHistory = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n => !n.editor.can().undo()) &&
     !(await page.getByRole('tab', {selected:true}).getAttribute('aria-label')).includes('Unsaved changes');
+  // A native range deletion may remove the caption while keeping the table and cells.
+  const beforeRangeDelete = JSON.stringify(await grid(initial));
+  await initial.getByLabel('Table caption',{exact:true}).click();
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Trailing paragraph');
+  // A separate prose edit makes deletion its own native history group, without a timer.
+  await page.getByText('Intro paragraph.',{exact:true}).filter({visible:true}).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' Setup');
+  await initial.locator('td').last().click();
+  await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.$from.parent.type.name === 'tableCell');
+  await page.keyboard.press('End');
+  await page.keyboard.press('ControlOrMeta+Shift+End');
+  await page.waitForFunction(() => {
+    const {selection} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state;
+    return !selection.empty && selection.$from.parent.type.name === 'tableCell' &&
+      selection.$to.parent.textContent === 'Trailing paragraph' && selection.$to.parentOffset === selection.$to.parent.content.size;
+  });
+  await page.keyboard.press('Backspace');
+  const assertRangeCaption = async state => {
+    const count = await initial.getByTestId('table-caption').count();
+    if (count !== 1 || JSON.stringify(await grid(initial)) !== beforeRangeDelete) {
+      throw new Error(`${state}: range deletion must keep one caption surface and all cells; caption count=${count}`);
+    }
+  };
+  await assertRangeCaption('Immediately after Backspace');
+  await page.keyboard.press('ControlOrMeta+z');
+  await assertRangeCaption('Undo');
+  if (!await page.getByText('Trailing paragraph',{exact:true}).filter({visible:true}).count()) throw new Error('One Undo must restore the deleted trailing paragraph');
+  await page.keyboard.press('ControlOrMeta+Shift+z');
+  await assertRangeCaption('Redo');
+  if (await page.getByText('Trailing paragraph',{exact:true}).filter({visible:true}).count()) throw new Error('One Redo must delete the trailing paragraph again');
+  result.rangeDeleteCaptionHistory = true;
+  await page.keyboard.press('ControlOrMeta+z');
+  await reloadDocument(page);
+  await page.getByRole('button',{name:'Discard and reload',exact:true}).click();
+  await page.getByRole('dialog').waitFor({state:'detached'});
   await initial.hover();
   const lightHandles = await initial.locator('.table-row-handle, .table-column-handle').evaluateAll(handles => handles.map(button => {
     const rect = button.getBoundingClientRect();

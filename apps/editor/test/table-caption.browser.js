@@ -144,6 +144,12 @@ async (page, { openPath, expect, reloadDocument, screenshots }) => {
   const empty = await tableJSON();
   expect(await editor.evaluate(element => element.editor.can().undo()), 'Opening an empty caption creates no history').toBe(false);
   expect(await page.getByRole('tab',{selected:true}).getAttribute('aria-label')).not.toContain('Unsaved changes');
+  await editor.evaluate(element => element.editor.setEditable(false));
+  await expect(table.getByLabel('Table caption',{exact:true})).not.toHaveAttribute('data-placeholder');
+  await editor.evaluate(element => element.editor.setEditable(true));
+  await expect(table.getByLabel('Table caption',{exact:true})).toHaveAttribute('data-placeholder','Table caption');
+  expect(await tableJSON(), 'Editable transitions preserve document content').toEqual(empty);
+  expect(await editor.evaluate(element => element.editor.can().undo()), 'Editable transitions create no history').toBe(false);
   await table.locator('td').last().click();
   await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.$from.parent.type.name === 'tableCell');
   await page.keyboard.press('End');
