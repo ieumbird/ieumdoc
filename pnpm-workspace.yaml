@@ -20,6 +20,6 @@ minimumReleaseAgeExclude:
 patchedDependencies:
   linkify-it@4.0.1: patches/linkify-it@4.0.1.patch
   markdown-it@13.0.2: patches/markdown-it@13.0.2.patch
-  # A caret key right after focus is not undone by ProseMirror's focus restore (#144).
-  # Cause, applied version and removal condition: docs/reviews/prosemirror-focus-caret-2026-10-09.md
+  # Preserve later caret/pointer input and Chromium block-node selections (#144, #489).
+  # Current scope/removal: docs/design/document-editing-v1.md; original evidence: docs/reviews/prosemirror-focus-caret-2026-10-09.md
   prosemirror-view@1.42.4: patches/prosemirror-view@1.42.4.patch

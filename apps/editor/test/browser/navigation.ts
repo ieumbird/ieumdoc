@@ -1,5 +1,6 @@
 import path from "node:path";
 import type { Page } from "@playwright/test";
+import type { Editor } from "@tiptap/core";
 
 /** Open (add) the file's folder through the picker, then choose the file in that folder's tree. An existing tab is activated without rereading its content. */
 export async function openDocument(page: Page, file: string): Promise<void> {
@@ -25,6 +26,8 @@ export async function reloadDocument(page: Page): Promise<void> {
     const dialog = document.querySelector('[role="dialog"]');
     if (dialog) {
       // A loading modal must finish, but an interactive discard prompt belongs to the caller.
+      // Closing popups remain mounted with enabled buttons until final focus is handed back.
+      if (!dialog.hasAttribute("data-open")) return false;
       const keepEditing = Array.from(dialog.querySelectorAll("button"))
         .find(button => button.textContent === "Keep editing");
       return keepEditing && !keepEditing.disabled && dialog.contains(document.activeElement);
@@ -34,6 +37,15 @@ export async function reloadDocument(page: Page): Promise<void> {
 }
 
 export const activeDocument = (page: Page) => page.locator('[data-document-tab][data-active="true"]');
+
+/** A form can disappear before its scheduled return to the editor has taken focus. */
+export async function waitForEditorFocus(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const element = document.querySelector<HTMLElement & { editor?: Editor }>('[data-document-tab][data-active="true"] .document-editor');
+    const editor = element?.editor;
+    return editor && !editor.isDestroyed && editor.view.hasFocus();
+  });
+}
 
 /** Open a successful document and wait for its exact active path before using the editor. */
 export async function openPath(page: Page, file: string): Promise<void> {

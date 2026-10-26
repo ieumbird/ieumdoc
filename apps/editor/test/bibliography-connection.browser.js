@@ -1,5 +1,5 @@
 // Document-level bibliography edits use ordinary Save; resource refresh never replaces the body.
-async (page, { openPath, reloadDocument, bibliographyFixture, screenshots }) => {
+async (page, { openPath, reloadDocument, waitForEditorFocus, bibliographyFixture, screenshots }) => {
   page.setDefaultTimeout(15000);
   const assert = (ok, message) => { if (!ok) throw Error(message); };
   const origin = page.url().split('/').slice(0, 3).join('/');
@@ -53,8 +53,18 @@ async (page, { openPath, reloadDocument, bibliographyFixture, screenshots }) => 
   assert(await references().count() === 1, 'A citation alone shows References');
   await page.locator('[data-citation]').hover();
   await page.getByTestId('citation-edit').click();
-  await page.getByTestId('citation-remove').click();
+  // Keep Remove's queued focus behind the next input, as in the CI failure (#489).
+  await page.getByTestId('citation-remove').evaluate(button => {
+    const schedule = window.requestAnimationFrame;
+    window.citationRemoveFrames = [];
+    window.requestAnimationFrame = callback => { window.citationRemoveFrames.push(callback); return 0; };
+    try { button.click(); } finally { window.requestAnimationFrame = schedule; }
+  });
   if (await references().count()) regressions.push('Removing the last citation with no declaration must hide References');
+  const focusReturned = waitForEditorFocus(page);
+  assert(await page.evaluate(() => window.citationRemoveFrames.length > 0 && document.activeElement === document.body), 'Remove still owes the editor its focus');
+  await page.evaluate(() => { for (const frame of window.citationRemoveFrames.splice(0)) frame(performance.now()); });
+  await focusReturned;
   await page.keyboard.press('Control+z');
   assert(await references().count() === 1, 'Undo restores the citation and References');
   assert(regressions.length === 0, regressions.join('\n'));

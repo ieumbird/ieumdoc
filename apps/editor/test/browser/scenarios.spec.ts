@@ -9,7 +9,7 @@ import { classifyConsoleErrors } from "./console-errors.ts";
 import { finishScenarioDiagnostics, savedSourceAssertion } from "./diagnostics.ts";
 import { prepareBrowserFixtures, REPOSITORY_ROOT, SOURCE_DIRS } from "./fixtures.ts";
 import { STABLE_SCENARIOS } from "./scenarios.ts";
-import { activeDocument, openDocument, openPath, reloadDocument, waitForActivePath } from "./navigation.ts";
+import { activeDocument, openDocument, openPath, reloadDocument, waitForActivePath, waitForEditorFocus } from "./navigation.ts";
 import { withBlockHover } from "./hover.ts";
 import { recoveryRecords } from "./recovery-records.ts";
 import { inputEventScript } from "./input-event-script.ts";
@@ -135,7 +135,7 @@ const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
 for (const name of scenarios) {
   test(name, async ({ page }) => {
     const source = readFileSync(path.join(REPOSITORY_ROOT, "apps/editor/test", `${name}.browser.js`), "utf8");
-    const scenario = runInNewContext(`(${source})`) as (page: Page, options: { assertSavedSource: ReturnType<typeof savedSourceAssertion>; screenshots: boolean; expect: typeof expect; recoveryRecords: typeof recoveryRecords; openDocument: typeof openDocument; openPath: typeof openPath; waitForActivePath: typeof waitForActivePath; reloadDocument: typeof reloadDocument; activeDocument: typeof activeDocument; withBlockHover: typeof withBlockHover; removeTabFixture: () => void; bibliographyFixture: unknown }) => Promise<unknown>;
+    const scenario = runInNewContext(`(${source})`) as (page: Page, options: { assertSavedSource: ReturnType<typeof savedSourceAssertion>; screenshots: boolean; expect: typeof expect; recoveryRecords: typeof recoveryRecords; openDocument: typeof openDocument; openPath: typeof openPath; waitForActivePath: typeof waitForActivePath; reloadDocument: typeof reloadDocument; waitForEditorFocus: typeof waitForEditorFocus; activeDocument: typeof activeDocument; withBlockHover: typeof withBlockHover; removeTabFixture: () => void; bibliographyFixture: unknown }) => Promise<unknown>;
     const bibliographyPath = path.join(REPOSITORY_ROOT, "tmp", name === "http-host" ? "http-host-a" : "bibliography", "refs.bib");
     const initialBibliography = ["bibliography", "http-host"].includes(name) ? readFileSync(bibliographyPath, "utf8") : "";
     const bibliographyFixture = {
@@ -145,7 +145,7 @@ for (const name of scenarios) {
         mode === "updated" ? initialBibliography.replace("Control Study", "Updated Study") : mode === "invalid" ? "@article{broken" : initialBibliography),
       report: (markdown: string, text: string) => citationReport(parse(markdown), [{ source: "../refs.bib", status: "ok", text }]),
     };
-    const result = await scenario(page, { assertSavedSource: savedSourceAssertion(test.info()), screenshots, expect, recoveryRecords, openDocument, openPath, waitForActivePath, reloadDocument, activeDocument, withBlockHover, bibliographyFixture,
+    const result = await scenario(page, { assertSavedSource: savedSourceAssertion(test.info()), screenshots, expect, recoveryRecords, openDocument, openPath, waitForActivePath, reloadDocument, waitForEditorFocus, activeDocument, withBlockHover, bibliographyFixture,
       // Simulate an external deletion of this one disposable file. The fixture resets it afterward.
       removeTabFixture: () => unlinkSync(path.join(REPOSITORY_ROOT, "tmp/document-tabs/technical-1.md")),
     });

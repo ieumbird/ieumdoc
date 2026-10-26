@@ -324,11 +324,32 @@ async (page, { openPath, reloadDocument }) => {
   // Reference navigation selects the whole table; both native deletion keys offer the same Undo.
   for (const key of ['Delete', 'Backspace']) {
     await ref.locator('.cross-reference-chip').click();
+    // #489: Chromium collapsed the native table range to H1 before selectionchange,
+    // with no new pointer/key input. Replay that browser reset before the deletion key.
+    await page.locator('[data-active=true] .document-editor').evaluate(el => {
+      const title = el.querySelector('h1');
+      getSelection().collapse(title.firstChild, 0);
+      document.dispatchEvent(new Event('selectionchange'));
+      if (el.editor.state.selection.node?.type.name !== 'table') throw Error('A native selection reset must preserve the selected table');
+    });
     await page.keyboard.press(key);
     await assertDeletionNotice();
     await notice.getByRole('button', {name:'Undo', exact:true}).click();
     result[`selectedTable${key}Undo`] = JSON.stringify(await grid(tables.last())) === JSON.stringify(beforeDelete) && await editorFocused();
   }
+
+  // A real click or caret key still takes the user out of the table selection.
+  const editor = page.locator('[data-active=true] .document-editor');
+  await editor.locator('h1').click({position:{x:1,y:15}});
+  const titleCaret = () => editor.evaluate(el => {
+    document.dispatchEvent(new Event('selectionchange'));
+    const selection = el.editor.state.selection;
+    return selection.from === 1 && selection.empty && selection.$from.parent.type.name === 'heading';
+  });
+  if (!await titleCaret()) throw Error('Clicking the title must replace the table selection');
+  await ref.locator('.cross-reference-chip').click();
+  await page.keyboard.press('Control+Home');
+  if (!await titleCaret()) throw Error('Control+Home must replace the table selection');
 
   // Saving, even a cancelled Reload, switching tabs and expiry revoke the action.
   const deleteLastTable = async () => {

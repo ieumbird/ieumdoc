@@ -88,7 +88,29 @@ async (page, { openPath, reloadDocument, screenshots, assertSavedSource }) => {
     await page.keyboard.press('Enter');
     await page.getByRole('button', { name: 'Save', exact: true }).click(); await saved();
     assert((await read()).source.includes('Move here.\n\n**{cite}`Alpha`**'), 'Split must persist the marked citation-only paragraph');
-    await reloadDocument(page); await ready();
+    // #489: closing Reload briefly has enabled buttons while final focus is still pending.
+    // Hold only the return to File actions; the helper must not call that closing modal a prompt.
+    await page.evaluate(() => {
+      const focus = HTMLElement.prototype.focus;
+      HTMLElement.prototype.focus = function (...args) {
+        if (this.matches('button[aria-label="File actions"]') &&
+            document.querySelector('[data-testid="status"][data-operation="ready"]')) {
+          window.releaseReloadFocus = () => { HTMLElement.prototype.focus = focus; focus.apply(this, args); };
+          return;
+        }
+        return focus.apply(this, args);
+      };
+    });
+    let reloadFinished = false;
+    const reloading = reloadDocument(page).then(() => { reloadFinished = true; });
+    try {
+      await page.waitForFunction(() => window.releaseReloadFocus);
+      assert(!reloadFinished, 'Reload must wait for final focus, including the closing modal');
+    } finally {
+      await page.evaluate(() => window.releaseReloadFocus());
+      await reloading;
+    }
+    await ready();
     assert(await semantic() === moved, 'Split Reload must retain all citation semantics');
     await citationCaret();
     await page.keyboard.press('Backspace');
