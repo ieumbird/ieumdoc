@@ -16,6 +16,7 @@
 - Previous verification: 2026-10-22 (#332 citation atom preservation through editing, typed clipboard, history and Save → Reload; [Citations](citations-v1.md)).
 - Previous verification: 2026-10-19 (#255 document title: Core section/native tests, Editor save and section-command tests, the `document-title` browser scenario and CLI refusals on a scratch file; same-state 1440px captures against `a3d8992`: untitled [before](assets/document-title-255/before-1440-untitled.png)/[after](assets/document-title-255/after-1440-untitled.png), titled (unchanged) [before](assets/document-title-255/before-1440-titled.png)/[after](assets/document-title-255/after-1440-titled.png)).
 - Previous verification: 2026-10-16 (Equation node-selection typing, IME-keydown composition and accepted paste, Undo/Redo and real Save/Reload; #275 property-close typing for Equation/Figure/Table/section label; ADR-0006 native editing boundary compared with code/tests). Previous verification: 2026-10-15 (#275 property-close typing). Previous verification: 2026-10-12 (heading Tab/Shift+Tab, history, selection and Core Save/Reload regression).
+- Property-entry verification: 2026-10-27 (#557: selected-node Enter regression fails on unchanged master `c3f7153`; Figure/Table/math share explicit property entry and draft lifecycle. [Same-state form comparison](editor-visual-language-v1.md#property-form-comparison)).
 - Scope: Supported continuous editing and Core-backed persistence; [ADR-0001](../adr/0001-single-document-editor-architecture.md).
 
 ## Code highlighting
@@ -61,7 +62,8 @@ only for the identical immutable engine document, as endnote/citation numbering 
 A changed document recomputes numbering; source semantics and canonical output are unchanged.
 
 - Enter splits prose and headings, exits a heading at its end, and creates space
-  beside an atomic block. Backspace/Delete use engine joins and selections. A
+  beside an atomic block. Enter on a selected Figure/Table/Equation opens properties,
+  as described below. Backspace/Delete use engine joins and selections. A
   heading joined with prose that has line breaks becomes a paragraph to retain them
   (headings hold marks and inline atoms but no line breaks, #58).
   Admonitions, Figures and table cells are isolating: they never silently become prose.
@@ -97,19 +99,22 @@ A changed document recomputes numbering; source semantics and canonical output a
   row, list, quote, admonition or caption moves to a paragraph after it. A click in
   the empty area below the document puts the caret at the end of a final
   paragraph. After any other final block, both create an empty paragraph there.
-- Selecting an existing Equation leaves keyboard focus in the document; Edit
-  or double-clicking its rendered formula opens its source form through the same
-  path, with LaTeX-field focus and the same closing focus behavior (#470).
-  Opening changes neither document nor history; double-click while already editing
-  leaves the current form and draft unchanged. A newly inserted empty Equation still opens its form
-  automatically. NodeView selection alone must not steal navigation focus.
-- Inline math retains its existing single-click source editor; the display-Equation
-  double-click shortcut does not change inline math interaction.
-- Applying or escaping an inline math source form returns DOM focus immediately
-  to the editor and collapses its caret just after that formula, using the same
-  engine selection/focus helper as block properties. Typing can continue without
-  another click and preserves the formula. Outside blur still dismisses the inline
-  form without applying its draft or taking focus from the clicked destination.
+- Figure, Table, block Equation and inline math distinguish selection from property editing (#557).
+  A single click selects the object without opening a form. Double-click or Enter on an
+  engine node selection opens its properties; block objects also keep Edit. The Table's
+  metadata line is its object selection/double-click surface; cells and both Figure/Table
+  captions retain normal text/caret/word selection. Figure image, empty-content and error
+  surfaces and block/inline formula previews use the same property entry path.
+- Opening properties changes neither document nor history; re-entry preserves the current
+  draft and error. A newly inserted empty Equation still opens automatically. Inline math
+  uses the shared BlockProperties form with explicit Apply, Cancel and Escape. Outside
+  click, blur and selection movement neither apply nor discard drafts. Save/Source and tab
+  switching retain them under the [editing-session contract](editing-session-save-v1.md#applied-content-and-drafts).
+- Applying, cancelling or escaping an inline math form immediately restores the editor caret
+  just after the formula, preserving its marks and subsequent typing. Remove keeps the existing
+  explicit conversion to applied source text. Each inline form registers its own draft even
+  when several belong to one paragraph; cancelling one never clears another.
+  This is Editor interaction only and adds no Core operation or CLI command.
 - Closing block properties with Apply, Cancel or Escape retains a text selection
   already inside the edited block (a Figure caption or Table cell). Otherwise,
   focus returns to a collapsed caret just after the block: the start of following
@@ -119,7 +124,7 @@ A changed document recomputes numbering; source semantics and canonical output a
   lose its reference target. Section-label properties return to the following
   heading, keeping the label directly before it. Typing a printable character
   while an Equation is explicitly node-selected does not replace it: a new
-  paragraph is created below (same as Enter on a node-selected block) and the
+  paragraph is created below (as at the gap after the block) and the
   typed text goes there. An initial IME keydown (`Process`/229) prepares that
   paragraph before composition starts; subsequent composition updates and
   commit/cancellation remain engine-owned. Cancellation may leave an empty

@@ -2,7 +2,7 @@
 
 - Status: Implemented
 
-- Last verified: 2026-10-26 (documentation structure and incoming heading links checked; no Editor/browser/Desktop re-execution).
+- Last verified: 2026-10-27 (#557 Editor tests/typecheck/build and inline-math property draft regressions: outside focus, independent instances, applied-only Save/Source, tab switching and discard/close guards).
 
 - Boundaries: ADR-0001, ADR-0002, ADR-0003. Markdown remains the disk SSOT; Core operations and canonical validation remain the write path.
 
@@ -260,9 +260,9 @@ HTTP/Desktop execution details and native-dialog automation limits: [Host persis
 ## Applied content and drafts
 
 - Empty newly inserted editor paragraphs and never-applied Equation placeholders stay in the session but are omitted from canonical output. A new Figure is not a placeholder: it is saved from insertion, empty or not. Filtering is shared by Save collection and dirty comparison. An emptied opening-snapshot paragraph, an empty heading or an invalid table still reports a save error.
-- Equation/Figure/Table/section-label drafts are aggregated by kind and opening-snapshot locator; form values remain owned by their NodeViews. Changed property drafts protect tab closing and all-tabs beforeunload, including changed Figure values while Apply validation is pending. Closing one draft does not clear another, including two kinds at the same locator.
-- Equation/Figure Apply changes the main editor document. Unapplied form values survive Save and Source switching; neither operation applies them implicitly. Block notices and a standing message explain that only applied content is included. A remaining draft prevents the `Saved` display.
-- Closing Equation/Figure/Table/section-label properties retains a text selection inside the block, otherwise returning an engine caret after it. Typing immediately after Apply preserves the block and its references. Focus restoration itself adds no content or history; see [Continuous editing](document-editing-v1.md#continuous-editing).
+- Equation/Figure/Table/section-label/inline-math drafts are aggregated by kind and opening-snapshot locator (inline math also has a stable per-mounted-form identity, so two drafts in one block stay independent); form values remain owned by their NodeViews. Changed property drafts protect tab closing and all-tabs beforeunload, including changed Figure values while Apply validation is pending. Closing one draft does not clear another, including two kinds at the same locator.
+- Property Apply changes the main editor document. Unapplied form values survive Save and Source switching; neither operation applies them implicitly. Block notices and a standing message explain that only applied content is included. A remaining draft prevents the `Saved` display.
+- Closing Equation/Figure/Table/section-label/inline-math properties retains a text selection inside the block, otherwise returning an engine caret after it. Typing immediately after Apply preserves the block and its references. Focus restoration itself adds no content or history; see [Continuous editing](document-editing-v1.md#continuous-editing).
 - A pending Figure, with or without caption or label, is included in Save/Source and restored on Reload. Apply → Undo → Redo restores both the Figure and collected payload. Insertion, Apply and subsequent image connection follow [Figure authoring](figure-authoring-v1.md). Save acknowledgement still covers only the submitted applied snapshot, including when an image is connected while a Save is in flight.
 - Save acknowledges precisely the submitted document. Later input or drafts remain dirty. Failure acknowledges nothing. The Host replaces the file through the [File commit](filesystem-host-boundary-v1.md#file-commit-v1) shared with the CLI: it writes a temporary file beside the destination, checks the disk revision again, and renames the completed file into place. A validation, conflict, partial-write or rename failure preserves the original. A file without write permission is refused. Content-operation errors carry their block locator so the Editor can show the submitted block number and reason.
 - Source renders applied session content through Core. It can be copied after an external conflict: the Host validates the session's acknowledged revision without writing or requiring the latest disk contents to match. It is never a raw Markdown write route.
@@ -303,10 +303,12 @@ Host GET, even if the file has since become unreadable or disappeared. An unmatc
 goes through GET and comparison of the returned normalized path before adding a tab.
 
 Switching tabs never serializes/reparses content or calls `setContent`. The mounted session keeps
-content, undo/redo, block property draft values (Equation, Figure, Table and section label), selection,
-per-tab window scroll and Visual/Source view. Transient inline link URL and inline-math inputs close
-without applying on outside blur, including a tab switch, just as when clicking elsewhere in the
-same document. Reopening them starts from the applied URL/LaTeX; they are not block property drafts.
+content, undo/redo, property draft values (Equation, Figure, Table, section label and inline math),
+selection, per-tab window scroll and Visual/Source view. Inline math follows the same explicit
+Apply/Cancel/Escape boundary as block properties (#557); outside focus does not dismiss its form.
+Hidden tabs and Source hide property portals without discarding their input or stealing focus when
+shown again. Transient inline link URL inputs still close without applying on outside blur, including
+a tab switch; reopening those starts from the applied URL.
 Dirty work alone never blocks Open/New or switching. Open/New and tab switching wait while the
 active session is saving, reloading, generating Source or handling assets, while startup/Open/New is
 pending, or while the tab-close confirmation is active. These operation guards prevent competing

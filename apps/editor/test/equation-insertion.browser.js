@@ -61,10 +61,13 @@ async (page, { expect }) => {
     const preview = existingEquation.getByTestId('equation-preview');
     for (const close of ['cancel', 'escape']) {
       let editFocus;
-      for (const entry of ['Edit', 'double-click']) {
+      for (const entry of ['Edit', 'double-click', 'Enter']) {
         if (entry === 'Edit') {
           await preview.click({position:{x:8,y:8}});
           await existingEquation.getByRole('button', {name:'Edit', exact:true}).click();
+        } else if (entry === 'Enter') {
+          await preview.click({position:{x:8,y:8}});
+          await page.keyboard.press('Enter');
         } else await preview.dblclick({position:{x:8,y:8}});
         await expect(page.getByTestId('equation-latex'), `${entry} focuses LaTeX`).toBeFocused();
         expect(await snapshot(), `${entry} leaves document unchanged`).toEqual(withProbe);

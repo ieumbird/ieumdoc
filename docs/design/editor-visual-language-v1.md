@@ -999,3 +999,28 @@ and the automated font-weight geometry checks.
 | Document tabs / collapsed rail | [Before](assets/selection-515-review-fix/before-1440-tabs-rail.png) / [After](assets/selection-515-review-fix/after-1440-tabs-rail.png) | [Before](assets/selection-515-review-fix/before-390-tabs-rail.png) / [After](assets/selection-515-review-fix/after-390-tabs-rail.png) |
 | Outline current | [Before](assets/selection-515-review-fix/before-1440-outline.png) / [After](assets/selection-515-review-fix/after-1440-outline.png) | [Before](assets/selection-515-review-fix/before-390-outline.png) / [After](assets/selection-515-review-fix/after-390-outline.png) |
 | Slash active item | [Before](assets/selection-515-review-fix/before-1440-slash.png) / [After](assets/selection-515-review-fix/after-1440-slash.png) | [Before](assets/selection-515-review-fix/before-390-slash.png) / [After](assets/selection-515-review-fix/after-390-slash.png) |
+
+## Table property selection surface (#557)
+
+Visible Table metadata accepts a single click to node-select the Table and a double-click
+to open its Label properties. It stays hidden and inert at rest, with unchanged geometry.
+Cells and the caption retain text selection. Figure and math properties use the existing
+shared BlockProperties surface, dimensions, spacing and focus treatments; inline math now
+uses that same explicit Apply/Cancel form. See [Continuous editing](document-editing-v1.md#continuous-editing).
+
+### Property form comparison
+
+Same-state Before/After from `pnpm browser:test quiet-document --screenshots`, using the
+same checkout, Vite origin `127.0.0.1:5358`, persistent Chrome profile, English UI,
+bundled Pretendard, DPR/zoom 1, and the runner's unchanged scroll/selection/viewport setup.
+Before uses master `c3f7153162a6b80ee7a0d795a2bb02cd46a94e58`; After uses this PR.
+Figure viewport is 768×1000; inline math is 704×650 after the same resize/scroll steps.
+The smaller Figure form retains its body caption, and inline math gains the common explicit
+Cancel/Apply surface. Layout/quiet-document assertions remain automatic; these selected
+screenshots were inspected separately. Full logs, traces and the remaining captures stay in
+ignored `tmp/` and can be regenerated.
+
+| Surface | Before | After |
+| --- | --- | --- |
+| Figure properties | ![Figure before](assets/property-editing-557/before-768-figure.png) | ![Figure after](assets/property-editing-557/after-768-figure.png) |
+| Inline math properties | ![Inline math before](assets/property-editing-557/before-704-inline-math.png) | ![Inline math after](assets/property-editing-557/after-704-inline-math.png) |

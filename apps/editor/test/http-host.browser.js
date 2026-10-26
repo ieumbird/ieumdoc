@@ -137,10 +137,10 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture,
   check(disk.source.includes('Created over HTTP.') && disk.source.includes('./assets/image-'), 'Root B new file and portable image are on disk');
   const figure = page.locator('[data-document-tab][data-active=true] [data-block="figure"]');
   await figure.hover(); await figure.getByRole('button', {name:'Edit figure', exact:true}).click();
-  await page.getByTestId('figure-caption').fill('Unapplied HTTP draft');
+  await page.getByTestId('figure-alt').fill('Unapplied HTTP draft');
   await openPath(page, fileA);
   await page.getByRole('tab', {name:'fresh.md, Unsaved changes',exact:true}).click();
-  check(await page.getByTestId('figure-caption').inputValue() === 'Unapplied HTTP draft', 'Cross-root switching lost a property draft');
+  check(await page.getByTestId('figure-alt').inputValue() === 'Unapplied HTTP draft', 'Cross-root switching lost a property draft');
   check(await page.getByTestId('current-file').getAttribute('title') === fresh, 'Draft tab was replaced');
   await page.getByTestId('figure-cancel').click();
   await openPath(page, fileA);

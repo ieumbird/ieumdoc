@@ -1,6 +1,7 @@
 # Table interaction v1
 
 - Status: Implemented
+- Property-entry update: 2026-10-27 (#557: shared selection/Enter/double-click and explicit property drafts; see [Continuous editing](document-editing-v1.md#continuous-editing)).
 - Last verified: 2026-10-26 (#517: light line handles, localized names/tooltips, keyboard discovery, no-hover visibility and independent targets; Editor tests/typecheck/build and table-authoring/table-cell-editing/continuous-editing/layout-rules/quiet-document browser regressions; [comparison and evidence](#light-handle-verification-and-comparison)).
 - Previous verification: 2026-10-26 (#514: shared Button migration with explicit target/anchor preservation, 28px targets/6px radius; table-authoring/table-cell-editing/continuous-editing browser regressions and [manual captures](editor-visual-language-v1.md#shared-control-verification-514)).
 - Previous verification: 2026-10-26 (#474 / PR #486 review: table-authoring and source-view-pending browser regressions for explicit deletion notices, guarded one-step Undo, focus, typing, Save/Reload, Source request start, tab switching and expiry; appended endnote placement in the document-session harness; footnotes and bilingual cross-reference browser regressions, typecheck/build).
@@ -23,6 +24,14 @@
 - Completion: pointer and keyboard operation; fixed header/last-column restrictions; focus-safe menu targets; Undo/Redo; Save/Reload with content, alignment, captions and labels retained; narrow-layout geometry.
 - Verification: existing table command/unit tests, extended table-authoring browser regression, typecheck, production build and required CI.
 - CLI: no new semantic operation; existing Core/CLI table commands already cover these actions. Handles and focus are Editor-only.
+
+## Property entry (#557)
+
+The metadata line selects the whole Table on single click, opens its Label properties on
+double-click, and supports Enter on the engine's Table node selection. Edit uses the same
+form. Re-entry keeps the existing draft/error. Cells and the directly editable caption keep
+ordinary text selection and navigation; outside focus never discards property drafts.
+See [Continuous editing](document-editing-v1.md#continuous-editing).
 
 ## Light handle work record (#517)
 

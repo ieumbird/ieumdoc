@@ -4,7 +4,6 @@ import { useMessageState } from "./ui-message.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "./i18n.ts";
 import { allocateBlockPath } from "./block-locators.ts";
-import { useEditorVisible } from "./editor-visibility.ts";
 import { Extension, Node, type Attribute, type Editor, type Extensions } from "@tiptap/core";
 import { BulletList, ListItem, ListKeymap, OrderedList } from "@tiptap/extension-list";
 import { Code } from "@tiptap/extension-code";
@@ -23,7 +22,7 @@ import { MarkdownInputRules } from "./markdown-input-rules.ts";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useId, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
 import { isAdmonitionVariant, type EditableBlock, type FigureContent, type InlineContent } from "@ieumdoc/core";
-import { figureCaptionContent, figureContentError } from "@ieumdoc/core/figure";
+import { figureContentError } from "@ieumdoc/core/figure";
 import { headingNumbers, type HeadingNumbering } from "@ieumdoc/core/numbering";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { labelError, labelKey, targetLabelError } from "@ieumdoc/core/label";
@@ -44,19 +43,45 @@ import {
   isSupportedDocumentChange,
   NEW_BLOCK_PREFIX,
   normalizeEngineDocument,
-  paragraphContent,
   TABLE_CELL_SOURCE_ATTR,
   toTiptapBlockNode,
   type TiptapJSON,
 } from "./tiptap-document.ts";
 import { Button } from "@/components/ui/button.tsx";
 import { Notice } from "./ui/primitives.tsx";
-import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 import { TableCellFocus, TableTools } from "./table-tools.tsx";
 
 /** Reports whether the block at a source path holds an unapplied draft. */
-export type DraftKind = "Equation" | "Figure" | "Table" | "Section label";
-export type DraftListener = (kind: DraftKind, path: string, active: boolean) => void;
+export type DraftKind = "Equation" | "Figure" | "Table" | "Section label" | "Inline math";
+export type DraftListener = (kind: DraftKind, path: string, active: boolean, id?: string) => void;
+
+const EDIT_PROPERTIES = "ieumdoc-edit-properties";
+
+/** Route selected-node Enter to its mounted form, before the prose Enter keymaps. */
+const PropertyEntry = Extension.create({
+  name: "propertyEntry",
+  priority: 130,
+  addKeyboardShortcuts() {
+    return { Enter: () => {
+      const { view, state } = this.editor;
+      const { selection } = state;
+      if (!this.editor.isEditable || view.composing || !(selection instanceof NodeSelection) ||
+          !["figure", "table", "equation", "inlineMath"].includes(selection.node.type.name)) return false;
+      const dom = view.nodeDOM(selection.from);
+      const wrapper = dom instanceof HTMLElement ? dom.querySelector("[data-node-view-wrapper]") : null;
+      return wrapper ? !wrapper.dispatchEvent(new Event(EDIT_PROPERTIES, { cancelable: true })) : false;
+    } };
+  },
+});
+
+function usePropertyEntry(anchor: RefObject<HTMLElement | null>, begin: () => void) {
+  useEffect(() => {
+    const wrapper = anchor.current?.closest("[data-node-view-wrapper]");
+    const open = (event: Event) => { event.preventDefault(); begin(); };
+    wrapper?.addEventListener(EDIT_PROPERTIES, open);
+    return () => wrapper?.removeEventListener(EDIT_PROPERTIES, open);
+  }, [anchor, begin]);
+}
 
 /** Core's persistent validation of a Figure Apply: its properties and its label. */
 export type FigureValidator = (figure: FigureContent, label: string) => Promise<string | undefined>;
@@ -479,7 +504,8 @@ function TableView({ node, editor, getPos, selected, onDraftChange }: ReactNodeV
   const sourcePath = String(node.attrs.sourcePath);
   const dirty = editing && draft !== label;
   useEffect(() => { onDraftChange?.("Table", sourcePath, dirty); return () => onDraftChange?.("Table", sourcePath, false); }, [sourcePath, dirty, onDraftChange]);
-  const begin = () => { setDraft(label); setError(""); setEditing(true); };
+  const begin = () => { if (!editor.isEditable || editing) return; setDraft(label); setError(""); setEditing(true); };
+  usePropertyEntry(anchor, begin);
   const close = () => { setEditing(false); focusBlock(editor.view, getPos); };
   const apply = () => {
     const invalid = labelError(draft);
@@ -502,7 +528,13 @@ function TableView({ node, editor, getPos, selected, onDraftChange }: ReactNodeV
   };
   return <NodeViewWrapper className="table-block" data-block="table" data-table-block="" data-source-path={sourcePath}
     data-selected={selected ? "true" : "false"} data-editing={editing ? "true" : "false"}>
-    <p ref={anchor} className="block-kind block-metadata" contentEditable={false}>{[kind, label].filter(Boolean).join(" · ")}</p>
+    <p ref={anchor} className="block-kind block-metadata" contentEditable={false} onMouseDown={event => {
+      const position = getPos();
+      if (typeof position !== "number") return;
+      event.preventDefault();
+      editor.view.dispatch(editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, position)));
+      editor.view.focus();
+    }} onDoubleClick={begin}>{[kind, label].filter(Boolean).join(" · ")}</p>
     <div className="table-scroll"><div ref={grid} className="table-grid">
       <NodeViewContent as="div" className="table" />
       <TableTools editor={editor} node={node} getPos={getPos} grid={grid} rowLayer={rowLayer} onEdit={begin} hidden={editing} />
@@ -630,7 +662,8 @@ function LabelTargetView({ node, editor, getPos, selected }: ReactNodeViewProps)
   );
 }
 
-const InlineMath = Node.create({
+const InlineMath = Node.create<{ onDraftChange?: DraftListener }>({
+  addOptions() { return {}; },
   name: "inlineMath",
   group: "inline",
   inline: true,
@@ -776,6 +809,7 @@ export function editorExtensions(
       underline: false,
     }),
     DocumentNumbering,
+    PropertyEntry,
     DocumentTitle,
     Endnotes.configure({ canOrder: () => !hasActiveDraft?.() }),
     TableCellFocus,
@@ -803,7 +837,7 @@ export function editorExtensions(
     TableCaption,
     TableCell,
     LabelTarget.configure({ onDraftChange }),
-    InlineMath,
+    InlineMath.configure({ onDraftChange }),
     CrossReference,
     FootnoteReference,
     Citation,
@@ -954,10 +988,9 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
   const [error, setError] = useMessageState("");
   const [validating, setValidating] = useState(false);
   const pendingRequest = useRef(0);
-  const captionChanged = useRef(false);
   const captionKey = JSON.stringify(applied.caption);
   const hasUnappliedDraft = isUnappliedFigureDraft(editing,
-    { ...draft, caption: captionChanged.current ? draft.caption : applied.caption }, applied) ||
+    { ...draft, caption: applied.caption }, applied) ||
     (editing && labelDraft !== label);
 
   useEffect(() => {
@@ -974,7 +1007,6 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
 
   function beginEdit() {
     if (!editableFigure || editing) return;
-    captionChanged.current = false;
     setDraft(applied);
     setLabelDraft(label);
     setError("");
@@ -985,6 +1017,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
       if (input && input.getClientRects().length && !input.closest('[data-testid="figure-editor"]')?.contains(document.activeElement)) input.focus();
     });
   }
+  usePropertyEntry(anchor, beginEdit);
   const releaseCopy = () => {
     const copy = copied.current;
     copied.current = undefined;
@@ -1029,7 +1062,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
     const current = typeof position === "number" ? view.state.doc.nodeAt(position) : null;
     if (!current) return;
     const liveCaption = figureAttrs(current).caption;
-    const candidate = { ...draft, caption: captionChanged.current ? draft.caption : liveCaption };
+    const candidate = { ...draft, caption: liveCaption };
     const nextLabel = labelDraft;
     const local = labelError(nextLabel) ?? figureContentError(candidate) ??
       (validateFigure ? undefined : "Figure validation is unavailable.");
@@ -1062,8 +1095,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
       setError({ key: "Caption changed during validation. Apply again." });
       return;
     }
-    const { caption, ...attributes } = candidate;
-    const captionContent = view.state.schema.nodeFromJSON({ type: "figure", content: paragraphContent(figureCaptionContent(caption)) }).content;
+    const { caption: _caption, ...attributes } = candidate;
     // Validation may finish after the user has moved on; only focus left in this form returns.
     const active = document.activeElement;
     const returnFocus = !view.dom.closest("[hidden]") &&
@@ -1073,8 +1105,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
     copied.current = undefined;
     // One undo step: undo returns the form's previous value.
     try {
-      view.dispatch(updateFigure(view.state, latestPosition, { ...attributes, label: nextLabel },
-        captionContent.eq(latest.content) ? undefined : captionContent));
+      view.dispatch(updateFigure(view.state, latestPosition, { ...attributes, label: nextLabel }));
     } catch (cause) {
       copied.current = copy;
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -1086,7 +1117,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
     setEditing(false);
     if (returnFocus) focusBlock(view, getPos);
   };
-  const field = (key: keyof FigureContent, name: string, testId: string) => (
+  const field = (key: "imageUrl" | "imageAlt", name: string, testId: string) => (
     <label className="form-field">
       <span>{name}</span>
       <Input
@@ -1095,7 +1126,6 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
         disabled={validating}
         value={typeof draft[key] === "string" ? draft[key] : ""}
         onChange={(event) => {
-          if (key === "caption") captionChanged.current = true;
           setDraft({ ...draft, [key]: event.target.value });
           setError("");
         }}
@@ -1138,6 +1168,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
       ) : null}
       <BlockProperties
         anchor={anchor}
+        initialFocus={imageInput}
         kind={numbered ?? i18n.t("Figure")}
         testId="figure"
         open={editing}
@@ -1153,8 +1184,6 @@ function FigureView({ node, editor, selected, getPos, view, documentPath, onDraf
           </div>
         ) : field("imageUrl", i18n.t("Image"), "figure-image-url")}
         {field("imageAlt", i18n.t("Alt text"), "figure-alt")}
-        {typeof draft.caption === "string" && typeof applied.caption === "string" ? field("caption", i18n.t("Caption"), "figure-caption")
-          : <p className="block-popover-note">{i18n.t("Edit the formatted caption directly below the image.")}</p>}
         <label className="form-field">
           <span>{i18n.t("Label")}</span>
           <Input
@@ -1284,6 +1313,7 @@ function EquationView({ node, editor, selected, deleteNode, getPos, view, onDraf
       if (input && input.getClientRects().length && !input.closest('[data-testid="equation-editor"]')?.contains(document.activeElement)) input.focus();
     });
   }
+  usePropertyEntry(anchor, beginEdit);
   const cancel = () => {
     cancelFocus();
     const isUnappliedNewEquation = isNewBlockPath(sourcePath) && latex.length === 0;
@@ -1339,6 +1369,7 @@ function EquationView({ node, editor, selected, deleteNode, getPos, view, onDraf
       ) : null}
       <BlockProperties
         anchor={anchor}
+        initialFocus={latexInput}
         kind={kind}
         testId="equation"
         open={editing}
@@ -1401,20 +1432,31 @@ function EquationFormula({ className, latex, testId, onDoubleClick }: { classNam
 function InlineMathView({ node, editor, getPos, updateAttributes, selected }: ReactNodeViewProps) {
   useTranslation();
   const formId = useId();
-  const visible = useEditorVisible();
+  const anchor = useRef<HTMLSpanElement>(null);
+  const input = useRef<HTMLInputElement>(null);
   const value = String(node.attrs.value ?? "");
   const [editing, setEditing] = useState(false);
-  const bounds = useOverlayBounds<HTMLFormElement>(editing);
   const [draft, setDraft] = useState(value);
   const [error, setError] = useMessageState("");
   const rendered = renderEquation(value, false);
   const open = () => {
-    if (!editor.isEditable) return;
+    if (!editor.isEditable || editing) return;
     setDraft(value);
     setError("");
     setEditing(true);
   };
+  usePropertyEntry(anchor, open);
+  const position = getPos();
+  const path = typeof position === "number" ? String(editor.state.doc.resolve(position).node(1).attrs.sourcePath) : "";
+  const onDraftChange = editor.extensionManager.extensions.find(extension => extension.name === "inlineMath")?.options.onDraftChange as DraftListener | undefined;
+  const dirty = editing && draft !== value;
+  useEffect(() => {
+    onDraftChange?.("Inline math", path, dirty, formId);
+    return () => onDraftChange?.("Inline math", path, false, formId);
+  }, [path, dirty, onDraftChange, formId]);
   const close = () => {
+    setDraft(value);
+    setError("");
     setEditing(false);
     focusBlock(editor.view, getPos);
   };
@@ -1435,36 +1477,26 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
   return (
     <NodeViewWrapper as="span" className="inline-math" data-selected={selected ? "true" : "false"} data-testid="inline-math">
       <span
+        ref={anchor}
+        contentEditable={false}
         className={rendered.html ? "inline-math-rendered" : "inline-math-rendered inline-math-error"}
         title={rendered.error ?? value}
-        onClick={open}
+        onMouseDown={event => {
+          const position = getPos();
+          if (typeof position !== "number") return;
+          event.preventDefault();
+          editor.view.dispatch(editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, position)));
+          editor.view.focus();
+        }}
+        onDoubleClick={open}
         {...(rendered.html ? { dangerouslySetInnerHTML: { __html: rendered.html } } : { children: `$${value}$` })}
       />
-      {editing && visible ? (
-        <form
-          ref={bounds}
-          className="inline-math-form selection-toolbar"
-          contentEditable={false}
-          role="dialog"
-          aria-label={i18n.t("Inline math")}
-          data-testid="inline-math-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            apply();
-          }}
-          onKeyDown={(event) => {
-            if (event.key !== "Escape") return;
-            event.preventDefault();
-            close();
-          }}
-          onBlur={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget as globalThis.Node | null)) setEditing(false);
-          }}
-        >
+      <BlockProperties anchor={anchor} initialFocus={input} kind={i18n.t("Inline math")} testId="inline-math"
+        open={editing} error={error} onApply={apply} onCancel={close}>
           <label className="form-label" htmlFor={formId}>LaTeX</label>
           <Input
             id={formId}
-            autoFocus
+            ref={input}
             aria-label="LaTeX"
             data-testid="inline-math-source"
             value={draft}
@@ -1474,11 +1506,8 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
               setError("");
             }}
           />
-          <Button size="sm" type="submit" data-testid="inline-math-apply">{i18n.t("Apply")}</Button>
-          <Button size="sm" variant="outline" data-testid="inline-math-remove" onClick={remove}>{i18n.t("Remove")}</Button>
-          {error ? <span className="link-form-error" role="alert">{error}</span> : null}
-        </form>
-      ) : null}
+          <Button type="button" size="sm" variant="outline" data-testid="inline-math-remove" onClick={remove}>{i18n.t("Remove")}</Button>
+      </BlockProperties>
     </NodeViewWrapper>
   );
 }

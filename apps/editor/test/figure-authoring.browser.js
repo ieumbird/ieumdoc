@@ -104,10 +104,13 @@ async (page, { openDocument, waitForEditorFocus, expect, screenshots }) => {
     const image = figures.first().getByTestId('figure-image');
     for (const close of ['cancel', 'escape']) {
       let editFocus;
-      for (const entry of ['Edit', 'double-click']) {
+      for (const entry of ['Edit', 'double-click', 'Enter']) {
         if (entry === 'Edit') {
           await image.click({position:{x:80,y:140}, timeout:5000});
           await figures.first().getByRole('button', {name:'Edit figure'}).click();
+        } else if (entry === 'Enter') {
+          await image.click({position:{x:80,y:140}, timeout:5000});
+          await page.keyboard.press('Enter');
         } else await image.dblclick({position:{x:80,y:140}, timeout:5000});
         await expect(page.getByTestId('figure-image-url'), `${entry} focuses Image`).toBeFocused();
         expect(await snapshot(), `${entry} leaves document unchanged`).toEqual(withProbe);
@@ -387,14 +390,27 @@ async (page, { openDocument, waitForEditorFocus, expect, screenshots }) => {
     }
     await page.setViewportSize({width:1280, height:720});
     result.existingLabelInForm = await page.getByTestId('figure-label').inputValue() === 'fig-control' &&
-      await editor.locator('input').count() === 4;
+      await page.getByTestId('figure-caption').count() === 0;
     await page.getByTestId('figure-image-url').fill('./diagram-v2.svg');
     await page.getByTestId('figure-alt').fill('Updated block diagram');
-    await page.getByTestId('figure-caption').fill('Updated converter control diagram.');
+    await figures.first().getByTestId('figure-caption-content').evaluate(element => {
+      const editor = element.closest('.document-editor').editor;
+      const path = element.closest('[data-block="figure"]').getAttribute('data-source-path');
+      editor.state.doc.forEach((node, pos) => {
+        if (node.type.name === 'figure' && node.attrs.sourcePath === path)
+          editor.commands.setTextSelection({from:pos + 1,to:pos + node.nodeSize - 1});
+      });
+      editor.view.focus();
+      if (!editor.view.hasFocus()) throw Error("Caption input requires editor focus");
+    });
+    await page.keyboard.type('Updated converter control diagram.');
+    expect(await figures.first().locator('figcaption').innerText(), 'Direct caption edit before property Apply').toBe('Updated converter control diagram.');
+    expect((await snapshot()).content.find(n => n.type === 'figure').content.map(n => n.text ?? '').join(''), 'Direct caption is in the engine before Apply').toBe('Updated converter control diagram.');
     await page.locator('[data-document-tab][data-active=true]').getByTestId("figure-draft-status").waitFor();
     result.existingDraftMarkedUnsaved = await figures.first().getByTestId('figure-draft-status').isVisible();
     await page.getByTestId('figure-apply').click();
     await editor.waitFor({state:'detached'});
+    expect(await figures.first().locator('figcaption').innerText(), 'Properties preserve the live direct caption').toBe('Updated converter control diagram.');
     const appliedBeforeDelete = await snapshot();
     await page.getByText('The current reference is calculated from the active power command.', {exact:true}).filter({visible:true}).click();
     await page.keyboard.press('ControlOrMeta+a');
@@ -403,41 +419,46 @@ async (page, { openDocument, waitForEditorFocus, expect, screenshots }) => {
     await page.keyboard.press('ControlOrMeta+z');
     expect(await snapshot(), 'Undo after Apply restores applied Figure properties').toEqual(appliedBeforeDelete);
     result.existingPreviewAfterApply = String(await imageLoaded(figures.first())).startsWith('/document/diagram-v2.svg?path=');
+    const captionSave = page.waitForRequest(r => r.method() === 'POST' && r.url().includes('/api/document'));
     await save();
+    const captionPayload = (await captionSave).postDataJSON();
+    expect(captionPayload.figures?.[0]?.to?.caption, 'Save submits the directly edited caption').toBe('Updated converter control diagram.');
     await openScratch();
     const reloadedExisting = (await semantic())[0];
     result.existingSavedAndReloaded = JSON.stringify(reloadedExisting) === JSON.stringify({
       label: 'fig-control', imageUrl: './diagram-v2.svg', imageAlt: 'Updated block diagram', caption: 'Updated converter control diagram.',
     });
+    expect(reloadedExisting, 'Image properties and direct caption survive Save/Reload').toEqual({
+      label:'fig-control',imageUrl:'./diagram-v2.svg',imageAlt:'Updated block diagram',caption:'Updated converter control diagram.'});
     result.existingReloadedPreview = String(await imageLoaded(figures.first())).startsWith('/document/diagram-v2.svg?path=');
     result.existingReloadedCaption = await figures.first().locator('figcaption').innerText() === 'Updated converter control diagram.';
 
-    // A2. Apply asks Core: a caption MyST would reinterpret keeps the form open and never becomes applied state.
+    // A2. Core-shared property validation keeps invalid alt text unapplied and the form open.
     const appliedCaption = 'Updated converter control diagram.';
     await figures.first().getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
     await figures.first().getByRole('button', {name:'Edit figure'}).click();
     await editor.waitFor();
-    await page.getByTestId('figure-caption').fill('% comment');
+    await page.getByTestId('figure-alt').fill(' invalid alt');
     await page.getByTestId('figure-apply').click();
-    const coreError = editor.getByText(/canonical round-trip|not canonical/);
+    const coreError = editor.getByText(/alt text cannot/);
     await coreError.waitFor();
     result.invalidApplyKeepsForm = await editor.isVisible() &&
-      await page.getByTestId('figure-caption').inputValue() === '% comment';
+      await page.getByTestId('figure-alt').inputValue() === ' invalid alt';
     result.invalidApplyShowsCoreError = await coreError.isVisible();
     result.invalidApplyKeepsAppliedValue = await figures.first().locator('figcaption').innerText() === appliedCaption;
     result.invalidApplyAllowsAppliedSave = await saveEnabled.count() === 1;
     await figures.first().getByTestId('figure-image').dblclick({position:{x:80,y:140}, timeout:5000});
     expect(await coreError.isVisible(), 'Double-click while invalid preserves validation and draft').toBe(true);
-    expect(await page.getByTestId('figure-caption').inputValue()).toBe('% comment');
-    await page.getByTestId('figure-caption').fill('Cost is 5 units.');
+    expect(await page.getByTestId('figure-alt').inputValue()).toBe(' invalid alt');
+    await page.getByTestId('figure-alt').fill('Cost is 5 units.');
     await page.getByTestId('figure-apply').click();
     await editor.waitFor({state:'detached'});
-    result.validApplyAfterError = await figures.first().locator('figcaption').innerText() === 'Cost is 5 units.';
+    result.validApplyAfterError = await figures.first().locator('img').getAttribute('alt') === 'Cost is 5 units.';
     await save();
     await openScratch();
     const revalidated = (await semantic())[0];
-    result.validCaptionSavedAndReloaded = revalidated.caption === 'Cost is 5 units.' && revalidated.label === 'fig-control' &&
-      await figures.first().locator('figcaption').innerText() === 'Cost is 5 units.';
+    result.validCaptionSavedAndReloaded = revalidated.imageAlt === 'Cost is 5 units.' && revalidated.label === 'fig-control' &&
+      await figures.first().locator('figcaption').innerText() === appliedCaption;
 
     // C1. A new Figure is a document block at once: no form opens, the caret is in its caption,
     // and Undo removes it.
@@ -453,6 +474,8 @@ async (page, { openDocument, waitForEditorFocus, expect, screenshots }) => {
     await editor.waitFor({state:'detached'});
     await page.keyboard.press('ControlOrMeta+z');
     result.newFigureUndoRemoves = await figures.count() === 1;
+    expect(result.newFigureUndoRemoves).toBe(true);
+    expect(await figures.first().locator('figcaption').innerText(), 'Undoing insertion preserves the existing caption').toBe(appliedCaption);
 
     // B. `/figure` from a transient paragraph, a caption typed at the caret, an image set by Edit, Save, Reload.
     await insertAfterParagraph('Paragraph');
@@ -484,10 +507,11 @@ async (page, { openDocument, waitForEditorFocus, expect, screenshots }) => {
     await created.getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
     await created.getByRole('button', {name:'Edit figure'}).click();
     await editor.waitFor();
-    await page.getByTestId('figure-caption').fill('Discarded caption.');
+    await page.getByTestId('figure-alt').fill('Discarded caption.');
     await page.getByTestId('figure-cancel').click();
     result.appliedCancelKeepsBlock = await figures.count() === 2;
-    result.appliedCancelRestores = await created.locator('figcaption').innerText() === 'New figure caption.';
+    result.appliedCancelRestores = await created.locator('figcaption').innerText() === 'New figure caption.' &&
+      await created.locator('img').getAttribute('alt') === 'New figure alt';
     await save();
     await openScratch();
     const reloaded = await semantic();
@@ -507,7 +531,7 @@ async (page, { openDocument, waitForEditorFocus, expect, screenshots }) => {
     await page.getByTestId('figure-alt').press('Escape');
     await editor.waitFor({state:'detached'});
     result.escapeCancels = await figures.count() === 2 && await saveDisabled.count() === 0 &&
-      await figures.first().locator('img').getAttribute('alt') === 'Updated block diagram';
+      await figures.first().locator('img').getAttribute('alt') === 'Cost is 5 units.';
     const firstPath = await figures.first().getAttribute('data-source-path');
     const afterEscape = await editorFocus();
     result.escapeReturnsCaret = afterEscape.empty && await page.evaluate(path => {
@@ -556,16 +580,16 @@ async (page, { openDocument, waitForEditorFocus, expect, screenshots }) => {
     await figures.first().getByRole('button', {name:'Edit figure'}).click();
     await editor.waitFor();
     await page.waitForFunction(() => document.activeElement?.getAttribute('data-testid') === 'figure-image-url');
-    await page.getByTestId('figure-caption').fill('Caption typed during save.');
+    await page.getByTestId('figure-alt').fill('Caption typed during save.');
     release();
     await page.getByText('Unsaved changes', {exact:true}).filter({visible:true}).waitFor();
-    result.delayedSaveKeepsDraft = await page.getByTestId('figure-caption').inputValue() === 'Caption typed during save.' &&
+    result.delayedSaveKeepsDraft = await page.getByTestId('figure-alt').inputValue() === 'Caption typed during save.' &&
       !posted[0].figures?.length;
     await page.getByTestId('figure-apply').click();
     await save();
     await page.unroute('**/api/document**');
-    result.delayedDraftAppliedAndSaved = posted[1]?.figures?.[0]?.to?.caption === 'Caption typed during save.' &&
-      (await semantic())[0].caption === 'Caption typed during save.' && (await semantic())[0].label === 'fig-control';
+    result.delayedDraftAppliedAndSaved = posted[1]?.figures?.[0]?.to?.imageAlt === 'Caption typed during save.' &&
+      (await semantic())[0].imageAlt === 'Caption typed during save.' && (await semantic())[0].label === 'fig-control';
 
     // #58: captions live in the same editor state as prose. Native formatting,
     // rich clipboard input, edits to existing formatting, Undo/Redo and Reload keep it.
@@ -580,7 +604,7 @@ async (page, { openDocument, waitForEditorFocus, expect, screenshots }) => {
         return s.$from.parent.type.name === 'figure' && e.state.doc.textBetween(s.from, s.to) === text;
       }, text);
     };
-    await selectCaption('Caption typed during save.');
+    await selectCaption(appliedCaption);
     await page.keyboard.type('Caption rich');
     await selectCaption('Caption rich');
     await page.keyboard.press('ControlOrMeta+b');

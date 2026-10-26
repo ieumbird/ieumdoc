@@ -1,6 +1,7 @@
 # Figure authoring v1
 
 - Status: Implemented
+- Property-entry update: 2026-10-27 (#557: shared selection/Enter/double-click and explicit property drafts; see [Continuous editing](document-editing-v1.md#continuous-editing)).
 - Active image preview verification: 2026-10-26 (#480: Figure browser preview/race/focus/overflow checks and [same-state manual captures](folder-picker-v1.md#active-image-preview-480); Editor tests/typecheck/build).
 - Double-click verification: 2026-10-26 (#470: figure-authoring checks Image-field focus, Edit-equivalent Cancel/Escape, unchanged document and Undo/Redo, caption word selection, pending entry and preservation of invalid/unapplied drafts; new entry assertions failed before the change).
 - Image picker verification: 2026-10-26 (#461: click selection, sibling visibility, editing/Tab filtering, Use and reopening in figure-authoring; image-assets/folder-navigation/layout-rules/quiet-document browser regressions and Editor tests/typecheck/build).
@@ -56,7 +57,9 @@ definitions; all caption/property/label and canonical-stability comparisons rema
 Closing properties retains a text selection inside the caption, otherwise returning
 a text/gap caret after the Figure ([Continuous editing](document-editing-v1.md#continuous-editing)).
 Apply changes attributes without replacing an unchanged caption, preserving its
-caret and formatting. A changed caption still uses the existing engine replacement.
+caret and formatting. Captions are edited directly in the document, with the shared inline formatting tools.
+The properties form contains only image path, alt text and label. Apply always validates
+and preserves the live caption; it never replaces caption content.
 Figure validation that completes after the user moves elsewhere does not take focus back.
 
 | State | Session behavior | Save and Source |
@@ -68,7 +71,7 @@ Insertion is one undo step and opens no form: the caret starts in the new Figure
 
 Filling an empty Figure preserves the caret at its current caption position and is one undo step: Undo restores that empty Figure, while Undo removes a newly inserted Figure. Both results persist through Save → Reload. Apply → Save → Undo → Save writes the Figure as it was before Apply, and Redo → Save writes the applied value again. Save preserves this history and the opening-snapshot replay contract. Deleting and undoing a Figure restores its attributes, including after saving the deletion. No new Core operation or CLI command is needed: filling reuses the existing Figure update path, already available as `update-figure --image`.
 
-Edit opens the properties of any editable Figure. Double-clicking its rendered image, pending no-content frame or image-load error uses the same Edit path, including initial Image-field focus and focus restoration on closing (#470). Caption double-click keeps normal text selection/caret behavior. Opening properties changes neither document nor history; double-click while already editing preserves the existing form, draft and validation error. Apply accepts any combination of label, caption and image through Core validation, all-empty included. Alt without an image shows a validation error and retains the form. Edit connects or removes the image URL. Unapplied form fields survive Save/Source and are never implicitly applied. Save acknowledges only the submitted applied snapshot; later edits remain dirty under the existing session contract.
+Edit or Enter on a selected Figure opens its properties (#557). Single-click selects only. Double-clicking its rendered image, pending no-content frame or image-load error uses the same Edit path, including initial Image-field focus and focus restoration on closing (#470). Caption double-click keeps normal text selection/caret behavior. Opening properties changes neither document nor history; double-click while already editing preserves the existing form, draft and validation error. Apply accepts label and image properties through Core validation, all-empty included; the caption remains direct document content. Alt without an image shows a validation error and retains the form. Edit connects or removes the image URL. Unapplied form fields survive Save/Source and are never implicitly applied. Save acknowledges only the submitted applied snapshot; later edits remain dirty under the existing session contract.
 
 Choose… beside the Image field opens the [folder picker](folder-picker-v1.md#choosing-an-image) to choose an image on the Host, starting in the document's folder ([#208](https://github.com/ieumbird/ieumdoc/issues/208)). The [active image preview](folder-picker-v1.md#active-image-preview-480) shows the keyboard-active or clicked image before choosing it (#480). Clicking an image marks it selected while sibling images remain listed; editing the path resumes filtering (owner decision, 2026-10-26, #461). Use or Enter only fills the Image field; Apply validates and commits it like a typed value. An image inside the document's folder fills its relative path, such as `./figures/diagram.svg`, and nothing is copied. One elsewhere is copied into `assets/` as a pasted image is, and the field gets that copy's path. Cancel, choosing again, or the form going away unapplied (Reload, closing the document, deleting the Figure) removes a copy the form made; a copy Apply put in the Figure stays. Closing the picker without choosing leaves the field unchanged. No CLI command is added: choosing is Host navigation, and `update-figure --image` already sets the path.
 

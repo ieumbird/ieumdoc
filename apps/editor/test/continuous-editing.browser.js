@@ -314,6 +314,12 @@ async (page, { openDocument }) => {
       `Select the final Equation before ${mode}: ${JSON.stringify(beforeKey)}`);
     const key = mode.replace('selected ', '');
     if (!['typing', 'composition'].includes(key)) await page.keyboard.press(key);
+    if (mode === 'selected Enter') {
+      await page.getByTestId('equation-latex').waitFor();
+      await page.getByTestId('equation-cancel').click();
+      await page.getByTestId('equation-editor').waitFor({state:'detached'});
+      await page.keyboard.press('Enter');
+    }
     const navigated = await continuationState();
     if (!['typing', 'composition'].includes(key)) assert(navigated.focus && navigated.parent === 'paragraph' && navigated.selection.type === 'text',
       `Reach following prose immediately after ${mode}: ${JSON.stringify(navigated)}`);

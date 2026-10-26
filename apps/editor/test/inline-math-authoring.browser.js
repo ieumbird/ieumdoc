@@ -3,7 +3,7 @@
 // and checks that display equations and cross-references are unchanged and that an unpreservable
 // source fails closed. The file is a scratch copy under the repository's ignored tmp/ directory;
 // prepare it first (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
-async (page, { openPath }) => {
+async (page, { openPath, expect }) => {
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
   await page.unrouteAll();
@@ -56,12 +56,12 @@ async (page, { openPath }) => {
     await page.getByTestId('selection-toolbar').waitFor();
   };
   const editSource = async (value, next) => {
-    await (await mathNamed(value)).click();
-    await page.getByTestId('inline-math-form').waitFor();
+    await (await mathNamed(value)).dblclick();
+    await page.getByTestId('inline-math-editor').waitFor();
     const prefilled = await page.getByTestId('inline-math-source').inputValue() === value;
     await page.getByTestId('inline-math-source').fill(next);
     await page.getByTestId('inline-math-apply').click();
-    await page.getByTestId('inline-math-form').waitFor({state:'detached'});
+    await page.getByTestId('inline-math-editor').waitFor({state:'detached'});
     return prefilled;
   };
 
@@ -71,6 +71,7 @@ async (page, { openPath }) => {
   }
   const result = {};
   await open();
+  const mathTabId = await page.getByRole('tab', {selected:true}).getAttribute('id');
   result.mathParagraphEditable = await editor.locator('p.paragraph', {hasText: 'The current is'}).count() === 1;
   result.renderedWithKatex = await editor.getByTestId('inline-math').locator('.katex').count() === 3;
   // {eq} reference paragraphs are editable since cross-reference authoring.
@@ -86,11 +87,11 @@ async (page, { openPath }) => {
       });
       el.editor.view.focus();
     }, start);
-    await (await mathNamed('i_d')).click({timeout:5000});
+    await (await mathNamed('i_d')).dblclick({timeout:5000});
     await page.getByTestId('inline-math-source').fill('i_d');
     if (action === 'apply') await page.getByTestId('inline-math-apply').click();
     else await page.getByTestId('inline-math-source').press('Escape');
-    await page.getByTestId('inline-math-form').waitFor({state:'detached'});
+    await page.getByTestId('inline-math-editor').waitFor({state:'detached'});
     const restored = await editor.locator('.ProseMirror').evaluate(el => {
       const e = el.editor;
       let after;
@@ -119,61 +120,71 @@ async (page, { openPath }) => {
   }
   result.closeRestoresCaretAndTyping = true;
 
-  // Match ordinary same-document blur: returning to a tab does not restore transient input.
-  const appliedBeforeBlur = await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON()));
-  for (const destination of ['same document', 'another tab']) {
-    await (await mathNamed('i_d')).click();
-    await page.getByTestId('inline-math-source').press('Control+a');
-    await page.getByTestId('inline-math-source').pressSequentially('uncommitted');
-    if (destination === 'same document') {
-      await editor.locator('p.paragraph', {hasText:'The current is'}).click({position:{x:4,y:4}});
-    } else {
-      await page.getByRole('tab', {name:'technical-document.md',exact:true}).click();
-      await page.getByTestId('inline-math-form').waitFor({state:'detached'});
-      await page.getByRole('tab', {name:'math.md',exact:true}).click();
-    }
-    await page.getByTestId('inline-math-form').waitFor({state:'detached'});
-    if (await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON())) !== appliedBeforeBlur) throw new Error(`Inline math blur applied input on ${destination}`);
-    await (await mathNamed('i_d')).click();
-    if (await page.getByTestId('inline-math-source').inputValue() !== 'i_d') throw new Error(`Inline math input survived blur on ${destination}`);
-    await page.keyboard.press('Escape');
-    await page.getByTestId('inline-math-form').waitFor({state:'detached'});
-  }
-  result.inlineBlurClosesWithoutApply = true;
+  // #557: independent forms retain unapplied input across outside focus, Save, Source and tabs.
+  const appliedBeforeDraft = await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON()));
+  await (await mathNamed('i_d')).click();
+  expect(await page.getByTestId('inline-math-editor').count(), 'Single click selects only').toBe(0);
+  expect(await editor.locator('.ProseMirror').evaluate(el => ({type:el.editor.state.selection.toJSON().type,
+    value:el.editor.state.selection.node?.attrs.value}))).toEqual({type:'node',value:'i_d'});
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('inline-math-source')).toBeFocused();
+  await page.getByTestId('inline-math-source').fill('uncommitted-first');
+  await (await mathNamed('i_d')).dblclick();
+  expect(await page.getByTestId('inline-math-source').inputValue(), 'Re-entry preserves draft').toBe('uncommitted-first');
+  await (await mathNamed('v_{dc}')).dblclick();
+  const forms = page.getByTestId('inline-math-editor');
+  await forms.nth(1).getByTestId('inline-math-source').fill('uncommitted-second');
+  await editor.locator('p.paragraph', {hasText:'The current is'}).click({position:{x:4,y:4}});
+  expect(await forms.count(), 'Outside focus keeps both drafts').toBe(2);
+  expect(await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON()))).toBe(appliedBeforeDraft);
+  await page.getByTestId('draft-notice').waitFor();
+  expect(await page.evaluate(() => {const e = new Event('beforeunload',{cancelable:true});window.dispatchEvent(e);return e.defaultPrevented;})).toBe(true);
+  await page.getByTestId('save').click();
+  await page.locator('[data-testid="status"][data-operation^="saved"]').waitFor();
+  expect(await markdown()).not.toContain('uncommitted');
+  expect(await page.getByTestId('status').innerText()).toBe('Unsaved changes');
+  await page.getByTestId('view-source').click();
+  const sourceView = page.locator('[data-document-tab][data-active=true]').getByTestId('source-view');
+  await sourceView.waitFor();
+  expect(await sourceView.locator('pre').textContent()).not.toContain('uncommitted');
+  expect(await forms.count(), 'Hidden document exposes no property portals').toBe(0);
+  await page.getByTestId('view-visual').click();
+  await forms.nth(1).waitFor();
+  await page.getByRole('tab', {name:'technical-document.md',exact:true}).click();
+  expect(await forms.count()).toBe(0);
+  await page.locator(`#${mathTabId}`).click();
+  await forms.nth(1).waitFor();
+  expect(await forms.getByTestId('inline-math-source').evaluateAll(inputs => inputs.map(input => input.value).sort())).toEqual(['uncommitted-first','uncommitted-second']);
+  await page.getByRole('button', {name:'File actions',exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload',exact:true}).click();
+  await page.getByRole('dialog', {name:'Discard local changes?'}).getByRole('button', {name:'Keep editing',exact:true}).click();
+  await page.getByRole('button', {name:'Close math.md',exact:true}).click();
+  await page.getByRole('dialog', {name:'Save changes?',exact:true}).getByRole('button', {name:'Cancel',exact:true}).click();
+  await forms.filter({has:page.locator('input[value="uncommitted-first"]')}).getByTestId('inline-math-cancel').click();
+  expect(await forms.count(), 'Cancelling one instance keeps the other').toBe(1);
+  expect(await forms.getByTestId('inline-math-source').inputValue()).toBe('uncommitted-second');
+  expect(await page.getByTestId('draft-notice').isVisible()).toBe(true);
+  await forms.getByTestId('inline-math-source').press('Escape');
+  await forms.waitFor({state:'detached'});
+  await page.getByTestId('draft-notice').waitFor({state:'detached'});
+  expect(await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON()))).toBe(appliedBeforeDraft);
+  result.explicitDraftLifecycle = true;
 
   // Change a source: the form opens prefilled.
   result.formPrefilled = await editSource('i_d', 'i_q');
 
-  // Enter on a selected inline math node does not split the paragraph or delete the math.
+  // Selected Enter opens properties without changing the paragraph or formula.
   const paragraphs = await editor.locator('p.paragraph').count();
   await (await mathNamed('i_q')).click();
-  await page.getByTestId('inline-math-form').waitFor();
-  await page.keyboard.press('Escape');
-  await page.getByTestId('inline-math-form').waitFor({state:'detached'});
-  // The inline math click opens the form without selecting its ProseMirror atom.
-  // Restore the exact node selection under test before sending Enter.
-  await page.evaluate(value => {
-    const editor = document.querySelector('[data-document-tab][data-active=true] .ProseMirror').editor;
-    let position;
-    editor.state.doc.descendants((node, offset) => {
-      if (node.type.name === 'inlineMath' && node.attrs.value === value) position = offset;
-    });
-    if (position === undefined) throw new Error(`inline math not found: ${value}`);
-    editor.commands.setNodeSelection(position);
-    editor.view.focus();
-  }, 'i_q');
-  await page.waitForFunction(() => {
-    const editor = document.querySelector('[data-document-tab][data-active=true] .ProseMirror').editor;
-    const selection = editor.state.selection;
-    return editor.view.hasFocus() && selection.constructor.name === 'NodeSelection' &&
-      selection.node.type.name === 'inlineMath' && selection.node.attrs.value === 'i_q';
-  });
   await page.keyboard.press('Enter');
+  await expect(page.getByTestId('inline-math-source')).toBeFocused();
   result.enterKeepsMath = await editor.locator('p.paragraph').count() === paragraphs &&
     (await sources()).includes('i_q');
+  await page.getByTestId('inline-math-cancel').click();
+  await page.getByTestId('inline-math-editor').waitFor({state:'detached'});
 
   // Remove inline math back to its source as plain text; its bold mark stays.
-  await (await mathNamed('v_{dc}')).click();
+  await (await mathNamed('v_{dc}')).dblclick();
   await page.getByTestId('inline-math-remove').click();
   result.removedToText = !(await sources()).includes('v_{dc}') &&
     await editor.locator('strong', {hasText: 'v_{dc}'}).count() === 1;

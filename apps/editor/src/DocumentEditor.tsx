@@ -165,8 +165,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const slashKeys = useRef<(event: KeyboardEvent) => boolean>(() => false);
   // Draft changes are not transactions; re-render so the block handles reflect them.
   const [draftRevision, draftsChanged] = useReducer((count: number) => count + 1, 0);
-  const reportDraft = useCallback((kind: DraftKind, path: string, active: boolean) => {
-    const key = `${kind}:${path}`;
+  const reportDraft = useCallback((kind: DraftKind, path: string, active: boolean, id = "") => {
+    const key = `${kind}:${path}:${id}`;
     if (activeDrafts.current.has(key) === active) return;
     if (active) activeDrafts.current.set(key, { kind, path });
     else activeDrafts.current.delete(key);

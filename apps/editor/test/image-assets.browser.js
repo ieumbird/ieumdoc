@@ -304,9 +304,19 @@ async (page, { openPath, openDocument }) => {
     await page.keyboard.type('/figure');
     await page.getByRole('menuitem', {name:'Figure', exact:true}).click();
     if (gesture === 'paste') {
+      await figures.first().getByTestId('figure-caption-content').evaluate(element => {
+        const editor = element.closest('.document-editor').editor;
+        const path = element.closest('[data-block="figure"]').getAttribute('data-source-path');
+        editor.state.doc.forEach((node, pos) => {
+          if (node.type.name === 'figure' && node.attrs.sourcePath === path)
+            editor.commands.setTextSelection({from:pos + 1,to:pos + node.nodeSize - 1});
+        });
+        editor.view.focus();
+        if (!editor.view.hasFocus()) throw Error("Caption input requires editor focus");
+      });
+      await page.keyboard.type('Reserved caption');
       await editFigure(0);
       await page.getByTestId('figure-label').fill('fig-reserved');
-      await page.getByTestId('figure-caption').fill('Reserved caption');
       await page.getByTestId('figure-apply').click(); await imageField.waitFor({state:'detached'});
     }
     const beforeFill = await documentJSON();

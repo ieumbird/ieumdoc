@@ -14,6 +14,7 @@ const groups: { label: MessageKey; entries: Entry[] }[] = [
     { label: "Undo", shortcuts: [keys.undo] },
     { label: "Redo", shortcuts: [keys.redo, keys.redoAlternative] },
     { label: "New block", shortcuts: [keys.newBlock] },
+    { label: "Edit selected figure, table or math", shortcuts: [keys.newBlock] },
     { label: "Line break", shortcuts: [keys.lineBreak] },
     { label: "Heading level / list indent", shortcuts: [keys.tab, keys.shiftTab] },
     { label: "Bullet list", shortcuts: [keys.bulletList] },
