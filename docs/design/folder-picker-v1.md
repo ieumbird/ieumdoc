@@ -1,7 +1,8 @@
 # Folder picker v1
 
 - Status: Implemented
-- Last verified: 2026-10-26 (#480 active-image preview: Editor tests/typecheck/build, figure-authoring/folder-navigation/image-assets/file-preview/layout-rules/quiet-document browser regressions and same-state 1440px/375px manual comparison; details below).
+- Last verified: 2026-10-26 (#522 option A: Editor 291 tests, typecheck/build, folder/navigation-memory/image/preview/layout/language/state regressions, real HTTP and crash recovery; [fail-first and manual comparisons](#option-a-verification-522)).
+- Previous verification: 2026-10-26 (#480 active-image preview: Editor tests/typecheck/build, figure-authoring/folder-navigation/image-assets/file-preview/layout-rules/quiet-document browser regressions and same-state 1440px/375px manual comparison; details below).
 - Previous verification: 2026-10-26 (#461 owner decision: click selection preserves sibling images; editing resumes filtering. Editor tests/typecheck/build and figure-authoring/folder-navigation/image-assets/layout-rules/quiet-document browser regressions).
 - Previous verification: 2026-10-25 (#425 owner persistence decision: Editor tests/typecheck/build, folder-memory/navigation/command-center/document-tabs/editor-shell/quiet-document; [restoration evidence](editor-ux-shell-v1.md#section-persistence-decision-and-verification-2026-10-25)).
 - Previous verification: 2026-10-25 (#425: collapsible folder sections; Editor tests/typecheck/build, folder-navigation/folder-memory/command-center/editor-shell/layout-rules/ui-language/quiet-document and [desktop/phone captures](editor-ux-shell-v1.md#section-disclosure-verification-and-captures)).
@@ -77,13 +78,97 @@ Vite, Windows Desktop and the standalone [HTTP Host](http-host-v1.md) reuse this
   restoration sends no further folder requests after its current request settles.
 - An unreadable/missing location shows an error and retains the entered path. Earlier
   browse responses cannot replace a newer location; reopening refreshes the listing.
-- New folder, beside Up, shows a name row for the listed folder (the breadcrumb's last folder).
+- New folder, beside the child-folder heading, shows a name row for the listed folder.
   Create makes that folder through the Host and moves into it, so Open names it; it opens nothing
   and changes no sidebar expansion, though a sidebar folder already listed is listed again.
   A rejected name keeps the row with its error. Cancel or Escape closes the row and returns focus
   to New folder; a second Escape closes the dialog.
 - Shared product tokens control presentation. Long folder names and narrow viewports keep
   navigation and Open/Cancel reachable.
+
+## Folder presentation (#522)
+
+The [2026-10-26 owner decision](../reviews/folder-dialog-2026-10-26.md#소유자-결정-2026-10-26)
+adopts option A with actual Root names retained. The folder mode has one reading column:
+starting places, path, ancestor navigation when available, child-folder heading/New folder,
+child list, recent folders when present, and the final Open action. Starting places and Recent
+use quiet groups without section dividers; the footer retains one divider. The list is bounded
+and scrolls for longer listings; the dialog itself scrolls when viewport height requires it.
+
+| Element | Local Host | HTTP Host |
+| --- | --- | --- |
+| Description | Add a folder to the sidebar. / 폴더를 사이드바에 추가합니다. | Add a server-shared folder to the sidebar. / 서버가 공유한 폴더를 사이드바에 추가합니다. |
+| Starting places | Shortcuts / 바로 가기 | Server shared folders / 서버 공유 폴더 |
+| Path label | Folder path / 폴더 경로 | Server folder path / 서버 폴더 경로 |
+
+The `Start` label and Markdown count are absent. Starting-place buttons retain their actual
+Root name (including the current Root), with the full path as accessible description and tooltip.
+The most specific starting place in the listing's breadcrumbs has `aria-current="location"`.
+Only its background marks it current: no current-only font weight, text color, marker or border.
+Keyboard focus remains an independent visible ring, also on that current Root. This explicit
+Root-button decision does not redefine other list selection states.
+
+At a Root, Up and the duplicate current breadcrumb are absent; the actual Root button and full
+path identify the location. Below it, Up and ancestor breadcrumbs remain. The list heading is
+`Sub-folders · click to navigate` / `하위 폴더 · 클릭하여 이동`, with the existing New folder
+action beside it. Clicking still enters a folder; Enter/Open still opens the typed path.
+The footer says `Choose documents in the sidebar after opening a folder.` /
+`문서는 폴더를 연 뒤 사이드바에서 선택합니다.` The action identifies the quoted folder name:
+`Open “name”` / `“name” 열기`, retaining the full typed path as its tooltip.
+
+Folder mode lists folders only and adds no document-file opening. Image mode retains its
+existing order, wording, count, Use action and preview; the new folder-only presentation does
+not change image selection, sibling visibility, completion or Host boundaries. No Core or CLI
+operation is needed because this change only presents existing interface/Host navigation.
+
+### Option A verification (#522)
+
+The new assertion in the existing `folder-navigation` scenario first failed on unchanged
+product `93636fac`: `Folder picker must not count documents absent from its folder-only list`.
+Its early exit also prevented later expected HTTP-refusal events, which teardown reported
+separately. DOM, PNG and trace remain in the local `tmp/folder-dialog-522-evidence/fail-first`.
+
+Final product `2ac8534a` includes master `b28541f` (#524). Folder-navigation, folder-memory,
+image-assets, file-preview, layout-rules, ui-language, visual-states, figure-authoring and
+quiet-document passed. The production `http-host` invocation passed both real two-Root navigation/
+Save/Reload and its owned-browser-crash recovery/conflict check. Root assertions cover actual
+names and accessible paths, `aria-current`, background-only current state, separate keyboard
+focus and root switching without Open. Long-name/list coverage retains last-entry keyboard
+navigation, a usable scrollable list, no horizontal overflow and a reachable Open action.
+
+The first integrated batch exposed two test assumptions; original artifacts were preserved
+before correction. A same-value `fill()` did not reset the active entry between viewport cases,
+so the stress case now makes actual empty→path edits. Its keyboard/scroll assertions remain.
+Layout rules waited for the intentionally removed current-folder breadcrumb; only that
+readiness wait now uses the enabled New folder action. Typography, geometry and required-element
+assertions remain unchanged. The targeted rerun passed; other passing scenarios were not rerun.
+
+Manual captures use the checkout's persistent Chrome profile, this checkout's own port 5393,
+bundled Pretendard, DPR/zoom 1, loaded fonts and unchanged fixture/interaction state. Folder
+captures are full viewport at 1440×900 / 390×844, English and Korean; no open document/Recent/
+New folder row, root path focused with caret at end, no active child, pointer `(0,0)` and scroll 0.
+The read-only routes simulate HTTP/local places with eight folders and eight unlisted documents;
+these captures do not replace actual HTTP security tests. Before is `93636fac`; After is
+`2ac8534a`. The later base includes #524: Quiet Document's tab/sidebar/Outline differences belong
+to that integration, while document pixels below the shell are unchanged. The selected image
+dialog pairs at 1440/375px are pixel-identical; compact/1366px differences are confined to a
+single clipped outer edge. These are manual comparisons, never screenshot assertions.
+
+| State | Wide Before / After | Narrow Before / After |
+| --- | --- | --- |
+| HTTP-like, Korean | [Before](assets/folder-dialog-522/before-http-ko-1440.png) / [After](assets/folder-dialog-522/after-http-ko-1440.png) | [Before](assets/folder-dialog-522/before-http-ko-390.png) / [After](assets/folder-dialog-522/after-http-ko-390.png) |
+| HTTP-like, English | [Before](assets/folder-dialog-522/before-http-en-1440.png) / [After](assets/folder-dialog-522/after-http-en-1440.png) | [Before](assets/folder-dialog-522/before-http-en-390.png) / [After](assets/folder-dialog-522/after-http-en-390.png) |
+| Local, Korean | [Before](assets/folder-dialog-522/before-local-ko-1440.png) / [After](assets/folder-dialog-522/after-local-ko-1440.png) | [Before](assets/folder-dialog-522/before-local-ko-390.png) / [After](assets/folder-dialog-522/after-local-ko-390.png) |
+| Local, English | [Before](assets/folder-dialog-522/before-local-en-1440.png) / [After](assets/folder-dialog-522/after-local-en-1440.png) | [Before](assets/folder-dialog-522/before-local-en-390.png) / [After](assets/folder-dialog-522/after-local-en-390.png) |
+| Image dialog, English | [Before](assets/folder-dialog-522/before-image-selected-1440.png) / [After](assets/folder-dialog-522/after-image-selected-1440.png) | [Before](assets/folder-dialog-522/before-image-selected-375.png) / [After](assets/folder-dialog-522/after-image-selected-375.png) |
+| Image 1366×768 / 375×667 | [Before](assets/folder-dialog-522/before-image-desktop-1366-768.png) / [After](assets/folder-dialog-522/after-image-desktop-1366-768.png) | [Before](assets/folder-dialog-522/before-image-compact-375-667.png) / [After](assets/folder-dialog-522/after-image-compact-375-667.png) |
+| Quiet Document, English UI | [Before](assets/folder-dialog-522/before-document-1440.png) / [After](assets/folder-dialog-522/after-document-1440.png) | [Before](assets/folder-dialog-522/before-document-375.png) / [After](assets/folder-dialog-522/after-document-375.png) |
+
+Manual review confirms real Root names, eight fully visible rows in the representative listing,
+and actions inside both viewport sizes. [Hashes, environments, attempts and cleanup](assets/folder-dialog-522/verification.json)
+record the comparison limits. Own Vite PIDs 9392/39500 and HTTP PID 24428 were stopped, port 5393
+had no listener and no checkout-profile Chrome remained; the browser slot was released before
+PR work. The persistent profile and account policy were retained.
 
 ## Choosing an image
 
