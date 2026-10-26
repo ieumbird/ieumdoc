@@ -1,6 +1,4 @@
-import { useBibliography } from "./citation.tsx";
 import { updateLabelProperties } from "./label-rename.ts";
-import type { BibliographyEvaluation } from "@ieumdoc/core";
 import type { UiMessage } from "./ui-message.ts";
 import { useMessageState } from "./ui-message.ts";
 import { useTranslation } from "react-i18next";
@@ -14,7 +12,7 @@ import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
 import { Subscript } from "@tiptap/extension-subscript";
 import { Superscript } from "@tiptap/extension-superscript";
 import { codeHighlightingPlugin, lowlight } from "./code-highlight.ts";
-import { DOMSerializer, type DOMOutputSpec, type Node as ProseMirrorNode, type Schema } from "@tiptap/pm/model";
+import { type DOMOutputSpec, type Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { closeHistory } from "@tiptap/pm/history";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, useEditorState, type ReactNodeViewProps } from "@tiptap/react";
@@ -24,8 +22,7 @@ import { figureMediaPath } from "../shared/figure-media-path.ts";
 import { MarkdownInputRules } from "./markdown-input-rules.ts";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useId, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
-import { isAdmonitionVariant, type EditableBlock, type FigureContent, type InlineContent, type ReferenceRole } from "@ieumdoc/core";
-import { toTiptapContent } from "./tiptap-inline.ts";
+import { isAdmonitionVariant, type EditableBlock, type FigureContent, type InlineContent } from "@ieumdoc/core";
 import { figureCaptionContent, figureContentError } from "@ieumdoc/core/figure";
 import { headingNumbers, type HeadingNumbering } from "@ieumdoc/core/numbering";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
@@ -33,12 +30,11 @@ import { labelError, labelKey, targetLabelError } from "@ieumdoc/core/label";
 import { Input } from "@/components/ui/input.tsx";
 import { BlockProperties } from "./block-properties.tsx";
 import { ADMONITION_LABELS, admonitionTone, BLOCK_COMMAND_META, updateFigure } from "./block-commands.ts";
-import { CrossReference, referenceDisplay, referenceTargets, unresolvedStatus, useBlockNumber, useCaptionNumberText, type ReferenceTarget } from "./cross-reference.tsx";
+import { CrossReference, useBlockNumber, useCaptionNumberText } from "./cross-reference.tsx";
 import { Endnotes, revealReference, useEndnoteNumber } from "./endnotes.ts";
 import { DocumentTitle, TITLE_FIXED, titleKept } from "./document-title.ts";
 import { FootnoteReference } from "./footnote.tsx";
-import { Citation, citationNumbers, citationStatus, citationReadiness } from "./citation.tsx";
-import { citationKeys, citationText } from "@ieumdoc/core/citation";
+import { Citation } from "./citation.tsx";
 import { renderEquation } from "./equation-render.ts";
 import { snapshotBlocksByPath } from "./tiptap-edits.ts";
 import {
@@ -49,7 +45,6 @@ import {
   NEW_BLOCK_PREFIX,
   normalizeEngineDocument,
   paragraphContent,
-  tableCaption,
   TABLE_CELL_SOURCE_ATTR,
   toTiptapBlockNode,
   type TiptapJSON,
@@ -424,34 +419,47 @@ const Table = Node.create({
   name: "table",
   allowGapCursor: false,
   group: "block",
-  content: "tableRow+",
+  content: "tableRow+ tableCaption?",
   isolating: true,
   selectable: true,
   draggable: false,
   addAttributes() {
-    return blockAttrs({ label: hiddenAttr(""), caption: { default: [], rendered: false } });
+    return blockAttrs({ label: hiddenAttr("") });
   },
   parseHTML() {
-    return [{ tag: "div[data-table-block]" }];
+    return [{ tag: "div[data-table-block]", contentElement: "table" }];
   },
   renderHTML({ node, HTMLAttributes }) {
-    return [
-      "div",
-      {
-        ...HTMLAttributes,
-        class: "table-block",
-        "data-block": "table",
-        "data-table-block": "",
-        "data-source-path": String(node.attrs.sourcePath ?? ""),
-      },
-      ["table", { class: "table" }, ["tbody", 0]],
-    ];
+    return ["div", { ...HTMLAttributes, class: "table-block", "data-block": "table",
+      "data-table-block": "", "data-source-path": String(node.attrs.sourcePath ?? "") },
+      ["table", { class: "table" }, 0]];
   },
 });
 
+// A native caption is part of its table, while rows/cells retain their engine coordinates.
+const TableCaption = Node.create({
+  name: "tableCaption",
+  content: "(text | inlineMath | crossReference | footnoteReference | citation)*",
+  isolating: true,
+  selectable: false,
+  parseHTML() { return [{ tag: "caption" }]; },
+  renderHTML() { return ["caption", { class: "caption table-caption" }, 0]; },
+  addNodeView() {
+    return ReactNodeViewRenderer(TableCaptionView, { as: "caption", className: "table-caption", contentDOMElementTag: "span" });
+  },
+});
+
+function TableCaptionView({ editor, getPos }: ReactNodeViewProps) {
+  useTranslation();
+  const numbered = useCaptionNumberText(editor, getPos, "table");
+  return <NodeViewWrapper className="caption" data-testid="table-caption" data-number={numbered}>
+    <NodeViewContent as="div" aria-label={i18n.t("Table caption")} />
+  </NodeViewWrapper>;
+}
+
 function tableNode(onDraftChange?: DraftListener) {
   return Table.extend({
-    addNodeView() { return ReactNodeViewRenderer(props => <TableView {...props} onDraftChange={onDraftChange} />, { contentDOMElementTag: "tbody" }); },
+    addNodeView() { return ReactNodeViewRenderer(props => <TableView {...props} onDraftChange={onDraftChange} />, { contentDOMElementTag: "table" }); },
   });
 }
 
@@ -465,117 +473,49 @@ function TableView({ node, editor, getPos, selected, onDraftChange }: ReactNodeV
   const numbered = useCaptionNumberText(editor, getPos, "table");
   const kind = numbered ?? i18n.t("Table");
   const label = String(node.attrs.label ?? "");
-  const caption = tableCaption(node.toJSON() as TiptapJSON);
-  const bibliography = useBibliography();
-  const text = figureCaptionContent(caption).map(item => captionText(item)).join("");
-  // References in the caption follow their targets' numbers anywhere in the document.
-  const targets = useEditorState({
-    editor,
-    selector: ({ editor: current }) => current && hasReference(caption) ? JSON.stringify(referenceTargets(current.state.doc)) : "[]",
-  });
-  const citationLabels = useEditorState({
-    editor,
-    selector: ({ editor: current }) => current ? JSON.stringify(citationKeys(caption).map(key => [key, citationNumbers(current.state.doc).get(key)])) : "[]",
-  });
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState({ label, caption: text });
+  const [draft, setDraft] = useState(label);
   const [error, setError] = useMessageState("");
   const sourcePath = String(node.attrs.sourcePath);
-  const dirty = editing && (draft.label !== label || draft.caption !== text);
+  const dirty = editing && draft !== label;
   useEffect(() => { onDraftChange?.("Table", sourcePath, dirty); return () => onDraftChange?.("Table", sourcePath, false); }, [sourcePath, dirty, onDraftChange]);
-  const begin = () => { setDraft({ label, caption: text }); setError(""); setEditing(true); };
+  const begin = () => { setDraft(label); setError(""); setEditing(true); };
   const close = () => { setEditing(false); focusBlock(editor.view, getPos); };
   const apply = () => {
-    const invalid: UiMessage | undefined = labelError(draft.label) || (/^[\s]|[\s]$|[\r\n]/.test(draft.caption) ? { key: "Caption must be a single line without surrounding spaces." } : undefined);
+    const invalid = labelError(draft);
     if (invalid) { setError(invalid); return; }
     const position = getPos();
     if (typeof position !== "number") return;
     try {
-      editor.view.dispatch(updateLabelProperties(editor.state, position, { label: draft.label, caption: draft.caption === text ? caption : draft.caption ? [{ kind: "text", text: draft.caption }] : [] }));
+      editor.view.dispatch(updateLabelProperties(editor.state, position, { label: draft }));
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
     close();
+  };
+  const addCaption = () => {
+    const position = getPos();
+    if (typeof position !== "number" || !editor.isEditable) return;
+    const caption = node.lastChild?.type.name === "tableCaption" ? node.lastChild : undefined;
+    const at = position + node.nodeSize - 1 - (caption?.nodeSize ?? 0);
+    const tr = caption ? editor.state.tr : closeHistory(editor.state.tr).insert(at, editor.schema.nodes.tableCaption.create());
+    editor.view.dispatch(tr.setSelection(TextSelection.create(tr.doc, at + 1)).scrollIntoView());
+    editor.view.focus();
   };
   return <NodeViewWrapper className="table-block" data-block="table" data-table-block="" data-source-path={sourcePath}
     data-selected={selected ? "true" : "false"} data-editing={editing ? "true" : "false"}>
     <p ref={anchor} className="block-kind block-metadata" contentEditable={false}>{[kind, label].filter(Boolean).join(" · ")}</p>
     <div className="table-scroll"><div ref={grid} className="table-grid">
-      <NodeViewContent<"table"> as="table" className="table" />
+      <NodeViewContent as="div" className="table" />
       <TableTools editor={editor} node={node} getPos={getPos} grid={grid} rowLayer={rowLayer} onEdit={begin} hidden={editing} />
     </div></div>
     <div ref={rowLayer} className="table-row-layer" contentEditable={false} />
-    {caption.length > 0 ? <div className="caption" data-testid="table-caption" data-number={numbered} contentEditable={false}
-      dangerouslySetInnerHTML={{ __html: tableCaptionHTML(editor.schema, caption, JSON.parse(targets ?? "[]") as ReferenceTarget[], new Map(JSON.parse(citationLabels ?? "[]")), bibliography) }} /> : null}
+    {editor.isEditable && (node.lastChild?.type.name !== "tableCaption" || node.lastChild.content.size === 0) ?
+      <Button variant="ghost" size="sm" className="table-add-caption" contentEditable={false} onClick={addCaption}>{i18n.t("Add caption")}</Button> : null}
     <BlockProperties anchor={anchor} initialFocus={input} kind={kind} testId="table" open={editing}
-      error={error}
-      onApply={apply} onCancel={close}>
-      <label className="form-label" htmlFor={`table-caption-${formId}`}>{i18n.t("Caption")}</label>
-      <Input ref={input} id={`table-caption-${formId}`} data-testid="table-caption-input" value={draft.caption} onChange={event => setDraft({ ...draft, caption: event.target.value })} />
+      error={error} onApply={apply} onCancel={close}>
       <label className="form-label" htmlFor={`table-label-${formId}`}>{i18n.t("Label")}</label>
-      <Input id={`table-label-${formId}`} data-testid="table-label" value={draft.label} onChange={event => setDraft({ ...draft, label: event.target.value })} />
+      <Input ref={input} id={`table-label-${formId}`} data-testid="table-label" value={draft} onChange={event => setDraft(event.target.value)} />
     </BlockProperties>
   </NodeViewWrapper>;
-}
-
-/**
- * A table caption as display HTML, from the editor's own schema (rebuilding one from its resolved
- * extensions duplicates them). Inline math and references, which the schema serializes as empty
- * spans for their NodeViews, show the same KaTeX and reference text as in the document. Display
- * only: the caption is edited in the table's properties.
- */
-function tableCaptionHTML(schema: Schema, caption: InlineContent[], targets: ReferenceTarget[], citations: ReadonlyMap<string, number>, bibliography?: BibliographyEvaluation): string {
-  const container = document.createElement("div");
-  container.append(DOMSerializer.fromSchema(schema).serializeFragment(schema.nodeFromJSON(toTiptapContent(caption)).content));
-  for (const math of container.querySelectorAll<HTMLElement>("span[data-inline-math]")) {
-    const value = math.dataset.value ?? "";
-    const rendered = renderEquation(value, false);
-    const shown = document.createElement("span");
-    shown.className = rendered.html ? "inline-math-rendered" : "inline-math-rendered inline-math-error";
-    shown.title = rendered.error ?? value;
-    if (rendered.html) shown.innerHTML = rendered.html;
-    else shown.textContent = `$${value}$`;
-    math.classList.add("inline-math");
-    math.append(shown);
-  }
-  for (const reference of container.querySelectorAll<HTMLElement>("span[data-cross-reference]")) {
-    const role = (reference.dataset.role ?? "eq") as ReferenceRole;
-    const label = reference.dataset.label ?? "";
-    const { text, resolved, kindName } = referenceDisplay(targets, role, label);
-    const chip = document.createElement("span");
-    chip.className = "cross-reference-chip";
-    chip.title = resolved ? role === "ref" ? `${kindName} ${label}` : `${text} · ${label}` : unresolvedStatus(role, label);
-    chip.setAttribute("aria-label", chip.title);
-    chip.textContent = text;
-    reference.classList.add("cross-reference");
-    reference.dataset.resolved = String(resolved);
-    reference.append(chip);
-  }
-  for (const citation of container.querySelectorAll<HTMLElement>("span[data-citation]")) {
-    const keys = JSON.parse(citation.dataset.keys ?? "[]") as string[];
-    const text = citationText(keys, citations);
-    const chip = document.createElement("span");
-    chip.className = "cross-reference-chip";
-    chip.setAttribute("aria-label", chip.title);
-    chip.textContent = text;
-    chip.title = citationStatus(keys, text, bibliography);
-    chip.setAttribute("aria-label", chip.title);
-    citation.classList.add("cross-reference", "citation");
-    citation.dataset.readiness = citationReadiness(keys, bibliography);
-    citation.append(chip);
-  }
-  return container.innerHTML;
-}
-
-function hasReference(content: InlineContent[]): boolean {
-  return content.some(item => item.kind === "reference" || ("children" in item && hasReference(item.children)));
-}
-
-function captionText(item: InlineContent): string {
-  if ("children" in item) return item.children.map(captionText).join("");
-  if (item.kind === "text") return item.text;
-  if ("value" in item) return item.value;
-  if ("label" in item) return item.label;
-  if (item.kind === "citation") return item.keys.join(", ");
-  return "";
 }
 
 function cellAlignmentStyle(node: ProseMirrorNode): string {
@@ -860,6 +800,7 @@ export function editorExtensions(
     equationNode(onDraftChange),
     tableNode(onDraftChange),
     TableRow,
+    TableCaption,
     TableCell,
     LabelTarget.configure({ onDraftChange }),
     InlineMath,
@@ -881,9 +822,10 @@ export function createEditorExtensions(
   hasActiveDraft?: () => boolean,
   chooseImage?: ImageChooser,
   initialDeletedPaths: readonly string[] = [],
+  onAssetChange?: (path: string) => void,
 ): Extensions {
   return [...editorExtensions(onDraftChange, documentPath, validateFigure, hasActiveDraft, chooseImage),
-    ...(documentPath ? [imageAssets({ documentPath, reject: onAssetError ?? onReject, pending: onAssetPendingChange })] : []),
+    ...(documentPath ? [imageAssets({ documentPath, reject: onAssetError ?? onReject, pending: onAssetPendingChange, changed: onAssetChange })] : []),
     documentInteraction(onReject), structureGuard(baseline, onReject, initialDeletedPaths)];
 }
 

@@ -10,7 +10,7 @@ import { createPortal } from "react-dom";
 import { Minus, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
-import { BLOCK_COMMANDS, blockCommandGroup, type TableCellAddress } from "./block-commands.ts";
+import { BLOCK_COMMANDS, blockCommandGroup, tableRowCount, type TableCellAddress } from "./block-commands.ts";
 import { CommandMenu, type CommandMenuItem } from "./CommandMenu.tsx";
 import { blockCommandAppearance } from "./command-icons.ts";
 
@@ -74,7 +74,7 @@ export function TableTools({ editor, node, getPos, grid, rowLayer, onEdit, hidde
         const rect = row.getBoundingClientRect();
         return { top: rect.top - origin.top, height: rect.height };
       });
-      const next = { columns, rows, right: bounds.right - origin.left, bottom: bounds.bottom - origin.top };
+      const next = { columns, rows, right: bounds.right - origin.left, bottom: (table.rows[table.rows.length - 1]?.getBoundingClientRect().bottom ?? bounds.bottom) - origin.top };
       setGeometry(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
     };
     const observer = new ResizeObserver(measure);
@@ -110,7 +110,7 @@ export function TableTools({ editor, node, getPos, grid, rowLayer, onEdit, hidde
   const items: CommandMenuItem[] = actions.map(command => ({ id: command.id, label: command.id === "delete" ? i18n.t("Delete table") : command.label,
     ...blockCommandAppearance(command.id), group: blockCommandGroup(command.id),
     disabled: !command.enabled(editor.state, index, target) }));
-  if (menu?.kind === "table") items.unshift({ id: "properties", label: i18n.t("Edit caption and label"), ...blockCommandAppearance("properties"), group: i18n.t("Table") });
+  if (menu?.kind === "table") items.unshift({ id: "properties", label: i18n.t("Edit label"), ...blockCommandAppearance("properties"), group: i18n.t("Table") });
   return <div className="table-tools" data-active={current ? "true" : "false"} data-menu-open={menu ? "true" : "false"} contentEditable={false}>
     {geometry.columns.map((cell, i) => <Button variant="table-handle" size="sm" key={i} type="button" className="table-column-handle"
       aria-label={i18n.t("Column {{column}} actions", { column: columnName(i) })} title={i18n.t("Column {{column}} actions", { column: columnName(i) })} aria-pressed={column === i} aria-haspopup="menu"
@@ -125,11 +125,11 @@ export function TableTools({ editor, node, getPos, grid, rowLayer, onEdit, hidde
         aria-expanded={menu?.kind === "row" && target.row === i}
         style={{ top: `calc(${cell.top + cell.height / 2}px - var(--size-control-compact) / 2)` }} onClick={event => open(event.currentTarget, "row", { row: i, column: current?.column ?? 0 })}><Minus size={16} className="rotate-90" aria-hidden="true" /></Button>)}
       <Button variant="table-handle" size="sm" type="button" className="table-extend" aria-label={i18n.t("Append row")} style={{ left: 0, top: geometry.bottom + 8 }}
-        onClick={() => run("table-row", { row: node.childCount - 1, column: current?.column ?? 0 })}><Plus size={16} /></Button>
+        onClick={() => run("table-row", { row: tableRowCount(node) - 1, column: current?.column ?? 0 })}><Plus size={16} /></Button>
     </div>, rowLayer.current)}
     <div className="table-action-bar" style={{ top: geometry.bottom + 8, left: 0, width: geometry.right }}>
       {/* Caption and label: with the other table-level actions, below the table rather than above it. */}
-      <Button variant="table-handle" size="sm" type="button" aria-label={i18n.t("Edit table")} title={i18n.t("Edit caption and label")} onClick={onEdit}><Pencil size={16} /></Button>
+      <Button variant="table-handle" size="sm" type="button" aria-label={i18n.t("Edit table")} title={i18n.t("Edit label")} onClick={onEdit}><Pencil size={16} /></Button>
       <Button variant="table-handle" size="sm" type="button" aria-label={i18n.t("Table actions")} aria-haspopup="menu" aria-expanded={menu?.kind === "table"}
         onClick={event => open(event.currentTarget, "table", current ?? { row: 0, column: 0 })}><MoreHorizontal size={16} /></Button>
       <Button variant="table-handle" size="sm" type="button" aria-label={i18n.t("Delete table")} disabled={!BLOCK_COMMANDS.find(command => command.id === "delete")?.enabled(editor.state, index)}

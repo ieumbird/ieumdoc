@@ -1,6 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
+- Accent verification: 2026-10-27 (#559: six local accent presets, shared interaction/selection/number colors and neutral information states; [contract and contrast results](#single-accent-presets-559)).
 - Table handle verification: 2026-10-26 (#517: B2 transparent-rest line handles with S4 neutral current/open states, accessible address names/tooltips, keyboard discovery and touch fallback; [verification and actual Before/After](table-interaction-v1.md#light-handle-verification-and-comparison)).
 - Last verified: 2026-10-26 (#515 P1/P3 owner review correction: contrast-qualified tab edges, 600 list cue and stable Outline row extent; targeted regressions and [1440/390px comparison](editor-visual-language-v1.md#selection-cue-review-correction-515)).
 - Previous verification: 2026-10-26 (#515: owner A1 raised tab groups and background-only current lists; targeted browser regressions, Editor tests/typecheck/build and [1440/390px manual comparison](editor-visual-language-v1.md#selection-expression-verification-515)).
@@ -38,7 +39,7 @@
 
 **Document at rest, application on interaction.** White document space, readable typography and a quiet shell take priority over persistent tools. A subtle paper boundary and an empty-document starting hint keep the writing area discoverable before it has content.
 
-[Reference mockup](assets/quiet-document-reference.png) is a visual reference, not a screenshot of the product. Adopt its reading column, hierarchy, restrained borders and relationship between a selected Figure and its properties. Do not copy its workspace tree, search, account, window decorations, unimplemented numbering/reference behavior, autosave or technical claims. Current computed numbering and heading settings follow [Heading numbering](heading-numbering-v1.md) and [UX Shell](editor-ux-shell-v1.md). Primary actions, focus and current list text share one blue interaction role; red means only errors and destructive meaning. Pretendard Variable is bundled and served by the app; it does not require a font CDN.
+[Reference mockup](assets/quiet-document-reference.png) is a visual reference, not a screenshot of the product. Adopt its reading column, hierarchy, restrained borders and relationship between a selected Figure and its properties. Do not copy its workspace tree, search, account, window decorations, unimplemented numbering/reference behavior, autosave or technical claims. Current computed numbering and heading settings follow [Heading numbering](heading-numbering-v1.md) and [UX Shell](editor-ux-shell-v1.md). Primary actions, focus, selection and generated heading/Outline numbers share one chosen accent and its derivatives (#559); danger and warning retain their state meanings. Pretendard Variable is bundled and served by the app; it does not require a font CDN.
 
 ## Shared controls and palette (B1 / C1, #514)
 
@@ -57,10 +58,11 @@ The language field uses compact Input, its existing accessible name and language
 path; no language autocomplete is introduced. Breadcrumbs use compact Button geometry,
 regular text and the existing darker current-location text/`aria-current`; long paths wrap.
 
-C1 retains one interaction blue (`--id-color-interaction`, `#315fd4`) and its existing
-hover/selected text and surface tints. Primary actions, focus, selection, current and
-drag consume that palette. Existing neutral, info/content-link, warning and danger
-roles retain their meanings. New UI color literals outside `styles/tokens.css` are
+C1 now uses one chosen accent (`--id-color-interaction`, default `#315fd4`) and its
+hover/selected text and surface tints (#559). Primary actions, focus, text selection,
+current, drag, links/references and generated heading/Outline numbers consume that palette.
+Information states use neutral text/surfaces; warning and danger retain their colors.
+New UI color literals outside `styles/tokens.css` are
 prohibited; `index.css` is a one-way adapter, not a second palette. Selection indicators
 (#515) remain separate from table-handle presentation. Menu geometry and behavior
 follow the implemented [action menu rows](#action-menu-rows-516) contract.
@@ -76,7 +78,7 @@ than a persistently pressed action. Other open-menu/pressed faces are unchanged.
 | Title slot, inline math/reference/link content, endnote reference/return numbers | Document-sized text, not 32px toolbar actions. Preserve body/title/superscript typography, line height and content radii. Their editing forms use ordinary UI fields/actions. |
 | Section-label edit | Content-sized 12px monospace metadata with its existing 4px radius; preserves the out-of-flow heading annotation. Its property form follows B1. |
 | Inline reference/citation edit and citation-key remove | Retain the existing 18px corner edit / 16px chip remove targets, 12px icons, zero icon line box and 4px radius. Enlarged invisible targets could cover neighboring document text or keys; preserving selection, wrapping and line height is safer. Accessible names and keyboard focus rings remain. This is a deliberate tiny-target exception, not permission for new toolbar actions. |
-| Table row/column handles | 28px-high targets with 16px line icons and localized address names/tooltips (#517). Column target width follows its actual column; row targets remain 28px wide and vertically centered. The transparent rest, neutral current/open face and native focus ring retain S4; the current cell alone has the blue inset boundary. |
+| Table row/column handles | 28px-high targets with 16px line icons and localized address names/tooltips (#517). Column target width follows its actual column; row targets remain 28px wide and vertically centered. The transparent rest, neutral current/open face and native focus ring retain S4; the current cell alone has the chosen accent inset boundary. |
 | Breadcrumbs and wrapping list/menu rows | At least 28px; actionable paths and translated multi-line content may grow rather than truncate or overflow. Breadcrumbs use 4px inline padding to keep long paths reachable. |
 | File tree, Outline, recent-folder/picker options and menu primitives | Retain their navigation/selection/focus owners and token-backed row geometry. They are not generic fixed-height action buttons. Command center results retain 36/56px and 4px radius for one/two-line result navigation; CommandMenu rows follow the shared 6px menu rule. |
 | Document tabs and close slot | Retain the 40px navigation row, 37px activation area, 28px close slot and roving keyboard owner. Current tabs follow the implemented raised-segment expression (#515); table-handle presentation does not change their layout. |
@@ -86,7 +88,7 @@ than a persistently pressed action. Other open-menu/pressed faces are unchanged.
 | Multiline LaTeX/recovery fields | Minimum 80px/128px respectively, retaining editable/copyable multi-line content rather than a one-line action size. Recovery's 4px field radius remains a specific existing treatment. |
 | Content/surface radii | Existing 4px content, 8px popover, 12px dialog and 6px paper radii express content/surface hierarchy; B1's 6px is a control rule. |
 | Encoded native-select chevron | Its sole encoded neutral stroke remains a tiny literal exception, checked against `--id-color-text-muted`. A data-URL SVG cannot inherit CSS variables; no new wrapper or selector engine is introduced. |
-| Masks, transparent ring bookkeeping, shadow alpha and document art | Black/transparent mask alpha and zero-alpha rings are rendering mechanisms, not extra interaction colors. Shadows remain product tokens; diagram art, KaTeX internals and syntax content retain their own ownership. Content-link blue and document-number teal have distinct semantic roles. |
+| Masks, transparent ring bookkeeping, shadow alpha and document art | Black/transparent mask alpha and zero-alpha rings are rendering mechanisms, not extra interaction colors. Shadows remain product tokens; diagram art, KaTeX internals and syntax content retain their own ownership. Links and generated numbers share the chosen accent. |
 
 `visual-tokens.test.ts` scans UI consumers for literal colors/control geometry and native
 action buttons outside source-and-role exceptions with reasons. It uses the installed
@@ -120,9 +122,9 @@ The shared Settings language selector follows the existing 32px input/control si
 
 | Role | Actual values / treatment |
 | --- | --- |
-| Shell | `#f6f7f9` sidebar and Document panel, white header; 48px header, 240px sidebar (200px at ≤1024px; below 640px no rail: closed, the TopBar opens it; open, it covers the whole screen), 48px collapsed rail, 256px Document panel (docked at ≥1280px; below, an overlay with the overlay shadow under the header) |
+| Shell | `#f6f7f9` sidebar and Document panel, white header; 48px header, 240px sidebar (200px at ≤1024px; below 640px no rail: closed, the TopBar opens it; open, it covers the whole screen), 48px collapsed rail, 256px Document panel (docked at ≥1424px; below, an overlay with the overlay shadow under the header) |
 | Document | White continuous writing surface on the adjustable `canvas` (`#eceef2`), with a 1px inset `border-subtle` edge, adjustable 6px paper radius and gentle paper shadow (`0 2px 8px rgb(32 36 44 / 6%)`). Paper elevation is quieter than the overlay shadow. 928px maximum column, 16px outer inset, 80px document inset on each side; 736px body at 1440px with sidebar open. At least the viewport height below the measured header, less the top/bottom outer insets; grows with content, without paper sizes or page breaks. |
-| Narrow document | Below 1280px the Document panel starts closed and overlays when opened. At ≤1024px, retain 80px tool gutter; trailing inset becomes 16px. At ≤704px header wraps. Below 640px the sidebar starts closed and the document uses the whole width; opened, the sidebar covers the screen. Otherwise it remains user controlled. |
+| Narrow document | Below 1424px the Document panel starts closed and overlays when opened. At ≤1024px, retain 80px tool gutter; trailing inset becomes 16px. At ≤704px header wraps. Below 640px the sidebar starts closed and the document uses the whole width; opened, the sidebar covers the screen. Otherwise it remains user controlled. |
 | Body | Shared sans stack (below); 17px / 28.9px, 400; 16px paragraph gap |
 | H1–H6 | Same document stack, 700; 34/45.9, 24/32.4, 20/27, 18/24.3, 16/21.6, 14/18.9px; 32px before / 12px after; first block has no top margin |
 | UI | Same shared sans stack; 14/20px labels/controls, 12/16px metadata and status |
@@ -136,20 +138,20 @@ Document and UI share `Pretendard Variable → Pretendard → Noto Sans KR → A
 
 The SIL OFL 1.1 notice text is copied from `pretendard/dist/LICENSE.txt` into [the public license](../../apps/editor/public/licenses/Pretendard-OFL.txt), served at `licenses/Pretendard-OFL.txt` in the built app. When updating the package, refresh that notice from the same version. The 2026-10-08 Noto Sans KR observation remains historical evidence; the [Pretendard verification](../reviews/pretendard-2026-10-09.md) records the new actual fonts and wrapping. Heading sizes/weights/line heights are unchanged; KaTeX and code fonts retain their own typography; inline math is sized by `--math-inline-size` ([verification](../reviews/inline-math-size-2026-10-09.md)).
 
-Colors originate in `styles/tokens.css`. `--id-color-accent` / `-hover` color Save/Apply and other primary actions; the accent is the interaction blue, so an action, the focus ring and the current item read as one role, and red never marks an ordinary action. Content links, references and informational callouts retain `--id-color-info`; `--id-color-danger: #a12b32` and its existing surface retain validation/destructive meaning. The shadcn primary/ring/destructive roles map one way to these product roles. In particular, shadcn `accent` is the neutral hover surface, not the product primary-action accent, and `muted` remains a quiet background rather than a universal interaction state. The Editor has one light theme: Tailwind's `dark:` variant follows a `.dark` class the Editor never sets, so an OS dark preference cannot gray out fields or outlined controls.
+Colors originate in the Adjustable values of `styles/tokens.css`. `--id-color-accent` / `-hover` color Save/Apply and other primary actions; one chosen accent also owns focus, selection, current items, links/references and generated heading/Outline numbers. `--id-color-info` aliases neutral `text-muted` and `surface-info` aliases `surface-subtle`; danger (`#a12b32`) and warning (`#875717`) retain their existing surfaces and meaning. The shadcn primary/ring/destructive roles map one way to these product roles. In particular, shadcn `accent` is the neutral hover surface, and `muted` remains a quiet background rather than a universal interaction state. The Editor has one light theme: Tailwind's `dark:` variant follows a `.dark` class the Editor never sets, so an OS dark preference cannot gray out fields or outlined controls.
 
 | Product role (prefix `--id-color-`) | Value / responsibility |
 | --- | --- |
 | `surface`, `surface-subtle` | White paper/dialogs and `#f6f7f9` panels |
 | `canvas` | Adjustable `#eceef2` background around the white paper; independent of panel surfaces |
 | `surface-hover` | `#eaedf2`, visible on both panels and white paper |
-| `surface-selected`, `surface-selected-hover`, `text-selected` | `#e9f0ff`, `#e1eaff`, `#2449a6`: current navigation and active command choice; `text-selected` also colors TopBar toggle icons that are on |
+| `surface-selected`, `surface-selected-hover`, `text-selected` | Chosen preset's two light surfaces and darker accent (`accent-hover`); current navigation, active command choice, text selection and on TopBar toggle icons. Blue defaults: `#e9f0ff`, `#e1eaff`, `#2449a6`. |
 | `surface-pressed` | `#e3e7ee`: neutral persistent menu-open/pressed face and tab-group track; an open ghost control shows only this face, without a border |
 | `text`, `text-muted`, `text-subtle` | `#20242c`, `#545c68`, `#606874`: main text, secondary labels, metadata; subtle remains readable on hover surfaces |
-| `document-heading-number` | Adjustable teal `#0e7c86`: generated H2–H6 numbers and non-current Outline numbers; 4.95:1 on white paper, including the 18/16/14px H4–H6 sizes. Current Outline numbers inherit `text-selected`. Heading text and references keep their own colors. [Display-only contract](heading-numbering-v1.md#generated-number-color-511--503). |
+| `document-heading-number` | Aliases the chosen `interaction` accent: generated H2–H6 and non-current Outline numbers. All presets meet 4.5:1 on white/panel/selected surfaces, including the 18/16/14px H4–H6 sizes. Current Outline numbers inherit `text-selected`. Heading text keeps its normal color. [Display-only contract](heading-numbering-v1.md#generated-number-color-511--503). |
 | `border`, `border-subtle`, `border-strong` | Structural separators, paper edge, and stronger content rules; these are not input identification |
 | `border-control` | `#7b8390`: fields and outlined buttons. At least 3:1 against their adjacent white/panel faces. Open/pressed ghost controls take no boundary; raised tab segments use `border-control` as their required current-state boundary |
-| `interaction`, `interaction-soft` | `#315fd4` indicator/focus and an alias to `surface-selected`; no separate copied selection palette |
+| `interaction`, `interaction-soft` | Chosen preset's accent (Blue default `#315fd4`) for indicator/focus and an alias to `surface-selected`; no separate copied selection palette |
 | `accent`, `accent-hover` | An alias to `interaction` and `#2449a6`: primary action faces with `text-on-accent` |
 
 Focus indicators appear only on `:focus-visible` (keyboard), never after a mouse click. Buttons show a solid 2px outer ring (`--focus-ring`, `border-focus`); list rows (file tree, Outline, recent folders, menus, folder picker), tab-group controls, checkboxes and table tools show a solid 2px inset ring (`--focus-ring-inset`). The rings are opaque `border-focus`, so their composited contrast is 5.65:1 on white and at least 4.55:1 on the hover, pressed and selected surfaces; `visual-states` and `save-session` measure the rendered box-shadow ring against its surface. A current face, error boundary or pressed face stays visible alongside it. Normal UI text meets 4.5:1 and required control/state indicators meet 3:1 against adjacent backgrounds. Files, Outline and + / slash current items add 600 semibold as a non-color cue; selected text/background alone do not distinguish current from normal at 3:1. Current tab faces retain dark text and white fill, and use a `border-control` painted boundary with at least 3:1 against the white face, pressed track and adjacent panel/header. Decorative dividers and the rest/hover color difference are not required to meet 3:1. Formula typography belongs to KaTeX, whose internals are not restyled. IeumDoc sets only the overall size of inline math (`--math-inline-size`); display equations keep KaTeX's 1.21em. A content-sized IeumDoc wrapper and the enclosing block own horizontal formula scrolling. Tables scroll within their block. Document-wide clipping is prohibited.
@@ -165,7 +167,7 @@ The destructive Button variant uses `danger` text and border on `surface`, with 
 | Keyboard focus | Native editor caret/selection, visible control focus; Tab reveals tools using `:focus-within`. The document editing surface shows focus with the caret only, never a frame around the document. |
 | Current tab group (#515, owner A1) | Document tabs and Visual/Source share a `surface-pressed` track, a raised white (`surface`) current segment with a `border-control` painted boundary and `--shadow-segment`, dark `text`, and muted inactive text that darkens on hover. No horizontal interaction marker. Document tab height and close targets stay unchanged. The collapsed Sidebar rail has only the named Expand sidebar ghost button. Focus adds its independent 2px inset ring. |
 | Current list item (#515, owner A1) | Files current, Outline current and + / slash active choice use `surface-selected`, `text-selected` and 600 semibold as a non-color current cue; no left/inset marker. Command-center highlight keeps its Base UI behavior and selected colors. Ordinary hover uses `surface-hover`; current hover uses `surface-selected-hover`. Focus remains independent and never changes current/ARIA state. Current list glyph widths may change: 600 weight is intentional to distinguish current without color. Files keeps its one-line ellipsis; Outline reserves the semibold text extent with a hidden copy and retains its two-line clamp, so selection does not change row height. Command-center highlight and navigation remain owned by Base UI; existing disabled/foreign text exceptions retain their meaning; its row radius uses the existing control radius. |
-| Selected | A single blue block-selection outline for Figure/Equation/table and visible Edit access; no additional selection cue. Selection opens no properties panel and never supplies a hover extent. Figure/Equation selected/editing interaction outlines retain their blue role and existing offset alongside the optional expanded neutral hover outline. Their painted outer corner radius matches the inset hover outline outer edge: the element radius is the shared hover radius minus the existing outline offset and outline width. Typing hides no selection/editing outline. |
+| Selected | A single chosen-accent block-selection outline for Figure/Equation/table and visible Edit access; no additional selection cue. Selection opens no properties panel and never supplies a hover extent. Figure/Equation selected/editing interaction outlines retain the chosen accent and existing offset alongside the optional expanded neutral hover outline. Their painted outer corner radius matches the inset hover outline outer edge: the element radius is the shared hover radius minus the existing outline offset and outline width. Typing hides no selection/editing outline. |
 | Editing | Form and editing outline persist independently of selection. |
 | Dirty / invalid | Draft notices distinguish applied Save content from unsaved form input; validation preserves entered values. These do not replace hover/focus/selection. |
 | Read-only | Source view stays read-only: monospace source lines soft-wrap within the available width, including unbroken URLs/words, without horizontal scrolling (#476). Each Markdown line has one subtle gutter number (generated content, never copied); unnumbered continuations align with its text. Wrapping inserts no source or copied characters/line breaks and never writes to the document. Unsupported documents are rejected at admission; in the Files tree a document without the native marker keeps its row in subtle text with a crossed-file icon and says so in its tooltip and accessible description. |
@@ -248,12 +250,12 @@ New/More actions stay in place. See [section behavior and evidence](editor-ux-sh
 
 | Area | Rule |
 | --- | --- |
-| TopBar | Centered: a neutral bordered command-center button with search icon, location/name and shortcut hint. Left: Document settings and status. Below a 68rem header width the center has its own row; the sidebar/panel headers keep their height. A status appearing never moves a control; `layout-rules` asserts a 0px shift. Right, in order: view (Visual/Source, Wide document, Outline), file actions (Save, File actions `⋯` with Reload), with 12px between groups and 4px within them. A clean Save is an ordinary available ghost action, like the closed File actions menu: no face at rest, the neutral hover face, the focus ring. It takes the accent with unsaved changes. An unavailable Save keeps the disabled face (muted face, muted text, structural boundary) and does not react to hover; its tooltip remains. While saving, Save keeps its place, width and accessible name, showing a spinner over a transparent label. The separate status text alone reports `Saved`. Document tabs and Visual/Source share the segmented/raised-tab expression (#515): a `surface-pressed` track with the chosen view as a raised white segment (`border-control` boundary and `--shadow-segment`) in dark text, the other view in muted text that darkens on hover without a face. Wide document and Outline, when on, are pressed toggles with the `surface-selected` face and selected icon color (`surface-selected-hover` on hover), without a marker or control boundary; the File actions menu uses the shared neutral open-menu face, without a boundary. Hover and focus preserve these states. |
+| TopBar | Centered: a neutral bordered command-center button with search icon, location/name and shortcut hint. Its remaining width has a 160px minimum: folder path yields first, then the shortcut, then filename ellipsis; its text, action and centered position stay unchanged. Left: Document settings and status. Below a 56rem header width the center has its own row; the sidebar/panel headers keep their height. A status appearing never moves a control; `layout-rules` asserts a 0px shift. Right, in order: view (Visual/Source, Wide document, Outline), file actions (Save, File actions `⋯` with Reload), with 12px between groups and 4px within them. A clean Save is an ordinary available ghost action, like the closed File actions menu: no face at rest, the neutral hover face, the focus ring. It takes the accent with unsaved changes. An unavailable Save keeps the disabled face (muted face, muted text, structural boundary) and does not react to hover; its tooltip remains. While saving, Save keeps its place, width and accessible name, showing a spinner over a transparent label. The separate status text alone reports `Saved`. Document tabs and Visual/Source share the segmented/raised-tab expression (#515): a `surface-pressed` track with the chosen view as a raised white segment (`border-control` boundary and `--shadow-segment`) in dark text, the other view in muted text that darkens on hover without a face. Wide document and Outline, when on, are pressed toggles with the `surface-selected` face and selected icon color (`surface-selected-hover` on hover), without a marker or control boundary; the File actions menu uses the shared neutral open-menu face, without a boundary. Hover and focus preserve these states. |
 | Document tab row | A `surface-pressed` track with a structural bottom rule. 14px regular filename, a fixed dirty-dot slot, and 28px close target with a 16px icon. Active uses a raised white face, `border-control` boundary, `--shadow-segment` and dark text without an underline. Inactive text is muted and darkens on hover without a new face. Keyboard focus adds the inset ring independently; row height and text positions are unchanged. Long names ellipsize, full paths remain tooltips, and parent folders distinguish equal names: the distinguishing folder follows the filename in 12px subtle text and keeps its width (up to half the label), so the filename ellipsizes first. Tabs never move Save into their horizontal scroller. |
 | Sidebar and Document panel | One current rule for both the open file and section being read: selected surface, selected text and 600 semibold as a non-color cue, without a left marker (#515). Hover uses the neutral hover surface; current+hover uses selected-hover. An independent inset focus ring is not clipped by the scrolling lists. Current intentionally changes glyph widths to 600 semibold as a non-color cue (owner review decision, 2026-10-26). It preserves row insets, Files ellipsis and the Outline two-line clamp; the hidden semibold Outline copy reserves its line extent so current changes do not jump rows vertically. The folder and Outline headings remain 14px semibold; ordinary rows remain 14px regular. Folder icons/chevrons, wrapping/indent limits and compact ghost actions retain their behavior. File navigation stays mounted when the Sidebar is collapsed. Its rail contains only Expand sidebar. The expanded Sidebar header keeps one Open folder… ghost icon button before Collapse sidebar, regardless of folder count (#385). Its 28px target, 16px icon and 4px group gap use existing product tokens; the neutral hover face and keyboard focus ring follow the shared control rules. Accessible name and tooltip use the same English/Korean translation. Empty Files retains guidance/recent folders without a duplicate Open button, and per-folder menus contain only Close folder. See the [same-state capture review](editor-ux-shell-v1.md#sidebar-open-folder-entry-385). Document settings uses the shared Dialog surface, close/focus behavior and form controls, identifies its filename and shows the short document scope. Wide document is a TopBar pressed toggle whose tooltip explains that it is remembered on this device. Native checkboxes show their actual checked state, use the interaction color and an explicit keyboard focus ring; disabled numbering keeps a readable reason. Shared Settings stays in its separate footer. |
 | Controls | Base UI and native controls share 6px radii, 32px standard/28px compact targets and 16px icon slots. Ghost rest is transparent; hover is visible on a panel as well as white paper. Open menus, including TopBar File actions, use only the neutral pressed face, without a control boundary; tab groups use the raised current segment and contrast-qualified control edge; the on Outline toggle takes only its selected face. Secondary/Cancel uses a white outlined face, with neutral hover. Refs, events and selection preservation are retained. Controls and overlays change state without decorative transitions, pressed movement or enter/exit animations. Save alone keeps its reduced-motion-aware progress spinner. |
 | Forms and overlays | White fields have a control boundary, visible labels, secondary helper text, explicit errors and separated actions. Dialog titles are 16px semibold. Native selects share the field box and end in a 16px chevron. A refused Open first says in plain words why and what to do, then shows Core's exact reason and action as 12/16px details beside a structural rule. Open/New/Folder retain and associate their error messages. Refused Open descriptions use `overflow-wrap: anywhere` so unbroken names and Core detail paths do not enlarge the intrinsic grid width. An invalid New filename has an error boundary alongside focus; operation failures such as unsaved-work protection do not mislabel valid field values. Menus, dialogs and properties alone use the restrained overlay shadow. The continuous document uses its separate, gentler paper shadow. |
-| Color | Interaction (`interaction`, selected roles): focus, selection, current item, drag. Content (`info`, `surface-info`): links, references, informational callouts and notices. Generated heading/Outline numbers use the document teal; current Outline rows keep their selected color throughout. Most chrome stays neutral; the current document tab and sidebar tool use raised white segments, the on Outline toggle the selected face. Brand and danger meanings remain unchanged. |
+| Color | One chosen accent (`interaction`, selected roles): actions, focus, selection, current item, drag, links/references and generated heading/Outline numbers. Information (`info`, `surface-info`) is neutral; danger/warning stay distinct. Current Outline rows keep selected colors. Most chrome stays neutral; the current document tab and sidebar tool use raised white segments, the on Outline toggle the selected face. Document art retains its own colors. |
 | References | Read like links: content color, no box or fill; underline on hover, dashed underline and subtle color when unresolved. An unresolved reference explicitly reads `Unresolved reference: label` (localized), without a guessed kind prefix. Deleting a referenced target uses the existing transient MessageArea notice with platform-appropriate Undo guidance (Ctrl+Z / ⌘Z); explicit table deletion instead uses the table deletion notice and Undo action below. Selected uses the interaction axis. Citations use the same numeric text and selected treatment, with subtle dashed text for unchecked, incomplete, missing or duplicate resources; complete limited IEEE entries use content-link color without an underline. Their accessible label/tooltip gives exact keys and Core readiness in the chosen UI language; there is no navigation. |
 | Table deletion notice | Reuses the informational MessageArea surface, message text and action spacing, with one compact ghost Undo button. English/Korean text uses the shared typography and translations. No confirmation dialog or focus transfer on appearance; the polite status notice expires under the [table interaction contract](table-interaction-v1.md). No new color, size or overlay system. |
 | Slash reference choices | Use the existing menu row, typography, icon and selected state. Show template-based text (defaults: `Figure 2 · caption summary`, `Table 1 · caption summary` or `(3) · label`); a missing Figure/Table caption falls back to its label. Long captions are summarized, while the full caption remains searchable. Section names retain `Section reference: heading text`. [Search/display contract](section-references-v1.md#editor). |
@@ -408,10 +410,92 @@ pixel-diff assertions or a substitute for user visual approval.
 | Figure | [Before](assets/hover-outline-469/before-1440-figure-selected-hover.png) | [After](assets/hover-outline-469/after-1440-figure-selected-hover.png) |
 | Equation | [Before](assets/hover-outline-469/before-1440-equation-selected-hover.png) | [After](assets/hover-outline-469/after-1440-equation-selected-hover.png) |
 
+## Single accent presets (#559)
+
+Settings exposes six named, validated presets, with Blue as the default and no free color
+picker. The accent owns actions, selection background/text (including native text selection),
+focus rings, current/drag indicators, primary buttons, links/references, generated heading
+numbers and Outline numbers. Current Outline numbers use the darker selected text derivative.
+Information states are neutral; danger and warning retain their existing colors and surfaces.
+
+All color numbers live only in `styles/tokens.css` Adjustable values. The default `:root`
+palette is Blue; `:root[data-accent]` preset scopes override only interaction, primary-hover /
+selected-text, selected-surface and selected-hover values. Other roles are shared aliases.
+The script sets only a validated preset ID, never color values. Typography and spacing are unchanged.
+
+| Preset | Interaction / number / focus / primary | Primary hover / selected text | Selected surface | Selected hover |
+| --- | --- | --- | --- | --- |
+| Blue / 파랑 | `#315fd4` | `#2449a6` | `#e9f0ff` | `#e1eaff` |
+| Violet / 보라 | `#7041bd` | `#552c98` | `#f0eafa` | `#ebe3f7` |
+| Plum / 자주 | `#8a3f85` | `#6d2c69` | `#f6eaf5` | `#f0e2ee` |
+| Teal / 청록 | `#076f65` | `#075b53` | `#e4f3f0` | `#d5ebe7` |
+| Green / 초록 | `#346d38` | `#27542b` | `#e9f2e7` | `#dfeadb` |
+| Graphite / 흑연 | `#52616b` | `#3d4a53` | `#eaf0f3` | `#dfe8ed` |
+
+The existing token test checks sRGB relative luminance directly from the CSS for every
+preset. Text/number minimum below includes white, panel and both selected surfaces;
+primary includes rest and hover. Focus/control minima include white, panel, neutral
+hover/pressed and both selected surfaces. Thresholds are 4.5:1 for text and 3:1 for
+focus/control boundaries; decorative separators are outside those boundary claims.
+
+| Preset | Text / small number minimum | White on primary minimum | Focus minimum | Control minimum |
+| --- | --- | --- | --- | --- |
+| Blue | 4.68:1 | 5.65:1 | 4.55:1 | 3.08:1 |
+| Violet | 5.30:1 | 6.60:1 | 5.30:1 | 3.07:1 |
+| Plum | 5.37:1 | 6.71:1 | 5.37:1 | 3.06:1 |
+| Teal | 4.86:1 | 6.05:1 | 4.86:1 | 3.07:1 |
+| Green | 4.99:1 | 6.19:1 | 4.99:1 | 3.08:1 |
+| Graphite | 5.15:1 | 6.40:1 | 5.15:1 | 3.08:1 |
+
+The local preference `ieumdoc.accentColor` stores a preset ID in the existing
+`preferences.ts` path, like display language. It never enters Markdown, Core or Host
+requests. A valid choice is applied before React mounts the first UI; absent, unknown
+or unreadable storage falls back to Blue. Saving failure keeps the live choice and
+shows a localized Settings alert. No Core operation or CLI command is needed for this
+display-only preference. See [UX Shell](editor-ux-shell-v1.md#local-accent-color-559).
+
+### Verification and captures
+
+Editor tests pass 293/293, including the expanded token scope/contrast guard and local
+preference fallback tests. Workspace typecheck, Editor build, documentation and whitespace
+checks pass. One persistent-profile browser run passes `ui-language`, `outline`,
+`visual-states`, `layout-rules`, `quiet-document` and `desktop-updates` (6/6).
+The existing language flow also checks every preset's actual primary/link/reference/focus
+and native text-selection colors, editor identity/content/selection/draft/history preservation,
+first-mounted-UI restoration, invalid storage and live choice when saving is unavailable.
+Outline checks every preset's generated number/current-row colors without changing numbering.
+
+Manual capture walk is separate from the assertions and uses `pnpm browser:test` with
+the same checkout-owned persistent profile and Vite on port 5590. Before is unmodified
+product code at `ff37a32e273dfad90bde84a9c30e2a28ec5e3af3`; After is this PR's implementation.
+All images use the same disposable Outline document, numbering enabled, first section
+current, Display open, no focused control, pointer (0,0), scroll (0,0), 1440×1000,
+DPR/zoom 1, Windows headless Chrome 155 and loaded bundled Pretendard. Only a small
+selection of PNGs is retained; raw runner traces and regenerable reports are excluded.
+Visual review shows aligned text/controls and one chosen accent across Save, the checkbox,
+Outline toggle, current Outline row and heading/Outline numbers. These are review evidence,
+not screenshot gates or owner visual approval.
+
+| View | Before | Blue | Violet | Teal |
+| --- | --- | --- | --- | --- |
+| Numbered document and Outline | [PNG](assets/accent-559/before-document-1440.png) | [PNG](assets/accent-559/blue-document-1440.png) | [PNG](assets/accent-559/violet-document-1440.png) | [PNG](assets/accent-559/teal-document-1440.png) |
+| Settings | — | [PNG](assets/accent-559/blue-settings-1440.png) | — | — |
+
+Integration: master `425eab7` adds the folder Refresh action and the 1424px Outline
+docking boundary. The only conflict was adjacent new UX Shell documentation sections;
+both the accent and folder-refresh contracts are retained. The original 1440px captures
+above precede this integration; at that width the Outline remains docked. Merged-tree
+verification reruns the Editor tests, typecheck/build/docs and the six targeted browser flows.
+
 ## Adjustable values and preferences
 
-- Document presentation (#497 / #511): the existing typography and spacing tokens retain
-  their previous values; the generated-number color follows #511's decision. Changing
+- Accent values (#559): the four palette entries per preset above, shared heading-number,
+  selected-text and focus aliases, plus neutral `info`/`surface-info`. Settings selects
+  the validated scope; scripts and consumers contain no palette literals.
+
+- Document presentation (#497 / #511 / #559): typography and spacing tokens retain
+  their previous values; generated numbers now share the chosen accent (#559 supersedes
+  #511's separate teal). Changing
   document typography does not change Sidebar, button or dialog typography.
   Embedded UI buttons explicitly retain the UI font stack; the start-screen title uses
   separate `--font-size-start-title` / `--line-height-start-title` UI tokens.
@@ -425,7 +509,7 @@ pixel-diff assertions or a substitute for user visual approval.
   | H1–H6 sizes (H1 also controls the title slot) | `--font-size-document-h1`, `--font-size-document-h2`, `--font-size-document-h3`, `--font-size-document-h4`, `--font-size-document-h5`, `--font-size-document-h6` |
   | Heading/title-slot weight and line spacing | `--font-weight-document-heading`, `--line-height-document-heading` |
   | Heading margins (title slot uses the after gap) | `--space-document-heading-before`, `--space-document-heading-after` |
-  | Generated H2–H6 and non-current Outline number color (#511) | `--id-color-document-heading-number` (`#0e7c86`); current Outline numbers retain the selected color. No number/title gap style is added; the existing single space stays unchanged. |
+  | Generated H2–H6 and non-current Outline number color (#559) | `--id-color-document-heading-number` aliases `--id-color-interaction`; current Outline numbers retain the selected color. No number/title gap style is added; the existing single space stays unchanged. |
   | Top-level paragraph, list, quote, equation, code, figure, table and admonition gap | `--space-document-block` |
   | List/quote indentation | `--space-document-list-indent`, `--space-document-quote-indent` |
   | Quote/admonition left accent rule | `--size-document-side-rule` |
@@ -456,7 +540,7 @@ Values meant to be tuned by hand, or that change with a user's taste, are shared
 - Block hover entries (#225): `--id-color-block-hover-outline` aliases the neutral `border-strong` role (`#bbc2cd`), `--size-block-hover-outline` is 1px, and `--id-radius-block-hover` is the small radius plus the existing selection outline offset (`space-1`) and outline width (`border-width`), currently 9px; Figure/Equation use this shared value minus their offset and width for their element radius, so the painted outlines have matching curves. `--space-block-hover-inline` aliases `space-2` (8px per side) and `--space-block-hover-block` aliases `space-1` (4px above/below), expanding only the overlay for breathing room around text. The expansion keeps gutter controls clear and fits within block gaps; one hovered extent is shown at a time. These hand-tuned values have no preference control; CSS and browser checks read the variables. Selection/editing keeps its blue role and text moves 0px.
 - Paper padding entries: `--layout-document-block-padding` (32px) and `--layout-document-block-padding-narrow` (16px at ≤1024px) at the top, and `--layout-document-end-space` (35% of the viewport height) at the bottom, which also sets how far above the window bottom writing keeps the caret. The existing `--layout-content-gutter` supplies the outer canvas gap; the minimum paper height deducts that gap and the measured header rather than fixing a page size.
 - Sidebar entries: `--layout-sidebar-width` (expanded, 240px) and `--layout-sidebar-width-narrow` (expanded at ≤1024px, 200px). The collapsed rail is fixed.
-- Command-center entries: `--layout-command-center-width`, `--layout-command-center-popup-width` and `--layout-command-center-list-height` control preferred widths and list height. The 68rem/27rem container breakpoints are layout transitions, not preferences.
+- Command-center entries: `--layout-command-center-width`, `--layout-command-center-popup-width` and `--layout-command-center-list-height` control preferred widths and list height. The 56rem/35rem container breakpoints are layout transitions, not preferences.
 - Tab entries: `--layout-document-tab-height` (40px) and `--layout-document-tab-max-width` (256px, capped by the row) control the separate header row. Labels and buttons use existing spacing/type/icon/compact-control tokens.
 - Document panel entry: `--layout-document-panel-width` (256px), docked or overlaid.
 - Typography entry: `--font-feature-sans` (`"cv08"`), Pretendard's serifed capital I for UI and document text.
@@ -500,7 +584,7 @@ Shared Settings/Local recovery and Desktop About reuse the existing dialog, Butt
 | Equation | Inline source form and preview; existing Apply/Cancel/Escape semantics. |
 | Block properties (Figure, Equation, Table, section label) | Actions read Cancel, then Apply (primary last), like dialogs. Edit focuses the first field. Apply/Cancel/Escape return focus to the editor at the block: a selection inside it stays, otherwise the block is selected. Cancel of a never-applied Equation leaves the caret in the text before it. A Figure Apply whose validation finishes after focus has moved elsewhere does not take it back. |
 | Open / New | Base UI modal focus boundary and Escape dismissal. New success hands focus to the first paragraph; Cancel/Escape or rejected creation returns it to the New button. New folder always returns focus to its button. Open folder… returns focus to its opening control: the Sidebar header button, start-screen button, or the prior focus target when dispatched through the command center (trigger for a click, original focused element for a shortcut). Folder menus contain no Open folder entry (#385). |
-| Document panel (overlay below 1280px) | Below the header, so it never covers TopBar actions or messages. Opened from the TopBar Outline toggle, which keeps focus; Escape inside the panel or Hide outline closes it and returns focus to the toggle. No focus trap: it is navigation, not a dialog. |
+| Document panel (overlay below 1424px) | Below the header, so it never covers TopBar actions or messages. Opened from the TopBar Outline toggle, which keeps focus; Escape inside the panel or Hide outline closes it and returns focus to the toggle. No focus trap: it is navigation, not a dialog. |
 | Full-screen sidebar (below 640px) | Opened from the TopBar's Expand sidebar, it covers the screen without a focus trap and focuses Collapse sidebar. Escape inside it or Collapse sidebar closes it and focuses the TopBar's Expand sidebar; opening or creating a document from it closes it. Portaled menus and dialogs keep their own Escape. |
 | Document settings | TopBar and command-center entries open the shared modal dialog. Tab stays within its controls. Escape, Close and outside dismissal return focus to the opener without changing the document. Bibliography connection releases this modal before opening the existing connection dialog, with the same original return target. |
 | Command center | Shared Dialog near the top center, max 36rem wide and bounded by the viewport. Base UI Combobox owns highlighting, arrows, Enter and IME; Escape/outside dismissal returns to the opener without editing. A command opening another modal hands off focus after close. The search and results use existing input/control/type/surface tokens; results scroll within the popup. |

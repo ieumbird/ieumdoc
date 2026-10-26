@@ -54,11 +54,11 @@ export function toTiptapBlock(block: EditableBlock): TiptapJSON {
     case "code": return { type: "codeBlock", attrs: { ...attrs, language: block.language }, content: block.code ? [{ type: "text", text: block.code }] : [] };
     case "list": { const node = listNode(block); return { ...node, attrs: { ...node.attrs, ...attrs } }; }
     case "table": return {
-      type: "table", attrs: { ...attrs, label: block.label ?? "", caption: block.caption ?? [] },
-      content: block.rows.map((row, rowIndex) => ({ type: "tableRow", content: row.cells.map((cell, column) => ({
+      type: "table", attrs: { ...attrs, label: block.label ?? "" },
+      content: [...block.rows.map((row, rowIndex) => ({ type: "tableRow", content: row.cells.map((cell, column) => ({
         type: "tableCell", attrs: { header: cell.header, ...(cell.align ? { align: cell.align } : {}), [TABLE_CELL_SOURCE_ATTR]: `${rowIndex},${column}` },
         content: paragraphContent(cell.content),
-      })) })),
+      })) })), ...(block.caption?.length ? [{ type: "tableCaption", content: paragraphContent(block.caption) }] : [])],
     };
     case "target": return { type: "labelTarget", attrs: { ...attrs, label: block.label } };
   }

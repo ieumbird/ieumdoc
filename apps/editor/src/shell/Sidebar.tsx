@@ -2,7 +2,7 @@ import { FilePreviewDialog } from "./FilePreviewDialog.tsx";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { useId, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
-import { ChevronRight, Ellipsis, File, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelLeftOpen, Plus, Settings, X } from "lucide-react";
+import { ChevronRight, Ellipsis, File, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelLeftOpen, Plus, RotateCw, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -17,6 +17,7 @@ type SidebarProps = {
   onDismiss?(): void;
   /** Names the control the folder dialog returns focus to. */
   onOpenFolder(returnFocus: HTMLElement | null): void;
+  onNewDocument?(returnFocus: HTMLElement): void;
   /** Recently opened folders, offered without an opened folder so one click lists one again. */
   recent?: string[];
   onOpenRecent?(folder: string): void;
@@ -30,14 +31,15 @@ type SidebarProps = {
   onToggleSection?(root: string): void;
   onOpenDocument?(path: string): void;
   onCloseFolder?(root: string): void;
+  onRefreshFolder?(root: string): void;
   /** App Settings, separate from document settings. Names the control focus returns to. */
   onSettings?(returnFocus: HTMLElement): void;
 };
 
 /** File navigation stays mounted when collapsed. Outline remains independent on the right. */
 export function Sidebar({
-  open, documentPath, onToggle, toggleRef, onDismiss, onOpenFolder, recent = [], onOpenRecent, onNew, onNewFolder,
-  folders = [], onToggleFolder, onToggleSection, onOpenDocument, onCloseFolder, onSettings,
+  open, documentPath, onToggle, toggleRef, onDismiss, onOpenFolder, onNewDocument, recent = [], onOpenRecent, onNew, onNewFolder,
+  folders = [], onToggleFolder, onToggleSection, onOpenDocument, onCloseFolder, onRefreshFolder, onSettings,
 }: SidebarProps) {
   useTranslation();
   return (
@@ -72,6 +74,9 @@ export function Sidebar({
       </div>
       {/* Keep the tree mounted: collapse retains scroll and keyboard position. */}
       <div id="sidebar-files" className="sidebar-content" hidden={!open}>
+        {onNewDocument ? <Button type="button" size="sm" variant="ghost" className="w-full justify-start"
+          onClick={event => onNewDocument(event.currentTarget)}>
+          <Plus aria-hidden="true" />{i18n.t("New document")}</Button> : null}
         {folders.length > 0 ? folders.map(tree => (
           <FolderTree
             key={tree.root}
@@ -82,6 +87,7 @@ export function Sidebar({
             onOpenDocument={path => onOpenDocument?.(path)}
             onNew={button => onNew?.(tree.root, button)}
             onNewFolder={button => onNewFolder?.(tree.root, button)}
+            onRefresh={() => onRefreshFolder?.(tree.root)}
             onClose={() => onCloseFolder?.(tree.root)}
           />
         )) : (
@@ -123,11 +129,12 @@ type FolderTreeProps = {
   onOpenDocument(path: string): void;
   onNew(button: HTMLButtonElement): void;
   onNewFolder(button: HTMLButtonElement): void;
+  onRefresh(): void;
   onClose(): void;
 };
 
 /** One opened folder as a tree: folders expand in place, documents open. */
-function FolderTree({ tree, documentPath, onToggleFolder, onToggleSection, onOpenDocument, onNew, onNewFolder, onClose }: FolderTreeProps) {
+function FolderTree({ tree, documentPath, onToggleFolder, onToggleSection, onOpenDocument, onNew, onNewFolder, onRefresh, onClose }: FolderTreeProps) {
   useTranslation();
   const treeId = useId();
   // Host paths are resolved, so only a filesystem root ends in a separator; it shows as itself.
@@ -177,6 +184,8 @@ function FolderTree({ tree, documentPath, onToggleFolder, onToggleSection, onOpe
               <Ellipsis />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onRefresh}>
+                <RotateCw aria-hidden="true" />{i18n.t("Refresh")}</DropdownMenuItem>
               <DropdownMenuItem onClick={onClose}>
                 <X aria-hidden="true" />{i18n.t("Close folder")}</DropdownMenuItem>
             </DropdownMenuContent>

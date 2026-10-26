@@ -107,6 +107,7 @@ const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
         localStorage.removeItem("ieumdoc.openFolders");
         localStorage.removeItem("ieumdoc.collapsedFolderSections");
         localStorage.removeItem("ieumdoc.openTabs");
+        localStorage.removeItem("ieumdoc.accentColor");
       });
       await page.evaluate(() => new Promise<void>((resolve, reject) => {
         const request = indexedDB.deleteDatabase("ieumdoc-recovery");

@@ -1,6 +1,7 @@
 # Heading numbering v1
 
 - Status: Implemented
+- Accent verification: 2026-10-27 (#559: generated heading/Outline numbers share the local accent; all presets checked by the token contrast and existing Outline browser tests).
 - Body-heading authoring verification: 2026-10-26 (#472 Editor unit/browser checks; Core/CLI and numbering behavior unchanged). [Verification details](document-editing-v1.md).
 - Last verified: 2026-10-26 (#511 generated-number color: Editor tests, typecheck/build, Outline/layout-rules/quiet-document/visual-states browser checks and 1440px manual comparison).
 - Previous verification: 2026-10-26 (#462 caption-template Core/CLI/Editor tests and cross-reference browser Undo/Redo, Source and Save → Reload).
@@ -26,13 +27,13 @@ Verification covers Core default-policy equivalence to MyST, native metadata wri
 ## Generated number color (#511 / #503)
 
 When Number headings is on, H2–H6 generated numbers and non-current Outline numbers
-use `--id-color-document-heading-number` (`#0e7c86`), a commented document adjustable
-value in `styles/tokens.css`. The teal comes from the app icon's cyan family and
-distinguishes generated numbering from authored heading text. It has 4.95:1 contrast
-on the white paper (`--id-color-surface`), exceeding 4.5:1 even for H4–H6 at
-18px, 16px and 14px. Heading text retains the normal text color. The current Outline
-row, including its number, retains the existing selected text color; hover and focus
-keep their existing rules.
+use `--id-color-document-heading-number`, an alias of the user's chosen interaction
+accent (#559 supersedes #511's separate teal). Its values and derivatives live only
+in the Adjustable values of `styles/tokens.css`. All six validated presets exceed
+4.5:1 on white, panel and selected surfaces, including H4–H6 at 18px, 16px and 14px.
+Heading text retains the normal text color. The current Outline row, including its
+number, uses the chosen preset's selected text color; hover and focus retain their rules.
+See [accent settings and contrast results](editor-visual-language-v1.md#single-accent-presets-559).
 
 The heading's existing `::before` supplies the number; Outline wraps only the
 Core-computed number in an inline span, retaining its full text/accessibility label.
@@ -43,7 +44,10 @@ IeumDoc display rule, like other Editor presentation rules: MyST renderers show 
 numbers without this color. Core and CLI are unchanged; no semantic operation or CLI
 command is needed.
 
-The existing Outline browser flow checks computed number/title colors, current-row
+### Original #511 verification (Historical)
+
+The following records the former teal decision, before #559 unified accent colors.
+The existing Outline browser flow checked computed number/title colors, current-row
 selection, unchanged accessible names and a root-variable override reaching both
 surfaces. The existing token test checks the default once; browser assertions resolve
 the variable instead of repeating the hex value.

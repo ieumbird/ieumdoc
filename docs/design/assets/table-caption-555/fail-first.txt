@@ -1,0 +1,27 @@
+Product baseline: ff37a32e273dfad90bde84a9c30e2a28ec5e3af3
+Command: IEUMDOC_BROWSER_URL=http://127.0.0.1:5355 pnpm browser:test table-caption
+Result: FAILED at rich caption canonical preservation assertion before product edits
+
+```
+Error: Editing one caption word must preserve emphasis, reference, citation and math
+
+expect(received).toContain(expected) // indexOf
+
+Expected substring: "**Updated** with {numref}`fig-a`, {cite:p}`alpha` and $x^2$"
+Received string:    "---
+ieumdoc: 1
+---·
+# Table captions·
+Before.·
+:::{figure}
+:name: fig-a
+:::·
+:::{table} Updated with fig-a, alpha and x^2
+:name: tbl-a·
+| Header |
+| ------ |
+| Cell   |
+:::·
+After.
+"
+```

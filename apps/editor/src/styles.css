@@ -606,7 +606,9 @@ button {
 
 .top-bar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr);
+  /* Equal side tracks reserve 21rem for document/view actions; the centered button yields
+   * down to 10rem before the existing 56rem stacked layout takes over. */
+  grid-template-columns: minmax(0, 1fr) minmax(10rem, min(var(--layout-command-center-width), calc(100% - 42rem - var(--space-4) - var(--space-4)))) minmax(0, 1fr);
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
@@ -683,6 +685,9 @@ button {
 }
 .command-center-trigger .document-path { flex: 1; justify-content: center; }
 .command-center-trigger .document-path-name { color: var(--id-color-text); }
+.command-center-trigger:not([data-detail="path"]) .document-path-folder { display: none; }
+/* Keep its intrinsic width measurable when it yields its layout space. */
+.command-center-trigger[data-detail="name"] kbd { position: absolute; visibility: hidden; width: max-content; }
 .command-center-trigger > svg { flex-shrink: 0; }
 .command-center-trigger kbd, .command-center-dialog kbd {
   flex-shrink: 0;
@@ -694,8 +699,7 @@ button {
 
 /* Panel widths change the available header independently of viewport width. Keep a real
  * center at wide widths; on narrow headers the search gets a centered row of its own. */
-/* Include the added width toggle in the action group's clearance beside the centered trigger. */
-@container (width < 68rem) {
+@container (width < 56rem) {
   .top-bar {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: var(--space-2) var(--space-3);
@@ -706,13 +710,12 @@ button {
   .top-bar-actions { grid-column: 2; grid-row: 2; }
   .top-bar-identity .status { white-space: normal; }
 }
-@container (width < 27rem) {
+@container (width < 35rem) {
   .top-bar-identity { display: contents; }
   .top-bar-sidebar { grid-column: 1; grid-row: 2; }
   .top-bar-document-settings { grid-column: 2; grid-row: 2; justify-self: start; }
   .top-bar-actions { grid-column: 1 / -1; grid-row: 3; justify-self: stretch; min-width: 0; }
   .top-bar-identity .status { grid-column: 1 / -1; grid-row: 4; }
-  .command-center-trigger kbd { display: none; }
 }
 
 .command-center-dialog[data-slot="dialog-content"] {
@@ -1117,8 +1120,9 @@ button {
   caret-color: var(--id-color-interaction);
 }
 
-.document-editor ::selection {
+::selection {
   background: var(--id-color-interaction-soft);
+  color: var(--id-color-text-selected);
 }
 
 /* Text surfaces only: retain the editor's existing emergency fallback for long tokens.
@@ -2065,7 +2069,7 @@ ol.list { list-style: decimal; }
 
 .cross-reference-chip {
   border-radius: var(--id-radius-sm);
-  color: var(--id-color-info);
+  color: var(--id-color-interaction);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -2166,6 +2170,23 @@ ol.list { list-style: decimal; }
   flex: 1 1 12rem;
 }
 
+.citation-candidates {
+  flex-basis: 100%;
+  min-width: 0;
+  border: var(--border-width) solid var(--id-color-border);
+  border-radius: var(--id-radius-md);
+  background: var(--id-color-surface);
+}
+
+.citation-candidates .command-center-results {
+  max-height: min(var(--layout-folder-picker-list-height), 25dvh);
+}
+
+.citation-candidates .command-center-result-detail {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .citation-keys {
   display: flex;
   flex-basis: 100%;
@@ -2210,7 +2231,7 @@ ol.list { list-style: decimal; }
 }
 
 .document-editor a {
-  color: var(--id-color-info);
+  color: var(--id-color-interaction);
   text-decoration: underline;
   cursor: text;
 }
@@ -2311,9 +2332,9 @@ ol.list { list-style: decimal; }
 .inline-math-form { padding: var(--space-3); }
 
 /* The Document panel docks only where the document keeps a readable width beside both panels
- * (1280 - 240 - 256 = 784px). Below it the panel never narrows the document; opened, it overlays.
+ * (1424 - 240 - 256 = 928px, the Standard column). Below it the panel never narrows the document; opened, it overlays.
  * The same width is PANEL_OVERLAY_LAYOUT in App.tsx. */
-@media (width < 80rem) {
+@media (width < 89rem) {
   .app-shell { --shell-panel: 0px; }
   /* Media styles apply before the matchMedia handler closes the docked panel.
    * Do not let its padding/header overflow the now zero-width grid column. */
@@ -2819,7 +2840,7 @@ ol.list { list-style: decimal; }
 .bibliography-list > li > div { min-width: 0; }
 .bibliography-number { flex-shrink: 0; }
 .bibliography-resources { padding-left: var(--space-4); }
-.citation[data-readiness="complete"] .cross-reference-chip { color: var(--id-color-info); text-decoration: none; }
+.citation[data-readiness="complete"] .cross-reference-chip { color: var(--id-color-interaction); text-decoration: none; }
 
 /* Read-only folder preview uses the shared modal surface and existing spacing/type roles. */
 .file-preview[data-slot="dialog-content"] { width: min(var(--layout-file-preview-width), calc(100% - 2rem)); max-width: calc(100% - 2rem); }
@@ -2837,3 +2858,9 @@ ol.list { list-style: decimal; }
 .bibliography-choices > button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 .display-template-choice { display: grid; gap: var(--space-2); margin-top: var(--space-3); font-size: var(--font-size-sm); }
+
+/* The engine table owns its caption; native caption layout keeps it below the grid. */
+.table-grid:has(.table-caption) { padding-bottom: 0; }
+.table > table { width: 100%; border-collapse: collapse; }
+.table-caption { caption-side: bottom; text-align: left; padding-top: 44px; }
+.table-add-caption { color: var(--id-color-text-muted); }

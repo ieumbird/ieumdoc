@@ -197,15 +197,23 @@ one document attribute through the existing Undo/Redo history; Save applies Core
 caption text and the equation's own right-hand `(N)` number stay unchanged. Chips in table
 captions, target choices, accessible names and menu search follow the same template values.
 
-## Table cells and Figure captions
+## Table cells and captions
 
-Table cells and Figure captions use the supported InlineContent contract. Core updateTableCell/insertTable accept text or inline content (CLI
+Table cells and Figure/Table captions use the supported InlineContent contract. Core updateTableCell/insertTable accept text or inline content (CLI
 update-table-cell --content and insert-table --cells); cells reject line breaks.
 Core updateFigure/insertFigure accept text or inline captions (CLI --caption-content).
 Figure content, caption and label may all be absent (a pending Figure). Pending/image
 transitions preserve the container, label and caption; pending Figures participate in the
 same editing state and history. See [Figure authoring](figure-authoring-v1.md) for
 the persistence boundary and insertion behavior.
+A Table caption is an optional last child of its Editor table, edited directly below
+the grid with the shared rich-inline controls. Properties contain only Label. Add caption
+creates and focuses the missing caret surface; clearing it removes saved caption content.
+Rows/cells keep their existing coordinates. ArrowDown from the final row enters the
+caption, ArrowUp returns to the last cell, and Enter leaves the table. Whole-table move,
+delete and history include the caption. Core `updateTableCaption` and canonical MyST stay
+unchanged; see [Table caption and label](table-caption-v1.md).
+
 A Figure's caption is inline content in the single ProseMirror document, editable
 in place with the existing formatting/clipboard controls. Image/alt/label drafts
 retain Apply/Cancel; the legacy plain-caption field remains available for plain

@@ -2,7 +2,7 @@ import { COMMAND_CENTER_SHORTCUT, SAVE_SHORTCUT } from "../shortcuts.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { operationText, type Operation } from "../operation.ts";
-import type { Ref } from "react";
+import { useLayoutEffect, useRef, useState, type Ref } from "react";
 import { Copy, Ellipsis, LoaderCircle, PanelLeftOpen, PanelRight, RotateCcw, Search, SlidersHorizontal, StretchHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
@@ -59,6 +59,32 @@ export function TopBar({
 }: TopBarProps) {
   useTranslation();
   const { name } = splitDocumentPath(documentPath);
+  const commandButton = useRef<HTMLButtonElement>(null);
+  const commandName = useRef<HTMLSpanElement>(null);
+  const commandShortcut = useRef<HTMLElement>(null);
+  const [commandDetail, setCommandDetail] = useState<"path" | "shortcut" | "name">("path");
+  useLayoutEffect(() => {
+    const button = commandButton.current;
+    if (!button) return;
+    let active = true;
+    const measure = () => {
+      if (!active) return;
+      const style = getComputedStyle(button);
+      const gap = parseFloat(style.columnGap);
+      const available = button.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      const filename = commandName.current?.scrollWidth ?? 0;
+      const shortcut = commandShortcut.current?.scrollWidth ?? 0;
+      const icon = button.querySelector("svg")?.getBoundingClientRect().width ?? 0;
+      const withShortcut = icon + filename + shortcut + gap * 2;
+      // Folder segments yield first, then the shortcut; only the remaining filename ellipsizes.
+      setCommandDetail(available >= withShortcut + 28 ? "path" : available >= withShortcut ? "shortcut" : "name");
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(button);
+    measure();
+    void document.fonts.ready.then(measure);
+    return () => { active = false; observer.disconnect(); };
+  }, [documentPath, name, location.join("/"), i18n.resolvedLanguage]);
   const idle = status === "ready" || status === "saved" || status === "saved-pending";
   const displayStatus = idle
     ? (unsaved ? i18n.t("Unsaved changes") : status === "ready" ? "" : operationText("saved"))
@@ -96,7 +122,7 @@ export function TopBar({
           {displayStatus}
         </p>
       </div>
-      <Button type="button" variant="outline" className="command-center-trigger"
+      <Button ref={commandButton} type="button" variant="outline" className="command-center-trigger" data-detail={commandDetail}
         aria-label={i18n.t("Command center")} title={i18n.t("Command center ({{shortcut}})", { shortcut: COMMAND_CENTER_SHORTCUT.label })}
         aria-haspopup="dialog" aria-keyshortcuts={COMMAND_CENTER_SHORTCUT.aria} onClick={onOpenCommandCenter}
         onMouseDown={event => { if (event.button === 0) event.preventDefault(); }}>
@@ -105,11 +131,11 @@ export function TopBar({
           {documentPath ? location.map((folder, index) => (
             <span className="document-path-folder" key={index}>{folder}<span className="document-path-separator" aria-hidden="true">/</span></span>
           )) : null}
-          <span className={documentPath ? "document-path-name" : undefined} data-testid="current-file" title={documentPath || undefined}>
+          <span ref={commandName} className={documentPath ? "document-path-name" : undefined} data-testid="current-file" title={documentPath || undefined}>
             {documentPath ? name : i18n.t("No file opened")}
           </span>
         </span>
-        <kbd aria-hidden="true">{COMMAND_CENTER_SHORTCUT.label}</kbd>
+        <kbd ref={commandShortcut} aria-hidden="true">{COMMAND_CENTER_SHORTCUT.label}</kbd>
       </Button>
       <div className="top-bar-actions">
         <div className="top-bar-group" role="group" aria-label={i18n.t("View controls")}>

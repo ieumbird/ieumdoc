@@ -26,7 +26,7 @@ export type FolderTreeAction =
   | { type: "collapse"; path: string }
   | { type: "loadStart"; root: string; path: string; request: number }
   | { type: "loadSuccess"; root: string; path: string; request: number; listing: FolderResponse }
-  | { type: "loadFailure"; root: string; path: string; request: number };
+  | { type: "loadFailure"; root: string; path: string; request: number; preserveExpansion?: boolean };
 
 export function folderTreeReducer(state: FolderTreeState | null, action: FolderTreeAction): FolderTreeState | null {
   if (action.type === "openRoot") {
@@ -54,6 +54,7 @@ export function folderTreeReducer(state: FolderTreeState | null, action: FolderT
       const pending = new Map(state.pending);
       pending.delete(action.path);
       if (action.type === "loadSuccess") return { ...state, pending, nodes: new Map(state.nodes).set(action.path, action.listing) };
+      if (action.preserveExpansion) return { ...state, pending };
       const expanded = new Set(state.expanded);
       expanded.delete(action.path);
       return { ...state, pending, expanded };
@@ -216,13 +217,13 @@ export function useFolderTrees(request: (root: string, path?: string) => Promise
     writeCollapsedFolderSections(JSON.parse(serializedCollapsed) as string[]);
   }, [serializedCollapsed, restored, sectionVersion]);
 
-  const load = (root: string, path: string) => {
+  const load = (root: string, path: string, preserveExpansion = false) => {
     const id = ++requests.current;
     dispatch({ type: "loadStart", root, path, request: id });
     request(root, path).then(
       listing => dispatch({ type: "loadSuccess", root, path, request: id, listing }),
       (cause: unknown) => {
-        dispatch({ type: "loadFailure", root, path, request: id });
+        dispatch({ type: "loadFailure", root, path, request: id, preserveExpansion });
         if (latest.current.some(tree => tree.root === root)) onError(cause instanceof Error ? cause.message : String(cause));
       },
     );
@@ -289,9 +290,20 @@ export function useFolderTrees(request: (root: string, path?: string) => Promise
       }
       if (contained) rememberSections();
     },
+    /** Re-read only reachable, already loaded listings, retaining all disclosure state. */
+    refreshRoot(root: string) {
+      const tree = latest.current.find(item => item.root === root);
+      if (tree) for (const path of knownFolders(tree)) if (tree.nodes.has(path)) load(root, path, true);
+    },
+    /** Refresh loaded parents of a file/folder created by IeumDoc, without discovering children. */
+    refreshParents(itemPath: string) {
+      for (const tree of latest.current) for (const path of folderChain(tree.root, itemPath)) {
+        if (tree.nodes.has(path)) load(tree.root, path, true);
+      }
+    },
     /** Lists a folder the trees already know again, without expanding anything. */
     refresh(path: string) {
-      for (const tree of trees) if (tree.nodes.has(path)) load(tree.root, path);
+      for (const tree of latest.current) if (tree.nodes.has(path)) load(tree.root, path, true);
     },
   };
 }

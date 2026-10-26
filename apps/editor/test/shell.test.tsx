@@ -19,7 +19,7 @@ import { TopBar } from "../src/shell/TopBar.tsx";
 import { i18n } from "../src/i18n.ts";
 import { en, ko } from "../src/locales.ts";
 import { messageText, type UiMessage } from "../src/ui-message.ts";
-import { readUiLanguage, writeUiLanguage, UI_LANGUAGE_KEY } from "../src/preferences.ts";
+import { ACCENT_COLORS, ACCENT_COLOR_KEY, readAccentColor, writeAccentColor, readUiLanguage, writeUiLanguage, UI_LANGUAGE_KEY } from "../src/preferences.ts";
 import { filterInsertCommands } from "../src/block-commands.ts";
 import { FileText } from "lucide-react";
 import { filterCommandCenterItems, type CommandCenterItem } from "../src/shell/command-center.ts";
@@ -232,6 +232,29 @@ test("bundled languages cover keys and interpolation parameters without relying 
   }
 });
 
+test("accent preference defaults safely and remembers only a validated preset", () => {
+  const storage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  const values = new Map<string, string>();
+  try {
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
+      getItem: (key: string) => values.get(key), setItem: (key: string, value: string) => values.set(key, value),
+    } });
+    assert.equal(readAccentColor(), "blue");
+    for (const color of ACCENT_COLORS) {
+      assert.equal(writeAccentColor(color), true);
+      assert.equal(values.get(ACCENT_COLOR_KEY), color);
+      assert.equal(readAccentColor(), color);
+    }
+    values.set(ACCENT_COLOR_KEY, "unrecognized");
+    assert.equal(readAccentColor(), "blue");
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, get() { throw Error("blocked"); } });
+    assert.equal(readAccentColor(), "blue");
+    assert.equal(writeAccentColor("teal"), false);
+  } finally {
+    if (storage) Object.defineProperty(globalThis, "localStorage", storage); else Reflect.deleteProperty(globalThis, "localStorage");
+  }
+});
+
 test("language preference uses an explicit choice before the preferred language and tolerates unavailable storage", () => {
   const storage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
   const navigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
@@ -412,11 +435,12 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
     pending: new Map(),
   };
   const html = renderToStaticMarkup(
-    <Sidebar open documentPath={String.raw`C:\docs\guides\guide.md`} folders={[folder]} onToggle={noop} onOpenFolder={noop} />,
+    <Sidebar open documentPath={String.raw`C:\docs\guides\guide.md`} folders={[folder]} onToggle={noop} onOpenFolder={noop} onNewDocument={noop} />,
   );
   assert.match(html, /title="C:\\docs"/);
   assert.match(html, />docs</);
   assert.match(html, /role="tree"/);
+  assert.match(html, />New document<\/button>/, "Files offers New document as visible text beside its existing tree");
   assert.match(html, /<button\b(?=[^>]*aria-label="Collapse folder docs")(?=[^>]*aria-expanded="true")(?=[^>]*aria-controls="[^"]+")/);
   assert.match(html, /<li\b(?=[^>]*role="treeitem")(?=[^>]*aria-level="1")(?=[^>]*aria-expanded="true")[^>]*title="C:\\docs\\guides"/);
   assert.match(html, /<li\b(?=[^>]*role="treeitem")(?=[^>]*aria-level="2")(?=[^>]*aria-current="page")[^>]*title="C:\\docs\\guides\\guide.md"/);

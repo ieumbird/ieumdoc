@@ -1,6 +1,8 @@
 # Folder picker v1
 
 - Status: Implemented
+- New-document entry verification: 2026-10-27 (#553: existing picker/New folder → filename handoff, cancellation/focus, real-file creation/Save/Reload; Editor 291 tests, typecheck/build and targeted browser regressions; [shell contract and comparison](editor-ux-shell-v1.md#new-document-entry-553)).
+- Folder refresh verification: 2026-10-26 (#494: loaded-list refresh and asset parent updates; [behavior and verification](editor-ux-shell-v1.md#folder-refresh-494)).
 - Last verified: 2026-10-26 (#522 option A: Editor 291 tests, typecheck/build, folder/navigation-memory/image/preview/layout/language/state regressions, real HTTP and crash recovery; [fail-first and manual comparisons](#option-a-verification-522)).
 - Previous verification: 2026-10-26 (#480 active-image preview: Editor tests/typecheck/build, figure-authoring/folder-navigation/image-assets/file-preview/layout-rules/quiet-document browser regressions and same-state 1440px/375px manual comparison; details below).
 - Previous verification: 2026-10-26 (#461 owner decision: click selection preserves sibling images; editing resumes filtering. Editor tests/typecheck/build and figure-authoring/folder-navigation/image-assets/layout-rules/quiet-document browser regressions).
@@ -24,7 +26,7 @@ Vite, Windows Desktop and the standalone [HTTP Host](http-host-v1.md) reuse this
 
 - The expanded Sidebar header has one Open folder… icon button in a fixed position with any
   number of opened folders. Empty Files has no duplicate entry;
-  per-folder menus contain only Close folder. Start-screen and command-center Open folder remain.
+  per-folder menus contain Refresh and Close folder (#494). Start-screen and command-center Open folder remain.
   All use the existing picker/handler. The Sidebar button's accessible name and tooltip use the
   existing English/Korean translation; Open, Cancel and Escape return focus to that button.
   See the [ADR-0009 amendment](../adr/0009-multiple-opened-folders.md#amendment-2026-10-24-open-folder-entry-385)
@@ -257,7 +259,15 @@ choosing a folder is interface/Host navigation, not a document semantic operatio
 
 ## New document in a sidebar folder
 
-- The sidebar folder heading has a `+` (New file in folder) and New folder beside its `⋯` menu (Close folder only). General Open folder… stays in the Sidebar header.
+- Start-screen and Files **New document**, and command-center **New document…**, reuse this
+  filename form (#553). Without an opened folder, the existing folder picker (including New
+  folder) first selects and opens the location; after it closes, the filename form starts in
+  that Host-normalized folder. Cancelling the picker opens nothing; cancelling the filename
+  creates nothing and keeps the selected folder open. With opened folders, the common entry
+  starts at the current document's folder in its opened tree, otherwise the first opened folder.
+  The per-folder `+` retains its own section-specific default. See
+  [New document entry](editor-ux-shell-v1.md#new-document-entry-553).
+- The sidebar folder heading has a `+` (New file in folder) and New folder beside its `⋯` menu (Refresh and Close folder). General Open folder… stays in the Sidebar header.
 - `+` opens the filename form without an unsaved-work confirmation. Success adds a new tab; existing
   sessions and drafts remain. Cancelling or failed creation adds nothing. The shared **Save / Don't
   save / Cancel** confirmation belongs to closing a dirty tab. See
@@ -271,7 +281,7 @@ choosing a folder is interface/Host navigation, not a document semantic operatio
   A folder deeper than the tree has listed appears once its parent is expanded.
 - The dialog accepts a single filename.
   An omitted `.md` suffix is added; separators and `.`/`..` are rejected so this
-  entry point cannot choose another directory. It is the only New entry point; the former
+  entry point cannot choose another directory. All New entries reuse this form; the former
   top-level full-path New was removed with the [sidebar chrome cleanup](editor-ux-shell-v1.md#structure).
 - Creation uses the existing Host API and Core's canonical empty Markdown. Success
   opens a new document tab and lists its folder again, so it appears in the tree. On close, a successful

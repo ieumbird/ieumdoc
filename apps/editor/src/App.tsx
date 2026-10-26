@@ -50,7 +50,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 
 // Below the docking width of styles.css the Document panel starts closed and overlays the
 // document; at and above it the panel docks. Independent of the narrow sidebar (64rem).
-const PANEL_OVERLAY_LAYOUT = "(width < 80rem)";
+const PANEL_OVERLAY_LAYOUT = "(width < 89rem)";
 // At phone widths the sidebar is either closed, leaving the document the whole width (the TopBar
 // opens it), or open over the whole screen; it never leaves the document a sliver of width (#321).
 const SIDEBAR_OVERLAY_LAYOUT = "(width < 40rem)";
@@ -62,7 +62,7 @@ const desktop = typeof window === "undefined" ? undefined : window.ieumdocDeskto
 
 export function App() {
   useTranslation();
-  const newFileButton = useRef<HTMLButtonElement>(null);
+  const newFileButton = useRef<HTMLElement | null>(null);
   const newFolderButton = useRef<HTMLButtonElement>(null);
   // Open folder… returns focus to the control that opened it.
   const dialogReturnFocus = useRef<HTMLElement | null>(null);
@@ -82,12 +82,20 @@ export function App() {
   const [panelOverlay, setPanelOverlay] = useState(() => globalThis.matchMedia?.(PANEL_OVERLAY_LAYOUT).matches ?? false);
   // Page state only: open when docked, closed (and overlaying when opened) below the docking width.
   const [panelOpen, setPanelOpen] = useState(!panelOverlay);
+  // Only explicit docked choices survive layout changes; overlays always start closed.
+  const dockedPanelOpen = useRef<boolean | undefined>(undefined);
+  const choosePanelOpen = (open: boolean) => {
+    if (!panelOverlay) dockedPanelOpen.current = open;
+    setPanelOpen(open);
+  };
   const outlineToggle = useRef<HTMLButtonElement>(null);
   const fileActionsToggle = useRef<HTMLButtonElement>(null);
   const shell = useRef<HTMLDivElement>(null);
   const header = useRef<HTMLDivElement>(null);
   const [documentWidth, setDocumentWidth] = useState<DocumentWidth>(readDocumentWidth);
   const [folderDialog, setFolderDialog] = useState(false);
+  const [newAfterFolder, setNewAfterFolder] = useState(false);
+  const folderNewReady = useRef(false);
   const [commandQuery, setCommandQuery] = useState<string | null>(null);
   const commandReturnFocus = useRef<HTMLElement | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -178,6 +186,14 @@ export function App() {
   const [error, setError] = useMessageState("");
   // Restore folder context before opening tabs, including their bibliography resources.
   const folders = useFolderTrees(requestFolder, setError);
+  const foldersRef = useRef(folders);
+  foldersRef.current = folders;
+  // Tab reporting rerenders the shell; keep this memoized tab prop stable and read live trees.
+  const onAssetChange = useCallback((documentPath: string, assetPath: string) => {
+    const { directory } = splitDocumentPath(documentPath);
+    const separator = documentPath.includes("\\") ? "\\" : "/";
+    foldersRef.current.refreshParents(directory + assetPath.replace(/^\.\//, "").replaceAll("/", separator));
+  }, []);
   const [notice, setNotice] = useMessageState("");
   const [openRefusal, setOpenRefusal] = useState<{ path: string; reason: string; action: string; code?: string } | null>(null);
   const openRefusalReturnFocus = useRef<HTMLElement | null>(null);
@@ -361,12 +377,12 @@ export function App() {
     return () => observer.disconnect();
   }, []);
 
-  // Crossing the docking width starts the panel in that layout's default.
+  // Entering overlay closes it; returning to docked restores the explicit choice or default.
   useEffect(() => {
     const query = matchMedia(PANEL_OVERLAY_LAYOUT);
     const change = () => {
       setPanelOverlay(query.matches);
-      setPanelOpen(!query.matches);
+      setPanelOpen(query.matches ? false : dockedPanelOpen.current ?? true);
     };
     query.addEventListener("change", change);
     return () => query.removeEventListener("change", change);
@@ -438,6 +454,17 @@ export function App() {
     setNewDirectory(newDirectoryIn(root));
     setNewDialog(true);
   }
+  function newDocument(returnFocus: HTMLElement | null): void {
+    if (busy || continuation) return;
+    newFileButton.current = returnFocus;
+    const root = folders.rootOf(openedPath) ?? folders.roots[0];
+    if (root) newFile(root);
+    else {
+      dialogReturnFocus.current = returnFocus;
+      setNewAfterFolder(true);
+      setFolderDialog(true);
+    }
+  }
   async function continueSession(shouldSave: boolean): Promise<void> {
     if (!continuation || continuationRunning.current || busy) return;
     const owner = sessions.current.get(continuation.id);
@@ -465,7 +492,7 @@ export function App() {
   }
 
   /** Lists the folder the user chose; it becomes the sidebar folder on success. */
-  async function openFolder(path: string): Promise<string> {
+  async function openFolder(path: string, createAfterOpen = false): Promise<string> {
     const root = unquotePath(path);
     if (!root) return i18n.t("Enter a folder path.");
     try {
@@ -474,6 +501,10 @@ export function App() {
       // Responses can overlap; advance the list before another completion or render.
       recentFoldersRef.current = rememberRecentFolder(listed.root, recentFoldersRef.current);
       setRecentFolders(recentFoldersRef.current);
+      if (createAfterOpen) {
+        setNewDirectory(listed.root);
+        folderNewReady.current = true;
+      }
       return "";
     } catch (cause) {
       return messageOf(cause);
@@ -484,6 +515,7 @@ export function App() {
   async function createFolder(parent: string, name: string): Promise<string> {
     try {
       await requestCreateFolder(parent, name);
+      folders.refresh(parent);
       return "";
     } catch (cause) {
       return messageOf(cause);
@@ -651,8 +683,14 @@ export function App() {
         void openFolderDocument(entry.path).then(opened => { if (opened) setCommandFileFocus(entry.path); });
       },
     })),
+    { id: "new-document", kind: "command", label: i18n.t("New document…"), icon: FileText, takesFocus: true,
+      disabled: busy || Boolean(continuation), keywords: ["new document", "new file", "새 문서", "새 파일"],
+      run: () => newDocument(commandReturnFocus.current) },
     { id: "open-folder", kind: "command", label: i18n.t("Open folder…"), icon: FolderOpen, takesFocus: true,
       keywords: ["open folder", "폴더 열기"], run: () => { dialogReturnFocus.current = commandReturnFocus.current; setFolderDialog(true); } },
+    ...folders.trees.map(tree => ({ id: 'refresh-folder:' + tree.root, kind: "command" as const,
+      label: i18n.t("Refresh folder"), detail: tree.root, icon: RotateCw,
+      keywords: ["refresh folder", "폴더 새로고침"], run: () => folders.refreshRoot(tree.root) })),
     { id: "save", kind: "command", label: i18n.t("Save"), icon: Save, disabled: !document || busy,
       keywords: ["save", "저장"], shortcut: SAVE_SHORTCUT.label, run: () => { void save(); } },
     { id: "reload", kind: "command", label: i18n.t("Reload"), icon: RotateCcw, disabled: !document || busy, takesFocus: true,
@@ -664,7 +702,7 @@ export function App() {
     { id: "source", kind: "command", label: i18n.t("Source"), icon: SquareCode, disabled: !document || busy, takesFocus: true,
       keywords: ["source markdown", "소스 보기"], run: () => { globalThis.document.querySelector<HTMLElement>('[data-testid="view-source"]')?.focus(); void showSource(); } },
     { id: "outline", kind: "command", label: i18n.t(panelOpen ? "Hide outline" : "Show outline"), icon: PanelRight, takesFocus: true,
-      keywords: ["outline", "개요"], run: () => { outlineToggle.current?.focus(); setPanelOpen(value => !value); } },
+      keywords: ["outline", "개요"], run: () => { outlineToggle.current?.focus(); choosePanelOpen(!panelOpen); } },
     { id: "sidebar", kind: "command", label: i18n.t(sidebarOpen ? "Collapse sidebar" : "Expand sidebar"), icon: PanelLeft,
       keywords: ["sidebar", "사이드바"], takesFocus: true,
       run: () => { sidebarFocus.current = sidebarOverlay && sidebarOpen ? "top-bar" : "sidebar"; setSidebarOpen(value => !value); } },
@@ -711,6 +749,7 @@ export function App() {
           setFolderDialog(true);
         }}
         recent={visibleRecent}
+        onNewDocument={newDocument}
         onOpenRecent={(folder) => void openFolder(folder).then((message) => { if (message) setError(message); })}
         onNew={(root, button) => {
           newFileButton.current = button;
@@ -729,6 +768,7 @@ export function App() {
           if (sidebarOverlay) setSidebarOpen(false);
           void openFolderDocument(path);
         }}
+        onRefreshFolder={folders.refreshRoot}
         onCloseFolder={folders.close}
         onSettings={(returnFocus) => {
           settingsReturnFocus.current = returnFocus;
@@ -762,7 +802,7 @@ export function App() {
             onCopyPath={() => void copyPath()}
             fileActionsRef={fileActionsToggle}
             outline={panelOpen}
-            onToggleOutline={() => setPanelOpen((value) => !value)}
+            onToggleOutline={() => choosePanelOpen(!panelOpen)}
             outlineToggleRef={outlineToggle}
           />
           {tabs.length > 0 ? <DocumentTabs tabs={tabs.map(tab => ({ ...tab,
@@ -792,6 +832,7 @@ export function App() {
               recent={visibleRecent}
               sample={start.sample}
               busy={busy}
+              onNewDocument={newDocument}
               onOpenFolder={(returnFocus) => {
                 dialogReturnFocus.current = returnFocus;
                 setFolderDialog(true);
@@ -802,7 +843,7 @@ export function App() {
               })}
             />
           ) : null}
-          {tabs.map(tab => <DocumentTab key={tab.id} id={tab.id} file={tab.file} restored={tab.restored} recoveryId={tab.recoveryId} active={tab.id === activeId} report={reportSession} />)}
+          {tabs.map(tab => <DocumentTab key={tab.id} id={tab.id} file={tab.file} restored={tab.restored} recoveryId={tab.recoveryId} active={tab.id === activeId} report={reportSession} onAssetChange={onAssetChange} />)}
         </main>
       </div>
       {panelOpen ? (
@@ -811,7 +852,7 @@ export function App() {
           outline={document ? outlineStore : undefined}
           onSelectHeading={item => session?.revealHeading(item)}
           onClose={() => {
-            setPanelOpen(false);
+            choosePanelOpen(false);
             // The panel's own controls go away; its toggle keeps the focus.
             outlineToggle.current?.focus();
           }}
@@ -859,15 +900,15 @@ export function App() {
         restricted={allowedRoots !== undefined}
         browse={browseHostFolder}
         places={folderPlaces}
-        onOpen={openFolder}
-        onCreateFolder={async (parent, name) => {
-          const message = await createFolder(parent, name);
-          // Creating while choosing changes no expansion; an already listed folder shows it.
-          if (!message) folders.refresh(parent);
-          return message;
+        onOpen={path => openFolder(path, newAfterFolder)}
+        onClosed={() => {
+          if (!folderNewReady.current) return;
+          setNewDialog(true);
         }}
+        onCreateFolder={createFolder}
         returnFocus={dialogReturnFocus}
-        onClose={() => setFolderDialog(false)}
+        finalFocus={() => folderNewReady.current ? false : dialogReturnFocus.current ?? true}
+        onClose={() => { setFolderDialog(false); setNewAfterFolder(false); }}
       />
       <FolderDialog
         open={imageChoice !== null}
@@ -889,7 +930,7 @@ export function App() {
         onCreate={(directory, name) => createFile(childPath(directory, name))}
         createdFocusTarget={() => editorRef.current?.getFocusTarget() ?? null}
         returnFocus={newFileButton}
-        onClose={() => { if (!switching) setNewDialog(false); }}
+        onClose={() => { if (!switching) { setNewDialog(false); folderNewReady.current = false; } }}
       />
       <UnsavedChangesDialog
         open={continuation !== null}

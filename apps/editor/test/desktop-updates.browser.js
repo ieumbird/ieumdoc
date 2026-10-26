@@ -156,7 +156,7 @@ async (page, { screenshots = false, openPath }) => {
   const table = page.locator('[data-document-tab][data-active=true] [data-block="table"]');
   await table.hover();
   await table.getByRole('button', {name:'Edit table', exact:true}).click();
-  await page.getByTestId('table-caption-input').fill('Unapplied caption');
+  await page.getByTestId('table-label').fill('unapplied-label');
   await page.getByRole('tab', {name:'technical-document.md',exact:true}).click();
   await settings.click();
   await dialog.waitFor();
@@ -166,7 +166,7 @@ async (page, { screenshots = false, openPath }) => {
   await page.keyboard.press('Escape');
   await dialog.waitFor({state:'detached'});
   await page.getByRole('tab', {name:'updates.md, Unsaved changes',exact:true}).click();
-  check(await page.getByTestId('table-caption-input').inputValue() === 'Unapplied caption', 'Refusing the restart lost the draft');
+  check(await page.getByTestId('table-label').inputValue() === 'unapplied-label', 'Refusing the restart lost the draft');
   await page.getByTestId('table-cancel').click();
 
   // The same live guard covers in-flight Save and Source, even when the applied document is clean.
