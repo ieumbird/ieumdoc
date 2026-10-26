@@ -219,7 +219,8 @@ async (page, { openPath, withBlockHover, expect }) => {
           const expectedPanel=innerWidth<1424?0:token('--layout-document-panel-width');
           const type=s=>{const cs=getComputedStyle(required(s));return {size:parseFloat(cs.fontSize),line:parseFloat(cs.lineHeight),weight:cs.fontWeight,font:cs.fontFamily};};
           const headings=[1,2,3,4,5,6].map(n=>type('h'+n+'.heading'));
-          const body=type('.paragraph'),caption=type('.caption'),table=type('.table');
+          // The table wrapper also owns the editable caption; measure the rendered cell content.
+          const body=type('.paragraph'),caption=type('.caption'),table=type('.table [data-table-cell]');
           const expectedType=(size,line,weight='--font-weight-document-heading')=>{
             const probe=document.createElement('span');
             probe.style.fontSize=`var(${size})`;probe.style.lineHeight=`var(${line})`;probe.style.fontWeight=`var(${weight})`;
