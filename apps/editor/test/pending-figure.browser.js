@@ -74,10 +74,19 @@ async (page, { openPath }) => {
     let empty = (await diskFigures())[0];
     check(empty?.contentKind === 'none' && empty.label === '' && empty.caption.text === '' &&
       await page.getByTestId('status').innerText() === 'Saved', 'Empty Figure was not saved or acknowledged');
-
+    await figures.first().getByTestId('figure-caption-content').evaluate(element => {
+      const editor = element.closest('.document-editor').editor;
+      const path = element.closest('[data-block="figure"]').getAttribute('data-source-path');
+      editor.state.doc.forEach((node, pos) => {
+        if (node.type.name === 'figure' && node.attrs.sourcePath === path)
+          editor.commands.setTextSelection({from:pos + 1,to:pos + node.nodeSize - 1});
+      });
+      editor.view.focus();
+      if (!editor.view.hasFocus()) throw Error("Caption input requires editor focus");
+    });
+    await page.keyboard.type('PFC Current Control Architecture');
     await edit(figures.first());
     await page.getByTestId('figure-label').fill('fig-pfc-control');
-    await page.getByTestId('figure-caption').fill('PFC Current Control Architecture');
     await apply();
     check(await figures.first().getByTestId('figure-no-content').innerText() === 'No content yet', 'Pending state is invisible');
     check((await source()).includes(':name: fig-pfc-control'), 'Applied pending Figure omitted from Source');
@@ -94,8 +103,8 @@ async (page, { openPath }) => {
     check(await page.getByTestId('status').innerText() === 'Unsaved changes', 'Undo of saved Apply did not become dirty');
     await save();
     empty = (await diskFigures())[0];
-    check(empty?.label === '' && empty.caption.text === '' && await page.getByTestId('status').innerText() === 'Saved',
-      'Undo of Apply did not save the empty Figure');
+    check(empty?.label === '' && empty.caption.text === 'PFC Current Control Architecture' && await page.getByTestId('status').innerText() === 'Saved',
+      'Undo of metadata Apply must preserve the directly edited caption');
     await historyKey('ControlOrMeta+Shift+z');
     check((await source()).includes(':name: fig-pfc-control'), 'Redo of Apply lost the Figure');
     check(await page.getByTestId('status').innerText() === 'Unsaved changes', 'Redo after Save did not become dirty');

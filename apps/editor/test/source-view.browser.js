@@ -111,11 +111,11 @@ async (page, { openPath, screenshots }) => {
   await figure.locator('img').click();
   await figure.getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
   await figure.getByRole('button', {name:'Edit figure'}).click();
-  await page.getByTestId('figure-caption').fill('Draft caption.');
+  await page.getByTestId('figure-alt').fill('Draft caption.');
   await showSource();
   result.sourceExcludesFigureDraft = !(await sourceText()).includes('Draft caption.');
   await showVisual();
-  result.figureDraftRetained = await page.getByTestId('figure-caption').inputValue() === 'Draft caption.';
+  result.figureDraftRetained = await page.getByTestId('figure-alt').inputValue() === 'Draft caption.';
   await page.getByTestId('figure-cancel').click();
   await page.getByTestId('figure-editor').waitFor({state:'detached'});
 

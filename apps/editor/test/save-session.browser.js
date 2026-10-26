@@ -395,12 +395,19 @@ async (page, { openDocument, waitForActivePath, reloadDocument }) => {
     await redo(); await saveState(reordered, 'redoEndnoteOrderWithFigure');
 
     const figure = editor.locator('[data-block="figure"]');
-    const editFigure = figure.getByRole('button', {name:'Edit figure'});
     const editCaption = async caption => {
-      await editFigure.locator('..').hover({position:{x:4,y:4}}); await editFigure.click();
-      await page.getByTestId('figure-caption').fill(caption);
-      await page.getByTestId('figure-apply').click();
-      await page.getByTestId('figure-editor').waitFor({state:'detached'});
+      await figure.getByTestId('figure-caption-content').evaluate(element => {
+        const editor = element.closest('.document-editor').editor;
+        const path = element.closest('[data-block="figure"]').getAttribute('data-source-path');
+        editor.state.doc.forEach((node, pos) => {
+          if (node.type.name === 'figure' && node.attrs.sourcePath === path)
+            editor.commands.setTextSelection({from:pos + 1,to:pos + node.nodeSize - 1});
+        });
+        editor.view.focus();
+        if (!editor.view.hasFocus()) throw Error("Caption input requires editor focus");
+      });
+      if (caption) await page.keyboard.type(caption);
+      else await page.keyboard.press('Backspace');
     };
     await editCaption('Reserved.');
     const captioned = reordered.replace(':::{figure}\n:::', ':::{figure}\n\nReserved.\n:::');

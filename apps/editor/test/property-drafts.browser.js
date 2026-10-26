@@ -37,6 +37,23 @@ async (page, { openPath }) => {
   const beginTable = async () => { await table.hover(); await activate(table.getByRole('button', {name:'Edit table', exact:true})); };
 
 
+  for (const entry of ['double-click', 'Enter']) {
+    await table.hover({position:{x:4,y:4}});
+    const metadata = table.locator('.block-metadata');
+    const before = await json();
+    await metadata.click();
+    check(await page.getByTestId('table-editor').count() === 0, 'Table click opened properties');
+    if (entry === 'double-click') await metadata.dblclick();
+    else await page.keyboard.press('Enter');
+    check(await focused('table-label'), `${entry} did not focus table label`);
+    await page.getByTestId('table-label').fill('preserved-table-draft');
+    await metadata.dblclick();
+    check(await page.getByTestId('table-label').inputValue() === 'preserved-table-draft', 'Table re-entry discarded input');
+    await page.getByTestId('table-cancel').click();
+    await page.getByTestId('table-editor').waitFor({state:'detached'});
+    check(await json() === before, 'Table entry changed content/history');
+  }
+
   await editor.locator('h2').hover();
   await page.locator('[data-document-tab][data-active=true]').getByTestId('label-target-edit').click();
   check(await focused('label-target-input'), 'Edit did not focus the section label');
@@ -75,7 +92,7 @@ async (page, { openPath }) => {
   async function appliedTyping() {
     const focusFile = file.replace('drafts.md', 'focus.md');
     const cases = [
-      {kind:'figure', type:'figure', field:'figure-caption', first:'figure-image-url', value:'Applied caption.', label:'fig-a'},
+      {kind:'figure', type:'figure', field:'figure-label', first:'figure-image-url', value:'fig-applied', label:'fig-applied'},
       {kind:'table', type:'table', field:'table-label', first:'table-label', value:'tbl-applied', label:'tbl-applied'},
       {kind:'label-target', type:'labelTarget', field:'label-target-input', first:'label-target-input', value:'SECTION-A', label:'SECTION-A'},
     ];
@@ -106,7 +123,7 @@ async (page, { openPath }) => {
       const ref = page.locator('[data-document-tab][data-active=true]').getByTestId('cross-reference').and(page.locator(`[data-label="${item.label}"]`));
       check(await ref.getAttribute('data-resolved') === 'true', `${item.kind}/${mode}: reference no longer resolves`);
       if (item.type === 'figure') {
-        check(await target.locator('figcaption').innerText() === item.value &&
+        check(await target.locator('figcaption').innerText() === 'Caption.' &&
           await page.getByText('TypedProperties275After figure.', {exact:true}).filter({visible:true}).count() === 1, 'Figure caption or following prose was lost');
       } else if (item.type === 'table') {
         check(await target.locator('td').allTextContents().then(cells => cells.join('|')) === 'Value|V' &&

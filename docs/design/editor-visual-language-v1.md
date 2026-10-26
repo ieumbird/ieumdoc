@@ -591,7 +591,7 @@ Shared Settings/Local recovery and Desktop About reuse the existing dialog, Butt
 | Link / inline math / reference | Input/select receives focus; existing blur dismissal and Escape close are retained; explicit close returns to editor. |
 | Figure | Selection keeps editor focus; explicit Edit autofocuses Image. Outside/selection dismissal never closes a draft. Explicit Apply/Cancel or existing Escape in its form completes it. |
 | Equation | Inline source form and preview; existing Apply/Cancel/Escape semantics. |
-| Block properties (Figure, Equation, Table, section label) | Actions read Cancel, then Apply (primary last), like dialogs. Edit focuses the first field. Apply/Cancel/Escape return focus to the editor at the block: a selection inside it stays, otherwise the block is selected. Cancel of a never-applied Equation leaves the caret in the text before it. A Figure Apply whose validation finishes after focus has moved elsewhere does not take it back. |
+| Properties (Figure, Equation, Table, inline math, section label) | Actions read Cancel, then Apply (primary last), like dialogs. Edit, double-click or selected Enter focuses the first field. Apply/Cancel/Escape return focus to the editor: a text selection inside the block stays, otherwise a collapsed text/gap caret follows it; inline math returns the caret after the formula. Cancel of a never-applied Equation leaves the caret in the text before it. A Figure Apply whose validation finishes after focus has moved elsewhere does not take it back. |
 | Open / New | Base UI modal focus boundary and Escape dismissal. New success hands focus to the first paragraph; Cancel/Escape or rejected creation returns it to the New button. New folder always returns focus to its button. Open folder… returns focus to its opening control: the Sidebar header button, start-screen button, or the prior focus target when dispatched through the command center (trigger for a click, original focused element for a shortcut). Folder menus contain no Open folder entry (#385). |
 | Document panel (overlay below 1424px) | Below the header, so it never covers TopBar actions or messages. Opened from the TopBar Outline toggle, which keeps focus; Escape inside the panel or Hide outline closes it and returns focus to the toggle. No focus trap: it is navigation, not a dialog. |
 | Full-screen sidebar (below 640px) | Opened from the TopBar's Expand sidebar, it covers the screen without a focus trap and focuses Collapse sidebar. Escape inside it or Collapse sidebar closes it and focuses the TopBar's Expand sidebar; opening or creating a document from it closes it. Portaled menus and dialogs keep their own Escape. |
@@ -1008,3 +1008,30 @@ and the automated font-weight geometry checks.
 | Document tabs / collapsed rail | [Before](assets/selection-515-review-fix/before-1440-tabs-rail.png) / [After](assets/selection-515-review-fix/after-1440-tabs-rail.png) | [Before](assets/selection-515-review-fix/before-390-tabs-rail.png) / [After](assets/selection-515-review-fix/after-390-tabs-rail.png) |
 | Outline current | [Before](assets/selection-515-review-fix/before-1440-outline.png) / [After](assets/selection-515-review-fix/after-1440-outline.png) | [Before](assets/selection-515-review-fix/before-390-outline.png) / [After](assets/selection-515-review-fix/after-390-outline.png) |
 | Slash active item | [Before](assets/selection-515-review-fix/before-1440-slash.png) / [After](assets/selection-515-review-fix/after-1440-slash.png) | [Before](assets/selection-515-review-fix/before-390-slash.png) / [After](assets/selection-515-review-fix/after-390-slash.png) |
+
+## Table property selection surface (#557)
+
+Visible Table metadata accepts a single click to node-select the Table and a double-click
+to open its Label properties. It stays hidden and inert at rest, with unchanged geometry.
+Cells and the caption retain text selection. Figure and math properties use the existing
+shared BlockProperties surface, dimensions, spacing and focus treatments; inline math now
+uses that same explicit Apply/Cancel form. See [Continuous editing](document-editing-v1.md#continuous-editing).
+
+### Property form comparison
+
+Same-state Before/After from `pnpm browser:test quiet-document --screenshots`, using the
+same checkout, Vite origin `127.0.0.1:5358`, persistent Chrome profile, English UI,
+bundled Pretendard, DPR/zoom 1, and the runner's unchanged scroll/selection/viewport setup.
+Before uses master `c3f7153162a6b80ee7a0d795a2bb02cd46a94e58`; After uses feature commit
+`134558c1aa99c544c3944da59986cf2f5581e9f0`, before integrating newer master typography
+and code-language changes. This pair isolates the #557 property-form change.
+Figure viewport is 768×1000; inline math is 704×650 after the same resize/scroll steps.
+The smaller Figure form retains its body caption, and inline math gains the common explicit
+Cancel/Apply surface. Layout/quiet-document assertions remain automatic; these selected
+screenshots were inspected separately. Full logs, traces and the remaining captures stay in
+ignored `tmp/` and can be regenerated.
+
+| Surface | Before | After |
+| --- | --- | --- |
+| Figure properties | ![Figure before](assets/property-editing-557/before-768-figure.png) | ![Figure after](assets/property-editing-557/after-768-figure.png) |
+| Inline math properties | ![Inline math before](assets/property-editing-557/before-704-inline-math.png) | ![Inline math after](assets/property-editing-557/after-704-inline-math.png) |

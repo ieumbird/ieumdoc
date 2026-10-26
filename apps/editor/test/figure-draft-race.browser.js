@@ -17,6 +17,7 @@ async (page, { openPath }) => {
     }));
   };
   await openScratch();
+  const initialCaption = (await semantic())[0].caption;
   const figure = page.locator('[data-document-tab][data-active=true] [data-block="figure"]').first();
   await figure.locator('img').click();
   await figure.getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
@@ -27,7 +28,7 @@ async (page, { openPath }) => {
     selectedFigure: await page.locator('[data-document-tab][data-active=true] .ProseMirror-selectednode').count() === 1,
     formOpen: await page.getByTestId('figure-editor').count() === 1,
     activeField: await page.evaluate(() => document.activeElement?.getAttribute('data-testid')),
-    caption: await page.getByTestId('figure-caption').inputValue(),
+    alt: await page.getByTestId('figure-alt').inputValue(),
   };
   // Moving the editor selection off the NodeSelection is the problematic blur boundary.
   await page.locator('[data-document-tab][data-active=true] .document-editor').press('ArrowDown');
@@ -41,11 +42,11 @@ async (page, { openPath }) => {
     throw new Error(`Figure form closed before draft activation: ${JSON.stringify({beforeSelectionMove, afterSelectionMove})}`);
   }
 
-  const typedCaption = 'Caption entered after Figure selection moved.';
-  await page.getByTestId('figure-caption').fill(typedCaption);
+  const typedAlt = 'Alt text entered after Figure selection moved.';
+  await page.getByTestId('figure-alt').fill(typedAlt);
   const draftActive = await page.locator('[data-document-tab][data-active=true]').getByTestId('figure-draft-status').isVisible() &&
     await page.getByTestId("draft-notice").isVisible();
-  const captionStayedInField = await page.getByTestId('figure-caption').inputValue() === typedCaption &&
+  const altStayedInField = await page.getByTestId('figure-alt').inputValue() === typedAlt &&
     await page.getByTestId('figure-image-url').inputValue() === './diagram.svg';
   await page.getByTestId('figure-apply').click();
   await page.getByTestId('figure-editor').waitFor({state:'detached'});
@@ -56,10 +57,10 @@ async (page, { openPath }) => {
   await openScratch();
   const reloaded = await semantic();
   const saveReloadPreserved = reloaded.length === 1 && reloaded[0].label === 'fig-control' &&
-    reloaded[0].imageUrl === './diagram.svg' && reloaded[0].imageAlt === 'Control block diagram' &&
-    reloaded[0].caption === typedCaption;
-  const result = {beforeSelectionMove, afterSelectionMove, draftActive, captionStayedInField, saveReloadPreserved};
-  if (afterSelectionMove.selectedFigure || !afterSelectionMove.formOpen || !draftActive || !captionStayedInField || !saveReloadPreserved) {
+    reloaded[0].imageUrl === './diagram.svg' && reloaded[0].imageAlt === typedAlt &&
+    reloaded[0].caption === initialCaption;
+  const result = {beforeSelectionMove, afterSelectionMove, draftActive, altStayedInField, saveReloadPreserved};
+  if (afterSelectionMove.selectedFigure || !afterSelectionMove.formOpen || !draftActive || !altStayedInField || !saveReloadPreserved) {
     throw new Error(`Figure selection race regression failed: ${JSON.stringify(result)}`);
   }
   // Figure validation is local to the form: explicit tab close can discard its draft.
@@ -87,7 +88,7 @@ async (page, { openPath }) => {
     const edit = page.locator('[data-document-tab][data-active=true] [data-block="figure"]').first().getByRole('button', {name:'Edit figure'});
     await edit.locator('..').hover({position:{x:4,y:4}});
     await edit.click();
-    await page.getByTestId('figure-caption').fill(`Late validation after ${leave}`);
+    await page.getByTestId('figure-alt').fill(`Late validation after ${leave}`);
     let release, requested;
     const gate = new Promise(resolve => { release = resolve; });
     const started = new Promise(resolve => { requested = resolve; });
@@ -152,7 +153,7 @@ async (page, { openPath }) => {
   const otherTab = page.getByRole('tab').and(page.locator(`:not([id="${ownerId}"])`));
   await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n => { window.hiddenFigureEditor = n.editor; });
   await figure.hover(); await figure.getByRole('button', {name:'Edit figure'}).click();
-  await page.getByTestId('figure-caption').fill('Applied in hidden owner');
+  await page.getByTestId('figure-alt').fill('Applied in hidden owner');
   let releaseHidden, requestHidden;
   const gateHidden = new Promise(resolve => { releaseHidden = resolve; });
   const startedHidden = new Promise(resolve => { requestHidden = resolve; });
@@ -165,12 +166,12 @@ async (page, { openPath }) => {
     const focusedTab = await page.evaluate(() => document.activeElement?.id);
     const response = page.waitForResponse('**/api/figure-validation');
     releaseHidden(); await (await response).finished();
-    await page.waitForFunction(() => window.hiddenFigureEditor.state.doc.textContent.includes('Applied in hidden owner'));
+    await page.waitForFunction(() => window.hiddenFigureEditor.state.doc.content.content.some(n => n.attrs.imageAlt === 'Applied in hidden owner'));
     if (await active.evaluate(n => JSON.stringify(n.editor.getJSON())) !== before ||
         await page.evaluate(() => document.activeElement?.id) !== focusedTab ||
         await page.getByTestId('figure-editor').count() !== 0) throw new Error('Hidden Figure completion changed the active tab or stole focus');
     await page.locator(`#${ownerId}`).click();
-    if (!(await figure.innerText()).includes('Applied in hidden owner')) throw new Error('Figure completion was lost by its retained owner');
+    if (await figure.locator('img').getAttribute('alt') !== 'Applied in hidden owner') throw new Error('Figure completion was lost by its retained owner');
     result.hiddenValidationRetainsOwnerAndFocus = true;
   } finally { releaseHidden(); await page.unroute('**/api/figure-validation'); }
   return result;

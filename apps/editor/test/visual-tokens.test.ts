@@ -154,7 +154,6 @@ test("UI consumers use shared colors, control geometry and reasoned native-butto
     };
     const cssExceptions = new Map([
       [".equation-input|min-height|5rem", "Multiline LaTeX field minimum, not a single-line control."],
-      [".selection-toolbar.inline-math-form|width|22rem", "Overlay width, not action geometry."],
       [".selection-toolbar.cross-reference-form|width|22rem", "Overlay width, not action geometry."],
       [".message-dismiss|min-width|1.5rem", "Existing 24px floor beneath the shared Button's actual 28px target."],
       [".message-dismiss|min-height|1.5rem", "Existing 24px floor beneath the shared Button's actual 28px target."],

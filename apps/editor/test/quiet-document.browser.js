@@ -594,10 +594,10 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     await page.mouse.move(0,0);
     await shot(`${width}-figure-editing`);
     // The selected outline is an interaction state, not draft ownership.
-    await page.getByTestId('figure-caption').fill('수정 중인 caption');
+    await page.getByTestId('figure-alt').fill('수정 중인 caption');
     check(await page.getByTestId('status').textContent()==='Unsaved changes','Dirty Figure draft has misleading status');
     await page.locator('[data-document-tab][data-active=true] .document-editor').press('ArrowDown');
-    check(await page.getByTestId('figure-caption').inputValue()==='수정 중인 caption','Selection movement lost the Figure draft');
+    check(await page.getByTestId('figure-alt').inputValue()==='수정 중인 caption','Selection movement lost the Figure draft');
     check(await page.locator('[data-document-tab][data-active=true] .figure[data-selected="false"][data-editing="true"]').count()===1,'Independent selected/editing axes missing');
     await page.getByTestId('figure-cancel').click();
     await page.locator('[data-document-tab][data-active=true] .paragraph').first().click();
@@ -716,11 +716,11 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
 
   // Inline overlays at the right edge, including resize and scroll while open.
   await page.setViewportSize({width:768,height:700});
-  await page.locator('[data-document-tab][data-active=true] .inline-math-rendered .katex-html').first().click();
-  await bounds(page.getByTestId('inline-math-form'),'Inline math 768');
+  await page.locator('[data-document-tab][data-active=true] .inline-math-rendered .katex-html').first().dblclick();
+  await bounds(page.getByTestId('inline-math-properties'),'Inline math 768');
   await page.setViewportSize({width:704,height:650});
   await page.mouse.wheel(0,120);
-  await bounds(page.getByTestId('inline-math-form'),'Inline math resized/scrolled');
+  await bounds(page.getByTestId('inline-math-properties'),'Inline math resized/scrolled');
   await shot('704-inline-math');
   await page.getByTestId('inline-math-source').press('Escape');
   // A resolved chip goes to its target; its edit button opens the reference form.
