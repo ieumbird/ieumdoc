@@ -1550,12 +1550,13 @@ function CodeBlockView({ node, editor, updateAttributes }: ReactNodeViewProps) {
       data-block="code"
       data-source-path={String(node.attrs.sourcePath ?? "")}
     >
-      <input
+      <Input
         className="code-language"
         data-testid="code-language"
         aria-label={i18n.t("Code language")}
         placeholder={i18n.t("Language")}
         spellCheck={false}
+        autoComplete="off"
         contentEditable={false}
         readOnly={!editor.isEditable}
         value={String(node.attrs.language ?? "")}

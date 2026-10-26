@@ -17,16 +17,18 @@ const buttonVariants = cva(
           "border-input bg-secondary text-secondary-foreground hover:bg-accent aria-expanded:bg-[var(--id-color-surface-pressed)] aria-expanded:text-secondary-foreground",
         ghost:
           "hover:bg-accent hover:text-foreground aria-expanded:bg-[var(--id-color-surface-pressed)] aria-expanded:text-foreground dark:hover:bg-muted/50",
+        // TableTools owns explicit targets/anchors and its token-backed address geometry.
+        "table-handle": "bg-muted text-muted-foreground hover:bg-accent",
       },
       size: {
         default:
           "h-[var(--size-control)] gap-[var(--space-2)] px-[var(--space-3)]",
-        sm: "h-[var(--size-control-compact)] gap-[var(--space-2)] rounded-[min(var(--radius-md),12px)] px-[var(--space-3)] text-sm leading-[var(--line-height-label)] [&_svg:not([class*='size-'])]:size-[var(--size-icon-slot)]",
+        sm: "h-[var(--size-control-compact)] gap-[var(--space-2)] px-[var(--space-3)] text-sm leading-[var(--line-height-label)] [&_svg:not([class*='size-'])]:size-[var(--size-icon-slot)]",
         icon: "size-[var(--size-control)]",
         "icon-xs":
           "size-[var(--size-control-compact)] rounded-md [&_svg:not([class*='size-'])]:size-[var(--size-icon-slot)]",
         "icon-sm":
-          "size-[var(--size-control-compact)] rounded-[min(var(--radius-md),12px)]",
+          "size-[var(--size-control-compact)]",
       },
     },
     defaultVariants: {
