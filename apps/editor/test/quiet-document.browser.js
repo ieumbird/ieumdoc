@@ -147,27 +147,32 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     }
     throw Error('Paragraph did not wrap');
   });
-  await page.mouse.click(caret.x,caret.y);
-  check(await prose.evaluate(async(n,{pos,offset})=>{
+  const nativeSelection=()=>prose.evaluate(async n=>{
     const selection=window.getSelection(), editor=n.closest('.document-editor').editor;
-    // Native caret placement is synchronous; ProseMirror observes selectionchange later.
-    if(!selection.isCollapsed||selection.anchorNode!==n.firstChild||selection.anchorOffset!==offset)return false;
-    if(editor.state.selection.from!==pos)await new Promise((resolve,reject)=>{
+    // Capture the native result immediately; only the engine's selectionchange observer is async.
+    const {anchorNode,anchorOffset,focusNode,focusOffset}=selection;
+    const anchor=editor.view.posAtDOM(anchorNode,anchorOffset),focus=editor.view.posAtDOM(focusNode,focusOffset);
+    const from=Math.min(anchor,focus),to=Math.max(anchor,focus),text=selection.toString();
+    const lines=new Set([...selection.getRangeAt(0).getClientRects()].filter(r=>r.width>0).map(r=>Math.round(r.top))).size;
+    if(editor.state.selection.from!==from||editor.state.selection.to!==to)await new Promise((resolve,reject)=>{
       const updated=()=>{clearTimeout(timeout);editor.off('selectionUpdate',updated);resolve();};
-      const timeout=setTimeout(()=>{editor.off('selectionUpdate',updated);reject(Error('Click selectionUpdate missing'));},1000);
+      const timeout=setTimeout(()=>{editor.off('selectionUpdate',updated);reject(Error('Native selectionUpdate missing'));},1000);
       editor.on('selectionUpdate',updated);
     });
-    return editor.state.selection.empty&&editor.state.selection.from===pos;
-  },caret), 'Wrapped-line click placed the caret incorrectly');
+    return {from,to,anchorOffset,anchorInText:anchorNode===n.firstChild,lines,
+      engineMatches:editor.state.selection.from===from&&editor.state.selection.to===to&&editor.state.doc.textBetween(from,to)===text&&
+        selection.anchorNode===anchorNode&&selection.anchorOffset===anchorOffset&&selection.focusNode===focusNode&&selection.focusOffset===focusOffset};
+  });
+  await page.mouse.click(caret.x,caret.y);
+  const clicked=await nativeSelection();
+  check(clicked.anchorInText&&clicked.anchorOffset===caret.offset&&clicked.from===caret.pos&&clicked.to===caret.pos&&clicked.engineMatches,
+    `Wrapped-line click placed the caret incorrectly: ${JSON.stringify(clicked)}`);
   await page.keyboard.press('ArrowRight');
+  check((await nativeSelection()).engineMatches,'ArrowRight native/engine selection mismatch');
   await page.keyboard.press('Shift+ArrowUp');
-  check(await prose.evaluate((n,{pos})=>{
-    const editor=n.closest('.document-editor').editor, selection=window.getSelection();
-    const {from,to}=editor.state.selection;
-    const rects=[...selection.getRangeAt(0).getClientRects()].filter(r=>r.width>0);
-    return from<pos&&to>pos&&selection.toString()===editor.state.doc.textBetween(from,to)&&
-      new Set(rects.map(r=>Math.round(r.top))).size>1;
-  },caret), 'Selection across a wrapped line changed text or positions');
+  const selected=await nativeSelection();
+  check(selected.from<caret.pos&&selected.to>caret.pos&&selected.lines>1&&selected.engineMatches,
+    `Selection across a wrapped line changed text or positions: ${JSON.stringify(selected)}`);
   // Chromium's native composition protocol at the preceding line end. OS IME UI is manual.
   await prose.evaluate((n,pos)=>{
     const editor=n.closest('.document-editor').editor;
