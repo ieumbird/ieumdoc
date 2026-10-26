@@ -1,5 +1,6 @@
 // Real Core-backed scratch fixture; run with pnpm browser:test layout-rules.
 async (page, { openPath, withBlockHover }) => {
+  page.setDefaultTimeout(15000);
   await page.unrouteAll();
   const origin = page.url().split('/').slice(0,3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
@@ -27,10 +28,28 @@ async (page, { openPath, withBlockHover }) => {
     return original;
   });
   // Document preferences must not resize or restyle navigation, controls or dialog text.
-  await page.getByTestId('sidebar').getByRole('button',{name:'Open folder…',exact:true}).click();
+  const results=[];
+  const language=async next=>{
+    const current=await page.locator('html').getAttribute('lang');
+    const expand=page.getByRole('button',{name:current==='ko'?'사이드바 펼치기':'Expand sidebar',exact:true});
+    if(await expand.isVisible())await expand.click();
+    await page.getByRole('button',{name:current==='ko'?'설정':'Settings',exact:true}).click();
+    await page.getByTestId('ui-language').selectOption(next);
+    await page.keyboard.press('Escape');
+    await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+  };
+  for(const width of [1440,390])for(const locale of ['en','ko']){
+  await page.setViewportSize({width,height:1000});
+  await page.getByTestId('document-panel').waitFor({state:width>=1280?'visible':'detached'});
+  await language(locale);
+  await page.getByTestId('sidebar').getByRole('button',{name:locale==='ko'?'폴더 열기…':'Open folder…',exact:true}).click();
+  await page.getByTestId('folder-path').fill(file.slice(0,file.lastIndexOf(sep)+1));
+  await page.waitForFunction(path=>document.querySelector('.folder-picker-crumb[aria-current="location"]')?.title===path,file.slice(0,file.lastIndexOf(sep)));
+  await page.getByTestId('folder-path').focus();
   const isolation = await page.evaluate(() => {
     const root=document.documentElement;
-    const selectors=['.sidebar-tree-item','[data-testid="save"]','.document-outline-item','.figure-edit','.equation-edit',
+    // The narrow layout deliberately unmounts the closed Outline; its desktop coverage stays required.
+    const selectors=[...(innerWidth>=1280?['.document-outline-item']:[]),'.sidebar-tree-item','[data-testid="save"]','.figure-edit','.equation-edit','.folder-picker-crumb',
       '.table-row-handle','.table-column-handle','.table-extend','.table-action-bar button',
       '.code-language','.block-metadata','.label-target-edit','.cross-reference-edit','[role="dialog"]'];
     const type=n=>{
@@ -46,13 +65,32 @@ async (page, { openPath, withBlockHover }) => {
       return nodes.map(type);
     });
     const before=ui(), body=document.querySelector('.document-editor'), original=type(body);
+    const required=s=>{const n=document.querySelector(s);if(!n)throw Error(`Missing control ${s}`);return n;};
+    const resolve=(property,token)=>{
+      const probe=document.createElement('span');probe.style[property]=`var(${token})`;document.body.append(probe);
+      const value=getComputedStyle(probe)[property];probe.remove();return value;
+    };
+    const geometry=[['[data-testid="save"]',32],['.folder-picker-field',32],['.code-language',28],
+      ['.table-row-handle',28],['.table-column-handle',28],['.table-extend',28],
+      ['.table-action-bar button',28],['.sidebar-collapse',28]].map(([selector,height])=>{
+        const n=required(selector),s=getComputedStyle(n);
+        return {selector,height:n.getBoundingClientRect().height,expected:height,radius:s.borderRadius};
+      });
+    const crumbs=[...document.querySelectorAll('.folder-picker-crumb')];
+    if(!crumbs.length)throw Error('Missing breadcrumb controls');
+    const selected=getComputedStyle(required('.sidebar-tree-item[aria-current="page"]'));
+    const field=getComputedStyle(required('.folder-picker-field'));
+    const shared={geometry,crumbs:crumbs.every(n=>n.getBoundingClientRect().height>=28&&getComputedStyle(n).borderRadius==='6px'),
+      selected:selected.backgroundColor===resolve('backgroundColor','--id-color-surface-selected')&&selected.color===resolve('color','--id-color-text-selected'),
+      focus:field.borderColor===resolve('color','--id-color-border-focus')&&field.boxShadow.includes(resolve('color','--id-color-interaction')),
+      language:document.documentElement.lang};
     const overrides={'--font-size-document':`calc(${original[1]} * 1.25)`,'--font-family-document':'var(--font-family-mono)',
       '--line-height-document':'2'};
     const saved=Object.keys(overrides).map(name=>[name,root.style.getPropertyValue(name),root.style.getPropertyPriority(name)]);
     try {
       for(const [name,value] of Object.entries(overrides))root.style.setProperty(name,value);
       const after=ui();
-      return {uiUnchanged:JSON.stringify(before)===JSON.stringify(after),
+      return {shared,uiUnchanged:JSON.stringify(before)===JSON.stringify(after),
         changes:selectors.flatMap((selector,i)=>JSON.stringify(before[i])===JSON.stringify(after[i])?[]:[{selector,before:before[i],after:after[i]}]),
         documentChanged:type(body)[0]!==original[0]&&parseFloat(type(body)[1])>parseFloat(original[1])&&type(body)[2]!==original[2]};
     } finally {
@@ -60,10 +98,17 @@ async (page, { openPath, withBlockHover }) => {
     }
   });
   if(!isolation.uiUnchanged||!isolation.documentChanged)throw Error(`Document typography leaked into UI: ${JSON.stringify(isolation)}`);
+  const shared=isolation.shared;
+  if(shared.language!==locale||!shared.crumbs||!shared.selected||!shared.focus||shared.geometry.some(c=>c.height!==c.expected||c.radius!=='6px'))
+    throw Error(`Shared control contract (${locale}/${width}): ${JSON.stringify(shared)}`);
+  results.push({shared:{width,...shared}});
   await page.keyboard.press('Escape');
   await page.getByRole('dialog').waitFor({state:'detached'});
+  }
+  await language('en');
+  await page.setViewportSize({width:1440,height:1000});
+  await page.getByRole('button',{name:'Collapse sidebar',exact:true}).waitFor();
   await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate((element,original)=>element.editor.commands.setContent(original),isolationDocument);
-  const results=[];
   await withBlockHover(page, async () => {
     for(const width of [1440,1280,1279,1025,1024,768,705,704]) {
       await page.setViewportSize({width,height:1000});

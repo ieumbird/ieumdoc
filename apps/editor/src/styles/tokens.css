@@ -175,8 +175,6 @@
   --font-weight-bold: 700;
   --line-height-body: 1.5;
   --line-height-start-title: 1.35;
-  /* Native table tools keep their original 20.4px line box at the UI metadata size. */
-  --line-height-table-tool: 1.7;
   --line-height-label: 1.25rem;
   --line-height-meta: 1rem;
 

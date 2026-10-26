@@ -246,10 +246,10 @@ export function FolderDialog({ open, choose = "folder", initialPath, recent, res
             {crumbs.map((crumb, index) => (
               <span key={crumb.path}>
                 {index > 0 ? <span className="folder-picker-crumb-separator" aria-hidden="true">/</span> : null}
-                <button type="button" className="folder-picker-crumb" title={crumb.path}
+                <Button variant="ghost" size="sm" type="button" className="folder-picker-crumb" title={crumb.path}
                   aria-current={index === crumbs.length - 1 ? "location" : undefined} onClick={() => go(crumb.path)}>
                   {crumb.name}
-                </button>
+                </Button>
               </span>
             ))}
           </nav>

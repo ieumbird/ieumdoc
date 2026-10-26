@@ -1,0 +1,91 @@
+{
+  "issue": 514,
+  "base": "325704e73871303b70aa4c73fc930eb2f975b8c1",
+  "environment": {
+    "origin": "http://127.0.0.1:5314",
+    "os": "Windows",
+    "browser": "installed Chrome 155.0.8059.85",
+    "runner": "pnpm browser:test control-review (disposable collector removed)",
+    "profile": "checkout-owned persistent profile",
+    "dpr": 1,
+    "zoom": 1,
+    "locale": "en",
+    "viewports": [
+      {
+        "width": 1440,
+        "height": 900
+      },
+      {
+        "width": 390,
+        "height": 900
+      }
+    ],
+    "fonts": "document.fonts.ready; quiet-document CDP verifies bundled Pretendard"
+  },
+  "states": {
+    "rest": "scroll top, pointer away, no focus",
+    "sidebar": "expanded, scroll top, pointer away, no focus",
+    "table": "first cell focused, table scrolled into view",
+    "code": "code-block top anchored and checked at viewport y=600; language focused with preventScroll; two code pairs recaptured after correcting the earlier clamped-scroll protocol",
+    "gutter": "first paragraph hovered",
+    "formatting": "first five characters selected; pointer away",
+    "breadcrumb": "same trailing-separator path, current crumb loaded, path field focused; pointer away"
+  },
+  "note": "Manual review evidence only. Before uses git-show baseline product files temporarily in this same worktree, restored in finally; no rebase, merge or second browser profile. Server restarted before After.",
+  "fixture": {
+    "file": "apps/editor/test/browser/fixtures/quiet-document.md",
+    "sha256": "c8cca1f6ea58277a1e5e75fc80aedbb0dcfea9aba72f8b4f70298f23233940dc",
+    "unsavedAddition": {
+      "type": "codeBlock",
+      "language": "js",
+      "text": "const value = 1;"
+    }
+  },
+  "inputs": [
+    {
+      "file": "apps/editor/src/BlockHandles.tsx",
+      "before": "a208f383fda320471ba342b0d8e69c488852daa094498d167f1854ffa07c7ac4",
+      "after": "513b8f629900f3d1ffc7d38b479da5dd0cdd83168cd3ffd0fb9d3644a7a18a4d"
+    },
+    {
+      "file": "apps/editor/src/SelectionToolbar.tsx",
+      "before": "538e2aef269afaffc59ed00d35c91485b8aebd5b713663bfc97f8d6681426b3c",
+      "after": "62cceb0735931f65e57b6abde6ce7d6e935b96b0387d3638ae6bca885a2a4a0d"
+    },
+    {
+      "file": "apps/editor/src/components/ui/button.tsx",
+      "before": "73f8c3dce85d4842edac2b4ca55a3204e43c46bc2280cbf88d2aa03dda151cfc",
+      "after": "e134c1f2583f90bf66ac082ee0a5be1b71b887ab8f37260049ed770aec4b47a5"
+    },
+    {
+      "file": "apps/editor/src/editor-schema.tsx",
+      "before": "1f2d2d0357a17217e865b3469ffc7e877f16017177024e58fb80b5b7ef51c981",
+      "after": "630bc661118daf32ff5dcd5683bfd2d3c59574f8f76ec55d99be105e23658d5e"
+    },
+    {
+      "file": "apps/editor/src/shell/FolderDialog.tsx",
+      "before": "17bf2194dedba6be869f4824fdd637d7e0455b25f99bef9d35291b53d628ef8c",
+      "after": "1b7848e82ce602c1c0fa8aff195e85017b27466407d3f1630ef87335b8cba8ae"
+    },
+    {
+      "file": "apps/editor/src/shell/Sidebar.tsx",
+      "before": "da2094a5d9d1b96b03bace708eb7ff022edefd891fdca96588fd2178e95e20e4",
+      "after": "5fffa9c7bc7b3edabd83389770e0d466d3e0d10285ae049e4573b09cc0b351a2"
+    },
+    {
+      "file": "apps/editor/src/styles.css",
+      "before": "f8a709499b8460b030c98c1f2ba6c3e737af5232feffb1992ee03d4670ea18ee",
+      "after": "689718481f2166dddc1a2326f0d32c177d92f67effb81862688d0cadcc1ca250"
+    },
+    {
+      "file": "apps/editor/src/styles/tokens.css",
+      "before": "6e8a605543d6ca64adc3e2bb0d0d394ce63e8fbb4866322ffd18d963adbe8d13",
+      "after": "661d7e789678ea63c06bf40b81c89dc529dcf57fcce9f6056dfec157af791364"
+    },
+    {
+      "file": "apps/editor/src/table-tools.tsx",
+      "before": "6f3023c21b48ff75337160623f1ac4c9dde943765b2325b2f781b81917334ede",
+      "after": "bf31ff950d4c32ed6d1f0a3de15c9b1508168d400e1bd4f6122f3241db1238f8"
+    }
+  ]
+}

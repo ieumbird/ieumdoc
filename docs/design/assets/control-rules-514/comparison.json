@@ -1,0 +1,221 @@
+[
+  {
+    "state": "1440-breadcrumb",
+    "beforeSha256": "8fb02ad539fd76757befc6e05bb590470c7f36a81cde754109eb1f044a1ce73e",
+    "afterSha256": "63095cfdadf4ebd0141f9714e4daa39d666ae7de9ca1968789ae3e54c6eadd9e",
+    "dimensions": [
+      1440,
+      900
+    ],
+    "changedPixels": 2447,
+    "bounds": [
+      189,
+      3,
+      772,
+      417
+    ]
+  },
+  {
+    "state": "1440-code",
+    "beforeSha256": "7b791bab60f1d3eeb1debf82605466ac899e2f80bbe3f0873c081d190cacccfa",
+    "afterSha256": "08c45b313dfad752ba69cf359603c29f5275c7d3f3f8a1ee17d365d7ebced93f",
+    "dimensions": [
+      1440,
+      900
+    ],
+    "changedPixels": 21304,
+    "bounds": [
+      200,
+      11,
+      1080,
+      679
+    ]
+  },
+  {
+    "state": "1440-formatting",
+    "beforeSha256": "3b363e371c26ae38d6f6a93433da26078f31a5a8a639c4525af6ef53203e1d61",
+    "afterSha256": "dd51667847fddb6afae2fcb3b7dcee500cb6a5cbe96fa1290f431c8f753cb969",
+    "dimensions": [
+      1440,
+      900
+    ],
+    "changedPixels": 1007,
+    "bounds": [
+      200,
+      11,
+      401,
+      219
+    ]
+  },
+  {
+    "state": "1440-gutter",
+    "beforeSha256": "6da1099856d9ae35bb6ea06636b5a4ab7b61884aa5040a041421936dd4a59773",
+    "afterSha256": "502a96ce6b486e0ded3c58287f5d2ef08372c2d9662b0ffdf067179d3169c947",
+    "dimensions": [
+      1440,
+      900
+    ],
+    "changedPixels": 1069,
+    "bounds": [
+      200,
+      11,
+      1080,
+      894
+    ]
+  },
+  {
+    "state": "1440-rest",
+    "beforeSha256": "5c6a5515161ce5a96d418b82e35f04df0b8cb09b160febdc07717353229c6d9c",
+    "afterSha256": "20df4ce21606787002a15e7fdbcaaae1e0f54d1345f673d1603a8803479d0c52",
+    "dimensions": [
+      1440,
+      900
+    ],
+    "changedPixels": 660,
+    "bounds": [
+      200,
+      11,
+      226,
+      37
+    ]
+  },
+  {
+    "state": "1440-sidebar",
+    "beforeSha256": "34baf13c97637dd5e25ae71f3f7053fc2135180372d5d457c1e92f963ee42e5d",
+    "afterSha256": "b95db347c1c8cf88ef8978165276d42d613bb7608494919f138d4f54486e7a85",
+    "dimensions": [
+      1440,
+      900
+    ],
+    "changedPixels": 660,
+    "bounds": [
+      200,
+      11,
+      226,
+      37
+    ]
+  },
+  {
+    "state": "1440-table",
+    "beforeSha256": "324c7bf358cb6f911f3d5700520228490ff4e482f5da8bc1896f826f416e5801",
+    "afterSha256": "dfaf48be44607a272112eb6e91bf563fac9e0311f34f1ae039349b6f871534c6",
+    "dimensions": [
+      1440,
+      900
+    ],
+    "changedPixels": 1457,
+    "bounds": [
+      200,
+      11,
+      1080,
+      892
+    ]
+  },
+  {
+    "state": "390-breadcrumb",
+    "beforeSha256": "18b8422c0916626c2938dd1427864d78c5ee96bdb39f800d37fb8e279085afe6",
+    "afterSha256": "c0732f59c5b93ed9c01ed4c481d0b3dbfbf38bfb55260f62544fea253e1f5a6d",
+    "dimensions": [
+      390,
+      900
+    ],
+    "changedPixels": 2386,
+    "bounds": [
+      37,
+      3,
+      385,
+      501
+    ]
+  },
+  {
+    "state": "390-code",
+    "beforeSha256": "8ca459f8fc8168e47ffe340909e3c5e298a7b87a90be88f41f5994e1fcb1a3d8",
+    "afterSha256": "8c74f90ccdfb2bd138b6ee2b19662fbc06264cb5b677edda41d18a283553a359",
+    "dimensions": [
+      390,
+      900
+    ],
+    "changedPixels": 8317,
+    "bounds": [
+      94,
+      598,
+      358,
+      679
+    ]
+  },
+  {
+    "state": "390-formatting",
+    "beforeSha256": "fcca2e7c1cdc30d20aff26a246ce8a69b1330302dd76a55f7de0d8ac65c22362",
+    "afterSha256": "8ef1d1c5f15c2515fe3737c665032ab094abc0ab8b0362d24c4782aec49da53c",
+    "dimensions": [
+      390,
+      900
+    ],
+    "changedPixels": 341,
+    "bounds": [
+      32,
+      315,
+      145,
+      360
+    ]
+  },
+  {
+    "state": "390-gutter",
+    "beforeSha256": "c7e1b7a6f25a1a1f9b5362e40eab1e18409fd78de4e9abc6acd1e05f1f2513f3",
+    "afterSha256": "30904c9819e222b9ad50ba05e8279d326951d554418faa544b7f9f041e31dba8",
+    "dimensions": [
+      390,
+      900
+    ],
+    "changedPixels": 153,
+    "bounds": [
+      32,
+      348,
+      75,
+      360
+    ]
+  },
+  {
+    "state": "390-rest",
+    "beforeSha256": "98c25474f866cb4b10d88a648b5cbd0a5c30bd7248411b6fc3df7148bf52e5a2",
+    "afterSha256": "98c25474f866cb4b10d88a648b5cbd0a5c30bd7248411b6fc3df7148bf52e5a2",
+    "dimensions": [
+      390,
+      900
+    ],
+    "changedPixels": 0,
+    "bounds": null
+  },
+  {
+    "state": "390-sidebar",
+    "beforeSha256": "62cba020e85122ea91645ac4f36732d95ca3914dac6b6f81ecea4bb0b9090cd1",
+    "afterSha256": "2a8f7b861db39bb3215db701604b50c09adbe412163c33828b523cc62612d9df",
+    "dimensions": [
+      390,
+      900
+    ],
+    "changedPixels": 660,
+    "bounds": [
+      351,
+      11,
+      377,
+      37
+    ]
+  },
+  {
+    "state": "390-table",
+    "beforeSha256": "9fd5027707820afb47492174c1d5be646f94fc8ec0770dd39d12e64ab8ac615c",
+    "afterSha256": "00fcaeb598d37676445203d5993ae101fd411b84c342f18580594bdbe71b90cb",
+    "dimensions": [
+      390,
+      900
+    ],
+    "changedPixels": 695,
+    "bounds": [
+      32,
+      337,
+      341,
+      554
+    ]
+  }
+]

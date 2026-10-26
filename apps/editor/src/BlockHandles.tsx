@@ -7,6 +7,7 @@ import { blockDropTarget, reorderBlock } from "./block-reorder.ts";
 import { endnoteLabel } from "./endnotes.ts";
 import { editorTitleIndex, TITLE_FIXED } from "./document-title.ts";
 import { Button } from "@/components/ui/button.tsx";
+import { GripVertical, Plus } from "lucide-react";
 
 type BlockHandlesProps = {
   editor: Editor;
@@ -39,7 +40,7 @@ const HandleControls = memo(function HandleControls({ index, name, endnote, bloc
     {endnote ? <span className="block-insert-space" aria-hidden="true" /> : <Button variant="ghost" size="icon" className="block-insert"
       aria-label={i18n.t("Insert block after {{kind}} block {{number}}", { kind, number: index + 1 })}
       title={i18n.t("Insert block below")} aria-haspopup="menu"
-      onMouseDown={event => event.stopPropagation()} onClick={() => onInsert(index)}>+</Button>}
+      onMouseDown={event => event.stopPropagation()} onClick={() => onInsert(index)}><Plus aria-hidden="true" /></Button>}
     <Button variant="ghost" size="icon" draggable={!blocked} className="block-handle" data-endnote={endnote}
       aria-label={endnote ? i18n.t("Actions for endnote block {{number}}", { number: index + 1 }) : i18n.t("Move {{kind}} block {{number}}", { kind, number: index + 1 })}
       title={blocked ?? i18n.t("Drag to move, click for block actions")} aria-haspopup="menu"
@@ -47,7 +48,7 @@ const HandleControls = memo(function HandleControls({ index, name, endnote, bloc
       onDragStart={event => {
         if (blocked) { event.preventDefault(); return; }
         onDragStart(event, index);
-      }}>⠿</Button>
+      }}><GripVertical aria-hidden="true" /></Button>
   </>;
 });
 
