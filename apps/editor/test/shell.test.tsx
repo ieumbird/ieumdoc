@@ -23,7 +23,7 @@ import { readUiLanguage, writeUiLanguage, UI_LANGUAGE_KEY } from "../src/prefere
 import { filterInsertCommands } from "../src/block-commands.ts";
 import { FileText } from "lucide-react";
 import { filterCommandCenterItems, type CommandCenterItem } from "../src/shell/command-center.ts";
-import { COMMAND_CENTER_SHORTCUT, EDITOR_SHORTCUTS, INTERACTION_SHORTCUTS, LINK_SHORTCUT, SAVE_SHORTCUT, UNDO_SHORTCUT, REDO_SHORTCUT, shortcutLabel } from "../src/shortcuts.ts";
+import { COMMAND_CENTER_SHORTCUT, EDITOR_SHORTCUTS, LINK_SHORTCUT, SAVE_SHORTCUT, UNDO_SHORTCUT, REDO_SHORTCUT, shortcutLabel } from "../src/shortcuts.ts";
 import { KeyboardShortcutGroups, keyboardShortcutGroups } from "../src/shell/KeyboardShortcutsDialog.tsx";
 import { SelectionToolbar } from "../src/SelectionToolbar.tsx";
 import { extensions, flattenExtensions, getExtensionField, type Editor } from "@tiptap/core";
@@ -42,24 +42,30 @@ function registeredBindings() {
   }));
 }
 
-test("the shortcut guide covers every enabled Core, Tiptap and app keymap on Windows and macOS", () => {
+test("displayed shortcuts match existing bindings on Windows and macOS", () => {
   const navigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
   try {
     for (const mac of [false, true]) {
       Object.defineProperty(globalThis, "navigator", {configurable:true, value:{platform:mac ? "MacIntel" : "Win32", userAgent:"test"}});
-      const documented = new Set(keyboardShortcutGroups(mac).flatMap(group => group.entries.flatMap(entry => entry.shortcuts.map(shortcut => normalizeBinding(shortcut.binding)))));
-      for (const group of keyboardShortcutGroups(mac)) for (const entry of group.entries) for (const shortcut of entry.shortcuts) {
-        assert.equal(shortcut.label, shortcutLabel(shortcut.binding, mac));
-      }
       const registered = registeredBindings();
-      assert.deepEqual([...registered].filter(binding => !documented.has(binding)), [], `Undocumented ${mac ? "macOS" : "Windows"} bindings`);
-      for (const shortcut of Object.values(EDITOR_SHORTCUTS)) {
-        // Mac-only bindings are hidden on Windows; all are checked against the Mac keymap.
-        if (mac) assert.ok(registered.has(normalizeBinding(shortcut.binding)), `Unregistered guide binding: ${shortcut.binding}`);
+      // Shell handlers use these shared definitions outside the engine keymap.
+      for (const shortcut of [COMMAND_CENTER_SHORTCUT, SAVE_SHORTCUT, LINK_SHORTCUT]) registered.add(normalizeBinding(shortcut.binding));
+      for (const group of keyboardShortcutGroups()) for (const entry of group.entries) for (const shortcut of entry.shortcuts) {
+        assert.equal(shortcut.label, shortcutLabel(shortcut.binding, mac));
+        assert.ok(registered.has(normalizeBinding(shortcut.binding)), `Unregistered ${mac ? "macOS" : "Windows"} guide binding: ${shortcut.binding}`);
       }
     }
   } finally {
     if (navigator) Object.defineProperty(globalThis, "navigator", navigator); else Reflect.deleteProperty(globalThis, "navigator");
+  }
+});
+
+test("the guide retains the curated IeumDoc editing commands", () => {
+  const labels = new Set(keyboardShortcutGroups().flatMap(group => group.entries.map(entry => entry.label)));
+  for (const label of ["Command center", "Save", "Undo", "Redo", "New block", "Line break",
+    "Heading level / list indent", "Bullet list", "Numbered list", "Code block", "Go to document end",
+    "Bold", "Italic", "Strikethrough", "Inline code", "Link", "Subscript", "Superscript", "Next / previous cell"] as const) {
+    assert.ok(labels.has(label), `Missing curated command: ${label}`);
   }
 });
 
@@ -81,11 +87,11 @@ test("shortcut guide and formatting tooltips display shared labels for existing 
       for (const shortcut of keyboardShortcutGroups().flatMap(group => group.entries.flatMap(entry => entry.shortcuts))) {
         assert.ok(guide.includes(escape(shortcut.label)), `${language}: missing ${shortcut.label}`);
       }
-      assert.ok(guide.includes(i18n.t("Line break inside a block (paragraph, quote, endnote or admonition)")));
+      assert.ok(guide.includes(i18n.t("Line break")));
     }
   } finally { await i18n.changeLanguage("en"); }
   // A changed shared label must reach both surfaces; equal hand-written strings would fail.
-  const shortcuts = [COMMAND_CENTER_SHORTCUT, SAVE_SHORTCUT, LINK_SHORTCUT, ...Object.values(EDITOR_SHORTCUTS), ...Object.values(INTERACTION_SHORTCUTS)];
+  const shortcuts = [COMMAND_CENTER_SHORTCUT, SAVE_SHORTCUT, LINK_SHORTCUT, ...Object.values(EDITOR_SHORTCUTS)];
   const descriptors = shortcuts.map(shortcut => Object.getOwnPropertyDescriptor(shortcut, "label")!);
   try {
     shortcuts.forEach((shortcut, index) => Object.defineProperty(shortcut, "label", { configurable: true, value: `shared label ${index}` }));
