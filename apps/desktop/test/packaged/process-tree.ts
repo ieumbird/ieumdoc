@@ -29,7 +29,17 @@ export function ownedProcessTree(all: ProcessRecord[], root: ProcessRecord, prev
     before = owned.size;
     for (const process of all) {
       const parent = owned.get(process.parentPid);
-      if (parent && process.created >= parent.created) owned.set(process.pid, process);
+      if (!parent || process.created < root.created) continue;
+      if (process.created < parent.created && !owned.has(process.pid)) {
+        // A younger process at the recorded parent PID proves that PID was reused,
+        // not whether this first-observed orphan belongs to the app.
+        const relative = root.image && process.image && path.win32.relative(path.win32.dirname(root.image), process.image);
+        assert.ok(relative && path.win32.isAbsolute(process.image!) && !path.win32.isAbsolute(relative) &&
+          relative !== ".." && !relative.startsWith("..\\"),
+          `Ambiguous ownership: PID ${process.pid} created ${process.created}, image ${process.image ?? "unknown"}; ` +
+          `recorded parent PID ${parent.pid} was created later (${parent.created}); image is not under the app directory`);
+      }
+      owned.set(process.pid, process);
     }
   } while (owned.size !== before);
   return [...owned.values()];
