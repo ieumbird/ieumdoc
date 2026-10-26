@@ -1,0 +1,219 @@
+{
+  "revision": "325704e73871303b70aa4c73fc930eb2f975b8c1",
+  "viewport": [
+    1440,
+    1000
+  ],
+  "visual": {
+    "excluded": [
+      {
+        "kind": "code",
+        "context": "paragraph",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "quote-body",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "DIV",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "caption",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "TD",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "paragraph",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "math",
+        "context": "paragraph",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "PRE",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "heading",
+        "wordBreak": "keep-all",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "math",
+        "context": "heading",
+        "wordBreak": "keep-all",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "footnote-definition-body",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      }
+    ],
+    "ui": [
+      {
+        "selector": "[data-testid=\"save\"]",
+        "wordBreak": "normal",
+        "overflowWrap": "normal"
+      },
+      {
+        "selector": ".sidebar-tool",
+        "wordBreak": "normal",
+        "overflowWrap": "normal"
+      },
+      {
+        "selector": ".document-outline-item",
+        "wordBreak": "normal",
+        "overflowWrap": "anywhere"
+      },
+      {
+        "selector": ".document-outline-number",
+        "wordBreak": "normal",
+        "overflowWrap": "anywhere"
+      },
+      {
+        "selector": ".code-language",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "selector": ".figure-edit",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "selector": ".table-column-handle",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      }
+    ],
+    "numbered": [
+      {
+        "number": "1",
+        "wordBreak": "keep-all",
+        "overflowWrap": "break-word",
+        "before": {
+          "wordBreak": "keep-all",
+          "overflowWrap": "break-word"
+        },
+        "color": "rgb(14, 124, 134)"
+      },
+      {
+        "number": "2",
+        "wordBreak": "keep-all",
+        "overflowWrap": "break-word",
+        "before": {
+          "wordBreak": "keep-all",
+          "overflowWrap": "break-word"
+        },
+        "color": "rgb(14, 124, 134)"
+      }
+    ],
+    "tableModel": {
+      "table": {
+        "box-sizing": "border-box",
+        "font-family": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "font-size": "14px",
+        "font-weight": "400",
+        "font-style": "normal",
+        "font-feature-settings": "\"liga\" 0",
+        "line-height": "20px",
+        "letter-spacing": "normal",
+        "white-space": "pre-wrap",
+        "word-break": "normal",
+        "overflow-wrap": "break-word",
+        "text-align": "start",
+        "text-indent": "0px",
+        "text-transform": "none",
+        "width": "704px",
+        "table-layout": "auto",
+        "border-collapse": "collapse",
+        "border-spacing": "2px"
+      },
+      "th": {
+        "box-sizing": "border-box",
+        "font-family": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "font-size": "14px",
+        "font-weight": "600",
+        "font-style": "normal",
+        "font-feature-settings": "\"liga\" 0",
+        "line-height": "20px",
+        "letter-spacing": "normal",
+        "white-space": "pre-wrap",
+        "word-break": "normal",
+        "overflow-wrap": "break-word",
+        "text-align": "left",
+        "text-indent": "0px",
+        "text-transform": "none",
+        "min-width": "112px",
+        "padding": "8px 12px",
+        "border-top": "1px solid rgb(217, 221, 228)",
+        "border-right": "1px solid rgb(217, 221, 228)",
+        "border-bottom": "1px solid rgb(217, 221, 228)",
+        "border-left": "1px solid rgb(217, 221, 228)"
+      },
+      "td": {
+        "box-sizing": "border-box",
+        "font-family": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "font-size": "14px",
+        "font-weight": "400",
+        "font-style": "normal",
+        "font-feature-settings": "\"liga\" 0",
+        "line-height": "20px",
+        "letter-spacing": "normal",
+        "white-space": "pre-wrap",
+        "word-break": "normal",
+        "overflow-wrap": "break-word",
+        "text-align": "left",
+        "text-indent": "0px",
+        "text-transform": "none",
+        "min-width": "112px",
+        "padding": "8px 12px",
+        "border-top": "1px solid rgb(217, 221, 228)",
+        "border-right": "1px solid rgb(217, 221, 228)",
+        "border-bottom": "1px solid rgb(217, 221, 228)",
+        "border-left": "1px solid rgb(217, 221, 228)"
+      }
+    },
+    "columns": [
+      217.84375,
+      217.84375,
+      267.3125
+    ],
+    "source": [
+      {
+        "selector": ".source-view-text",
+        "wordBreak": "normal",
+        "overflowWrap": "anywhere"
+      },
+      {
+        "selector": ".source-line",
+        "wordBreak": "normal",
+        "overflowWrap": "anywhere"
+      }
+    ]
+  }
+}

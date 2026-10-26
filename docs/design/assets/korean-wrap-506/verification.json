@@ -1,0 +1,498 @@
+{
+  "baseCommit": "48aabb312a0c8cb71c620747d5d25f370f2b7817",
+  "fixture": "apps/editor/test/browser/fixtures/quiet-document-wrap.md",
+  "captureState": "at rest; scroll 0; no hover/selection; no folder shown; Outline open at 1440, responsive closed at 375",
+  "baselineFailure": "Korean words split across lines",
+  "before": [
+    {
+      "width": 1440,
+      "coverage": [
+        {
+          "selector": ".heading",
+          "count": 2
+        },
+        {
+          "selector": ".paragraph",
+          "count": 5
+        },
+        {
+          "selector": ".list .paragraph",
+          "count": 1
+        },
+        {
+          "selector": ".quote-body",
+          "count": 1
+        },
+        {
+          "selector": ".admonition-body",
+          "count": 1
+        },
+        {
+          "selector": ".caption",
+          "count": 1
+        },
+        {
+          "selector": "[data-table-cell]",
+          "count": 3
+        },
+        {
+          "selector": ".footnote-definition-body",
+          "count": 1
+        }
+      ],
+      "splitWords": [],
+      "lines": [
+        {
+          "y": 203,
+          "start": 0,
+          "end": 56
+        },
+        {
+          "y": 232,
+          "start": 58,
+          "end": 119
+        }
+      ],
+      "brokenEdges": [],
+      "strandedPunctuation": [],
+      "urls": [
+        {
+          "cell": true,
+          "inside": true,
+          "scrollWidth": 1126,
+          "clientWidth": 1126
+        },
+        {
+          "cell": false,
+          "inside": true,
+          "scrollWidth": 736,
+          "clientWidth": 736
+        }
+      ],
+      "pageOverflow": false,
+      "paperOverflow": false,
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+        "dpr": 1,
+        "zoom": 1,
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif"
+      }
+    },
+    {
+      "width": 375,
+      "coverage": [
+        {
+          "selector": ".heading",
+          "count": 2
+        },
+        {
+          "selector": ".paragraph",
+          "count": 5
+        },
+        {
+          "selector": ".list .paragraph",
+          "count": 1
+        },
+        {
+          "selector": ".quote-body",
+          "count": 1
+        },
+        {
+          "selector": ".admonition-body",
+          "count": 1
+        },
+        {
+          "selector": ".caption",
+          "count": 1
+        },
+        {
+          "selector": "[data-table-cell]",
+          "count": 3
+        },
+        {
+          "selector": ".footnote-definition-body",
+          "count": 1
+        }
+      ],
+      "splitWords": [
+        {
+          "selector": ".paragraph",
+          "word": "측정하여"
+        },
+        {
+          "selector": ".paragraph",
+          "word": "출력전류의"
+        },
+        {
+          "selector": ".paragraph",
+          "word": "측정결과를"
+        },
+        {
+          "selector": ".paragraph",
+          "word": "안정성과"
+        },
+        {
+          "selector": ".paragraph",
+          "word": "전압제어"
+        },
+        {
+          "selector": ".paragraph",
+          "word": "확인한다"
+        },
+        {
+          "selector": ".paragraph",
+          "word": "검토하고"
+        },
+        {
+          "selector": ".paragraph",
+          "word": "확인한다"
+        },
+        {
+          "selector": ".paragraph",
+          "word": "표시한다"
+        },
+        {
+          "selector": ".list .paragraph",
+          "word": "검토하고"
+        },
+        {
+          "selector": ".list .paragraph",
+          "word": "확인한다"
+        },
+        {
+          "selector": ".quote-body",
+          "word": "검토하고"
+        },
+        {
+          "selector": ".quote-body",
+          "word": "확인한다"
+        },
+        {
+          "selector": ".admonition-body",
+          "word": "검토하고"
+        },
+        {
+          "selector": ".caption",
+          "word": "검토하고"
+        },
+        {
+          "selector": ".footnote-definition-body",
+          "word": "검토하고"
+        },
+        {
+          "selector": ".footnote-definition-body",
+          "word": "확인한다"
+        }
+      ],
+      "lines": [
+        {
+          "y": 320,
+          "start": 0,
+          "end": 17
+        },
+        {
+          "y": 349,
+          "start": 18,
+          "end": 36
+        },
+        {
+          "y": 377,
+          "start": 37,
+          "end": 55
+        },
+        {
+          "y": 406,
+          "start": 56,
+          "end": 75
+        },
+        {
+          "y": 435,
+          "start": 76,
+          "end": 95
+        },
+        {
+          "y": 464,
+          "start": 96,
+          "end": 115
+        },
+        {
+          "y": 493,
+          "start": 116,
+          "end": 119
+        }
+      ],
+      "brokenEdges": [
+        {
+          "y": 320,
+          "start": 0,
+          "end": 17
+        },
+        {
+          "y": 349,
+          "start": 18,
+          "end": 36
+        },
+        {
+          "y": 377,
+          "start": 37,
+          "end": 55
+        },
+        {
+          "y": 406,
+          "start": 56,
+          "end": 75
+        },
+        {
+          "y": 435,
+          "start": 76,
+          "end": 95
+        },
+        {
+          "y": 464,
+          "start": 96,
+          "end": 115
+        },
+        {
+          "y": 493,
+          "start": 116,
+          "end": 119
+        }
+      ],
+      "strandedPunctuation": [],
+      "urls": [
+        {
+          "cell": true,
+          "inside": true,
+          "scrollWidth": 1126,
+          "clientWidth": 1126
+        },
+        {
+          "cell": false,
+          "inside": true,
+          "scrollWidth": 247,
+          "clientWidth": 247
+        }
+      ],
+      "pageOverflow": false,
+      "paperOverflow": false,
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+        "dpr": 1,
+        "zoom": 1,
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif"
+      }
+    }
+  ],
+  "after": {
+    "koreanWrapping": [
+      {
+        "width": 1440,
+        "coverage": [
+          {
+            "selector": ".heading",
+            "count": 2
+          },
+          {
+            "selector": ".paragraph",
+            "count": 5
+          },
+          {
+            "selector": ".list .paragraph",
+            "count": 1
+          },
+          {
+            "selector": ".quote-body",
+            "count": 1
+          },
+          {
+            "selector": ".admonition-body",
+            "count": 1
+          },
+          {
+            "selector": ".caption",
+            "count": 1
+          },
+          {
+            "selector": "[data-table-cell]",
+            "count": 3
+          },
+          {
+            "selector": ".footnote-definition-body",
+            "count": 1
+          }
+        ],
+        "splitWords": [],
+        "lines": [
+          {
+            "y": 203,
+            "start": 0,
+            "end": 56
+          },
+          {
+            "y": 232,
+            "start": 58,
+            "end": 119
+          }
+        ],
+        "brokenEdges": [],
+        "strandedPunctuation": [],
+        "urls": [
+          {
+            "cell": true,
+            "inside": true,
+            "scrollWidth": 1126,
+            "clientWidth": 1126
+          },
+          {
+            "cell": false,
+            "inside": true,
+            "scrollWidth": 736,
+            "clientWidth": 736
+          }
+        ],
+        "pageOverflow": false,
+        "paperOverflow": false,
+        "environment": {
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+          "dpr": 1,
+          "zoom": 1,
+          "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif"
+        }
+      },
+      {
+        "width": 375,
+        "coverage": [
+          {
+            "selector": ".heading",
+            "count": 2
+          },
+          {
+            "selector": ".paragraph",
+            "count": 5
+          },
+          {
+            "selector": ".list .paragraph",
+            "count": 1
+          },
+          {
+            "selector": ".quote-body",
+            "count": 1
+          },
+          {
+            "selector": ".admonition-body",
+            "count": 1
+          },
+          {
+            "selector": ".caption",
+            "count": 1
+          },
+          {
+            "selector": "[data-table-cell]",
+            "count": 3
+          },
+          {
+            "selector": ".footnote-definition-body",
+            "count": 1
+          }
+        ],
+        "splitWords": [],
+        "lines": [
+          {
+            "y": 320,
+            "start": 0,
+            "end": 14
+          },
+          {
+            "y": 349,
+            "start": 16,
+            "end": 29
+          },
+          {
+            "y": 377,
+            "start": 31,
+            "end": 44
+          },
+          {
+            "y": 406,
+            "start": 46,
+            "end": 62
+          },
+          {
+            "y": 435,
+            "start": 64,
+            "end": 77
+          },
+          {
+            "y": 464,
+            "start": 79,
+            "end": 92
+          },
+          {
+            "y": 493,
+            "start": 94,
+            "end": 113
+          },
+          {
+            "y": 522,
+            "start": 115,
+            "end": 119
+          }
+        ],
+        "brokenEdges": [],
+        "strandedPunctuation": [],
+        "urls": [
+          {
+            "cell": true,
+            "inside": true,
+            "scrollWidth": 1126,
+            "clientWidth": 1126
+          },
+          {
+            "cell": false,
+            "inside": true,
+            "scrollWidth": 247,
+            "clientWidth": 247
+          }
+        ],
+        "pageOverflow": false,
+        "paperOverflow": false,
+        "environment": {
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+          "dpr": 1,
+          "zoom": 1,
+          "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif"
+        }
+      }
+    ],
+    "constrainedURL": {
+      "wraps": true,
+      "inside": true,
+      "width": 412.625
+    },
+    "wrappedCaretSelection": true,
+    "wrappedCompositionUndo": true
+  },
+  "captures": [
+    {
+      "file": "after-1440.png",
+      "sha256": "6AF52E1D1E59F2BEC8B0852CB3DA29D16118C53251165877A7B955530CA35BAA"
+    },
+    {
+      "file": "after-375.png",
+      "sha256": "6591AE40BF3D24391909B676167DD684D389C820CBD3877EB7A6E7E36CF44999"
+    },
+    {
+      "file": "before-1440.png",
+      "sha256": "6AF52E1D1E59F2BEC8B0852CB3DA29D16118C53251165877A7B955530CA35BAA"
+    },
+    {
+      "file": "before-375.png",
+      "sha256": "5BA11BC8BE61954AC55689809BD0F46D94A3B7C3EA1958E23A60EB9692ED659B"
+    }
+  ],
+  "limits": [
+    "Screenshot comparison is manual review only.",
+    "CDP composition is not Windows IME candidate-window verification.",
+    "Local browser is Chrome 155; Electron rendering was not separately exercised locally."
+  ]
+}
