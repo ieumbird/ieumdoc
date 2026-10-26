@@ -25,6 +25,9 @@ test("HTTP recovery survives an owned browser process crash, then Save/Reload an
     context = await chromium.launchPersistentContext(profile, {
       ...(process.platform === "win32" ? { channel: "chrome" } : {}), headless: true,
     });
+    // Apply to every persistent context, including the ones recreated after a crash.
+    context.setDefaultTimeout(info.project.use.actionTimeout!);
+    context.setDefaultNavigationTimeout(info.project.use.navigationTimeout!);
     const cdp = await context.browser()!.newBrowserCDPSession();
     const { processInfo } = await cdp.send("SystemInfo.getProcessInfo");
     const pid = processInfo.find(p => p.type === "browser")!.id;

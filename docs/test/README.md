@@ -36,6 +36,64 @@ CI의 4개 shard는 stable 목록을 순환 분배하며 각 시나리오는 전
 
 runner는 원본 fixture의 scratch 사본을 준비한다. 테스트 실행을 위해 `apps/editor/document/`나 `apps/editor/test/browser/fixtures/`의 원본을 직접 수정하지 않는다. fixture 자체를 바꾸는 작업이라면 의도한 변경으로 검토하고 관련 regression을 실행한다. Windows에서는 [persistent profile과 session 규칙](../contributing/windows-browser-automation.md)을 따른다. 작업 후 직접 시작한 서버와 세션을 종료한다.
 
+### Browser timeout policy
+
+The [shared config](../../apps/editor/test/browser/playwright.config.ts) limits each scenario to
+120 seconds and each action/wait or navigation to 15 seconds. Both persistent-context launch paths
+explicitly apply the configured defaults before creating pages: the worker session in
+`scenarios.spec.ts` (startup, scenario and secondary tabs in Editor and HTTP modes), and every
+crash/restart context in `http-recovery.spec.ts`. `use.actionTimeout` alone is not relied on for the
+worker-owned context. Navigation has its own default so `goto`/`reload` cannot inherit an unlimited
+navigation setting. `waitForFunction`, locator `waitFor`/actions and page response/event waits use
+the context action/wait default ([Playwright API](https://playwright.dev/docs/api/class-browsercontext#browser-context-set-default-timeout)).
+Auto-retrying `expect` assertions retain Playwright's existing 5-second default. Explicit per-call
+timeouts take precedence. Fixed `waitForTimeout` delays and arbitrary JavaScript promises/evaluations
+are not bounded by the action default; the scenario limit remains their backstop. Retries stay at 0;
+shard assignment and CI job limits are unchanged.
+
+Measurement basis for [#549](https://github.com/ieumbird/ieumdoc/issues/549), 2026-10-26:
+
+- The five most recent successful master CI runs were read with `gh run view --log`:
+  [40315514715](https://github.com/ieumbird/ieumdoc/actions/runs/40315514715),
+  [40314149215](https://github.com/ieumbird/ieumdoc/actions/runs/40314149215),
+  [40310266799](https://github.com/ieumbird/ieumdoc/actions/runs/40310266799),
+  [40307984898](https://github.com/ieumbird/ieumdoc/actions/runs/40307984898), and
+  [40304484272](https://github.com/ieumbird/ieumdoc/actions/runs/40304484272).
+  Across 310 passing test results (58 Editor scenarios plus HTTP Host and crash recovery on both
+  OSes per run), the maximum was `folder-memory`, **58.8 seconds**, in 40304484272.
+  HTTP crash recovery peaked at 18.0 seconds across the same runs.
+- A temporary Playwright reporter recorded `onStepEnd` durations for `pw:api` and `expect` steps,
+  including each step's scenario, location and error, and `onTestEnd` scenario durations. A Windows
+  `pnpm browser:test` baseline at `ab922e2` passed **58/58**; its longest condition wait was
+  `table-authoring`'s notice-detach `locator.waitFor`, **5.372 seconds**, and its longest scenario was
+  `folder-memory`, **64.752 seconds**. With the new defaults, `editor-shell`, `table-authoring`,
+  `folder-memory`, `equation-insertion` and `desktop-updates` passed again. The maximum condition wait
+  was **5.445 seconds** (the same notice), so 15 seconds provides about 2.75 times that duration.
+  `folder-memory` took **84.484 seconds** on this run, so the final 120-second scenario budget leaves
+  **35.516 seconds (42%)** of margin over the largest local or sampled CI result. These are observed
+  runs, not a guarantee about future machines. No global wait increase is used to fit that scenario.
+- The production `pnpm browser:test http-host` run passed **2/2**, including real browser crashes
+  with the same persistent profile, Restore, Save/Reload and external conflict. The longest HTTP
+  condition wait/assertion was **0.888 seconds**; crash recovery took 6.311 seconds and `http-host`
+  took 5.596 seconds. Fixed 15-second `Promise.race` guard timers in tab/folder tests and an
+  11.278-second recovery-storage evaluation were recorded separately; they are not condition waits
+  controlled by the context default.
+- No wait needs a new longer override. The existing 30-second `waitForFunction` overrides in
+  `equation-insertion` (focus handoff) and `desktop-updates` (first Saved commit) completed in
+  **2 ms / 1 ms** in the baseline; both now use the 15-second default and passed the targeted rerun.
+  Other existing explicit per-call budgets and all assertions remain unchanged.
+- A temporary `timeout-proof` scenario created a **secondary page** from the shared context and
+  awaited `waitForFunction(function issue549NeverReady() { return false; })` with **no timeout option**.
+  It failed at that wait after **15.011 seconds** with
+  `TimeoutError: page.waitForFunction: Timeout 15000ms exceeded.` and
+  `evalmachine.<anonymous>:5:17`; the entire failed test, including setup and diagnostics, took
+  **16.675 seconds**. This also verifies that newly created tabs inherit the default. The temporary
+  scenario and measurement reporter were removed before commit. The normal targeted cases passed
+  even under the provisional, stricter 90-second scenario budget; final-head CI verifies 120 seconds.
+
+### Scenario helpers
+
+
 The shared `reloadDocument` helper waits for the File actions menu to detach and the loading dialog to close with focus returned to File actions before callers focus the editor (#422). For a dirty tab it instead waits for the interactive discard confirmation to receive focus; the caller still chooses the answer. Tests that hold a Reload response must release it before awaiting the helper's completion.
 
 `waitForEditorFocus(page)` waits for the active EditorView's actual focus after a form disappears.
