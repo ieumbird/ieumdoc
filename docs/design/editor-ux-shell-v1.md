@@ -105,6 +105,22 @@ Application messages retain translation keys and parameters when stored. Save fa
 
 Verification and implementation scope are recorded in the [#256 plan](ui-language-256-plan.md).
 
+## Local accent color (#559)
+
+Settings offers six named presets: Blue (default), Violet, Plum, Teal, Green and Graphite.
+There is no free color picker. The choice applies immediately to interactions, selection
+background/text, focus, primary actions, links/references and generated heading/Outline numbers.
+Information states are neutral; danger and warning retain their meanings. Values and contrast
+requirements belong to [Visual Language](editor-visual-language-v1.md#single-accent-presets-559).
+
+The existing browser/origin preference path stores only a preset ID in
+`ieumdoc.accentColor`, independent of documents and the Host. Vite, HTTP and Desktop
+profiles/origins do not share it. Startup applies a valid stored choice before mounting
+the first UI. Missing, unknown or unreadable preferences use Blue. A storage failure
+keeps the live choice and Settings explains that it lasts for the current page.
+Changes preserve the mounted editor, tabs, content, selection, history and property drafts.
+This display preference needs no Core operation or CLI command.
+
 ## Collapsible folder sections (#425)
 
 An opened folder without remembered section collapse starts expanded. The chevron beside its name is a native compact ghost button,

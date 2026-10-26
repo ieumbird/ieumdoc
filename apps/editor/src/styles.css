@@ -1135,8 +1135,9 @@ button {
   caret-color: var(--id-color-interaction);
 }
 
-.document-editor ::selection {
+::selection {
   background: var(--id-color-interaction-soft);
+  color: var(--id-color-text-selected);
 }
 
 /* Text surfaces only: retain the editor's existing emergency fallback for long tokens.
@@ -2083,7 +2084,7 @@ ol.list { list-style: decimal; }
 
 .cross-reference-chip {
   border-radius: var(--id-radius-sm);
-  color: var(--id-color-info);
+  color: var(--id-color-interaction);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -2228,7 +2229,7 @@ ol.list { list-style: decimal; }
 }
 
 .document-editor a {
-  color: var(--id-color-info);
+  color: var(--id-color-interaction);
   text-decoration: underline;
   cursor: text;
 }
@@ -2854,7 +2855,7 @@ ol.list { list-style: decimal; }
 .bibliography-list > li > div { min-width: 0; }
 .bibliography-number { flex-shrink: 0; }
 .bibliography-resources { padding-left: var(--space-4); }
-.citation[data-readiness="complete"] .cross-reference-chip { color: var(--id-color-info); text-decoration: none; }
+.citation[data-readiness="complete"] .cross-reference-chip { color: var(--id-color-interaction); text-decoration: none; }
 
 /* Read-only folder preview uses the shared modal surface and existing spacing/type roles. */
 .file-preview[data-slot="dialog-content"] { width: min(var(--layout-file-preview-width), calc(100% - 2rem)); max-width: calc(100% - 2rem); }

@@ -4,25 +4,52 @@ import test from "node:test";
 import * as ts from "typescript/unstable/ast";
 import { API } from "typescript/unstable/sync";
 import { fileURLToPath } from "node:url";
+import { ACCENT_COLORS } from "../src/preferences.ts";
 
-test("product tokens and Tailwind adapters have unique, acyclic definitions", () => {
+function definitions(source: string): Map<string, string> {
+  const values = new Map<string, string>();
+  for (const [, name, value] of source.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
+    assert.ok(!values.has(name), `duplicate token definition in scope: ${name}`);
+    values.set(name, value.trim());
+  }
+  return values;
+}
+
+function accentPalettes(tokens: string): Map<string, Map<string, string>> {
+  const scopes = [...tokens.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, selector]) => selector!.trim());
+  assert.equal(scopes.filter(selector => selector === ":root").length, 1, "one default product-token scope");
+  for (const selector of scopes) assert.match(selector, /^:root(?:\[data-accent="[\w-]+"\])?$/, `unexpected product-token scope: ${selector}`);
+  const base = definitions(tokens.match(/:root\s*\{([^}]+)\}/)![1]!);
+  const palettes = new Map([["blue", base]]);
+  for (const [, preset, body] of tokens.matchAll(/:root\[data-accent="([\w-]+)"\]\s*\{([^}]+)\}/g)) {
+    assert.ok(!palettes.has(preset!), `duplicate preset: ${preset}`);
+    const overrides = definitions(body!);
+    assert.deepEqual([...overrides.keys()].sort(), ["--id-color-interaction", "--id-color-accent-hover", "--id-color-surface-selected", "--id-color-surface-selected-hover"].sort());
+    palettes.set(preset!, new Map([...base, ...overrides]));
+  }
+  assert.deepEqual([...palettes.keys()].sort(), [...ACCENT_COLORS].sort());
+  return palettes;
+}
+
+test("product tokens and Tailwind adapters have unique, acyclic definitions in every preset", () => {
   const tokens = readFileSync(new URL("../src/styles/tokens.css", import.meta.url), "utf8");
   const adapters = readFileSync(new URL("../src/index.css", import.meta.url), "utf8");
-  const definitions = [...(tokens + adapters).matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)];
-  const values = new Map<string, string>();
-  for (const [, name, value] of definitions) {
-    assert.ok(!values.has(name), `duplicate token definition: ${name}`);
-    values.set(name, value);
+  const adapterValues = definitions(adapters);
+  const palettes = accentPalettes(tokens);
+  for (const palette of palettes.values()) {
+    for (const name of adapterValues.keys()) assert.ok(!palette.has(name), `adapter overwrites product token: ${name}`);
+    const values = new Map([...palette, ...adapterValues]);
+    for (const name of values.keys()) {
+      const visit = (current: string, path: string[]): void => {
+        assert.ok(!path.includes(current), `token cycle: ${[...path, current].join(" → ")}`);
+        const value = values.get(current);
+        assert.ok(value, `undefined token ${current}`);
+        for (const [, reference] of value.matchAll(/var\((--[\w-]+)/g)) visit(reference, [...path, current]);
+      };
+      visit(name, []);
+    }
   }
-  for (const name of values.keys()) {
-    const visit = (current: string, path: string[]): void => {
-      assert.ok(!path.includes(current), `token cycle: ${[...path, current].join(" → ")}`);
-      const value = values.get(current);
-      assert.ok(value, `undefined token ${current}`);
-      for (const [, reference] of value.matchAll(/var\((--[\w-]+)/g)) visit(reference, [...path, current]);
-    };
-    visit(name, []);
-  }
+  const values = new Map([...palettes.get("blue")!, ...adapterValues]);
   const productDefinitions = [...tokens.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)];
   const productNames = new Set(productDefinitions.map(([, name]) => name));
   for (const [, , value] of productDefinitions) {
@@ -35,14 +62,51 @@ test("product tokens and Tailwind adapters have unique, acyclic definitions", ()
   assert.equal(values.get("--id-color-border-focus"), "var(--id-color-interaction)");
   assert.equal(values.get("--ring"), "var(--id-color-border-focus)");
   assert.equal(values.get("--destructive"), "var(--id-color-danger)");
-  // Primary actions share the interaction blue; red stays distinct for danger.
+  // Primary actions, heading numbers and selection share the chosen accent.
   assert.equal(values.get("--id-color-accent"), "var(--id-color-interaction)");
+  assert.equal(values.get("--id-color-document-heading-number"), "var(--id-color-interaction)");
+  assert.equal(values.get("--id-color-text-selected"), "var(--id-color-accent-hover)");
+  assert.equal(values.get("--id-color-info"), "var(--id-color-text-muted)");
   assert.notEqual(values.get("--id-color-danger"), values.get("--id-color-interaction"));
   for (const name of ["--font-family-document", "--id-color-document-heading-number"]) {
     assert.ok(values.has(name), `missing document token: ${name}`);
   }
   assert.equal(values.get("--color-primary"), "var(--primary)");
   assert.doesNotMatch(tokens + adapters, /!important/);
+});
+
+test("every accent preset meets text, primary-action, focus and control contrast requirements", () => {
+  const tokens = readFileSync(new URL("../src/styles/tokens.css", import.meta.url), "utf8");
+  for (const [preset, values] of accentPalettes(tokens)) {
+    const resolve = (name: string): string => {
+      const value = values.get(`--id-color-${name}`);
+      assert.ok(value, `${preset}: missing ${name}`);
+      const reference = /^var\(--id-color-([\w-]+)\)$/.exec(value);
+      return reference ? resolve(reference[1]!) : value;
+    };
+    const luminance = (color: string) => {
+      assert.match(color, /^#[\da-f]{6}$/i);
+      return [1, 3, 5].map(offset => {
+        const channel = parseInt(color.slice(offset, offset + 2), 16) / 255;
+        return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+      }).reduce((sum, value, index) => sum + value * [.2126, .7152, .0722][index]!, 0);
+    };
+    const check = (fg: string, bg: string, minimum: number) => {
+      const a = luminance(resolve(fg)), b = luminance(resolve(bg));
+      const ratio = (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
+      assert.ok(ratio >= minimum, `${preset}: ${fg} / ${bg} = ${ratio.toFixed(3)} < ${minimum}`);
+    };
+    for (const bg of ["surface", "surface-subtle", "surface-selected", "surface-selected-hover"]) {
+      check("document-heading-number", bg, 4.5);
+      check("text-selected", bg, 4.5);
+    }
+    for (const bg of ["accent", "accent-hover"]) check("text-on-accent", bg, 4.5);
+    for (const bg of ["surface", "surface-subtle", "surface-hover", "surface-pressed", "surface-selected", "surface-selected-hover"]) {
+      check("border-focus", bg, 3);
+      check("border-control", bg, 3);
+    }
+    for (const role of ["info", "danger", "warning"]) check(role, `surface-${role}`, 4.5);
+  }
 });
 
 // These are interaction owners/content affordances, not a file-wide permission to add actions.

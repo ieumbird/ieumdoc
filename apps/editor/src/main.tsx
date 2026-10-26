@@ -2,12 +2,16 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
 import { TooltipProvider } from "./components/ui/tooltip.tsx";
+import { readAccentColor } from "./preferences.ts";
 import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "katex/dist/katex.min.css";
 import "./index.css";
 import "./styles.css";
 // The product mark, shared with the Desktop app icon (its editable original), as the tab icon.
 import productIcon from "../../desktop/assets/icon.svg?url";
+
+// Apply the local display preference before mounting any UI, including the start screen.
+document.documentElement.dataset.accent = readAccentColor();
 
 const icon = document.createElement("link");
 icon.rel = "icon";
