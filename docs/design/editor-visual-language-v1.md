@@ -695,12 +695,18 @@ no horizontal overflow, Files ellipsis and the Outline two-line limit.
 P3 aligns Current contract with History/Layout Rules at **v4.8**. Latest master
 90db0c87ce3169ed1aa6eb250710cca243e68e0e was integrated by merge commit
 ea4197f32a4f92f4228d6bb8535f0b9970319b35, retaining both branches without conflicts.
+The subsequent master 8d4136bc30cc5fd695bea7f0bc9370f0c9e074bc (#508 Korean wrapping)
+was merged as 3d5e8d3a7099fdd5caaa738b69238a8132f06345. The only conflict was this
+document's verification header; both records and both product changes were retained.
 
 The Before images below use b7e2b58; After uses that merged base plus this review correction.
 Same worktree-owned server (5295), persistent installed Chrome 155.0.8059.85 headless on Windows,
 bundled Pretendard, 1440×1000/390×1000, DPR/zoom/scale 1, pointer/scroll (0,0), fonts/images ready.
 The previous capture interaction states are retained. Direct review finds the stronger gray tab
 boundary clear at both widths and the list current visibly heavier without a side marker.
+For the manual comparison only, the new #506 korean-wrap.md scratch file is omitted from the
+copied review folder so Before/After show the same file list. The normal automated scenarios
+retain that fixture and the new Korean-wrapping checks pass after the merge.
 Labels, tab closes and document wrapping align; menu bounds and the phone Outline remain usable.
 These are manual review evidence, not pixel gates. [Measurements and stylesheet hashes](assets/selection-515-review-fix/evidence.json)
 confirm **0px tab/tool text movement**, unchanged ARIA, the intentional list-width differences

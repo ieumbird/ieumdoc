@@ -1,10 +1,10 @@
 {
   "beforeHead": "b7e2b58f6d4fed33f09c7caa7d7f7066552233ae",
-  "afterBase": "ea4197f32a4f92f4228d6bb8535f0b9970319b35 plus review fix",
-  "mergedMaster": "90db0c87ce3169ed1aa6eb250710cca243e68e0e",
+  "afterBase": "3d5e8d3a7099fdd5caaa738b69238a8132f06345",
+  "mergedMaster": "8d4136bc30cc5fd695bea7f0bc9370f0c9e074bc",
   "cssSha256": {
     "before": "2d0e3e8b5e2690c244956150787fa1592002500d9a4cf55b9826ac09094d6fb1",
-    "after": "c07aa3827b48cbe538609152faa70ad7037f67a746af3130b2c4f8a3347db6d3"
+    "after": "dc95f4c19f74cea92bda2e53c17d552efb87c78c1d8ad61d8e5d545ec98ba957"
   },
   "browser": "155.0.8059.85",
   "environment": "Windows, headless installed Chrome, same checkout-owned persistent profile, own Vite 5295, bundled Pretendard; DPR/zoom/scale 1; 1440x1000 and 390x1000; pointer/scroll (0,0); fonts/images ready",
@@ -149,6 +149,14 @@
             "lineHeight": 20,
             "clamp": "none",
             "ellipsis": "ellipsis"
+          },
+          {
+            "y": 280,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
           }
         ],
         "current": [
@@ -178,6 +186,14 @@
           },
           {
             "y": 252,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          },
+          {
+            "y": 280,
             "height": 28,
             "overflow": false,
             "lineHeight": 20,
@@ -605,6 +621,14 @@
             "lineHeight": 20,
             "clamp": "none",
             "ellipsis": "ellipsis"
+          },
+          {
+            "y": 252,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
           }
         ],
         "current": [
@@ -634,6 +658,14 @@
           },
           {
             "y": 224,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          },
+          {
+            "y": 252,
             "height": 28,
             "overflow": false,
             "lineHeight": 20,
