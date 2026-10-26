@@ -61,6 +61,52 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
   };
   // #506: measure actual glyph lines, not just the declared word-break property.
   await open('korean-wrap.md');
+  const readWrapComparison=async()=>{
+    await page.setViewportSize({width:1440,height:1000});
+    await page.evaluate(async()=>{await document.fonts.ready;});
+    const visual=await page.evaluate(()=>{
+      const host=document.querySelector('[data-document-tab][data-active=true] .document-editor');
+      const breaks=n=>{const s=getComputedStyle(n);return {wordBreak:s.wordBreak,overflowWrap:s.overflowWrap};};
+      const required=selector=>{const n=document.querySelector(selector);if(!n)throw Error(`Missing baseline target: ${selector}`);return n;};
+      const excluded=[...host.querySelectorAll('code,.katex')].map(n=>({
+        kind:n.matches('code')?'code':'math',
+        context:n.closest('.heading,.paragraph,.quote-body,.caption,[data-table-cell],.footnote-definition-body,pre')?.className||n.parentElement.tagName,
+        ...breaks(n),
+      }));
+      const ui=['[data-testid="save"]','.sidebar-tool','.document-outline-item','.code-language','.figure-edit','.table-column-handle']
+        .map(selector=>({selector,...breaks(required(selector))}));
+      const table=[...host.querySelectorAll('.table')].at(-1);
+      return {excluded,ui,columns:[...table.rows[0].cells].map(cell=>cell.getBoundingClientRect().width)};
+    });
+    await page.getByRole('button',{name:'Source',exact:true}).click();
+    await page.getByTestId('source-view').waitFor();
+    const source=await page.getByTestId('source-view').evaluate(n=>['.source-view-text','.source-line'].map(selector=>{
+      const target=n.querySelector(selector);if(!target)throw Error(`Missing Source target: ${selector}`);
+      const s=getComputedStyle(target);return {selector,wordBreak:s.wordBreak,overflowWrap:s.overflowWrap};
+    }));
+    await page.getByRole('button',{name:'Visual',exact:true}).click();
+    await page.locator('[data-document-tab][data-active=true] .document-editor').waitFor();
+    return {...visual,source};
+  };
+  const comparison=await readWrapComparison();
+  // Review images only; the assertions below use computed styles and Range geometry.
+  if(screenshots)for(const width of [1440,375]) {
+    await page.setViewportSize({width,height:1000});
+    await rest();
+    await page.locator('[data-document-tab][data-active=true] .heading').filter({has:page.locator('code')})
+      .screenshot({path:`tmp/visual-refinement/after-korean-inline-code-${width}.png`});
+  }
+  // MASTER_COMPARISON: the capture helper also records this same probe against master CSS.
+  const masterResponse=await page.request.get(`${origin}/test/browser/fixtures/quiet-document-wrap-master.json`);
+  check(masterResponse.ok(),'Master typography baseline missing');
+  const master=await masterResponse.json();
+  check(JSON.stringify(comparison.excluded)===JSON.stringify(master.visual.excluded),
+    `Inline code/math differ from master: ${JSON.stringify({actual:comparison.excluded,master:master.visual.excluded})}`);
+  check(JSON.stringify(comparison.ui)===JSON.stringify(master.visual.ui)&&JSON.stringify(comparison.source)===JSON.stringify(master.visual.source),
+    `UI/Source wrapping differs from master: ${JSON.stringify(comparison)}`);
+  check(comparison.columns.length===master.visual.columns.length&&comparison.columns.every((width,i)=>Math.abs(width-master.visual.columns[i])<0.5),
+    `Multi-column table widths differ from master: ${JSON.stringify({actual:comparison.columns,master:master.visual.columns})}`);
+  results.push({masterComparison:{master:master.revision,...comparison}});
   const wrapResults = [];
   const prose = page.locator('[data-document-tab][data-active=true] .document-editor > .paragraph').first();
   const wrapDocument = await json();
@@ -82,8 +128,11 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
             for(const match of text.textContent.matchAll(/[가-힣]+/g)) {
               const range=document.createRange();
               range.setStart(text,match.index); range.setEnd(text,match.index+match[0].length);
-              const lines=new Set([...range.getClientRects()].filter(r=>r.width>0).map(r=>Math.round(r.top)));
-              if(lines.size>1)splitWords.push({selector,word:match[0]});
+              const rects=[...range.getClientRects()].filter(r=>r.width>0);
+              const lines=new Set(rects.map(r=>Math.round(r.top))),style=getComputedStyle(node);
+              const available=node.getBoundingClientRect().width-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight);
+              // A word wider than an empty line must use the emergency fallback.
+              if(lines.size>1&&rects.reduce((sum,r)=>sum+r.width,0)<=available+1)splitWords.push({selector,word:match[0]});
             }
           }
         }
@@ -109,7 +158,21 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
           return {cell:n.matches('[data-table-cell]'),inside:[...range.getClientRects()].every(r=>r.left>=box.left-1&&r.right<=box.right+1),
             scrollWidth:n.scrollWidth,clientWidth:n.clientWidth};
         });
-      return {width,coverage,splitWords,lines,brokenEdges,strandedPunctuation,urls,
+      const compounds=[...host.querySelectorAll(':scope > .paragraph,[data-table-cell]')]
+        .filter(n=>n.textContent.startsWith('전력변환시스템출력전압제어기전류측정결과분석')).map(n=>{
+          const range=document.createRange();range.selectNodeContents(n);
+          const rects=[...range.getClientRects()].filter(r=>r.width>0),box=n.getBoundingClientRect();
+          return {cell:n.matches('[data-table-cell]'),wraps:new Set(rects.map(r=>Math.round(r.top))).size>1,
+            inside:rects.every(r=>r.left>=box.left-1&&r.right<=box.right+1),scrollWidth:n.scrollWidth,clientWidth:n.clientWidth};
+        });
+      const mixed=[...host.querySelectorAll(':scope > .paragraph')].find(n=>n.textContent.startsWith('정격출력은'));
+      if(!mixed)throw Error('Missing mixed Korean/numeric sentence');
+      const mixedTokens=['11 kW','(1)','(2)'].map(token=>{
+        const start=mixed.firstChild.textContent.indexOf(token);if(start<0)throw Error(`Missing mixed token: ${token}`);
+        const range=document.createRange();range.setStart(mixed.firstChild,start);range.setEnd(mixed.firstChild,start+token.length);
+        return {token,lines:new Set([...range.getClientRects()].filter(r=>r.width>0).map(r=>Math.round(r.top))).size};
+      });
+      return {width,coverage,splitWords,lines,brokenEdges,strandedPunctuation,urls,compounds,mixedTokens,
         pageOverflow:document.documentElement.scrollWidth>innerWidth,
         paperOverflow:host.scrollWidth>host.clientWidth+1,
         environment:{userAgent:navigator.userAgent,dpr:devicePixelRatio,zoom:visualViewport.scale,font:getComputedStyle(paragraph).fontFamily}};
@@ -122,19 +185,26 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
   check(wrapResults.every(r=>r.urls.some(u=>u.cell)&&r.urls.some(u=>!u.cell)&&
     r.urls.every(u=>u.inside&&u.scrollWidth<=u.clientWidth+1)&&!r.pageOverflow&&!r.paperOverflow),
     `Long URL overflow: ${JSON.stringify(wrapResults)}`);
+  check(wrapResults.every(r=>r.compounds.some(c=>c.cell)&&r.compounds.some(c=>!c.cell&&c.wraps)&&
+    r.compounds.every(c=>c.inside&&c.scrollWidth<=c.clientWidth+1)),`Korean compound overflow: ${JSON.stringify(wrapResults)}`);
+  check(wrapResults.every(r=>r.mixedTokens.every(t=>t.lines===1)),`Mixed sentence split a unit or parenthesis: ${JSON.stringify(wrapResults)}`);
   // Tables normally size to their content and scroll locally. Also exercise a constrained
-  // real cell, so a very wide intrinsic cell cannot make the URL fallback assertion vacuous.
-  const constrainedURL=await page.locator('[data-document-tab][data-active=true] [data-table-cell]').last().evaluate(cell=>{
-    const saved=cell.style.maxWidth;
+  // real cell, so an intrinsically wide cell cannot make the token fallback assertions vacuous.
+  const constrainedTokens=await page.locator('[data-document-tab][data-active=true] [data-table-cell]').evaluateAll(cells=>{
+    const tokens=cells.filter(cell=>/^(https:\/\/|전력변환시스템출력전압제어기전류측정결과분석)/.test(cell.textContent));
+    const saved=tokens.map(cell=>cell.style.maxWidth);
     try {
-      cell.style.maxWidth='180px';
-      const range=document.createRange();range.selectNodeContents(cell);
-      const rects=[...range.getClientRects()].filter(r=>r.width>0), box=cell.getBoundingClientRect();
-      return {wraps:new Set(rects.map(r=>Math.round(r.top))).size>1,
-        inside:rects.every(r=>r.left>=box.left-1&&r.right<=box.right+1),width:box.width};
-    } finally { cell.style.maxWidth=saved; }
+      for(const cell of tokens)cell.style.maxWidth='180px';
+      return tokens.map(cell=>{
+        const range=document.createRange();range.selectNodeContents(cell);
+        const rects=[...range.getClientRects()].filter(r=>r.width>0),box=cell.getBoundingClientRect();
+        return {kind:cell.textContent.startsWith('https://')?'URL':'Korean compound',wraps:new Set(rects.map(r=>Math.round(r.top))).size>1,
+          inside:rects.every(r=>r.left>=box.left-1&&r.right<=box.right+1),width:box.width,scrollWidth:cell.scrollWidth,clientWidth:cell.clientWidth};
+      });
+    } finally { tokens.forEach((cell,i)=>cell.style.maxWidth=saved[i]); }
   });
-  check(constrainedURL.wraps&&constrainedURL.inside,`Constrained table URL overflow: ${JSON.stringify(constrainedURL)}`);
+  check(constrainedTokens.some(t=>t.kind==='URL')&&constrainedTokens.some(t=>t.kind==='Korean compound')&&
+    constrainedTokens.every(t=>t.wraps&&t.inside&&t.scrollWidth<=t.clientWidth+1),`Constrained table token overflow: ${JSON.stringify(constrainedTokens)}`);
   // Click at a real wrapped-line start and select across its preceding line break.
   await prose.scrollIntoViewIfNeeded();
   const caret=await prose.evaluate(n=>{
@@ -189,7 +259,7 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     'Composition at a wrapped line end lost or reordered text');
   await page.keyboard.press('Control+z');
   check(await json()===wrapDocument,'Wrapped-line composition undo did not restore the document');
-  results.push({koreanWrapping:wrapResults,constrainedURL,wrappedCaretSelection:true,wrappedCompositionUndo:true});
+  results.push({koreanWrapping:wrapResults,constrainedTokens,wrappedCaretSelection:true,wrappedCompositionUndo:true});
   await page.setViewportSize({width:1280,height:720});
   await open('quiet-document.md');
   // A CSS family list also passes when a system fallback is used. Inspect the actual

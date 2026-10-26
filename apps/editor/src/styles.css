@@ -1137,7 +1137,7 @@ button {
   background: var(--id-color-interaction-soft);
 }
 
-/* Text surfaces only: retain the editor's overflow-wrap:anywhere fallback for long tokens.
+/* Text surfaces only: retain the editor's existing emergency fallback for long tokens.
  * Code, math and embedded UI keep their existing line-breaking behavior. */
 .document-editor :is(.paragraph, .heading, .quote-body, .admonition-body, .admonition-label,
   .caption, [data-table-cell], .footnote-definition-body) {
@@ -1146,6 +1146,11 @@ button {
 
 .document-editor :is(code, .katex, [data-slot="button"]) {
   word-break: normal;
+}
+
+/* These exclusions inherited keep-all inside headings before the shared prose rule. */
+.document-editor .heading :is(code, .katex, [data-slot="button"]) {
+  word-break: inherit;
 }
 
 /* Embedded UI controls keep the UI stack when the document font is adjusted. */

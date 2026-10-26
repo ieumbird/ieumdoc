@@ -39,14 +39,18 @@
 Korean document prose wraps at eojeol (space-separated word) boundaries using
 `word-break: var(--word-break-document)` (`keep-all`). The title, H1–H6, paragraphs,
 list paragraphs, quotes, admonition text, figure/table captions, table cells and endnote
-definitions share this rule. The existing inherited `overflow-wrap: anywhere` remains
-the emergency fallback when a token cannot fit on an otherwise empty line, including
-long URLs and English identifiers. Unlike `break-word`, `anywhere` also contributes
-emergency break opportunities to min-content sizing. Normal Korean words move intact
+definitions share this rule. The existing emergency overflow fallback is retained for
+tokens that cannot fit on an otherwise empty line, including long URLs, English identifiers
+and unspaced Korean compounds. The stylesheet declares `overflow-wrap: anywhere` on
+`.document-editor`, but Tiptap's injected `word-wrap` alias wins the cascade: the measured
+document text computes to `overflow-wrap: break-word`. Source computes to `anywhere`.
+These effective values are unchanged from master. Normal Korean words move intact
 to the next line; an eojeol wider than the entire available line may split to avoid overflow.
 Chromium retains its normal punctuation restrictions. Headings previously had their own
 literal `keep-all`; they now use the same token and retain `text-wrap: pretty`.
 Code blocks, inline code, KaTeX, Source wrapping and UI chrome retain their own behavior.
+Inline code and math keep their prior context: `keep-all` within headings, `normal` in
+the other document surfaces. Their computed `overflow-wrap` remains `break-word`.
 This is presentation only, with no preference, source-format, Core or CLI change.
 
 The shared Settings language selector follows the existing 32px input/control size and typography. Korean and English use the same font stack and tokens. Long translations wrap within existing dialogs and scroll within their viewport bounds; language changes do not introduce a new layout system. The UI language policy and document-text boundary are defined in [UX Shell](editor-ux-shell-v1.md#ui-display-language-256).
@@ -261,7 +265,7 @@ pixel-diff assertions or a substitute for user visual approval.
   | Controls | Adjustable variables |
   | --- | --- |
   | Body | `--font-family-document`, `--font-size-document`, `--line-height-document` |
-  | Document prose word boundaries (oversized-token fallback remains `anywhere`) | `--word-break-document` (`keep-all`) |
+  | Document prose word boundaries (existing emergency overflow fallback retained) | `--word-break-document` (`keep-all`) |
   | H1–H6 sizes (H1 also controls the title slot) | `--font-size-document-h1`, `--font-size-document-h2`, `--font-size-document-h3`, `--font-size-document-h4`, `--font-size-document-h5`, `--font-size-document-h6` |
   | Heading/title-slot weight and line spacing | `--font-weight-document-heading`, `--line-height-document-heading` |
   | Heading margins (title slot uses the after gap) | `--space-document-heading-before`, `--space-document-heading-after` |

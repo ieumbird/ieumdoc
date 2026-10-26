@@ -1,0 +1,126 @@
+{
+  "revision": "1dc1e2d235019ec73b6ad986b62b8964a36e32be",
+  "viewport": [
+    1440,
+    1000
+  ],
+  "visual": {
+    "excluded": [
+      {
+        "kind": "code",
+        "context": "paragraph",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "quote-body",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "DIV",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "caption",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "TD",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "paragraph",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "math",
+        "context": "paragraph",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "PRE",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "heading",
+        "wordBreak": "keep-all",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "math",
+        "context": "heading",
+        "wordBreak": "keep-all",
+        "overflowWrap": "break-word"
+      },
+      {
+        "kind": "code",
+        "context": "footnote-definition-body",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      }
+    ],
+    "ui": [
+      {
+        "selector": "[data-testid=\"save\"]",
+        "wordBreak": "normal",
+        "overflowWrap": "normal"
+      },
+      {
+        "selector": ".sidebar-tool",
+        "wordBreak": "normal",
+        "overflowWrap": "normal"
+      },
+      {
+        "selector": ".document-outline-item",
+        "wordBreak": "normal",
+        "overflowWrap": "anywhere"
+      },
+      {
+        "selector": ".code-language",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "selector": ".figure-edit",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      },
+      {
+        "selector": ".table-column-handle",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word"
+      }
+    ],
+    "columns": [
+      217.84375,
+      217.84375,
+      267.3125
+    ],
+    "source": [
+      {
+        "selector": ".source-view-text",
+        "wordBreak": "normal",
+        "overflowWrap": "anywhere"
+      },
+      {
+        "selector": ".source-line",
+        "wordBreak": "normal",
+        "overflowWrap": "anywhere"
+      }
+    ]
+  }
+}
