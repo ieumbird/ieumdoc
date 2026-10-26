@@ -2532,6 +2532,11 @@ ol.list { list-style: decimal; }
   overflow-wrap: anywhere;
 }
 
+/* Reuse the shell's phone boundary: image preview must not crowd the list or its actions. */
+@media (width < 40rem) {
+  .folder-picker-preview { display: none; }
+}
+
 .folder-picker-option {
   display: grid;
   grid-template-columns: var(--size-icon-slot) minmax(0, 1fr) var(--size-icon-slot);

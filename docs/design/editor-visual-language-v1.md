@@ -150,7 +150,8 @@ IeumDoc keeps one stylesheet; comparison captures do not need a runtime old/new 
 ## Adjustable values and preferences
 
 - Image picker (#480): `--layout-folder-picker-preview-height` (10rem / 160px) bounds the
-  active image below the list at desktop and phone widths. Its structural border, subtle surface,
+  active image below the list at desktop widths. Below the existing `40rem` phone boundary the
+  preview collapses, preserving the list and action space. Its structural border, subtle surface,
   radius, 12px helper inset and muted text reuse existing product tokens. It adds no control;
   the image keeps its aspect ratio and the dialog retains its viewport scrolling.
 
