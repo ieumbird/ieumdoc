@@ -36,6 +36,7 @@ test("product tokens and Tailwind adapters have unique, acyclic definitions", ()
   assert.equal(values.get("--id-color-accent"), "var(--id-color-interaction)");
   assert.notEqual(values.get("--id-color-danger"), values.get("--id-color-interaction"));
   assert.equal(values.get("--font-family-document"), "var(--font-family-sans)");
+  assert.equal(values.get("--id-color-document-heading-number"), "#0e7c86");
   assert.equal(values.get("--color-primary"), "var(--primary)");
   assert.doesNotMatch(tokens + adapters, /!important/);
 });

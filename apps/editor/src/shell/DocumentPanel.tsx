@@ -123,7 +123,8 @@ function Outline({ outline: store, onSelect }: { outline: OutlineStore; onSelect
                   onSelect(item);
                 }}
               >
-                {item.text || <span className="document-outline-untitled">{i18n.t("Untitled heading")}</span>}
+                {item.number ? <><span className="document-outline-number">{item.number}</span>{item.text.slice(item.number.length)}</>
+                  : item.text || <span className="document-outline-untitled">{i18n.t("Untitled heading")}</span>}
               </button>
             </li>
           ))}
