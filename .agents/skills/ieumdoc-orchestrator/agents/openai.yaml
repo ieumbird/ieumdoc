@@ -1,0 +1,6 @@
+interface:
+  display_name: "IeumDoc Orchestrator"
+  short_description: "IeumDoc 이슈를 작업자에게 나눠 맡기고 리뷰·merge queue로 병합하기"
+  default_prompt: "$ieumdoc-orchestrator로 다음 이슈들을 계획하고 작업자에게 맡겨 병합까지 진행해줘: "
+policy:
+  allow_implicit_invocation: false
