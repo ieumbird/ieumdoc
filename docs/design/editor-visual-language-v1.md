@@ -855,7 +855,8 @@ The new weight/edge assertions fail on b7e2b58: current and ordinary rows both r
 and the old structural edge resolves to 1.36:1 on white / 1.10:1 on the track. The explicit
 document-tab contrast assertion was also run against that original CSS and failed. Final
 visual-states, document-tabs, layout-rules, outline, quiet-document and command-center pass;
-the manual capture walk is separate from those six automated scenarios. Editor tests 290/290,
+the manual capture walk is separate from the automated scenarios. After the common-control merge,
+citation-authoring also passes, and the merged Editor tests pass 291/291,
 workspace typecheck, Editor build, docs and diff whitespace checks pass. Current/focus/hover
 distinctions, ARIA and accessible Outline names remain protected. The 1440/390 geometry checks
 compare every visible Files/Outline/menu row under 400 and 600, asserting unchanged row Y/height,
@@ -874,6 +875,11 @@ document's verification header; both records and both product changes were retai
 Master d7830ed72a3e5ac8d3562417c1084e7b380df812 (#516 unified menus) was then merged as
 39bd57f1d63f05f6819bb5712923837da5529cfd. Again only the verification header conflicted;
 both records, the menu changes and the selection cues are retained and reverified together.
+The approved shared-control master 93636fac231a8a305138b211fa87ac96dad7de51 (#514 / #526)
+was integrated as 5cf64d8a1bd4eaf365398e8c3b7c730a221a88f3. Only the two verification
+headers conflicted; both sets of records remain. The consumer guard is unchanged from master
+and passes, as do the merged bilingual control geometry checks and the selection-cue checks.
+Final recaptures use this merged UI, including its common line icons and control treatment.
 
 The Before images below use b7e2b58; After uses that merged base plus this review correction.
 Same worktree-owned server (5295), persistent installed Chrome 155.0.8059.85 headless on Windows,
