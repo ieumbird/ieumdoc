@@ -34,7 +34,7 @@ function sourceDigest(): string {
 
 const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
   inputEvents: [async ({}, use) => { await use(await inputEventScript()); }, { scope: "worker" }],
-  session: [async ({}, use) => {
+  session: [async ({}, use, workerInfo) => {
     const before = sourceDigest();
     const context = await chromium.launchPersistentContext(profile, {
       ...(channel ? { channel } : {}),
@@ -43,6 +43,9 @@ const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
       viewport: { width: 1280, height: 720 },
     });
     try {
+      // This worker-owned persistent context also creates startup and secondary-tab pages.
+      context.setDefaultTimeout(workerInfo.project.use.actionTimeout!);
+      context.setDefaultNavigationTimeout(workerInfo.project.use.navigationTimeout!);
       await context.clearCookies();
       const scratch = path.join(REPOSITORY_ROOT, "tmp").replaceAll("\\", "/") + "/";
       await context.route("**/api/document**", route => {

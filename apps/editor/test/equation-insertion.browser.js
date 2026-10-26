@@ -133,7 +133,7 @@ async (page, { expect }) => {
     await page.getByTestId('equation-latex').press('Escape');
     await page.getByTestId('equation-editor').waitFor({state:'detached'});
     // Closing the properties panel and handing focus back are separate browser tasks.
-    await page.waitForFunction(caretAfterEquation, newPath, {timeout:30_000});
+    await page.waitForFunction(caretAfterEquation, newPath);
     const escapeReturnsFocus = await page.evaluate(caretAfterEquation, newPath);
     await page.locator('.top-bar [data-testid="save"]:not([aria-disabled="true"])').waitFor();
     await page.getByRole('button', {name:'Save', exact:true}).click();
