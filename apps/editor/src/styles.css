@@ -2222,6 +2222,11 @@ ol.list { list-style: decimal; }
   border-radius: var(--id-radius-sm);
 }
 
+:is(.figure, .equation):is([data-selected="true"], [data-editing="true"]) {
+  /* The outline's outer edge adds both offset and stroke width to the element radius. */
+  border-radius: max(0px, calc(var(--id-radius-block-hover) - var(--space-1) - var(--border-width)));
+}
+
 @media (hover: none) {
   .block-controls,
   .figure-edit,
