@@ -133,8 +133,20 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   result.startsFromHostPlace = true;
   await enterFolder(folder);
   await option('guides').waitFor();
+  assert(!/Markdown file/.test(await page.getByTestId('folder-picker-meta').innerText()), 'Folder picker must not count documents absent from its folder-only list');
+  assert(await dialog.getByText('Sub-folders · click to navigate', {exact:true}).count() === 1 &&
+    await dialog.getByText('Choose documents in the sidebar after opening a folder.', {exact:true}).count() === 1,
+    'Folder navigation and document opening must be explained separately');
+  const newFolderHeader = await dialog.getByRole('button', {name:'New folder', exact:true}).evaluate(button => {
+    const heading = [...button.parentElement.children].find(node => node.textContent === 'Sub-folders · click to navigate');
+    return Boolean(heading) && Math.abs(heading.getBoundingClientRect().top - button.getBoundingClientRect().top) < button.clientHeight;
+  });
+  assert(newFolderHeader, 'New folder belongs beside the child-folder heading');
+  const shortcuts = dialog.getByRole('region', {name:'Shortcuts', exact:true});
+  assert(await shortcuts.count() === 1 && await shortcuts.evaluate(element => Boolean(element.compareDocumentPosition(document.querySelector('#folder-path')) & Node.DOCUMENT_POSITION_FOLLOWING)),
+    'Shortcuts must precede the path in the single-column reading order');
   await option('guides').click();
-  await page.getByTestId('folder-picker-meta').getByText(/1 Markdown file here/).waitFor();
+  await page.getByTestId('folder-picker-meta').getByText(/No sub-folders/).waitFor();
   await dialog.getByRole('button', {name:'Up', exact:true}).click();
   await option('guides').waitFor();
   await option('guides').click();
@@ -149,7 +161,7 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   await option('guides').waitFor();
   assert(await dialog.getByRole('option').count() === 1, 'Partial path must filter the folders');
   await field.press('Tab');
-  await page.getByTestId('folder-picker-meta').getByText(/1 Markdown file here/).waitFor();
+  await page.getByTestId('folder-picker-meta').getByText(/No sub-folders/).waitFor();
   assert(await field.inputValue() === [folder, 'guides', ''].join(sep), 'Tab completes into the folder');
   await field.press('Backspace');
   await option('guides').waitFor();
@@ -226,7 +238,7 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   const roots = () => section.evaluateAll(sections => sections.map(element => element.dataset.root));
   await openFolder.click();
   await enterFolder(guides);
-  await page.getByTestId('folder-picker-meta').getByText(/1 Markdown file here/).waitFor();
+  await page.getByTestId('folder-picker-meta').getByText(/No sub-folders/).waitFor();
   await open.click();
   await dialog.waitFor({state:'detached'});
   await section.nth(1).waitFor();
@@ -275,7 +287,7 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   await field.fill([folder, '자'].join(sep));
   await option('자료').waitFor();
   await field.press('ArrowRight');
-  await page.getByTestId('folder-picker-meta').getByText(/1 Markdown file here/).waitFor();
+  await page.getByTestId('folder-picker-meta').getByText(/No sub-folders/).waitFor();
   assert(await field.inputValue() === [folder, '자료', ''].join(sep), 'Right completes a Korean folder path');
   await field.press('Backspace');
   await option('guides').waitFor();
@@ -709,6 +721,42 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
     await folderMenu('Close folder');
   }
   result.folderNamesReadable = true;
+  // Presentation stress uses only read-only browse fixtures; no folder/document is opened.
+  const longName = '한글 English 프로젝트 문서와 설계 자료를 모아둔 아주 긴 폴더 이름 '.repeat(3).trim();
+  const browseEntries = Array.from({length:30}, (_, index) => ({name:`${index} ${longName}`, path:folder + sep + index, kind:'folder'}));
+  await page.route('**/api/folder-browse?*', route => route.fulfill({json:{path:folder, crumbs:[{name:'folder-navigation', path:folder}], entries:browseEntries}}));
+  await page.route('**/api/folder-places', route => route.fulfill({json:{places:[{name:longName, path:folder, kind:'root'}]}}));
+  await openFolder.click();
+  await field.fill(folder + sep);
+  await option(browseEntries[0].name).waitFor();
+  await dialog.getByTitle(folder, {exact:true}).first().waitFor();
+  for (const width of [1440, 375]) {
+    await page.setViewportSize({width, height:667});
+    await dialog.evaluate(async element => { await document.fonts.ready; await Promise.all(element.getAnimations().map(animation => animation.finished)); });
+    const bounds = await dialog.evaluate(element => {
+      const list = element.querySelector('[role=listbox]');
+      return {overflow:element.scrollWidth > element.clientWidth, pageOverflow:document.documentElement.scrollWidth > innerWidth,
+        listScrollable:list.scrollHeight > list.clientHeight, listHeight:list.clientHeight, rowHeight:list.firstElementChild.clientHeight};
+    });
+    assert(!bounds.overflow && !bounds.pageOverflow && bounds.listScrollable && bounds.listHeight >= bounds.rowHeight,
+      `Long names and a long child list must stay within the usable scrollable picker at ${width}px: ${JSON.stringify(bounds)}`);
+    await field.focus();
+    await field.press('ArrowUp');
+    const lastId = await field.getAttribute('aria-activedescendant');
+    assert(lastId && await page.locator(`[id="${lastId}"]`).innerText() === browseEntries.at(-1).name,
+      'Keyboard navigation must reach the last child with a long name');
+    await open.scrollIntoViewIfNeeded();
+    const reachable = await open.evaluate(button => {
+      const rect = button.getBoundingClientRect();
+      return button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+    });
+    assert(reachable, 'Open stays reachable by dialog scrolling with long shortcut names');
+    await field.fill(folder + sep);
+  }
+  await field.press('Escape');
+  await dialog.waitFor({state:'detached'});
+  await page.unrouteAll();
+  result.longPickerNamesAndScroll = true;
   for (const [name, passed] of Object.entries(result)) assert(passed, `${name} failed`);
   return {...result, captureMetadata};
 }

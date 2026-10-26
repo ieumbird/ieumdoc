@@ -16,6 +16,13 @@
 
 이 문서는 **Historical**로 유지하며 구현은 [#514](https://github.com/ieumbird/ieumdoc/issues/514) 이후 별도로 진행합니다. 아래 비교·권고·PNG는 결정 전 시안을 보존한 기록입니다. A안 PNG의 `현재 위치` 문구와 이름 반복 2곳이라는 측정은 이번 조정을 반영한 결과가 아니며, 새 캡처는 만들지 않았습니다. 현재 제품·계약은 이 결정 기록만으로 바뀌지 않습니다.
 
+## #522 구현 작업 계획 (2026-10-26)
+
+- 범위: 위 소유자 결정에 따른 폴더 모드의 한 열 배치·영한 문구·Root 현재 배경·New folder 위치를 기존 JSX/CSS/번역 안에서 정리하고, 현재 [Folder picker 계약](../design/folder-picker-v1.md)을 함께 갱신한다. 실제 Root 이름과 전체 경로 접근성, 독립된 키보드 포커스를 유지한다.
+- 제외: 문서 파일 열기, 이미지 선택/미리보기 의미, Host/API/권한, Core 문서 의미·저장·Editor engine/history/cursor, 다른 이슈의 목록 상태 규칙. 인터페이스 표현만 바꾸므로 Core operation과 CLI 명령은 추가하지 않는다.
+- 완료: 기존 폴더 이동/Enter·Open, 최근 위치, New folder 오류·2단계 Escape·focus 복귀, HTTP Root 제한과 이미지 선택 재사용이 보존되고 승인된 문구·배치가 동작하며, PR의 필수 CI가 통과한다. 구현자는 병합하지 않고 소유자 승인·독립 검토를 기다린다.
+- 검증: 기존 folder-navigation/HTTP 시나리오에 고유한 표현·Root 식별 검사를 보완하여 제품 변경 전 실패, 변경 후 통과를 기록한다. checkout 전용 persistent profile·자체 서버·브라우저 슬롯 승인 후에만 `pnpm browser:test`를 실행한다. Editor tests/typecheck/build, docs/diff 검사 및 folder-navigation/folder-memory/image-assets/file-preview/layout-rules/quiet-document와 실제 HTTP 검사를 수행한다. 동일 fixture·locale·wide/narrow 상태의 실제 Before/After 촬영은 자동 assertion과 분리하고, 자체 PID/profile/port를 정리한다.
+
 ## 비교 조건과 한계
 
 기준은 master `f1ae47217c04b00f70ec72771640e8eeda1871b8`. 이 작업트리의 Vite(`127.0.0.1:5392`)와 기존 `pnpm browser:test` runner의 checkout별 persistent Chrome profile을 사용했습니다. 문서 시작·폴더·목록·시작 위치 API 응답만 고정한 **HTTP 유사 재현**이며 실제 HTTP Host의 접근 제한을 검증한 것은 아닙니다.

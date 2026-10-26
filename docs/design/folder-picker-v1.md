@@ -77,13 +77,48 @@ Vite, Windows Desktop and the standalone [HTTP Host](http-host-v1.md) reuse this
   restoration sends no further folder requests after its current request settles.
 - An unreadable/missing location shows an error and retains the entered path. Earlier
   browse responses cannot replace a newer location; reopening refreshes the listing.
-- New folder, beside Up, shows a name row for the listed folder (the breadcrumb's last folder).
+- New folder, beside the child-folder heading, shows a name row for the listed folder.
   Create makes that folder through the Host and moves into it, so Open names it; it opens nothing
   and changes no sidebar expansion, though a sidebar folder already listed is listed again.
   A rejected name keeps the row with its error. Cancel or Escape closes the row and returns focus
   to New folder; a second Escape closes the dialog.
 - Shared product tokens control presentation. Long folder names and narrow viewports keep
   navigation and Open/Cancel reachable.
+
+## Folder presentation (#522)
+
+The [2026-10-26 owner decision](../reviews/folder-dialog-2026-10-26.md#소유자-결정-2026-10-26)
+adopts option A with actual Root names retained. The folder mode has one reading column:
+starting places, path, ancestor navigation when available, child-folder heading/New folder,
+child list, recent folders when present, and the final Open action. Starting places and Recent
+use quiet groups without section dividers; the footer retains one divider. The list is bounded
+and scrolls for longer listings; the dialog itself scrolls when viewport height requires it.
+
+| Element | Local Host | HTTP Host |
+| --- | --- | --- |
+| Description | Add a folder to the sidebar. / 폴더를 사이드바에 추가합니다. | Add a server-shared folder to the sidebar. / 서버가 공유한 폴더를 사이드바에 추가합니다. |
+| Starting places | Shortcuts / 바로 가기 | Server shared folders / 서버 공유 폴더 |
+| Path label | Folder path / 폴더 경로 | Server folder path / 서버 폴더 경로 |
+
+The `Start` label and Markdown count are absent. Starting-place buttons retain their actual
+Root name (including the current Root), with the full path as accessible description and tooltip.
+The most specific starting place in the listing's breadcrumbs has `aria-current="location"`.
+Only its background marks it current: no current-only font weight, text color, marker or border.
+Keyboard focus remains an independent visible ring, also on that current Root. This explicit
+Root-button decision does not redefine other list selection states.
+
+At a Root, Up and the duplicate current breadcrumb are absent; the actual Root button and full
+path identify the location. Below it, Up and ancestor breadcrumbs remain. The list heading is
+`Sub-folders · click to navigate` / `하위 폴더 · 클릭하여 이동`, with the existing New folder
+action beside it. Clicking still enters a folder; Enter/Open still opens the typed path.
+The footer says `Choose documents in the sidebar after opening a folder.` /
+`문서는 폴더를 연 뒤 사이드바에서 선택합니다.` The action identifies the quoted folder name:
+`Open “name”` / `“name” 열기`, retaining the full typed path as its tooltip.
+
+Folder mode lists folders only and adds no document-file opening. Image mode retains its
+existing order, wording, count, Use action and preview; the new folder-only presentation does
+not change image selection, sibling visibility, completion or Host boundaries. No Core or CLI
+operation is needed because this change only presents existing interface/Host navigation.
 
 ## Choosing an image
 
