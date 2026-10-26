@@ -1,9 +1,12 @@
-/** The stable browser suite, shared by the runner and its coverage/selection checks. */
+/** The stable browser suite, shared by the runner and its coverage/selection checks.
+ * Order feeds round-robin shards. Recovery/command-center positions balance four
+ * shards using observed durations from CI run 40296330682 (#535).
+ */
 export const STABLE_SCENARIOS = [
   "continuous-editing",
   "atom-boundaries",
   "editor-shell",
-  "command-center",
+  "recovery",
   "ui-language",
   "layout-rules",
   "quiet-document",
@@ -14,7 +17,7 @@ export const STABLE_SCENARIOS = [
   "save-session",
   "document-session",
   "recovery-storage",
-  "recovery",
+  "command-center",
   "recovery-structure",
   "document-tabs",
   "equation-insertion",

@@ -32,7 +32,7 @@ pnpm test                                  # Core, File commit, CLI, Editor, Des
 pnpm --filter @ieumdoc/editor build
 ```
 
-필수 CI에서는 `pnpm test`가 Core, File commit, CLI, Editor, Desktop suite를 모두 통과해야 한다. 개별 테스트 개수와 이름은 계약이 아니며 package scripts와 test runner가 source of truth다.
+전체 quality CI에서는 `pnpm test`가 Core, File commit, CLI, Editor, Desktop suite를 모두 통과해야 한다. 문서 전용 PR은 아래 [CI](#ci)의 문서·정책 검사만 실행한다. 개별 테스트 개수와 이름은 계약이 아니며 package scripts와 test runner가 source of truth다.
 
 ### Browser regression
 
@@ -44,7 +44,7 @@ pnpm --filter @ieumdoc/editor build
 pnpm editor                                # 필요하면 다른 터미널에서 dev server를 직접 시작
 pnpm browser:test                          # stable 시나리오 전체
 pnpm browser:test footnotes outline        # 이름을 준 시나리오만
-pnpm browser:test --shard=1/2              # CI와 같은 분할. 로컬 전체 실행 시 두 그룹을 차례로 실행
+pnpm browser:test --shard=1/4              # CI와 같은 분할. 로컬 전체 실행 시 네 그룹을 차례로 실행
 pnpm browser:prepare                       # 수동 검토용 scratch 사본만 다시 만든다
 ```
 
@@ -60,6 +60,8 @@ pnpm browser:prepare                       # 수동 검토용 scratch 사본만 
 
 CI 선택·필수 성공 조건은 [CONTRIBUTING Verification matrix](../../CONTRIBUTING.md#verification-matrix)와 [ci.yml](../../.github/workflows/ci.yml)을 따른다. quality는 항상 실행하고, PR의 추가 job은 변경 경로에 따라 선택한다. 선택된 job은 성공해야 하며 미선택 job만 skipped를 허용한다. master push는 전체 실행하고, Desktop 설치·업데이트 단계는 별도 `update` 선택 조건을 따른다.
 
+문서 전용 PR의 quality는 문서/checker tests·diff/whitespace·issue 정책·AI provenance·CI 경로 분류 회귀를 실행하고 제품 단위 테스트·typecheck·Editor build를 생략한다. 제품·미분류 경로가 섞이거나 master push이면 전체 quality를 실행한다. [경로 분류 테스트](../../scripts/ci-quality-mode.test.mjs)가 docs-only probe를 포함한다. browser가 선택되면 4개 shard의 stable 시나리오 합집합이 전체 목록과 같고 중복이 없어야 한다. 배정은 runner 로그와 기존 browser-fixtures 테스트로 확인한다.
+
 Playwright가 browser job의 dev server와 browser 수명을 관리하며 실패 진단과 서버 로그를 artifact로 보존한다.
 
 #### 실패 진단 (#411, #423)
@@ -72,7 +74,7 @@ Playwright가 browser job의 dev server와 browser 수명을 관리하며 실패
 - `console-errors.json`: console/pageerror 원문과 예상·예상 밖·누락 분류. console 검사만 실패한 경우에도 위 진단을 저장한다.
 - `saved-source-<번호>-expected.md`, `saved-source-<번호>-actual.md`: 공통 `assertSavedSource(actual, expected, message)`를 사용하는 저장 비교가 실패했을 때의 정확한 문자열. assertion 메시지에도 diff가 표시된다. 현재 `citations`의 원문/반복 Save/Merge 비교에 적용한다.
 
-결과 디렉터리는 다음 `browser:test` 시작 시 초기화되므로 다음 실행 전에 복사한다. scratch fixture 재준비는 이 결과 디렉터리를 지우지 않는다. CI 실패 시 `editor-browser-ci-logs-1` 또는 `editor-browser-ci-logs-2` artifact가 결과 디렉터리 전체와 `editor-vite.log`를 포함한다. HTTP scenario 실패는 `http-host-diagnostics-<OS>`에 같은 결과 경로를 업로드한다. 여러 upload 경로의 공통 상위 경로 때문에 artifact 안에서는 `ieumdoc/ieumdoc/tmp/browser-results/`처럼 checkout prefix 아래 있을 수 있다.
+결과 디렉터리는 다음 `browser:test` 시작 시 초기화되므로 다음 실행 전에 복사한다. scratch fixture 재준비는 이 결과 디렉터리를 지우지 않는다. CI 실패 시 `editor-browser-ci-logs-<shard>` (1–4) artifact가 결과 디렉터리 전체와 `editor-vite.log`를 포함한다. HTTP scenario 실패는 `http-host-diagnostics-<OS>`에 같은 결과 경로를 업로드한다. 여러 upload 경로의 공통 상위 경로 때문에 artifact 안에서는 `ieumdoc/ieumdoc/tmp/browser-results/`처럼 checkout prefix 아래 있을 수 있다.
 
 artifact를 내려받아 `trace.zip`을 찾은 뒤 `pnpm exec playwright show-trace <trace.zip 경로>`로 action 순서·selector·좌표·API 로그를 조사하고, 실패 시점의 UI는 `error-context.md`, `test-failed.png`, `browser-state.json`을 함께 본다. 저장 차이는 `git diff --no-index -- <expected.md> <actual.md>`로 확인한다(diff가 있으면 exit 1). 진단 저장은 실패 시에만 하며, 성공 시 기존 scenario-result 이외의 영구 파일은 추가하지 않는다.
 
