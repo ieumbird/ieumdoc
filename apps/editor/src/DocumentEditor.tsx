@@ -1,5 +1,5 @@
 import { EDITOR_SHORTCUTS, LINK_SHORTCUT } from "./shortcuts.ts";
-import { BibliographyContent, useBibliographyEntries } from "./Bibliography.tsx";
+import { BibliographyContent, useBibliographyEntries, type BibliographyHandle } from "./Bibliography.tsx";
 import { CITATION_COMMAND, CitationForm, citationCommandItems, citationKeyOfCommand, insertCitation } from "./citation.tsx";
 import type { DocumentFileResponse } from "../shared/document-protocol.ts";
 import type { UiMessage } from "./ui-message.ts";
@@ -65,6 +65,7 @@ export type DocumentEditorHandle = {
   redo(): void;
   canInsertInline(): boolean;
   openInlineInsertion(kind: "citation" | "reference"): void;
+  openBibliographyConnection(returnFocus: HTMLElement | null): void;
   toggleHeadingNumbering(): void;
   setReferenceStyle(style: ReferenceStyle): void;
   beginSave(): TiptapJSON;
@@ -155,6 +156,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const [citationDraft, setCitationDraft] = useState<number | null>(null);
   const commandInsertion = useRef(false);
   const citationEntries = useBibliographyEntries(bibliography);
+  const bibliographyControls = useRef<BibliographyHandle>(null);
   const linkKey = useRef<(event: KeyboardEvent) => boolean>(() => false);
   const slashKeys = useRef<(event: KeyboardEvent) => boolean>(() => false);
   // Draft changes are not transactions; re-render so the block handles reflect them.
@@ -295,6 +297,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       undo() { if (editor?.isEditable) { runHistoryShortcut(editor.view, EDITOR_SHORTCUTS.undo); editor.view.focus(); } },
       redo() { if (editor?.isEditable) { runHistoryShortcut(editor.view, EDITOR_SHORTCUTS.redo); editor.view.focus(); } },
       canInsertInline() { return Boolean(editor?.isEditable && inlineInsertionAt(editor.state)); },
+      openBibliographyConnection(returnFocus) { bibliographyControls.current?.connect(returnFocus); },
       openInlineInsertion(kind) {
         if (!editor?.isEditable) return;
         const caret = inlineInsertionAt(editor.state);
@@ -547,7 +550,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         <button type="button" className="document-title-slot" onMouseDown={event => event.preventDefault()}
           onClick={() => addTitle(editor.view)}>{i18n.t("Add a title")}</button>
       ) : null}
-      <BibliographyContent editor={editor} bibliography={bibliography} documentPath={documentPath}><EditorContent editor={editor} /></BibliographyContent>
+      <BibliographyContent ref={bibliographyControls} editor={editor} bibliography={bibliography} documentPath={documentPath}><EditorContent editor={editor} /></BibliographyContent>
       {visible ? <BlockHandles
         editor={editor}
         menuIndex={blockMenu?.index}
