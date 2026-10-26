@@ -8,7 +8,7 @@ import { completeFootnotes, endnotePlacement, footnoteWriteIssue } from "./footn
 import { isFigure } from "./figure.ts";
 import { FRONT_MATTER_FIELD, parse } from "./parse.ts";
 import { prepareReferences } from "./reference.ts";
-import { isTableDirective, tableOf, tableCaptionParagraph } from "./table.ts";
+import { isTableDirective, tableOf, tableCaptionParagraph, tableBlockNode } from "./table.ts";
 import { cloneDocument, type MystDocument, type MystNode } from "./tree.ts";
 
 const LOSS = "Document contains semantic content that cannot be preserved in canonical Markdown";
@@ -58,7 +58,7 @@ export function serialize(document: MystDocument): string {
   const expected = semanticFingerprint(tree);
   tree.children = tree.children.map((node, index) => {
     try {
-      const flow = { type: "root", children: [node] };
+      const flow = { type: "root", children: [node.type === "table" ? tableBlockNode(node, [], "") : node] };
       prepareReferences(flow);
       return flow.children[0];
     }
@@ -141,7 +141,7 @@ function prepareWriter(tree: MystDocument, blockPaths: number[][]): string {
     }
     node.children?.forEach((child, childIndex) => visit(child, childIndex, node,
       node === tree ? blockPaths[childIndex] : [...path, childIndex], inLink));
-    // Keep supported table directives as GFM tables. The upstream list-table writer
+    // Write every supported table directive with a GFM grid. The upstream list-table writer
     // wraps cells in paragraphs and drops column alignment. The full guard still applies.
     if (isTableDirective(node)) {
       const caption = tableCaptionParagraph(node);

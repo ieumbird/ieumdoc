@@ -84,8 +84,8 @@ const TABLE_DIRECTIVE_FIELDS = new Set(["type", "kind", "children", "label", "id
 const CAPTION_FIELDS = new Set(["type", "children", "position"]);
 
 /**
- * A `{table}` directive Core can author: a Markdown table with a one-paragraph caption, a label,
- * or both. Other table directives (options, legends, no caption and no label) are rejected by native admission.
+ * A `{table}` directive Core can author: a Markdown table with optional one-paragraph caption
+ * and label. Other table directives (options, legends) are rejected by native admission.
  */
 export function isTableDirective(node: MystNode | undefined): boolean {
   if (node?.type !== "container" || node.kind !== "table") return false;
@@ -94,10 +94,14 @@ export function isTableDirective(node: MystNode | undefined): boolean {
   const caption = children[0]?.type === "caption" ? children[0] : undefined;
   const rest = caption ? children.slice(1) : children;
   if (rest.length !== 1 || rest[0].type !== "table") return false;
+  // Native grids have a header row. Headerless csv/list-table containers are
+  // outside this writer's GFM shape and must not acquire an invented header.
+  const header = rest[0].children?.[0]?.children;
+  if (!header?.length || !header.every(cell => cell.header === true)) return false;
   if (caption && !(Object.keys(caption).every((key) => CAPTION_FIELDS.has(key)) &&
       caption.children?.length === 1 && caption.children[0].type === "paragraph" &&
       Object.keys(caption.children[0]).every(key => CAPTION_FIELDS.has(key)))) return false;
-  return caption !== undefined || (typeof node.label === "string" && node.label.length > 0);
+  return true;
 }
 
 /** The Markdown table of a top-level block: a plain table, or the table of a table directive. */
@@ -112,11 +116,9 @@ export function tableCaptionParagraph(node: MystNode | undefined): MystNode | un
 }
 
 /**
- * The top-level block for a table with this caption and label: a plain Markdown table when it has
- * neither, otherwise a `{table}` directive holding the table.
+ * The top-level block for every authored table: a `{table}` directive, even without caption or label.
  */
 export function tableBlockNode(table: MystNode, caption: InlineContent[], label: string, identifier?: string): MystNode {
-  if (caption.length === 0 && label.length === 0) return table;
   return {
     type: "container",
     kind: "table",

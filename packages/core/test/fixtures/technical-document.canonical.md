@@ -33,7 +33,10 @@ The rated current follows from [Equation](#eq-current).
 
 ## Ratings
 
+:::{table}
+
 | Port | Type |
 | ---- | ---- |
 | U    | AC   |
 | P    | DC   |
+:::

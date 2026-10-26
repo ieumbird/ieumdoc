@@ -132,7 +132,7 @@ test("a new table has a header row and two body rows of three columns, and saves
   const edits = collectSupportedEdits(document, state.doc.toJSON() as TiptapJSON);
   assert.deepEqual(edits.inserts, [{ block: "table", rows: [[text("Port"), [], []], [text("U"), [], []], [[], [], []]] }]);
   const saved = saveEdits(mixed, edits);
-  assert.equal(saved.markdown, nativeSource("Intro.\n\n| Port |   |   |\n| ---- | - | - |\n| U    |   |   |\n|      |   |   |\n\n| Name | Note     |\n| ---- | -------- |\n| U    | **bold** |\n| P    |          |\n"));
+  assert.equal(saved.markdown, nativeSource("Intro.\n\n:::{table}\n\n| Port |   |   |\n| ---- | - | - |\n| U    |   |   |\n|      |   |   |\n:::\n\n:::{table}\n\n| Name | Note     |\n| ---- | -------- |\n| U    | **bold** |\n| P    |          |\n:::\n"));
   assert.equal(loadEditableDocument(saved.markdown).blocks[1]?.block, "table");
 });
 
@@ -180,7 +180,7 @@ test("rows and columns are added next to the caret's cell, or at the end, and sa
     cells: [{ row: 2, column: 0, content: text("I") }, { row: 2, column: 1, content: text("x") }],
   }]);
   const saved = saveEdits(mixed, edits);
-  assert.equal(saved.markdown, nativeSource("Intro.\n\n| Name |   | Note     |   |\n| ---- | - | -------- | - |\n| U    |   | **bold** |   |\n| I    | x |          |   |\n| QP   |   |          |   |\n|      |   |          |   |\n"));
+  assert.equal(saved.markdown, nativeSource("Intro.\n\n:::{table}\n\n| Name |   | Note     |   |\n| ---- | - | -------- | - |\n| U    |   | **bold** |   |\n| I    | x |          |   |\n| QP   |   |          |   |\n|      |   |          |   |\n:::\n"));
   const table = loadEditableDocument(saved.markdown).blocks[TABLE];
   assert.ok(table?.block === "table");
   assert.deepEqual(table.rows[1].cells[2].content, [{ kind: "strong", children: [{ kind: "text", text: "bold" }] }]);
@@ -247,11 +247,11 @@ test("rows and columns move and are removed at the caret, columns are realigned,
   // The read-only cell moved with its row and column; its source is unchanged.
   let edits = collectSupportedEdits(document, state.doc.toJSON() as TiptapJSON);
   assert.deepEqual(edits.tables, [{ path: [TABLE + 1], rows: [0, 1], columns: [1, 0], align: [null, "center"], cells: [] }]);
-  assert.equal(saveEdits(mixed, edits).markdown, nativeSource("Intro.\n\n| Note     | Name |\n| -------- | :--: |\n| **bold** |   U  |\n"));
+  assert.equal(saveEdits(mixed, edits).markdown, nativeSource("Intro.\n\n:::{table}\n\n| Note     | Name |\n| -------- | :--: |\n| **bold** |   U  |\n:::\n"));
   // Removing a column takes its cells, read-only ones included.
   state = apply(state, removeTableColumn(caretIn(state, 0, 0), TABLE));
   edits = collectSupportedEdits(document, state.doc.toJSON() as TiptapJSON);
-  assert.equal(saveEdits(mixed, edits).markdown, nativeSource("Intro.\n\n| Name |\n| :--: |\n|   U  |\n"));
+  assert.equal(saveEdits(mixed, edits).markdown, nativeSource("Intro.\n\n:::{table}\n\n| Name |\n| :--: |\n|   U  |\n:::\n"));
   // Each command is one undo step.
   for (let step = 0; step < 5; step++) undo(state, tr => { state = state.apply(tr); });
   assert.ok(state.doc.eq(before));
@@ -295,7 +295,8 @@ test("caption and label edits and newly captioned tables save through Core in th
   const next = toTiptapDocument(document);
   assert.deepEqual(next.content![0].content!.at(-1), { type: "tableCaption", content: [] });
   assert.deepEqual(collectSupportedEdits(document, next), { headings: [], paragraphs: [] });
-  assert.equal(saveEdits(source, collectSupportedEdits(document, next)).markdown, source);
+  assert.equal(saveEdits(source, collectSupportedEdits(document, next)).markdown,
+    nativeSource(":::{table}\n\n| A |\n| - |\n| 1 |\n:::\n"));
   next.content![0].content!.at(-1)!.content = [{ type: "text", text: "Values" }];
   next.content![0].attrs!.label = "tbl-values";
   const edits = collectSupportedEdits(document, next);

@@ -109,7 +109,7 @@ test("Host Save writes edited header and body cells and keeps everything else", 
       { path: [TABLE, 2, 1], content: [] },
     ],
   });
-  assert.match(saved.markdown, /\| \*\*Port name\*\* \| Type +\|\n\| -+ \| -+ \|\n\| U +\| AC +\|\n\| P +\| +\|\n$/);
+  assert.match(saved.markdown, /\| \*\*Port name\*\* \| Type +\|\n\| -+ \| -+ \|\n\| U +\| AC +\|\n\| P +\| +\|\n:::\n$/);
   // Everything before the table (the rest of the document) is the unchanged canonical form.
   const beforeTable = (markdown: string) => markdown.slice(0, markdown.indexOf("\n| "));
   assert.ok(beforeTable(saved.markdown).includes("{eq}`eq-current`"));
