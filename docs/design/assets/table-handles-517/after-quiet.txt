@@ -1,0 +1,9 @@
+$ tsx apps/editor/test/browser/run.ts "quiet-document" "--screenshots"
+
+Running 1 test using 1 worker
+
+(node:43004) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 1 apps\editor\test\browser\scenarios.spec.ts:136:3 › quiet-document (32.3s)
+
+  1 passed (37.2s)

@@ -1,0 +1,294 @@
+[
+  {
+    "locale": "en",
+    "width": 1440,
+    "state": "active",
+    "dpr": 1,
+    "zoom": 1,
+    "scrollY": 0,
+    "scrollLeft": 0,
+    "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+    "handles": [
+      {
+        "name": "Column A actions",
+        "title": "Column A actions",
+        "text": "",
+        "rect": {
+          "x": 344.5,
+          "y": 243.78125,
+          "width": 351.5,
+          "height": 28,
+          "top": 243.78125,
+          "right": 696,
+          "bottom": 271.78125,
+          "left": 344.5
+        }
+      },
+      {
+        "name": "Column B actions",
+        "title": "Column B actions",
+        "text": "",
+        "rect": {
+          "x": 696,
+          "y": 243.78125,
+          "width": 351.5,
+          "height": 28,
+          "top": 243.78125,
+          "right": 1047.5,
+          "bottom": 271.78125,
+          "left": 696
+        }
+      },
+      {
+        "name": "Row 1 actions (header)",
+        "title": "Row 1 actions (header)",
+        "text": "",
+        "rect": {
+          "x": 312,
+          "y": 280.78125,
+          "width": 28,
+          "height": 28,
+          "top": 280.78125,
+          "right": 340,
+          "bottom": 308.78125,
+          "left": 312
+        }
+      },
+      {
+        "name": "Row 2 actions",
+        "title": "Row 2 actions",
+        "text": "",
+        "rect": {
+          "x": 312,
+          "y": 317.78125,
+          "width": 28,
+          "height": 28,
+          "top": 317.78125,
+          "right": 340,
+          "bottom": 345.78125,
+          "left": 312
+        }
+      }
+    ]
+  },
+  {
+    "locale": "en",
+    "width": 390,
+    "state": "active",
+    "dpr": 1,
+    "zoom": 1,
+    "scrollY": 0,
+    "scrollLeft": 0,
+    "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+    "handles": [
+      {
+        "name": "Column A actions",
+        "title": "Column A actions",
+        "text": "",
+        "rect": {
+          "x": 96.5,
+          "y": 268.78125,
+          "width": 114.5,
+          "height": 28,
+          "top": 268.78125,
+          "right": 211,
+          "bottom": 296.78125,
+          "left": 96.5
+        }
+      },
+      {
+        "name": "Column B actions",
+        "title": "Column B actions",
+        "text": "",
+        "rect": {
+          "x": 211,
+          "y": 268.78125,
+          "width": 114.5,
+          "height": 28,
+          "top": 268.78125,
+          "right": 325.5,
+          "bottom": 296.78125,
+          "left": 211
+        }
+      },
+      {
+        "name": "Row 1 actions (header)",
+        "title": "Row 1 actions (header)",
+        "text": "",
+        "rect": {
+          "x": 64,
+          "y": 305.78125,
+          "width": 28,
+          "height": 28,
+          "top": 305.78125,
+          "right": 92,
+          "bottom": 333.78125,
+          "left": 64
+        }
+      },
+      {
+        "name": "Row 2 actions",
+        "title": "Row 2 actions",
+        "text": "",
+        "rect": {
+          "x": 64,
+          "y": 342.78125,
+          "width": 28,
+          "height": 28,
+          "top": 342.78125,
+          "right": 92,
+          "bottom": 370.78125,
+          "left": 64
+        }
+      }
+    ]
+  },
+  {
+    "locale": "ko",
+    "width": 1440,
+    "state": "active",
+    "dpr": 1,
+    "zoom": 1,
+    "scrollY": 0,
+    "scrollLeft": 0,
+    "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+    "handles": [
+      {
+        "name": "A열 작업",
+        "title": "A열 작업",
+        "text": "",
+        "rect": {
+          "x": 344.5,
+          "y": 243.78125,
+          "width": 351.5,
+          "height": 28,
+          "top": 243.78125,
+          "right": 696,
+          "bottom": 271.78125,
+          "left": 344.5
+        }
+      },
+      {
+        "name": "B열 작업",
+        "title": "B열 작업",
+        "text": "",
+        "rect": {
+          "x": 696,
+          "y": 243.78125,
+          "width": 351.5,
+          "height": 28,
+          "top": 243.78125,
+          "right": 1047.5,
+          "bottom": 271.78125,
+          "left": 696
+        }
+      },
+      {
+        "name": "1행 작업 (머리글)",
+        "title": "1행 작업 (머리글)",
+        "text": "",
+        "rect": {
+          "x": 312,
+          "y": 280.78125,
+          "width": 28,
+          "height": 28,
+          "top": 280.78125,
+          "right": 340,
+          "bottom": 308.78125,
+          "left": 312
+        }
+      },
+      {
+        "name": "2행 작업",
+        "title": "2행 작업",
+        "text": "",
+        "rect": {
+          "x": 312,
+          "y": 317.78125,
+          "width": 28,
+          "height": 28,
+          "top": 317.78125,
+          "right": 340,
+          "bottom": 345.78125,
+          "left": 312
+        }
+      }
+    ]
+  },
+  {
+    "locale": "ko",
+    "width": 390,
+    "state": "active",
+    "dpr": 1,
+    "zoom": 1,
+    "scrollY": 0,
+    "scrollLeft": 0,
+    "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+    "handles": [
+      {
+        "name": "A열 작업",
+        "title": "A열 작업",
+        "text": "",
+        "rect": {
+          "x": 96.5,
+          "y": 268.78125,
+          "width": 114.5,
+          "height": 28,
+          "top": 268.78125,
+          "right": 211,
+          "bottom": 296.78125,
+          "left": 96.5
+        }
+      },
+      {
+        "name": "B열 작업",
+        "title": "B열 작업",
+        "text": "",
+        "rect": {
+          "x": 211,
+          "y": 268.78125,
+          "width": 114.5,
+          "height": 28,
+          "top": 268.78125,
+          "right": 325.5,
+          "bottom": 296.78125,
+          "left": 211
+        }
+      },
+      {
+        "name": "1행 작업 (머리글)",
+        "title": "1행 작업 (머리글)",
+        "text": "",
+        "rect": {
+          "x": 64,
+          "y": 305.78125,
+          "width": 28,
+          "height": 28,
+          "top": 305.78125,
+          "right": 92,
+          "bottom": 333.78125,
+          "left": 64
+        }
+      },
+      {
+        "name": "2행 작업",
+        "title": "2행 작업",
+        "text": "",
+        "rect": {
+          "x": 64,
+          "y": 342.78125,
+          "width": 28,
+          "height": 28,
+          "top": 342.78125,
+          "right": 92,
+          "bottom": 370.78125,
+          "left": 64
+        }
+      }
+    ]
+  }
+]

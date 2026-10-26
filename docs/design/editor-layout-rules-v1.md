@@ -1,6 +1,7 @@
 # Editor Layout Rules v1
 
 - Status: Implemented
+- Table handle verification: 2026-10-26 (#517: unchanged 28px/6px hit geometry with light line icons; bilingual layout-rules, table-authoring narrow-scroll/keyboard/touch checks and [same-state comparison](table-interaction-v1.md#light-handle-verification-and-comparison)).
 - Last verified: 2026-10-26 (#515 P1/P3 owner review correction: contrast-qualified tab edges, 600 list cue and stable Outline row extent; targeted regressions and [1440/390px comparison](editor-visual-language-v1.md#selection-cue-review-correction-515)).
 - Previous verification: 2026-10-26 (#515: owner A1 raised tab groups and background-only current lists; targeted browser regressions, Editor tests/typecheck/build and [1440/390px manual comparison](editor-visual-language-v1.md#selection-expression-verification-515)).
 - Shared control verification: 2026-10-26 (#514: B1 32/28px and 6px control geometry, UI isolation and token-selected/focus colors in English/Korean at 1440/390px; [manual captures and guard evidence](editor-visual-language-v1.md#shared-control-verification-514)).

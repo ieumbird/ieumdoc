@@ -1,0 +1,141 @@
+{
+  "originalFailFirstProduct": "93636fac231a8a305138b211fa87ac96dad7de51",
+  "productBaseline": "b28541f373d301fad4da5605ce67808bbcda0b39",
+  "testCaptureHarnessHead": "f8f1865e25f69325d5eff318a4b85fa834262441",
+  "temporaryProductFiles": [
+    "apps/editor/src/table-tools.tsx",
+    "apps/editor/src/styles.css"
+  ],
+  "baselineFileHashes": {
+    "apps/editor/src/table-tools.tsx": "3B05026AA2B92815E33957015D9DD329632FEF2B96F5FD3FEBE26875F2B2F0CB",
+    "apps/editor/src/styles.css": "EE821193CA7B7F577368C2B2F77712765DD1B01D1EBFC8DF3CCB75FB6BEC9BEA"
+  },
+  "finalFileHashes": {
+    "apps/editor/src/table-tools.tsx": "D5B1788DEAAC4793C44C8827082B89806FCCBDAB7EB2034ADFE8BAD291F431DF",
+    "apps/editor/src/styles.css": "EC6078F18BDD24E47B96F070A06BAC82B74290AB38E479C643BDB4E4A2BC2811"
+  },
+  "finalImplementationProductHead": "f8f1865e25f69325d5eff318a4b85fa834262441",
+  "captureCommand": "pnpm browser:test table-handles-capture; pnpm browser:test quiet-document --screenshots",
+  "manualCaptureSource": "manual-capture.browser.js",
+  "captureNotes": [
+    "Manual screenshots are separate from automated assertions; PHASE is replaced before copying the temporary capture scenario into apps/editor/test, then the temporary file is removed.",
+    "The capture script output names ending in rest.png retain a blurred current table cell; final delivery renames those unchanged PNG bytes to blurred-current.png. They do not prove table-rest suppression. Quiet-document rest pairs are the separate document-rest evidence.",
+    "Only the two listed product files were temporarily read from b28541f; all other product files matched that base. Current extended test/capture harness is recorded separately.",
+    "Before uses baseline LF file bytes from git show; the exact final working-tree bytes were backed up and restored in finally, checked by SHA256 and git diff.",
+    "Windows installed Chrome 155; persistent checkout profile cf7a1f2e0a6f21a8; own Vite origin http://127.0.0.1:5317; DPR1, visualViewport scale1, fonts ready, scrollTop0. EN/KO 1440x900 and390x900 table captures. Quiet-document1440x1000/375x1000 rest."
+  ],
+  "pairs": [
+    {
+      "name": "en-1440-active.png",
+      "width": 1440,
+      "height": 900,
+      "beforeSHA256": "4a4118f19ec94a097356de1fb4211626e79aab2073ea13fabf821ec35c3fa478",
+      "afterSHA256": "420b4da1e5db2b096a101b8afde8285e695d2c1de1a54c00c84da31bbbb67bd1",
+      "byteIdentical": false
+    },
+    {
+      "name": "en-1440-blurred-current.png",
+      "width": 1440,
+      "height": 900,
+      "beforeSHA256": "d0dbf7a9a9aea70256ecc46c848572b66ab8268ea147bdfdf95f7a7ee227a99c",
+      "afterSHA256": "a922c369012b294ff099b10f929c67c12c6b09ddf3868d78c9bb06fe052810f7",
+      "byteIdentical": false
+    },
+    {
+      "name": "en-1440-keyboard-menu.png",
+      "width": 1440,
+      "height": 900,
+      "beforeSHA256": "efe053cece3707d243c129784a7ee397f57090595afcbdb99c1e2985029ec2be",
+      "afterSHA256": "238f709b4b33f64b70c9c3256731295c4097fbef09a002c85b25b0a73052f3b1",
+      "byteIdentical": false
+    },
+    {
+      "name": "en-390-active.png",
+      "width": 390,
+      "height": 900,
+      "beforeSHA256": "21ae6e0b9ee5415c5a0567957ed33c37f30ccfb0cb6fa90bc350e2dcda3c91b9",
+      "afterSHA256": "acb5ac1df96ba8f7f76a4214620d9c1ce441a680e2ce37d3be87c11382f9b88c",
+      "byteIdentical": false
+    },
+    {
+      "name": "en-390-blurred-current.png",
+      "width": 390,
+      "height": 900,
+      "beforeSHA256": "8e44ee934a63f60c7d7ca55e1aee680de7962b46ff97a76d29759d7ac2684c82",
+      "afterSHA256": "da500d2d677812f6ef4063242a42f88313e1cbd59d8be8d3890530a655b1e740",
+      "byteIdentical": false
+    },
+    {
+      "name": "en-390-keyboard-menu.png",
+      "width": 390,
+      "height": 900,
+      "beforeSHA256": "c96c40433ed958926276206752262e97ffd6d5c299ba5da719f24bd4fffc94dc",
+      "afterSHA256": "7f18b7a433d1f2d77432e28935c208af3ec3d189d2837bc23cc8a7d436c23ba2",
+      "byteIdentical": false
+    },
+    {
+      "name": "ko-1440-active.png",
+      "width": 1440,
+      "height": 900,
+      "beforeSHA256": "45e59328a26c6bee1e74acfda47a0394374a5164433da32667bd7566b532adf2",
+      "afterSHA256": "5bdfab509b442e01d668fa61c7bf5c7219016cf927861de3c357654a44f68dbe",
+      "byteIdentical": false
+    },
+    {
+      "name": "ko-1440-blurred-current.png",
+      "width": 1440,
+      "height": 900,
+      "beforeSHA256": "a494fe164e24d8c3ce98e253f0e0bc00c92ecbcdbd58c3c40abca8854a015b4e",
+      "afterSHA256": "d51a1a1b57d0b0b070cd53f662ab37c2edc096a11962d4fea55684f5e95f8b4b",
+      "byteIdentical": false
+    },
+    {
+      "name": "ko-1440-keyboard-menu.png",
+      "width": 1440,
+      "height": 900,
+      "beforeSHA256": "d421e32e285a1a25fb1cb450ca6bba0e06fde5b9ebdb71d61bf6f3e9024f0df9",
+      "afterSHA256": "97da2836240501d47c3510952d8be2a4c64348a8f88bfb6c3df3ae36245e3c5e",
+      "byteIdentical": false
+    },
+    {
+      "name": "ko-390-active.png",
+      "width": 390,
+      "height": 900,
+      "beforeSHA256": "e9de01a0eb29e1e0dd1e77a72fa287ee38ad74efeccae48445676ab2137216db",
+      "afterSHA256": "527760928a79a88670c4e50e3ac3b1b1dcc8bddb01b555689f55e383cc9e925a",
+      "byteIdentical": false
+    },
+    {
+      "name": "ko-390-blurred-current.png",
+      "width": 390,
+      "height": 900,
+      "beforeSHA256": "4572356ff9e6f5b23abd6714e33eb537254517d20bdc910a226b973e87c318a3",
+      "afterSHA256": "c0557ee93ed4eb5b4accc4cfca5358de8f4c18f1cb7e40a2fb132b663db2d9cc",
+      "byteIdentical": false
+    },
+    {
+      "name": "ko-390-keyboard-menu.png",
+      "width": 390,
+      "height": 900,
+      "beforeSHA256": "c995cd5748d03a532b41103b25225879c7328e1402569a008d7ed6d8380804c1",
+      "afterSHA256": "ac20f1f84aa7ede73a9cba9a8812fe3f42b2f04f1d954701aa3d17152fcfe170",
+      "byteIdentical": false
+    },
+    {
+      "name": "quiet-1440-rest.png",
+      "width": 1440,
+      "height": 1000,
+      "beforeSHA256": "1c29b22210196258215a412014aad977a1f301c032056bef7855c34b8715440f",
+      "afterSHA256": "1c29b22210196258215a412014aad977a1f301c032056bef7855c34b8715440f",
+      "byteIdentical": true
+    },
+    {
+      "name": "quiet-375-rest.png",
+      "width": 375,
+      "height": 1000,
+      "beforeSHA256": "d557824fbc3096c7a79306f2bbce65d5157498a53be18a78145cab4d9d1bd590",
+      "afterSHA256": "d557824fbc3096c7a79306f2bbce65d5157498a53be18a78145cab4d9d1bd590",
+      "byteIdentical": true
+    }
+  ]
+}

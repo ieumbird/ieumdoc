@@ -1,0 +1,16 @@
+{
+  "productBaseline": "b28541f373d301fad4da5605ce67808bbcda0b39",
+  "testCaptureHarnessHead": "f8f1865e25f69325d5eff318a4b85fa834262441",
+  "temporaryProductFiles": [
+    "apps/editor/src/table-tools.tsx",
+    "apps/editor/src/styles.css"
+  ],
+  "baselineFileHashes": {
+    "apps/editor/src/table-tools.tsx": "3B05026AA2B92815E33957015D9DD329632FEF2B96F5FD3FEBE26875F2B2F0CB",
+    "apps/editor/src/styles.css": "EE821193CA7B7F577368C2B2F77712765DD1B01D1EBFC8DF3CCB75FB6BEC9BEA"
+  },
+  "finalFileHashes": {
+    "apps/editor/src/table-tools.tsx": "D5B1788DEAAC4793C44C8827082B89806FCCBDAB7EB2034ADFE8BAD291F431DF",
+    "apps/editor/src/styles.css": "EC6078F18BDD24E47B96F070A06BAC82B74290AB38E479C643BDB4E4A2BC2811"
+  }
+}

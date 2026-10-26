@@ -1,7 +1,8 @@
 # Table interaction v1
 
 - Status: Implemented
-- Last verified: 2026-10-26 (#514: shared Button migration with explicit target/anchor preservation, 28px targets/6px radius; table-authoring/table-cell-editing/continuous-editing browser regressions and [manual captures](editor-visual-language-v1.md#shared-control-verification-514)).
+- Last verified: 2026-10-26 (#517: light line handles, localized names/tooltips, keyboard discovery, no-hover visibility and independent targets; Editor tests/typecheck/build and table-authoring/table-cell-editing/continuous-editing/layout-rules/quiet-document browser regressions; [comparison and evidence](#light-handle-verification-and-comparison)).
+- Previous verification: 2026-10-26 (#514: shared Button migration with explicit target/anchor preservation, 28px targets/6px radius; table-authoring/table-cell-editing/continuous-editing browser regressions and [manual captures](editor-visual-language-v1.md#shared-control-verification-514)).
 - Previous verification: 2026-10-26 (#474 / PR #486 review: table-authoring and source-view-pending browser regressions for explicit deletion notices, guarded one-step Undo, focus, typing, Save/Reload, Source request start, tab switching and expiry; appended endnote placement in the document-session harness; footnotes and bilingual cross-reference browser regressions, typecheck/build).
 - Previous verification: 2026-10-25 (#430 last-cell Tab, including integration with #431/#433: table-authoring and continuous-editing browser regressions, first-cell focus/typing, one-step Undo/Redo, actual Save/Reload; Editor 281/281, typecheck/build).
 - Previous verification: 2026-10-23 (empty-table boundaries compared with Core and Editor code/tests; documentation comparison only).
@@ -45,6 +46,70 @@ docs/whitespace checks; all required CI must pass on the PR head. Capture compar
 real Before/After states in English/Korean at wide/narrow widths separately from
 automated assertions. Preserve the historical B2 mockup. Stop own test processes,
 publish the issue-linked PR and retain this worktree for independent review; no merge.
+
+### Light handle verification and comparison
+
+The existing `table-authoring` regression's new light-handle assertion failed against
+unchanged product `93636fac231a8a305138b211fa87ac96dad7de51`: buttons still displayed
+`A/B/1/2`, lacked icons/tooltips and had opaque rest faces. The complete
+[first run log](assets/table-handles-517/fail-first.txt) also preserves an earlier,
+separate manual-capture interruption: its English-only file-opening helper could not
+open Files after switching to Korean. The live trace identified that pending click;
+only the owned browser was stopped. The corrected manual script opens the document
+in English before switching language; its [capture run passed](assets/table-handles-517/before-capture.txt).
+The original Before files remain under `assets/table-handles-517/original-before/`.
+That capture preparation failure is not the fail-first product assertion or a CI result.
+
+Final comparison isolates #517 from #524's inherited shell changes. Its product Before
+is master `b28541f373d301fad4da5605ce67808bbcda0b39`; the test/capture harness and final
+product are from `f8f1865e25f69325d5eff318a4b85fa834262441`. Only `table-tools.tsx` and
+`styles.css` were temporarily read from the baseline in this same checkout. Exact final
+byte copies were restored in `finally`, with matching SHA-256 and no product Git diff;
+all other product files already matched that master. The
+[baseline/harness metadata](assets/table-handles-517/integrated-baseline.json) and
+[comparison manifest](assets/table-handles-517/comparison.json) record source hashes,
+environment, screenshot names and pair hashes. The historical B2 mockup is unchanged.
+
+The final [four-scenario run](assets/table-handles-517/final-browser.txt) passes the
+unchanged fail-first criterion plus native Tab discovery from prose, Enter/Escape
+focus return, actual no-hover media, explicit row targeting while the caret is in the
+header and column targeting while it is elsewhere, header/last-column restrictions,
+centered row targets and measured columns after horizontal scrolling, portaled menus,
+caret/history, last-cell Tab and actual Save/Reload. The existing bilingual
+`layout-rules` loop checks handle icon/name/tooltip agreement at 1440/390px alongside
+28px/6px geometry, UI typography isolation and #514/#515 controls.
+[Table-authoring results](assets/table-handles-517/table-authoring-pass.json) retain
+the existing behavioral outcomes. Editor tests (291), workspace typecheck, Editor
+build and docs/whitespace checks pass. Packaging/HTTP/platform coverage belongs to
+required CI; no Host, Core or CLI boundary changed. #502 is untouched.
+
+Manual captures use this checkout's persistent Windows Chrome 155 profile, its own
+Vite server on 5317, DPR 1, 100% zoom, loaded bundled Pretendard and scroll top.
+Table captures are English/Korean at 1440×900 and 390×900, with the same current U
+cell; narrow tables are scrolled to the right edge. The delivered `blurred-current`
+images retain that current-cell indicator after blur (the script originally named
+them `rest`); they are not evidence of table tools being hidden at rest. The separate
+Quiet Document 1440×1000/375×1000 rest pairs are byte-identical. Capture-only traversal
+is separate from automated assertions; images require visual review.
+
+| Comparable state | Before | After |
+| --- | --- | --- |
+| English active cell, 1440px | [PNG](assets/table-handles-517/before/en-1440-active.png) | [PNG](assets/table-handles-517/after/en-1440-active.png) |
+| English active cell, 390px | [PNG](assets/table-handles-517/before/en-390-active.png) | [PNG](assets/table-handles-517/after/en-390-active.png) |
+| Korean active cell, 1440px | [PNG](assets/table-handles-517/before/ko-1440-active.png) | [PNG](assets/table-handles-517/after/ko-1440-active.png) |
+| Korean active cell, 390px | [PNG](assets/table-handles-517/before/ko-390-active.png) | [PNG](assets/table-handles-517/after/ko-390-active.png) |
+| English keyboard menu, 1440px | [PNG](assets/table-handles-517/before/en-1440-keyboard-menu.png) | [PNG](assets/table-handles-517/after/en-1440-keyboard-menu.png) |
+| Korean keyboard menu, 390px | [PNG](assets/table-handles-517/before/ko-390-keyboard-menu.png) | [PNG](assets/table-handles-517/after/ko-390-keyboard-menu.png) |
+| Quiet Document rest, 1440px | [PNG](assets/table-handles-517/before/quiet-1440-rest.png) | [PNG](assets/table-handles-517/after/quiet-1440-rest.png) |
+| Quiet Document rest, 375px | [PNG](assets/table-handles-517/before/quiet-375-rest.png) | [PNG](assets/table-handles-517/after/quiet-375-rest.png) |
+
+[Final manual capture](assets/table-handles-517/after-capture.txt) and
+[Quiet Document](assets/table-handles-517/after-quiet.txt) passed. Both baseline and
+final servers and their owned children were stopped; the final
+[cleanup record](assets/table-handles-517/cleanup.json) reports no 5317 listener or
+checkout-profile Chrome process and `BadPasswordAttempts=0`. The profile is retained
+and account policy unchanged. Independent review and owner merge approval remain
+required; local verification and manual inspection do not supply that approval.
 
 ## Table deletion notice verification (#474)
 
