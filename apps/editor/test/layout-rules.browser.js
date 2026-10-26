@@ -1,5 +1,5 @@
 // Real Core-backed scratch fixture; run with pnpm browser:test layout-rules.
-async (page, { openPath, withBlockHover }) => {
+async (page, { openPath, withBlockHover, expect }) => {
   page.setDefaultTimeout(15000);
   await page.unrouteAll();
   const origin = page.url().split('/').slice(0,3).join('/');
@@ -44,7 +44,9 @@ async (page, { openPath, withBlockHover }) => {
   await language(locale);
   await page.getByTestId('sidebar').getByRole('button',{name:locale==='ko'?'폴더 열기…':'Open folder…',exact:true}).click();
   await page.getByTestId('folder-path').fill(file.slice(0,file.lastIndexOf(sep)+1));
-  await page.waitForFunction(path=>document.querySelector('.folder-picker-crumb[aria-current="location"]')?.title===path,file.slice(0,file.lastIndexOf(sep)));
+  // #522 removes the duplicate current-folder crumb. A ready New folder action means the
+  // current path's listing is available; keep all typography and geometry assertions below.
+  await expect(page.getByRole('dialog').getByRole('button',{name:locale==='ko'?'새 폴더':'New folder',exact:true})).toBeEnabled();
   await page.getByTestId('folder-path').focus();
   const isolation = await page.evaluate(() => {
     const root=document.documentElement;

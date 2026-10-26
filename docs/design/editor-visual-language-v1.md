@@ -197,6 +197,15 @@ by keyboard, first-row focus and pointer away are byte-identical:
 [after](assets/unified-menus-516-review/after-radius.png). These are manual review
 evidence; no screenshot assertion is added.
 
+## Folder dialog (#522)
+
+Folder mode follows the [single-column folder presentation](folder-picker-v1.md#folder-presentation-522):
+quiet starting-place/Recent groups, one footer divider, and New folder beside the child-folder
+heading. Per the explicit #522 owner decision, the current Root button retains its actual name
+and uses only the selected background; its text, weight and border match other Root buttons.
+`aria-current` announces location, the full path remains accessible, and keyboard focus adds
+the shared independent ring. Image-picker selection and preview retain their existing rules.
+
 ## Document title (#255)
 
 A document without a title shows Add a title above its first block in the H1 type (34/45.9px bold, document font) and the subtle text color, with no box at rest; hover darkens it to muted text and keyboard focus shows the 2px ring. It sits above the editable content rather than inside it, so it never takes the caret and is never document content. An empty title shows `Title` in the same subtle color, like the empty-document hint. The title's handle keeps the ordinary handle look; its tooltip explains that the title stays at the top.
@@ -453,7 +462,7 @@ Values meant to be tuned by hand, or that change with a user's taste, are shared
 - Bibliography connections (#438): a trailing References action even without citations; compact ghost Connect/Disconnect controls, outlined file choices and metadata helper/status text use existing tokens. Long file choices ellipsize inside the panel, with the full filename in the title and accessible name. No new adjustable dimension. [Contract and verification](citations-v1.md#connect-and-disconnect-bibliography-files-438).
 - Reference entry: `--reference-underline-offset` (3px), shared by references and unchecked citations. Citation groups wrap with ordinary inline content.
 - Citation form: the reference form surface, select, input and buttons. Its ordered key chips use the standard border, `--id-radius-sm`, `--space-1`/`--space-2` and small text, and wrap long keys. No new adjustable dimension. [Contract and captures](citations-v1.md#unit-c-verification-265).
-- Folder picker entries: `--layout-folder-picker-width` and `--layout-folder-picker-list-height` control the dialog and its scrollable list. Recent folder paths are browser navigation preferences; they do not alter the document or restore a sidebar folder on reload.
+- Folder picker entries: `--layout-folder-picker-width` controls the dialog; `--layout-folder-picker-list-height` caps the image-mode list at 15rem and `--layout-folder-picker-folder-list-height` caps the folder-only list at 16rem. Recent folder paths are browser navigation preferences and do not themselves restore a sidebar folder; separately remembered opened-folder paths restore on reload under [ADR-0009](../adr/0009-multiple-opened-folders.md). Neither preference alters the document.
 - File preview entries: `--layout-file-preview-width` (48rem) and `--layout-file-preview-image-max-height` (60dvh) control the preferred modal width and image height cap. The existing viewport inset still bounds the modal.
 
 Shortcut labels in the existing TopBar key chip and button tooltips use the platform notation

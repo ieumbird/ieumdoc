@@ -74,9 +74,10 @@ export function FolderDialog({ open, choose = "folder", initialPath, recent, res
   const options = result?.entries.filter(entry => (entry.kind === "folder" || (image && entry.kind === "image")) && (pathFromClick || entry.name.toLowerCase().startsWith(partial))) ?? [];
   const activeIndex = highlight < 0 && pathFromClick ? options.findIndex(entry => entry.path === path) : highlight;
   const activeImage = image && options[activeIndex]?.kind === "image" ? options[activeIndex] : undefined;
-  const files = result?.entries.filter(entry => entry.kind === (image ? "image" : "document")).length ?? 0;
+  const files = result?.entries.filter(entry => entry.kind === "image").length ?? 0;
   const crumbs = result?.crumbs ?? [];
   const parent = crumbs.at(-2);
+  const currentPlace = [...crumbs].reverse().find(crumb => placeList.some(place => place.path === crumb.path))?.path;
 
   useEffect(() => {
     if (!open) return;
@@ -197,8 +198,34 @@ export function FolderDialog({ open, choose = "folder", initialPath, recent, res
     : listing.directory === directory && listing.error ? listing.error
     : !result ? i18n.t("Reading…")
     : [options.length === 0 ? (partial ? (image ? i18n.t("No matching folders or images") : i18n.t("No matching folders")) : i18n.t("No sub-folders")) : "",
-      partial ? "" : i18n.t(image ? "imagesHere" : "filesHere", { count: files })].filter(Boolean).join(" · ");
-  const pathLabel = image ? i18n.t("Image path") : i18n.t("Folder path");
+      image && !partial ? i18n.t("imagesHere", { count: files }) : ""].filter(Boolean).join(" · ");
+  const pathLabel = image ? i18n.t("Image path") : restricted ? i18n.t("Server folder path") : i18n.t("Folder path");
+  const placeLabel = image ? i18n.t("Start from") : restricted ? i18n.t("Server shared folders") : i18n.t("Shortcuts");
+  const placesSection = placeList.length > 0 ? (
+    <section className={image ? "folder-picker-section" : "folder-picker-shortcuts"} aria-label={placeLabel}>
+      <p className="folder-picker-label">{image ? i18n.t("Start") : placeLabel}</p>
+      <div className="folder-picker-places">
+        {placeList.map(place => {
+          const Icon = PLACE_ICONS[place.kind];
+          return (
+            <Button key={place.path} type="button" variant={image ? "outline" : "ghost"} size="sm"
+              className={image ? undefined : "folder-picker-place"} title={place.path}
+              aria-description={image ? undefined : place.path}
+              aria-current={!image && place.path === currentPlace ? "location" : undefined}
+              disabled={pending} onClick={() => go(place.path)}>
+              <Icon aria-hidden="true" />
+              <span>{place.kind === "home" ? i18n.t("Home") : place.kind === "documents" ? i18n.t("Documents") : place.name}</span>
+            </Button>
+          );
+        })}
+      </div>
+    </section>
+  ) : null;
+  const newFolderAction = onCreateFolder ? (
+    <Button ref={newFolderButton} type="button" variant={image ? "outline" : "ghost"} size="sm" title={result ? i18n.t("New folder in {{path}}", { path: result.path }) : undefined}
+      disabled={!result || pending} onClick={() => { setCreating(true); setCreateError(""); }}>
+      <FolderPlus aria-hidden="true" />{i18n.t("New folder")}</Button>
+  ) : null;
   return (
     <Dialog open={open} onOpenChange={(next, details) => {
       if (next || pending) return;
@@ -206,14 +233,15 @@ export function FolderDialog({ open, choose = "folder", initialPath, recent, res
       if (creating && details.reason === "escape-key") cancelCreate();
       else onClose();
     }}>
-      <DialogContent className="folder-picker sm:max-w-[var(--layout-folder-picker-width)]" showCloseButton={!pending}
+      <DialogContent className={`folder-picker ${image ? "" : "folder-picker-folder"} sm:max-w-[var(--layout-folder-picker-width)]`} showCloseButton={!pending}
         finalFocus={() => returnFocus?.current ?? true}>
         <DialogHeader>
           <DialogTitle>{image ? i18n.t("Choose image") : i18n.t("Open folder")}</DialogTitle>
           <DialogDescription>{image
             ? (restricted ? i18n.t("Choose an image on the server for this Figure.") : i18n.t("Choose an image for this Figure."))
-            : (restricted ? i18n.t("Choose an allowed folder on the server to list in the sidebar.") : i18n.t("Choose a folder to list in the sidebar."))}</DialogDescription>
+            : (restricted ? i18n.t("Add a server-shared folder to the sidebar.") : i18n.t("Add a folder to the sidebar."))}</DialogDescription>
         </DialogHeader>
+        {!image ? placesSection : null}
         <div className="form-field">
           <label className="form-label" htmlFor="folder-path">{pathLabel}</label>
           <div className="folder-picker-field">
@@ -241,28 +269,28 @@ export function FolderDialog({ open, choose = "folder", initialPath, recent, res
             />
           </div>
         </div>
-        <div className="folder-picker-location">
+        {image || parent ? <div className="folder-picker-location">
           <nav aria-label={i18n.t("Folder location")} className="folder-picker-crumbs">
-            {crumbs.map((crumb, index) => (
+            {(image ? crumbs : crumbs.slice(0, -1)).map((crumb, index) => (
               <span key={crumb.path}>
                 {index > 0 ? <span className="folder-picker-crumb-separator" aria-hidden="true">/</span> : null}
                 <Button variant="ghost" size="sm" type="button" className="folder-picker-crumb" title={crumb.path}
-                  aria-current={index === crumbs.length - 1 ? "location" : undefined} onClick={() => go(crumb.path)}>
+                  aria-current={image && index === crumbs.length - 1 ? "location" : undefined} onClick={() => go(crumb.path)}>
                   {crumb.name}
                 </Button>
               </span>
             ))}
           </nav>
           <div className="folder-picker-location-actions">
-            <Button type="button" variant="outline" size="sm" disabled={!parent || pending} onClick={() => parent && go(parent.path)}>
+            <Button type="button" variant={image ? "outline" : "ghost"} size="sm" disabled={!parent || pending} onClick={() => parent && go(parent.path)}>
               <ArrowUp aria-hidden="true" />{i18n.t("Up")}</Button>
-            {onCreateFolder ? (
-              <Button ref={newFolderButton} type="button" variant="outline" size="sm" title={result ? i18n.t("New folder in {{path}}", { path: result.path }) : undefined}
-                disabled={!result || pending} onClick={() => { setCreating(true); setCreateError(""); }}>
-                <FolderPlus aria-hidden="true" />{i18n.t("New folder")}</Button>
-            ) : null}
+            {image ? newFolderAction : null}
           </div>
-        </div>
+        </div> : null}
+        {!image ? <div className="folder-picker-children-heading">
+          <p className="folder-picker-label">{i18n.t("Sub-folders · click to navigate")}</p>
+          {newFolderAction}
+        </div> : null}
         {creating ? (
           <form className="folder-picker-new" onSubmit={event => void createFolder(event)}>
             <Input
@@ -309,7 +337,7 @@ export function FolderDialog({ open, choose = "folder", initialPath, recent, res
         ) : null}
         <p className="folder-picker-meta" data-testid="folder-picker-meta">{meta}</p>
         {recent.length > 0 ? (
-          <section className="folder-picker-section" aria-label={i18n.t("Recent folders")}>
+          <section className={image ? "folder-picker-section" : "folder-picker-recent-section"} aria-label={i18n.t("Recent folders")}>
             <p className="folder-picker-label">{i18n.t("Recent")}</p>
             <ul className="folder-picker-recent">
               {recent.map(folder => (
@@ -325,28 +353,14 @@ export function FolderDialog({ open, choose = "folder", initialPath, recent, res
             </ul>
           </section>
         ) : null}
-        {placeList.length > 0 ? (
-          <section className="folder-picker-section" aria-label={i18n.t("Start from")}>
-            <p className="folder-picker-label">{i18n.t("Start")}</p>
-            <div className="folder-picker-places">
-              {placeList.map(place => {
-                const Icon = PLACE_ICONS[place.kind];
-                return (
-                  <Button key={place.path} type="button" variant="outline" size="sm" title={place.path} disabled={pending} onClick={() => go(place.path)}>
-                    <Icon aria-hidden="true" />
-                    {place.kind === "home" ? i18n.t("Home") : place.kind === "documents" ? i18n.t("Documents") : place.name}
-                  </Button>
-                );
-              })}
-            </div>
-          </section>
-        ) : null}
+        {image ? placesSection : null}
         {error ? <p id="open-folder-error" className="text-sm text-destructive" role="alert" data-testid="open-error">{error}</p> : null}
+        {!image ? <p className="folder-picker-meta">{i18n.t("Choose documents in the sidebar after opening a folder.")}</p> : null}
         <div className="folder-picker-footer">
-          <p>{image ? i18n.t("Images outside the document's folder are copied into its assets folder.") : i18n.t("Documents open and save in their original location.")}</p>
+          {image ? <p>{i18n.t("Images outside the document's folder are copied into its assets folder.")}</p> : null}
           <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={onClose}>{i18n.t("Cancel")}</Button>
           <Button type="button" size="sm" data-testid="folder-open" title={path} disabled={!ready || pending} onClick={() => void submit()}>
-            <span>{ready ? `${image ? i18n.t("Use") : i18n.t("Open")} “${target}”` : image ? i18n.t("Use") : i18n.t("Open")}</span>
+            <span>{ready ? image ? `${i18n.t("Use")} “${target}”` : i18n.t("Open “{{name}}”", { name: target }) : image ? i18n.t("Use") : i18n.t("Open")}</span>
           </Button>
         </div>
       </DialogContent>
