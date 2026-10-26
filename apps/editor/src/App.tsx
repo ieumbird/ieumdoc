@@ -24,13 +24,14 @@ import { FolderDialog } from "./shell/FolderDialog.tsx";
 import { SettingsDialog } from "./shell/SettingsDialog.tsx";
 import { UnsavedChangesDialog } from "./shell/UnsavedChangesDialog.tsx";
 import { Sidebar } from "./shell/Sidebar.tsx";
+import { DisplaySettings } from "./shell/DisplaySettings.tsx";
 import { folderChain, knownFolders, useFolderTrees, type FolderTreeState } from "./shell/folder-tree.ts";
 import { childPath, documentLocation, splitDocumentPath, unquotePath } from "./shell/document-path.ts";
 import { TopBar } from "./shell/TopBar.tsx";
 import { CommandCenter } from "./shell/CommandCenter.tsx";
 import { KeyboardShortcutsDialog } from "./shell/KeyboardShortcutsDialog.tsx";
 import type { CommandCenterItem } from "./shell/command-center.ts";
-import { Bookmark, Quote, Columns3, Copy, FileText, FileX, FolderOpen, Keyboard, PanelLeft, PanelRight, RotateCcw, RotateCw, Save, Settings2, SquareCode, StretchHorizontal } from "lucide-react";
+import { Bookmark, Quote, Columns3, Copy, FileText, FileX, FolderOpen, Keyboard, PanelLeft, PanelRight, RotateCcw, RotateCw, Save, Settings2, SlidersHorizontal, SquareCode, StretchHorizontal } from "lucide-react";
 import type {
   DocumentErrorResponse,
   DocumentFileResponse,
@@ -361,6 +362,10 @@ export function App() {
   const [desktopInfo, setDesktopInfo] = useState<DesktopInfo | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsReturnFocus = useRef<HTMLElement | null>(null);
+  const [documentSettingsOpen, setDocumentSettingsOpen] = useState(false);
+  const documentSettingsButton = useRef<HTMLButtonElement>(null);
+  const documentSettingsReturnFocus = useRef<HTMLElement | null>(null);
+  const connectAfterSettings = useRef(false);
 
   // The overlaid Document panel starts below the sticky header, whose height changes when the
   // TopBar wraps or a message appears; it never covers Save, File actions or the Outline toggle.
@@ -651,6 +656,8 @@ export function App() {
   const inlineInsertionDisabled = !document || busy || view !== "visual" ||
     !editorRef.current?.canInsertInline() || commandReturnFocus.current !== editorRef.current?.getFocusTarget();
   const historyDisabled = !document || busy || view !== "visual";
+  const documentSettingsHint = !document ? i18n.t("Open a document to change numbering.") : busy ? i18n.t("Wait for the current operation to finish.")
+    : view !== "visual" ? i18n.t("Switch to Visual to change heading numbering.") : undefined;
   const commandItems: CommandCenterItem[] = [
     ...tabs.map((tab, index) => ({
       id: `tab:${tab.id}`, kind: "document" as const, label: commandDocumentNames[index]!,
@@ -703,6 +710,9 @@ export function App() {
       keywords: ["document width", "문서 너비"], run: toggleDocumentWidth },
     { id: "settings", kind: "command", label: i18n.t("Settings"), icon: Settings2, takesFocus: true,
       keywords: ["settings", "설정"], run: () => { settingsReturnFocus.current = commandReturnFocus.current; setSettingsOpen(true); void refreshRecovery(); } },
+    { id: "document-settings", kind: "command", label: i18n.t("Document settings…"), icon: SlidersHorizontal,
+      disabled: historyDisabled, takesFocus: true, keywords: ["document settings", "문서 설정"],
+      run: () => { documentSettingsReturnFocus.current = commandReturnFocus.current; setDocumentSettingsOpen(true); } },
     { id: "insert-citation", kind: "command", label: i18n.t("Insert citation…"), icon: Quote,
       disabled: inlineInsertionDisabled, takesFocus: true, keywords: ["insert citation", "인용 삽입"],
       run: () => editorRef.current?.openInlineInsertion("citation") },
@@ -728,18 +738,6 @@ export function App() {
       <Sidebar
         open={sidebarOpen}
         documentPath={openedPath}
-        display={{
-          headingNumbering,
-          referenceTemplates,
-          onReferenceStyleChange: (style) => editorRef.current?.setReferenceStyle(style),
-          onToggleHeadingNumbering: () => editorRef.current?.toggleHeadingNumbering(),
-          onConnectBibliography: (returnFocus) => editorRef.current?.openBibliographyConnection(returnFocus),
-          numberingDisabled: !document || busy || view !== "visual",
-          numberingHint: !document ? i18n.t("Open a document to change numbering.") : busy ? i18n.t("Wait for the current operation to finish.")
-            : view !== "visual" ? i18n.t("Switch to Visual to change heading numbering.") : undefined,
-          wide: documentWidth === "wide",
-          onToggleWide: toggleDocumentWidth,
-        }}
         toggleRef={sidebarToggle}
         onToggle={() => {
           if (sidebarOverlay && sidebarOpen) sidebarFocus.current = "top-bar";
@@ -785,6 +783,12 @@ export function App() {
             onOpenSidebar={sidebarOverlay && !sidebarOpen ? () => { sidebarFocus.current = "sidebar"; setSidebarOpen(true); } : undefined}
             openSidebarRef={openSidebarButton}
             documentPath={openedPath}
+            onDocumentSettings={() => { documentSettingsReturnFocus.current = documentSettingsButton.current; setDocumentSettingsOpen(true); }}
+            documentSettingsRef={documentSettingsButton}
+            documentSettingsDisabled={historyDisabled}
+            documentSettingsHint={documentSettingsHint}
+            wide={documentWidth === "wide"}
+            onToggleWide={toggleDocumentWidth}
             location={documentLocation(openedPath, folders.rootOf(openedPath))}
             status={assetPending ? "adding-image" : status}
             unsaved={documentDirty || draftActive}
@@ -854,6 +858,23 @@ export function App() {
           }}
         />
       ) : null}
+      <Dialog open={documentSettingsOpen} onOpenChange={setDocumentSettingsOpen}
+        onOpenChangeComplete={open => {
+          if (!open && connectAfterSettings.current) {
+            connectAfterSettings.current = false;
+            editorRef.current?.openBibliographyConnection(documentSettingsReturnFocus.current);
+          }
+        }}>
+        <DialogContent finalFocus={() => connectAfterSettings.current ? false : documentSettingsReturnFocus.current ?? true}>
+          <DialogTitle>{i18n.t("Document settings")}</DialogTitle>
+          <DialogDescription className="sr-only">{i18n.t("Saved in this document")}</DialogDescription>
+          <DisplaySettings documentPath={openedPath} headingNumbering={headingNumbering} referenceTemplates={referenceTemplates}
+            onReferenceStyleChange={style => editorRef.current?.setReferenceStyle(style)}
+            onToggleHeadingNumbering={() => editorRef.current?.toggleHeadingNumbering()}
+            onConnectBibliography={() => { connectAfterSettings.current = true; setDocumentSettingsOpen(false); }}
+            numberingDisabled={historyDisabled} numberingHint={documentSettingsHint} />
+        </DialogContent>
+      </Dialog>
       <SettingsDialog
           open={settingsOpen}
           recoveryCount={recoveryRecords.length}

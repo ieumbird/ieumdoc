@@ -84,13 +84,11 @@ async (page, { openDocument, openPath, screenshots = false }) => {
       !await page.getByTestId('save').isDisabled() || await page.getByTestId('error').count()) {
       throw new Error('The start opened a document or reported an error');
     }
-    await page.getByRole('button', {name:'Display', exact:true}).click();
-    if (!await page.getByRole('checkbox', {name:'Number headings', exact:true}).isDisabled() ||
-      !await page.getByRole('checkbox', {name:'Wide document', exact:true}).isEnabled() ||
+    if (!await page.getByRole('button', {name:'Document settings', exact:true}).isDisabled() ||
+      !await page.getByRole('button', {name:'Wide document', exact:true}).isEnabled() ||
       !await page.getByRole('button', {name:'File actions', exact:true}).isDisabled()) {
-      throw new Error('Display or File actions ignore the no-document state');
+      throw new Error('Document settings or File actions ignore the no-document state');
     }
-    await page.getByRole('button', {name:'Files', exact:true}).click();
     if (screenshots) {
       for (const width of [1440, 768, 375]) {
         await page.setViewportSize({width, height:800});
@@ -168,12 +166,10 @@ async (page, { openDocument, openPath, screenshots = false }) => {
     pendingSave = new Promise(resolve => { releaseSave = resolve; });
     await page.getByRole('button',{name:'Save',exact:true}).click();
     await page.locator('[data-testid="status"][data-operation="saving"]').waitFor();
-    await page.getByRole('button', {name:'Display', exact:true}).click();
-    if (!await page.getByRole('checkbox', {name:'Number headings', exact:true}).isDisabled() ||
+    if (!await page.getByRole('button', {name:'Document settings', exact:true}).isDisabled() ||
       !await page.getByRole('button', {name:'File actions', exact:true}).isDisabled()) {
       throw new Error('Saving allowed a numbering change or Reload');
     }
-    await page.getByRole('button', {name:'Files', exact:true}).click();
     await page.getByTestId('folder').getByRole('treeitem', {name:'ieumdoc-b.md', exact:true}).click();
     await page.getByTestId('error').getByText('Wait for the current operation to finish.', {exact:true}).waitFor();
     if (await page.getByTestId('current-file').getAttribute('title') !== pathA) throw new Error('Saving allowed a document switch');

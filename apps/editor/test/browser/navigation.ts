@@ -8,7 +8,6 @@ export async function openDocument(page: Page, file: string): Promise<void> {
   // The rail's toggle, or the TopBar's at phone widths, where a closed sidebar has no rail.
   const expand = page.getByRole("button", { name: "Expand sidebar", exact: true });
   if (await expand.isVisible()) await expand.click();
-  await sidebar.getByRole("button", { name: "Files", exact: true }).click();
   await sidebar.getByRole("button", { name: "Open folder…", exact: true }).click();
   await page.getByTestId("folder-path").fill(path.dirname(file));
   await page.getByTestId("folder-open").click();

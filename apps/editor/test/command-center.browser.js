@@ -454,13 +454,32 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Outline', null, {timeout:5000});
   await run('Show outline');
   await panel.waitFor();
-  await page.getByRole('button',{name:'Display',exact:true}).click();
-  await page.getByRole('checkbox',{name:'Wide document',exact:true}).focus();
+  await page.getByRole('button',{name:'Collapse sidebar',exact:true}).focus();
   await run('Collapse sidebar');
   await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Expand sidebar', null, {timeout:5000});
   await run('Expand sidebar');
-  await page.getByRole('button',{name:'Files',exact:true}).click();
   result.panelCommandsRetainFocus = true;
+
+  // Resolve the exact named command even when folder paths match the same search words.
+  const documentSettings = page.getByRole('dialog',{name:'Document settings',exact:true});
+  for (const query of ['document settings', '문서 설정']) {
+    await run('Document settings…', query);
+    await documentSettings.waitFor();
+    await page.keyboard.press('Escape');
+    await documentSettings.waitFor({state:'detached'});
+    check(await page.getByRole('button',{name:'Collapse sidebar',exact:true}).evaluate(n=>n===document.activeElement), 'Document settings command lost its return target');
+  }
+  result.documentSettingsCommands = true;
+  const wideToggle = page.getByRole('button',{name:'Wide document',exact:true});
+  const wasWide = await wideToggle.getAttribute('aria-pressed') === 'true';
+  const beforeWidthCommand = {document:await snapshot(),status:await page.getByTestId('status').innerText()};
+  await run(wasWide ? 'Standard document width' : 'Wide document');
+  check((await wideToggle.getAttribute('aria-pressed') === 'true') !== wasWide, 'Width command did not toggle the TopBar control');
+  await run(wasWide ? 'Wide document' : 'Standard document width');
+  check((await wideToggle.getAttribute('aria-pressed') === 'true') === wasWide &&
+    await snapshot() === beforeWidthCommand.document && await page.getByTestId('status').innerText() === beforeWidthCommand.status,
+    'Width commands changed the document or failed to restore the device view');
+  result.documentWidthCommands = true;
 
   // Existing tabs retain their editor, unapplied property draft, and native history.
   await editor().evaluate(n => { n.editor.commands.setTextSelection(2); n.editor.view.focus(); });
@@ -606,8 +625,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   result.responsiveCenter = true;
   await run('Expand sidebar');
   await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Collapse sidebar', null, {timeout:5000});
-  await page.getByRole('button',{name:'Display',exact:true}).click();
-  await page.getByRole('checkbox',{name:'Wide document',exact:true}).focus();
+  await page.getByRole('button',{name:'Collapse sidebar',exact:true}).focus();
   await run('Collapse sidebar');
   await page.waitForFunction(() => document.querySelector('.top-bar-sidebar')===document.activeElement, null, {timeout:5000});
   result.phoneSidebarFocus = true;
