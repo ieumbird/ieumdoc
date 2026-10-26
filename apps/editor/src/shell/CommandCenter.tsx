@@ -53,15 +53,18 @@ export function CommandCenter({ open, initialQuery, items, returnFocus, onClose 
         <DialogContent className="command-center-dialog" showCloseButton={false} initialFocus={input}
           finalFocus={() => transfersFocus.current ? false : returnFocus.current ?? true}>
           <DialogTitle className="sr-only">{i18n.t("Command center")}</DialogTitle>
-          <DialogDescription className="sr-only">{i18n.t("Search opened tabs, listed documents and existing commands. Type > for commands only.")}</DialogDescription>
+          <DialogDescription className="sr-only">{i18n.t("Search open tabs, documents in loaded folder lists and commands. Type > for commands only.")}</DialogDescription>
           <div className="command-center-search">
             <Search aria-hidden="true" size={16} />
             <Combobox.Input ref={input} autoFocus aria-label={i18n.t("Search documents and commands")}
-              placeholder={i18n.t("Search documents and commands")}
+              placeholder={i18n.t("Search open tabs, loaded documents and commands")}
               render={<Input />} />
             <kbd aria-hidden="true">Esc</kbd>
           </div>
-          <Combobox.Empty className="command-center-empty">{i18n.t("No matches")}</Combobox.Empty>
+          <Combobox.Empty className="command-center-empty">
+            <p>{i18n.t("No matches")}</p>
+            <p>{i18n.t("Documents come from open tabs and loaded folder lists. Expand unread subfolders to include their documents; refresh folders to update loaded lists.")}</p>
+          </Combobox.Empty>
           <Combobox.List className="command-center-results">
             {(item: CommandCenterItem, index: number) => (
               <Combobox.Item key={item.id} value={item} index={index} disabled={item.disabled}

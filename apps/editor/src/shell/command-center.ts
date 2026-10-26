@@ -22,9 +22,12 @@ export function filterCommandCenterItems(items: readonly CommandCenterItem[], qu
   const commandsOnly = trimmed.startsWith(">");
   const normalize = (value: string) => value.normalize("NFKC").toLocaleLowerCase();
   const words = normalize(commandsOnly ? trimmed.slice(1) : trimmed).split(/\s+/).filter(Boolean);
-  return items.filter(item => {
+  const matches = items.filter(item => {
     if (commandsOnly && item.kind !== "command") return false;
     const text = normalize([item.label, item.detail, ...(item.keywords ?? [])].join(" "));
     return words.every(word => text.includes(word));
   });
+  // Stable sort preserves tab/tree/command order inside each match grade.
+  const labelMatches = (item: CommandCenterItem) => words.every(word => normalize(item.label).includes(word));
+  return matches.sort((a, b) => Number(labelMatches(b)) - Number(labelMatches(a)));
 }

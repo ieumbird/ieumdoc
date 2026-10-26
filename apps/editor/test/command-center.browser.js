@@ -35,6 +35,16 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const result = {};
 
+  // Manual Before/After evidence uses the same initial document and sidebar state.
+  if (screenshots) {
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({width, height:900});
+      await page.evaluate(() => document.fonts.ready);
+      await page.screenshot({path:`tmp/command-center/entry-556-${width}.png`});
+    }
+    await page.setViewportSize({width:1280, height:720});
+  }
+
   // Compare the two entry points on identical file state, including input-rule Undo precedence.
   const inputRuleResults = [];
   for (const route of ['keyboard', 'command']) {
@@ -77,7 +87,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await editor().evaluate(n => n.editor.commands.setTextSelection({from:2,to:10}));
   await page.keyboard.press('Control+b');
   const second471 = await snapshot();
-  await page.getByRole('button', {name:'Command center',exact:true}).click();
+  await page.getByRole('button', {name:'Find documents and commands',exact:true}).click();
   await waitForInput();
   await input().fill('> Undo');
   if (screenshots) await page.screenshot({path:'tmp/command-center/history-471.png'});
@@ -112,8 +122,8 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     const guideSelection = await editor().evaluate(n => JSON.stringify(n.editor.state.selection.toJSON()));
     const fromTrigger = dismissal === 'Close';
     if (fromTrigger) {
-      await page.getByRole('button', {name:'Command center',exact:true}).focus();
-      await page.getByRole('button', {name:'Command center',exact:true}).click();
+      await page.getByRole('button', {name:'Find documents and commands',exact:true}).focus();
+      await page.getByRole('button', {name:'Find documents and commands',exact:true}).click();
       await waitForInput();
       await input().fill('> keyboard shortcuts');
       await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
@@ -135,7 +145,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     else if (dismissal === 'outside click') await page.locator('[data-slot="dialog-overlay"]').click({position:{x:8,y:8}});
     else await guide.getByRole('button', {name:'Close',exact:true}).click();
     await guide.waitFor({state:'detached'});
-    const focus = fromTrigger ? page.getByRole('button', {name:'Command center',exact:true}) : editor();
+    const focus = fromTrigger ? page.getByRole('button', {name:'Find documents and commands',exact:true}) : editor();
     check(await focus.evaluate(n => n === document.activeElement), `${dismissal} did not restore focus from the shortcut guide`);
     check(await snapshot() === baseline471, 'Shortcut guide edited the document');
     check(await editor().evaluate(n => JSON.stringify(n.editor.state.selection.toJSON())) === guideSelection,
@@ -178,15 +188,16 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     {key:'Unidentified',code:'Slash',keyCode:0,ctrlKey:true,bubbles:true,cancelable:true})));
   await waitForInput();
   await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
-  const trigger = page.getByRole('button',{name:'Command center',exact:true});
-  check(await trigger.getAttribute('title') === 'Command center (Ctrl+/)' &&
+  const trigger = page.getByRole('button',{name:'Find documents and commands',exact:true});
+  check(await trigger.getAttribute('title') === 'Find documents and commands (Ctrl+/)' &&
     await trigger.getAttribute('aria-keyshortcuts') === 'Control+/ Meta+/', 'Center shortcut label mismatch');
+  check(await trigger.locator('.command-center-action').innerText() === 'Find documents and commands', 'Trigger does not name its action');
   result.nonConflictingCodeShortcut = true;
 
   // The center is also available before opening a document, with document actions disabled.
   await page.getByRole('button', {name:'Close technical-document.md',exact:true}).click();
   await page.getByTestId('document-start').waitFor();
-  await page.getByRole('button', {name:'Command center',exact:true}).click();
+  await page.getByRole('button', {name:'Find documents and commands',exact:true}).click();
   await waitForInput();
   await input().fill('> save');
   check(await center().getByRole('option', {name:'Save',exact:true}).locator('kbd').textContent() === 'Ctrl+S', 'Save shortcut label mismatch');
@@ -199,6 +210,8 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   check(await center().isVisible(), 'Disabled command dismissed the center');
   await input().fill('no-match-zzzz');
   check(await center().getByText('No matches',{exact:true}).isVisible(), 'No-match state missing');
+  check(await input().getAttribute('placeholder') === 'Search open tabs, loaded documents and commands', 'Search placeholder conceals its scope');
+  check(await center().getByText('Documents come from open tabs and loaded folder lists. Expand unread subfolders to include their documents; refresh folders to update loaded lists.',{exact:true}).isVisible(), 'No-match guidance conceals unread subfolders');
   await page.keyboard.press('Escape');
   await center().waitFor({state:'detached'});
 
@@ -243,6 +256,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     JSON.stringify(Array.from({length:8}, (_,i) => `technical-${i+1}.md`)), 'Results did not keep tabs first and unopened files in path order');
   await input().fill('guide.md');
   check(await center().getByRole('option').count() === 0, 'Unlisted subfolder document appeared in search');
+  check(await center().locator('.command-center-empty').isVisible(), 'Unlisted subfolder has no scope guidance');
   for (const excluded of ['diagram.svg','notes.txt']) {
     await input().fill(excluded);
     check(await center().getByRole('option').count() === 0, `Non-document ${excluded} appeared in document search`);
@@ -593,7 +607,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   // The top-center entry and popup stay usable with panels and at phone width.
   for (const width of [1440,1280,1024,768,375]) {
     await page.setViewportSize({width,height:900});
-    const trigger = page.getByRole('button',{name:'Command center',exact:true});
+    const trigger = page.getByRole('button',{name:'Find documents and commands',exact:true});
     const box = await trigger.boundingBox();
     const bar = await page.locator('.top-bar').boundingBox();
     check(box && bar && Math.abs(box.x+box.width/2-(bar.x+bar.width/2)) < 1, `Center entry not centered at ${width}`);
@@ -632,9 +646,12 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await run('Settings');
   await page.getByTestId('ui-language').selectOption('ko');
   await page.keyboard.press('Escape'); await page.getByTestId('settings-dialog').waitFor({state:'detached'});
-  await page.getByRole('button',{name:'커맨드 센터',exact:true}).click();
+  await page.getByRole('button',{name:'문서·명령 찾기',exact:true}).click();
   await waitForInput();
   const korean = page.getByRole('dialog',{name:'커맨드 센터',exact:true});
+  check(await korean.getByRole('combobox').getAttribute('placeholder') === '열린 탭·읽어 온 문서·명령 검색', 'Korean scope placeholder missing');
+  await korean.getByRole('combobox').fill('no-match-556');
+  check(await korean.getByText('문서는 열린 탭과 읽어 온 폴더 목록에서 찾습니다. 아직 읽지 않은 하위 폴더는 펼쳐야 포함되며, 폴더를 새로고침하면 읽어 온 목록이 갱신됩니다.',{exact:true}).isVisible(), 'Korean no-match scope guidance missing');
   await korean.getByRole('combobox').fill('> save');
   check(await korean.getByRole('option',{name:'저장',exact:true}).count()===1, 'English alias did not find a Korean command');
   await korean.getByRole('combobox').fill('> 저장');
@@ -656,7 +673,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await inspectGuide(koreanGuide, 1440, 'ko');
   await page.setViewportSize({width:375,height:900});
   await page.keyboard.press('Escape'); await koreanGuide.waitFor({state:'detached'});
-  await page.getByRole('button',{name:'커맨드 센터',exact:true}).click(); await waitForInput();
+  await page.getByRole('button',{name:'문서·명령 찾기',exact:true}).click(); await waitForInput();
   await korean.getByRole('combobox').fill('> settings');
   await korean.getByRole('option',{name:'설정',exact:true}).click();
   await page.getByTestId('ui-language').selectOption('en');

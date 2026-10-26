@@ -2,6 +2,7 @@
 
 - Status: Implemented
 - Property-entry update: 2026-10-27 (#557: shared selection/Enter/double-click and explicit property drafts; see [Continuous editing](document-editing-v1.md#continuous-editing)).
+- Command find verification: 2026-10-27 (#556: Editor 295 tests, typecheck/build/docs, command-center/editor-shell/layout-rules/quiet-document/file-preview; [scope and captures](#action-and-search-scope-556)).
 - Document settings verification: 2026-10-27 (#554: existing document operations and device width preference; [integration, checks and captures](#document-settings-placement-554)).
 - New-document entry verification: 2026-10-27 (#553: Editor 291 tests, workspace typecheck/build/docs; new-document, command-center, folder-navigation, editor-shell, ui-language, layout-rules and quiet-document; [behavior and visual comparison](#new-document-entry-553)).
 - Folder refresh verification: 2026-10-26 (#494: Editor 291 tests, typecheck/build, folder-tree failure guard and folder-navigation/image-assets/command-center/folder-memory/layout-rules/quiet-document; actual menu comparison below).
@@ -28,8 +29,8 @@ Scope: the Sidebar always browses opened folders and documents. Document setting
 the existing heading numbering, reference style and bibliography connection into a dialog
 opened from the TopBar document area or `Document settings…` in the command center.
 Wide document moves to a pressed toggle beside Visual/Source and keeps its device preference
-and existing command. The 56rem TopBar breakpoint and 48px boundary contract remain; the centered button yields from its 28rem cap to a 160px minimum, hiding folders before the shortcut and ellipsizing the filename last. No new Core operation or CLI surface is needed: this changes placement
-only. App Settings and the centered trigger's text, action and position remain unchanged.
+and existing command. The 56rem TopBar breakpoint and 48px boundary contract remain; the centered button yields from its 28rem cap to a 160px minimum, hiding the secondary location before the shortcut and ellipsizing the action label last (#556). No new Core operation or CLI surface is needed: this changes placement
+only. App Settings and the centered trigger's action and position remain unchanged; #556 updates its action-first text.
 
 Verification scope: existing Editor tests, typecheck/build, targeted shell/command-center,
 numbering/reference/bibliography, pending-Source and layout/quiet-document browser checks;
@@ -87,7 +88,7 @@ The shell has three responsibilities: the Sidebar on the left browses opened fol
 | Sidebar | IeumDoc and, while expanded, one always-visible Open folder… icon button followed by Collapse sidebar in the header; always followed by file navigation and its New document button. There is no Files / Display switch. The collapsed rail contains only Expand sidebar, which restores file navigation. Files contains the opened folders (#112, [ADR-0009](../adr/0009-multiple-opened-folders.md)), each its own section in the order opened, or, without any, guidance followed by the browser's recent folders (name, full path in `title`): one click lists that folder like Open folder, without opening a document. User-controlled collapse/expand, except that below 640px (phone widths) the sidebar starts closed with no rail, so the document uses the whole width, and opened from the TopBar it covers the whole screen (#321); there Escape inside it, Collapse sidebar, or opening or creating a document from it closes it again. No workspace or placeholder navigation. Each folder heading names its folder (disclosure button and name, full path in `title`; [section visibility](#collapsible-folder-sections-425)) with `+` (New file in folder), New folder and a `⋯` menu containing Refresh and Close folder (removes only that folder; tabs stay open). The header Open folder… adds a folder; one already open is listed again in place. It stays in the same position with zero, one or several folders; the empty Files panel has no duplicate button (#385). Below each heading is a folder tree; file listing and activation follow [Folder files and image preview](#folder-files-and-image-preview-217). A `.md` file whose leading frontmatter lacks the native marker stays listed in subtle text with its own icon, and its tooltip and accessible description say it is not an IeumDoc document; opening it still shows the refusal and why ([Folder listing](filesystem-host-boundary-v1.md#folder-listing-v1-112)). On explicit active-document path changes, the containing sections and folders above it expand in each opened folder containing it; a document elsewhere adds nothing to the trees. The opened folders' paths are browser preferences: on start they are listed again in order, and one the Host refuses or no longer has is left out quietly. Child-folder expansion is page state only. Root section collapse is an origin-specific preference restored on Reload/Desktop restart; startup document restoration respects it. Opening document settings or collapsing the sidebar retains the mounted tree, its expansion, scroll and keyboard stop, without listing again. The tree takes the remaining height and scrolls by itself; the open document uses the shared selected surface/text with 600 semibold as a non-color cue, without a left marker there and Close folder removes it. Keyboard: Up/Down, Home/End move through visible items; Right expands a folder or moves into it; Left collapses it or moves to the parent; Enter or Space opens a document or toggles a folder. Files does not list the open document separately: the tab row and TopBar name it. |
 | Document settings | A modal dialog opened by Document settings in the TopBar document area or Document settings… in the command center. Identifies the current filename (full path in title), with the short scope “Saved in this document” / “이 문서에 저장됩니다”. Number headings (H2–H6), Reference style (Default, Concise, Formal, Korean; unmatched values show Custom) and Connect bibliography… reuse existing operations, history, unsaved indicators and Save behavior under the [numbering](heading-numbering-v1.md) and [bibliography](citations-v1.md#connect-and-disconnect-bibliography-files-438) contracts. The entry and command are disabled without a document, during pending work or in Source; the TopBar tooltip explains why. Escape, Close or outside dismissal returns focus to the opener. Bibliography connection dismisses this dialog before opening the existing connection dialog and returns focus to the original opener. Opening/dismissing changes no editor instance, selection, history or unapplied drafts. App Settings remains separate. |
 | Document panel | The heading outline (#61), titled Outline with a Hide outline button. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read with selected background/text and 600 semibold (no left marker, #515); a hidden semibold copy reserves its two-line text extent to prevent selection height jumps. The current item stays inside the list's visible area. The list scrolls by itself and is never written to the document. At 1424px and wider the panel is docked and starts open; below 1424px it starts closed and, opened, overlays the document below the sticky header instead of narrowing it, so Save, File actions and the Outline toggle stay usable; Escape closes it. The docking width is independent of the 1024px narrow sidebar. Entering the overlay layout always closes it. Returning to docked restores the user's last explicit docked open/closed choice, or opens by default if none exists. Overlay interactions do not overwrite that choice. Open/closed is page memory only and resets on reload; no persistent preference is added. |
-| TopBar | At phone widths with the sidebar closed, Expand sidebar first; Document settings and actual status in the document area on the left; the centered command-center button contains the document's location and filename (full path in title); the location names the folders from the outermost opened sidebar folder containing the document down, otherwise its own folder. Visual/Source, Wide document and Outline, then Save and File actions (`⋯`) on the right. File actions contains Reload and Copy path (the full path to the clipboard, confirmed by a temporary notice, or an explanatory error where the browser has no Clipboard API); the menu is unavailable without a document or during pending work. Enter/Space opens it, arrows navigate, Escape closes and returns focus. Reload keeps its existing discard confirmation and modal boundary while loading; closing that dialog returns focus to File actions. Wide document is a pressed toggle, remembered in device preferences and available without a document, during pending work and in Source. It changes no Markdown, history or dirty state, and its existing command remains. Outline shows or hides the Document panel (pressed while shown); closing the panel returns focus to it. Sticky while document scrolls. |
+| TopBar | At phone widths with the sidebar closed, Expand sidebar first; Document settings and actual status in the document area on the left; the centered command-center button leads with a search icon and Find documents and commands / 문서·명령 찾기; the document location/name is muted secondary information (full path in its title); the location names the folders from the outermost opened sidebar folder containing the document down, otherwise its own folder. Visual/Source, Wide document and Outline, then Save and File actions (`⋯`) on the right. File actions contains Reload and Copy path (the full path to the clipboard, confirmed by a temporary notice, or an explanatory error where the browser has no Clipboard API); the menu is unavailable without a document or during pending work. Enter/Space opens it, arrows navigate, Escape closes and returns focus. Reload keeps its existing discard confirmation and modal boundary while loading; closing that dialog returns focus to File actions. Wide document is a pressed toggle, remembered in device preferences and available without a document, during pending work and in Source. It changes no Markdown, history or dirty state, and its existing command remains. Outline shows or hides the Document panel (pressed while shown); closing the panel returns focus to it. Sticky while document scrolls. |
 | Document tabs | A separate row inside the sticky header below TopBar. A pressed-surface track and raised white current tab reuse Visual/Source border-control/shadow/text tokens, without an underline; height and close targets are unchanged (#515). Filename, dirty dot, close button and full-path tooltip; same-named files show the shortest distinguishing parent folder after the name, which stays visible while the name ellipsizes. Only this row scrolls horizontally on narrow screens. Accessible tablist/tab/tabpanel relationships, Left/Right/Home/End switching and Delete to close. Closing selects the right neighbour, else left; an inactive close keeps the current tab. |
 | MessageArea | Load/save errors, conflict and temporary notices below the tab row; no reserved height when empty. Explicit table deletion shows `Table deleted` / `표를 삭제했습니다` with `Undo` / `되돌리기`, using the existing five-second temporary notice, informational surface and polite status role. It takes no focus. Undo restores the table in one editor history step and returns focus to the editor. The notice/action closes on the next document change, Save, Reload (including opening its discard prompt), Source preview request start, tab switch or timeout; a revoked action cannot undo other work. Source cannot undo the hidden Visual document, and returning to Visual does not revive the action. See [Table interaction](table-interaction-v1.md). |
 | Document | Continuous white writing surface with a subtle edge on a muted canvas, extending at least to the bottom of the viewport minus its outer gap. Block tools occupy its gutter. Empty editable documents expose a first-line hint and `+`. No fixed formatting toolbar. |
@@ -349,7 +350,7 @@ a document is chosen in the sidebar. Choosing a folder never discards current ed
 choosing another file or New preserves existing sessions under the
 [session protection contract](editing-session-save-v1.md#switching-and-recovery). Open sample document
 opens the Host's writable sample through Open and its checks, with a temporary notice that it is a
-copy in the app's data. The sample is opened only on request. Without a document the TopBar shows `No file opened`; Save, File actions and the views
+copy in the app's data. The sample is opened only on request. Without a document the TopBar keeps its Find documents and commands action, with `No file opened` only as optional secondary information; Save, File actions and the views
 stay unavailable. Document settings is disabled; the TopBar local-width toggle remains available. No error is shown. With nothing to lose, the Desktop app's
 update restart check allows the restart unless a document is opening. Closing the last document tab returns here while keeping the folder tree and preferences. Host start
 information is retained; a Host that supplied an initial document instead of start information returns
@@ -370,8 +371,7 @@ The image picker remains independent. See the [Host preview contract](filesystem
 
 ## Command center (#363)
 
-The current document's location/name is a searchable command-center button centered in the TopBar.
-The existing full-path tooltip and `No file opened` state remain. Click or Ctrl/Cmd+/
+The TopBar button leads with a search icon and `Find documents and commands` / `문서·명령 찾기` (#556). Its accessible name also names that action. The current document location/name is optional muted secondary information; the tab row already identifies the file. The full path remains in the secondary information's tooltip. Click or Ctrl/Cmd+/
 opens a search dialog near the top center. Type `>` to list commands only.
 Ctrl/Cmd+P and Ctrl/Cmd+Shift+P are no longer intercepted: browser printing retains its default behavior.
 The shortcut uses the character with a guarded opaque-IME fallback, exact modifiers and no active IME composition; other modal dialogs
@@ -379,6 +379,9 @@ still block opening the center and Save behind them.
 The input searches opened tab names/paths, Markdown documents already listed in the sidebar and
 existing shell command names, including their Korean/English aliases. It does not search document
 contents. The bounded listing scope is defined below (#384); #363's no-index/no-scan boundary remains.
+The placeholder explicitly names open tabs, loaded documents and commands in both languages (#556).
+No-match guidance explains that unread subfolders contribute no documents until expanded, and
+Refresh updates already loaded listings; it does not claim that Refresh recursively reads unopened folders.
 
 Commands reuse Open folder, Save, Reload, Copy path, Visual/Source, Outline, sidebar, document width
 and app/document Settings handlers and their current availability, plus the history and read-only shortcut guide below (#471). Switching to an opened document reuses tab
@@ -411,6 +414,41 @@ No-match feedback and controls are translated with the existing UI language.
 This is Editor shell navigation and existing-history dispatch. It adds no semantic operation or CLI command;
 Core and the existing file/session handlers remain authoritative. There is no command plugin system,
 recent-command persistence, filesystem index or independent document-content implementation.
+
+### Action and search scope (#556)
+
+The owner-approved change prioritizes the search action and truthful loaded-list scope, with
+label matches before detail-only matches. It preserves #554's 56rem / 48px single-row boundary,
+160px minimum, centered button and #571's exact-name command selection helper. Secondary location
+yields before the shortcut; only then may the action label ellipsize. This is shell presentation
+and navigation, so Core semantics, CLI and Host APIs need no changes.
+
+Manual comparison uses the same initial technical document, clean state, English UI, persistent
+Windows Chrome profile, Vite origin and 900px viewport height. Before is master `cc2fb2d`; After
+uses #556. These captures are visual evidence, separate from automatic geometry assertions:
+
+| Width | Before | After |
+| --- | --- | --- |
+| 1440px | [Before](assets/command-find-556/before-1440.png) | [After](assets/command-find-556/after-1440.png) |
+| 390px | [Before](assets/command-find-556/before-390.png) | [After](assets/command-find-556/after-390.png) |
+
+The existing shell unit test covers normalized label/detail ordering, ties, aliases, empty queries
+and command-only mode. The existing command-center browser scenario checks both languages' scope
+copy alongside its unchanged cached-folder/no-request, focus, IME and Save/Reload protections.
+Layout-rules retains the 32-case bilingual/panel matrix and fails if secondary information remains
+while the action is clipped. Its first run caught exactly that product defect at 1440px with a
+collapsed Sidebar; the action now reserves its width while secondary location is shown. Failure
+artifacts remain in ignored `tmp/layout-failure-556`; no assertion or timeout was weakened.
+Local Editor tests (295/295), workspace typecheck, Editor build, docs/whitespace checks and
+command-center, editor-shell and corrected layout-rules browser scenarios passed. Chrome's
+checkout-owned persistent profile was reused; Edge and packaged Desktop are left to PR CI.
+The first PR CI run (`40387087410`, head `e5aceb0`) exposed two old visibility assumptions:
+file-preview waited for the now-optional TopBar filename, and quiet-document required that filename
+to remain over 100px. Both now inspect the visible selected document tab. Quiet-document retains
+the full-path tooltip, filename-width, content containment and end-scroll assertions; file-preview
+retains active-file identity and all preview state/focus checks. These are contract-aligned selector
+updates, not reduced assertions. Downloaded CI artifacts are kept under ignored `tmp/ci-556-shard3`
+and `tmp/ci-556-shard4`. The corrected file-preview and quiet-document scenarios both passed locally.
 
 ### History commands and keyboard shortcut guide (#471)
 
@@ -505,8 +543,11 @@ the filesystem, builds an index or stores the search source in preferences.
 Results use the Host-resolved path as identity: an opened tab replaces that file's listing result,
 and overlapping opened roots yield one file result. Opened tabs keep tab order and show `Opened tab`
 with the full path; unopened Markdown follows in full-path locale sort order and shows `Files` with
-its full path. Existing commands follow in their existing order. Name/path word matching and the
-`>` commands-only mode are unchanged. Filtering always searches **all** candidates before presentation.
+its full path. Existing commands follow in their existing order before filtering. For a nonempty query,
+matches whose label contains every query word come before matches requiring detail/path or aliases
+(#556). Existing order is stable inside each grade; an empty query and `>` alone retain original order.
+Case/width normalization, all-word matching across name/path/aliases and the `>` commands-only mode
+remain. Filtering always searches **all** candidates before presentation.
 The existing height-bounded, scrolling Combobox renders only the first 50 matches in that order.
 A persistent count status shows the full match count, including zero. Above 50 it shows the visible
 and total counts with guidance to type more to narrow the search, in Korean or English. Base UI's
@@ -514,7 +555,7 @@ always-mounted `Combobox.Status` supplies a polite, atomic live region, includin
 announcement handling. Base UI still owns highlight, arrows and Enter within the displayed matches;
 there are no page controls. To reach a match outside the first 50, narrow the query: filtering still
 searches the entire source. This explicit presentation limit replaces the earlier pagination decision
-without changing source scope, ordering, matching or shell action handlers. No ranking, search index,
+without changing source scope or shell action handlers. #556 adds only the two match grades above; no search index,
 virtualization library or document-content command is introduced.
 
 As in Files, a listed Markdown file with `native: false` remains selectable but uses subtle text,
