@@ -1308,13 +1308,29 @@ ol.list { list-style: decimal; }
   tab-size: 4;
 }
 
+.code-language-control {
+  position: relative;
+  width: calc(var(--size-control) * 4);
+  margin: 0 0 var(--space-1);
+}
+
 .code-language {
   display: block;
-  width: calc(var(--size-control) * 4);
+  width: 100%;
   height: var(--size-control-compact);
-  margin: 0 0 var(--space-1);
+  padding-right: var(--size-control-compact);
   color: var(--id-color-text-muted);
   font-family: var(--font-family-sans);
+}
+
+.code-language-trigger {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.code-language-popup {
+  max-height: min(18rem, var(--available-height));
 }
 
 /* Display-only syntax highlighting (lowlight decorations); the saved Markdown is unchanged. */
