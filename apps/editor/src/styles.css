@@ -98,6 +98,8 @@ button {
 .sidebar-tools {
   display: flex;
   gap: var(--space-1);
+  border-radius: var(--id-radius-md);
+  background: var(--id-color-surface-pressed);
 }
 
 .sidebar-tools .sidebar-tool {
@@ -478,14 +480,12 @@ button {
 
 .document-outline-item {
   position: relative;
-  display: -webkit-box;
+  display: grid;
   width: 100%;
   padding: var(--space-1) var(--space-3);
   /* One adjustable step per heading level below H1, capped so deep headings stay readable. */
   padding-left: calc(var(--space-3) + min(var(--outline-depth, 0), 3) * var(--space-outline-indent));
   overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
   overflow-wrap: anywhere;
   border: 0;
   border-radius: var(--id-radius-md);
@@ -498,8 +498,25 @@ button {
   cursor: pointer;
 }
 
-/* File and heading navigation share independent hover/current/focus axes. The marker is out
- * of flow; current never changes font metrics, row height or the text's starting position. */
+/* Reserve the semibold line extent so current changes never jump the following Outline rows.
+ * The generated copy is hidden from painting/accessibility and adds no duplicate DOM text. */
+.document-outline-copy,
+.document-outline-item::after {
+  grid-area: 1 / 1;
+  min-width: 0;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.document-outline-item::after {
+  content: attr(data-outline-label);
+  visibility: hidden;
+  font-weight: var(--font-weight-semibold);
+}
+
+/* File and heading current add semibold as a non-color cue, independently of hover/focus.
+ * Glyph widths may change; row insets, clipping and the two-line Outline clamp stay unchanged. */
 .sidebar-tree-item:hover,
 .document-outline-item:hover {
   background: var(--id-color-surface-hover);
@@ -515,23 +532,12 @@ button {
 .document-outline-item[aria-current="location"] {
   background: var(--id-color-surface-selected);
   color: var(--id-color-text-selected);
+  font-weight: var(--font-weight-semibold);
 }
 
 .sidebar-tree-item[aria-current="page"]:hover,
 .document-outline-item[aria-current="location"]:hover {
   background: var(--id-color-surface-selected-hover);
-}
-
-.sidebar-tree-item[aria-current="page"]::before,
-.document-outline-item[aria-current="location"]::before {
-  content: "";
-  position: absolute;
-  inset-block: var(--space-2);
-  left: var(--space-1);
-  width: var(--size-current-marker);
-  border-radius: var(--id-radius-sm);
-  background: var(--id-color-interaction);
-  pointer-events: none;
 }
 
 .document-outline-untitled {
@@ -565,7 +571,7 @@ button {
   display: flex;
   overflow-x: auto;
   min-width: 0;
-  background: var(--id-color-surface);
+  background: var(--id-color-surface-pressed);
   border-bottom: var(--border-width) solid var(--id-color-border);
   padding-inline: var(--layout-ui-inset);
 }
@@ -577,15 +583,18 @@ button {
   max-width: min(var(--layout-document-tab-max-width), 100%);
   min-height: var(--layout-document-tab-height);
   position: relative;
+  border-radius: var(--id-radius-md);
   color: var(--id-color-text-muted);
 }
 
-.document-tab[data-selected="true"] {
+.document-tab[data-selected="true"],
+.document-tab[data-selected="true"]:hover {
   color: var(--id-color-text);
-  box-shadow: inset 0 calc(-1 * var(--size-current-marker)) var(--id-color-interaction);
+  background: var(--id-color-surface);
+  box-shadow: 0 0 0 var(--border-width) var(--id-color-border-control), var(--shadow-segment);
 }
 
-.document-tab:hover { background: var(--id-color-surface-hover); }
+.document-tab:hover { color: var(--id-color-text); }
 .document-tab > button {
   display: flex;
   align-items: center;
@@ -758,17 +767,19 @@ button {
   gap: var(--space-3);
   min-height: var(--size-control);
   padding: var(--space-2);
-  border-radius: var(--id-radius-sm);
+  border-radius: var(--id-radius-md);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-label);
   cursor: pointer;
 }
-.command-center-result[data-highlighted] { background: var(--id-color-surface-selected); }
+.command-center-result[data-highlighted] { background: var(--id-color-surface-selected); color: var(--id-color-text-selected); }
+.command-center-result[data-highlighted]:hover { background: var(--id-color-surface-selected-hover); }
 .command-center-result[data-disabled] { color: var(--id-color-text-subtle); cursor: default; }
 .command-center-result[data-foreign] { color: var(--id-color-text-subtle); }
 .command-center-result-copy { display: grid; flex: 1; min-width: 0; }
 .command-center-result-label, .command-center-result-detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .command-center-result-detail { color: var(--id-color-text-muted); font-size: var(--font-size-xs); }
+.command-center-result[data-highlighted] .command-center-result-detail { color: inherit; }
 .command-center-empty { margin: 0; padding: var(--space-6); text-align: center; color: var(--id-color-text-muted); }
 .command-center-empty:empty { padding: 0; }
 .command-center-footer {
@@ -912,12 +923,8 @@ button {
 }
 
 .status:empty { display: none; }
-/* State axes stay separate: hover is a neutral face, keyboard focus is the ring. The blue marker
- * means "current place" (document tabs, sidebar tool) only. Visual/Source is a segmented control
- * whose chosen view is a raised white segment; Outline, when on, is a pressed toggle with the
- * selected face and icon color. */
-.top-bar-toggle[aria-pressed="true"],
-.sidebar-tool[aria-pressed="true"] {
+/* Outline is a boolean toggle; tab-group current faces are defined with Visual/Source below. */
+.top-bar-toggle[aria-pressed="true"] {
   position: relative;
   color: var(--id-color-text-selected);
 }
@@ -927,17 +934,6 @@ button {
 .top-bar-toggle[aria-pressed="true"]:hover:not(:disabled, [aria-disabled="true"]) {
   background: var(--id-color-surface-selected-hover);
 }
-.sidebar-tool[aria-pressed="true"]::after {
-  content: "";
-  position: absolute;
-  inset-inline: var(--space-2);
-  bottom: 0;
-  height: var(--size-current-marker);
-  border-radius: var(--id-radius-sm);
-  background: var(--id-color-interaction);
-  pointer-events: none;
-}
-
 /* Save is an ordinary ghost action while clean (an unavailable Save keeps the disabled face) and
  * takes the accent only with unsaved changes. While saving it keeps its width and accessible
  * name: the label turns transparent under a spinner. */
@@ -1970,7 +1966,7 @@ ol.list { list-style: decimal; }
 .command-menu-item.active {
   background: var(--id-color-surface-selected);
   color: var(--id-color-text-selected);
-  box-shadow: inset var(--size-current-marker) 0 var(--id-color-interaction);
+  font-weight: var(--font-weight-semibold);
 }
 
 .command-menu-item.active:hover {
@@ -2389,7 +2385,7 @@ ol.list { list-style: decimal; }
 .view-toggle .view-toggle-option[aria-pressed="true"],
 .view-toggle .view-toggle-option[aria-pressed="true"]:hover {
   background: var(--id-color-surface);
-  box-shadow: 0 0 0 var(--border-width) var(--id-color-border), var(--shadow-segment);
+  box-shadow: 0 0 0 var(--border-width) var(--id-color-border-control), var(--shadow-segment);
 }
 
 /* Source wraps visually, keeping one number per Markdown line and the Visual text axis. */
@@ -2746,24 +2742,37 @@ ol.list { list-style: decimal; }
 
 /* ---- UI polish spike -------------------------------------------------------------------- */
 
-/* Tabs and toggles with the underline marker never also draw a box: no pressed face or
- * border while their panel/menu is open, and mouse focus leaves nothing behind. */
-:is(.sidebar-tool, .view-toggle-option):is([aria-expanded="true"], [aria-pressed="true"]) {
+/* Tab groups share raised current segments and an independent keyboard focus ring.
+ * Painting the track and edge changes no control size or text position, including in the rail. */
+.sidebar-tools .sidebar-tool {
   border-color: transparent;
   background: transparent;
+  color: var(--id-color-text-muted);
+}
+.sidebar-tools .sidebar-tool:hover:not(:disabled, [aria-disabled="true"]) {
+  color: var(--id-color-text);
+}
+.sidebar-tools .sidebar-tool[aria-pressed="true"],
+.sidebar-tools .sidebar-tool[aria-pressed="true"]:hover {
+  background: var(--id-color-surface);
+  color: var(--id-color-text);
+  box-shadow: 0 0 0 var(--border-width) var(--id-color-border-control), var(--shadow-segment);
 }
 /* Expanded is disclosure semantics, not a persistent pressed action in the header. */
 .sidebar-collapse[aria-expanded="true"] { background: transparent; }
 .sidebar-collapse[aria-expanded="true"]:hover { background: var(--id-color-surface-hover); }
 .top-bar-toggle[aria-pressed="true"] { border-color: transparent; }
-:is(.sidebar-tool, .top-bar-toggle):not([aria-pressed="true"]):hover:not(:disabled, [aria-disabled="true"]),
-.sidebar-tool[aria-pressed="true"]:hover:not(:disabled, [aria-disabled="true"]) {
+.top-bar-toggle:not([aria-pressed="true"]):hover:not(:disabled, [aria-disabled="true"]) {
   background: var(--id-color-surface-hover);
 }
 :is(.sidebar-tool, .top-bar-toggle, .view-toggle-option):focus-visible {
   border-color: transparent;
   box-shadow: var(--focus-ring-inset);
   --tw-ring-shadow: 0 0 #0000;
+}
+.sidebar-tools .sidebar-tool[aria-pressed="true"]:focus-visible,
+.view-toggle .view-toggle-option[aria-pressed="true"]:focus-visible {
+  box-shadow: var(--focus-ring-inset), 0 0 0 var(--border-width) var(--id-color-border-control), var(--shadow-segment);
 }
 
 /* An open menu's ghost trigger keeps a quiet pressed face, without a border box. */

@@ -1,0 +1,3309 @@
+{
+  "beforeHead": "b7e2b58f6d4fed33f09c7caa7d7f7066552233ae",
+  "afterBase": "5cf64d8a1bd4eaf365398e8c3b7c730a221a88f3",
+  "mergedMaster": "93636fac231a8a305138b211fa87ac96dad7de51",
+  "cssSha256": {
+    "before": "2d0e3e8b5e2690c244956150787fa1592002500d9a4cf55b9826ac09094d6fb1",
+    "after": "ac5f5071913ef8756b1e7fd157dfc610ebdfb2121d59d8421719f56fc2e65cf9"
+  },
+  "browser": "155.0.8059.85",
+  "environment": "Windows, headless installed Chrome, same checkout-owned persistent profile, own Vite 5295, bundled Pretendard; DPR/zoom/scale 1; 1440x1000 and 390x1000; pointer/scroll (0,0); fonts/images ready",
+  "review": "Manual comparison, not pixel gates. Tab/tool geometry and ARIA remain identical. List glyph widths intentionally change at 600. Hidden semibold Outline copy reserves up to two lines: a row may reserve more height than b7e2b58, but changing current no longer jumps rows. The automated geometry measurements below compare 400 and 600 at both widths.",
+  "comparisons": [
+    {
+      "width": 1440,
+      "scene": "files",
+      "tabAndToolTextMovementPx": 0,
+      "identicalAria": true,
+      "listGlyphWidthsMayChange": true
+    },
+    {
+      "width": 1440,
+      "scene": "display",
+      "tabAndToolTextMovementPx": 0,
+      "identicalAria": true,
+      "listGlyphWidthsMayChange": true
+    },
+    {
+      "width": 1440,
+      "scene": "tabs-rail",
+      "tabAndToolTextMovementPx": 0,
+      "identicalAria": true,
+      "listGlyphWidthsMayChange": true
+    },
+    {
+      "width": 1440,
+      "scene": "outline",
+      "tabAndToolTextMovementPx": 0,
+      "identicalAria": true,
+      "listGlyphWidthsMayChange": true
+    },
+    {
+      "width": 1440,
+      "scene": "slash",
+      "tabAndToolTextMovementPx": 0,
+      "identicalAria": true,
+      "listGlyphWidthsMayChange": true
+    },
+    {
+      "width": 390,
+      "scene": "files",
+      "tabAndToolTextMovementPx": 0,
+      "identicalAria": true,
+      "listGlyphWidthsMayChange": true
+    },
+    {
+      "width": 390,
+      "scene": "display",
+      "tabAndToolTextMovementPx": 0,
+      "identicalAria": true,
+      "listGlyphWidthsMayChange": true
+    },
+    {
+      "width": 390,
+      "scene": "tabs-rail",
+      "tabAndToolTextMovementPx": 0,
+      "identicalAria": true,
+      "listGlyphWidthsMayChange": true
+    },
+    {
+      "width": 390,
+      "scene": "outline",
+      "tabAndToolTextMovementPx": 0,
+      "identicalAria": true,
+      "listGlyphWidthsMayChange": true
+    },
+    {
+      "width": 390,
+      "scene": "slash",
+      "tabAndToolTextMovementPx": 0,
+      "identicalAria": true,
+      "listGlyphWidthsMayChange": true
+    }
+  ],
+  "contrast": {
+    "sidebarEdgeColor": "rgb(123, 131, 144)",
+    "sidebarEdgeFaceTrackPanel": [
+      3.824137796046242,
+      3.083193537764637,
+      3.5675167366056395
+    ],
+    "visualEdgeFaceTrackHeader": [
+      3.824137796046242,
+      3.083193537764637,
+      3.824137796046242
+    ],
+    "selectedText": 7.124910509704377,
+    "selectedHoverText": 6.753352020085227,
+    "focusOnWhite": 5.647939125749528
+  },
+  "currentWeights": {
+    "navigation": [
+      {
+        "label": "file",
+        "current": 600,
+        "normal": 400
+      },
+      {
+        "label": "outline",
+        "current": 600,
+        "normal": 400
+      }
+    ],
+    "slashCurrent": 600
+  },
+  "weightGeometry": [
+    {
+      "width": 1440,
+      "files": {
+        "kind": "files",
+        "normal": [
+          {
+            "y": 168,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          },
+          {
+            "y": 196,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          },
+          {
+            "y": 224,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          },
+          {
+            "y": 252,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          },
+          {
+            "y": 280,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          }
+        ],
+        "current": [
+          {
+            "y": 168,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          },
+          {
+            "y": 196,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          },
+          {
+            "y": 224,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          },
+          {
+            "y": 252,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          },
+          {
+            "y": 280,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          }
+        ]
+      },
+      "outline": {
+        "kind": "outline",
+        "normal": [
+          {
+            "y": 52,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          },
+          {
+            "y": 80,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          },
+          {
+            "y": 108,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          },
+          {
+            "y": 136,
+            "height": 48,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          },
+          {
+            "y": 184,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          },
+          {
+            "y": 212,
+            "height": 48,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          }
+        ],
+        "current": [
+          {
+            "y": 52,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          },
+          {
+            "y": 80,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          },
+          {
+            "y": 108,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          },
+          {
+            "y": 136,
+            "height": 48,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          },
+          {
+            "y": 184,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          },
+          {
+            "y": 212,
+            "height": 48,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          }
+        ]
+      },
+      "menu": {
+        "kind": "menu",
+        "normal": [
+          {
+            "y": 102,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 130,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 158,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 195,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 223,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 260,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 288,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 316,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 344,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 381,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 409,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 437,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 465,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 502,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 530,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 558,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 586,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          }
+        ],
+        "current": [
+          {
+            "y": 102,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 130,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 158,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 195,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 223,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 260,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 288,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 316,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 344,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 381,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 409,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 437,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 465,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 502,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 530,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 558,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 586,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          }
+        ]
+      }
+    },
+    {
+      "width": 390,
+      "files": {
+        "kind": "files",
+        "normal": [
+          {
+            "y": 140,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          },
+          {
+            "y": 168,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          },
+          {
+            "y": 196,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          },
+          {
+            "y": 224,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          },
+          {
+            "y": 252,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          }
+        ],
+        "current": [
+          {
+            "y": 140,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          },
+          {
+            "y": 168,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          },
+          {
+            "y": 196,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          },
+          {
+            "y": 224,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          },
+          {
+            "y": 252,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": "ellipsis"
+          }
+        ]
+      },
+      "outline": {
+        "kind": "outline",
+        "normal": [
+          {
+            "y": 207,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          },
+          {
+            "y": 235,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          },
+          {
+            "y": 263,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          },
+          {
+            "y": 291,
+            "height": 48,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          },
+          {
+            "y": 339,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          },
+          {
+            "y": 367,
+            "height": 48,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          }
+        ],
+        "current": [
+          {
+            "y": 207,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          },
+          {
+            "y": 235,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          },
+          {
+            "y": 263,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          },
+          {
+            "y": 291,
+            "height": 48,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          },
+          {
+            "y": 339,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          },
+          {
+            "y": 367,
+            "height": 48,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "2",
+            "ellipsis": null
+          }
+        ]
+      },
+      "menu": {
+        "kind": "menu",
+        "normal": [
+          {
+            "y": 174.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 202.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 230.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 267.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 295.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 332.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 360.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 388.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 416.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 453.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 481.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 509.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 537.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 574.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 602.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 630.671875,
+            "height": 48,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 678.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          }
+        ],
+        "current": [
+          {
+            "y": 174.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 202.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 230.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 267.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 295.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 332.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 360.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 388.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 416.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 453.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 481.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 509.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 537.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 574.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 602.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 630.671875,
+            "height": 48,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          },
+          {
+            "y": 678.671875,
+            "height": 28,
+            "overflow": false,
+            "lineHeight": 20,
+            "clamp": "none",
+            "ellipsis": null
+          }
+        ]
+      }
+    }
+  ],
+  "before": {
+    "browser": "155.0.8059.85",
+    "evidence": [
+      {
+        "width": 1440,
+        "scene": "files",
+        "viewport": [
+          1440,
+          1000
+        ],
+        "dpr": 1,
+        "scale": 1,
+        "zoom": "1",
+        "scroll": [
+          0,
+          0
+        ],
+        "targets": [
+          {
+            "selector": ".sidebar-tool",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Files",
+                    62.109375,
+                    70,
+                    29.28125,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": "true"
+              },
+              {
+                "text": [
+                  [
+                    "Display",
+                    163.03125,
+                    70,
+                    46.421875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": "false"
+              }
+            ]
+          },
+          {
+            "selector": ".document-tab",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "technical-document.md",
+                    268,
+                    59.5,
+                    149.390625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document-long.md",
+                    477.390625,
+                    59.5,
+                    156.6875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    694.078125,
+                    59.5,
+                    124.015625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".sidebar-tree-item[aria-current]",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    68,
+                    258,
+                    124.015625,
+                    16
+                  ]
+                ],
+                "current": "page",
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".document-outline-item[aria-current]",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Converter Control · 제어 설계",
+                    1209,
+                    58,
+                    174.578125,
+                    16
+                  ]
+                ],
+                "current": "location",
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".command-menu-item.active",
+            "nodes": []
+          }
+        ]
+      },
+      {
+        "width": 1440,
+        "scene": "display",
+        "viewport": [
+          1440,
+          1000
+        ],
+        "dpr": 1,
+        "scale": 1,
+        "zoom": "1",
+        "scroll": [
+          0,
+          0
+        ],
+        "targets": [
+          {
+            "selector": ".sidebar-tool",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Files",
+                    62.109375,
+                    70,
+                    29.28125,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": "false"
+              },
+              {
+                "text": [
+                  [
+                    "Display",
+                    163.03125,
+                    70,
+                    46.421875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": "true"
+              }
+            ]
+          },
+          {
+            "selector": ".document-tab",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "technical-document.md",
+                    268,
+                    59.5,
+                    149.390625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document-long.md",
+                    477.390625,
+                    59.5,
+                    156.6875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    694.078125,
+                    59.5,
+                    124.015625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".sidebar-tree-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".document-outline-item[aria-current]",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Converter Control · 제어 설계",
+                    1209,
+                    58,
+                    174.578125,
+                    16
+                  ]
+                ],
+                "current": "location",
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".command-menu-item.active",
+            "nodes": []
+          }
+        ]
+      },
+      {
+        "width": 1440,
+        "scene": "tabs-rail",
+        "viewport": [
+          1440,
+          1000
+        ],
+        "dpr": 1,
+        "scale": 1,
+        "zoom": "1",
+        "scroll": [
+          0,
+          0
+        ],
+        "targets": [
+          {
+            "selector": ".sidebar-tool",
+            "nodes": [
+              {
+                "text": [],
+                "current": null,
+                "selected": null,
+                "pressed": "true"
+              },
+              {
+                "text": [],
+                "current": null,
+                "selected": null,
+                "pressed": "false"
+              }
+            ]
+          },
+          {
+            "selector": ".document-tab",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "technical-document.md",
+                    76,
+                    59.5,
+                    149.390625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document-long.md",
+                    285.390625,
+                    59.5,
+                    156.6875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    502.078125,
+                    59.5,
+                    124.015625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".sidebar-tree-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".document-outline-item[aria-current]",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Converter Control · 제어 설계",
+                    1209,
+                    58,
+                    174.578125,
+                    16
+                  ]
+                ],
+                "current": "location",
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".command-menu-item.active",
+            "nodes": []
+          }
+        ]
+      },
+      {
+        "width": 1440,
+        "scene": "outline",
+        "viewport": [
+          1440,
+          1000
+        ],
+        "dpr": 1,
+        "scale": 1,
+        "zoom": "1",
+        "scroll": [
+          0,
+          0
+        ],
+        "targets": [
+          {
+            "selector": ".sidebar-tool",
+            "nodes": [
+              {
+                "text": [],
+                "current": null,
+                "selected": null,
+                "pressed": "true"
+              },
+              {
+                "text": [],
+                "current": null,
+                "selected": null,
+                "pressed": "false"
+              }
+            ]
+          },
+          {
+            "selector": ".document-tab",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "technical-document.md",
+                    76,
+                    59.5,
+                    149.390625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document-long.md",
+                    285.390625,
+                    59.5,
+                    156.6875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    502.078125,
+                    59.5,
+                    124.015625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".sidebar-tree-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".document-outline-item[aria-current]",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Converter Control · 제어 설계",
+                    1209,
+                    58,
+                    174.578125,
+                    16
+                  ]
+                ],
+                "current": "location",
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".command-menu-item.active",
+            "nodes": []
+          }
+        ]
+      },
+      {
+        "width": 1440,
+        "scene": "slash",
+        "viewport": [
+          1440,
+          1000
+        ],
+        "dpr": 1,
+        "scale": 1,
+        "zoom": "1",
+        "scroll": [
+          0,
+          0
+        ],
+        "targets": [
+          {
+            "selector": ".sidebar-tool",
+            "nodes": [
+              {
+                "text": [],
+                "current": null,
+                "selected": null,
+                "pressed": "true"
+              },
+              {
+                "text": [],
+                "current": null,
+                "selected": null,
+                "pressed": "false"
+              }
+            ]
+          },
+          {
+            "selector": ".document-tab",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "technical-document.md",
+                    76,
+                    59.5,
+                    149.390625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document-long.md",
+                    285.390625,
+                    59.5,
+                    156.6875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    502.078125,
+                    59.5,
+                    124.015625,
+                    16
+                  ],
+                  [
+                    "•",
+                    634.515625,
+                    59.5,
+                    7.140625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".sidebar-tree-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".document-outline-item[aria-current]",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Converter Control · 제어 설계",
+                    1209,
+                    58,
+                    174.578125,
+                    16
+                  ]
+                ],
+                "current": "location",
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".command-menu-item.active",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Paragraph",
+                    289,
+                    237.890625,
+                    64.8125,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "scene": "files",
+        "viewport": [
+          390,
+          1000
+        ],
+        "dpr": 1,
+        "scale": 1,
+        "zoom": "1",
+        "scroll": [
+          0,
+          0
+        ],
+        "targets": [
+          {
+            "selector": ".sidebar-tool",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Files",
+                    99.859375,
+                    70,
+                    29.28125,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": "true"
+              },
+              {
+                "text": [
+                  [
+                    "Display",
+                    276.28125,
+                    70,
+                    46.421875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": "false"
+              }
+            ]
+          },
+          {
+            "selector": ".document-tab",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "technical-document.md",
+                    -212,
+                    100.5,
+                    149.390625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document-long.md",
+                    -2.609375,
+                    100.5,
+                    156.6875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    214.078125,
+                    100.5,
+                    124.015625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".sidebar-tree-item[aria-current]",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    68,
+                    230,
+                    124.015625,
+                    16
+                  ]
+                ],
+                "current": "page",
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".document-outline-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".command-menu-item.active",
+            "nodes": []
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "scene": "display",
+        "viewport": [
+          390,
+          1000
+        ],
+        "dpr": 1,
+        "scale": 1,
+        "zoom": "1",
+        "scroll": [
+          0,
+          0
+        ],
+        "targets": [
+          {
+            "selector": ".sidebar-tool",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Files",
+                    99.859375,
+                    70,
+                    29.28125,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": "false"
+              },
+              {
+                "text": [
+                  [
+                    "Display",
+                    276.28125,
+                    70,
+                    46.421875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": "true"
+              }
+            ]
+          },
+          {
+            "selector": ".document-tab",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "technical-document.md",
+                    -212,
+                    100.5,
+                    149.390625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document-long.md",
+                    -2.609375,
+                    100.5,
+                    156.6875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    214.078125,
+                    100.5,
+                    124.015625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".sidebar-tree-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".document-outline-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".command-menu-item.active",
+            "nodes": []
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "scene": "tabs-rail",
+        "viewport": [
+          390,
+          1000
+        ],
+        "dpr": 1,
+        "scale": 1,
+        "zoom": "1",
+        "scroll": [
+          0,
+          0
+        ],
+        "targets": [
+          {
+            "selector": ".sidebar-tool",
+            "nodes": []
+          },
+          {
+            "selector": ".document-tab",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "technical-document.md",
+                    -212,
+                    100.5,
+                    149.390625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document-long.md",
+                    -2.609375,
+                    100.5,
+                    156.6875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    214.078125,
+                    100.5,
+                    124.015625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".sidebar-tree-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".document-outline-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".command-menu-item.active",
+            "nodes": []
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "scene": "outline",
+        "viewport": [
+          390,
+          1000
+        ],
+        "dpr": 1,
+        "scale": 1,
+        "zoom": "1",
+        "scroll": [
+          0,
+          0
+        ],
+        "targets": [
+          {
+            "selector": ".sidebar-tool",
+            "nodes": []
+          },
+          {
+            "selector": ".document-tab",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "technical-document.md",
+                    -212,
+                    100.5,
+                    149.390625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document-long.md",
+                    -2.609375,
+                    100.5,
+                    156.6875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    214.078125,
+                    100.5,
+                    124.015625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".sidebar-tree-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".document-outline-item[aria-current]",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Converter Control · 제어 설계",
+                    159,
+                    189,
+                    174.578125,
+                    16
+                  ]
+                ],
+                "current": "location",
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".command-menu-item.active",
+            "nodes": []
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "scene": "slash",
+        "viewport": [
+          390,
+          1000
+        ],
+        "dpr": 1,
+        "scale": 1,
+        "zoom": "1",
+        "scroll": [
+          0,
+          0
+        ],
+        "targets": [
+          {
+            "selector": ".sidebar-tool",
+            "nodes": []
+          },
+          {
+            "selector": ".document-tab",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "technical-document.md",
+                    -212,
+                    124.5,
+                    149.390625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document-long.md",
+                    -2.609375,
+                    124.5,
+                    156.6875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    214.078125,
+                    124.5,
+                    124.015625,
+                    16
+                  ],
+                  [
+                    "•",
+                    346.515625,
+                    124.5,
+                    7.140625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".sidebar-tree-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".document-outline-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".command-menu-item.active",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Paragraph",
+                    49,
+                    378.671875,
+                    64.8125,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "after": {
+    "browser": "155.0.8059.85",
+    "evidence": [
+      {
+        "width": 1440,
+        "scene": "files",
+        "viewport": [
+          1440,
+          1000
+        ],
+        "dpr": 1,
+        "scale": 1,
+        "zoom": "1",
+        "scroll": [
+          0,
+          0
+        ],
+        "targets": [
+          {
+            "selector": ".sidebar-tool",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Files",
+                    62.109375,
+                    70,
+                    29.28125,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": "true"
+              },
+              {
+                "text": [
+                  [
+                    "Display",
+                    163.03125,
+                    70,
+                    46.421875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": "false"
+              }
+            ]
+          },
+          {
+            "selector": ".document-tab",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "technical-document.md",
+                    268,
+                    59.5,
+                    149.390625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document-long.md",
+                    477.390625,
+                    59.5,
+                    156.6875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    694.078125,
+                    59.5,
+                    124.015625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".sidebar-tree-item[aria-current]",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    68,
+                    258,
+                    129.03125,
+                    16
+                  ]
+                ],
+                "current": "page",
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".document-outline-item[aria-current]",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Converter Control · 제어 설계",
+                    1209,
+                    58,
+                    178.8125,
+                    16
+                  ]
+                ],
+                "current": "location",
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".command-menu-item.active",
+            "nodes": []
+          }
+        ]
+      },
+      {
+        "width": 1440,
+        "scene": "display",
+        "viewport": [
+          1440,
+          1000
+        ],
+        "dpr": 1,
+        "scale": 1,
+        "zoom": "1",
+        "scroll": [
+          0,
+          0
+        ],
+        "targets": [
+          {
+            "selector": ".sidebar-tool",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Files",
+                    62.109375,
+                    70,
+                    29.28125,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": "false"
+              },
+              {
+                "text": [
+                  [
+                    "Display",
+                    163.03125,
+                    70,
+                    46.421875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": "true"
+              }
+            ]
+          },
+          {
+            "selector": ".document-tab",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "technical-document.md",
+                    268,
+                    59.5,
+                    149.390625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document-long.md",
+                    477.390625,
+                    59.5,
+                    156.6875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    694.078125,
+                    59.5,
+                    124.015625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".sidebar-tree-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".document-outline-item[aria-current]",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Converter Control · 제어 설계",
+                    1209,
+                    58,
+                    178.8125,
+                    16
+                  ]
+                ],
+                "current": "location",
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".command-menu-item.active",
+            "nodes": []
+          }
+        ]
+      },
+      {
+        "width": 1440,
+        "scene": "tabs-rail",
+        "viewport": [
+          1440,
+          1000
+        ],
+        "dpr": 1,
+        "scale": 1,
+        "zoom": "1",
+        "scroll": [
+          0,
+          0
+        ],
+        "targets": [
+          {
+            "selector": ".sidebar-tool",
+            "nodes": [
+              {
+                "text": [],
+                "current": null,
+                "selected": null,
+                "pressed": "true"
+              },
+              {
+                "text": [],
+                "current": null,
+                "selected": null,
+                "pressed": "false"
+              }
+            ]
+          },
+          {
+            "selector": ".document-tab",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "technical-document.md",
+                    76,
+                    59.5,
+                    149.390625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document-long.md",
+                    285.390625,
+                    59.5,
+                    156.6875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    502.078125,
+                    59.5,
+                    124.015625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".sidebar-tree-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".document-outline-item[aria-current]",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Converter Control · 제어 설계",
+                    1209,
+                    58,
+                    178.8125,
+                    16
+                  ]
+                ],
+                "current": "location",
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".command-menu-item.active",
+            "nodes": []
+          }
+        ]
+      },
+      {
+        "width": 1440,
+        "scene": "outline",
+        "viewport": [
+          1440,
+          1000
+        ],
+        "dpr": 1,
+        "scale": 1,
+        "zoom": "1",
+        "scroll": [
+          0,
+          0
+        ],
+        "targets": [
+          {
+            "selector": ".sidebar-tool",
+            "nodes": [
+              {
+                "text": [],
+                "current": null,
+                "selected": null,
+                "pressed": "true"
+              },
+              {
+                "text": [],
+                "current": null,
+                "selected": null,
+                "pressed": "false"
+              }
+            ]
+          },
+          {
+            "selector": ".document-tab",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "technical-document.md",
+                    76,
+                    59.5,
+                    149.390625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document-long.md",
+                    285.390625,
+                    59.5,
+                    156.6875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    502.078125,
+                    59.5,
+                    124.015625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".sidebar-tree-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".document-outline-item[aria-current]",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Converter Control · 제어 설계",
+                    1209,
+                    58,
+                    178.8125,
+                    16
+                  ]
+                ],
+                "current": "location",
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".command-menu-item.active",
+            "nodes": []
+          }
+        ]
+      },
+      {
+        "width": 1440,
+        "scene": "slash",
+        "viewport": [
+          1440,
+          1000
+        ],
+        "dpr": 1,
+        "scale": 1,
+        "zoom": "1",
+        "scroll": [
+          0,
+          0
+        ],
+        "targets": [
+          {
+            "selector": ".sidebar-tool",
+            "nodes": [
+              {
+                "text": [],
+                "current": null,
+                "selected": null,
+                "pressed": "true"
+              },
+              {
+                "text": [],
+                "current": null,
+                "selected": null,
+                "pressed": "false"
+              }
+            ]
+          },
+          {
+            "selector": ".document-tab",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "technical-document.md",
+                    76,
+                    59.5,
+                    149.390625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document-long.md",
+                    285.390625,
+                    59.5,
+                    156.6875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    502.078125,
+                    59.5,
+                    124.015625,
+                    16
+                  ],
+                  [
+                    "•",
+                    634.515625,
+                    59.5,
+                    7.140625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".sidebar-tree-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".document-outline-item[aria-current]",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Converter Control · 제어 설계",
+                    1209,
+                    58,
+                    178.8125,
+                    16
+                  ]
+                ],
+                "current": "location",
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".command-menu-item.active",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Paragraph",
+                    289,
+                    237.890625,
+                    66.875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "scene": "files",
+        "viewport": [
+          390,
+          1000
+        ],
+        "dpr": 1,
+        "scale": 1,
+        "zoom": "1",
+        "scroll": [
+          0,
+          0
+        ],
+        "targets": [
+          {
+            "selector": ".sidebar-tool",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Files",
+                    99.859375,
+                    70,
+                    29.28125,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": "true"
+              },
+              {
+                "text": [
+                  [
+                    "Display",
+                    276.28125,
+                    70,
+                    46.421875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": "false"
+              }
+            ]
+          },
+          {
+            "selector": ".document-tab",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "technical-document.md",
+                    -212,
+                    100.5,
+                    149.390625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document-long.md",
+                    -2.609375,
+                    100.5,
+                    156.6875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    214.078125,
+                    100.5,
+                    124.015625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".sidebar-tree-item[aria-current]",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    68,
+                    230,
+                    129.03125,
+                    16
+                  ]
+                ],
+                "current": "page",
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".document-outline-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".command-menu-item.active",
+            "nodes": []
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "scene": "display",
+        "viewport": [
+          390,
+          1000
+        ],
+        "dpr": 1,
+        "scale": 1,
+        "zoom": "1",
+        "scroll": [
+          0,
+          0
+        ],
+        "targets": [
+          {
+            "selector": ".sidebar-tool",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Files",
+                    99.859375,
+                    70,
+                    29.28125,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": "false"
+              },
+              {
+                "text": [
+                  [
+                    "Display",
+                    276.28125,
+                    70,
+                    46.421875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": "true"
+              }
+            ]
+          },
+          {
+            "selector": ".document-tab",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "technical-document.md",
+                    -212,
+                    100.5,
+                    149.390625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document-long.md",
+                    -2.609375,
+                    100.5,
+                    156.6875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    214.078125,
+                    100.5,
+                    124.015625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".sidebar-tree-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".document-outline-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".command-menu-item.active",
+            "nodes": []
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "scene": "tabs-rail",
+        "viewport": [
+          390,
+          1000
+        ],
+        "dpr": 1,
+        "scale": 1,
+        "zoom": "1",
+        "scroll": [
+          0,
+          0
+        ],
+        "targets": [
+          {
+            "selector": ".sidebar-tool",
+            "nodes": []
+          },
+          {
+            "selector": ".document-tab",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "technical-document.md",
+                    -212,
+                    100.5,
+                    149.390625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document-long.md",
+                    -2.609375,
+                    100.5,
+                    156.6875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    214.078125,
+                    100.5,
+                    124.015625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".sidebar-tree-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".document-outline-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".command-menu-item.active",
+            "nodes": []
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "scene": "outline",
+        "viewport": [
+          390,
+          1000
+        ],
+        "dpr": 1,
+        "scale": 1,
+        "zoom": "1",
+        "scroll": [
+          0,
+          0
+        ],
+        "targets": [
+          {
+            "selector": ".sidebar-tool",
+            "nodes": []
+          },
+          {
+            "selector": ".document-tab",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "technical-document.md",
+                    -212,
+                    100.5,
+                    149.390625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document-long.md",
+                    -2.609375,
+                    100.5,
+                    156.6875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    214.078125,
+                    100.5,
+                    124.015625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".sidebar-tree-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".document-outline-item[aria-current]",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Converter Control · 제어 설계",
+                    159,
+                    189,
+                    178.8125,
+                    16
+                  ]
+                ],
+                "current": "location",
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".command-menu-item.active",
+            "nodes": []
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "scene": "slash",
+        "viewport": [
+          390,
+          1000
+        ],
+        "dpr": 1,
+        "scale": 1,
+        "zoom": "1",
+        "scroll": [
+          0,
+          0
+        ],
+        "targets": [
+          {
+            "selector": ".sidebar-tool",
+            "nodes": []
+          },
+          {
+            "selector": ".document-tab",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "technical-document.md",
+                    -212,
+                    124.5,
+                    149.390625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document-long.md",
+                    -2.609375,
+                    124.5,
+                    156.6875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              },
+              {
+                "text": [
+                  [
+                    "quiet-document.md",
+                    214.078125,
+                    124.5,
+                    124.015625,
+                    16
+                  ],
+                  [
+                    "•",
+                    346.515625,
+                    124.5,
+                    7.140625,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          },
+          {
+            "selector": ".sidebar-tree-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".document-outline-item[aria-current]",
+            "nodes": []
+          },
+          {
+            "selector": ".command-menu-item.active",
+            "nodes": [
+              {
+                "text": [
+                  [
+                    "Paragraph",
+                    49,
+                    378.671875,
+                    66.875,
+                    16
+                  ]
+                ],
+                "current": null,
+                "selected": null,
+                "pressed": null
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
