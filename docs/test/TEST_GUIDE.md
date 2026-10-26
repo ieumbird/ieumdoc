@@ -52,7 +52,7 @@ pnpm browser:prepare                       # 수동 검토용 scratch 사본만 
 - stable 목록은 `apps/editor/test/browser/scenarios.ts`의 `STABLE_SCENARIOS`다.
 - Playwright Test worker가 `launchPersistentContext`로 checkout별 재사용 프로필을 연다. 새 프로필 Chrome 반복 실행 금지와 cleanup은 [Windows browser automation](../contributing/windows-browser-automation.md)을 따른다.
 - 같은 checkout에서 `browser:test`를 동시에 여러 개 실행하지 않는다. 다른 checkout의 dev server를 쓰려면 빈 포트에 띄우고 `IEUMDOC_BROWSER_URL`을 지정한다.
-- Windows는 설치형 Chrome을 사용한다. 다른 OS에서는 처음 한 번 `pnpm exec playwright install chromium`을 실행한다.
+- Windows는 설치형 Chrome을 사용한다. 다른 OS의 로컬 실행에서는 처음 한 번 `pnpm exec playwright install chromium`을 실행한다. Linux CI는 [CONTRIBUTING의 컨테이너 설정](../../CONTRIBUTING.md#verification-matrix)에 따라 공식 Noble 이미지를 OS 의존성에만 사용하고, 고정 alpha Chromium을 별도 캐시에 설치한다(`--with-deps` 없음, 설치 제한 2분).
 - 기본 URL의 서버가 없으면 Playwright `webServer`가 시작/종료한다. 로컬의 기존 서버와 `IEUMDOC_BROWSER_URL` 서버는 그대로 유지한다.
 - `@playwright/cli`는 직접 디버깅용으로 유지하며 `open --persistent`를 사용한다. 정식 runner는 CLI 출력 형식을 파싱하지 않는다.
 

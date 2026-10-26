@@ -126,6 +126,10 @@ CI 경로 규칙의 기준은 [ci.yml의 changes job](.github/workflows/ci.yml)�
 
 필수 aggregate 검사 `Core, CLI, Editor, and browser regressions`는 changes와 quality의 성공을 요구하고, 경로 규칙이 선택한 browser/http/desktop은 반드시 성공해야 하고, 선택하지 않은 job만 skipped여야 한다. 실패·취소는 통과하지 않는다. Queue에서도 정확히 같은 검사 이름을 보고한다. 같은 PR에 새 커밋을 push하면 이전 CI 실행을 취소하며, `master` push와 `merge_group` 실행은 이벤트·head SHA별로 유지하고 서로 취소하지 않는다.
 
+Linux Editor 4개 shard와 HTTP browser job은 공식 `mcr.microsoft.com/playwright:v1.64.0-noble` 컨테이너를 **OS 의존성 제공용**으로 사용한다. 이미지의 CJK/Korean 글꼴을 포함한 의존성을 재사용하며 CI에서 apt를 실행하지 않는다. `@playwright/cli`의 transitive 버전과 맞춘 `1.64.0-alpha-1789764292000` 고정은 유지한다([채택 근거](docs/reviews/reduction-2026-10-10.md#단위-6-runner-채택-근거)). 해당 alpha 이미지가 없으므로 이미지에 포함된 stable 브라우저(`/ms-playwright`)는 사용하지 않는다. `PLAYWRIGHT_BROWSERS_PATH=/github/home/.cache/ms-playwright`로 분리하고 lockfile 키의 캐시를 복원한 뒤 `pnpm exec playwright install chromium`만 실행한다. 이 설치는 2분 제한이며 `--with-deps`를 사용하지 않는다. 기존 CI 경로 테스트가 lockfile의 prerelease 꼬리를 제외한 base 버전과 두 Linux 이미지 태그의 일치를 검사한다.
+
+컨테이너는 기본 root 사용자와 `--ipc=host --init`를 사용한다. checkout action의 기본 safe.directory 설정을 유지하고, Node.js `24.21.0`과 pnpm `12.5.1`을 기존 action으로 설정한다. GitHub가 매핑한 HOME과 workspace/temp 경로를 사용하므로 기존 artifact 경로를 유지한다. runner는 headless Chromium이며 xvfb 실행은 필요 없다. Windows job은 기존 설치형 Chrome과 persistent profile을 사용한다. 이 선택은 테스트 판정·재시도·timeout·4개 shard 배정과 docs-only/merge queue 동작을 바꾸지 않는다.
+
 ## HTTP Host builds
 
 `pnpm --filter @ieumdoc/cli package`는 Node CLI 번들과 production Editor를 `packages/cli/dist/*.tgz`로 만든다. `pnpm --filter @ieumdoc/cli test:packaged`는 checkout 밖에 offline 설치해 Node만으로 실행·저장·종료를 검사한다. 이어 `pnpm browser:test http-host`가 production Host를 직접 시작하고 정리한다. Vite 시나리오와 한 호출에 섞지 않는다.
