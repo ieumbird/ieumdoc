@@ -236,6 +236,27 @@ async (page, { openPath, withBlockHover }) => {
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   result.menuOrderReloaded = await order() === persistedOrder && JSON.stringify(await contentOrder()) === JSON.stringify(persistedContent);
+  // A draft at either body boundary needs an actionable reason before the boundary reason.
+  await openPath(page, [root, 'tmp', 'block-move', 'draft-boundaries.md'].join(separator));
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  const boundaryDraftReasons = [];
+  for (const name of ['Move up', 'Move down']) {
+    const equations = page.locator('[data-document-tab][data-active=true] [data-block="equation"]');
+    const block = name === 'Move up' ? equations.first() : equations.last();
+    await block.hover();
+    await block.getByRole('button', {name:'Edit', exact:true}).click();
+    await page.getByTestId('equation-latex').fill('x + BoundaryDraft');
+    const index = name === 'Move up' ? 1 : await editor.evaluate(node => node.editor.state.doc.childCount - 1);
+    const menu = await openBlockMenu(index);
+    const item = menu.getByRole('menuitem', {name, exact:true});
+    boundaryDraftReasons.push({name, disabled: await item.isDisabled(), ...await boundaryReason(item)});
+    await page.keyboard.press('Escape');
+    await page.getByTestId('equation-cancel').click();
+  }
+  const draftReason = 'Apply or Cancel the Equation edit before moving it.';
+  if (boundaryDraftReasons.some(item => !item.disabled || item.tooltip !== draftReason || item.description !== draftReason)) {
+    throw new Error(`Draft reasons must precede both boundary reasons: ${JSON.stringify(boundaryDraftReasons)}`);
+  }
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0) throw new Error(`Block move failed: ${JSON.stringify(result)}`);
   return result;

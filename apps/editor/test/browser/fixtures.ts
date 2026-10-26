@@ -117,7 +117,8 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
     { name: "chapters/nested.md", create: () => '---\nieumdoc: 1\nbibliography: [../refs.bib]\n---\n\n# Nested inline\n\n(section)=\n\n## Target\n\n## Heading.\n\n- Only citation\n- Item.\n  - Nested item.\n\n> Quote.\n\n:::{note}\nCallout.\n:::\n\nBody[^n].\n\n| Header |\n| --- |\n| Cell. |\n\n:::{figure}\n\nCaption.\n:::\n\n```\nCode.\n```\n\n[^n]: Definition.\n' },
   ], scenarios: ["bibliography", "citation-authoring", "bibliography-connection"] },
   "citations": { files: [fixture("citations.md")], scenarios: ["citations"] },
-  "block-move": { files: technical, scenarios: ["block-move"] },
+  "block-move": { files: [...technical, { name: "draft-boundaries.md", create: () => nativeSource(
+    "# Draft boundaries\n\n```{math}\nx = 1\n```\n\nBetween the equations.\n\n```{math}\ny = 2\n```\n") }], scenarios: ["block-move"] },
   "document-title": { files: [...technical,
     { name: "untitled.md", create: () => nativeSource("Lead paragraph.\n\n## Part\n\nBody.\n") },
     { name: "untitled-empty.md", create: () => nativeSource("Lead paragraph.\n") }], scenarios: ["document-title"] },

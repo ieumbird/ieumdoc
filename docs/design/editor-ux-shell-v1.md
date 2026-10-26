@@ -464,6 +464,9 @@ and draft reasons are exposed as accessible descriptions and tooltips. Boundary 
 also explain their direction: `There is no body block above this one.` /
 `There is no body block below this one.` (Korean: `위로 이동할 본문 블록이 없습니다.` /
 `아래로 이동할 본문 블록이 없습니다.`), using both tooltip and accessible description.
+Fixed title/endnote reasons retain their priority. Otherwise an active properties
+draft's Apply or Cancel reason precedes the boundary reason, so the menu explains
+the user action needed before movement can become available.
 
 Body Paragraph/Heading conversions offer H2–H6 and Paragraph for headings, excluding
 the current level. The title retains its existing explicit conversions and disabled
@@ -510,6 +513,10 @@ assertions failed for both first-body Move up and last-body Move down (both valu
 were absent). The corrected browser scenario checks both English and Korean reasons,
 then retains the existing move/Undo/Save→Reload coverage. Movement semantics are
 unchanged; the existing command rejection metadata supplies the missing explanation.
+The re-review regression on `7284bd6` also reproduced boundary reasons hiding an
+open Equation draft's reason at both body edges. `block-move` now opens real drafts
+in the first and last body Equations and checks the draft reason in both tooltip
+and accessible description before retaining the existing boundary/Undo/Save coverage.
 
 ### Nested inline slash menu (#377)
 

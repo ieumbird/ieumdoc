@@ -109,10 +109,10 @@ are accessible descriptions/tooltips. Current body heading level is omitted; the
 title retains its disabled current-level row. Markdown-input hints remain key chips;
 no unbound action shortcut is invented. See [menu behavior and same-state evidence](editor-ux-shell-v1.md#unified-action-menus-516).
 
-Review correction (#523): the CommandMenu row's local radius declaration now uses
-the shared `--id-radius-md` control token directly. On `842965f`, the later common
-list-row rule already overrode the stale small-radius declaration, producing 6px
-in the real browser. The existing insert/block menu computed-style checks now
+Review correction (#523): one shared list-row rule owns CommandMenu's 6px
+`--id-radius-md` control radius; the duplicate local declaration has been removed.
+On `842965f`, that common rule already overrode the stale small-radius declaration,
+producing 6px in the real browser. The existing insert/block menu computed-style checks now
 assert that shared radius too; they passed on that baseline. Row height and padding
 are unchanged. Actual 1440×900 English `tables.md` captures with the `+` menu opened
 by keyboard, first-row focus and pointer away are byte-identical:

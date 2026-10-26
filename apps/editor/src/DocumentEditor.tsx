@@ -21,6 +21,7 @@ import {
   type SlashRange,
 } from "./block-commands.ts";
 import { BlockHandles } from "./BlockHandles.tsx";
+import { blockMoveBlockedHint } from "./block-reorder.ts";
 import { addTitle, editorTitleIndex } from "./document-title.ts";
 import { CommandMenu, type CommandMenuItem } from "./CommandMenu.tsx";
 import { insertCommandIcon, blockCommandAppearance } from "./command-icons.ts";
@@ -667,7 +668,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
             disabled: !command.enabled(editor.state, blockMenu.index) ||
               (command.id.startsWith("move-") && !!moveBlockedHint(blockMenu.index)),
             disabledReason: command.id.startsWith("move-")
-              ? command.rejection?.(editor.state, blockMenu.index) ?? moveBlockedHint(blockMenu.index) : undefined,
+              // Fixed blocks stay fixed; an actionable draft takes priority over a boundary.
+              ? blockMoveBlockedHint(editor.state, blockMenu.index) ?? moveBlockedHint(blockMenu.index) ??
+                command.rejection?.(editor.state, blockMenu.index) : undefined,
           }))}
           focusOnOpen
           style={blockMenuStyle}
