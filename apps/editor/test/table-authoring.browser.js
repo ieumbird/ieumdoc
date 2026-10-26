@@ -64,6 +64,25 @@ async (page, { openPath, reloadDocument }) => {
   if (!lightHandles.length || lightHandles.some(handle => handle.text || !handle.icon || handle.title !== handle.name || handle.width < 28 || handle.height !== 28 || handle.background !== 'rgba(0, 0, 0, 0)')) {
     throw new Error(`Light table handles need an icon without visible address text, matching localized name/tooltip, transparent rest and 28px targets: ${JSON.stringify(lightHandles)}`);
   }
+  const handleVisibility = handles => handles.map(button => {
+    const rect = button.getBoundingClientRect(), ancestors = [];
+    for (let node = button; node; node = node.parentElement) {
+      const style = getComputedStyle(node);
+      ancestors.push({element:node.className || node.tagName, display:style.display, visibility:style.visibility, opacity:style.opacity});
+    }
+    return {name:button.getAttribute('aria-label'), row:button.matches('.table-row-handle'), focused:document.activeElement === button,
+      width:rect.width, height:rect.height, pointerEvents:getComputedStyle(button).pointerEvents, ancestors,
+      visible:button.checkVisibility({checkOpacity:true, checkVisibilityCSS:true}) &&
+        ancestors.every(style => style.display !== 'none' && style.visibility === 'visible' && style.opacity === '1')};
+  });
+  const assertVisibleHandles = async (table, state, focused = false) => {
+    const handles = await table.locator('.table-row-handle, .table-column-handle').evaluateAll(handleVisibility);
+    if (!handles.some(handle => handle.row) || !handles.some(handle => !handle.row) ||
+      handles.some(handle => !handle.visible || handle.width < 28 || handle.height < 28 || handle.pointerEvents !== 'auto') ||
+      focused && handles.filter(handle => handle.focused).length !== 1) {
+      throw new Error(`${state}: actual row/column handles must be visible and usable, with opaque visible ancestors and nonzero 28px targets: ${JSON.stringify(handles)}`);
+    }
+  };
   const noHoverPage = await page.context().newPage();
   try {
     await noHoverPage.goto(page.url());
@@ -73,14 +92,19 @@ async (page, { openPath, reloadDocument }) => {
     const touch = await page.context().newCDPSession(noHoverPage);
     await touch.send('Emulation.setTouchEmulationEnabled', {enabled:true});
     await noHoverPage.mouse.move(0,0);
-    const touchVisible = await noHoverPage.locator('[data-document-tab][data-active=true] .table-block').first().evaluate(block => {
+    const touchTable = noHoverPage.locator('[data-document-tab][data-active=true] .table-block').first();
+    const touchState = await touchTable.evaluate(block => {
       const tools = [...block.querySelectorAll('.table-tools')];
-      return matchMedia('(hover: none)').matches && tools.length > 0 && tools.every(n => {
+      return {noHover:matchMedia('(hover: none)').matches, pointerAway:!block.matches(':hover'),
+        focusOutside:!block.contains(document.activeElement), noCurrentCell:!block.querySelector('[data-current-cell="true"]'),
+        noActiveTools:!block.querySelector('.table-tools[data-active="true"]'), containersVisible:tools.length > 0 && tools.every(n => {
         const s = getComputedStyle(n);
         return s.visibility === 'visible' && s.opacity === '1';
-      });
+      })};
     });
-    if (!touchVisible) throw new Error('Actual no-hover media must show table handles without focus or pointer hover');
+    if (Object.values(touchState).some(value => !value)) throw new Error(`No-hover probe must be pointer-away, unfocused and without a current table cell: ${JSON.stringify(touchState)}`);
+    await assertVisibleHandles(touchTable, 'No-hover fallback');
+    result.touchHandlesVisible = true;
   } finally { await noHoverPage.close(); }
   // From prose, Tab discovers the table's native button stops without pointer hover.
   // Tab inside a cell is still the engine's cell navigation (covered below).
@@ -89,10 +113,14 @@ async (page, { openPath, reloadDocument }) => {
   await page.keyboard.press('Tab');
   const discovered = await initial.locator('.table-row-handle:focus, .table-column-handle:focus').count();
   if (discovered !== 1) throw new Error('Tab from preceding prose must discover a table handle without hovering the table');
+  await assertVisibleHandles(initial, 'Keyboard Tab discovery', true);
+  result.keyboardHandlesVisible = true;
   await page.keyboard.press('Enter');
   await page.getByRole('menu').waitFor();
   await page.keyboard.press('Escape');
   if (await initial.locator('.table-row-handle:focus, .table-column-handle:focus').count() !== 1) throw new Error('Escape must return keyboard focus to the discovered handle');
+  await assertVisibleHandles(initial, 'Keyboard Escape return', true);
+  result.keyboardReturnHandlesVisible = true;
   await initial.locator('td', {hasText:/^U$/}).click();
   result.activeCell = await initial.locator('[data-current-cell="true"]').innerText() === 'U' &&
     await initial.getByRole('button', {name:'Row 2 actions', exact:true}).getAttribute('aria-pressed') === 'true' &&

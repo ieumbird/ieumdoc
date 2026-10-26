@@ -19,10 +19,10 @@
   "manualCaptureSource": "manual-capture.browser.js",
   "captureNotes": [
     "Manual screenshots are separate from automated assertions; PHASE is replaced before copying the temporary capture scenario into apps/editor/test, then the temporary file is removed.",
-    "The capture script output names ending in rest.png retain a blurred current table cell; final delivery renames those unchanged PNG bytes to blurred-current.png. They do not prove table-rest suppression. Quiet-document rest pairs are the separate document-rest evidence.",
+    "The capture script output names ending in rest.png retain a blurred current table cell; final delivery renames those unchanged PNG bytes to blurred-current.png. They do not prove table-rest suppression. Quiet-document pointer-away pairs retain the Equation selection, blue outline and Edit control; they are blurred states with selection, not completely unselected document rest.",
     "Only the two listed product files were temporarily read from b28541f; all other product files matched that base. Current extended test/capture harness is recorded separately.",
     "Before uses baseline LF file bytes from git show; the exact final working-tree bytes were backed up and restored in finally, checked by SHA256 and git diff.",
-    "Windows installed Chrome 155; persistent checkout profile cf7a1f2e0a6f21a8; own Vite origin http://127.0.0.1:5317; DPR1, visualViewport scale1, fonts ready, scrollTop0. EN/KO 1440x900 and390x900 table captures. Quiet-document1440x1000/375x1000 rest."
+    "Windows installed Chrome 155; persistent checkout profile cf7a1f2e0a6f21a8; own Vite origin http://127.0.0.1:5317; DPR1, visualViewport scale1, fonts ready, scrollTop0. EN/KO 1440x900 and390x900 table captures. Quiet-document1440x1000/375x1000 pointer-away, Equation selected. Manual narrow table captures have scrollLeft0; actual nonzero horizontal-scroll coverage belongs to table-authoring."
   ],
   "pairs": [
     {

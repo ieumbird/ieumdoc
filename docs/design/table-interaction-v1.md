@@ -86,10 +86,14 @@ required CI; no Host, Core or CLI boundary changed. #502 is untouched.
 Manual captures use this checkout's persistent Windows Chrome 155 profile, its own
 Vite server on 5317, DPR 1, 100% zoom, loaded bundled Pretendard and scroll top.
 Table captures are English/Korean at 1440×900 and 390×900, with the same current U
-cell; narrow tables are scrolled to the right edge. The delivered `blurred-current`
+cell. The manual narrow captures have `scrollLeft=0`; nonzero horizontal-scroll
+coverage comes from the existing table-authoring regression. The delivered `blurred-current`
 images retain that current-cell indicator after blur (the script originally named
 them `rest`); they are not evidence of table tools being hidden at rest. The separate
-Quiet Document 1440×1000/375×1000 rest pairs are byte-identical. Capture-only traversal
+Quiet Document 1440×1000/375×1000 pointer-away pairs are byte-identical but retain
+the script's Equation selection, blue outline and Edit control. The original `rest`
+filenames are preserved; these are blurred states with selection, not completely
+unselected document rest. Capture-only traversal
 is separate from automated assertions; images require visual review.
 
 | Comparable state | Before | After |
@@ -100,8 +104,8 @@ is separate from automated assertions; images require visual review.
 | Korean active cell, 390px | [PNG](assets/table-handles-517/before/ko-390-active.png) | [PNG](assets/table-handles-517/after/ko-390-active.png) |
 | English keyboard menu, 1440px | [PNG](assets/table-handles-517/before/en-1440-keyboard-menu.png) | [PNG](assets/table-handles-517/after/en-1440-keyboard-menu.png) |
 | Korean keyboard menu, 390px | [PNG](assets/table-handles-517/before/ko-390-keyboard-menu.png) | [PNG](assets/table-handles-517/after/ko-390-keyboard-menu.png) |
-| Quiet Document rest, 1440px | [PNG](assets/table-handles-517/before/quiet-1440-rest.png) | [PNG](assets/table-handles-517/after/quiet-1440-rest.png) |
-| Quiet Document rest, 375px | [PNG](assets/table-handles-517/before/quiet-375-rest.png) | [PNG](assets/table-handles-517/after/quiet-375-rest.png) |
+| Quiet Document blurred, Equation selected, 1440px | [PNG](assets/table-handles-517/before/quiet-1440-rest.png) | [PNG](assets/table-handles-517/after/quiet-1440-rest.png) |
+| Quiet Document blurred, Equation selected, 375px | [PNG](assets/table-handles-517/before/quiet-375-rest.png) | [PNG](assets/table-handles-517/after/quiet-375-rest.png) |
 
 [Final manual capture](assets/table-handles-517/after-capture.txt) and
 [Quiet Document](assets/table-handles-517/after-quiet.txt) passed. Both baseline and
@@ -110,6 +114,45 @@ final servers and their owned children were stopped; the final
 checkout-profile Chrome process and `BadPasswordAttempts=0`. The profile is retained
 and account policy unchanged. Independent review and owner merge approval remain
 required; local verification and manual inspection do not supply that approval.
+
+### P2 review: actual handle visibility
+
+Review correction plan (2026-10-26): extend the existing table-authoring scenario
+to inspect each actual row/column button and its relevant ancestors, target geometry
+and pointer state in verified no-hover/no-current-cell and keyboard Tab/Escape states.
+The previous container/focus-only predicates are insufficient. Independently disable
+touch and keyboard reveal with temporary CSS mutations, prove the former scenario
+misses them and the extended assertions reject them, then restore exact product
+bytes and run the restored scenario. No product change or new capture-only run is
+planned. Keep the existing target/history/Save/Reload assertions and correct only
+the descriptions of the already-preserved captures.
+
+Completed: the extended scenario checks every row/column button with browser
+`checkVisibility`, its own and ancestor display/visibility/opacity, actual pointer
+events and at least 28px geometry. The no-hover setup independently requires the
+pointer and focus outside the table, no current cell and no active table tools.
+Tab and Escape inspect the actual handles immediately, with exactly one focused
+handle; no polling, reload or delay was added to these assertions.
+
+| Temporary negative control | Previous scenario | Extended scenario |
+| --- | --- | --- |
+| Remove only the no-hover button reveal override | [Pass](assets/table-handles-517/review-touch-reveal-legacy.txt) | [Fails at actual no-hover handles](assets/table-handles-517/review-touch-reveal-updated.txt): opacity 0, pointer-events none despite visible containers |
+| Remove only focus-within from the row/column reveal selector | [Pass](assets/table-handles-517/review-keyboard-reveal-legacy.txt) | [Fails immediately after Tab](assets/table-handles-517/review-keyboard-reveal-updated.txt): focused handle opacity 0 |
+
+Both mutations were separately tested and restored in `finally`. The
+[mutation record](assets/table-handles-517/review-mutations.json) preserves the
+mutation/source hashes, exit codes and actual button/ancestor failure measurements.
+Restored product hashes match the reviewed implementation exactly (styles
+`EC6078F18BDD24E47B96F070A06BAC82B74290AB38E479C643BDB4E4A2BC2811`, TableTools
+`D5B1788DEAAC4793C44C8827082B89806FCCBDAB7EB2034ADFE8BAD291F431DF`), with no product
+Git diff. The [restored table-authoring run](assets/table-handles-517/review-restored-pass.txt)
+passes, including [actual touch/Tab/Escape visibility results](assets/table-handles-517/review-table-authoring-pass.json)
+and all existing targeting/history/Save/Reload checks. Relevant
+[table and visual-token tests](assets/table-handles-517/review-unit.txt) pass 19/19.
+No product defect or product change was found. No capture-only run was added and
+all existing PNG bytes are preserved; only their state descriptions were corrected.
+The [review cleanup](assets/table-handles-517/review-cleanup.json) confirms the owned
+server/port/profile processes are gone and BadPasswordAttempts remains 0.
 
 ## Table deletion notice verification (#474)
 
