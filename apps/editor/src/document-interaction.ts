@@ -61,9 +61,14 @@ function portable(node: PMNode): boolean {
 function freshSlice(slice: Slice): Slice {
   const copy = (node: PMNode): PMNode => {
     if (node.isText) return node;
+    const children = node.content.content.map(copy);
+    // Pasted tables need the same transient caption surface as Open and insertion.
+    if (node.type.name === "table" && children.at(-1)?.type.name !== "tableCaption") {
+      children.push(node.type.schema.nodes.tableCaption.create());
+    }
     return node.type.create("sourcePath" in node.attrs ? { ...node.attrs, sourcePath: freshBlockPath() }
       : TABLE_CELL_SOURCE_ATTR in node.attrs ? { ...node.attrs, [TABLE_CELL_SOURCE_ATTR]: "" } : node.attrs,
-      Fragment.fromArray(node.content.content.map(copy)), node.marks);
+      Fragment.fromArray(children), node.marks);
   };
   return new Slice(Fragment.fromArray(slice.content.content.map(copy)), slice.openStart, slice.openEnd);
 }

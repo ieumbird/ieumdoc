@@ -50,6 +50,7 @@ editable table, including after clearing and reopening. No Add caption button is
 Read-only captions retain existing content and official numbers, like Figure captions,
 but omit the editable empty-input hint. Save omits empty caption content. Cell and row coordinates remain
 unchanged. Core read models, canonical MyST and CLI surfaces are unchanged.
+Pasted tables receive the same empty surface in the existing clipboard Slice conversion.
 Previously recorded valid Editor snapshots that omit an empty caption receive the
 same transient surface in both current and saved checkpoints, after lossless validation.
 Restoring does not mutate the stored record or create a false dirty difference.
@@ -111,6 +112,16 @@ docs/whitespace and `table-caption`, `table-authoring`, `table-cell-editing`,
 `cross-reference`, `property-drafts`, `recovery-structure`, `layout-rules` and
 `quiet-document` passed. Windows Chrome used this checkout's persistent profile and
 dedicated Vite origin `http://127.0.0.1:5377`. No local Edge or packaged Desktop run.
+
+The first PR CI run exposed the external-HTML paste path: its table lacked the empty
+caption until Reload, so the existing exact structure-preservation assertion failed.
+Artifact/input-state analysis led to adding the surface in the existing clipboard Slice
+conversion. The original Save/Reload equality assertion is retained, with an immediate
+input-surface assertion added before Save. This is a product initialization fix, not a
+retry or relaxed comparison.
+The corrected product also passes local `external-html-paste` and
+`continuous-editing`, the unchanged exact Save/Reload comparison, Editor **296/296**,
+Editor typecheck/build and docs/whitespace checks.
 
 Manual captures use the same fresh scratch document, open tabs, preferences, scroll
 position, loaded fonts, DPR 1 and 100% zoom at 1440/390×900px. Capture-only
