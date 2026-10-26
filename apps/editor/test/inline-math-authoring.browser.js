@@ -60,7 +60,10 @@ async (page, { openPath, expect }) => {
     await page.getByTestId('inline-math-editor').waitFor();
     const prefilled = await page.getByTestId('inline-math-source').inputValue() === value;
     await page.getByTestId('inline-math-source').fill(next);
-    await page.getByTestId('inline-math-apply').click();
+    // Exercise Cmd+Enter through the common form with Apple platform emulation.
+    await page.evaluate(() => Object.defineProperty(navigator, 'platform', {configurable:true, value:'MacIntel'}));
+    try { await page.getByTestId('inline-math-source').press('Meta+Enter'); }
+    finally { await page.evaluate(() => Reflect.deleteProperty(navigator, 'platform')); }
     await page.getByTestId('inline-math-editor').waitFor({state:'detached'});
     return prefilled;
   };

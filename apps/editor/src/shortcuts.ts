@@ -41,6 +41,15 @@ export const SAVE_SHORTCUT = shortcut("KeyS", "S", 83);
 export const UNDO_SHORTCUT = shortcut("KeyZ", "Z", 90);
 export const REDO_SHORTCUT = shortcut("KeyY", "Y", 89);
 
+/** Only the shared properties form consumes this binding; the editor keeps Mod-Enter. */
+export const PROPERTY_APPLY_SHORTCUT = {
+  ...editorShortcut("Mod-Enter"),
+  get label(): string { return shortcutLabel(this.binding); },
+  matches: (event: KeyboardEvent, mac = isMac()) => event.key === "Enter" &&
+    !event.isComposing && !event.shiftKey && !event.altKey &&
+    (mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey),
+};
+
 // Existing Tiptap bindings (UndoRedo, StarterKit marks, Code, Subscript/Superscript).
 // The shell, formatting tooltips and guide share these labels; Tiptap still owns the keymaps.
 export const EDITOR_SHORTCUTS = {

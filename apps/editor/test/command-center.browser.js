@@ -130,6 +130,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     } else await run('Keyboard shortcuts');
     const guide = page.getByRole('dialog', {name:'Keyboard shortcuts',exact:true});
     await guide.waitFor();
+    check((await guide.innerText()).includes('Apply properties') && (await guide.innerText()).includes('Ctrl+Enter'), 'Property Apply shortcut is missing');
     check((await guide.innerText()).includes('Line break') &&
       (await guide.innerText()).includes('Shift+Enter'), 'Line-break shortcut is missing from the guide');
     check((await guide.innerText()).includes('Ctrl+/') && (await guide.innerText()).includes('Ctrl+S'), 'General shortcut hints missing');

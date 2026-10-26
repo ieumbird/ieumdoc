@@ -52,8 +52,25 @@ async (page, { expect }) => {
     const documentEditor = page.locator('[data-document-tab][data-active=true] .document-editor');
     const snapshot = () => documentEditor.evaluate(element => element.editor.getJSON());
     const beforeShortcut = await snapshot();
-    await documentEditor.locator('p.paragraph').first().click();
+    const prose = documentEditor.locator('p.paragraph').first();
+    const prosePath = await prose.getAttribute('data-source-path');
+    await prose.click();
+    // #416 is a separate selection-sync limitation; establish the engine caret before
+    // testing the body binding, rather than exercising click-to-key timing here.
+    await page.waitForFunction(path => {
+      const {selection} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state;
+      return selection.empty && selection.$from.parent.type.name === 'paragraph' && selection.$from.parent.attrs.sourcePath === path;
+    }, prosePath);
     await page.keyboard.press('End');
+    await page.waitForFunction(path => {
+      const {selection} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state;
+      return selection.empty && selection.$from.parent.attrs.sourcePath === path && selection.$from.parentOffset === selection.$from.parent.content.size;
+    }, prosePath);
+    await page.keyboard.press('Control+Enter');
+    expect(await documentEditor.evaluate(el => el.editor.state.selection.$from.nodeBefore?.type.name),
+      'Prose Mod-Enter retains its hard break').toBe('hardBreak');
+    await page.keyboard.press('ControlOrMeta+z');
+    expect(await snapshot(), 'Hard break Undo restores the original document').toEqual(beforeShortcut);
     await page.keyboard.type(' History probe.');
     const withProbe = await snapshot();
     const existingEquation = documentEditor.locator('[data-block="equation"]').first();
@@ -118,9 +135,21 @@ async (page, { expect }) => {
     await insertButton.hover();
     await insertButton.click();
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Equation', exact:true}).click();
-    await page.getByTestId('equation-latex').fill('x');
+    const latex = page.getByTestId('equation-latex');
+    await latex.fill('');
+    await latex.press('Control+Enter');
+    expect(await page.getByTestId('equation-editor').innerText()).toContain('Equation LaTeX cannot be empty.');
+    await latex.fill('x');
+    for (const key of ['Enter', 'Control+Shift+Enter', 'Control+Alt+Enter']) {
+      await latex.press(key);
+      expect(await page.getByTestId('equation-editor').count(), `${key} must not Apply`).toBe(1);
+    }
+    expect(await latex.inputValue(), 'Plain Enter remains a newline').toContain('\n');
+    await latex.fill('x');
+    await latex.dispatchEvent('keydown', {key:'Enter', code:'Enter', ctrlKey:true, isComposing:true});
+    expect(await page.getByTestId('equation-editor').count(), 'Composition must not Apply').toBe(1);
     const saveAvailableBeforeApply = await page.getByTestId("save").isEnabled();
-    await page.getByTestId('equation-apply').click();
+    await latex.press('Control+Enter');
     const newEquation = page.locator('[data-document-tab][data-active=true] [data-block="equation"][data-source-path^="new:"]');
     const newPath = await newEquation.getAttribute('data-source-path');
     const applyReturnsFocus = await page.evaluate(caretAfterEquation, newPath);
