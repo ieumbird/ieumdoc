@@ -1173,7 +1173,9 @@ and closes the 1280px overlay. `quiet-document --screenshots` retains typography
 editing and visual checks with its Outline isolation explicitly above the docking boundary.
 The initial outline/quiet-document failures assumed a default-open Outline at 1280px;
 artifacts showed loaded documents and no console errors. Their setup now uses 1440px,
-without removing their Outline assertions.
+without removing their Outline assertions. CI also exposed a Command Center setup race:
+after resizing into docked layout, the test now waits for its default-open panel rather
+than conditionally toggling while the media-query update is pending.
 
 Same-state captures below use the real Windows installed Chrome persistent profile,
 English UI with mixed Korean/English fixture text, bundled Pretendard (font assertions pass),
