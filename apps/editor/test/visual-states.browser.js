@@ -191,6 +191,10 @@ async (page, { withBlockHover }) => {
   check(primaryFocus.focused && primaryFocus.border !== primaryFocus.background && primaryFocus.ring.includes(results[0].focus.ringColor),
     `Focused primary action hides its ring: ${JSON.stringify(primaryFocus)}`);
   await page.keyboard.press('Escape');
+  // Base UI completes its closing focus handoff asynchronously. Finish that real user step
+  // before focusing the editor; otherwise the dialog can send the slash key back to its opener.
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'New file in folder');
 
   // Both + and slash use this command menu; active is independent of keyboard focus.
   await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n => {

@@ -691,6 +691,10 @@ workspace typecheck, Editor build, docs and diff whitespace checks pass. Current
 distinctions, ARIA and accessible Outline names remain protected. The 1440/390 geometry checks
 compare every visible Files/Outline/menu row under 400 and 600, asserting unchanged row Y/height,
 no horizontal overflow, Files ellipsis and the Outline two-line limit.
+The first Linux CI shard-2 run timed out opening the slash menu: its input trace showed `/`
+reaching New file in folder after the closing New dialog restored focus over the test's early
+editor focus. The scenario now verifies dialog removal and the actual opener-focus handoff
+before starting the slash step, without a fixed sleep, reload or relaxed visual assertions.
 
 P3 aligns Current contract with History/Layout Rules at **v4.8**. Latest master
 90db0c87ce3169ed1aa6eb250710cca243e68e0e was integrated by merge commit
