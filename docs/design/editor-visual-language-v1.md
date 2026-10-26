@@ -1,7 +1,8 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
-- Last verified: 2026-10-26 (#511: generated heading/Outline number color; Editor tests, typecheck/build, Outline/layout-rules/quiet-document/visual-states browser checks and [1440px manual comparison](heading-numbering-v1.md#generated-number-color-511--503)).
+- Last verified: 2026-10-26 (#506: Korean eojeol wrapping with oversized-token fallback; [verification and same-state 1440px/375px captures](#korean-document-wrapping-506)).
+- Previous verification: 2026-10-26 (#511: generated heading/Outline number color; Editor tests, typecheck/build, Outline/layout-rules/quiet-document/visual-states browser checks and [1440px manual comparison](heading-numbering-v1.md#generated-number-color-511--503)).
 - Previous verification: 2026-10-26 (#497: document presentation token refactor; Editor tests, typecheck/build, layout-rules/quiet-document/footnotes and [byte-identical 1440px/375px comparisons](#document-presentation-token-verification-497)).
 - Previous verification: 2026-10-26 (#480: bounded active-image picker preview, layout-rules/quiet-document, same-state 1440px/375px [captures](folder-picker-v1.md#active-image-preview-480) and byte-identical quiet-document rest pairs).
 - Source wrapping verification: 2026-10-26 (#476: Source soft wrapping; Editor tests/typecheck/build, Source/layout/quiet-document browser checks and [1440/375px Before/After](editor-ux-shell-v1.md#source-wrapping-476)).
@@ -35,6 +36,23 @@
 [Reference mockup](assets/quiet-document-reference.png) is a visual reference, not a screenshot of the product. Adopt its reading column, hierarchy, restrained borders and relationship between a selected Figure and its properties. Do not copy its workspace tree, search, account, window decorations, unimplemented numbering/reference behavior, autosave or technical claims. Current computed numbering and heading settings follow [Heading numbering](heading-numbering-v1.md) and [UX Shell](editor-ux-shell-v1.md). Primary actions, focus and current items share one blue interaction role; red means only errors and destructive meaning. Pretendard Variable is bundled and served by the app; it does not require a font CDN.
 
 ## Surfaces and typography
+
+Korean document prose wraps at eojeol (space-separated word) boundaries using
+`word-break: var(--word-break-document)` (`keep-all`). The title, H1–H6, paragraphs,
+list paragraphs, quotes, admonition text, figure/table captions, table cells and endnote
+definitions share this rule. The existing emergency overflow fallback is retained for
+tokens that cannot fit on an otherwise empty line, including long URLs, English identifiers
+and unspaced Korean compounds. The stylesheet declares `overflow-wrap: anywhere` on
+`.document-editor`, but Tiptap's injected `word-wrap` alias wins the cascade: the measured
+document text computes to `overflow-wrap: break-word`. Source computes to `anywhere`.
+These effective values are unchanged from master. Normal Korean words move intact
+to the next line; an eojeol wider than the entire available line may split to avoid overflow.
+Chromium retains its normal punctuation restrictions. Headings previously had their own
+literal `keep-all`; they now use the same token and retain `text-wrap: pretty`.
+Code blocks, inline code, KaTeX, Source wrapping and UI chrome retain their own behavior.
+Inline code and math keep their prior context: `keep-all` within headings, `normal` in
+the other document surfaces. Their computed `overflow-wrap` remains `break-word`.
+This is presentation only, with no preference, source-format, Core or CLI change.
 
 The shared Settings language selector follows the existing 32px input/control size and typography. Korean and English use the same font stack and tokens. Long translations wrap within existing dialogs and scroll within their viewport bounds; language changes do not introduce a new layout system. The UI language policy and document-text boundary are defined in [UX Shell](editor-ux-shell-v1.md#ui-display-language-256).
 
@@ -154,6 +172,97 @@ A change to the Editor's look or a new visible control states which rule above (
 
 IeumDoc keeps one stylesheet; comparison captures do not need a runtime old/new theme toggle. Record the actual HEAD, viewport, DPR/zoom, scroll/interaction state and font environment. CSS studies and mockups are not product Before images.
 
+### Korean document wrapping #506
+
+`pnpm browser:test quiet-document --screenshots` extends the existing typography scenario.
+Before changing CSS, its new Range-based assertion failed on the base
+`48aabb312a0c8cb71c620747d5d25f370f2b7817` at 375px: words such as `측정하여`,
+`출력전류의` and `측정결과를` crossed line boxes. It passes after the change.
+The scenario measures each Korean word's Range rects across all supported prose surfaces
+and the technical paragraph's individual characters, requiring line starts/ends at spaces.
+It also checks closing CJK punctuation, URL bounds in a paragraph and table cell, a
+constrained real table cell that forces the URL to wrap, caret placement by clicking a
+wrapped-line start and keyboard selection across lines (native DOM result immediately,
+exact engine positions/text after its `selectionUpdate` event), native Chromium composition at the
+preceding line end, and exact document restoration by Undo.
+
+Same-state product captures below are **manual review only**, not screenshot assertions.
+Windows Chrome 155, bundled Pretendard Variable, 1440×1000 / 375×1000, DPR 1, zoom 1,
+scroll 0, no selection/hover, no folder displayed; Outline is open on desktop and closed
+by the existing phone layout. These original captures use the
+[Korean technical fixture at 587877e](https://github.com/ieumbird/ieumdoc/blob/587877e6301b793444648b18405f29b66e870fa7/apps/editor/test/browser/fixtures/quiet-document-wrap.md),
+before the review probes below were added.
+Only wrapping changes: font sizes, spacing, paper and shell rules are unchanged.
+
+| Width | Before | After | Manual observation |
+| --- | --- | --- | --- |
+| 1440px | [PNG](assets/korean-wrap-506/before-1440.png) | [PNG](assets/korean-wrap-506/after-1440.png) | Same layout and line endings; files have the same SHA-256. The paragraph already happened to break at a space. |
+| 375px | [PNG](assets/korean-wrap-506/before-375.png) | [PNG](assets/korean-wrap-506/after-375.png) | Body, list, quote and callout words now move intact; the title and heading retain word wrapping. The technical paragraph grows from seven to eight lines. No stranded closing punctuation was observed. |
+
+[Measurements and capture hashes](assets/korean-wrap-506/verification.json) preserve the
+baseline failure and passing result. A wide table still uses the existing local scroller;
+this change does not replace its intrinsic column sizing. The separate constrained-cell
+probe verifies emergency URL wrapping rather than accepting an arbitrarily wide cell.
+The effective inherited overflow rule is clarified in the review verification below;
+the initial account of the stylesheet's `anywhere` declaration did not capture Tiptap's
+later injected `word-wrap` alias.
+
+Local coverage is Chrome/Chromium; Electron consumes the same stylesheet, but its rendering
+was not separately exercised locally. Native CDP composition checks text, caret and Undo,
+not the Windows IME candidate window. OS IME candidate placement remains a manual check.
+No new Core/CLI operation is needed for CSS-only presentation.
+
+#### Review verification and master comparison
+
+Independent review found that the shared exclusion reset heading inline code to `normal`,
+where master inherited `keep-all`. The new computed-style comparison fails against the
+`587877e` stylesheet: heading code and math are `normal` instead of `keep-all`.
+The fix restores inheritance only inside headings; all other excluded surfaces remain
+`normal`. No overflow-wrap value is changed.
+
+The [master baseline](../../apps/editor/test/browser/fixtures/quiet-document-wrap-master.json)
+records actual computed values from `325704e73871303b70aa4c73fc930eb2f975b8c1` in this
+worktree with that revision's complete styles.css/tokens.css and the expanded real fixture.
+This is not a synthetic CSS override. `quiet-document` compares code in heading, paragraph,
+list, quote, admonition, caption, table cell, code block and endnote contexts, plus inline
+math, UI controls, the Outline number span and Source text/lines. Document code/math compute
+to `overflow-wrap: break-word`; Source computes to `anywhere`. Both match master.
+
+At 1440px the three table columns are 217.84375 / 217.84375 / 267.3125px on the measured
+Windows Chrome/Pretendard environment. Master-computed table/cell typography, padding,
+borders and table width are also recorded. The regression reflows a clone of the same
+table with those recorded styles in an isolated shadow root in the current browser,
+then compares every column within 0.1px. The reference has no current application CSS.
+This keeps platform glyph-rounding differences out of the comparison without widening
+the tolerance or copying current cell styles into the reference. A one-off negative
+control increased the first column's padding; the comparison failed with widths
+224.734375 / 214.75 / 263.515625px versus the reference, confirming it detects real layout
+changes. That temporary scenario is not part of the suite. At 1440px and 375px it also
+measures an oversized unspaced Korean compound in a paragraph and a constrained table cell,
+requiring wrapped line boxes without horizontal overflow. The mixed sentence's `11 kW`,
+`(1)` and `(2)` ranges each stay on one line. These are bounded fixture checks, not a new
+general policy joining every authored number/unit pair.
+
+Master through #512/#513 is merged. The #512 documentation audit does not change the
+measured styles from `325704e`. Numbering is enabled in the fixture: numbered headings and
+their generated `::before` retain `keep-all`, the generated teal color matches master, and
+the Outline number span's computed wrapping remains unchanged. The existing `outline`
+scenario separately covers the number color and current-row state.
+
+Manual heading-only comparisons, 1440×1000 / 375×1000, DPR 1, zoom 1, bundled Pretendard:
+both sides include the merged number-color styles and the same numbered heading. Before
+disables only the inheritance fix to reproduce the `587877e` exclusion; After restores it.
+The narrow Before splits `제어기식별자` between lines, while After moves the code token intact.
+These captures are manual evidence, not screenshot assertions.
+
+| Width | Before | After |
+| --- | --- | --- |
+| 1440px | [PNG](assets/korean-wrap-506/review-before-heading-1440.png) | [PNG](assets/korean-wrap-506/review-after-heading-1440.png) |
+| 375px | [PNG](assets/korean-wrap-506/review-before-heading-375.png) | [PNG](assets/korean-wrap-506/review-after-heading-375.png) |
+
+[Review measurements](assets/korean-wrap-506/review-verification.json) preserve the
+failing heading-code comparison, final measured values and capture hashes.
+
 ### Typing and outline verification #469
 
 Only the neutral pointer-hover outline is suppressed on document `beforeinput`, IME
@@ -212,6 +321,7 @@ pixel-diff assertions or a substitute for user visual approval.
   | Controls | Adjustable variables |
   | --- | --- |
   | Body | `--font-family-document`, `--font-size-document`, `--line-height-document` |
+  | Document prose word boundaries (existing emergency overflow fallback retained) | `--word-break-document` (`keep-all`) |
   | H1–H6 sizes (H1 also controls the title slot) | `--font-size-document-h1`, `--font-size-document-h2`, `--font-size-document-h3`, `--font-size-document-h4`, `--font-size-document-h5`, `--font-size-document-h6` |
   | Heading/title-slot weight and line spacing | `--font-weight-document-heading`, `--line-height-document-heading` |
   | Heading margins (title slot uses the after gap) | `--space-document-heading-before`, `--space-document-heading-after` |
