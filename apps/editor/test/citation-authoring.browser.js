@@ -1,6 +1,6 @@
 // Citation authoring: slash search and insertion, the citation form's key group and role,
 // Cancel/Apply/Remove, Undo/Redo and Save → Reload. The external BibTeX file is never written.
-async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture }) => {
+async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, bibliographyFixture }) => {
   page.setDefaultTimeout(15000);
   const assert = (ok, message) => { if (!ok) throw Error(message); };
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: 'attached' });
@@ -170,7 +170,7 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture 
       await page.keyboard.press('Escape');
       await center.waitFor({ state: 'detached' });
     }
-    await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.hasFocus());
+    await waitForEditorFocus(page);
     assert(await editor.evaluate(element => element.editor.state.selection.from) === caretBefore, `${location}: center dismissal retains caret`);
   };
   const surfaces = ['Item.', 'Nested item.', 'Quote.', 'Callout.', 'Header', 'Cell.', 'Caption.', 'Heading.', 'Nested inline', 'Definition.'];
@@ -198,8 +198,24 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture 
   await checkInsertionAvailability(false, 'Ordinary paragraph text selection');
   await caret('Code.');
   await checkInsertionAvailability(false, 'Code');
+  // Dialog final focus can precede the engine's native caret restoration.
+  // EditorState alone still points to Code while Chromium's caret is at the title.
+  const codeCaret = await editor.evaluate(element => element.editor.state.selection.from);
+  await page.waitForFunction(position => {
+    const instance = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+    const selection = instance.state.selection;
+    const native = window.getSelection();
+    return instance.view.hasFocus() && selection.empty && selection.from === position &&
+      selection.$from.parent.type.name === 'codeBlock' && native?.isCollapsed && native.anchorNode &&
+      instance.view.dom.contains(native.anchorNode) &&
+      instance.view.posAtDOM(native.anchorNode, native.anchorOffset) === position;
+  }, codeCaret);
   await page.keyboard.type(' /');
   assert(await menu.count() === 0, 'Code keeps literal slash input');
+  assert(await editor.evaluate(element => {
+    const { $from } = element.editor.state.selection;
+    return $from.parent.type.name === 'codeBlock' && $from.parent.textContent === 'Code. /';
+  }), 'The literal slash is inserted in Code');
   // Code edits with newly added endnotes hit a pre-existing, separate Core count check.
   // Restore this literal probe; this scenario persists the supported inline insertions above.
   await page.keyboard.press('Backspace');

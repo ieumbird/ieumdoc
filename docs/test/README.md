@@ -49,6 +49,23 @@ The citation-Remove gate explicitly checks that the focus helper's promise is st
 BODY has focus, before releasing callbacks. Replacing that helper with a resolved promise must fail
 this same assertion; releasing focus before Undo alone does not prove that the helper waited.
 
+`citation-authoring` also waits for the **native collapsed caret** to match the retained
+`codeBlock` position after Command center dismissal (#542). EditorView focus and EditorState's
+position can already be correct while Chromium's native caret is briefly at the title; typing
+then edits the title and opens its valid slash menu. The scenario reuses `waitForEditorFocus`,
+checks native/engine position agreement before typing, and requires both no menu and literal
+`Code. /` content in the code block. It never resets the selection to make the check pass.
+
+A local forced-order probe reproduced the old `Code keeps literal slash input` failure with
+10× CPU throttling, the real 20ms post-focus selection check held, and native title
+`selectionchange` delivery held until input. The first space moved EditorState from code
+position 176 to heading position 2, then `/` opened the heading menu. With the native-caret
+wait, its promise remained pending during the same mismatch; releasing the held selection
+work restored the code caret and the unchanged menu assertion plus literal-content assertion
+passed. This classifies the reproduced path as test readiness, not a code slash-trigger defect.
+The original one-off review failure has no artifact, so its exact event order is unconfirmed.
+No product code, sleep, retry or timeout increase is part of this correction.
+
 `link-authoring` reports a missing selection toolbar within 15 seconds, including the scenario phase, requested range and actual ProseMirror/DOM selection.
 
 ### Scenario coverage
