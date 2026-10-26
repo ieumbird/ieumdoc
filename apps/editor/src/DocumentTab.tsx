@@ -17,6 +17,7 @@ export const DocumentTab = memo(function DocumentTab({ id, file, restored, recov
 }) {
   useTranslation();
   const session = useDocumentSession(file, restored, recoveryId);
+  useLayoutEffect(() => { if (!active && session.noticeAction) session.setNotice(""); }, [active]);
   useLayoutEffect(() => { report(id, session); });
   useLayoutEffect(() => () => report(id, null), [id, report]);
   return (

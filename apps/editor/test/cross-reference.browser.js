@@ -348,7 +348,8 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
     }, label);
     if (kind === 'table') await active.getByRole('button', {name:'Delete table', exact:true}).click();
     else await page.keyboard.press('Delete');
-    result[`${kind}DeletionNotice`] = (await page.getByTestId('notice').allTextContents()).some(text => text.includes('broke a reference') && text.includes('Ctrl+Z'));
+    result[`${kind}DeletionNotice`] = (await page.getByTestId('notice').allTextContents()).some(text => kind === 'table'
+      ? text.includes('Table deleted') && text.includes('Undo') : text.includes('broke a reference') && text.includes('Ctrl+Z'));
     result[`${kind}BrokenText`] = await reference.innerText() === `Unresolved reference: ${label}`;
     if (screenshots && kind === 'table') {
       await page.mouse.move(0, 0);
@@ -359,6 +360,9 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
       });
       await page.evaluate(() => document.fonts.ready);
       await page.screenshot({path:'tmp/375/deleted-table-1280.png'});
+      await page.setViewportSize({width:375, height:900});
+      await page.screenshot({path:'tmp/375/deleted-table-375.png'});
+      await page.setViewportSize({width:1280, height:720});
     }
     await page.keyboard.press('ControlOrMeta+z');
     result[`${kind}UndoResolves`] = await reference.innerText() === normal && await reference.locator('..').getAttribute('data-resolved') === 'true';
@@ -413,6 +417,18 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   // Exercise a committed deletion record, so the following Undo must also clear recovery.
   await expect.poll(async () => (await recoveryRecords(page)).some(record => record.path === deletionPath)).toBe(true);
   await page.keyboard.press('ControlOrMeta+z');
+  await active.locator('[data-label="tbl-a"] .cross-reference-chip').click();
+  await page.keyboard.press('Delete');
+  result.koreanTableDeletionNotice = (await page.getByTestId('notice').innerText()).includes('표를 삭제했습니다') &&
+    await page.getByTestId('notice').getByRole('button', {name:'되돌리기', exact:true}).count() === 1;
+  if (screenshots) {
+    await page.screenshot({path:'tmp/375/deleted-table-ko-1280.png'});
+    await page.setViewportSize({width:375, height:900});
+    await page.screenshot({path:'tmp/375/deleted-table-ko-375.png'});
+    await page.setViewportSize({width:1280, height:720});
+  }
+  await page.getByTestId('notice').getByRole('button', {name:'되돌리기', exact:true}).click();
+  result.koreanTableUndoResolves = await active.locator('[data-label="tbl-a"][data-resolved="true"]').count() > 0;
   await page.getByRole('button', {name:'설정', exact:true}).click();
   await page.getByTestId('ui-language').selectOption('en');
   await page.keyboard.press('Escape');
