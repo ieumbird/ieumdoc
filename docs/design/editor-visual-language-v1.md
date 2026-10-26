@@ -229,14 +229,22 @@ math, UI controls, the Outline number span and Source text/lines. Document code/
 to `overflow-wrap: break-word`; Source computes to `anywhere`. Both match master.
 
 At 1440px the three table columns are 217.84375 / 217.84375 / 267.3125px on the measured
-Windows Chrome/Pretendard environment. The regression compares all columns to the recorded
-master widths with a half-pixel tolerance for subpixel rounding. At 1440px and 375px it also
+Windows Chrome/Pretendard environment. Master-computed table/cell typography, padding,
+borders and table width are also recorded. The regression reflows a clone of the same
+table with those recorded styles in an isolated shadow root in the current browser,
+then compares every column within 0.1px. The reference has no current application CSS.
+This keeps platform glyph-rounding differences out of the comparison without widening
+the tolerance or copying current cell styles into the reference. A one-off negative
+control increased the first column's padding; the comparison failed with widths
+224.734375 / 214.75 / 263.515625px versus the reference, confirming it detects real layout
+changes. That temporary scenario is not part of the suite. At 1440px and 375px it also
 measures an oversized unspaced Korean compound in a paragraph and a constrained table cell,
 requiring wrapped line boxes without horizontal overflow. The mixed sentence's `11 kW`,
 `(1)` and `(2)` ranges each stay on one line. These are bounded fixture checks, not a new
 general policy joining every authored number/unit pair.
 
-Latest master (#513) is merged. Numbering is enabled in the fixture: numbered headings and
+Master through #512/#513 is merged. The #512 documentation audit does not change the
+measured styles from `325704e`. Numbering is enabled in the fixture: numbered headings and
 their generated `::before` retain `keep-all`, the generated teal color matches master, and
 the Outline number span's computed wrapping remains unchanged. The existing `outline`
 scenario separately covers the number color and current-row state.

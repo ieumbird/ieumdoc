@@ -76,10 +76,17 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
       const ui=['[data-testid="save"]','.sidebar-tool','.document-outline-item','.document-outline-number','.code-language','.figure-edit','.table-column-handle']
         .map(selector=>({selector,...breaks(required(selector))}));
       const table=[...host.querySelectorAll('.table')].at(-1);
+      const properties=(n,names)=>Object.fromEntries(names.map(name=>[name,getComputedStyle(n).getPropertyValue(name)]));
+      const type=['box-sizing','font-family','font-size','font-weight','font-style','font-feature-settings','line-height','letter-spacing','white-space','word-break','overflow-wrap','text-align','text-indent','text-transform'];
+      const tableModel={
+        table:properties(table,[...type,'width','table-layout','border-collapse','border-spacing']),
+        th:properties(table.querySelector('th'),[...type,'min-width','padding','border-top','border-right','border-bottom','border-left']),
+        td:properties(table.querySelector('td'),[...type,'min-width','padding','border-top','border-right','border-bottom','border-left']),
+      };
       const numbered=[...host.querySelectorAll('.heading[data-heading-number]')].map(n=>({
         number:n.dataset.headingNumber,...breaks(n),before:breaks(n,'::before'),color:getComputedStyle(n,'::before').color,
       }));
-      return {excluded,ui,numbered,columns:[...table.rows[0].cells].map(cell=>cell.getBoundingClientRect().width)};
+      return {excluded,ui,numbered,tableModel,columns:[...table.rows[0].cells].map(cell=>cell.getBoundingClientRect().width)};
     });
     await page.getByRole('button',{name:'Source',exact:true}).click();
     await page.getByTestId('source-view').waitFor();
@@ -109,9 +116,23 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     `UI/Source wrapping differs from master: ${JSON.stringify(comparison)}`);
   check(comparison.numbered.length>0&&JSON.stringify(comparison.numbered)===JSON.stringify(master.visual.numbered),
     `Numbered heading wrapping/color differ from master: ${JSON.stringify(comparison.numbered)}`);
-  check(comparison.columns.length===master.visual.columns.length&&comparison.columns.every((width,i)=>Math.abs(width-master.visual.columns[i])<0.5),
-    `Multi-column table widths differ from master: ${JSON.stringify({actual:comparison.columns,master:master.visual.columns})}`);
-  results.push({masterComparison:{master:master.revision,...comparison}});
+  // Reflow the actual table with master-computed geometry/type in an isolated shadow root.
+  // This retains a strict comparison without treating Windows/Linux glyph rounding as a change.
+  const referenceColumns=await page.evaluate(model=>{
+    const table=[...document.querySelectorAll('[data-document-tab][data-active=true] .table')].at(-1);
+    const host=document.createElement('div');
+    host.style.cssText=`position:fixed;left:0;top:0;width:${model.table.width};visibility:hidden;pointer-events:none`;
+    const shadow=host.attachShadow({mode:'closed'}),reference=table.cloneNode(true);
+    const apply=(n,values)=>{n.removeAttribute('style');for(const [name,value] of Object.entries(values))n.style.setProperty(name,value);};
+    apply(reference,model.table);
+    for(const cell of reference.querySelectorAll('th,td'))apply(cell,model[cell.tagName.toLowerCase()]);
+    shadow.append(reference);document.body.append(host);
+    try { return [...reference.rows[0].cells].map(cell=>cell.getBoundingClientRect().width); }
+    finally { host.remove(); }
+  },master.visual.tableModel);
+  check(comparison.columns.length===referenceColumns.length&&comparison.columns.every((width,i)=>Math.abs(width-referenceColumns[i])<0.1),
+    `Multi-column table widths differ from master: ${JSON.stringify({actual:comparison.columns,master:referenceColumns})}`);
+  results.push({masterComparison:{master:master.revision,...comparison,referenceColumns}});
   const wrapResults = [];
   const prose = page.locator('[data-document-tab][data-active=true] .document-editor > .paragraph').first();
   const wrapDocument = await json();
