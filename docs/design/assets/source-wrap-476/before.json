@@ -1,0 +1,91 @@
+{
+  "baseHead": "c2329159016cdae6183885bd24de2bd8a8046e1e",
+  "origin": "http://127.0.0.1:5177",
+  "browser": "Windows Chrome, checkout-owned persistent headless profile",
+  "viewportHeight": 900,
+  "state": "Source, clean wrapping.md; scroll top; no selection or focus; pointer at top right; document.fonts.ready",
+  "cssSha256": "e7e631e6a5c7f302273ec0048b6f810b3e601382272052f88b10f8d20111034f",
+  "result": {
+    "toggleLeftOfStatusAndSave": true,
+    "visualInitiallyPressed": true,
+    "sourcePressed": true,
+    "sourceMatchesCanonical": true,
+    "sourceReadOnly": true,
+    "sourceSameColumn": true,
+    "unsavedEditsInSource": true,
+    "fileNotWrittenByPreview": true,
+    "statusUnchangedByPreview": true,
+    "visualKeepsEdits": true,
+    "singleEditor": true,
+    "undoHistoryKept": true,
+    "redoRestores": true,
+    "saveFromSourceWritesPreview": true,
+    "staysInSourceAfterSave": true,
+    "reloadOpensVisual": true,
+    "reloadedSourceMatchesFile": true,
+    "sourceExcludesEquationDraft": true,
+    "equationDraftRetained": true,
+    "sourceExcludesFigureDraft": true,
+    "figureDraftRetained": true,
+    "sourceFits1440": false,
+    "wrappedLinesKeepNumberAndTextAxis1440": false,
+    "wrappingPreservesSource1440": true,
+    "selectedSourceExact1440": true,
+    "copiedSourceExact1440": true,
+    "sourceFits375": false,
+    "wrappedLinesKeepNumberAndTextAxis375": false,
+    "wrappingPreservesSource375": true,
+    "selectedSourceExact375": true,
+    "copiedSourceExact375": true,
+    "wrappingDoesNotWrite": true
+  },
+  "wrapping": [
+    {
+      "width": 1440,
+      "clientWidth": 800,
+      "scrollWidth": 5160,
+      "pageWidth": 1440,
+      "pageScrollWidth": 1440,
+      "lineCount": 13,
+      "longLines": [
+        {
+          "rows": 1,
+          "aligned": true,
+          "numbered": true
+        },
+        {
+          "rows": 1,
+          "aligned": true,
+          "numbered": true
+        }
+      ],
+      "dpr": 1,
+      "scale": 1,
+      "zoom": "1"
+    },
+    {
+      "width": 375,
+      "clientWidth": 311,
+      "scrollWidth": 5131,
+      "pageWidth": 375,
+      "pageScrollWidth": 375,
+      "lineCount": 13,
+      "longLines": [
+        {
+          "rows": 1,
+          "aligned": true,
+          "numbered": true
+        },
+        {
+          "rows": 1,
+          "aligned": true,
+          "numbered": true
+        }
+      ],
+      "dpr": 1,
+      "scale": 1,
+      "zoom": "1"
+    }
+  ],
+  "consoleErrors": []
+}
