@@ -4,7 +4,7 @@
 // and checks that heading edits update the outline
 // immediately. The outline itself is navigation only; heading block menu section moves and
 // deletion are then saved to the scratch file.
-async (page, { openDocument, reloadDocument }) => {
+async (page, { openDocument, reloadDocument, expect }) => {
   await page.unrouteAll();
   await page.reload();
   await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'ready');
@@ -269,7 +269,56 @@ async (page, { openDocument, reloadDocument }) => {
     document.querySelectorAll('[data-testid="outline"] button')[1]?.textContent.startsWith('1 '));
   result.headingNumbersApplied = await editor.locator('h1').getAttribute('data-heading-number') === null &&
     (await texts())[1].startsWith('1 ');
-  await editor.locator('h2').first().click();
+  await items.nth(1).click();
+  await page.waitForFunction(() => document.querySelector('.document-outline-item[aria-current="location"]')?.textContent.startsWith('1 '));
+  // Generated numbers share a document color; current navigation retains its selected color.
+  const numberColors = () => page.evaluate(() => {
+    const root = document.documentElement;
+    const resolve = name => {
+      const probe = document.createElement('span');
+      probe.style.color = `var(${name})`;
+      root.append(probe);
+      const color = getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    };
+    const headings = [...document.querySelectorAll('[data-document-tab][data-active=true] [data-heading-number]')];
+    const rows = [...document.querySelectorAll('.document-outline-item')];
+    const numbered = rows.filter(row => row.querySelector('.document-outline-number'));
+    return {
+      variable: getComputedStyle(root).getPropertyValue('--id-color-document-heading-number').trim(),
+      number: resolve('--id-color-document-heading-number'),
+      text: resolve('--id-color-text'), outlineText: resolve('--id-color-text-muted'), selected: resolve('--id-color-text-selected'),
+      headings: headings.map(heading => ({ number: getComputedStyle(heading, '::before').color, text: getComputedStyle(heading).color })),
+      outline: numbered.map(row => ({ current: row.hasAttribute('aria-current'), number: getComputedStyle(row.querySelector('.document-outline-number')).color, text: getComputedStyle(row).color })),
+    };
+  });
+  const checkNumberColors = colors => {
+    expect(colors.variable).not.toBe('');
+    expect(colors.headings.length).toBeGreaterThan(0);
+    for (const heading of colors.headings) expect(heading).toEqual({ number: colors.number, text: colors.text });
+    expect(colors.outline.some(row => row.current)).toBe(true);
+    expect(colors.outline.some(row => !row.current)).toBe(true);
+    expect(colors.outline).toHaveLength(colors.headings.length);
+    for (const row of colors.outline) {
+      expect(row.number).toBe(row.current ? colors.selected : colors.number);
+      expect(row.text).toBe(row.current ? colors.selected : colors.outlineText);
+    }
+  };
+  const defaultColors = await numberColors();
+  checkNumberColors(defaultColors);
+  // A root override must reach both surfaces, while title text and selected rows stay unchanged.
+  await page.evaluate(() => document.documentElement.style.setProperty('--id-color-document-heading-number', 'rebeccapurple'));
+  try {
+    const overridden = await numberColors();
+    expect(overridden.number).not.toBe(defaultColors.number);
+    checkNumberColors(overridden);
+  } finally {
+    await page.evaluate(() => document.documentElement.style.removeProperty('--id-color-document-heading-number'));
+  }
+  await expect(items.nth(1)).toHaveAccessibleName((await texts())[1]);
+  await expect(outline).toHaveAccessibleName('Outline');
+  result.headingNumberColors = true;
   await page.keyboard.press('Control+z');
   result.headingNumberingUndo = await editor.locator('h2').first().getAttribute('data-heading-number') === null;
   await page.keyboard.press('Control+Shift+z');

@@ -11,6 +11,8 @@ export type OutlineItem = {
   /** Engine position before the heading. */
   pos: number;
   level: number;
+  /** Generated prefix only; text retains the full navigation/accessibility label. */
+  number?: string;
   text: string;
 };
 
@@ -22,7 +24,7 @@ export function documentOutline(doc: ProseMirrorNode): OutlineItem[] {
   const numbers = headingNumbers(blocks, doc.attrs.headingNumbering as HeadingNumbering | null);
   doc.forEach((node, pos, index) => {
     if (node.type.name === "heading") {
-      items.push({ index, pos, level: Number(node.attrs.level) || 1, text: `${numbers[index] ? `${numbers[index]} ` : ""}${node.textContent}` });
+      items.push({ index, pos, level: Number(node.attrs.level) || 1, number: numbers[index], text: `${numbers[index] ? `${numbers[index]} ` : ""}${node.textContent}` });
     }
   });
   return items;
@@ -69,6 +71,6 @@ export type OutlineStore = ReturnType<typeof createOutlineStore>;
 export function sameOutline(left: OutlineItem[], right: OutlineItem[]): boolean {
   return left.length === right.length && left.every((item, index) => {
     const other = right[index];
-    return item.index === other.index && item.pos === other.pos && item.level === other.level && item.text === other.text;
+    return item.index === other.index && item.pos === other.pos && item.level === other.level && item.number === other.number && item.text === other.text;
   });
 }

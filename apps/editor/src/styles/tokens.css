@@ -80,6 +80,8 @@
   --font-weight-document-heading: 700;
   /* Document heading and title-slot line spacing. */
   --line-height-document-heading: 1.35;
+  /* Generated heading and non-current Outline numbers; heading text keeps its own color. */
+  --id-color-document-heading-number: #0e7c86;
   /* Space above document headings, except the first block. */
   --space-document-heading-before: var(--space-8);
   /* Space below document headings and the title slot. */
