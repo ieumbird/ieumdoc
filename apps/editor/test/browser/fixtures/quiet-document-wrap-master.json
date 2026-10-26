@@ -1,5 +1,5 @@
 {
-  "revision": "1dc1e2d235019ec73b6ad986b62b8964a36e32be",
+  "revision": "325704e73871303b70aa4c73fc930eb2f975b8c1",
   "viewport": [
     1440,
     1000
@@ -90,6 +90,11 @@
         "overflowWrap": "anywhere"
       },
       {
+        "selector": ".document-outline-number",
+        "wordBreak": "normal",
+        "overflowWrap": "anywhere"
+      },
+      {
         "selector": ".code-language",
         "wordBreak": "normal",
         "overflowWrap": "break-word"
@@ -103,6 +108,28 @@
         "selector": ".table-column-handle",
         "wordBreak": "normal",
         "overflowWrap": "break-word"
+      }
+    ],
+    "numbered": [
+      {
+        "number": "1",
+        "wordBreak": "keep-all",
+        "overflowWrap": "break-word",
+        "before": {
+          "wordBreak": "keep-all",
+          "overflowWrap": "break-word"
+        },
+        "color": "rgb(14, 124, 134)"
+      },
+      {
+        "number": "2",
+        "wordBreak": "keep-all",
+        "overflowWrap": "break-word",
+        "before": {
+          "wordBreak": "keep-all",
+          "overflowWrap": "break-word"
+        },
+        "color": "rgb(14, 124, 134)"
       }
     ],
     "columns": [

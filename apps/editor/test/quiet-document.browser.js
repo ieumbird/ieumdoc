@@ -66,17 +66,20 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     await page.evaluate(async()=>{await document.fonts.ready;});
     const visual=await page.evaluate(()=>{
       const host=document.querySelector('[data-document-tab][data-active=true] .document-editor');
-      const breaks=n=>{const s=getComputedStyle(n);return {wordBreak:s.wordBreak,overflowWrap:s.overflowWrap};};
+      const breaks=(n,pseudo=null)=>{const s=getComputedStyle(n,pseudo);return {wordBreak:s.wordBreak,overflowWrap:s.overflowWrap};};
       const required=selector=>{const n=document.querySelector(selector);if(!n)throw Error(`Missing baseline target: ${selector}`);return n;};
       const excluded=[...host.querySelectorAll('code,.katex')].map(n=>({
         kind:n.matches('code')?'code':'math',
         context:n.closest('.heading,.paragraph,.quote-body,.caption,[data-table-cell],.footnote-definition-body,pre')?.className||n.parentElement.tagName,
         ...breaks(n),
       }));
-      const ui=['[data-testid="save"]','.sidebar-tool','.document-outline-item','.code-language','.figure-edit','.table-column-handle']
+      const ui=['[data-testid="save"]','.sidebar-tool','.document-outline-item','.document-outline-number','.code-language','.figure-edit','.table-column-handle']
         .map(selector=>({selector,...breaks(required(selector))}));
       const table=[...host.querySelectorAll('.table')].at(-1);
-      return {excluded,ui,columns:[...table.rows[0].cells].map(cell=>cell.getBoundingClientRect().width)};
+      const numbered=[...host.querySelectorAll('.heading[data-heading-number]')].map(n=>({
+        number:n.dataset.headingNumber,...breaks(n),before:breaks(n,'::before'),color:getComputedStyle(n,'::before').color,
+      }));
+      return {excluded,ui,numbered,columns:[...table.rows[0].cells].map(cell=>cell.getBoundingClientRect().width)};
     });
     await page.getByRole('button',{name:'Source',exact:true}).click();
     await page.getByTestId('source-view').waitFor();
@@ -104,6 +107,8 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     `Inline code/math differ from master: ${JSON.stringify({actual:comparison.excluded,master:master.visual.excluded})}`);
   check(JSON.stringify(comparison.ui)===JSON.stringify(master.visual.ui)&&JSON.stringify(comparison.source)===JSON.stringify(master.visual.source),
     `UI/Source wrapping differs from master: ${JSON.stringify(comparison)}`);
+  check(comparison.numbered.length>0&&JSON.stringify(comparison.numbered)===JSON.stringify(master.visual.numbered),
+    `Numbered heading wrapping/color differ from master: ${JSON.stringify(comparison.numbered)}`);
   check(comparison.columns.length===master.visual.columns.length&&comparison.columns.every((width,i)=>Math.abs(width-master.visual.columns[i])<0.5),
     `Multi-column table widths differ from master: ${JSON.stringify({actual:comparison.columns,master:master.visual.columns})}`);
   results.push({masterComparison:{master:master.revision,...comparison}});

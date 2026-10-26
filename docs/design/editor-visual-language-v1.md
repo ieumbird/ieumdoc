@@ -189,8 +189,9 @@ preceding line end, and exact document restoration by Undo.
 Same-state product captures below are **manual review only**, not screenshot assertions.
 Windows Chrome 155, bundled Pretendard Variable, 1440×1000 / 375×1000, DPR 1, zoom 1,
 scroll 0, no selection/hover, no folder displayed; Outline is open on desktop and closed
-by the existing phone layout. The input is the committed
-[Korean technical fixture](../../apps/editor/test/browser/fixtures/quiet-document-wrap.md).
+by the existing phone layout. These original captures use the
+[Korean technical fixture at 587877e](https://github.com/ieumbird/ieumdoc/blob/587877e6301b793444648b18405f29b66e870fa7/apps/editor/test/browser/fixtures/quiet-document-wrap.md),
+before the review probes below were added.
 Only wrapping changes: font sizes, spacing, paper and shell rules are unchanged.
 
 | Width | Before | After | Manual observation |
@@ -202,13 +203,57 @@ Only wrapping changes: font sizes, spacing, paper and shell rules are unchanged.
 baseline failure and passing result. A wide table still uses the existing local scroller;
 this change does not replace its intrinsic column sizing. The separate constrained-cell
 probe verifies emergency URL wrapping rather than accepting an arbitrarily wide cell.
-The [overflow-wrap definition](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/overflow-wrap)
-explains why `anywhere` is retained instead of `break-word` for intrinsic sizing.
+The effective inherited overflow rule is clarified in the review verification below;
+the initial account of the stylesheet's `anywhere` declaration did not capture Tiptap's
+later injected `word-wrap` alias.
 
 Local coverage is Chrome/Chromium; Electron consumes the same stylesheet, but its rendering
 was not separately exercised locally. Native CDP composition checks text, caret and Undo,
 not the Windows IME candidate window. OS IME candidate placement remains a manual check.
 No new Core/CLI operation is needed for CSS-only presentation.
+
+#### Review verification and master comparison
+
+Independent review found that the shared exclusion reset heading inline code to `normal`,
+where master inherited `keep-all`. The new computed-style comparison fails against the
+`587877e` stylesheet: heading code and math are `normal` instead of `keep-all`.
+The fix restores inheritance only inside headings; all other excluded surfaces remain
+`normal`. No overflow-wrap value is changed.
+
+The [master baseline](../../apps/editor/test/browser/fixtures/quiet-document-wrap-master.json)
+records actual computed values from `325704e73871303b70aa4c73fc930eb2f975b8c1` in this
+worktree with that revision's complete styles.css/tokens.css and the expanded real fixture.
+This is not a synthetic CSS override. `quiet-document` compares code in heading, paragraph,
+list, quote, admonition, caption, table cell, code block and endnote contexts, plus inline
+math, UI controls, the Outline number span and Source text/lines. Document code/math compute
+to `overflow-wrap: break-word`; Source computes to `anywhere`. Both match master.
+
+At 1440px the three table columns are 217.84375 / 217.84375 / 267.3125px on the measured
+Windows Chrome/Pretendard environment. The regression compares all columns to the recorded
+master widths with a half-pixel tolerance for subpixel rounding. At 1440px and 375px it also
+measures an oversized unspaced Korean compound in a paragraph and a constrained table cell,
+requiring wrapped line boxes without horizontal overflow. The mixed sentence's `11 kW`,
+`(1)` and `(2)` ranges each stay on one line. These are bounded fixture checks, not a new
+general policy joining every authored number/unit pair.
+
+Latest master (#513) is merged. Numbering is enabled in the fixture: numbered headings and
+their generated `::before` retain `keep-all`, the generated teal color matches master, and
+the Outline number span's computed wrapping remains unchanged. The existing `outline`
+scenario separately covers the number color and current-row state.
+
+Manual heading-only comparisons, 1440×1000 / 375×1000, DPR 1, zoom 1, bundled Pretendard:
+both sides include the merged number-color styles and the same numbered heading. Before
+disables only the inheritance fix to reproduce the `587877e` exclusion; After restores it.
+The narrow Before splits `제어기식별자` between lines, while After moves the code token intact.
+These captures are manual evidence, not screenshot assertions.
+
+| Width | Before | After |
+| --- | --- | --- |
+| 1440px | [PNG](assets/korean-wrap-506/review-before-heading-1440.png) | [PNG](assets/korean-wrap-506/review-after-heading-1440.png) |
+| 375px | [PNG](assets/korean-wrap-506/review-before-heading-375.png) | [PNG](assets/korean-wrap-506/review-after-heading-375.png) |
+
+[Review measurements](assets/korean-wrap-506/review-verification.json) preserve the
+failing heading-code comparison, final measured values and capture hashes.
 
 ### Typing and outline verification #469
 

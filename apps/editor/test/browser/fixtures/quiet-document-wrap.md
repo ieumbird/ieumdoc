@@ -1,5 +1,8 @@
 ---
 ieumdoc: 1
+numbering:
+  headings: true
+  title: false
 ---
 
 # 한국어 기술 문서의 줄바꿈 검토
@@ -39,7 +42,7 @@ https://example.com/UnbreakableTechnicalIdentifierUnbreakableTechnicalIdentifier
 전력변환시스템의측정결과를검토한다
 ```
 
-## 한국어 인라인 코드 `전력변환시스템출력전압제어기` 와 수식 $V_{dc}^{*}$
+## 한국어 인라인 코드 `제어기식별자` 와 수식 $V_{dc}^{*}$
 
 전력변환시스템출력전압제어기전류측정결과분석전력변환시스템출력전압제어기전류측정결과분석전력변환시스템출력전압제어기전류측정결과분석
 
