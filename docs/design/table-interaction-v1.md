@@ -17,11 +17,34 @@
 - The deletion notice and action expire on the next document change (including typing, keyboard Undo/Redo or an appended transaction such as deferred endnote placement), Save, Reload, Source preview request start, tab switch or the existing five-second temporary-notice timeout. Source revokes the action before its request is pending, so it cannot change a hidden Visual document or outlive the Markdown snapshot; returning to Visual does not revive it. A stale action cannot undo a newer edit or another tab. Further typing starts a separate history step. Deleting a referenced table uses this deletion notice; the existing unresolved reference display remains until Undo restores the table. Other block deletion notices are unchanged.
 - Keep the native engine caret, history and Tab navigation. One structural action is one undo step; after adding, focus moves into the new cell.
 - Tab in the last cell of an editable table appends a row and focuses its first cell using the same Add row below command and Core Save path. Shift+Tab in the first cell still enters preceding prose; Enter and final-row ArrowDown still leave the table. Tab does not act during IME composition or add rows in read-only tables.
-- Tools share the table's local scroll geometry; menus use a portal so local overflow cannot clip them. Tools appear on hover, focus or selection, and remain visible on touch devices. Under B1 (#514), row/column/append/caption-edit/actions/delete use shared Button with token-backed 28px targets and 6px control radii. Columns follow measured cell widths, rows stay centered, address letters/numbers remain 12/16px metadata text. Explicit targets, anchor refs, pressed/focus states and commands remain unchanged; handle redesign belongs to #517.
+- Tools share the table's local scroll geometry; menus use a portal so local overflow cannot clip them. Tools appear on hover, focus or selection, and remain visible on touch devices. B2 (#517) replaces visible address letters/numbers with 16px horizontal column / vertical row line icons in the existing shared Buttons, with transparent neutral rest and the existing neutral current/open faces. The address remains in the localized accessible name and matching tooltip (including the header-row qualifier). All targets retain token-backed 28px height and 6px radii; columns follow measured cell widths and rows stay centered at 28px wide. Row/column entry points stay in native Tab order while visually hidden; Tab from preceding prose reveals them on focus, Enter opens their menu, and Escape returns to the invoking handle. Hidden handles reject pointer input until hover/focus/selection; append and table-level tools retain their previous visibility rules. Explicit targets, anchor refs, pressed/focus states and commands remain unchanged.
 - Excluded: multiple-cell selection, merging, formulas, resizing and new document semantics. Unsupported cells reject native admission.
 - Completion: pointer and keyboard operation; fixed header/last-column restrictions; focus-safe menu targets; Undo/Redo; Save/Reload with content, alignment, captions and labels retained; narrow-layout geometry.
 - Verification: existing table command/unit tests, extended table-authoring browser regression, typecheck, production build and required CI.
 - CLI: no new semantic operation; existing Core/CLI table commands already cover these actions. Handles and focus are Editor-only.
+
+## Light handle work record (#517)
+
+Implementation plan (2026-10-26, owner decision B2): replace visible column letters
+and row numbers with short horizontal/vertical line handles in the existing shared
+Buttons. Keep the measured column widths, centered 28px row targets, explicit command
+addresses and portal anchors. Use neutral transparent rest and supporting neutral
+current/open states, accessible address names/tooltips, hover/focus discovery and
+the existing no-hover fallback.
+
+Excluded: B3 toolbar redesign, #502 selection-root-cause work, new table commands,
+resizing, merging, formulas and persistence changes. No Core/CLI change is needed:
+this is Editor presentation and interaction over existing semantic operations.
+
+Completion/verification: extend the existing table-authoring regression and show the
+new light-handle assertion failing before product edits, then passing with explicit
+targets, keyboard menus, header/last-column restrictions, narrow scroll geometry,
+engine caret/history and actual Save/Reload preserved. Run Editor tests, typecheck,
+build, layout-rules, quiet-document, table-cell-editing and continuous-editing plus
+docs/whitespace checks; all required CI must pass on the PR head. Capture comparable
+real Before/After states in English/Korean at wide/narrow widths separately from
+automated assertions. Preserve the historical B2 mockup. Stop own test processes,
+publish the issue-linked PR and retain this worktree for independent review; no merge.
 
 ## Table deletion notice verification (#474)
 

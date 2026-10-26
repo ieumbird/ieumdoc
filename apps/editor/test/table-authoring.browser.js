@@ -54,6 +54,45 @@ async (page, { openPath, reloadDocument }) => {
   // Direct handles/append buttons preserve the native caret and history. The menu can
   // target B while the caret remains in A; its portal must not be clipped by local scroll.
   const initial = tables.first();
+  await initial.hover();
+  const lightHandles = await initial.locator('.table-row-handle, .table-column-handle').evaluateAll(handles => handles.map(button => {
+    const rect = button.getBoundingClientRect();
+    return { name: button.getAttribute('aria-label'), title: button.title, text: button.textContent.trim(),
+      icon: !!button.querySelector('svg[aria-hidden="true"]'), width: rect.width, height: rect.height,
+      background: getComputedStyle(button).backgroundColor };
+  }));
+  if (!lightHandles.length || lightHandles.some(handle => handle.text || !handle.icon || handle.title !== handle.name || handle.width < 28 || handle.height !== 28 || handle.background !== 'rgba(0, 0, 0, 0)')) {
+    throw new Error(`Light table handles need an icon without visible address text, matching localized name/tooltip, transparent rest and 28px targets: ${JSON.stringify(lightHandles)}`);
+  }
+  const noHoverPage = await page.context().newPage();
+  try {
+    await noHoverPage.goto(page.url());
+    await noHoverPage.locator('[data-operation="ready"]').waitFor({state:'attached'});
+    await openPath(noHoverPage, file);
+    await noHoverPage.locator('[data-document-tab][data-active=true] .table-row-handle').first().waitFor({state:'attached'});
+    const touch = await page.context().newCDPSession(noHoverPage);
+    await touch.send('Emulation.setTouchEmulationEnabled', {enabled:true});
+    await noHoverPage.mouse.move(0,0);
+    const touchVisible = await noHoverPage.locator('[data-document-tab][data-active=true] .table-block').first().evaluate(block => {
+      const tools = [...block.querySelectorAll('.table-tools')];
+      return matchMedia('(hover: none)').matches && tools.length > 0 && tools.every(n => {
+        const s = getComputedStyle(n);
+        return s.visibility === 'visible' && s.opacity === '1';
+      });
+    });
+    if (!touchVisible) throw new Error('Actual no-hover media must show table handles without focus or pointer hover');
+  } finally { await noHoverPage.close(); }
+  // From prose, Tab discovers the table's native button stops without pointer hover.
+  // Tab inside a cell is still the engine's cell navigation (covered below).
+  await page.getByText('Intro paragraph.', {exact:true}).filter({visible:true}).click();
+  await page.mouse.move(0, 0);
+  await page.keyboard.press('Tab');
+  const discovered = await initial.locator('.table-row-handle:focus, .table-column-handle:focus').count();
+  if (discovered !== 1) throw new Error('Tab from preceding prose must discover a table handle without hovering the table');
+  await page.keyboard.press('Enter');
+  await page.getByRole('menu').waitFor();
+  await page.keyboard.press('Escape');
+  if (await initial.locator('.table-row-handle:focus, .table-column-handle:focus').count() !== 1) throw new Error('Escape must return keyboard focus to the discovered handle');
   await initial.locator('td', {hasText:/^U$/}).click();
   result.activeCell = await initial.locator('[data-current-cell="true"]').innerText() === 'U' &&
     await initial.getByRole('button', {name:'Row 2 actions', exact:true}).getAttribute('aria-pressed') === 'true' &&
@@ -68,6 +107,11 @@ async (page, { openPath, reloadDocument }) => {
     return edit.top >= table.bottom && Math.abs(table.left - block.getBoundingClientRect().left) < 0.5 && row.right <= table.left &&
       (!handle || handle.bottom <= row.top || row.bottom <= handle.top || handle.right <= row.left);
   });
+  await initial.locator('th').first().click();
+  await initial.getByRole('button', {name:'Row 2 actions', exact:true}).click();
+  await page.getByRole('menu', {name:'Row 2 actions', exact:true}).getByRole('menuitem', {name:'Add row below', exact:true}).click();
+  result.handleTargetsRow = JSON.stringify(await grid(initial)) === JSON.stringify([['#Name', '#Value'], ['U', 'AC'], ['', '']]);
+  await page.keyboard.press('Control+z');
   await initial.getByRole('button', {name:'Append row', exact:true}).click();
   result.appendRowFocus = (await grid(initial)).length === 3 && await page.evaluate(() => {
     const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
@@ -135,6 +179,11 @@ async (page, { openPath, reloadDocument }) => {
     const handles = [...block.querySelectorAll('.table-column-handle')];
     return block.querySelector('.table-scroll').scrollWidth > block.querySelector('.table-scroll').clientWidth &&
       handles.every((handle, i) => Math.abs(handle.getBoundingClientRect().left - table.rows[0].cells[i].getBoundingClientRect().left) < 1) &&
+      [...block.querySelectorAll('.table-row-handle')].every((handle, i) => {
+        const r = handle.getBoundingClientRect(), row = table.rows[i].getBoundingClientRect();
+        return r.width === 28 && r.height === 28 && r.right <= block.getBoundingClientRect().left &&
+          Math.abs(r.top + r.height / 2 - row.top - row.height / 2) < 1;
+      }) &&
       document.documentElement.scrollWidth <= innerWidth;
   });
   result.menuWithinViewport = await page.getByRole('menu', {name:'Column G actions', exact:true}).evaluate(menu => {

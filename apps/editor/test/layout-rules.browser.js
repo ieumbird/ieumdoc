@@ -76,6 +76,10 @@ async (page, { openPath, withBlockHover }) => {
         const n=required(selector),s=getComputedStyle(n);
         return {selector,height:n.getBoundingClientRect().height,expected:height,radius:s.borderRadius};
       });
+    const handles=[...document.querySelectorAll('.table-row-handle,.table-column-handle')];
+    if(!handles.length || handles.some(n=>n.textContent.trim() || !n.querySelector('svg[aria-hidden="true"]') || !n.title || n.title!==n.getAttribute('aria-label'))) {
+      throw Error('Light table handles must retain localized address names/tooltips without visible address text');
+    }
     const crumbs=[...document.querySelectorAll('.folder-picker-crumb')];
     if(!crumbs.length)throw Error('Missing breadcrumb controls');
     const selected=getComputedStyle(required('.sidebar-tree-item[aria-current="page"]'));

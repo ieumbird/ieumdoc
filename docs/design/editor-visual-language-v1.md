@@ -45,8 +45,11 @@ a 6px control radius (`--id-radius-md`), UI sans 14/20px text, 12px horizontal t
 padding and centered 16px lucide line icons from the lockfile-pinned dependency. UI
 metrics never inherit document typography. Gutter Plus/GripVertical and formatting
 Bold/Italic use those icons while retaining their accessible names and engine events.
-Table tools use the shared Button's token-backed table-handle treatment; row numbers
-and A/B/C address labels stay text, with explicit command targets and menu anchors.
+Table tools use the shared Button's token-backed table-handle treatment. B2 (#517)
+replaces visible row numbers and A/B/C labels with 16px vertical/horizontal line icons,
+transparent rest and neutral current/open faces. Localized address names/tooltips,
+explicit command targets and menu anchors remain. Hover/focus/selection reveals the
+handles, native Tab can discover them from prose, and no-hover devices keep them visible.
 The language field uses compact Input, its existing accessible name and language-update
 path; no language autocomplete is introduced. Breadcrumbs use compact Button geometry,
 regular text and the existing darker current-location text/`aria-current`; long paths wrap.
@@ -56,7 +59,7 @@ hover/selected text and surface tints. Primary actions, focus, selection, curren
 drag consume that palette. Existing neutral, info/content-link, warning and danger
 roles retain their meanings. New UI color literals outside `styles/tokens.css` are
 prohibited; `index.css` is a one-way adapter, not a second palette. Selection indicators
-(#515) and table-handle discoverability (#517) remain separate. Menu geometry and behavior
+(#515) remain separate from table-handle presentation. Menu geometry and behavior
 follow the implemented [action menu rows](#action-menu-rows-516) contract.
 
 The expanded Sidebar Collapse control retains `aria-expanded`, with a transparent rest
@@ -70,7 +73,7 @@ than a persistently pressed action. Other open-menu/pressed faces are unchanged.
 | Title slot, inline math/reference/link content, endnote reference/return numbers | Document-sized text, not 32px toolbar actions. Preserve body/title/superscript typography, line height and content radii. Their editing forms use ordinary UI fields/actions. |
 | Section-label edit | Content-sized 12px monospace metadata with its existing 4px radius; preserves the out-of-flow heading annotation. Its property form follows B1. |
 | Inline reference/citation edit and citation-key remove | Retain the existing 18px corner edit / 16px chip remove targets, 12px icons, zero icon line box and 4px radius. Enlarged invisible targets could cover neighboring document text or keys; preserving selection, wrapping and line height is safer. Accessible names and keyboard focus rings remain. This is a deliberate tiny-target exception, not permission for new toolbar actions. |
-| Table address labels | 12/16px metadata in 28px targets; letters/numbers identify data addresses, not icons. Column target width follows its actual column; row targets remain 28px wide and vertically centered. Ordinary action UI uses 14/20px. |
+| Table row/column handles | 28px-high targets with 16px line icons and localized address names/tooltips (#517). Column target width follows its actual column; row targets remain 28px wide and vertically centered. The transparent rest, neutral current/open face and native focus ring retain S4; the current cell alone has the blue inset boundary. |
 | Breadcrumbs and wrapping list/menu rows | At least 28px; actionable paths and translated multi-line content may grow rather than truncate or overflow. Breadcrumbs use 4px inline padding to keep long paths reachable. |
 | File tree, Outline, recent-folder/picker options and menu primitives | Retain their navigation/selection/focus owners and token-backed row geometry. They are not generic fixed-height action buttons. Command center results retain 36/56px and 4px radius for one/two-line result navigation; CommandMenu rows follow the shared 6px menu rule. |
 | Document tabs and close slot | Retain the 40px navigation row, 37px activation area, square tab/28px close slot and roving keyboard owner pending #515; do not change the row layout in this control migration. |
