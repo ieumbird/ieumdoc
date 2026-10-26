@@ -52,6 +52,7 @@ pnpm --filter @ieumdoc/editor build
 
 1. 최신 `origin/master`를 fetch하고 PR branch에 반영한다. 현재 head가 최신 master를 포함하는지 확인하고, 그 head에서 필수 CI 검사가 모두 통과해야 한다. 이전 head의 성공이나 변경 전 base의 검사로 대신하지 않는다.
 2. 구현에 참여하지 않은 별도 agent가 최종 diff, 관련 계약과 검증 근거를 독립 검토한다. 승인 기록에는 reviewer agent 식별자, `APPROVE` verdict와 검토한 정확한 전체 head SHA를 남긴다. 구현자 자신의 판단은 이 승인을 대신하지 않는다.
+   승인 전에 [Git parsed-trailer 검사](#ai-commit-provenance)로 PR 고유 commit 전체(작성된 merge 포함)의 provenance와 같은 head의 CI 검사 통과를 확인한다.
 3. GitHub required approval count 0은 GitHub 서버의 승인 수 설정이며, 별도 agent 승인을 생략한다는 뜻이 아니다. 같은 GitHub 계정을 사용하는 agent는 PR 작성자 자신의 PR에 GitHub approve review를 제출할 수 없으므로, 이 경우 별도 agent의 독립 검토 verdict와 SHA를 PR 댓글로 기록한다. 이 댓글은 운영상 승인 근거이며 GitHub의 approved review로 계산되지 않는다.
 4. 통합 담당자는 병합 직전에 PR head가 승인 SHA와 같은지, 최신 master를 포함하는지, 해당 head의 필수 CI가 모두 통과했는지, review thread가 모두 해결되었는지 확인한다. 하나라도 충족하지 않으면 병합하지 않는다. 다른 PR 병합으로 master가 바뀌면 최신 master를 반영하고 CI와 별도 agent 검토를 다시 받는다.
 5. 수정 commit, conflict 해결, merge/rebase 등으로 head SHA가 달라지면 기존 승인은 재사용하지 않는다. 새 head에서 검증과 별도 agent의 `APPROVE`를 받은 뒤 통합 담당자가 병합한다. 다음 PR은 변경된 master를 기준으로 같은 순서를 반복한다.
@@ -66,6 +67,7 @@ CLI/Desktop `package`, `test:packaged`, release/artifact 검증, 설치·업데�
 | --- | --- |
 | Documentation only | `pnpm docs:check`, `git diff --check` |
 | Issue forms / registration tooling | `pnpm issues:forms --check`, `pnpm issues:test`, `pnpm docs:check`, `git diff --check` |
+| Commit provenance tooling / policy | `node --test scripts/commit-provenance.test.mjs`, `pnpm docs:check`, `git diff --check`; 실제 commit의 Git parsed trailers 확인 |
 | Core semantics | Core tests, `pnpm typecheck`, 관련 canonical round-trip/거부 regression |
 | CLI | Core/CLI tests, `pnpm typecheck`, 실제 파일 write 및 실패 시 원본 보존 |
 | Editor logic | Editor tests, `pnpm typecheck`, `pnpm --filter @ieumdoc/editor build` |
@@ -135,7 +137,18 @@ Unsigned Beta의 SHA-512/SHA-256은 무결성 검증이다. 악의적인 게시�
 
 ## AI commit provenance
 
-필수 trailer 형식과 구현자 기록 의무는 [AGENTS.md](AGENTS.md#ai-commit-provenance)를 따른다. 아래는 모델 식별자와 선택적인 검토 기록, hook 설치 안내다.
+필수 trailer 형식과 구현자 기록 의무는 [AGENTS.md](AGENTS.md#ai-commit-provenance)를 따른다. 두 필수 키는 **최종 연속 trailer 블록에 각각 정확히 한 번** 있어야 한다. 본문과 블록 사이에는 빈 줄을 두고, trailer 사이에는 빈 줄을 넣지 않는다. 행이 본문에 보이는 것만으로는 충분하지 않다. Git이 실제로 두 값을 읽어야 한다.
+
+```text
+fix: preserve machine-readable provenance
+
+Describe the change here.
+
+AI-Agent: Codex
+AI-Model: openai/gpt-6.1-sol
+```
+
+이 모델 값은 예시다. 현재 구현에 실제 사용한 agent/model을 확인한 뒤 기록하며, 검증기는 값을 생성하거나 진실성을 추정하지 않는다.
 
 Use a single analyzable identifier, not a display name: `<provider>/<model>`.
 
@@ -143,6 +156,7 @@ Examples:
 
 ```
 xai/grok-4.6
+openai/gpt-6.1-sol
 openai/gpt-5.6-luna
 openai/gpt-5.6-terra
 openai/gpt-6-astra
@@ -158,9 +172,36 @@ If review provenance is needed, use a separate, optional trailer, for example:
 AI-Reviewed-By: openai/gpt-5.6-sol
 ```
 
-`.githooks/commit-msg` detects incomplete or duplicate AI provenance
-trailers. It does not insert a model name. Human commits that omit
-both trailers are allowed. Enable the shared hooks in a local clone with:
+PowerShell에서는 메시지를 UTF-8 파일로 작성한다. 각 trailer를 별도의 `git commit -m` 인자로 넘기면 Git이 빈 줄로 구분된 문단을 만들므로 금지한다. 다른 shell에서도 메시지 파일을 사용한다.
+
+```powershell
+@'
+fix: describe the change
+
+Describe the change here.
+
+AI-Agent: Codex
+AI-Model: openai/gpt-6.1-sol
+'@ | Set-Content -LiteralPath commit-message.txt -Encoding utf8
+node scripts/commit-provenance.mjs message commit-message.txt
+git commit --file commit-message.txt
+git log -1 --format='%H%n%(trailers:only)'
+```
+
+메시지 파일은 staging하지 않고 작업 후 삭제한다. **매 commit 생성 직후와 push 전에** 마지막 명령 결과에서 `AI-Agent`와 `AI-Model`이 각각 정확히 한 번, 실제 구현 값으로 출력되는지 확인한다. raw `%B` 출력, 정규식 검색, hook 통과만으로 대체하지 않는다. 문제가 있으면 push/승인을 중단하고 수정한다. 공유된 과거 이력을 이 검사 때문에 임의로 다시 쓰지 않는다.
+
+**검토자는 승인 전에** 최신 base를 fetch한 뒤 다음 명령으로 PR 고유 commit 전체의 SHA와 Git parsed trailers를 확인한다. 작성된 merge commit도 확인한다. AI metadata가 있는 각 commit에 필수 키가 정확히 한 번씩 읽히는지, 값이 구현자·실제 모델인지 확인하고 검토 head의 CI 성공을 확인한다.
+
+```powershell
+git fetch origin master
+git log origin/master..HEAD --format='%H%n%(trailers:only)'
+```
+
+`.githooks/commit-msg`와 CI quality는 같은 [validator](scripts/commit-provenance.mjs)의 `git interpret-trailers --parse` 결과로 누락·중복·빈 값·모델 형식·블록 밖 metadata를 검사한다. Git의 [trailer 형식](https://git-scm.com/docs/git-interpret-trailers)을 재구현하지 않는다. AI provenance가 전혀 없는 사람 commit과 선택적인 `AI-Reviewed-By`, 다른 정상 trailer는 허용한다. 검증기는 사람이 작성한 commit인지 또는 모델 기록이 사실인지 자동 판별하지 않는다.
+
+CI는 PR event의 `pull_request.base.sha..pull_request.head.sha`를 검사한다. base에서 이미 도달 가능한 기존 이력과 GitHub의 synthetic merge는 제외하지만 PR에서 작성된 merge commit은 포함한다. event JSON은 파일로 읽으며 shell 명령에 값을 삽입하지 않는다. push event에는 과거 master 이력의 provenance 감사를 추가하지 않는다.
+
+Hook은 선택 설치이며 CI 검사의 대체물이 아니다. Node.js와 Git이 필요하다. Enable the shared hooks in a local clone with:
 
 ```
 git config core.hooksPath .githooks
