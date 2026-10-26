@@ -683,12 +683,15 @@ button {
   color: var(--id-color-text-muted);
   background: var(--id-color-surface-subtle);
 }
-.command-center-trigger .document-path { flex: 1; justify-content: center; }
-.command-center-trigger .document-path-name { color: var(--id-color-text); }
-.command-center-trigger:not([data-detail="path"]) .document-path-folder { display: none; }
+.command-center-action { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--id-color-text); }
+.command-center-trigger[data-detail="path"] .command-center-action { flex-shrink: 0; }
+.command-center-trigger .document-path { flex: 0 1 auto; max-width: 35%; color: var(--id-color-text-muted); font-size: var(--font-size-xs); }
+.command-center-trigger .document-path-name { flex-shrink: 1; font-weight: 400; }
+.command-center-trigger:not([data-detail="path"]) .document-path { display: none; }
 /* Keep its intrinsic width measurable when it yields its layout space. */
 .command-center-trigger[data-detail="name"] kbd { position: absolute; visibility: hidden; width: max-content; }
 .command-center-trigger > svg { flex-shrink: 0; }
+.command-center-trigger kbd { margin-left: auto; }
 .command-center-trigger kbd, .command-center-dialog kbd {
   flex-shrink: 0;
   font-family: inherit;

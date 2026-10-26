@@ -484,16 +484,16 @@ async (page, { openPath, withBlockHover, expect }) => {
             const box=header.getBoundingClientRect(),center=header.querySelector('.command-center-trigger'),r=center.getBoundingClientRect();
             const controls=[...header.querySelectorAll('button,.status')].map(n=>({name:n.getAttribute('aria-label')||n.textContent.trim(),r:n.getBoundingClientRect()})).filter(({r})=>r.width>0&&r.height>0);
             const overlap=controls.flatMap((a,i)=>controls.slice(i+1).filter(b=>Math.min(a.r.right,b.r.right)-Math.max(a.r.left,b.r.left)>0.5&&Math.min(a.r.bottom,b.r.bottom)-Math.max(a.r.top,b.r.top)>0.5).map(b=>`${a.name}/${b.name}`));
-            const name=center.querySelector('[data-testid="current-file"]'),shortcut=center.querySelector('kbd');
-            const folders=[...center.querySelectorAll('.document-path-folder')].some(n=>getComputedStyle(n).display!=='none');
+            const name=center.querySelector('.command-center-action'),shortcut=center.querySelector('kbd');
+            const locationShown=getComputedStyle(center.querySelector('.document-path')).display!=='none';
             const shortcutShown=getComputedStyle(shortcut).display!=='none'&&getComputedStyle(shortcut).visibility!=='hidden';
             return {height:box.height,width:box.width,centerWidth:r.width,centerDelta:Math.abs(r.left+r.width/2-box.left-box.width/2),overlap,
               outside:controls.filter(({r})=>r.left<box.left||r.right>box.right||r.top<box.top||r.bottom>box.bottom).map(({name})=>name),
-              folders,shortcutShown,filenameClipped:name.scrollWidth>name.clientWidth+1,
+              locationShown,shortcutShown,actionClipped:name.scrollWidth>name.clientWidth+1,
               wideVisible:[...header.querySelectorAll('.top-bar-toggle')].every(n=>n.getBoundingClientRect().width===28)};
           });
           if(geometry.height!==48||geometry.centerWidth<160||geometry.centerDelta>1||geometry.overlap.length||geometry.outside.length||!geometry.wideVisible||
-            (geometry.filenameClipped&&(geometry.folders||geometry.shortcutShown))||(!geometry.shortcutShown&&geometry.folders))
+            (geometry.actionClipped&&(geometry.locationShown||geometry.shortcutShown))||(!geometry.shortcutShown&&geometry.locationShown))
             throw Error(`Responsive TopBar: ${JSON.stringify({lang,width,collapsed,panel,geometry})}`);
           headerMatrix.push({lang,width,collapsed,panel,centerWidth:geometry.centerWidth});
         }
