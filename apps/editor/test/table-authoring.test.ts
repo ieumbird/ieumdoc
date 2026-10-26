@@ -52,6 +52,7 @@ function apply(state: EditorState, tr: Transaction): EditorState {
 function grid(state: EditorState, index = TABLE): string[][] {
   const rows: string[][] = [];
   state.doc.child(index).forEach(row => {
+    if (row.type.name !== "tableRow") return;
     const cells: string[] = [];
     row.forEach(cell => cells.push(cell.textContent));
     rows.push(cells);
@@ -119,7 +120,7 @@ test("a new table has a header row and two body rows of three columns, and saves
   assert.equal(state.doc.child(1).type.name, "table");
   assert.deepEqual(grid(state, 1), [["", "", ""], ["", "", ""], ["", "", ""]]);
   const headers: boolean[][] = [];
-  state.doc.child(1).forEach(row => { const flags: boolean[] = []; row.forEach(cell => flags.push(cell.attrs.header)); headers.push(flags); });
+  state.doc.child(1).forEach(row => { if (row.type.name !== "tableRow") return; const flags: boolean[] = []; row.forEach(cell => flags.push(cell.attrs.header)); headers.push(flags); });
   assert.deepEqual(headers, [[true, true, true], [false, false, false], [false, false, false]]);
   assert.deepEqual(cellOf(state), { row: 0, column: 0 });
   assert.equal(state.selection.$from.index(0), 1);
@@ -203,12 +204,12 @@ test("rows and columns are added, removed and moved only whole, and the header r
   const tableOf = (projection: TiptapJSON) => projection.content![TABLE];
   const changes: [string, (table: TiptapJSON) => void][] = [
     ["row above the header", (table) => { table.content!.unshift({ type: "tableRow", content: [added(true), added(true)] }); }],
-    ["header row moved down", (table) => { table.content!.push(table.content!.shift()!); }],
+    ["header row moved down", (table) => { table.content!.splice(2, 0, table.content!.shift()!); }],
     ["cells swapped in one row only", (table) => { table.content![2].content!.reverse(); }],
-    ["duplicated snapshot row", (table) => { table.content!.push(structuredClone(table.content![2])); }],
+    ["duplicated snapshot row", (table) => { table.content!.splice(3, 0, structuredClone(table.content![2])); }],
     ["single added cell", (table) => { table.content![1].content!.push(added()); }],
-    ["added body cell marked header", (table) => { table.content!.push({ type: "tableRow", content: [added(true), added()] }); }],
-    ["added header cell not marked header", (table) => { table.content!.forEach(row => row.content!.push(added())); }],
+    ["added body cell marked header", (table) => { table.content!.splice(3, 0, { type: "tableRow", content: [added(true), added()] }); }],
+    ["added header cell not marked header", (table) => { table.content!.filter(row => row.type === "tableRow").forEach(row => row.content!.push(added())); }],
     ["one cell realigned", (table) => { table.content![2].content![0].attrs!.align = "right"; }],
   ];
   for (const [name, change] of changes) {
@@ -217,11 +218,11 @@ test("rows and columns are added, removed and moved only whole, and the header r
     assert.throws(() => assertSupportedDocumentChange(baseline, next), Error, name);
   }
   const accepted: [string, (table: TiptapJSON) => void][] = [
-    ["added column", (table) => { table.content!.forEach((row, index) => row.content!.push(added(index === 0))); }],
-    ["removed row", (table) => { table.content!.pop(); }],
-    ["moved body rows", (table) => { table.content!.push(table.content!.splice(1, 1)[0]); }],
-    ["moved columns", (table) => { table.content!.forEach(row => row.content!.reverse()); }],
-    ["realigned column", (table) => { table.content!.forEach(row => { row.content![1].attrs!.align = "center"; }); }],
+    ["added column", (table) => { table.content!.filter(row => row.type === "tableRow").forEach((row, index) => row.content!.push(added(index === 0))); }],
+    ["removed row", (table) => { table.content!.splice(2, 1); }],
+    ["moved body rows", (table) => { table.content!.splice(2, 0, table.content!.splice(1, 1)[0]); }],
+    ["moved columns", (table) => { table.content!.filter(row => row.type === "tableRow").forEach(row => row.content!.reverse()); }],
+    ["realigned column", (table) => { table.content!.filter(row => row.type === "tableRow").forEach(row => { row.content![1].attrs!.align = "center"; }); }],
   ];
   for (const [name, change] of accepted) {
     const next = structuredClone(baseline);
@@ -278,7 +279,7 @@ test("aligned table insertion keeps the displayed grid consistent with Core Save
   assert.deepEqual(rejected, []);
   const projected = state.doc.toJSON() as TiptapJSON;
   const table = projected.content![TABLE];
-  for (const row of table.content!) assert.deepEqual(row.content!.map(cell => cell.attrs?.align), ["left", "", "right"]);
+  for (const row of table.content!.filter(row => row.type === "tableRow")) assert.deepEqual(row.content!.map(cell => cell.attrs?.align), ["left", "", "right"]);
   const saved = loadEditableDocument(saveEdits(source, collectSupportedEdits(document, projected)).markdown).blocks[TABLE];
   assert.ok(saved.block === "table");
   for (const row of saved.rows) assert.deepEqual(row.cells.map(cell => cell.align ?? ""), ["left", "", "right"]);
@@ -289,10 +290,13 @@ test("aligned table insertion keeps the displayed grid consistent with Core Save
 
 
 test("caption and label edits and newly captioned tables save through Core in the same session", () => {
-  const source = nativeSource("| A |\n|---|\n| 1 |\n");
+  const source = nativeSource("| A |\n| - |\n| 1 |\n");
   const document = loadEditableDocument(source);
   const next = toTiptapDocument(document);
-  next.content![0].content!.push({ type: "tableCaption", content: [{ type: "text", text: "Values" }] });
+  assert.deepEqual(next.content![0].content!.at(-1), { type: "tableCaption", content: [] });
+  assert.deepEqual(collectSupportedEdits(document, next), { headings: [], paragraphs: [] });
+  assert.equal(saveEdits(source, collectSupportedEdits(document, next)).markdown, source);
+  next.content![0].content!.at(-1)!.content = [{ type: "text", text: "Values" }];
   next.content![0].attrs!.label = "tbl-values";
   const edits = collectSupportedEdits(document, next);
   const saved = saveEdits(source, edits);

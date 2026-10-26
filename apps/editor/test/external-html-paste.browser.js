@@ -57,6 +57,8 @@ async (page, { openPath }) => {
   await notice.filter({hasText:'Pasted with normalization: unsupported semantic formatting became plain text; unsupported visual styles were removed.'}).waitFor();
   const pasted = await state();
   assert(pasted.doc !== before.doc, 'External HTML must paste');
+  assert(await editor.locator('[data-block="table"]').getByLabel('Table caption', {exact:true}).count() === 1,
+    'Pasted tables must expose the empty caption immediately, before Save/Reload');
   await page.keyboard.press('Control+z');
   const undone = await state();
   assert(undone.doc === before.doc && undone.selection.join() === before.selection.join(), `One Undo must restore content and selection: ${JSON.stringify({before, undone})}`);

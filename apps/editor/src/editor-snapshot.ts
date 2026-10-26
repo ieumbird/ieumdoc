@@ -1,5 +1,5 @@
 import { referenceTemplatesError } from "@ieumdoc/core/numbering";
-import type { Schema } from "@tiptap/pm/model";
+import { Fragment, type Schema } from "@tiptap/pm/model";
 import { reserveBlockPaths } from "./block-locators.ts";
 import { DELETED_PATHS_ATTR, type TiptapJSON } from "./tiptap-document.ts";
 
@@ -36,7 +36,13 @@ export function prepareEditorSnapshot(schema: Schema, opening: TiptapJSON, snaps
     }
     const json = structuredClone(input);
     delete json.attrs![DELETED_PATHS_ATTR];
-    const node = schema.nodeFromJSON(json);
+    const parsed = schema.nodeFromJSON(json);
+    assertRetained(json, parsed.toJSON());
+    // Older snapshots may omit the now-required empty caption. Preserve all supplied
+    // fields first, then prepare both checkpoints without an editing transaction.
+    const node = parsed.copy(Fragment.fromArray(parsed.content.content.map(block =>
+      block.type.name === "table" && block.lastChild?.type.name !== "tableCaption"
+        ? block.copy(block.content.append(Fragment.from(schema.nodes.tableCaption.create()))) : block)));
     node.check();
     // Most schema attrs have no ProseMirror validator. Reject malformed primitive shapes
     // without checking semantic validity (labels, Unicode, required content, etc.).
@@ -67,7 +73,6 @@ export function prepareEditorSnapshot(schema: Schema, opening: TiptapJSON, snaps
       child.marks.forEach(mark => checkAttrs(mark.attrs, mark.type.spec.attrs));
     });
     const normalized = node.toJSON() as TiptapJSON;
-    assertRetained(json, normalized);
     const seen = new Set<string>();
     for (const block of normalized.content ?? []) {
       const path = block.attrs?.sourcePath;

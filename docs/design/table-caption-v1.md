@@ -1,6 +1,7 @@
 # Table caption and label v1
 
-Implementation plan (#555, approved table-caption portion of #557, 2026-10-26):
+Historical implementation plan (#555, approved table-caption portion of #557, 2026-10-26;
+empty-caption discovery superseded by #577 below):
 make captions editable inline children of the Editor table, retaining existing cell
 coordinates and the Core read model/canonical MyST format. Properties edit only Label;
 an explicit Add caption action discovers empty captions. Reuse the existing inline
@@ -12,6 +13,13 @@ comparable real-product Before/After images. No new Core operation or CLI comman
 the existing `updateTableCaption` operation already owns the persistent semantics.
 
 - Status: Implemented
+- Empty-caption surface (#577): every editable table exposes its inline caption without
+  an Add caption action. An empty surface uses the caption typography and a muted
+  `Table caption` hint; clicking it starts normal inline input. Opening alone creates
+  neither dirty state nor Undo history, and empty captions are omitted on Save.
+- Empty-caption verification: 2026-10-27 (#577: Editor tests, typecheck/build,
+  caption/table authoring, references, recovery and layout browser checks;
+  [same-state comparison](#always-available-empty-caption-577)).
 - Direct-editing verification: 2026-10-26 (#555 and the approved table-caption portion of #557; scope and evidence below).
 - Caption-label verification: 2026-10-26 (#462 Core template rule, CLI inspect, cross-reference browser immediate update, Undo/Redo, Source and Save → Reload).
 - CLI insertion verification: 2026-10-15 (#280 caption/label in one write, label-only table, invalid/duplicate label refusal and rich batch caption; Core/CLI tests).
@@ -28,15 +36,32 @@ deleting the table includes its caption, and Undo/Redo restores them together. A
 from the final grid row enters the caption; ArrowUp from its first line returns to the
 last cell. Enter leaves the table. Emptying a caption removes its persistent content;
 a label alone still numbers the table. Removing both immediately removes the number.
+An empty table without a label shows only the input hint, with no number: MyST/Core
+do not currently number it. No prospective number is invented; typing a caption or
+applying a label makes the existing official number appear. Numbering every table,
+including captionless, unlabeled tables, is a separate Core/serialization change in
+[#584](https://github.com/ieumbird/ieumdoc/issues/584), outside this Editor-only change.
 
 Hover a table and choose Edit (the pencil below the grid, beside Table actions, which
 also offers Edit label). The properties form contains only Label; Apply/Cancel and
 unsaved-draft protection apply to that field. It preserves the live caption, including
-edits made while properties are open. Add caption, below a table without one, creates an
-inline caret surface and focuses it, or focuses the existing empty caption without
-creating another one. The action stays available while the caption is empty. A caption cleared during editing remains a caret
-surface until reopening; Save omits its empty content. Cell and row coordinates remain
+edits made while properties are open. The inline caret surface is present below every
+editable table, including after clearing and reopening. No Add caption button is needed.
+Read-only captions retain existing content and official numbers, like Figure captions,
+but omit the editable empty-input hint. Save omits empty caption content. Cell and row coordinates remain
 unchanged. Core read models, canonical MyST and CLI surfaces are unchanged.
+The Editor schema requires exactly one caption after the rows. Native parsing and
+replacement therefore retain the surface even when a range deletion removes everything
+after the final cell while keeping the table. No repair transaction or Undo step is added.
+Previously recorded valid Editor snapshots that omit an empty caption receive the
+same transient surface in both current and saved checkpoints, after lossless validation.
+Restoring does not mutate the stored record or create a false dirty difference.
+
+Whole-table clipboard output retains the empty structural `<caption>` element in HTML
+and the existing trailing block separator (`\n\n`) in plain text. The input hint and
+generated number are never copied; canonical Save still omits empty caption content.
+Changing `setEditable(false)` at runtime removes the hint; reenabling editing restores it,
+without changing document content, dirty state or Undo history.
 
 The caption stays below the table. Its computed number follows the document's authored
 Table reference template, retaining the existing `. ` separator; without a template,
@@ -71,6 +96,63 @@ and checks invalid duplicate captions. The `table-caption` browser scenario repr
 exit, shared selection/slash authoring, whole-table move/delete, removal and addition.
 Existing table-authoring, table-cell-editing, cross-reference, property-drafts, citations,
 recovery-structure and continuous-editing protect their interface-specific integrations.
+
+## Always available empty caption (#577)
+
+Baseline `97a73bb55aa93f31d67ed6b043cfaaa468ad29e4`: a temporary browser probe opened
+the uncaptioned `tmp/table-authoring/tables.md` and immediately checked the caption
+surface. It failed with expected **1**, actual **0**, before product changes.
+The extended existing regressions now cover clean Open/no Undo, immediate empty-caption
+click and typing, blank-caption ArrowDown/ArrowUp, refused line breaks, one-step
+Undo/Redo, official-number appearance/removal, empty Save omission and Reload.
+Previously valid captionless recovery snapshots are normalized in both checkpoints;
+stored records remain unchanged. Rich content, cell addresses, move/delete and references
+keep their existing coverage.
+
+Immediate typing after closing properties exposed a real caret defect: the native caret
+was inside the empty caption while the engine retained a GapCursor after the table.
+Empty-surface mousedown now selects its existing inline position synchronously; the
+regression asserts that state immediately, without a poll or retry. Grid-tool geometry
+continues to compare tools with the last row, since native table bounds include captions.
+
+Local checks: Editor **296/296**, workspace typecheck, Editor production build,
+docs/whitespace and `table-caption`, `table-authoring`, `table-cell-editing`,
+`cross-reference`, `property-drafts`, `recovery-structure`, `layout-rules` and
+`quiet-document` passed. Windows Chrome used this checkout's persistent profile and
+dedicated Vite origin `http://127.0.0.1:5377`. No local Edge or packaged Desktop run.
+
+The first PR CI run exposed the external-HTML paste path: its table lacked the empty
+caption until Reload, so the existing exact structure-preservation assertion failed.
+Artifact/input-state analysis led to adding the surface in the existing clipboard Slice
+conversion. The original Save/Reload equality assertion is retained, with an immediate
+input-surface assertion added before Save. This is a product initialization fix, not a
+retry or relaxed comparison.
+The corrected product also passes local `external-html-paste` and
+`continuous-editing`, the unchanged exact Save/Reload comparison, Editor **296/296**,
+Editor typecheck/build and docs/whitespace checks.
+
+Independent review reproduced a range-deletion hole at `f0e80d2`: after selecting from
+the last cell to trailing prose and Backspace, the table remained but its caption count
+was **0**. The regression checks the surface and unchanged cells immediately after
+deletion, Undo and Redo. The schema now requires `tableRow+ tableCaption`, so native
+ProseMirror replacement owns that invariant. The earlier paste-only filler is removed;
+DOM/clipboard parsing fills required children. Older captionless snapshots retain their
+lossless compatibility preparation in both checkpoints before schema validation.
+Review-fix checks: Editor **296/296**, workspace typecheck, Editor build,
+`table-authoring`, `table-caption` (including runtime editable transitions),
+`external-html-paste`, `recovery-structure`, `continuous-editing`, docs and whitespace
+all pass. The range-deletion assertions do not poll after deletion, Undo or Redo.
+
+Manual captures use the same fresh scratch document, open tabs, preferences, scroll
+position, loaded fonts, DPR 1 and 100% zoom at 1440/390×900px. Capture-only
+`pnpm browser:test table-caption --screenshots` writes After images under ignored `tmp/`;
+only the small reviewed comparisons below are retained. Traces and generated logs are
+not committed.
+
+| Viewport | Before | After |
+| --- | --- | --- |
+| 1440px | [PNG](assets/table-caption-577/before-1440.png) | [PNG](assets/table-caption-577/after-1440.png) |
+| 390px | [PNG](assets/table-caption-577/before-390.png) | [PNG](assets/table-caption-577/after-390.png) |
 
 ## Direct editing evidence (#555 / #557)
 

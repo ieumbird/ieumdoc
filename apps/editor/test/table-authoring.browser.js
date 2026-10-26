@@ -54,6 +54,48 @@ async (page, { openPath, reloadDocument }) => {
   // Direct handles/append buttons preserve the native caret and history. The menu can
   // target B while the caret remains in A; its portal must not be clipped by local scroll.
   const initial = tables.first();
+  result.emptyCaptionAvailable = await initial.getByTestId('table-caption').isVisible() &&
+    await initial.getByTestId('table-caption').getAttribute('data-number') === null &&
+    await initial.getByRole('button', {name:'Add caption',exact:true}).count() === 0;
+  result.openingKeepsCleanHistory = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n => !n.editor.can().undo()) &&
+    !(await page.getByRole('tab', {selected:true}).getAttribute('aria-label')).includes('Unsaved changes');
+  // A native range deletion may remove the caption while keeping the table and cells.
+  const beforeRangeDelete = JSON.stringify(await grid(initial));
+  await initial.getByLabel('Table caption',{exact:true}).click();
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Trailing paragraph');
+  // A separate prose edit makes deletion its own native history group, without a timer.
+  await page.getByText('Intro paragraph.',{exact:true}).filter({visible:true}).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' Setup');
+  await initial.locator('td').last().click();
+  await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.$from.parent.type.name === 'tableCell');
+  await page.keyboard.press('End');
+  await page.keyboard.press('ControlOrMeta+Shift+End');
+  await page.waitForFunction(() => {
+    const {selection} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state;
+    return !selection.empty && selection.$from.parent.type.name === 'tableCell' &&
+      selection.$to.parent.textContent === 'Trailing paragraph' && selection.$to.parentOffset === selection.$to.parent.content.size;
+  });
+  await page.keyboard.press('Backspace');
+  const assertRangeCaption = async state => {
+    const count = await initial.getByTestId('table-caption').count();
+    if (count !== 1 || JSON.stringify(await grid(initial)) !== beforeRangeDelete) {
+      throw new Error(`${state}: range deletion must keep one caption surface and all cells; caption count=${count}`);
+    }
+  };
+  await assertRangeCaption('Immediately after Backspace');
+  await page.keyboard.press('ControlOrMeta+z');
+  await assertRangeCaption('Undo');
+  if (!await page.getByText('Trailing paragraph',{exact:true}).filter({visible:true}).count()) throw new Error('One Undo must restore the deleted trailing paragraph');
+  await page.keyboard.press('ControlOrMeta+Shift+z');
+  await assertRangeCaption('Redo');
+  if (await page.getByText('Trailing paragraph',{exact:true}).filter({visible:true}).count()) throw new Error('One Redo must delete the trailing paragraph again');
+  result.rangeDeleteCaptionHistory = true;
+  await page.keyboard.press('ControlOrMeta+z');
+  await reloadDocument(page);
+  await page.getByRole('button',{name:'Discard and reload',exact:true}).click();
+  await page.getByRole('dialog').waitFor({state:'detached'});
   await initial.hover();
   const lightHandles = await initial.locator('.table-row-handle, .table-column-handle').evaluateAll(handles => handles.map(button => {
     const rect = button.getBoundingClientRect();
@@ -166,10 +208,12 @@ async (page, { openPath, reloadDocument }) => {
   // axis and its row handles stay left of it, clear of the gutter's block handle.
   result.toolsDoNotOverlapEdit = await initial.evaluate(block => {
     const edit = block.querySelector('[aria-label="Edit table"]').getBoundingClientRect();
-    const table = block.querySelector('table').getBoundingClientRect();
+    const tableElement = block.querySelector('table');
+    const table = tableElement.getBoundingClientRect();
+    const gridBottom = tableElement.rows[tableElement.rows.length - 1].getBoundingClientRect().bottom;
     const row = block.querySelector('.table-row-handle').getBoundingClientRect();
     const handle = document.querySelector('.block-controls.visible .block-handle')?.getBoundingClientRect();
-    return edit.top >= table.bottom && Math.abs(table.left - block.getBoundingClientRect().left) < 0.5 && row.right <= table.left &&
+    return edit.top >= gridBottom && Math.abs(table.left - block.getBoundingClientRect().left) < 0.5 && row.right <= table.left &&
       (!handle || handle.bottom <= row.top || row.bottom <= handle.top || handle.right <= row.left);
   });
   await initial.locator('th').first().click();
@@ -344,11 +388,15 @@ async (page, { openPath, reloadDocument }) => {
   await page.getByRole('menu', {name:'Table actions', exact:true}).getByRole('menuitem', {name:'Edit label', exact:true}).click();
   await page.getByTestId('table-label').fill('cancelled-label');
   await page.getByTestId('table-cancel').click();
-  result.captionCancelKeepsTable = await table.getByTestId('table-caption').count() === 0;
+  result.captionCancelKeepsTable = await table.getByTestId('table-caption').textContent() === '' &&
+    await table.getByLabel('Table caption',{exact:true}).getAttribute('data-placeholder') === 'Table caption';
   await table.hover();
   await table.getByRole('button', {name:'Edit table'}).click();
   await page.getByTestId('table-cancel').click();
-  await table.getByRole('button',{name:'Add caption',exact:true}).click();
+  await table.getByLabel('Table caption',{exact:true}).click();
+  result.emptyCaptionClickFocus = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n =>
+    n.editor.view.hasFocus() && n.editor.state.selection.$from.parent.type.name === 'tableCaption');
+  if (!result.emptyCaptionClickFocus) throw new Error('An empty caption click must immediately place the engine caret before typing');
   await page.keyboard.type('Port values');
   await table.hover();
   await table.getByRole('button', {name:'Edit table'}).click();

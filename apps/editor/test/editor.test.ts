@@ -162,7 +162,7 @@ test("technical document projects to one typed Tiptap document", () => {
   const admonition = projection.content?.find((block) => block.type === "admonition");
   assert.equal(admonition?.attrs?.variant, "warning");
   const table = projection.content?.find((block) => block.type === "table");
-  const rows = table?.content ?? [];
+  const rows = table?.content?.filter(node => node.type === "tableRow") ?? [];
   assert.equal(rows.length, 3);
   assert.deepEqual(rows[0]?.content?.map((cell) => [cell.type, cell.attrs?.header]), [["tableCell", true], ["tableCell", true]]);
   assert.deepEqual(rows[1]?.content?.[1], { type: "tableCell", attrs: { header: false, sourceCell: "1,1" }, content: [{ type: "text", text: "AC" }] });
@@ -2210,6 +2210,23 @@ test("bibliography declarations survive recovery and acknowledged Save replay wi
     malformed.editorDocument.attrs!.bibliography = invalid as never;
     assert.throws(() => prepareEditorSnapshot(schema, opening, malformed), /Invalid editor attribute bibliography/);
   }
+});
+
+test("captionless snapshots restore an empty input surface without changing content or dirty state", () => {
+  const model = loadEditableDocument(nativeSource("| A |\n| - |\n| 1 |\n"));
+  const opening = toTiptapDocument(model);
+  const schema = getSchema(editorExtensions());
+  const saved = editorDocumentJSON(EditorState.create({schema, doc:schema.nodeFromJSON(opening),
+    plugins:[structureGuardPlugin(opening, () => assert.fail("unexpected change"))]}));
+  // Snapshots recorded before #577 legitimately omit the empty caption child.
+  saved.content![0].content = saved.content![0].content!.filter(node => node.type !== "tableCaption");
+  const snapshot = {editorDocument:structuredClone(saved), savedDocument:structuredClone(saved)};
+  const original = structuredClone(snapshot);
+  const restored = prepareEditorSnapshot(schema, opening, snapshot);
+  assert.equal(restored.editorDocument.content![0].content!.at(-1)!.type, "tableCaption");
+  assert.deepEqual(restored.editorDocument, restored.savedDocument);
+  assert.deepEqual(collectSupportedEdits(model, restored.editorDocument), {headings:[], paragraphs:[]});
+  assert.deepEqual(snapshot, original, "The stored recovery record remains unchanged");
 });
 
 test("restore reserves command and engine locators from current and saved snapshots", () => {
