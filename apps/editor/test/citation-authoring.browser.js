@@ -84,10 +84,12 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture 
   const tiny = await page.locator('[data-citation] .cross-reference-edit').first().evaluate(edit => {
     const remove=document.querySelector('.citation-key-remove');
     if(!remove)throw Error('Missing citation key remove control');
+    const probe=document.createElement('span');probe.style.borderRadius='var(--id-radius-sm)';document.body.append(probe);
+    const radius=getComputedStyle(probe).borderRadius;probe.remove();
     return [edit,remove].map(n=>{const r=n.getBoundingClientRect(),s=getComputedStyle(n);
-      return {width:r.width,height:r.height,line:s.lineHeight,radius:s.borderRadius};});
+      return {width:r.width,height:r.height,line:s.lineHeight,radius:s.borderRadius,expectedRadius:radius};});
   });
-  assert(tiny.every((m,i)=>m.width===(i?16:18)&&m.height===(i?16:18)&&m.line==='0px'&&m.radius==='4px'),
+  assert(tiny.every((m,i)=>m.width===(i?16:18)&&m.height===(i?16:18)&&m.line==='0px'&&m.radius===m.expectedRadius),
     `Inline control exception changed: ${JSON.stringify(tiny)}`);
   await page.getByTestId('citation-role').selectOption('cite:t');
   await page.keyboard.press('Escape');

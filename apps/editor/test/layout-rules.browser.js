@@ -53,7 +53,9 @@ async (page, { openPath, withBlockHover, expect }) => {
     // The narrow layout deliberately unmounts the closed Outline; its desktop coverage stays required.
     const selectors=[...(innerWidth>=1280?['.document-outline-item']:[]),'.sidebar-tree-item','[data-testid="save"]','.figure-edit','.equation-edit','.folder-picker-crumb',
       '.table-row-handle','.table-column-handle','.table-extend','.table-action-bar button',
-      '.code-language','.block-metadata','.label-target-edit','.cross-reference-edit','[role="dialog"]'];
+      '.code-language','.block-metadata','.label-target-edit','.cross-reference-edit','[role="dialog"]',
+      // Caption/table families stay UI-owned; their sizes have separate document tokens.
+      '.caption','.table'];
     const type=n=>{
       const s=getComputedStyle(n);
       // Reference edit icons have a fixed SVG size; their em offsets deliberately follow
@@ -76,7 +78,7 @@ async (page, { openPath, withBlockHover, expect }) => {
       ['.table-row-handle',28],['.table-column-handle',28],['.table-extend',28],
       ['.table-action-bar button',28],['.sidebar-collapse',28]].map(([selector,height])=>{
         const n=required(selector),s=getComputedStyle(n);
-        return {selector,height:n.getBoundingClientRect().height,expected:height,radius:s.borderRadius};
+        return {selector,height:n.getBoundingClientRect().height,expected:height,radius:s.borderRadius,expectedRadius:resolve('borderRadius','--id-radius-md')};
       });
     const handles=[...document.querySelectorAll('.table-row-handle,.table-column-handle')];
     if(!handles.length || handles.some(n=>n.textContent.trim() || !n.querySelector('svg[aria-hidden="true"]') || !n.title || n.title!==n.getAttribute('aria-label'))) {
@@ -86,26 +88,38 @@ async (page, { openPath, withBlockHover, expect }) => {
     if(!crumbs.length)throw Error('Missing breadcrumb controls');
     const selected=getComputedStyle(required('.sidebar-tree-item[aria-current="page"]'));
     const field=getComputedStyle(required('.folder-picker-field'));
-    const shared={geometry,crumbs:crumbs.every(n=>n.getBoundingClientRect().height>=28&&getComputedStyle(n).borderRadius==='6px'),
+    const shared={geometry,crumbs:crumbs.every(n=>n.getBoundingClientRect().height>=28&&getComputedStyle(n).borderRadius===resolve('borderRadius','--id-radius-md')),
       selected:selected.backgroundColor===resolve('backgroundColor','--id-color-surface-selected')&&selected.color===resolve('color','--id-color-text-selected'),
       focus:field.borderColor===resolve('color','--id-color-border-focus')&&field.boxShadow.includes(resolve('color','--id-color-interaction')),
       language:document.documentElement.lang};
-    const overrides={'--font-size-document':`calc(${original[1]} * 1.25)`,'--font-family-document':'var(--font-family-mono)',
-      '--line-height-document':'2'};
+    const overrides={'--font-size-document':`calc(${original[1]} * 1.25)`,'--font-family-document':original[0].includes('monospace')?'serif':'monospace',
+      '--line-height-document':`calc(${original[2]} * 1.25)`};
     const saved=Object.keys(overrides).map(name=>[name,root.style.getPropertyValue(name),root.style.getPropertyPriority(name)]);
     try {
       for(const [name,value] of Object.entries(overrides))root.style.setProperty(name,value);
       const after=ui();
-      return {shared,uiUnchanged:JSON.stringify(before)===JSON.stringify(after),
+      // UI text sizes have their own owners; document text uses its document tokens.
+      const documentType=()=>[body,...body.querySelectorAll('.heading,.caption,.table')].map(type);
+      const documentBefore=documentType();
+      const uiOverrides={'--font-size-sm':'1.5rem','--font-size-xs':'1.25rem','--line-height-label':'2rem','--line-height-meta':'1.75rem'};
+      const savedUI=Object.keys(uiOverrides).map(name=>[name,root.style.getPropertyValue(name),root.style.getPropertyPriority(name)]);
+      let documentUnchanged;
+      try {
+        for(const [name,value] of Object.entries(uiOverrides))root.style.setProperty(name,value);
+        documentUnchanged=JSON.stringify(documentBefore)===JSON.stringify(documentType());
+      } finally {
+        for(const [name,value,priority] of savedUI)value?root.style.setProperty(name,value,priority):root.style.removeProperty(name);
+      }
+      return {shared,documentUnchanged,uiUnchanged:JSON.stringify(before)===JSON.stringify(after),
         changes:selectors.flatMap((selector,i)=>JSON.stringify(before[i])===JSON.stringify(after[i])?[]:[{selector,before:before[i],after:after[i]}]),
         documentChanged:type(body)[0]!==original[0]&&parseFloat(type(body)[1])>parseFloat(original[1])&&type(body)[2]!==original[2]};
     } finally {
       for(const [name,value,priority] of saved) value?root.style.setProperty(name,value,priority):root.style.removeProperty(name);
     }
   });
-  if(!isolation.uiUnchanged||!isolation.documentChanged)throw Error(`Document typography leaked into UI: ${JSON.stringify(isolation)}`);
+  if(!isolation.uiUnchanged||!isolation.documentChanged||!isolation.documentUnchanged)throw Error(`Document typography leaked into UI: ${JSON.stringify(isolation)}`);
   const shared=isolation.shared;
-  if(shared.language!==locale||!shared.crumbs||!shared.selected||!shared.focus||shared.geometry.some(c=>c.height!==c.expected||c.radius!=='6px'))
+  if(shared.language!==locale||!shared.crumbs||!shared.selected||!shared.focus||shared.geometry.some(c=>c.height!==c.expected||c.radius!==c.expectedRadius))
     throw Error(`Shared control contract (${locale}/${width}): ${JSON.stringify(shared)}`);
   results.push({shared:{width,...shared}});
   await page.keyboard.press('Escape');
@@ -188,9 +202,14 @@ async (page, { openPath, withBlockHover, expect }) => {
             headings:[1,2,3,4,5,6].map(n=>expectedType(`--font-size-document-h${n}`,'--line-height-document-heading')),
             caption:expectedType('--font-size-document-caption','--line-height-document-caption'),
             table:expectedType('--font-size-document-table','--line-height-document-table')};
-          const family=body.font.split(',').map(s=>s.trim().replaceAll('"',''));
-          const expected=['Pretendard Variable','Pretendard','Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic','Segoe UI','sans-serif'];
-          if(JSON.stringify(family)!==JSON.stringify(expected)||[...headings,caption,table].some(t=>t.font!==body.font)||getComputedStyle(document.body).fontFamily!==body.font)throw Error('Shared sans font contract changed');
+          const fontProbe=document.createElement('span');
+          fontProbe.style.fontFamily='var(--font-family-document)';document.body.append(fontProbe);
+          const documentFont=getComputedStyle(fontProbe).fontFamily;
+          fontProbe.style.fontFamily='var(--font-family-sans)';
+          const uiFont=getComputedStyle(fontProbe).fontFamily;fontProbe.remove();
+          if([body,...headings].some(t=>t.font!==documentFont)||
+            [caption,table].some(t=>t.font!==uiFont)||getComputedStyle(document.body).fontFamily!==uiFont)
+            throw Error('Document/UI font must follow its own token');
           const shellOverflow=['.app-shell','.sidebar','.app-main','.top-bar','.document-column','[data-document-tab][data-active=true] .document','[data-document-tab][data-active=true] .document-editor','.figure','.equation','.table-block'].filter(s=>{const r=rect(s);return r.left<0||r.right>innerWidth+1;});
           const center=rect('.command-center-trigger'), actions=rect('.top-bar-actions');
           return {width,collapsed,header:rect('.top-bar').height,headerWidth:main.width,commandCenterDelta:Math.abs(center.left+center.width/2-(main.left+main.width/2)),centerBottom:center.bottom,actionsTop:actions.top,sidebarHeader:rect('.sidebar-header').height,centerDelta:Math.abs(main.left+main.width/2-column.left-column.width/2),blockDelta:Math.max(...starts)-Math.min(...starts),gutterGap:doc.left-controls.right,standard,compact,icons:icons?.map(r=>({x:r.x,w:r.width,h:r.height}))??null,rowIcons,labels,sidebarWidth,expectedSidebar,panelWidth,expectedPanel,body,headings,caption,table,expectedTypeValues,shellOverflow};
