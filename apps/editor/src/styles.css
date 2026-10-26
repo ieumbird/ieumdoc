@@ -1403,6 +1403,9 @@ ol.list { list-style: decimal; }
 .admonition-danger .admonition-label { color: var(--id-color-danger); }
 
 .admonition-body {
+  font-family: var(--font-family-document);
+  font-size: var(--font-size-document);
+  line-height: var(--line-height-document);
   margin: 0;
 }
 
