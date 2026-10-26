@@ -16,7 +16,7 @@ try {
   }
   const unknown = scenarios.filter(name => !existsSync(path.join(REPOSITORY_ROOT, "apps/editor/test", `${name}.browser.js`)));
   if (unknown.length) throw new Error(`Unknown scenario: ${unknown.join(", ")}\nStable: ${STABLE_SCENARIOS.join(", ")}`);
-  if (shard) console.log(`Browser shard ${shard}: ${scenarios.length} scenarios`);
+  if (shard) console.log(`Browser shard ${shard}: ${scenarios.length} scenarios\n${scenarios.join(", ")}`);
   const require = createRequire(import.meta.url);
   const cli = require.resolve("@playwright/test/cli");
   process.env.IEUMDOC_BROWSER_SCENARIOS = JSON.stringify(scenarios);

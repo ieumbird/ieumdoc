@@ -19,13 +19,18 @@ git diff --check
 
 `pnpm test`는 Core, File commit, CLI, Editor, Desktop suite를 모두 실행한다. 개별 테스트 개수와 이름은 계약이 아니며 package scripts와 test runner가 source of truth다. 문서 checker 자체를 바꾸면 `pnpm exec tsx --test scripts/check-docs.test.ts`도 실행한다. Authenticode의 실제 검사는 Windows job에서 실행한다.
 
+CI quality는 문서 전용 PR에서 문서·checker tests, diff/whitespace, issue 정책, AI provenance validator·PR commit 검사와 경로 분류 회귀만 실행한다. 제품 테스트·typecheck·Editor build는 생략한다. 문서 allowlist와 전체 실행 조건은 [Verification matrix](../../CONTRIBUTING.md#verification-matrix)를 따른다. `node --test scripts/ci-quality-mode.test.mjs`는 문서 전용·혼합·미분류·master push와 실제 Git diff/rename, whitespace 거부 및 workflow 조건을 검증하는 docs-only probe다. 별도 임시 PR은 필요하지 않다.
+
 ## Browser regression
 
 ```bash
 pnpm editor                          # 별도 터미널, 개발 서버
 pnpm browser:test                    # stable 전체
 pnpm browser:test save-session       # 관련 시나리오만 선택
+pnpm browser:test --shard=1/4         # CI의 4개 shard 중 하나
 ```
+
+CI의 4개 shard는 stable 목록을 순환 분배하며 각 시나리오는 전체 shard에서 정확히 한 번 실행된다. `pnpm --filter @ieumdoc/editor exec tsx --test test/browser-fixtures.test.ts`가 누락·중복·빈 shard 없이 분할되는지 검사한다. CI 로그에는 각 shard의 시나리오 배정이 출력되고 실패 artifact는 `editor-browser-ci-logs-1`부터 `editor-browser-ci-logs-4`까지 구분된다. 로컬에서 전체를 분할 실행하려면 `1/4`부터 `4/4`까지 순서대로 실행한다.
 
 runner는 원본 fixture의 scratch 사본을 준비한다. 테스트 실행을 위해 `apps/editor/document/`나 `apps/editor/test/browser/fixtures/`의 원본을 직접 수정하지 않는다. fixture 자체를 바꾸는 작업이라면 의도한 변경으로 검토하고 관련 regression을 실행한다. Windows에서는 [persistent profile과 session 규칙](../contributing/windows-browser-automation.md)을 따른다. 작업 후 직접 시작한 서버와 세션을 종료한다.
 
