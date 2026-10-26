@@ -60,6 +60,8 @@
 
   /* Document body font; UI text retains the shared sans stack. */
   --font-family-document: var(--font-family-sans);
+  /* Korean document prose wraps at eojeol boundaries; oversized tokens still wrap anywhere. */
+  --word-break-document: keep-all;
   /* Document body text size. */
   --font-size-document: 1.0625rem;
   /* Document body line spacing. */

@@ -20,7 +20,8 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     await page.getByRole('menuitem', {name:'Close folder', exact:true}).click();
     await page.evaluate(async () => {
       await document.fonts.ready;
-      await Promise.all([...document.images].map(img => img.decode()));
+      // ProseMirror's src-less separator img is a caret shim, not a document image.
+      await Promise.all([...document.querySelectorAll('[data-document-tab][data-active=true] img[src]')].map(img => img.decode()));
     });
   };
   const rest = async () => {
@@ -58,6 +59,123 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     check(result.scrollWidth<=result.clientWidth+1&&result.children.every(c=>c.x>=result.x-1&&c.right<=result.right+1), `${label}: controls clipped horizontally`);
     results.push({label,...result});
   };
+  // #506: measure actual glyph lines, not just the declared word-break property.
+  await open('quiet-document-wrap.md');
+  const wrapResults = [];
+  const prose = page.locator('[data-document-tab][data-active=true] .document-editor > .paragraph').first();
+  const wrapDocument = await json();
+  for (const width of [1440,375]) {
+    await page.setViewportSize({width,height:1000});
+    await rest();
+    await page.evaluate(async () => { await document.fonts.ready; });
+    await shot(`korean-wrap-${width}`);
+    wrapResults.push(await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate((host,width) => {
+      const surfaces=['.heading','.paragraph','.list .paragraph','.quote-body','.admonition-body','.caption','[data-table-cell]','.footnote-definition-body'];
+      const splitWords=[];
+      const coverage=surfaces.map(selector => {
+        const nodes=[...host.querySelectorAll(selector)];
+        for(const node of nodes) {
+          const walker=document.createTreeWalker(node,NodeFilter.SHOW_TEXT);
+          while(walker.nextNode()) {
+            const text=walker.currentNode;
+            if(text.parentElement.closest('code,.katex'))continue;
+            for(const match of text.textContent.matchAll(/[가-힣]+/g)) {
+              const range=document.createRange();
+              range.setStart(text,match.index); range.setEnd(text,match.index+match[0].length);
+              const lines=new Set([...range.getClientRects()].filter(r=>r.width>0).map(r=>Math.round(r.top)));
+              if(lines.size>1)splitWords.push({selector,word:match[0]});
+            }
+          }
+        }
+        return {selector,count:nodes.length};
+      });
+      const paragraph=host.querySelector(':scope > .paragraph'), text=paragraph.firstChild;
+      const lines=[];
+      for(let i=0;i<text.length;i++) {
+        if(/\s/.test(text.textContent[i]))continue;
+        const range=document.createRange();range.setStart(text,i);range.setEnd(text,i+1);
+        const rect=range.getBoundingClientRect(), y=Math.round(rect.top);
+        let line=lines.find(line=>line.y===y);
+        if(!line)lines.push(line={y,start:i,end:i});
+        line.end=i;
+      }
+      const brokenEdges=lines.filter(line=>(line.start>0&&!/\s/.test(text.textContent[line.start-1])) ||
+        (line.end+1<text.length&&!/\s/.test(text.textContent[line.end+1])));
+      const strandedPunctuation=lines.filter(line=>/^[」』）)、。，．！？]/.test(text.textContent.slice(line.start)));
+      const urls=[...host.querySelectorAll(':scope > .paragraph,[data-table-cell]')]
+        .filter(n=>n.textContent.startsWith('https://')).map(n=>{
+          const range=document.createRange();range.selectNodeContents(n);
+          const box=n.getBoundingClientRect();
+          return {cell:n.matches('[data-table-cell]'),inside:[...range.getClientRects()].every(r=>r.left>=box.left-1&&r.right<=box.right+1),
+            scrollWidth:n.scrollWidth,clientWidth:n.clientWidth};
+        });
+      return {width,coverage,splitWords,lines,brokenEdges,strandedPunctuation,urls,
+        pageOverflow:document.documentElement.scrollWidth>innerWidth,
+        paperOverflow:host.scrollWidth>host.clientWidth+1,
+        environment:{userAgent:navigator.userAgent,dpr:devicePixelRatio,zoom:visualViewport.scale,font:getComputedStyle(paragraph).fontFamily}};
+    },width));
+  }
+  // Both same-state review captures are preserved even when the baseline fails here.
+  check(wrapResults.every(r=>r.coverage.every(c=>c.count>0)&&r.lines.length>1), 'Missing Korean wrapping coverage');
+  check(wrapResults.every(r=>!r.splitWords.length&&!r.brokenEdges.length&&!r.strandedPunctuation.length),
+    `Korean words split across lines: ${JSON.stringify(wrapResults)}`);
+  check(wrapResults.every(r=>r.urls.some(u=>u.cell)&&r.urls.some(u=>!u.cell)&&
+    r.urls.every(u=>u.inside&&u.scrollWidth<=u.clientWidth+1)&&!r.pageOverflow&&!r.paperOverflow),
+    `Long URL overflow: ${JSON.stringify(wrapResults)}`);
+  // Tables normally size to their content and scroll locally. Also exercise a constrained
+  // real cell, so a very wide intrinsic cell cannot make the URL fallback assertion vacuous.
+  const constrainedURL=await page.locator('[data-document-tab][data-active=true] [data-table-cell]').last().evaluate(cell=>{
+    const saved=cell.style.maxWidth;
+    try {
+      cell.style.maxWidth='180px';
+      const range=document.createRange();range.selectNodeContents(cell);
+      const rects=[...range.getClientRects()].filter(r=>r.width>0), box=cell.getBoundingClientRect();
+      return {wraps:new Set(rects.map(r=>Math.round(r.top))).size>1,
+        inside:rects.every(r=>r.left>=box.left-1&&r.right<=box.right+1),width:box.width};
+    } finally { cell.style.maxWidth=saved; }
+  });
+  check(constrainedURL.wraps&&constrainedURL.inside,`Constrained table URL overflow: ${JSON.stringify(constrainedURL)}`);
+  // Click at a real wrapped-line start and select across its preceding line break.
+  await prose.scrollIntoViewIfNeeded();
+  const caret=await prose.evaluate(n=>{
+    const text=n.firstChild,range=document.createRange();let previousY;
+    for(let i=0;i<text.length;i++) {
+      if(/\s/.test(text.textContent[i]))continue;
+      range.setStart(text,i);range.setEnd(text,i+1);const r=range.getBoundingClientRect();
+      if(previousY!==undefined&&r.top>previousY+1)return {x:r.left+r.width/4,y:r.top+r.height/2,pos:n.closest('.document-editor').editor.view.posAtDOM(text,i),offset:i};
+      previousY=r.top;
+    }
+    throw Error('Paragraph did not wrap');
+  });
+  await page.mouse.click(caret.x,caret.y);
+  check(await prose.evaluate((n,pos)=>n.closest('.document-editor').editor.state.selection.from===pos,caret.pos), 'Wrapped-line click placed the caret incorrectly');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Shift+ArrowUp');
+  check(await prose.evaluate((n,{pos})=>{
+    const editor=n.closest('.document-editor').editor, selection=window.getSelection();
+    const {from,to}=editor.state.selection;
+    const rects=[...selection.getRangeAt(0).getClientRects()].filter(r=>r.width>0);
+    return from<pos&&to>pos&&selection.toString()===editor.state.doc.textBetween(from,to)&&
+      new Set(rects.map(r=>Math.round(r.top))).size>1;
+  },caret), 'Selection across a wrapped line changed text or positions');
+  // Chromium's native composition protocol at the preceding line end. OS IME UI is manual.
+  await prose.evaluate((n,pos)=>{
+    const editor=n.closest('.document-editor').editor;
+    editor.commands.setTextSelection(pos-1);editor.view.focus();
+  },caret.pos);
+  const beforeComposition=await prose.textContent();
+  const wrapCDP=await page.context().newCDPSession(page);
+  try {
+    await wrapCDP.send('Input.imeSetComposition',{text:'한글',selectionStart:2,selectionEnd:2});
+    await wrapCDP.send('Input.imeSetComposition',{text:'한글입력',selectionStart:4,selectionEnd:4});
+    await wrapCDP.send('Input.insertText',{text:'한글입력'});
+  } finally { await wrapCDP.detach(); }
+  check(await prose.textContent()===beforeComposition.slice(0,caret.offset-1)+'한글입력'+beforeComposition.slice(caret.offset-1),
+    'Composition at a wrapped line end lost or reordered text');
+  await page.keyboard.press('Control+z');
+  check(await json()===wrapDocument,'Wrapped-line composition undo did not restore the document');
+  results.push({koreanWrapping:wrapResults,constrainedURL,wrappedCaretSelection:true,wrappedCompositionUndo:true});
+  await page.setViewportSize({width:1280,height:720});
   await open('quiet-document.md');
   // A CSS family list also passes when a system fallback is used. Inspect the actual
   // glyph fonts so a missing font import/asset cannot silently pass on developer PCs.

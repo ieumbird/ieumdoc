@@ -1137,6 +1137,17 @@ button {
   background: var(--id-color-interaction-soft);
 }
 
+/* Text surfaces only: retain the editor's overflow-wrap:anywhere fallback for long tokens.
+ * Code, math and embedded UI keep their existing line-breaking behavior. */
+.document-editor :is(.paragraph, .heading, .quote-body, .admonition-body, .admonition-label,
+  .caption, [data-table-cell], .footnote-definition-body) {
+  word-break: var(--word-break-document);
+}
+
+.document-editor :is(code, .katex, [data-slot="button"]) {
+  word-break: normal;
+}
+
 /* Embedded UI controls keep the UI stack when the document font is adjusted. */
 .document-editor [data-slot="button"] {
   font-family: var(--font-family-sans);
@@ -1192,7 +1203,6 @@ button {
   font-weight: var(--font-weight-document-heading);
   line-height: var(--line-height-document-heading);
   text-wrap: pretty;
-  word-break: keep-all;
 }
 
 h1.heading {
