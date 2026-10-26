@@ -312,6 +312,15 @@ async (page, { openPath, reloadDocument }) => {
   const created = tables.first();
   result.tableCreated = await tables.count() === 2 &&
     JSON.stringify(await grid(created)) === JSON.stringify([['#', '#', '#'], ['', '', ''], ['', '', '']]);
+  if (!await save()) throw new Error('A newly inserted empty table must save');
+  const emptySaved = await read();
+  await reloadDocument(page);
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  result.emptyTableReload = await tables.count() === 2 &&
+    JSON.stringify(await grid(created)) === JSON.stringify([['#', '#', '#'], ['', '', ''], ['', '', '']]);
+  if (!result.emptyTableReload) throw new Error('Save/Reload must retain the empty table structure');
+  if (!await save() || await read() !== emptySaved) throw new Error('An existing empty table must save identically');
+  await created.locator('th').first().click();
   await page.keyboard.type('Port');
   await created.locator('td').first().click();
   await page.keyboard.type('U');
