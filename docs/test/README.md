@@ -49,6 +49,13 @@ The citation-Remove gate explicitly checks that the focus helper's promise is st
 BODY has focus, before releasing callbacks. Replacing that helper with a resolved promise must fail
 this same assertion; releasing focus before Undo alone does not prove that the helper waited.
 
+`layout-rules` waits for Settings' language select to receive actual focus before changing the
+language and pressing Escape, then for the dialog to detach and its Settings opener to regain
+focus (#541). It uses Playwright's shared `expect(locator).toBeFocused()`; `waitForEditorFocus`
+checks an EditorView, not a shell control. The phone-width regression holds the real initial
+focus call and verifies that readiness remains pending before releasing it. It neither focuses
+the select early nor reopens a sidebar accidentally dismissed by Escape.
+
 `link-authoring` reports a missing selection toolbar within 15 seconds, including the scenario phase, requested range and actual ProseMirror/DOM selection.
 
 ### Scenario coverage
@@ -191,6 +198,23 @@ profile removal and another origin/device are outside that proof. The 500ms inte
 Past local execution, required CI and proof artifacts: [Host recovery execution history](#host-recovery-execution-history-296-pr3).
 
 ## Evidence and history
+
+### Settings initial-focus race (#541)
+
+Run 40297651538 attempt 1, job 121487564515, artifact `editor-browser-ci-logs-2`
+fails at the 390px Korean-to-English pass: the Sidebar's **Open folder…** click, after
+`language('en')`, times out at 15000ms. Input event 70 sends Escape to **Settings**,
+not the language select; events 71–73 move focus to **Expand sidebar**. The failure
+state and screenshot show a closed sidebar and no visible dialog. The click trace
+never resolves its target or reports pointer interception. This is an initial-focus
+readiness race, not evidence of a lingering modal backdrop or failed final focus.
+
+`selectOption` can finish without focusing the select while Base UI still owes its
+animation-frame initial focus. Escape on the opener then also dismisses the phone
+sidebar. Holding that actual focus call reproduces the original click timeout; the
+fixed readiness assertion stays pending until release and the full scenario passes.
+Replacing the wait with an immediately resolved promise fails the pending assertion.
+All existing typography, geometry and document-preservation assertions remain.
 
 ### Focus and selection race investigation (#489)
 

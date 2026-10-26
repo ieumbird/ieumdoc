@@ -29,19 +29,43 @@ async (page, { openPath, withBlockHover, expect }) => {
   });
   // Document preferences must not resize or restyle navigation, controls or dialog text.
   const results=[];
-  const language=async next=>{
+  const language=async (next,delayFocus=false)=>{
     const current=await page.locator('html').getAttribute('lang');
     const expand=page.getByRole('button',{name:current==='ko'?'사이드바 펼치기':'Expand sidebar',exact:true});
     if(await expand.isVisible())await expand.click();
+    // Hold Base UI's actual initial focus on the reproducing phone-width path (#541).
+    if(delayFocus)await page.evaluate(()=>{
+      const focus=HTMLElement.prototype.focus;
+      HTMLElement.prototype.focus=function(...args){
+        if(this.matches('[data-testid="ui-language"]')){
+          window.releaseSettingsFocus=()=>{HTMLElement.prototype.focus=focus;focus.apply(this,args);};
+          return;
+        }
+        return focus.apply(this,args);
+      };
+    });
     await page.getByRole('button',{name:current==='ko'?'설정':'Settings',exact:true}).click();
+    // selectOption does not focus the select. Escape on the opener can dismiss the phone sidebar.
+    let focusReady=false;
+    const focused=expect(page.getByTestId('ui-language')).toBeFocused().then(()=>{focusReady=true;});
+    try{
+      if(delayFocus){
+        await page.waitForFunction(()=>!!window.releaseSettingsFocus);
+        if(focusReady)throw Error('Settings readiness must wait for initial focus');
+      }
+    }finally{
+      if(delayFocus)await page.evaluate(()=>window.releaseSettingsFocus?.());
+      await focused;
+    }
     await page.getByTestId('ui-language').selectOption(next);
     await page.keyboard.press('Escape');
     await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+    await expect(page.getByRole('button',{name:next==='ko'?'설정':'Settings',exact:true})).toBeFocused();
   };
   for(const width of [1440,390])for(const locale of ['en','ko']){
   await page.setViewportSize({width,height:1000});
   await page.getByTestId('document-panel').waitFor({state:width>=1280?'visible':'detached'});
-  await language(locale);
+  await language(locale,width===390&&locale==='en');
   await page.getByTestId('sidebar').getByRole('button',{name:locale==='ko'?'폴더 열기…':'Open folder…',exact:true}).click();
   await page.getByTestId('folder-path').fill(file.slice(0,file.lastIndexOf(sep)+1));
   // #522 removes the duplicate current-folder crumb. A ready New folder action means the
