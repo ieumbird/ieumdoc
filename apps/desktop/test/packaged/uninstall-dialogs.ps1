@@ -1,6 +1,5 @@
 param([int]$UninstallerPid)
 $ErrorActionPreference = 'Stop'
-Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
 Add-Type @'
 using System;
 using System.Text;
@@ -12,6 +11,9 @@ public static class Dialogs {
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
   [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
   [DllImport("user32.dll")] public static extern IntPtr GetDlgItem(IntPtr h, int id);
+  [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
   public static string Text(IntPtr h) { var s = new StringBuilder(8192); GetWindowText(h,s,s.Capacity); return s.ToString(); }
 }
 '@
@@ -31,13 +33,13 @@ while (Get-Process -Id $UninstallerPid -ErrorAction SilentlyContinue) {
       $ok = [Dialogs]::GetDlgItem($window, 1)
       if ($ok -ne [IntPtr]::Zero -and [Dialogs]::Text($ok) -match '^&?OK$') {
         if ($seen.Add($script:dialogText)) { Write-Host $script:dialogText }
-        # BM_CLICK may fail for an inactive dialog. Invoke the enabled control through the
-        # native accessibility provider instead; no foreground/focus or timing assumption.
-        $control = [System.Windows.Automation.AutomationElement]::FromHandle($ok)
-        if ($control.Current.IsEnabled -and -not $control.Current.IsOffscreen) {
-          $invoke = [System.Windows.Automation.InvokePattern]$control.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
-          Write-Host "Invoking owned OK control: $window"
-          $invoke.Invoke()
+        # Send the enabled button's standard BN_CLICKED notification to its own dialog.
+        # BM_CLICK requires activation; this NSIS MessageBox exposes no UIA InvokePattern.
+        if ([Dialogs]::IsWindowEnabled($ok) -and [Dialogs]::IsWindowVisible($ok)) {
+          Write-Host "Sending owned OK command: $window"
+          if (-not [Dialogs]::PostMessage($window, 0x0111, [IntPtr]1, $ok)) {
+            throw 'Could not send the owned dialog command.'
+          }
         }
       }
     }
