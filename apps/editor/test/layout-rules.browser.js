@@ -33,7 +33,7 @@ async (page, { openPath, withBlockHover, expect }) => {
     const current=await page.locator('html').getAttribute('lang');
     const expand=page.getByRole('button',{name:current==='ko'?'사이드바 펼치기':'Expand sidebar',exact:true});
     if(await expand.isVisible())await expand.click();
-    // Hold Base UI's actual initial focus on the reproducing phone-width path (#541).
+    // Hold Base UI's actual initial focus on the reproducing narrow-width path (#541).
     if(delayFocus)await page.evaluate(()=>{
       const focus=HTMLElement.prototype.focus;
       HTMLElement.prototype.focus=function(...args){
@@ -45,7 +45,7 @@ async (page, { openPath, withBlockHover, expect }) => {
       };
     });
     await page.getByRole('button',{name:current==='ko'?'설정':'Settings',exact:true}).click();
-    // selectOption does not focus the select. Escape on the opener can dismiss the phone sidebar.
+    // selectOption does not focus the select; wait for the dialog's actual focus handoff.
     let focusReady=false;
     const focused=expect(page.getByTestId('settings-back')).toBeFocused().then(()=>{focusReady=true;});
     try{
@@ -62,10 +62,10 @@ async (page, { openPath, withBlockHover, expect }) => {
     await page.getByTestId('settings-dialog').waitFor({state:'detached'});
     await expect(page.getByRole('button',{name:next==='ko'?'설정':'Settings',exact:true})).toBeFocused();
   };
-  for(const width of [1440,390])for(const locale of ['en','ko']){
+  for(const width of [1440,640])for(const locale of ['en','ko']){
   await page.setViewportSize({width,height:1000});
   await page.getByTestId('document-panel').waitFor({state:width>=1424?'visible':'detached'});
-  await language(locale,width===390&&locale==='en');
+  await language(locale,width===640&&locale==='en');
   await page.getByTestId('sidebar').getByRole('button',{name:locale==='ko'?'폴더 열기…':'Open folder…',exact:true}).click();
   await page.getByTestId('folder-path').fill(file.slice(0,file.lastIndexOf(sep)+1));
   // #522 removes the duplicate current-folder crumb. A ready New folder action means the
@@ -154,7 +154,7 @@ async (page, { openPath, withBlockHover, expect }) => {
   await page.getByRole('button',{name:'Collapse sidebar',exact:true}).waitFor();
   await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate((element,original)=>element.editor.commands.setContent(original),isolationDocument);
   await withBlockHover(page, async () => {
-    for(const width of [1440,1424,1423,1280,1279,1025,1024,768,705,704]) {
+    for(const width of [1440,1424,1423,1280,1279,1025,1024,768,705,704,640]) {
       await page.setViewportSize({width,height:1000});
       for(const collapsed of [false,true]) {
         if(collapsed) await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
@@ -260,36 +260,14 @@ async (page, { openPath, withBlockHover, expect }) => {
       }
     }
   });
-  // On a phone-width viewport the wrapped TopBar keeps every control inside the viewport, in order:
+  // In a narrow header the wrapped TopBar keeps every control inside the viewport, in order:
   // left to right within a row, then the next row; 4px apart within a group, 12px between groups.
-  // Below 640px the sidebar starts closed without a rail; opened, it covers the whole screen (#321),
-  // so the TopBar is measured with the sidebar closed.
-  for(const width of [414,375]) {
+  for(const width of [640]) {
     await page.setViewportSize({width,height:800});
-    if(width===414&&await page.getByRole('button',{name:'Expand sidebar',exact:true}).count()!==1)throw Error('Narrow sidebar did not start collapsed');
     for(const collapsed of [false,true]) {
       if(collapsed) await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
       else if(await page.getByRole('button',{name:'Expand sidebar',exact:true}).count()) await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
       await page.evaluate(()=>window.scrollTo(0,0));
-      // Phone widths (#321): closed, no rail and the document has the whole width; open, the sidebar covers the screen.
-      const overlay=await page.evaluate(()=>{
-        const sidebar=document.querySelector('.sidebar'),r=sidebar.getBoundingClientRect();
-        return {display:getComputedStyle(sidebar).display,left:r.left,width:r.width,height:r.height,main:document.querySelector('.app-main').getBoundingClientRect().left,innerWidth,innerHeight};
-      });
-      if(collapsed?overlay.display!=='none'||overlay.main!==0:Math.abs(overlay.left)>0.5||Math.abs(overlay.width-overlay.innerWidth)>0.5||Math.abs(overlay.height-overlay.innerHeight)>0.5||overlay.main!==0)
-        throw Error(`Phone sidebar must be closed beside a full-width document or cover the screen: ${JSON.stringify({collapsed,overlay})}`);
-      if(!collapsed){
-        if(width===375){
-          // Escape inside the full-screen sidebar closes it and focuses the TopBar control that reopens it.
-          await page.getByRole('button',{name:'Collapse sidebar',exact:true}).focus();
-          await page.keyboard.press('Escape');
-          const expand=page.getByRole('button',{name:'Expand sidebar',exact:true});
-          if(!await expand.evaluate(n=>n===document.activeElement))throw Error('Escape did not close the full-screen sidebar');
-          await expand.click();
-          if(!await page.getByRole('button',{name:'Collapse sidebar',exact:true}).evaluate(n=>n===document.activeElement))throw Error('Opening did not move focus into the sidebar');
-        }
-        continue;
-      }
       const narrow=await page.evaluate(()=>{
         // Visual/Source is one segmented control: its track is measured as a single control.
         const views=document.querySelector('.view-toggle');

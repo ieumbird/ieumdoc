@@ -90,7 +90,7 @@ async (page, { openDocument, openPath, screenshots = false }) => {
       throw new Error('Document settings or File actions ignore the no-document state');
     }
     if (screenshots) {
-      for (const width of [1440, 768, 375]) {
+      for (const width of [1440, 768, 640]) {
         await page.setViewportSize({width, height:800});
         await page.screenshot({path:`tmp/visual-refinement/after-${width}-document-start.png`});
       }
@@ -101,13 +101,13 @@ async (page, { openDocument, openPath, screenshots = false }) => {
     if (!await start.getByRole('button', {name:'Open folder…', exact:true}).evaluate(node => node === document.activeElement)) {
       throw new Error('Canceling folder selection did not return focus to the start');
     }
-    await page.setViewportSize({width:375, height:800});
+    await page.setViewportSize({width:640, height:800});
     const overflow = await start.evaluate(paper => {
       const edge = paper.getBoundingClientRect().right;
       return [...paper.querySelectorAll('h1, h2, p, button')].filter(node => node.getBoundingClientRect().right > edge + 0.5).map(node => node.textContent);
     });
     await page.setViewportSize({width:1280, height:720});
-    if (overflow.length) throw new Error(`The start leaves the paper at 375px: ${JSON.stringify(overflow)}`);
+    if (overflow.length) throw new Error(`The start leaves the paper at 640px: ${JSON.stringify(overflow)}`);
     await start.getByRole('button', {name:/^open-files/}).click();
     await page.getByRole('region', {name:'open-files', exact:true}).waitFor();
     if (!await start.isVisible()) throw new Error('Opening a recent folder opened a document');
@@ -305,7 +305,7 @@ async (page, { openDocument, openPath, screenshots = false }) => {
 
   async function measureLongDialog(name, dialog) {
     await dialog.waitFor();
-    for (const width of [1440,375]) {
+    for (const width of [1440,640]) {
       await page.setViewportSize({width,height:900});
       await page.evaluate(async () => { await document.fonts.ready; scrollTo(0,0); });
       const layout = await dialog.evaluate(node => {
@@ -337,7 +337,7 @@ async (page, { openDocument, openPath, screenshots = false }) => {
 
   async function capture(state) {
     if (!screenshots) return;
-    for (const width of [1440, 375]) {
+    for (const width of [1440, 640]) {
       await page.setViewportSize({width,height:800});
       await page.evaluate(() => document.fonts.ready);
       await page.screenshot({path:`tmp/291-dialog-${width}-${state}.png`});

@@ -51,10 +51,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 // Below the docking width of styles.css the Document panel starts closed and overlays the
 // document; at and above it the panel docks. Independent of the narrow sidebar (64rem).
 const PANEL_OVERLAY_LAYOUT = "(width < 89rem)";
-// At phone widths the sidebar is either closed, leaving the document the whole width (the TopBar
-// opens it), or open over the whole screen; it never leaves the document a sliver of width (#321).
-const SIDEBAR_OVERLAY_LAYOUT = "(width < 40rem)";
-
 type Tab = { id: string; path: string; file: DocumentFileResponse; recoveryId: string; restored?: DocumentSessionSnapshot };
 
 /** The Desktop app's bridge; the browser Editor has none and shows no Desktop UI. */
@@ -68,14 +64,11 @@ export function App() {
   const dialogReturnFocus = useRef<HTMLElement | null>(null);
   // Retain Host start information when the last tab closes.
   const [start, setStart] = useState<DocumentStartResponse | null>(null);
-  const [sidebarOverlay, setSidebarOverlay] = useState(() => globalThis.matchMedia?.(SIDEBAR_OVERLAY_LAYOUT).matches ?? false);
-  const [sidebarOpen, setSidebarOpen] = useState(!sidebarOverlay);
-  // Full-screen open/close hides the control that was used, so focus moves to the one that remains.
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarToggle = useRef<HTMLButtonElement>(null);
-  const openSidebarButton = useRef<HTMLButtonElement>(null);
-  const sidebarFocus = useRef<"sidebar" | "top-bar" | null>(null);
+  const sidebarFocus = useRef<"sidebar" | null>(null);
   useLayoutEffect(() => {
-    const target = sidebarFocus.current === "sidebar" ? sidebarToggle.current : sidebarFocus.current === "top-bar" ? openSidebarButton.current : null;
+    const target = sidebarFocus.current === "sidebar" ? sidebarToggle.current : null;
     sidebarFocus.current = null;
     target?.focus();
   }, [sidebarOpen]);
@@ -414,7 +407,7 @@ export function App() {
   // Resolve when an overlay closes: a viewport change can replace its original opener.
   function shellReturnFocus(preferred: HTMLElement | null): HTMLElement | true {
     return preferred?.isConnected && preferred.getClientRects().length ? preferred
-      : (sidebarOpen ? sidebarToggle.current : openSidebarButton.current ?? sidebarToggle.current) ?? true;
+      : sidebarToggle.current ?? true;
   }
 
   // The overlaid Document panel starts below the sticky header, whose height changes when the
@@ -433,17 +426,6 @@ export function App() {
     const change = () => {
       setPanelOverlay(query.matches);
       setPanelOpen(query.matches ? false : dockedPanelOpen.current ?? true);
-    };
-    query.addEventListener("change", change);
-    return () => query.removeEventListener("change", change);
-  }, []);
-
-  // Likewise, crossing the overlay width starts the sidebar collapsed (narrow) or expanded.
-  useEffect(() => {
-    const query = matchMedia(SIDEBAR_OVERLAY_LAYOUT);
-    const change = () => {
-      setSidebarOverlay(query.matches);
-      setSidebarOpen(!query.matches);
     };
     query.addEventListener("change", change);
     return () => query.removeEventListener("change", change);
@@ -489,8 +471,6 @@ export function App() {
     setNotice("");
     try {
       acceptFile(await requestDocument("PUT", path, folders.rootOf(path)));
-      // A full-screen sidebar steps aside for the new document, as for an opened one.
-      if (sidebarOverlay) setSidebarOpen(false);
       return "";
     } catch (cause) { const message = messageOf(cause); setError(message); return message; }
     finally { operationRef.current = false; setOperation(""); }
@@ -730,7 +710,6 @@ export function App() {
         // Run after dismissal so an admission/recovery dialog can own focus. Keep a live return
         // target for refusals, then focus a successful open only after its editor has mounted.
         commandReturnFocus.current?.focus({ preventScroll: true });
-        if (sidebarOverlay) setSidebarOpen(false);
         void openFolderDocument(entry.path).then(opened => { if (opened) setCommandFileFocus(entry.path); });
       },
     })),
@@ -756,7 +735,7 @@ export function App() {
       keywords: ["outline", "개요"], run: () => { outlineToggle.current?.focus(); choosePanelOpen(!panelOpen); } },
     { id: "sidebar", kind: "command", label: i18n.t(sidebarOpen ? "Collapse sidebar" : "Expand sidebar"), icon: PanelLeft,
       keywords: ["sidebar", "사이드바"], takesFocus: true,
-      run: () => { sidebarFocus.current = sidebarOverlay && sidebarOpen ? "top-bar" : "sidebar"; setSidebarOpen(value => !value); } },
+      run: () => { sidebarFocus.current = "sidebar"; setSidebarOpen(value => !value); } },
     { id: "width", kind: "command", label: i18n.t(documentWidth === "wide" ? "Standard document width" : "Wide document"), icon: documentWidth === "wide" ? Columns3 : StretchHorizontal,
       keywords: ["document width", "문서 너비"], run: toggleDocumentWidth },
     { id: "settings", kind: "command", label: i18n.t("Settings"), icon: Settings2, takesFocus: true,
@@ -785,7 +764,7 @@ export function App() {
   ];
 
   return (
-    <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${sidebarOverlay ? " app-shell--sidebar-overlay" : ""}${panelOpen ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}`}>
+    <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${panelOpen ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}`}>
       <Sidebar
         onFileAction={fileAction} fileActionsDisabled={busy || Boolean(continuation)}
         isFileDirty={path => { const tab = tabs.find(tab => tab.path === path); return !!(tab && sessions.current.get(tab.id)?.editorRef.current?.hasUnsavedChanges()); }}
@@ -793,10 +772,8 @@ export function App() {
         documentPath={openedPath}
         toggleRef={sidebarToggle}
         onToggle={() => {
-          if (sidebarOverlay && sidebarOpen) sidebarFocus.current = "top-bar";
           setSidebarOpen((value) => !value);
         }}
-        onDismiss={sidebarOverlay ? () => { sidebarFocus.current = "top-bar"; setSidebarOpen(false); } : undefined}
         onOpenFolder={(returnFocus) => {
           dialogReturnFocus.current = returnFocus;
           setFolderDialog(true);
@@ -817,8 +794,6 @@ export function App() {
         onToggleFolder={folders.toggle}
         onToggleSection={folders.toggleSection}
         onOpenDocument={(path) => {
-          // An overlaid sidebar steps aside for the document it opens.
-          if (sidebarOverlay) setSidebarOpen(false);
           void openFolderDocument(path);
         }}
         onRefreshFolder={folders.refreshRoot}
@@ -834,8 +809,6 @@ export function App() {
         <div className="app-header" ref={header}>
           <TopBar
             onOpenCommandCenter={() => openCommandCenter()}
-            onOpenSidebar={sidebarOverlay && !sidebarOpen ? () => { sidebarFocus.current = "sidebar"; setSidebarOpen(true); } : undefined}
-            openSidebarRef={openSidebarButton}
             documentPath={openedPath}
             wide={documentWidth === "wide"}
             onToggleWide={toggleDocumentWidth}

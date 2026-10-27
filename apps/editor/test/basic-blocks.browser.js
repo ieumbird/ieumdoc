@@ -96,7 +96,7 @@ async (page, { openDocument }) => {
   await page.keyboard.press('Enter');
   // The unfiltered menu exposes every body heading at desktop and narrow widths.
   const headingMenus = [];
-  for (const width of [1440, 390]) {
+  for (const width of [1440, 640]) {
     await page.setViewportSize({ width, height: 844 });
     await page.keyboard.type('/');
     const menu = page.getByRole('menu', {name:'Insert block'});

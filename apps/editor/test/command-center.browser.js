@@ -37,7 +37,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
 
   // Manual Before/After evidence uses the same initial document and sidebar state.
   if (screenshots) {
-    for (const width of [1440, 390]) {
+    for (const width of [1440, 640]) {
       await page.setViewportSize({width, height:900});
       await page.evaluate(() => document.fonts.ready);
       await page.screenshot({path:`tmp/command-center/entry-556-${width}.png`});
@@ -591,7 +591,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await page.waitForFunction(() => document.querySelector('[data-testid="current-file"]')?.textContent === 'technical-1.md');
   result.viewAndDuplicateNames = true;
 
-  // Collect both desktop regressions before reporting so phone captures use the same state.
+  // Collect both desktop regressions before reporting so narrow captures use the same state.
   const guideFailures = [];
   const inspectGuide = async (guide, width, language) => {
     const geometry = await guide.evaluate(n => {
@@ -609,8 +609,8 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     if (geometry.alias) guideFailures.push(`${language} ${width}: Russian layout alias is shown`);
     if (geometry.overflow) guideFailures.push(`${language} ${width}: horizontal overflow`);
   };
-  // The top-center entry and popup stay usable with panels and at phone width.
-  for (const width of [1440,1280,1024,768,375]) {
+  // The top-center entry and popup stay usable with panels and at narrow width.
+  for (const width of [1440,1280,1024,768,640]) {
     await page.setViewportSize({width,height:900});
     const trigger = page.getByRole('button',{name:'Find documents and commands',exact:true});
     const box = await trigger.boundingBox();
@@ -623,7 +623,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     check(popup.x>=0 && popup.x+popup.width<=width && popup.y>=0 && popup.y+popup.height<=900, `Popup clipped at ${width}`);
     if (screenshots) await page.screenshot({path:`tmp/command-center/search-${width}.png`});
     await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
-    if (width === 1440 || width === 1280 || width === 375) {
+    if (width === 1440 || width === 1280 || width === 640) {
       await run('Keyboard shortcuts');
       const guide = page.getByRole('dialog',{name:'Keyboard shortcuts',exact:true});
       await guide.waitFor();
@@ -642,12 +642,15 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     }
   }
   result.responsiveCenter = true;
+  if (await page.getByRole('button',{name:'Collapse sidebar',exact:true}).isVisible())
+    await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
   await run('Expand sidebar');
   await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Collapse sidebar', null, {timeout:5000});
   await page.getByRole('button',{name:'Collapse sidebar',exact:true}).focus();
   await run('Collapse sidebar');
-  await page.waitForFunction(() => document.querySelector('.top-bar-sidebar')===document.activeElement, null, {timeout:5000});
-  result.phoneSidebarFocus = true;
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Expand sidebar', null, {timeout:5000});
+  result.narrowSidebarFocus = true;
+  await run('Expand sidebar');
   await run('Settings');
   await page.getByTestId('ui-language').selectOption('ko');
   await page.keyboard.press('Escape'); await page.getByTestId('settings-dialog').waitFor({state:'detached'});
@@ -662,21 +665,21 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await korean.getByRole('combobox').fill('> 저장');
   check(await korean.getByRole('option',{name:'저장',exact:true}).count()===1, 'Korean command search failed');
   check(await korean.getByTestId('command-center-count').innerText() === '검색 결과 1개', 'Korean result count missing');
-  if (screenshots) await page.screenshot({path:'tmp/command-center/search-ko-375.png'});
+  if (screenshots) await page.screenshot({path:'tmp/command-center/search-ko-640.png'});
   await korean.getByRole('combobox').fill('> keyboard shortcuts');
   await page.keyboard.press('Enter'); await korean.waitFor({state:'detached'});
   const koreanGuide = page.getByRole('dialog',{name:'키보드 단축키',exact:true});
   await koreanGuide.waitFor();
   check((await koreanGuide.innerText()).includes('줄바꿈') && (await koreanGuide.innerText()).includes('Shift+Enter'),
     'Korean shortcut guide is missing the line-break entry');
-  check(await koreanGuide.evaluate(n => n.scrollWidth <= n.clientWidth), 'Korean guide overflows on phone');
-  if (screenshots) await page.screenshot({path:'tmp/command-center/shortcuts-ko-375-471.png'});
-  await inspectGuide(koreanGuide, 375, 'ko');
+  check(await koreanGuide.evaluate(n => n.scrollWidth <= n.clientWidth), 'Korean guide overflows on narrow');
+  if (screenshots) await page.screenshot({path:'tmp/command-center/shortcuts-ko-640-471.png'});
+  await inspectGuide(koreanGuide, 640, 'ko');
   await page.setViewportSize({width:1440,height:900});
   await koreanGuide.evaluate(n => n.scrollTop = 0);
   if (screenshots) await page.screenshot({path:'tmp/command-center/shortcuts-ko-1440-496.png'});
   await inspectGuide(koreanGuide, 1440, 'ko');
-  await page.setViewportSize({width:375,height:900});
+  await page.setViewportSize({width:640,height:900});
   await page.keyboard.press('Escape'); await koreanGuide.waitFor({state:'detached'});
   await page.getByRole('button',{name:'문서·명령 찾기',exact:true}).click(); await waitForInput();
   await korean.getByRole('combobox').fill('> settings');
@@ -723,10 +726,10 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     const highlighted = await center().locator('[role="option"][data-highlighted]').getAttribute('aria-label');
     check(highlighted === 'bulk-0000.md' || highlighted === 'bulk-0049.md', 'ArrowDown escaped the visible matches');
     check(await center().getByRole('option').count() === 50, 'Keyboard navigation expanded the result limit');
-    await page.setViewportSize({width:375,height:900});
+    await page.setViewportSize({width:640,height:900});
     const box = await count.boundingBox();
-    check(box && box.x >= 0 && box.x + box.width <= 375, 'Result count clipped on phone');
-    if (screenshots) await page.screenshot({path:'tmp/command-center/limited-375.png'});
+    check(box && box.x >= 0 && box.x + box.width <= 640, 'Result count clipped on narrow');
+    if (screenshots) await page.screenshot({path:'tmp/command-center/limited-640.png'});
     await input().fill('bulk-000');
     check(await center().getByRole('option').count() === 10 && await count.innerText() === 'Results: 10', 'Narrowing did not recompute the full result count');
     await input().fill('bulk-no-match');

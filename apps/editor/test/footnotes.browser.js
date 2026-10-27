@@ -218,10 +218,8 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
     return {notes, expected, overflow: document.documentElement.scrollWidth - innerWidth};
   });
   const displays = [];
-  for (const width of [1440, 768, 375]) {
+  for (const width of [1440, 768, 640]) {
     await page.setViewportSize({width, height:900});
-    // Phone widths start with the sidebar collapsed to its rail.
-    if (width === 375) await page.getByRole('button', {name:'Expand sidebar', exact:true}).waitFor();
     await page.evaluate(async () => { await document.fonts.ready; window.scrollTo(0,0); document.activeElement?.blur(); });
     await page.mouse.move(0,0);
     await page.waitForTimeout(150);

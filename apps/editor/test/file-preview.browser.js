@@ -57,13 +57,12 @@ async (page, { openDocument, screenshots }) => {
     await direct.goto(`${page.url().split('/').slice(0,3).join('/')}/api/file-preview?root=${encodeURIComponent(root)}&path=${encodeURIComponent(root + sep + 'active.svg')}`);
     check(!(await direct.evaluate(() => window.__previewExecuted)), 'Direct SVG navigation executed script');
   } finally { await direct.close(); }
-  for (const width of [1440, 375]) {
+  for (const width of [1440, 640]) {
     await page.setViewportSize({width, height:900});
-    if (width === 375) await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
     await clickRow('diagram.svg');
     await dialog().getByRole('img').waitFor();
     // A cached image can appear before Dialog's asynchronous initial focus. Escape must
-    // exercise the preview's keyboard owner, not the still-focused phone sidebar row.
+    // exercise the preview's keyboard owner, not the still-focused narrow sidebar row.
     await page.waitForFunction(() => document.querySelector('[data-slot="dialog-content"]')?.contains(document.activeElement), null, {timeout:5000});
     const box = await dialog().boundingBox();
     check(box.x >= 0 && box.x + box.width <= width && box.y >= 0 && box.y + box.height <= 900, 'Preview exceeds viewport');
@@ -114,10 +113,10 @@ async (page, { openDocument, screenshots }) => {
   await page.getByTestId('ui-language').selectOption('en');
   await page.keyboard.press('Escape'); await dialog().waitFor({state:'detached'});
   check(JSON.stringify(await snapshot()) === JSON.stringify(before) && await draft.inputValue() === 'section-draft', 'Late/error or translated preview lost editor state');
-  return {longDialogLayouts, readOnly:true, dirtyDraftSelectionUndo:true, focus:true, svgIsolation:true, errorLateResponse:true, i18n:true, widths:[1440,375]};
+  return {longDialogLayouts, readOnly:true, dirtyDraftSelectionUndo:true, focus:true, svgIsolation:true, errorLateResponse:true, i18n:true, widths:[1440,640]};
   async function measureLongDialog(name, dialog) {
     await dialog.waitFor();
-    for (const width of [1440,375]) {
+    for (const width of [1440,640]) {
       await page.setViewportSize({width,height:900});
       await page.evaluate(async () => { await document.fonts.ready; scrollTo(0,0); });
       const layout = await dialog.evaluate(node => {

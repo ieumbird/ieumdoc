@@ -130,8 +130,8 @@ async (page, { screenshots = false, openPath }) => {
   await restart.waitFor();
   if (screenshots) {
     await capture('about-downloaded-wide');
-    await page.setViewportSize({width:375, height:812});
-    await capture('about-downloaded-phone');
+    await page.setViewportSize({width:640, height:812});
+    await capture('about-downloaded-narrow');
     await page.setViewportSize({width:1440, height:1000});
   }
 
@@ -273,10 +273,8 @@ async (page, { screenshots = false, openPath }) => {
   // same traversal for geometry assertions and optional manual-review captures.
   const screenResults = [];
   for (const language of ['en', 'ko']) {
-    for (const width of [1440, 390, 375]) {
+    for (const width of [1440, 640]) {
       await page.setViewportSize({width, height:900});
-      // Wait for the shell's media-query transition before choosing whether to expand.
-      await page.waitForFunction(width => document.querySelector('.app-shell')?.classList.contains('app-shell--sidebar-overlay') === (width < 640), width);
       const expand = page.getByRole('button',{name:language === 'en' ? 'Expand sidebar' : '사이드바 펼치기',exact:true});
       if (await expand.isVisible()) await expand.click();
       await page.getByRole('button',{name:language === 'en' ? 'Settings' : '설정',exact:true}).click();
@@ -307,19 +305,18 @@ async (page, { screenshots = false, openPath }) => {
           nav:n.querySelector('.settings-navigation').getBoundingClientRect().toJSON(),
         }));
         screenResults.push({language,width,category,...geometry,scrollState});
-        if (width !== 375) await capture(`settings-${language}-${category}-${width}`);
+        await capture(`settings-${language}-${category}-${width}`);
         const lastControl = dialog.locator('main button, main select, main input').last();
         await lastControl.scrollIntoViewIfNeeded();
         check(await lastControl.isVisible(), `Last control unreachable at ${width}/${category}`);
         await dialog.locator('.settings-body').evaluate(n => n.scrollTop = 0);
       }
-      // Crossing the phone boundary hides the old Sidebar opener while Settings is
-      // covering it. Back must then focus the visible control that can reopen Sidebar.
-      if (width === 1440) await page.setViewportSize({width:390,height:900});
+      // Resizing Settings keeps its Sidebar opener available at every supported width.
+      await page.setViewportSize({width:width === 1440 ? 640 : 1440,height:900});
       await page.keyboard.press('Escape'); await dialog.waitFor({state:'detached'});
+      await page.getByRole('button',{name:language === 'en' ? 'Settings' : '설정',exact:true})
+        .and(page.locator(':focus')).waitFor();
       if (width === 1440) {
-        await page.getByRole('button',{name:language === 'en' ? 'Expand sidebar' : '사이드바 펼치기',exact:true})
-          .and(page.locator(':focus')).waitFor();
         // Settings releases its modal before revealing the inline block, at supported widths.
         for (const closeWidth of [640, 1440]) {
           await page.setViewportSize({width:1440,height:900});

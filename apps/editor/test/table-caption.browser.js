@@ -29,7 +29,7 @@ async (page, { openPath, expect, reloadDocument, screenshots }) => {
     // Manual comparison only; the normal scenario below owns behavioral assertions.
     await openPath(page, [root, 'tmp', 'table-authoring', 'tables.md'].join(separator));
     const emptyTable = page.locator('[data-document-tab][data-active=true] [data-block="table"]').first();
-    for (const width of [1440,390]) {
+    for (const width of [1440,640]) {
       await page.setViewportSize({width,height:900});
       await emptyTable.scrollIntoViewIfNeeded();
       await page.mouse.move(width-2,2);

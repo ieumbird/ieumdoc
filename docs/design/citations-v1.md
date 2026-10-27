@@ -252,7 +252,7 @@ in that tab. Removing the last declaration clears the snapshot without a resourc
 stores declarations/context, never bibliography text: restored sources are unverified until Reload
 or Save of a changed declaration. Old recovery records without resource context retain
 unchecked chips. The References section reuses document spacing, color and type tokens, wraps at
-375px, and renders strings with typed React nodes rather than HTML injection.
+the supported minimum width of 640px ([ADR-0010](../adr/0010-supported-viewport-and-input.md)), and renders strings with typed React nodes rather than HTML injection.
 
 ## Dependency and fixture provenance
 
@@ -533,7 +533,7 @@ Core operation. CLI parity is unchanged because this is an Editor-only interacti
 
 The extended `citation-authoring` scenario checks author/title filtering, Korean display-text
 filtering, pointer and Up/Down/Enter selection, active-descendant/listbox wiring, input focus,
-Escape dismissal/reopening, 375px overflow bounds and preservation of typed/unknown/invalid keys.
+Escape dismissal/reopening, 640px overflow bounds and preservation of typed/unknown/invalid keys.
 Browser-dispatched composition events and legacy keyCode 229 check that IME keys cannot select,
 apply or cancel. These are automated event checks, not a physical Windows IME session.
 Existing role/key editing, Remove, Undo/Redo and Save → Reload checks remain, including unchanged

@@ -33,27 +33,6 @@ button {
   --shell-sidebar: var(--layout-sidebar-rail-width);
 }
 
-/* Below 640px (phone widths) the sidebar takes no grid width: closed, it has no rail and the
- * document uses the whole width (the TopBar opens it); open, it covers the whole screen (#321).
- * The width follows the media query itself, like the Document panel's, so the frame before the
- * matchMedia handler closes the sidebar never narrows the document or scrolls the page sideways. */
-@media (width < 40rem) {
-  .app-shell { --shell-sidebar: 0px; }
-}
-
-.app-shell--sidebar-overlay.app-shell--collapsed .sidebar {
-  display: none;
-}
-
-.app-shell--sidebar-overlay:not(.app-shell--collapsed) .sidebar {
-  position: fixed;
-  inset: 0;
-  z-index: 5;
-  width: 100vw;
-  height: 100dvh;
-  border-right: 0;
-}
-
 /* A closed document panel takes no width; the TopBar Outline toggle opens it. */
 .app-shell--panel-closed {
   --shell-panel: 0px;
@@ -533,7 +512,6 @@ button {
 .app-main {
   display: flex;
   flex-direction: column;
-  /* The sidebar may leave the first column (#321); the main column keeps its own. */
   grid-column: 2;
   min-width: 0;
 }
@@ -712,7 +690,6 @@ button {
 }
 @container (width < 35rem) {
   .top-bar-identity { display: contents; }
-  .top-bar-sidebar { grid-column: 1; grid-row: 2; }
   .top-bar-actions { grid-column: 1 / -1; grid-row: 3; justify-self: stretch; min-width: 0; }
   .top-bar-identity .status { grid-column: 1 / -1; grid-row: 4; }
 }
@@ -2693,11 +2670,6 @@ ol.list { list-style: decimal; }
   padding: var(--space-3);
   color: var(--id-color-text-muted);
   overflow-wrap: anywhere;
-}
-
-/* Reuse the shell's phone boundary: image preview must not crowd the list or its actions. */
-@media (width < 40rem) {
-  .folder-picker-preview { display: none; }
 }
 
 .folder-picker-option {

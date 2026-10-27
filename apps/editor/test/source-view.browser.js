@@ -147,7 +147,7 @@ async (page, { openPath, screenshots }) => {
     } finally { await session.detach(); }
   };
   const wrapping = [];
-  for (const width of [1440, 375]) {
+  for (const width of [1440, 640]) {
     await page.setViewportSize({width, height:900});
     await page.evaluate(async () => {
       await document.fonts.ready;

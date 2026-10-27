@@ -152,10 +152,10 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture,
   assert(await references.getByRole('heading', { name: '참고문헌', exact: true }).count() === 1, 'References heading translates');
   assert((await editor.locator('[data-citation]').first().getAttribute('aria-label') ?? await editor.locator('[data-citation] > span').first().getAttribute('aria-label')).includes('인용'), 'Citation status translates');
   await capture('references-ko', 1440);
-  await capture('references-ko', 375);
-  await page.setViewportSize({ width: 375, height: 1000 });
+  await capture('references-ko', 640);
+  await page.setViewportSize({ width: 640, height: 1000 });
   const narrow = await page.evaluate(() => ({ width: innerWidth, scroll: document.documentElement.scrollWidth }));
-  assert(narrow.scroll <= narrow.width, 'References must wrap without page-level overflow at 375px');
+  assert(narrow.scroll <= narrow.width, 'References must wrap without page-level overflow at 640px');
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByRole('button', { name: '설정', exact: true }).click();
   await page.getByTestId('ui-language').selectOption('en'); await page.keyboard.press('Escape');

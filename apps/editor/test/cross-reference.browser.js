@@ -89,7 +89,7 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
 
   await page.getByRole('button', {name:'Document settings', exact:true}).click();
   if (screenshots) {
-    for (const width of [1280, 375]) {
+    for (const width of [1280, 640]) {
       await page.setViewportSize({width, height:720});
       await page.screenshot({path:`tmp/reference-templates-${width}.png`});
     }
@@ -363,8 +363,8 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
       });
       await page.evaluate(() => document.fonts.ready);
       await page.screenshot({path:'tmp/375/deleted-table-1280.png'});
-      await page.setViewportSize({width:375, height:900});
-      await page.screenshot({path:'tmp/375/deleted-table-375.png'});
+      await page.setViewportSize({width:640, height:900});
+      await page.screenshot({path:'tmp/375/deleted-table-640.png'});
       await page.setViewportSize({width:1280, height:720});
     }
     await page.keyboard.press('ControlOrMeta+z');
@@ -426,8 +426,8 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
     await page.getByTestId('notice').getByRole('button', {name:'되돌리기', exact:true}).count() === 1;
   if (screenshots) {
     await page.screenshot({path:'tmp/375/deleted-table-ko-1280.png'});
-    await page.setViewportSize({width:375, height:900});
-    await page.screenshot({path:'tmp/375/deleted-table-ko-375.png'});
+    await page.setViewportSize({width:640, height:900});
+    await page.screenshot({path:'tmp/375/deleted-table-ko-640.png'});
     await page.setViewportSize({width:1280, height:720});
   }
   await page.getByTestId('notice').getByRole('button', {name:'되돌리기', exact:true}).click();
