@@ -16,7 +16,7 @@ const bin = path.join(local, "IeumDoc", "bin");
 const environment = windowsEnvironment();
 function entries(): string {
   return execFileSync("powershell.exe", ["-NoProfile", "-Command",
-    "Get-ChildItem HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall | Get-ItemProperty | Where-Object { $_.DisplayName -eq 'IeumDoc' } | ForEach-Object { $_.UninstallString }"], { encoding: "utf8" }).trim();
+    "Get-ChildItem HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall | Get-ItemProperty | Where-Object { $_.DisplayName -like 'IeumDoc*' } | ForEach-Object { $_.UninstallString }"], { encoding: "utf8" }).trim();
 }
 
 test("interactive and silent NSIS removal survive CLI ownership, helper and environment failures", {
@@ -42,7 +42,8 @@ test("interactive and silent NSIS removal survive CLI ownership, helper and envi
       const install = path.join(work, label);
       const setup = spawnSync(installer, ["/S", `/D=${install}`], { timeout: 60_000, encoding: "utf8" });
       assert.equal(setup.status, 0, `${label}: ${setup.stderr}`);
-      assert.ok(entries().toLowerCase().includes(install.toLowerCase()));
+      const registration = entries();
+      assert.ok(registration.toLowerCase().includes(install.toLowerCase()), `${label}: registration ${registration} must identify ${install}`);
       const integration = new CliIntegration(path.join(install, "IeumDoc.exe"), local, environment);
       await integration.setEnabled(true);
       const registered = (await environment.read()).user;
