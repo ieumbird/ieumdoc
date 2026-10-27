@@ -34,6 +34,7 @@ async (page, { openPath, screenshots }) => {
     observer.observe(document, { childList: true, subtree: true });
   });
   const accentResults = [];
+  const captureMetadata = [];
   try {
     await editor.evaluate(async node => {
       const { INSERT_COMMANDS } = await import('/src/block-commands.ts');
@@ -62,8 +63,27 @@ async (page, { openPath, screenshots }) => {
     await page.keyboard.press('Tab'); await page.keyboard.press('Enter');
     check(await screen.getByRole('heading',{name:'Local recovery',exact:true}).isVisible(), 'Keyboard cannot select recovery');
     await screen.getByRole('button',{name:'Appearance & language',exact:true}).click();
+    if (screenshots) {
+      for (const theme of ['light','dark']) {
+        await page.getByTestId('theme').selectOption(theme);
+        for (const width of [1440,640]) {
+          await page.setViewportSize({width,height:900});
+          await page.evaluate(async () => { await document.fonts.ready; document.activeElement?.blur(); document.querySelector('.settings-body').scrollTop = 0; });
+          await page.mouse.move(0,0);
+          await page.screenshot({path:`tmp/settings-615/${theme}-${width}.png`});
+          captureMetadata.push(await page.evaluate(() => ({theme:document.documentElement.dataset.theme,
+            width:innerWidth,height:innerHeight,dpr:devicePixelRatio,scale:visualViewport.scale,
+            zoom:getComputedStyle(document.documentElement).zoom,font:getComputedStyle(document.querySelector('.settings-content')).fontFamily,
+            scroll:document.querySelector('.settings-body').scrollTop,userAgent:navigator.userAgent})));
+        }
+      }
+      await page.setViewportSize({width:1280,height:720});
+      await page.getByTestId('theme').selectOption('system');
+    }
+    check(await screen.getByRole('radiogroup', {name:'Accent color',exact:true}).count() === 1,
+      'Accent color must expose a named radio group with visible swatches');
     const pagePicker = page.getByTestId('page-background');
-    check(await pagePicker.inputValue() === 'paper', 'Page background must default to paper');
+    check(await pagePicker.inputValue() === 'paper', 'Page style must default to paper');
     const themePicker = page.getByTestId('theme');
     check(await themePicker.inputValue() === 'system', 'Theme must default to System');
     for (const colorScheme of ['dark','light']) {
@@ -71,19 +91,41 @@ async (page, { openPath, screenshots }) => {
       await page.waitForFunction(theme => document.documentElement.dataset.theme === theme, colorScheme);
       check(await page.locator('html').evaluate(n => getComputedStyle(n).colorScheme) === colorScheme, 'Native controls must follow the resolved theme');
     }
-    const picker = page.getByRole('combobox', { name: 'Accent color', exact: true });
-    const presets = await picker.locator('option').evaluateAll(options => options.map(option => option.value));
+    const picker = page.getByRole('radiogroup', { name: 'Accent color', exact: true });
+    const presets = await picker.getByRole('radio').evaluateAll(options => options.map(option => option.value));
     check(presets.join(',') === 'blue,violet,plum,teal,green,graphite', 'Settings must expose the six validated presets');
+    await page.getByTestId('ui-language').focus();
+    await page.keyboard.press('Tab');
+    for (const [key, value] of [['ArrowRight','violet'],['ArrowDown','plum'],['ArrowLeft','violet'],['ArrowUp','blue'],['ArrowUp','graphite'],['ArrowRight','blue']]) {
+      await page.keyboard.press(key);
+      const radio = picker.locator(`input[value="${value}"]`);
+      check(await radio.isChecked() && await radio.evaluate(n => n === document.activeElement && n.matches(':focus-visible')),
+        `${key} must select and focus ${value}`);
+      check(await radio.evaluate(n => getComputedStyle(n.nextElementSibling).boxShadow !== 'none'), 'Keyboard focus must have a visible ring');
+      check(await page.locator('html').getAttribute('data-accent') === value, 'Arrow selection must apply the accent immediately');
+    }
+    await page.keyboard.press('Tab');
+    check(!await picker.evaluate(n => n.contains(document.activeElement)), 'Radio group must occupy one Tab stop');
     for (const theme of ['light','dark']) {
     await themePicker.selectOption(theme);
+    const swatches = await picker.locator('.settings-accent-swatch').evaluateAll(nodes => nodes.map(n => getComputedStyle(n).backgroundColor));
+    check(new Set(swatches).size === presets.length, `${theme}: unselected swatches must show distinct colors`);
+    for (const width of [1440,640]) {
+      await page.setViewportSize({width,height:900});
+      check(await picker.evaluate(n => n.scrollWidth <= n.clientWidth && [...n.querySelectorAll('label')].every(label => {
+        const r = label.getBoundingClientRect();
+        return r.left >= 0 && r.right <= innerWidth && label.scrollWidth <= label.clientWidth;
+      })), `${theme}/${width}: accent choices must fit without clipping or sideways overflow`);
+    }
+    await page.setViewportSize({width:1280,height:720});
     await pagePicker.selectOption('flat');
     check(await page.locator('html').getAttribute('data-page') === 'flat', 'Page selection did not apply');
-    check(JSON.stringify(await snapshot()) === JSON.stringify(before), 'Page background changed document or selection');
+    check(JSON.stringify(await snapshot()) === JSON.stringify(before), 'Page style changed document or selection');
     await page.emulateMedia({colorScheme:theme === 'light' ? 'dark' : 'light'});
     check(await page.locator('html').getAttribute('data-theme') === theme, 'An explicit theme changed with the OS');
     for (const preset of presets) {
-      await picker.selectOption(preset);
-      await picker.focus();
+      await picker.locator(`input[value="${preset}"]`).check();
+      await picker.locator(`input[value="${preset}"]`).focus();
       const colors = await page.evaluate(() => {
         const root = document.documentElement;
         const resolve = name => {
@@ -91,24 +133,27 @@ async (page, { openPath, screenshots }) => {
           const value = getComputedStyle(probe).color; probe.remove(); return value;
         };
         const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor');
-        const picker = document.querySelector('[data-testid="accent-color"]');
+        const picker = document.querySelector('[data-testid="accent-color"] input:checked + .settings-accent-face');
         const selection = getComputedStyle(editor.querySelector('.paragraph'), '::selection');
         return { theme: root.dataset.theme, preset: root.dataset.accent, interaction: resolve('interaction'), selected: resolve('text-selected'),
-          selectedSurface: resolve('surface-selected'), focus: getComputedStyle(picker).borderColor,
+          selectedSurface: resolve('surface-selected'), focus: getComputedStyle(picker).borderColor, swatch: getComputedStyle(picker.querySelector('.settings-accent-swatch')).backgroundColor,
           save: getComputedStyle(document.querySelector('[data-testid="save"]')).backgroundColor,
           selectionText: selection.color, selectionBackground: selection.backgroundColor,
           link: getComputedStyle(editor.querySelector('a')).color,
           reference: getComputedStyle(editor.querySelector('.cross-reference-chip')).color };
       });
-      check(colors.preset === preset && colors.focus === colors.interaction && colors.save === colors.interaction &&
+      check(colors.preset === preset && colors.swatch === colors.interaction && colors.focus === colors.interaction && colors.save === colors.interaction &&
         colors.link === colors.interaction && colors.reference === colors.interaction &&
         colors.selectionText === colors.selected && colors.selectionBackground === colors.selectedSurface,
         `Accent consumers did not update: ${JSON.stringify(colors)}`);
+      check(colors.interaction === swatches[presets.indexOf(preset)], 'Every swatch must match its actual theme accent before selection');
+      check(await picker.locator('input:checked + .settings-accent-face .settings-accent-swatch svg').count() === 1,
+        'Selected accent must show a check mark');
       accentResults.push(colors);
     }
     check(new Set(accentResults.filter(r => r.theme === theme).map(result => result.interaction)).size === presets.length, 'Presets must produce distinct colors');
     }
-    await picker.selectOption('teal');
+    await picker.locator('input[value="teal"]').check();
     if (screenshots) await page.screenshot({ path: 'tmp/256/settings-en.png' });
     await page.getByTestId('ui-language').selectOption('ko');
     await page.getByRole('heading', { name: '표시 언어', exact: true }).waitFor();
@@ -204,12 +249,13 @@ async (page, { openPath, screenshots }) => {
     check(await page.locator('html').getAttribute('lang') === 'ko', 'Language preference was not restored');
     check(await page.evaluate(() => window.accentAtFirstUi === 'teal' && document.documentElement.dataset.accent === 'teal'), 'Saved accent must apply at the first mounted UI');
     check(await page.evaluate(() => window.themeAtFirstUi === 'dark' && document.documentElement.dataset.theme === 'dark'), 'Saved theme must apply at the first mounted UI');
-    check(await page.evaluate(() => window.pageAtFirstUi === 'flat'), 'Page background must restore before first mounted UI');
+    check(await page.evaluate(() => window.pageAtFirstUi === 'flat'), 'Page style must restore before first mounted UI');
     check(!disk.source.includes('pageBackground') && !disk.source.includes('uiLanguage') && !disk.source.includes('accentColor') && !disk.source.includes('ieumdoc.theme'), 'Display preference leaked into document');
     await settings('ko');
     check(await page.getByRole('combobox',{name:'테마',exact:true}).inputValue() === 'dark' &&
       await page.getByRole('option',{name:'시스템',exact:true}).count() === 1, 'Korean theme labels are missing');
-    check(await page.getByRole('combobox',{name:'페이지 배경',exact:true}).inputValue() === 'flat' && await page.getByRole('option',{name:'종이 보기',exact:true}).count() === 1 && await page.getByRole('option',{name:'흰 화면',exact:true}).count() === 1, 'Korean page labels are missing');
+    check(await page.getByRole('combobox',{name:'페이지 모양',exact:true}).inputValue() === 'flat' && await page.getByRole('option',{name:'종이',exact:true}).count() === 1 && await page.getByRole('option',{name:'평면',exact:true}).count() === 1, 'Korean page labels are missing');
+    check(await page.getByRole('radiogroup',{name:'포인트 색',exact:true}).getByRole('radio',{name:'청록',exact:true}).isChecked(), 'Korean radio labels and selected state are missing');
     if (screenshots) {
       await page.setViewportSize({ width: 640, height: 812 });
       await page.screenshot({ path: 'tmp/256/settings-ko-640.png' });
@@ -235,16 +281,16 @@ async (page, { openPath, screenshots }) => {
     check(await page.getByTestId('page-background').inputValue() === 'paper', 'Unavailable page store must default to paper');
     await page.getByTestId('page-background').selectOption('flat');
     check(await page.locator('html').getAttribute('data-page') === 'flat', 'Live page background must work without storage');
-    await page.getByRole('alert').filter({hasText:'Page background could not be saved.'}).waitFor();
+    await page.getByRole('alert').filter({hasText:'Page style could not be saved.'}).waitFor();
     await page.getByTestId('theme').selectOption('dark');
     check(await page.locator('html').getAttribute('data-theme') === 'dark', 'Live theme must work without storage');
     await page.getByRole('alert').filter({hasText:'Theme could not be saved.'}).waitFor();
-    await page.getByTestId('accent-color').selectOption('plum');
+    await page.getByTestId('accent-color').getByRole('radio', {name:'Plum',exact:true}).check();
     check(await page.evaluate(() => document.documentElement.dataset.accent === 'plum'), 'Live accent must work without storage');
     await page.getByRole('alert').filter({ hasText: 'Accent color could not be saved.' }).waitFor();
     await closeSettings();
     await settings('en');
-    check(await page.getByTestId('accent-color').inputValue() === 'plum', 'Reopening Settings lost the live choice');
+    check(await page.getByTestId('accent-color').getByRole('radio', {name:'Plum',exact:true}).isChecked(), 'Reopening Settings lost the live choice');
     check(await page.getByTestId('page-background').inputValue() === 'flat', 'Reopening Settings lost live page choice');
     check(await page.getByTestId('theme').inputValue() === 'dark', 'Reopening Settings lost the live theme choice');
     await page.getByTestId('theme').selectOption('system');
@@ -253,7 +299,7 @@ async (page, { openPath, screenshots }) => {
     await page.emulateMedia({colorScheme:'light'});
     await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
     await closeSettings();
-    return { accentResults, firstUiAccent: true, invalidAndUnavailableStorage: true, editorPreserved: true, draftAndSelectionPreserved: true, undoRedo: true, liveError: true, saveReload: true, conflictPreserved: true, persisted: true };
+    return { accentResults, captureMetadata, firstUiAccent: true, invalidAndUnavailableStorage: true, editorPreserved: true, draftAndSelectionPreserved: true, undoRedo: true, liveError: true, saveReload: true, conflictPreserved: true, persisted: true };
   } finally {
     await original.dispose();
     await page.evaluate(() => { localStorage.setItem('ieumdoc.uiLanguage', 'en'); document.documentElement.dataset.accent = 'blue'; });

@@ -108,6 +108,7 @@ than a persistently pressed action. Other open-menu/pressed faces are unchanged.
 | Document tabs and close slot | Use the adjustable 32px navigation row, a full-height activation area, 28px close target with a 16px icon and the existing roving keyboard owner. Current document tabs use a flat bottom accent marker (#581); focus stays independently inset. |
 | Visual/Source | The documented 24px inner segment sits inside a 28px track; measure the whole segmented control. |
 | Native checkboxes | 16px OS checkbox inside an associated label target of at least 28px; retain native accessibility, accent and focus behavior. |
+| Accent swatch radios (#615) | Content-height choice faces contain a 28px circular swatch and 12/16px name, with 8px block padding and 4px gap. Native radios own arrow selection and checked state; the associated face draws the shared focus ring, control edge and selected surface. A 16px check on the chosen swatch supplies a non-color cue. |
 | Picker path input | 20px inner line box inside the recognizable 32px/6px field wrapper; the wrapper owns boundary and focus. |
 | Multiline LaTeX/recovery fields | Minimum 80px/128px respectively, retaining editable/copyable multi-line content rather than a one-line action size. Recovery's 4px field radius remains a specific existing treatment. |
 | Content/surface radii | Existing 4px content, 8px popover, 12px dialog and 6px paper radii express content/surface hierarchy; B1's 6px is a control rule. |
@@ -211,7 +212,7 @@ is added. See [Desktop appearance](desktop-distribution-v1.md#appearance-595).
 and `surface` is the floating face used by menus, dialogs, tabs, fields and Settings.
 Paper radius, edge width/color and elevation have separate variables. Light retains all
 prior values and pixels. Dark paper is one step brighter than canvas, with a thin visible
-edge and zero elevation. White screen (#593) flattens the page using only variable values:
+edge and zero elevation. Flat (#593) flattens the page using only variable values:
 `canvas: var(--id-color-paper)`, `size-paper-border: 0px`, `id-radius-paper: 0px`, and
 `shadow-paper: 0 0 0 transparent`; the floating surface is untouched. A transparent zero
 shadow is used instead of `none` because it is composed with an inset edge in a shadow list.
@@ -557,6 +558,13 @@ All color numbers live only in `styles/tokens.css` Adjustable values. The defaul
 palette is Light Blue; Dark overrides the existing role values in `:root[data-theme="dark"]`. Within each theme, `data-accent` scopes override only interaction, primary-hover /
 selected-text, selected-surface and selected-hover values. Other roles are shared aliases.
 The script sets only a validated preset ID, never color values. Typography and spacing are unchanged.
+For the Settings swatches (#615), theme-scoped `--id-color-accent-{preset}` tokens
+hold each interaction color once. Both the preset's interaction role and its circular
+swatch reference that token. Unselected swatches remain visible in Light and Dark;
+only the selected swatch contains a check, using the existing text-on-accent role.
+The choice face keeps the neutral control border, selected surface and visible focus
+ring described in the control exceptions above. Page style / 페이지 모양 uses Paper /
+종이 and Flat / 평면; this naming change does not alter stored values or presentation.
 
 Light presets (Dark values are [below](#system-light-and-dark-595)):
 
@@ -672,12 +680,12 @@ Values meant to be tuned by hand, or that change with a user's taste, are shared
 - Regression coverage (#536) checks token ownership, consumers and resolved relationships, not historical computed values. `quiet-document` uses Range geometry for Korean word boundaries and oversized-token fallback in prose/cells, contextual code/math wrapping, local table/formula scrolling, and document-independent UI/Source typography. The #506 master baseline and its shadow-table comparison were removed; the review evidence above remains historical. `layout-rules` reads the current document font and control radius tokens, and still enforces 28/32px controls and unmoved text. `visual-states` computes the generated-number contrast from current tokens (at least 4.5:1 on paper and the Outline panel).
 - A user preference switches between such variables (a class on `.app-shell`); it does not compute or store pixel values. Preferences are kept by `src/preferences.ts` in this browser's storage, never in Markdown, front matter or the Host. They are display choices, not document semantics, so Core and CLI do not know them.
 - Current entries: `--layout-content-width` (Standard document column, 928px) and `--layout-content-width-wide` (Wide document column, 1280px, capped by the window). The Wide document toggle beside Visual/Source chooses between them; its existing command uses the same device preference.
-- Paper surface entries (#226): `--id-color-canvas` (`#eceef2`), `--id-radius-paper` (0.375rem / 6px) and `--shadow-paper` (`0 2px 8px rgb(32 36 44 / 6%)`) distinguish the white paper with a slightly darker neutral canvas, small corners and gentle elevation. Visual and Source share this paper treatment; the start without a document deliberately does not (#298). Panel surfaces, control/overlay radii and `--shadow-overlay` retain their own roles. Theme overrides now include independent `paper`, `paper-border` and `size-paper-border` values; see [#595](#system-light-and-dark-595). Settings → Appearance & language offers Page background: Paper view (default) / White screen.
+- Paper surface entries (#226): `--id-color-canvas` (`#eceef2`), `--id-radius-paper` (0.375rem / 6px) and `--shadow-paper` (`0 2px 8px rgb(32 36 44 / 6%)`) distinguish the white paper with a slightly darker neutral canvas, small corners and gentle elevation. Visual and Source share this paper treatment; the start without a document deliberately does not (#298). Panel surfaces, control/overlay radii and `--shadow-overlay` retain their own roles. Theme overrides now include independent `paper`, `paper-border` and `size-paper-border` values; see [#595](#system-light-and-dark-595). Settings → Appearance & language offers Page style: Paper (default) / Flat.
   The `:root[data-page="flat"]` scope overrides only canvas, paper edge width, radius and shadow,
   after theme scopes, so both themes share the same behavior and floating surfaces retain their roles.
   `preferences.ts` stores `ieumdoc.pageBackground` in browser/app-profile localStorage only.
   `theme-init.js` applies the validated choice before styles and the runtime reads it before React.
-  Absent, invalid or unreadable storage selects Paper view; write failure keeps the current-page
+  Absent, invalid or unreadable storage selects Paper; write failure keeps the current-page
   choice with the standard localized Settings alert. Core/CLI are outside this display-only change.
 - Block hover entries (#225): `--id-color-block-hover-outline` aliases the neutral `border-strong` role (`#bbc2cd`), `--size-block-hover-outline` is 1px, and `--id-radius-block-hover` is the small radius plus the existing selection outline offset (`space-1`) and outline width (`border-width`), currently 9px; Figure/Equation use this shared value minus their offset and width for their element radius, so the painted outlines have matching curves. `--space-block-hover-inline` aliases `space-2` (8px per side) and `--space-block-hover-block` aliases `space-1` (4px above/below), expanding only the overlay for breathing room around text. The expansion keeps gutter controls clear and fits within block gaps; one hovered extent is shown at a time. These hand-tuned values have no preference control; CSS and browser checks read the variables. Selection/editing keeps its blue role and text moves 0px.
 - Paper padding entries: `--layout-document-block-padding` (32px) and `--layout-document-block-padding-narrow` (16px at ≤1024px) at the top, and `--layout-document-end-space` (35% of the viewport height) at the bottom, which also sets how far above the window bottom writing keeps the caret. The existing `--layout-content-gutter` supplies the outer canvas gap; the minimum paper height deducts that gap and the measured header rather than fixing a page size.
@@ -1214,9 +1222,9 @@ then asserts heading/panel geometry immediately; a trace showed the original tes
 before observer delivery, about 14ms after a viewport change. No timeout or tolerance increase.
 
 
-## Page background verification (#593)
+## Page style verification (#593)
 
-Paper view is the default. White screen changes only four existing tokens; document content,
+Paper is the default. Flat changes only four existing tokens; document content,
 width, position, history, drafts and selection stay intact. Visual and Source share the same
 sheet rule. The existing `visual-states` check now uses the actual page scope instead of
 inline prototype overrides and verifies zero editor rectangle movement, equal paper/canvas,
@@ -1224,9 +1232,9 @@ zero paper radius/edge and unchanged floating surfaces in Light and Dark. Its ex
 contrast measurement and the token palette guard cover both page modes and all six accents.
 Text/subtle text on canvas covers Add a title, block handles and start hints; focus and control
 boundary roles on canvas/paper retain the 3:1 requirement even at wide document edges.
-White-screen measured minima across all checked surfaces/presets: Light text **4.54:1**,
+Flat measured minima across all checked surfaces/presets: Light text **4.54:1**,
 required indicators **3.06:1**; Dark text **5.71:1**, required indicators **3.87:1**.
-Decorative paper edges are deliberately absent in White screen.
+Decorative paper edges are deliberately absent in Flat.
 
 `ui-language` checks the real bilingual control, profile persistence, pre-bundle and first-UI
 application, invalid/unavailable storage, live write-failure alerts and retained document,
@@ -1236,11 +1244,11 @@ while retaining the persistent Chrome profile and within-scenario reload persist
 Before: master `137ec3c`. After: this change. Captured with `pnpm browser:test quiet-document
 --screenshots` on Windows persistent Chrome, DPR 1, 100% zoom, bundled Pretendard, 1440×1000
 and 390×1000, same scratch document and scroll (0,0), no pointer hover/focus. All four Paper
-view Before/After pairs have **RGB pixel difference 0**. White screen keeps the same text
+Before/After pairs have **RGB pixel difference 0**. Flat keeps the same text
 positions and removes the surrounding canvas difference and paper treatment. Representative
 images below are manual visual evidence; full tours, JSON diagnostics and traces stay in `tmp`.
 
-| Theme / width | Before | Paper view | White screen |
+| Theme / width | Before | Paper | Flat |
 | --- | --- | --- | --- |
 | Light / 1440px | [Before](assets/page-background-593/before-light-1440.png) | [Paper](assets/page-background-593/light-paper-1440.png) | [Flat](assets/page-background-593/light-flat-1440.png) |
 | Light / 390px | [Before](assets/page-background-593/before-light-390.png) | [Paper](assets/page-background-593/light-paper-390.png) | [Flat](assets/page-background-593/light-flat-390.png) |
@@ -1248,3 +1256,34 @@ images below are manual visual evidence; full tours, JSON diagnostics and traces
 | Dark / 390px | [Before](assets/page-background-593/before-dark-390.png) | [Paper](assets/page-background-593/dark-paper-390.png) | [Flat](assets/page-background-593/dark-flat-390.png) |
 
 Settings: [Light 390px](assets/page-background-593/light-settings-390.png), [Dark 1440px](assets/page-background-593/dark-settings-1440.png).
+
+
+## Settings accent swatches and page-style names (#615)
+
+The existing `ui-language` regression failed before implementation with
+`Accent color must expose a named radio group with visible swatches`.
+It now checks one named native radio group, arrow selection in both directions and
+wraparound, one Tab stop, visible keyboard focus, the selected check mark, and every
+swatch matching its actual accent in Light and Dark before selection. Both 1440px
+and 640px choice grids fit horizontally. Existing language, startup/persistence,
+blocked-storage alerts, editor/draft/history preservation and real Save/Reload checks
+remain in the same scenario. Page-style values and `data-page` behavior are unchanged.
+No Core operation or CLI command is needed for these display-only controls.
+
+The following manual-review pairs use base `9dd7af40f30aa43bcce8ab0f8dc5e26dfba10055`
+and this implementation, in the same worktree and Vite origin (`127.0.0.1:5315`),
+through `pnpm browser:test ui-language --screenshots` with the checkout-owned persistent
+Windows Chrome profile. English Settings, Paper, Blue selected, the same active
+technical document with applied edits and an unapplied equation draft, 900px viewport
+height, DPR 1, 100% zoom, bundled Pretendard, body scroll 0, no focus or pointer hover.
+At 640px the longer choice group continues within the existing scrollable Settings
+body; Back remains fixed. Manual review confirms six distinguishable swatches in both
+themes, readable names, selected checks and preserved control axes. Captures are not
+screenshot-based assertions; full traces and generated logs stay in `tmp/`.
+
+| Theme / width | Before | After |
+| --- | --- | --- |
+| Light / 1440px | [Before](assets/settings-615/before-light-1440.png) | [After](assets/settings-615/after-light-1440.png) |
+| Light / 640px | [Before](assets/settings-615/before-light-640.png) | [After](assets/settings-615/after-light-640.png) |
+| Dark / 1440px | [Before](assets/settings-615/before-dark-1440.png) | [After](assets/settings-615/after-dark-1440.png) |
+| Dark / 640px | [Before](assets/settings-615/before-dark-640.png) | [After](assets/settings-615/after-dark-640.png) |

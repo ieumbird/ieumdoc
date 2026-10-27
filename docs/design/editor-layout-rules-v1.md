@@ -61,6 +61,10 @@
   the 64px inline/32px block spacing scale; below 768px the named category list stacks above
   content with 24px content insets and single-column rows. The body scrolls inside the
   viewport, leaving Back reachable. No document or shell geometry changes underneath it.
+  Accent choices (#615) use a three-column, two-row grid on the control axis, with
+  8px gaps, 28px circular swatches, 16px check icons and 12/16px names below.
+  Option faces use the shared 6px control radius and 8px block/4px inline padding;
+  their content height accommodates both swatch and name instead of a 32px field.
 
 - The [folder dialog](folder-picker-v1.md#folder-presentation-522) keeps one column at wide and supported narrow widths. Its folder-only child list has a 16rem maximum (eight standard 32px rows); longer lists scroll and the enclosing dialog remains scrollable for short viewports. The shared image mode retains its 15rem bound. Starting-place names wrap inside the column, retaining the whole name and path description; New folder shares the child-list heading row. Ancestor breadcrumbs retain wrapping and disappear with Up at the Root.
 

@@ -2,17 +2,17 @@ import { useMessageState } from "../ui-message.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, FileText, Info, Palette, History } from "lucide-react";
+import { ArrowLeft, Check, FileText, Info, Palette, History } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog.tsx";
 import type { DesktopBridge, DesktopInfo, OfferedUpdate, ReleaseChannel, UpdateState } from "../../shared/desktop-bridge.ts";
 import { RecoveryDeleteDialog } from "./Recovery.tsx";
 import { Notice } from "../ui/primitives.tsx";
-import { PAGE_BACKGROUNDS, readPageBackground, writePageBackground, type PageBackground, ACCENT_COLORS, readAccentColor, writeAccentColor, writeUiLanguage, THEMES, writeTheme, type AccentColor, type UiLanguage, type ThemePreference } from "../preferences.ts";
+import { PAGE_BACKGROUNDS, readPageBackground, writePageBackground, type PageBackground, ACCENT_COLORS, readAccentColor, writeAccentColor, writeUiLanguage, THEMES, writeTheme, type UiLanguage, type ThemePreference } from "../preferences.ts";
 import { applyPageBackground, applyTheme, currentTheme } from "../theme.ts";
 
 const ACCENT_LABELS = { blue: "Blue", violet: "Violet", plum: "Plum", teal: "Teal", green: "Green", graphite: "Graphite" } as const;
-const PAGE_LABELS = { paper: "Paper view", flat: "White screen" } as const;
+const PAGE_LABELS = { paper: "Paper", flat: "Flat" } as const;
 const THEME_LABELS = { system: "System", light: "Light", dark: "Dark" } as const;
 
 const CHANNELS: { value: ReleaseChannel; label: string; hint: string }[] = [
@@ -172,8 +172,7 @@ export function SettingsDialog({ open, category, onCategoryChange, documentName,
                 </section>
                 <section className="settings-section" aria-labelledby="settings-page">
                   <div className="settings-label">
-                    <h3 id="settings-page" className="settings-heading">{i18n.t("Page background")}</h3>
-                    <p>{i18n.t("White screen uses one dark surface in Dark theme.")}</p>
+                    <h3 id="settings-page" className="settings-heading">{i18n.t("Page style")}</h3>
                   </div>
                   <select className="form-select h-[var(--size-control)] w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring" aria-labelledby="settings-page" data-testid="page-background"
                     value={page} onChange={event => {
@@ -184,7 +183,7 @@ export function SettingsDialog({ open, category, onCategoryChange, documentName,
                     }}>
                     {PAGE_BACKGROUNDS.map(value => <option key={value} value={value}>{i18n.t(PAGE_LABELS[value])}</option>)}
                   </select>
-                  {pageProblem ? <p role="alert">{i18n.t("Page background could not be saved. This choice applies until you close this page.")}</p> : null}
+                  {pageProblem ? <p role="alert">{i18n.t("Page style could not be saved. This choice applies until you close this page.")}</p> : null}
                 </section>
                 <section className="settings-section" aria-labelledby="settings-language">
                   <div className="settings-label">
@@ -207,15 +206,22 @@ export function SettingsDialog({ open, category, onCategoryChange, documentName,
                     <h3 id="settings-accent" className="settings-heading">{i18n.t("Accent color")}</h3>
                     <p>{i18n.t("Remembered here; never saved in the document.")}</p>
                   </div>
-                  <select className="form-select h-[var(--size-control)] w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring" aria-labelledby="settings-accent" data-testid="accent-color"
-                    value={accent} onChange={event => {
-                      const color = event.target.value as AccentColor;
-                      document.documentElement.dataset.accent = color;
-                      setAccent(color);
-                      setAccentProblem(!writeAccentColor(color));
-                    }}>
-                    {ACCENT_COLORS.map(color => <option key={color} value={color}>{i18n.t(ACCENT_LABELS[color])}</option>)}
-                  </select>
+                  <div className="settings-accents" role="radiogroup" aria-labelledby="settings-accent" data-testid="accent-color">
+                    {ACCENT_COLORS.map(color => <label key={color} className="settings-accent">
+                      <input type="radio" name="accent-color" value={color} checked={accent === color}
+                        onChange={() => {
+                          document.documentElement.dataset.accent = color;
+                          setAccent(color);
+                          setAccentProblem(!writeAccentColor(color));
+                        }} />
+                      <span className="settings-accent-face">
+                        <span className="settings-accent-swatch" style={{ backgroundColor: `var(--id-color-accent-${color})` }} aria-hidden="true">
+                          {accent === color ? <Check /> : null}
+                        </span>
+                        <span>{i18n.t(ACCENT_LABELS[color])}</span>
+                      </span>
+                    </label>)}
+                  </div>
                   {accentProblem ? <p role="alert">{i18n.t("Accent color could not be saved. This choice applies until you close this page.")}</p> : null}
                 </section>
               </> : null}

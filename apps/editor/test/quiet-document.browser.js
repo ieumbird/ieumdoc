@@ -36,7 +36,7 @@ async (page, { screenshots = false, openDocument, openPath, withBlockHover }) =>
       await open(file);
       await settings();
       if (available) await page.getByTestId('theme').selectOption(theme);
-      await page.getByTestId('accent-color').selectOption(accent);
+      await page.getByTestId('accent-color').locator(`input[value="${accent}"]`).check();
       await page.getByTestId('page-background').selectOption(background);
       await closeSettings();
       for (const width of [1440,640]) {

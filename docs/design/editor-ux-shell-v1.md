@@ -198,7 +198,7 @@ command-center, desktop-updates, ui-language and layout-rules (**7/7**) passed.
 `inline-document-settings` scenario adds unique per-tab/new-open/reload expansion,
 read-only summary, content/selection/history isolation, keyboard/menu Escape and
 notation-preview coverage. Its geometry matrix covers English/Korean, Light/Dark,
-Paper view/White screen at 1440×900 and 640×900; the same run creates optional manual
+Paper/Flat at 1440×900 and 640×900; the same run creates optional manual
 captures. Existing semantic Save→Reload and failed-Save checks stay in their original
 scenarios. Edge, HTTP and packaged Desktop run in required CI.
 
@@ -216,8 +216,8 @@ placement change. Native and shared menu captures use their real open controls.
 | Expanded | [Before](assets/inline-settings-580/before-1440-expanded.png) | [After](assets/inline-settings-580/after-en-light-paper-1440-expanded.png) | [Before](assets/inline-settings-580/before-640-expanded.png) | [After](assets/inline-settings-580/after-en-light-paper-640-expanded.png) |
 | Notation menu | [Before](assets/inline-settings-580/before-1440-menu.png) | [After](assets/inline-settings-580/after-en-light-paper-1440-menu.png) | [Before](assets/inline-settings-580/before-640-menu.png) | [After](assets/inline-settings-580/after-en-light-paper-640-menu.png) |
 
-Additional manual review: [Korean/Dark/White screen at 640px](assets/inline-settings-580/after-ko-dark-flat-640-menu.png),
-[Korean/Light/White screen at 1440px](assets/inline-settings-580/after-ko-light-flat-1440-expanded.png).
+Additional manual review: [Korean/Dark/Flat at 640px](assets/inline-settings-580/after-ko-dark-flat-640-menu.png),
+[Korean/Light/Flat at 1440px](assets/inline-settings-580/after-ko-light-flat-1440-expanded.png).
 Recreate After with `pnpm browser:test inline-document-settings --screenshots`;
 full output remains in ignored `tmp/inline-settings-580`. Only representative small
 PNGs are retained here; owner mockups and generated browser traces are not committed.
@@ -269,18 +269,18 @@ boundary still blocks Save and command-center shortcuts and prevents document in
 
 The named navigation uses buttons with `aria-current="page"`: Appearance & language /
 표시·언어, Saving & recovery / 저장·복구, and Desktop-only About & updates / 정보·업데이트.
-Ordinary entry starts at Appearance; an update notice's View opens About. Theme, page background, language and
+Ordinary entry starts at Appearance; an update notice's View opens About. Theme, page style, language and
 accent changes apply immediately, with profile-local preference storage and failure notices.
 Theme offers System / Light / Dark (시스템 / 라이트 / 다크), defaulting to System.
 System follows live OS changes. `ieumdoc.theme` belongs to `preferences.ts` localStorage,
 never document content or Host preferences. Unavailable storage retains the current-page
 choice and shows the same style of localized persistence alert as accent/language.
-Page background offers Paper view / White screen (종이 보기 / 흰 화면), defaulting to Paper view.
-White screen makes canvas and paper one surface, including one dark surface in Dark theme.
+Page style offers Paper / Flat (종이 / 평면), defaulting to Paper.
+Flat makes canvas and paper one surface, including one dark surface in Dark theme.
 The paper's edge, elevation and corners disappear without moving or resizing content, in Visual
 and Source and at either document width. `ieumdoc.pageBackground` is profile-local localStorage,
 read before styles/UI by the existing theme initialization path. Unknown/unavailable storage
-falls back to Paper view; a failed write keeps the live choice and shows a localized alert.
+falls back to Paper; a failed write keeps the live choice and shows a localized alert.
 The same editor instances, drafts, selection and history remain mounted across theme and page-background changes.
 See [Visual Language](editor-visual-language-v1.md#system-light-and-dark-595) for role colors,
 startup/native synchronization, contrast and visual evidence. This presentation choice
@@ -489,6 +489,11 @@ Verification and implementation scope are recorded in the [#256 plan](ui-languag
 ## Local accent color (#559)
 
 Settings offers six named presets: Blue (default), Violet, Plum, Teal, Green and Graphite.
+The accent control (#615) is one named radio group (Accent color / 포인트 색): each
+option shows a circular swatch and its name, and the selected option has a check mark.
+Tab enters the selected option; arrow keys move and select, with native radio state
+and a visible keyboard focus ring. Swatches use the same theme-specific token values
+as the actual accents. Storage failure retains the live choice and existing alert.
 There is no free color picker. The choice applies immediately to interactions, selection
 background/text, focus, primary actions, links/references and generated heading/Outline numbers.
 Information states are neutral; danger and warning retain their meanings. Values and contrast
