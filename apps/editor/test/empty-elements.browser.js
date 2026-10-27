@@ -50,14 +50,45 @@ async (page, { openPath, reloadDocument, expect, screenshots }) => {
     await page.locator('[data-testid="status"]:is([data-operation="saved"],[data-operation="save-failed"])').waitFor({state:'attached'});
     expect(await page.getByTestId('status').getAttribute('data-operation')).toBe('saved');
   };
+  const typeSpaces = async () => {
+    for (const type of ['admonition','quote','bulletList','orderedList']) {
+      await editor.evaluate((el,type) => {
+        const e = el.editor;
+        let position;
+        e.state.doc.forEach((node,pos) => {
+          if (node.type.name === type) position = pos + (type.endsWith('List') ? 3 : 1);
+        });
+        e.commands.setTextSelection(position);
+        e.view.focus();
+      },type);
+      await page.keyboard.press('Space');
+    }
+    const json = await snapshot();
+    for (const node of json.content.filter(node => ['admonition','quote','bulletList','orderedList'].includes(node.type))) {
+      const paragraph = node.type.endsWith('List') ? node.content[0].content[0] : node;
+      expect(paragraph.content).toEqual([{type:'text',text:' '}]);
+    }
+    return json;
+  };
+  // Real Space input on newly inserted blocks reaches Core's insertion operations.
+  const spacedInserts = await typeSpaces();
   await save();
   const stored = await read();
   expect(stored).not.toMatch(/Enter an|Enter a|Enter admonition/);
   expect(stored).toContain('$$\n$$');
   expect(stored).toContain(':::{note}\n:::');
-  expect(await snapshot()).toEqual(empty); // Save acknowledgement must not replace the engine state.
+  expect(await snapshot()).toEqual(spacedInserts); // Save acknowledgement must not replace the engine state.
   await reloadDocument(page);
   expect(await snapshot()).toEqual(empty);
+  await prompts('Enter an equation','Enter admonition text','Enter a quote','Enter a list item');
+  // Repeat on persisted blocks to exercise Core's update operations as well.
+  const spacedUpdates = await typeSpaces();
+  await save();
+  expect(await read()).toBe(stored);
+  expect(await snapshot()).toEqual(spacedUpdates);
+  await reloadDocument(page);
+  expect(await snapshot()).toEqual(empty);
+  await prompts('Enter an equation','Enter admonition text','Enter a quote','Enter a list item');
   expect(await editor.getByTestId('equation-number').innerText()).toBe('(1)');
   // Direct typing removes only the prompt; Undo restores it and the original empty structure.
   await editor.evaluate(el => {
@@ -81,5 +112,5 @@ async (page, { openPath, reloadDocument, expect, screenshots }) => {
     // Preserve the shared persistent profile while restoring this scenario's preference.
     await page.evaluate(() => localStorage.setItem('ieumdoc.uiLanguage', 'en'));
   }
-  return {emptySaveReload:true, displayOnlyGuidance:true, languageSwitch:true, typingUndo:true};
+  return {emptySaveReload:true, whitespaceInsertAndUpdate:true, displayOnlyGuidance:true, languageSwitch:true, typingUndo:true};
 }

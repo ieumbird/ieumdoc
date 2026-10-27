@@ -1,4 +1,4 @@
-import { inlineContentText, inlineContentToNodes, projectInlineContent, type InlineContent } from "../inline.ts";
+import { structuralInlineContent, inlineContentToNodes, projectInlineContent, type InlineContent } from "../inline.ts";
 import type { MystNode } from "./tree.ts";
 
 const QUOTE_FIELDS = new Set(["type", "children", "position"]);
@@ -18,7 +18,7 @@ export function supportedQuoteContent(node: MystNode): InlineContent[] | undefin
     return undefined;
   }
   const content = projectInlineContent(paragraph);
-  if (!content || inlineContentText(content).trim().length === 0) return undefined;
+  if (!content || structuralInlineContent(content).length === 0) return undefined;
   return content;
 }
 

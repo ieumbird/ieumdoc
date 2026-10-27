@@ -1,4 +1,4 @@
-import { inlineContentText, inlineContentToNodes, projectInlineContent, type InlineContent } from "../inline.ts";
+import { structuralInlineContent, inlineContentToNodes, projectInlineContent } from "../inline.ts";
 import type { ListContent, ListItemContent } from "../list.ts";
 import type { MystNode } from "./tree.ts";
 
@@ -29,17 +29,12 @@ export function supportedListContent(node: MystNode): ListContent | undefined {
     const [nested, ...rest] = children;
     if ((paragraph && !hasOnly(paragraph, PARAGRAPH_FIELDS)) || rest.length > 0) return undefined;
     const content = paragraph ? projectInlineContent(paragraph) : [];
-    if (!content || (paragraph && !hasVisibleContent(content))) return undefined;
+    if (!content || (paragraph && structuralInlineContent(content).length === 0)) return undefined;
     const list = nested === undefined ? undefined : supportedListContent(nested);
     if (nested !== undefined && !list) return undefined;
     items.push(list ? { content, list } : { content });
   }
   return node.ordered ? { ordered: true, start: node.start, items } : { ordered: false, items };
-}
-
-/** Nonempty inline content must be visible; whitespace alone cannot persist as written. */
-export function hasVisibleContent(content: InlineContent[]): boolean {
-  return inlineContentText(content).trim().length > 0;
 }
 
 /** The MyST structure myst-parser produces for a Markdown list of this content. */

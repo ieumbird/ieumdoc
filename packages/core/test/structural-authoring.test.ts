@@ -14,6 +14,8 @@ import {
   updateHeadingInlineContent,
   insertHeading,
   convertBlock,
+  replaceText,
+  updateNodeTextAtPath,
   type InlineContent,
 } from "./core-internal.ts";
 
@@ -48,7 +50,6 @@ test("public Core rejects invalid admonition inserts without mutating the source
   const document = parse("Intro paragraph.\n");
   const before = serialize(document);
   const invalid = [
-    () => insertAdmonition(document, 1, "note", [{ kind: "text", text: "   " }]),
     () => insertAdmonition(document, 1, "admonition" as never, [{ kind: "text", text: "Body." }]),
     () => insertAdmonition(document, -1, "warning", [{ kind: "text", text: "Body." }]),
     () => insertAdmonition(document, 3, "warning", [{ kind: "text", text: "Body." }]),
@@ -57,6 +58,20 @@ test("public Core rejects invalid admonition inserts without mutating the source
   for (const operation of invalid) {
     assert.throws(operation);
     assert.equal(serialize(document), before);
+  }
+});
+
+test("generic whitespace edits retain unsupported structural fields instead of dropping their paragraph", () => {
+  for (const source of [":::{note}\nBody\n:::\n", "> Body\n", "- Body\n"]) {
+    const document = parse(source);
+    document.children[0].unsupported = "retain";
+    const original = structuredClone(document);
+    for (const next of [replaceText(document, "Body", " "), updateNodeTextAtPath(document, [0], "Body", " ")]) {
+      assert.equal(next.children[0].unsupported, "retain");
+      assert.match(JSON.stringify(next), /"type":"paragraph"/);
+      assert.match(JSON.stringify(next), /"value":" "/);
+      assert.deepEqual(document, original);
+    }
   }
 });
 
@@ -192,7 +207,6 @@ test("invalid quote writes change nothing", () => {
   const before = serialize(document);
   for (const operation of [
     () => updateQuoteInlineContent(document, [1], [{ kind: "text", text: "Not a quote." }]),
-    () => insertQuote(document, 2, [{ kind: "text", text: "  " }]),
     () => insertDivider(document, 9),
   ]) {
     assert.throws(operation);

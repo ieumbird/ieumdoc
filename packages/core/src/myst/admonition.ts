@@ -1,4 +1,4 @@
-import { inlineContentText, projectInlineContent, type InlineContent } from "../inline.ts";
+import { structuralInlineContent, projectInlineContent, type InlineContent } from "../inline.ts";
 import type { MystNode } from "./tree.ts";
 
 /** MyST's standard admonition kinds. The generic `admonition` directive needs a title and is not authored. */
@@ -27,6 +27,6 @@ export function supportedAdmonitionContent(node: MystNode): InlineContent[] | un
     return undefined;
   }
   const content = projectInlineContent(paragraph);
-  if (!content || inlineContentText(content).trim().length === 0) return undefined;
+  if (!content || structuralInlineContent(content).length === 0) return undefined;
   return content;
 }

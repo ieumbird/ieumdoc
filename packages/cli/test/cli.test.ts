@@ -710,7 +710,6 @@ test("CLI inserts and edits quotes and dividers in a real file and rejects unsaf
     const unchanged = readFileSync(file);
     for (const args of [
       ["insert-quote", file, "--at", "2", "--text", "Both", "--content", "[]"],
-      ["insert-quote", file, "--at", "2", "--text", " "],
       ["update-quote", file, "--path", "4", "--text", "Not a quote."],
       ["insert-divider", file, "--at", "10"],
     ]) {
@@ -2586,23 +2585,84 @@ test("CLI reference templates set partial values, inspect computed text, and res
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("existing CLI inputs persist empty structures and refuse unrepresentable empty equation labels without writing", () => {
+test("existing CLI inputs persist empty and whitespace-only structures and refuse unrepresentable empty equation labels without writing", () => {
   const file = path.join(fixtures, "empty-structures.md");
-  writeFileSync(file, nativeSource("Intro.\n"));
+  for (const text of ["", " \t"]) {
+    writeFileSync(file, nativeSource("Intro.\n"));
+    for (const args of [
+      ["insert-admonition", file, "--at", "end", "--variant", "note", "--text", text],
+      ["insert-quote", file, "--at", "end", "--text", text],
+      ["insert-list", file, "--at", "end", "--list", JSON.stringify({ordered: false, items: [{content: text ? [{ kind: "text", text }] : []}]})],
+      ["insert-equation", file, "--at", "end", "--latex", "", "--label", "eq-empty"],
+      ["format", file],
+    ]) {
+      const result = run(args);
+      assert.equal(result.status, 0, result.stderr);
+    }
+    const before = readFileSync(file, "utf8");
+    assert.deepEqual(getEditableDocument(parse(before)).blocks.map(block => block.block), ["paragraph", "admonition", "quote", "list", "equation"]);
+    const failure = run(["update-label", file, "--path", "5", "--label", "A B"]);
+    assert.equal(failure.status, 1);
+    assert.match(failure.stderr, /empty equation.*label/);
+    assert.equal(readFileSync(file, "utf8"), before);
+  }
+});
+
+test("CLI generic text replacement writes normalized structural bodies in single and batch edits", () => {
+  const file = path.join(fixtures, "whitespace-replacement.md");
+  writeFileSync(file, nativeSource(":::{note}\nBody\n:::\n\n> Body\n\n3. Body\n   * Body\n4. {cite}`Alpha`\n"));
+  const result = run(["replace-text", file, "--from", "Body", "--to", " "]);
+  assert.equal(result.status, 0, result.stderr);
+  const operations = path.join(fixtures, "whitespace-replacement.json");
+  writeFileSync(operations, JSON.stringify([
+    { command: "update-node-text", path: "2,0", from: "Body", to: "\t" },
+    { command: "update-node-text", path: "3", from: "Body", to: " " },
+  ]));
+  const batch = run(["apply-batch", file, "--operations", operations]);
+  assert.equal(batch.status, 0, batch.stderr);
+  const saved = readFileSync(file, "utf8");
+  assert.equal(saved, serialize(parse(nativeSource(":::{note}\n:::\n\n>\n\n3.\n   *\n4. {cite}`Alpha`\n"))));
+  assert.equal(run(["check", file]).status, 0);
+  const refused = run(["update-node-text", file, "--path", "99", "--from", "Body", "--to", " "]);
+  assert.equal(refused.status, 1);
+  assert.equal(readFileSync(file, "utf8"), saved);
+});
+
+test("CLI retains whitespace-label link data and refuses unrepresentable formatting without writing", () => {
+  const file = path.join(fixtures, "whitespace-links.md");
+  const link = { kind: "link", url: "https://example.com/important", title: "Keep destination", children: [{ kind: "text", text: " " }] };
+  writeFileSync(file, nativeSource(':::{note}\n[Body](https://example.com/important "Keep destination")\n:::\n\n> [Body](https://example.com/important "Keep destination")\n\n* [Body](https://example.com/important "Keep destination")\n'));
   for (const args of [
-    ["insert-admonition", file, "--at", "end", "--variant", "note", "--text", ""],
-    ["insert-quote", file, "--at", "end", "--text", ""],
-    ["insert-list", file, "--at", "end", "--list", JSON.stringify({ordered: false, items: [{content: []}]})],
-    ["insert-equation", file, "--at", "end", "--latex", "", "--label", "eq-empty"],
-    ["format", file],
+    ["replace-text", file, "--from", "Body", "--to", " "],
+    ["update-node-text", file, "--path", "2,0,0,0", "--from", "Body", "--to", " "],
+    ["update-list", file, "--path", "3", "--list", JSON.stringify({ ordered: false, items: [{ content: [link] }] })],
   ]) {
     const result = run(args);
     assert.equal(result.status, 0, result.stderr);
   }
-  const before = readFileSync(file, "utf8");
-  assert.deepEqual(getEditableDocument(parse(before)).blocks.map(block => block.block), ["paragraph", "admonition", "quote", "list", "equation"]);
-  const failure = run(["update-label", file, "--path", "5", "--label", "A B"]);
-  assert.equal(failure.status, 1);
-  assert.match(failure.stderr, /empty equation.*label/);
-  assert.equal(readFileSync(file, "utf8"), before);
+  const saved = readFileSync(file, "utf8");
+  assert.deepEqual(getEditableDocument(parse(saved)).blocks.map(block => block.block === "list" ? block.items[0].content : "content" in block ? block.content : undefined), [[link], [link], [link]]);
+  assert.equal(run(["check", file]).status, 0);
+  const marked = { ...link, children: [{ kind: "strong", children: link.children }] };
+  for (const args of [
+    ["insert-quote", file, "--at", "end", "--content", JSON.stringify([marked])],
+    ["update-quote", file, "--path", "2", "--content", JSON.stringify([marked])],
+    ["update-list", file, "--path", "3", "--list", JSON.stringify({ ordered: false, items: [{ content: [marked] }] })],
+  ]) {
+    const failure = run(args);
+    assert.equal(failure.status, 1);
+    assert.match(failure.stderr, /cannot.*(?:round-trip|preserved)/);
+    assert.equal(readFileSync(file, "utf8"), saved);
+  }
+  const markedSource = nativeSource('> [**Body**](https://example.com/important "Keep destination")\n');
+  writeFileSync(file, markedSource);
+  for (const args of [
+    ["replace-text", file, "--from", "Body", "--to", " "],
+    ["update-node-text", file, "--path", "1,0,0,0,0", "--from", "Body", "--to", " "],
+  ]) {
+    const failure = run(args);
+    assert.equal(failure.status, 1);
+    assert.match(failure.stderr, /cannot.*(?:round-trip|preserved)/);
+    assert.equal(readFileSync(file, "utf8"), markedSource);
+  }
 });

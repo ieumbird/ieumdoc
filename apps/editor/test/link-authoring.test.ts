@@ -7,7 +7,7 @@ import test from "node:test";
 import { getSchema } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { EditorState } from "@tiptap/pm/state";
-import type { InlineContent } from "@ieumdoc/core";
+import { parse, serialize, type InlineContent } from "@ieumdoc/core";
 import { editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
 import { documentRevision, saveDocumentFile } from "../server/document-api.ts";
@@ -44,6 +44,19 @@ function range(doc: ProseMirrorNode, needle: string): { from: number; to: number
   assert.ok(found, needle);
   return found;
 }
+
+test("Editor collection and Host replay retain whitespace-label links in structural bodies", () => {
+  const link = '[Body](https://example.com/important "Keep destination")';
+  for (const body of [`:::{note}\n${link}\n:::\n`, `> ${link}\n`, `3. ${link}\n`]) {
+    const markdown = nativeSource(body);
+    const saved = edit(markdown, state => {
+      const { from, to } = range(state.doc, "Body");
+      // Link marks are non-inclusive; retain the authored link while changing its label.
+      return state.tr.replaceWith(from, to, state.schema.text(" ", state.doc.nodeAt(from)!.marks));
+    });
+    assert.equal(saved, serialize(parse(nativeSource(body.replace("Body", " ")))));
+  }
+});
 
 test("paragraphs with ordinary links project to editable paragraphs with link marks", () => {
   const paragraph = toTiptapDocument(loadEditableDocument(source)).content![0];

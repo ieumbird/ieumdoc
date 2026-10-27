@@ -146,19 +146,6 @@ test("public Core rejects invalid list edits without mutating the source", () =>
     () => updateList(document, [1, 0], { ordered: false, items: [item] }),
   ];
 
-  const emptyItems: InlineContent[][] = [
-    text(" \t "), [{ kind: "break" }],
-    [{ kind: "emphasis", children: text("   ") }],
-    [{ kind: "strong", children: [{ kind: "delete", children: text(" \t ") }] }],
-    [{ kind: "link", url: "https://example.com", children: text("   ") }],
-  ];
-  for (const content of emptyItems) {
-    const list: ListContent = { ordered: false, items: [{ content }] };
-    assert.throws(() => insertList(document, 1, list), /list item must contain non-empty text/);
-    assert.throws(() => updateList(document, [1], list), /list item must contain non-empty text/);
-    assert.equal(serialize(document), before);
-  }
-
   for (const operation of invalid) {
     assert.throws(operation);
     assert.equal(serialize(document), before);

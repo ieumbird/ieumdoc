@@ -8,6 +8,7 @@ import {
   inlineContentLength,
   splitInlineContent,
   concatenateInlineContent,
+  structuralInlineContent,
   insertInlineBreak,
   inlineContentText,
   inlineContentToNodes,
@@ -33,7 +34,7 @@ import { isAdmonitionVariant, supportedAdmonitionContent, type AdmonitionVariant
 import type { ListContent } from "./list.ts";
 import type { CodeBlockContent } from "./code.ts";
 import { createCodeNode, supportedCodeBlock } from "./myst/code.ts";
-import { createListNode, hasVisibleContent, supportedListContent } from "./myst/list.ts";
+import { createListNode, supportedListContent } from "./myst/list.ts";
 import { createQuoteNode, supportedQuoteContent } from "./myst/quote.ts";
 import {
   bodyIndex, completeFootnotes, createFootnoteDefinition, endnoteBlocks, endnotePlacement, footnoteLabels, footnoteReferences,
@@ -64,8 +65,7 @@ export function replaceText(document: MystDocument, from: string, to: string): M
   if (!replaceInTextNodes(block, from, to) && toText(block) === from) {
     block.children = [{ type: "text", value: to }];
   }
-  assertInlineBlockRoundTrip(block);
-  return next;
+  return finishTextEdit(document, next, block);
 }
 
 /**
@@ -273,11 +273,7 @@ export function insertAdmonition(
   content: InlineContent[],
 ): MystDocument {
   if (!isAdmonitionVariant(variant)) throw new Error(`unsupported admonition variant: ${variant}`);
-  assertInlineContent(content);
-  if (content.length > 0 && inlineContentText(content).trim().length === 0) {
-    throw new DocumentWriteError("admonition body must contain non-empty text", { action: "Enter text in the admonition or delete this block." });
-  }
-  const normalizedContent = concatenateInlineContent(content);
+  const normalizedContent = structuralInlineContent(content);
   const admonition: MystNode = {
     type: "admonition",
     kind: variant,
@@ -304,7 +300,7 @@ const QUOTE_FAILURE = "quote cannot round-trip losslessly through canonical Mark
 
 /** Insert a top-level quote holding one paragraph of supported inline content. */
 export function insertQuote(document: MystDocument, index: number, content: InlineContent[]): MystDocument {
-  const normalized = quoteContent(content);
+  const normalized = structuralInlineContent(content);
   const next = insertBlock(document, index, createQuoteNode(normalized));
   assertQuoteRoundTrip(next, index, normalized);
   return next;
@@ -313,7 +309,7 @@ export function insertQuote(document: MystDocument, index: number, content: Inli
 /** Replace the paragraph of one Quote v1 block. */
 export function updateQuoteInlineContent(document: MystDocument, path: NodePath, content: InlineContent[]): MystDocument {
   if (path.length !== 1) throw new Error("quote edits require a top-level path");
-  const normalized = quoteContent(content);
+  const normalized = structuralInlineContent(content);
   if (!supportedQuoteContent(getNode(document, path))) {
     throw new Error(`quote edit is not supported at [${path.join(",")}]`);
   }
@@ -321,12 +317,6 @@ export function updateQuoteInlineContent(document: MystDocument, path: NodePath,
   next.children[path[0]] = createQuoteNode(normalized);
   assertQuoteRoundTrip(next, path[0], normalized);
   return next;
-}
-
-function quoteContent(content: InlineContent[]): InlineContent[] {
-  assertInlineContent(content);
-  if (content.length > 0 && inlineContentText(content).trim().length === 0) throw new DocumentWriteError("quote must contain non-empty text", { action: "Enter text or delete this quote." });
-  return concatenateInlineContent(content);
 }
 
 function assertQuoteRoundTrip(document: MystDocument, index: number, content: InlineContent[]): void {
@@ -522,9 +512,7 @@ function normalizeList(list: ListContent): ListContent {
   }
   const items = list.items.map((item) => {
     if (!item || typeof item !== "object") throw new Error("list item must be an object");
-    assertInlineContent(item.content);
-    if (item.content.length > 0 && !hasVisibleContent(item.content)) throw new DocumentWriteError("list item must contain non-empty text", { action: "Enter text in the empty list item or remove it." });
-    const content = concatenateInlineContent(item.content);
+    const content = structuralInlineContent(item.content);
     return item.list === undefined ? { content } : { content, list: normalizeList(item.list) };
   });
   return list.ordered ? { ordered: true, start, items } : { ordered: false, items };
@@ -1008,18 +996,15 @@ export function updateNodeTextAtPath(
   const next = cloneDocument(document);
   const node = getNode(next, path);
   if (replaceInTextNodes(node, from, to)) {
-    assertInlineBlockRoundTrip(node);
-    return next;
+    return finishTextEdit(document, next, node);
   }
   if (typeof node.value === "string" && node.value.includes(from)) {
     node.value = node.value.replaceAll(from, to);
-    assertInlineBlockRoundTrip(node);
-    return next;
+    return finishTextEdit(document, next, node);
   }
   if (toText(node) === from) {
     node.children = [{ type: "text", value: to }];
-    assertInlineBlockRoundTrip(node);
-    return next;
+    return finishTextEdit(document, next, node);
   }
   throw new Error(`updateNodeTextAtPath could not replace text at [${path.join(",")}]`);
 }
@@ -1178,17 +1163,13 @@ export function updateAdmonitionInlineContent(
   path: NodePath,
   content: InlineContent[],
 ): MystDocument {
-  assertInlineContent(content);
   if (path.length !== 1) throw new Error("admonition edits require a top-level path");
-  if (content.length > 0 && inlineContentText(content).trim().length === 0) {
-    throw new DocumentWriteError("admonition body must contain non-empty text", { action: "Enter text in the admonition or delete this block." });
-  }
   const next = cloneDocument(document);
   const node = getNode(next, path);
   if (!supportedAdmonitionContent(node)) {
     throw new Error(`admonition edit is not supported at [${path.join(",")}]`);
   }
-  const normalized = concatenateInlineContent(content);
+  const normalized = structuralInlineContent(content);
   node.children = normalized.length ? [{ type: "paragraph", children: inlineContentToNodes(normalized) }] : [];
 
   const failure = "admonition body edit cannot round-trip losslessly through canonical Markdown";
@@ -1257,6 +1238,34 @@ function replaceInTextNodes(node: MystNode, from: string, to: string): boolean {
     if (replaceInTextNodes(child, from, to)) replaced = true;
   }
   return replaced;
+}
+
+/** Generic text edits may address a body, paragraph or text leaf. Normalize its owning
+ * structural body before the paragraph-only guard, which cannot save an empty paragraph.
+ * Only structures supported before the edit are eligible; unsupported fields/content must
+ * never disappear through this normalization. Text replacement cannot change their shape. */
+function finishTextEdit(document: MystDocument, next: MystDocument, edited: MystNode): MystDocument {
+  let removedEditedParagraph = false;
+  const normalizeParagraphs = (node: MystNode): void => {
+    if (!node.children) return;
+    node.children = node.children.filter(child => {
+      if (child.type === "paragraph") {
+        const content = projectInlineContent(child);
+        if (content && structuralInlineContent(content).length === 0) {
+          if (child === edited) removedEditedParagraph = true;
+          return false;
+        }
+      } else normalizeParagraphs(child);
+      return true;
+    });
+  };
+  document.children.forEach((node, index) => {
+    if (supportedAdmonitionContent(node) !== undefined || supportedQuoteContent(node) !== undefined || supportedListContent(node)) {
+      normalizeParagraphs(next.children[index]);
+    }
+  });
+  if (!removedEditedParagraph) assertInlineBlockRoundTrip(edited);
+  return next;
 }
 
 /** Insert an intentional line break at an interior rendered UTF-16 offset. */
