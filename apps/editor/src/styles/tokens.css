@@ -343,3 +343,11 @@
   --id-color-surface-selected: #303b43;
   --id-color-surface-selected-hover: #3a4751;
 }
+
+/* Page presentation only: keep document geometry and floating surfaces unchanged. */
+:root[data-page="flat"] {
+  --id-color-canvas: var(--id-color-paper);
+  --size-paper-border: 0px;
+  --id-radius-paper: 0px;
+  --shadow-paper: 0 0 0 transparent;
+}

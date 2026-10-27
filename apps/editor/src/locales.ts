@@ -1,5 +1,10 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Page background": "Page background",
+  "Paper view": "Paper view",
+  "White screen": "White screen",
+  "White screen uses one dark surface in Dark theme.": "White screen uses one dark surface in Dark theme.",
+  "Page background could not be saved. This choice applies until you close this page.": "Page background could not be saved. This choice applies until you close this page.",
   "Theme": "Theme",
   "System": "System",
   "Light": "Light",
@@ -527,6 +532,11 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Page background": "페이지 배경",
+  "Paper view": "종이 보기",
+  "White screen": "흰 화면",
+  "White screen uses one dark surface in Dark theme.": "다크 테마의 흰 화면은 하나의 어두운 면으로 표시됩니다.",
+  "Page background could not be saved. This choice applies until you close this page.": "페이지 배경을 저장하지 못했습니다. 이 페이지를 닫을 때까지 적용됩니다.",
   "Theme": "테마",
   "System": "시스템",
   "Light": "라이트",

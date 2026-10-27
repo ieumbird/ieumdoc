@@ -19,7 +19,7 @@ function accentPalettes(tokens: string): Map<string, Map<string, string>> {
   const scopes = new Map<string, Map<string, string>>();
   for (const [, selector, body] of tokens.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     const key = selector!.trim();
-    assert.match(key, /^:root(?:\[data-theme="dark"\])?(?:\[data-accent="[\w-]+"\])?$/, `unexpected product-token scope: ${key}`);
+    assert.match(key, /^:root(?:\[data-theme="dark"\])?(?:\[data-accent="[\w-]+"\])?(?:\[data-page="flat"\])?$/, `unexpected product-token scope: ${key}`);
     assert.ok(!scopes.has(key), `duplicate scope: ${key}`);
     const values = definitions(body!);
     if (key.includes("data-accent")) {
@@ -38,6 +38,9 @@ function accentPalettes(tokens: string): Map<string, Map<string, string>> {
     palettes.set(`${theme}-${preset}`, new Map([...scopes.get(":root")!,
       ...(scopes.get(`:root[data-accent="${preset}"]`) ?? []),
       ...scopes.get(themeScope)!, ...(scopes.get(accentScope) ?? [])]));
+  }
+  for (const [name, values] of [...palettes]) {
+    palettes.set(`${name}-flat`, new Map([...values, ...scopes.get(':root[data-page="flat"]')!]));
   }
   return palettes;
 }
@@ -114,7 +117,7 @@ test("every accent preset meets text, primary-action, focus and control contrast
       check("text-selected", bg, 4.5);
     }
     for (const bg of ["accent", "accent-hover"]) check("text-on-accent", bg, 4.5);
-    for (const bg of ["surface", "surface-subtle", "surface-hover", "surface-pressed", "surface-selected", "surface-selected-hover"]) {
+    for (const bg of ["canvas", "paper", "surface", "surface-subtle", "surface-hover", "surface-pressed", "surface-selected", "surface-selected-hover"]) {
       check("border-focus", bg, 3);
       check("border-control", bg, 3);
     }

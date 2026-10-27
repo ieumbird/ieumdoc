@@ -1,4 +1,4 @@
-import { readAccentColor, readTheme, type ThemePreference } from "./preferences.ts";
+import { readAccentColor, readPageBackground, readTheme, type PageBackground, type ThemePreference } from "./preferences.ts";
 import "./styles/tokens.css";
 
 // Runtime counterpart of theme-init.js: keep roles and native appearance in sync before UI mounts.
@@ -34,6 +34,12 @@ export async function applyTheme(theme: ThemePreference): Promise<void> {
   }
 }
 
+export function applyPageBackground(page: PageBackground): void {
+  root.dataset.page = page;
+  void syncBackground();
+}
+
+root.dataset.page = readPageBackground();
 root.dataset.accent = readAccentColor();
 export const themeReady = applyTheme(preference);
 const systemChanged = () => {

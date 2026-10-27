@@ -34,18 +34,20 @@ async (page, { screenshots = false, openDocument, openPath, withBlockHover }) =>
     }
   };
   for (const theme of available ? ['light','dark'] : ['before']) {
-    for (const accent of theme === 'dark' ? ['blue','teal'] : ['blue']) {
+    for (const accent of ['blue']) {
+    for (const background of ['paper','flat']) {
       await open(file);
       await settings();
       if (available) await page.getByTestId('theme').selectOption(theme);
       await page.getByTestId('accent-color').selectOption(accent);
+      await page.getByTestId('page-background').selectOption(background);
       await closeSettings();
       for (const width of [1440,390]) {
         await page.setViewportSize({width,height:1000});
         await page.evaluate(() => { window.scrollTo(0,0); document.activeElement?.blur(); });
         await page.mouse.move(0,0);
         const shot = async name => {
-          const file = `tmp/dark-mode-595/${theme}-${accent}-${width}-${name}.png`;
+          const file = `tmp/page-background-593/${theme}-${background}-${width}-${name}.png`;
           await page.screenshot({path:file}); captures.push(file);
         };
         await shot('document');
@@ -72,11 +74,12 @@ async (page, { screenshots = false, openDocument, openPath, withBlockHover }) =>
         await page.setViewportSize({width,height:1000});
         await page.evaluate(() => { window.scrollTo(0,0); document.activeElement?.blur(); });
         await page.mouse.move(0,0);
-        const path = `tmp/dark-mode-595/${theme}-${accent}-${width}-code.png`;
+        const path = `tmp/page-background-593/${theme}-${background}-${width}-code.png`;
         await page.screenshot({path}); captures.push(path);
       }
       await page.setViewportSize({width:1440,height:1000});
       await page.getByRole('button',{name:'Close code.md',exact:true}).click();
+    }
     }
   }
   return {captures};
