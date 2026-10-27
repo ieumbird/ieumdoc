@@ -27,7 +27,9 @@ let readyToShow = false;
 let appearanceReady = false;
 
 function showWhenReady(): void {
-  if (readyToShow && appearanceReady && window && !window.isVisible()) {
+  if (readyToShow && appearanceReady && window) {
+    // Consume the startup gate: a later OS/theme update must not reveal a hidden window.
+    readyToShow = false;
     window.show();
     log("window shown");
   }

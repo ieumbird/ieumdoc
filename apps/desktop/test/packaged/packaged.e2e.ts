@@ -148,6 +148,10 @@ test("a .md argument opens; edits save to disk and reopen", async () => {
       await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getBackgroundColor().toLowerCase())).toBe(background);
       assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme), dark ? "dark" : "light");
     }
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.hide());
+    await page.evaluate(() => window.ieumdocDesktop!.setWindowBackground(getComputedStyle(document.documentElement).getPropertyValue("--id-color-canvas").trim()));
+    assert.equal(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isVisible()), false, "later appearance updates must not show a hidden window");
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.show());
     await page.keyboard.press("Escape");
     assert.equal(await page.evaluate(() => localStorage.getItem("ieumdoc.theme")), "dark");
     const preferencesFile = path.join(userData, "preferences.json");
