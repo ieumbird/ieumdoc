@@ -223,7 +223,9 @@ test("installs per user, then updates from Settings only after the open document
       await cli.getByText("Installed", { exact: true }).waitFor();
     }
     assert.equal(await page.getByRole("radio", { name: BETA ? /^Beta/ : /^Stable/ }).isChecked(), true, "first install uses its own channel");
-    await page.getByRole("button", { name: "Check for updates" }).click();
+    // CLI verification can outlast the scheduled initial check. Wait for its actual offer,
+    // which replaces Check for updates with Download update; manual checking is exercised
+    // after relaunch below. All offer/no-download/consent assertions remain the same.
     await page.getByRole("button", { name: "Download update" }).waitFor({ timeout: 30_000 });
     assert.match(await page.getByTestId("update-status").innerText(), new RegExp(`IeumDoc ${NEW.replaceAll(".", "\\.")} \\(${BETA ? "Beta" : "Stable"}\\) is available`));
     if (!LIVE) {
