@@ -45,7 +45,8 @@ collapses it and focuses its disclosure. A menu first handles its own Escape.
 Expansion starts collapsed for each newly opened tab and lasts only for that tab's
 session; tab switches and Visual/Source switches preserve it, without writing a
 preference or document setting. Read-only documents show only the value summary;
-the start screen and Source show no block. Pending work disables field controls.
+the start screen and Source show no block. Pending work disables field controls,
+including choices in an already-open portaled reference-style menu.
 
 The TopBar Document settings button and its modal are removed. Command center
 `Document settings…` and Settings' Open document settings close their overlay,
@@ -64,7 +65,9 @@ placement; the following #554 measurements and captures are historical evidence.
 
 #580 local verification (2026-10-27): Editor **298/298**, workspace typecheck, production
 Editor build and docs/whitespace checks; targeted shell/command/Settings, heading,
-reference/bibliography, Source, tab and layout browser checks (**18/18** passed). The dedicated
+reference/bibliography, Source, tab and layout browser checks (**18/18** passed).
+The open-menu Save guard follow-up passed bibliography-connection, cross-reference
+and inline-document-settings (**3/3**) with Editor typecheck and docs checks. The dedicated
 `inline-document-settings` scenario adds unique per-tab/new-open/reload expansion,
 read-only summary, content/selection/history isolation, keyboard/menu Escape and
 notation-preview coverage. Its geometry matrix covers English/Korean, Light/Dark,

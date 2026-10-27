@@ -57,7 +57,7 @@ export const DocumentSettings = forwardRef<DocumentSettingsHandle, Props>(functi
         </DropdownMenuTrigger>
         <DropdownMenuContent aria-label={i18n.t("Reference style")}>
           <Menu.RadioGroup value={style} onValueChange={value => props.onReferenceStyleChange(value as ReferenceStyle)}>
-            {Object.entries(REFERENCE_STYLES).map(([key, option]) => <Menu.RadioItem key={key} value={key} closeOnClick
+            {Object.entries(REFERENCE_STYLES).map(([key, option]) => <Menu.RadioItem key={key} value={key} disabled={disabled} closeOnClick
               className="document-settings-option" aria-label={i18n.t(option.label)}>
               <Check aria-hidden="true" className={key === style ? "" : "invisible"} />
               <span>{i18n.t(option.label)}</span><span className="document-settings-preview">{preview(option.templates)}</span>
