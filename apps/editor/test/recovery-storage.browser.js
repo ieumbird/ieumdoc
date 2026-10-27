@@ -1,5 +1,36 @@
 // Actual IndexedDB transactions and recorder scheduling; no in-memory database substitute.
-async page => page.evaluate(async () => {
+async page => {
+  // A second window has acquired permission but has never persisted its first record.
+  // File operations must invalidate that permission for both deletion and rename.
+  const other = await page.context().newPage();
+  const results = [];
+  try {
+    await other.goto(page.url());
+    for (const next of [null, '/renamed-pending.md']) {
+      await page.evaluate(async () => { const { recoveryStorage } = await import('/src/recovery-storage.ts'); await recoveryStorage.delete(); });
+      await other.evaluate(async () => {
+        const { recoveryStorage } = await import('/src/recovery-storage.ts');
+        window.pendingFileTicket = await recoveryStorage.ticket('unrecorded-other-window', '/pending.md');
+        window.unrelatedFileTicket = await recoveryStorage.ticket('unrelated-window', '/unrelated.md');
+      });
+      await page.evaluate(async next => { const { recoveryStorage } = await import('/src/recovery-storage.ts'); await recoveryStorage.changePath('/pending.md', next); }, next);
+      results.push(await other.evaluate(async next => {
+        const { recoveryStorage } = await import('/src/recovery-storage.ts');
+        const record = (id, path) => ({ id,version:1,path,recordedAt:Date.now(),recoveryText:'delayed first write',snapshot:{file:{path}} });
+        const written = await recoveryStorage.write('unrecorded-other-window', window.pendingFileTicket, () => ({
+          id:'unrecorded-other-window',version:1,path:'/pending.md',recordedAt:Date.now(),recoveryText:'delayed first write',
+          snapshot:{file:{path:'/pending.md'}},
+        }));
+        const count = (await recoveryStorage.list()).filter(record => record.path === '/pending.md').length;
+        const unrelated = await recoveryStorage.write('unrelated-window', window.unrelatedFileTicket, () => record('unrelated-window', '/unrelated.md'));
+        const path = next ?? '/pending.md';
+        const fresh = await recoveryStorage.write('unrecorded-other-window', await recoveryStorage.ticket('unrecorded-other-window', path), () => record('unrecorded-other-window', path));
+        return { written, count, unrelated, fresh };
+      }, next));
+    }
+    if (results.some(result => result.written || result.count !== 0 || !result.unrelated || !result.fresh)) throw new Error(`File operation recovery permission mismatch: ${JSON.stringify(results)}`);
+  } finally { await other.close(); }
+  return page.evaluate(async () => {
   const { recoveryStorage: store, createRecoveryRecorder, recoveryText, RECOVERY_DB } = await import('/src/recovery-storage.ts');
   const check = (ok, why) => { if (!ok) throw new Error(why); };
   const wait = () => new Promise(resolve => setTimeout(resolve, 650));
@@ -7,10 +38,10 @@ async page => page.evaluate(async () => {
     editor: { editorDocument: { type: 'doc', content: [{type:'paragraph',content:[{type:'text',text}]}] }, savedDocument: {type:'doc'} } });
   let live = snapshot('first');
   let errors = [];
-  const recorder = createRecoveryRecorder('a', () => live, error => errors.push(String(error)));
+  const recorder = createRecoveryRecorder('a', () => '/test.md', () => live, error => errors.push(String(error)));
   const list = () => store.list();
   const record = async (id, time = Date.now()) => {
-    const token = await store.ticket(id);
+    const token = await store.ticket(id, '/test.md');
     await store.write(id, token, () => ({id, version:1, path:'/test.md',recordedAt:time,recoveryText:id,snapshot: snapshot(id)}));
   };
   try {
@@ -48,7 +79,7 @@ async page => page.evaluate(async () => {
       ticketTransactions.push({names:Array.from(typeof names === 'string' ? [names] : names),mode});
       return originalTransaction.call(this,names,mode,...args);
     };
-    try { await store.ticket('registered-probe'); } finally { IDBDatabase.prototype.transaction = originalTransaction; }
+    try { await store.ticket('registered-probe', '/test.md'); } finally { IDBDatabase.prototype.transaction = originalTransaction; }
     check(ticketTransactions.length === 1 && ticketTransactions[0].mode === 'readwrite' && ticketTransactions[0].names.join() === 'barriers', 'Ticket acquisition does not register permission in barriers-only readwrite');
     recorder.edit();
     live = snapshot('latest at write turn');
@@ -121,10 +152,10 @@ async page => page.evaluate(async () => {
     // is busy. The cleanup must capture the newer dirty work, never blindly delete it.
     let recorded;
     const completed = new Promise(resolve => { recorded = resolve; });
-    const rapid = createRecoveryRecorder('rapid', () => live, error => errors.push(String(error)), () => recorded());
+    const rapid = createRecoveryRecorder('rapid', () => '/test.md', () => live, error => errors.push(String(error)), () => recorded());
     live = null; rapid.edit(false);
     live = snapshot('Redo after clean Undo'); rapid.edit();
-    const tokenPromise = store.ticket('a');
+    const tokenPromise = store.ticket('a', '/test.md');
     const writing = tokenPromise.then(token => store.write('a', token, () => ({id:'a',version:1,path:'/test.md',recordedAt:Date.now(),recoveryText:live.file.revision,snapshot:live})));
     live = { ...snapshot('newer applied edits after Save'), file: { ...snapshot('').file, revision:'b'.repeat(64) } };
     release = true; await writing; await completed; rapid.cancel(); db.close();
@@ -135,14 +166,14 @@ async page => page.evaluate(async () => {
     await record('other-window'); await store.delete('a');
     check((await list()).map(r => r.id).join() === 'other-window', 'One session deleted another session record');
     // Even malformed/future record identifiers cannot turn one Delete into Clear all.
-    const otherTicket = await store.ticket('other-window');
+    const otherTicket = await store.ticket('other-window', '/test.md');
     await record(''); await record('all');
     await store.delete(''); await store.delete('all');
     let retainedTicket = false;
     await store.write('other-window',otherTicket,() => { retainedTicket = true; return undefined; });
     check(retainedTicket && (await list()).map(r => r.id).join() === 'other-window', 'Malformed record deletion cleared or invalidated other sessions');
     await record('expired', Date.now() - 10*86400000);
-    const expiredTicket = await store.ticket('expired');
+    const expiredTicket = await store.ticket('expired', '/test.md');
     await record('fresh', Date.now() - 10*86400000 + 60000);
     check(!(await list()).some(r => r.id === 'expired') && (await list()).some(r => r.id === 'fresh'), '10-day boundary incorrect');
     let expiredCaptured = false;
@@ -167,13 +198,13 @@ async page => page.evaluate(async () => {
     try {
       await store.delete();
       now = 10 * 60 * 60 * 1000;
-      const validBeforeCorrection = await store.ticket('negative-age-direct');
+      const validBeforeCorrection = await store.ticket('negative-age-direct', '/test.md');
       const correctionFailures = [];
-      const correctionRecorder = createRecoveryRecorder('negative-age-recorder', () => snapshot('one edit before clock correction'), error => correctionFailures.push(String(error)));
+      const correctionRecorder = createRecoveryRecorder('negative-age-recorder', () => '/test.md', () => snapshot('one edit before clock correction'), error => correctionFailures.push(String(error)));
       try {
         correctionRecorder.edit();
         // IDB transaction ordering ensures the recorder ticket is acquired at 10:00.
-        await store.ticket('acquisition-fence');
+        await store.ticket('acquisition-fence', '/test.md');
         now -= 500;
         const directRecorded = await store.write('negative-age-direct', validBeforeCorrection, () => ({
           id:'negative-age-direct',version:1,path:'/test.md',recordedAt:now,recoveryText:'valid negative age',snapshot:snapshot('valid negative age'),
@@ -189,14 +220,14 @@ async page => page.evaluate(async () => {
       // ticket independently of registration GC or deletion.
       await store.delete();
       now = 10 * 60 * 60 * 1000;
-      const upperBound = await store.ticket('upper-bound');
+      const upperBound = await store.ticket('upper-bound', '/test.md');
       now += lifetime - 1;
-      await store.ticket('upper-bound');
+      await store.ticket('upper-bound', '/test.md');
       now++;
       check(!await store.write('upper-bound',upperBound,() => { throw new Error('Expired ticket captured'); }), '10-day upper bound was weakened');
       await store.delete();
       now = 60 * 60 * 1000;
-      const beforeClockRollback = await store.ticket('rollback-before-delete');
+      const beforeClockRollback = await store.ticket('rollback-before-delete', '/test.md');
       now = 0;
       await store.delete('rollback-before-delete');
       now = lifetime;
@@ -209,16 +240,16 @@ async page => page.evaluate(async () => {
       check(!resurrected, 'Ticket at 1h resurrected after rollback-to-0 deletion, GC at 10d, write at 10d+1m');
       now = realNow();
       await store.delete();
-      for (let i=0;i<40;i++) await createRecoveryRecorder('never-edited-'+i,()=>null,()=>{}).discard();
+      for (let i=0;i<40;i++) await createRecoveryRecorder('never-edited-'+i, () => '/test.md',()=>null,()=>{}).discard();
       check(!(await metadata()).length, 'Never-edited session cleanup leaves metadata');
       for (let i=0;i<40;i++) { await record('closed-'+i); await store.delete('closed-'+i); }
       check(!(await metadata()).length, 'Recorded cleanup leaves tombstones');
-      const ancient = await store.ticket('collected');
+      const ancient = await store.ticket('collected', '/test.md');
       await store.delete('collected');
-      const idle = await store.ticket('idle-for-GC');
+      const idle = await store.ticket('idle-for-GC', '/test.md');
       now += lifetime - 1;
-      const afterDeletion = await store.ticket('collected');
-      const unrelated = await store.ticket('unrelated-live');
+      const afterDeletion = await store.ticket('collected', '/test.md');
+      const unrelated = await store.ticket('unrelated-live', '/test.md');
       now++;
       await list();
       check(!(await metadata()).some(key => key[1] === 'idle-for-GC'), 'Idle registration survives expiry');
@@ -228,7 +259,7 @@ async page => page.evaluate(async () => {
       now -= lifetime;
       check(!await store.write('collected',ancient,captureRecord('collected')), 'Clock rollback revived a collected ticket');
       check(!await store.write('idle-for-GC',idle,captureRecord('idle-for-GC')), 'Clock rollback revived a GC-collected nonce');
-      const afterGC = await store.ticket('idle-for-GC');
+      const afterGC = await store.ticket('idle-for-GC', '/test.md');
       check(await store.write('idle-for-GC',afterGC,captureRecord('idle-for-GC')), 'Fresh edit after GC cannot record');
       check(!await store.write('idle-for-GC',idle,captureRecord('idle-for-GC')), 'Fresh registration reused the GC-collected nonce');
       now += lifetime;
@@ -236,11 +267,11 @@ async page => page.evaluate(async () => {
       check(await store.write('unrelated-live',unrelated,captureRecord('unrelated-live')), 'GC invalidated another session pending edit');
       await store.delete('collected');
       check(!await store.write('collected',afterDeletion,captureRecord('collected')), 'Reused generation after GC matched an old ticket');
-      const resumed = await store.ticket('collected');
+      const resumed = await store.ticket('collected', '/test.md');
       check(await store.write('collected',resumed,captureRecord('collected')), 'Next edit cannot resume after GC and another deletion');
-      const beforeRenewalRollback = await store.ticket('renewal-rollback');
+      const beforeRenewalRollback = await store.ticket('renewal-rollback', '/test.md');
       now -= 3600000;
-      await store.ticket('renewal-rollback');
+      await store.ticket('renewal-rollback', '/test.md');
       now += lifetime;
       await list();
       check(await store.write('renewal-rollback',beforeRenewalRollback,captureRecord('renewal-rollback')), 'Rollback renewal shortened an unexpired pending registration');
@@ -294,4 +325,5 @@ async page => page.evaluate(async () => {
       negativeAgeDirect:true, negativeAgeScheduled:true, ticketUpperExpiry:true,
       cleanAcknowledgement:true, dirtyAfterClean:true, acknowledgementFailureRetainsRecord:true, queuedCleanRetainsNewInput:true };
   } finally { recorder.cancel(); await store.delete(); }
-})
+});
+}

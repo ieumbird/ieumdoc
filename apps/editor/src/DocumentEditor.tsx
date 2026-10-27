@@ -38,6 +38,7 @@ import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
 import { labelKey } from "@ieumdoc/core/label";
 import type { EditableDocument } from "@ieumdoc/core";
 import {
+  DocumentPathContext,
   createEditorExtensions,
   type FigureValidator,
   type ImageChooser,
@@ -183,11 +184,13 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       if (current && !current.isDestroyed) current.view.dispatch(current.state.tr.setMeta(ENDNOTE_DRAFT_CLOSED, true));
     });
   }, []);
+  const documentPathRef = useRef(documentPath);
+  documentPathRef.current = documentPath;
   // This component remounts for a new document. Keep extension and view option identities
   // stable during React updates so setOptions cannot rebuild NodeViews holding drafts.
   const [editorOptions] = useState<UseEditorOptions>(() => {
     const initialDeletedPaths: string[] = [];
-    const extensions = createEditorExtensions(projection, onStructuralReject, reportDraft, documentPath, validateFigure, onAssetPendingChange, onAssetError,
+    const extensions = createEditorExtensions(projection, onStructuralReject, reportDraft, () => documentPathRef.current, validateFigure, onAssetPendingChange, onAssetError,
       () => activeDrafts.current.size > 0, chooseImage, initialDeletedPaths, onAssetChange);
     const restored = initialSnapshot && prepareEditorSnapshot(getSchema(extensions), projection, initialSnapshot);
     if (restored) {
@@ -591,7 +594,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         <button type="button" className="document-title-slot" onMouseDown={event => event.preventDefault()}
           onClick={() => addTitle(editor.view)}>{i18n.t("Add a title")}</button>
       ) : null}
-      <BibliographyContent ref={bibliographyControls} editor={editor} bibliography={bibliography} documentPath={documentPath}><EditorContent editor={editor} /></BibliographyContent>
+      <DocumentPathContext.Provider value={documentPath}><BibliographyContent ref={bibliographyControls} editor={editor} bibliography={bibliography} documentPath={documentPath}><EditorContent editor={editor} /></BibliographyContent></DocumentPathContext.Provider>
       {visible ? <BlockHandles
         editor={editor}
         menuIndex={blockMenu?.index}

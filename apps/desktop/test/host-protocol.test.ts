@@ -22,6 +22,20 @@ writeFileSync(path.join(documents, "diagram.svg"), "<svg xmlns=\"http://www.w3.o
 const handle = createProtocolHandler(editorDir, { document: initial });
 const get = (pathname: string) => handle(new Request(`${ORIGIN}${pathname}`));
 
+test("file deletion uses the validated OS trash adapter and never falls back to permanent deletion", async () => {
+  const file = path.join(documents, "trash.txt"); writeFileSync(file, "keep");
+  let target = "";
+  const trash = createProtocolHandler(editorDir, { sample: initial }, async file => { target = file; });
+  const request = () => new Request(`${ORIGIN}/api/file`, { method: "DELETE", body: JSON.stringify({root:documents, path:file}) });
+  assert.equal((await trash(request())).status, 200);
+  assert.equal(target, file);
+  assert.equal(readFileSync(file, "utf8"), "keep");
+  const unavailable = await handle(request());
+  assert.equal(unavailable.status, 400);
+  assert.match((await unavailable.json()).error, /trash is unavailable/);
+  assert.equal(readFileSync(file, "utf8"), "keep");
+});
+
 test("folder preview reuses shared validation and SVG isolation without a startup document", async () => {
   const start = createProtocolHandler(editorDir, { sample: initial });
   const route = `${ORIGIN}/api/file-preview?${new URLSearchParams({ root: documents, path: path.join(documents, "diagram.svg") })}`;

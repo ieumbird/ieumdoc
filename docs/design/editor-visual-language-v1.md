@@ -1,6 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
+- File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
 - Theme verification: 2026-10-27 (#595: System/Light/Dark, six dark accents, independent paper roles, live preferences and native appearance bridge; [values, contrast and captures](#system-light-and-dark-595)).
 - Document tab verification: 2026-10-27 (#581: flat bottom accent marker and adjustable 32px height; [comparison and measurements](#slim-document-tabs-581)).
 - Document settings verification: 2026-10-27 (#580: inline settings, per-tab expansion, notation previews and existing document operations; [integration, checks and captures](editor-ux-shell-v1.md#document-settings-placement-554)).
@@ -38,6 +39,21 @@
 - Current contract: v4.8, with the #226 paper-surface refinement and #225 pointer-hover block extent. Historical filename retained for link stability.
 - History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06; v3 (distinct states) 2026-10-08; v4 (TopBar tabs, toggles and Save states) 2026-10-10; v4.1 (TopBar state axes) 2026-10-10; v4.2 (one blue action role, light theme only, #172) 2026-10-12; v4.3 (start without a document, #174) 2026-10-12; v4.4 (in-place footnote regions, #185) 2026-10-12. v4.5 (one trailing endnotes region, #194) 2026-10-12. v4.6 (Files/Display tools and File actions, #176) 2026-10-13. v4.7 (UX review: one meaning for the blue marker, location identity, unreserved metadata, overflow cues) 2026-10-17. v4.8 (owner A1: raised tab groups, background-only list current, existing single block outline, #515) 2026-10-26. Visual approval remains with the user.
 - Scope: existing Editor presentation and interaction overlays. Core, CLI, source format, save API and the single Tiptap state are unchanged.
+
+## File context actions (#505 / #504 PR A)
+
+File tree context menus share the dropdown popup and row class constants, including compact
+height, icon slot, gap, neutral highlight and keyboard focus ring. Base UI owns menu focus and positioning. Delete rows use the existing danger text/icon and highlighted
+surface-danger roles. Target-specific action data supplies content, not a new menu engine.
+
+The shared danger confirmation names the file, starts focus on Cancel, uses the destructive Button
+and returns focus to the surviving row/adjacent tree target. Busy confirmation blocks dismissal;
+errors retain the dialog. Rename reuses the compact shared Dialog/Input/footer geometry and
+shows the fixed extension beside the selected stem. Long descriptions/errors wrap within the
+popup. At the supported 640px minimum and at desktop widths, the existing footer retains horizontal actions.
+The [shell capture record](editor-ux-shell-v1.md#file-action-verification-and-captures) records both
+sizes and light/dark OS preferences, using the current System theme and shared #595 roles.
+
 
 ## Direction
 

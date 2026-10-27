@@ -1,6 +1,7 @@
 # Filesystem Host Boundary v1
 
 - Status: Implemented
+- File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
 - Folder refresh verification: 2026-10-26 (#494: loaded-list refresh and asset parent updates; [behavior and verification](editor-ux-shell-v1.md#folder-refresh-494)).
 - Last verified: 2026-10-25 (#425 owner persistence decision: Editor tests/typecheck/build, folder-memory/navigation/command-center/document-tabs/editor-shell/quiet-document; [restoration evidence](editor-ux-shell-v1.md#section-persistence-decision-and-verification-2026-10-25)).
 - Previous verification: 2026-10-24 (#367 cross-tab follow-up: explicit Open/Close remembers the current tab's list, tree-only updates leave preferences intact; folder-memory browser regression; Host handlers unchanged).
@@ -218,7 +219,7 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 | Hierarchical tree UI | 지원. Sidebar가 펼친 folder들의 listing을 page state에 모아 tree로 그린다. |
 | Lazy one-level Host listing | 지원. folder를 펼칠 때 그 folder 하나만 위 API로 list한다. |
 | Explicit folder refresh (#494) | 기존 API로 열린 root와 도달 가능한 이미 로드된 하위 목록만 다시 읽는다. 접힌 캐시도 포함하며 미로드 폴더는 읽지 않는다. 펼침·문서·탭은 유지한다. Editor가 파일·폴더·asset을 생성하거나 asset을 rollback하면 이미 로드된 부모 목록만 다시 읽는다. Host 상태/API·watcher·주기 작업은 추가하지 않는다. |
-| Recursive scan | 지원하지 않음. Host도 Editor도 하위 folder를 미리 읽지 않는다. |
+| Recursive scan | 트리 탐색에서는 지원하지 않음. 하위 folder를 미리 읽지 않는다. 이미지 이름 변경의 요청별 참조 안전 검사는 아래 File deletion and rename의 한정된 예외다. |
 | Watch service | 지원하지 않음. 외부 변경은 다시 펼치거나 문서를 열 때, 또는 폴더 새로고침으로 반영된다 (#494). |
 | Opened folder persistence | 경로만. 열어 둔 folder 목록은 시작할 때 Host에 다시 list해 복원하고, 거부되거나 없어진 folder는 조용히 제외한다. 복원 자체는 preference를 다시 쓰지 않는다. 성공한 명시적 사용자 Open/Close는 같은 목록이거나 다른 브라우저 탭이 preference를 바꿨어도 현재 탭의 열린 목록을 기억한다. 복원 중이면 모든 경로의 시도가 끝날 때까지 저장을 미룬다. 같은 Host 정규화 경로의 사용자 Open/Close는 늦은 복원 응답보다 우선한다. 하위 폴더 펼치기·접기·listing 갱신은 preference를 쓰지 않는다. 별도의 섹션 접힘 기억은 origin별 collapsed root 경로만 저장하며, 사용자 Open/Close·섹션 토글·명시적 reveal에서 현재 상태로 쓰고 복원만으로는 쓰지 않는다. Close로 지우며, 유효하지 않은 기록은 다음 사용자 쓰기에서 정리한다. 하위 펼침 상태와 Workspace 파일은 저장하지 않는다. |
 - 일반 directory와 모든 확장자의 일반 파일(확장자 없는 파일 포함)을 넣는다. `.md`는 document, 기존 MEDIA_TYPES의 PNG/JPEG/GIF/WebP/SVG는 image, 나머지는 file이다. 확장자는 대소문자를 구분하지 않는다. 폴더 먼저, 파일 종류와 무관하게 숫자를 인식한 이름순으로 정렬한다. `.`으로 시작하는 항목과 symlink(Windows junction 포함), 비정규 파일은 넣지 않는다. 재귀 scan은 하지 않는다.
@@ -306,10 +307,53 @@ New Document v1은 Workspace를 만들지 않고 특정 file path를 Host에 전
 
 `createDocumentFile`이 Core의 canonical empty Markdown을 UTF-8로 exclusive create한다. Editor의 유일한 New 진입점은 [Folder New](folder-picker-v1.md#new-document-in-a-sidebar-folder)이며 표시 중인 folder를 destination으로 사용한다. Host API는 여전히 임의의 기존 parent directory 아래 경로를 받으며 위 정책으로 검사한다. 제품 Host나 installer의 결정은 포함하지 않는다.
 
+## File deletion and rename (#505 / #504 PR A)
+
+`DELETE /api/file` accepts `{root, path}`; `PATCH /api/file` additionally accepts a filename
+stem `name` and optional `{path, source}[]` `openDocuments` containing applied unsaved content.
+Vite, Desktop and HTTP reuse this stateless handler. The selected root is supplied per request;
+HTTP additionally enforces the operator Root allowlist. No open-folder registry is retained.
+
+Only regular files below the chosen root are accepted. Lexical and real paths must stay inside;
+symlinks (including junctions and the chosen root itself), directories and missing files are refused.
+Rename stays in the same parent, preserving the exact extension. Empty/invalid Unicode names,
+path separators, Windows forbidden/control characters and device names, trailing dots/spaces,
+hidden names and oversized leaves are refused. An extensionless file stays extensionless.
+An exclusive hard-link publication followed by an ownership-checked unlink changes the name
+without overwriting a destination. Unsupported hard-link filesystems report an error and retain
+the original. A case-only spelling resolving to the same directory entry uses the OS rename;
+distinct existing entries (including hard links to the same inode) remain conflicts.
+Ownership checks bound accidental replacement; as with existing file commit, validation/use
+steps are separate and do not sandbox a hostile concurrent filesystem administrator.
+
+Vite/HTTP deletion is permanent, after the Editor names the file and confirms. Desktop supplies
+`shell.trashItem` to the same checked handler; failure never falls back to permanent deletion.
+Successful operations return `{path}` and the Editor refreshes already-loaded parent listings.
+Asset rollback keeps its signed-receipt API and is not broadened by this user-confirmed file API.
+
+Deletion/rename recovery barriers match path strings. Until [#372](https://github.com/ieumbird/ieumdoc/issues/372)
+decides Windows locator identity, case-only aliases (for example, a different spelling in URL
+`?path=`) are treated as separate paths. Another window's delayed first recovery write may then
+leave an old-path record. There is no data loss; the extra record can be discarded.
+
+Image rename performs a request-local recursive scan of regular `.md` files under the outermost
+opened folder containing the image, including hidden files; symlinks are skipped. It admits each
+readable native document through Core's existing read model and resolves Figure paths through
+`resolveMediaPath`, using the same URL-segment encoding as image requests. Matching compares
+filesystem `dev`/`ino` identity, so Windows case variants and hard-link aliases cannot evade the
+check; it never equates names by string lowercasing. Unreadable/non-native
+documents are skipped. Applied unsaved sources from open sessions supplement the disk check.
+A match refuses the rename and returns the referring document names. No Markdown parser,
+reference rewrite, persistent index or background watcher is added. Recursive scan here is only
+this on-demand safety check, an exception to general tree-listing/index non-goals below.
+
+These are filesystem operations, with no document semantic change; there is no CLI command.
+Referenced-image rewriting and its Core/CLI operations belong to PR B of #504.
+
 ## Non-goals
 
 - workspace file 또는 project concept. Sidebar의 열린 folder 목록은 경로만 기억하는 탐색 상태일 뿐 workspace가 아니다([ADR-0009](../adr/0009-multiple-opened-folders.md)).
-- Git repository detection, recent workspace, 재귀 filesystem scan, 검색 또는 index (Sidebar의 lazy tree UI는 위 Folder listing v1 범위다)
+- Git repository detection, recent workspace, 일반 재귀 filesystem scan, 검색 또는 index (Sidebar의 lazy tree UI는 위 Folder listing v1, 이미지 이름 변경의 요청별 참조 검사는 위 File deletion and rename 범위다)
 - `.ieumdoc/`, workspace config 또는 문서 간 탐색 기록. 여러 문서를 탭으로 여는 기능은 [ADR-0007](../adr/0007-editing-session-lifetime.md)과 [편집 세션 계약](editing-session-save-v1.md#switching-and-recovery)의 현재 범위이며, Host는 탭 상태를 소유하지 않는다.
 - 특정 HTTP API, localhost server 또는 production backend architecture
 - browser file upload 또는 Browser File System Access API를 기본 architecture로 채택하는 결정

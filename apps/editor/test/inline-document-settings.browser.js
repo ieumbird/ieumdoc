@@ -51,33 +51,49 @@ async (page, { openPath, screenshots }) => {
   assert(await disclosure().getAttribute('aria-expanded')==='false','Reload never restores expansion from storage');
 
   // Geometry is judged in this run; captures are optional manual evidence from the same states.
-  for(const language of ['en','ko']) for(const theme of ['light','dark']) for(const background of ['paper','flat']) {
-    const previousLanguage=await page.locator('html').getAttribute('lang');
-    await page.getByRole('button',{name:previousLanguage==='ko'?'설정':'Settings',exact:true}).click();
-    await page.getByTestId('theme').selectOption(theme);
-    await page.getByTestId('page-background').selectOption(background);
-    await page.getByTestId('ui-language').selectOption(language);
-    await page.keyboard.press('Escape'); await page.getByTestId('settings-dialog').waitFor({state:'detached'});
-    for(const width of [1440,640]) {
-      await page.setViewportSize({width,height:900});
-      const trigger=disclosure(language);
-      if(await trigger.getAttribute('aria-expanded')==='true') await trigger.click();
-      await trigger.scrollIntoViewIfNeeded();
-      const prefix=`tmp/inline-settings-580/after-${language}-${theme}-${background}-${width}`;
-      const capture=async state => {if(screenshots) {await page.evaluate(async()=>{await document.fonts.ready;});await page.mouse.move(0,0);await page.screenshot({path:`${prefix}-${state}.png`});}};
-      await capture('collapsed');
-      await trigger.click(); await body().waitFor();
-      const geometry=await body().evaluate(n=>{
-        const r=n.getBoundingClientRect();return {left:r.left,right:r.right,overflow:n.scrollWidth>n.clientWidth,controls:[...n.querySelectorAll('button,input')].map(c=>{const b=c.getBoundingClientRect();return {left:b.left,right:b.right};})};
-      });
-      assert(geometry.left>=0&&geometry.right<=width&&!geometry.overflow&&geometry.controls.every(c=>c.left>=geometry.left&&c.right<=geometry.right),'Expanded settings must fit at '+JSON.stringify({language,theme,background,width,geometry}));
-      await capture('expanded');
-      await active().getByRole('button',{name:language==='en'?'Reference style':'상호 참조 표기',exact:true}).click();
-      const popup=page.getByRole('menu'); await popup.waitFor();
-      const r=await popup.boundingBox();assert(r.x>=0&&r.x+r.width<=width,'Preview menu must fit the supported viewport');
-      await capture('menu');
-      await page.keyboard.press('Escape');await popup.waitFor({state:'detached'});
-      await trigger.focus();await page.keyboard.press('Escape');await body().waitFor({state:'hidden'});
+  const preferences = await page.evaluate(() => ({language:document.documentElement.lang,
+    theme:localStorage.getItem('ieumdoc.theme') ?? 'system', background:localStorage.getItem('ieumdoc.pageBackground') ?? 'paper'}));
+  try {
+    for(const language of ['en','ko']) for(const theme of ['light','dark']) for(const background of ['paper','flat']) {
+      const previousLanguage=await page.locator('html').getAttribute('lang');
+      await page.getByRole('button',{name:previousLanguage==='ko'?'설정':'Settings',exact:true}).click();
+      await page.getByTestId('theme').selectOption(theme);
+      await page.getByTestId('page-background').selectOption(background);
+      await page.getByTestId('ui-language').selectOption(language);
+      await page.keyboard.press('Escape'); await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+      for(const width of [1440,640]) {
+        await page.setViewportSize({width,height:900});
+        const trigger=disclosure(language);
+        if(await trigger.getAttribute('aria-expanded')==='true') await trigger.click();
+        await trigger.scrollIntoViewIfNeeded();
+        const prefix=`tmp/inline-settings-580/after-${language}-${theme}-${background}-${width}`;
+        const capture=async state => {if(screenshots) {await page.evaluate(async()=>{await document.fonts.ready;});await page.mouse.move(0,0);await page.screenshot({path:`${prefix}-${state}.png`});}};
+        await capture('collapsed');
+        await trigger.click(); await body().waitFor();
+        const geometry=await body().evaluate(n=>{
+          const r=n.getBoundingClientRect();return {left:r.left,right:r.right,overflow:n.scrollWidth>n.clientWidth,controls:[...n.querySelectorAll('button,input')].map(c=>{const b=c.getBoundingClientRect();return {left:b.left,right:b.right};})};
+        });
+        assert(geometry.left>=0&&geometry.right<=width&&!geometry.overflow&&geometry.controls.every(c=>c.left>=geometry.left&&c.right<=geometry.right),'Expanded settings must fit at '+JSON.stringify({language,theme,background,width,geometry}));
+        await capture('expanded');
+        await active().getByRole('button',{name:language==='en'?'Reference style':'상호 참조 표기',exact:true}).click();
+        const popup=page.getByRole('menu'); await popup.waitFor();
+        const r=await popup.boundingBox();assert(r.x>=0&&r.x+r.width<=width,'Preview menu must fit the supported viewport');
+        await capture('menu');
+        await page.keyboard.press('Escape');await popup.waitFor({state:'detached'});
+        await trigger.focus();await page.keyboard.press('Escape');await body().waitFor({state:'hidden'});
+      }
     }
+  } finally {
+    if (await page.getByRole('menu').count()) {
+      await page.keyboard.press('Escape'); await page.getByRole('menu').waitFor({state:'detached'});
+    }
+    const language=await page.locator('html').getAttribute('lang');
+    if (!await page.getByTestId('settings-dialog').isVisible()) {
+      await page.getByRole('button',{name:language==='ko'?'설정':'Settings',exact:true}).click();
+    }
+    await page.getByTestId('theme').selectOption(preferences.theme);
+    await page.getByTestId('page-background').selectOption(preferences.background);
+    await page.getByTestId('ui-language').selectOption(preferences.language);
+    await page.keyboard.press('Escape'); await page.getByTestId('settings-dialog').waitFor({state:'detached'});
   }
 }

@@ -23,6 +23,7 @@ import { NewDialog, type NewDestination } from "./shell/NewDialog.tsx";
 import { FolderDialog } from "./shell/FolderDialog.tsx";
 import { SettingsDialog, type SettingsCategory } from "./shell/SettingsDialog.tsx";
 import { UnsavedChangesDialog } from "./shell/UnsavedChangesDialog.tsx";
+import type { FileActionHandler } from "./shell/FileActionDialog.tsx";
 import { Sidebar } from "./shell/Sidebar.tsx";
 import { folderChain, knownFolders, useFolderTrees, type FolderTreeState } from "./shell/folder-tree.ts";
 import { childPath, documentLocation, splitDocumentPath, unquotePath } from "./shell/document-path.ts";
@@ -108,6 +109,7 @@ export function App() {
   const [newDialog, setNewDialog] = useState(false);
   const [newDirectory, setNewDirectory] = useState("");
   const [newFolderDialog, setNewFolderDialog] = useState(false);
+  const [fileOperationPending, setFileOperationPending] = useState(false);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [tabsRestored, setTabsRestored] = useState(false);
@@ -212,7 +214,7 @@ export function App() {
     draftActive = false, assetPending = false, documentDirty = false, draftNotice = "", documentNotice = "",
     reloadDialog = false, imageChoice = null, imageReturnFocus = emptyImageRef,
   } = session ?? {};
-  const busy = Boolean(operation || session?.busy || continuationPending);
+  const busy = Boolean(operation || fileOperationPending || session?.busy || continuationPending);
   const switching = Boolean(operation || session?.switching);
   const status = operation || sessionStatus;
   const save = () => session?.save();
@@ -351,6 +353,52 @@ export function App() {
     setActiveId(next);
     rememberTabs();
   }
+  const fileAction: FileActionHandler = async (action, chosenRoot, entry, name) => {
+    if (operationRef.current || [...sessions.current.values()].some(owner => owner.busyRef.current)) throw new Error(i18n.t("Wait for the current file operation to finish."));
+    operationRef.current = true; setFileOperationPending(true);
+    const tab = tabs.find(tab => tab.path === entry.path);
+    const owner = tab && sessions.current.get(tab.id);
+    owner?.suspendRecovery();
+    let completed = false;
+    try {
+      const root = folders.trees.map(tree => tree.root).filter(root => folderChain(root, entry.path).length > 0).sort((a, b) => a.length - b.length)[0] ?? chosenRoot;
+      const openDocuments = [];
+      if (action === "rename" && entry.kind === "image") {
+        for (const current of sessions.current.values()) {
+          if (folderChain(root, current.openedPath).length && current.editorRef.current?.hasDocumentChanges()) {
+            openDocuments.push({ path: current.openedPath, source: await current.appliedSource() });
+          }
+        }
+      }
+      const response = await fetch(`${import.meta.env.BASE_URL}api/file`, {
+        method: action === "delete" ? "DELETE" : "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ root, path: entry.path, ...(action === "rename" ? { name, openDocuments } : {}) }),
+      });
+      const result = await response.json();
+      if (Array.isArray(result.references)) throw new Error(i18n.t("This image is referenced by: {{documents}}", { documents: result.references.join(", ") }));
+      if (!response.ok || typeof result.path !== "string") throw new Error(result.error ?? `File operation failed (${response.status})`);
+      completed = true;
+      try { await recoveryStorage.changePath(entry.path, action === "rename" ? result.path : null); }
+      catch { setError({ key: "The file changed, but local recovery could not be updated. Review local recovery in Settings." }); }
+      if (action === "rename") {
+        owner?.relocate(result.path);
+        setTabs(previous => previous.map(tab => tab.path === entry.path ? { ...tab, path: result.path,
+          file: { ...tab.file, path: result.path }, ...(tab.restored ? { restored: { ...tab.restored, file: { ...tab.restored.file, path: result.path } } } : {}) } : tab));
+      } else if (tab) {
+        sessions.current.delete(tab.id);
+        scrollPositions.current.delete(tab.id);
+        setTabs(previous => previous.filter(item => item.id !== tab.id));
+        setActiveId(activeAfterClose(tabs, activeId, tab.id));
+      }
+      rememberTabs();
+      folders.refreshParents(entry.path);
+      await refreshRecovery();
+      return result.path;
+    } finally {
+      if (!completed) owner?.resumeRecovery();
+      operationRef.current = false; setFileOperationPending(false);
+    }
+  };
   function closeTab(id: string): void {
     const owner = sessions.current.get(id);
     if (!owner || busy || owner.busyRef.current || continuation) return;
@@ -739,6 +787,8 @@ export function App() {
   return (
     <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${sidebarOverlay ? " app-shell--sidebar-overlay" : ""}${panelOpen ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}`}>
       <Sidebar
+        onFileAction={fileAction} fileActionsDisabled={busy || Boolean(continuation)}
+        isFileDirty={path => { const tab = tabs.find(tab => tab.path === path); return !!(tab && sessions.current.get(tab.id)?.editorRef.current?.hasUnsavedChanges()); }}
         open={sidebarOpen}
         documentPath={openedPath}
         toggleRef={sidebarToggle}

@@ -1,6 +1,10 @@
 import { Menu as MenuPrimitive } from "@base-ui/react/menu"
 import { cn } from "@/lib/utils"
 
+export const MENU_POPUP_CLASS = "z-50 max-h-(--available-height) min-w-40 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-[var(--shadow-overlay)] outline-none";
+
+export const MENU_ITEM_CLASS = "flex min-h-[var(--size-control-compact)] cursor-default items-center gap-[var(--space-2)] rounded-md px-[var(--space-3)] py-[var(--space-1)] text-sm leading-[var(--line-height-label)] outline-none select-none data-highlighted:bg-accent data-highlighted:text-foreground focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[var(--size-icon-slot)]";
+
 function DropdownMenu({ ...props }: MenuPrimitive.Root.Props) {
   return <MenuPrimitive.Root data-slot="dropdown-menu" {...props} />
 }
@@ -33,7 +37,7 @@ function DropdownMenuContent({
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-content"
           className={cn(
-            "z-50 max-h-(--available-height) min-w-40 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-[var(--shadow-overlay)] outline-none",
+            MENU_POPUP_CLASS,
             className
           )}
           {...props}
@@ -48,7 +52,7 @@ function DropdownMenuItem({ className, ...props }: MenuPrimitive.Item.Props) {
     <MenuPrimitive.Item
       data-slot="dropdown-menu-item"
       className={cn(
-        "flex min-h-[var(--size-control-compact)] cursor-default items-center gap-[var(--space-2)] rounded-md px-[var(--space-3)] py-[var(--space-1)] text-sm leading-[var(--line-height-label)] outline-none select-none data-highlighted:bg-accent data-highlighted:text-foreground focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[var(--size-icon-slot)]",
+        MENU_ITEM_CLASS,
         className
       )}
       {...props}

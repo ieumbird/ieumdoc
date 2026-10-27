@@ -10,6 +10,8 @@ import { assertUnicode, commitFile, decodeUtf8, FileChangedError, textRevision }
 import { accessPath, FileAccessError, fileErrorMessage, fileErrorStatus, LOCAL_FILE_ACCESS, type FileAccess } from "./file-access.ts";
 import { readRequestBody, RequestBodyError } from "./request-body.ts";
 import { requestQuery } from "./request-query.ts";
+import { deleteFile, renameFile, ReferencedImageError } from "./file-operations.ts";
+import type { FileOperationRequest, RenameFileRequest } from "../shared/file-operations.ts";
 import { resolveDocumentPath, resolveMediaPath } from "./document-path.ts";
 export { DOCUMENT_DIR, resolveDocumentPath, resolveMediaPath } from "./document-path.ts";
 import {
@@ -199,6 +201,7 @@ export async function handleDocumentRequest(
   next: () => void,
   access: FileAccess = LOCAL_FILE_ACCESS,
   bodyLimit = Infinity,
+  removeFile?: (file: string) => void | Promise<void>,
 ): Promise<void> {
   const readBody = async (request: IncomingMessage) => decodeUtf8(await readRequestBody(request, bodyLimit));
   const failure = (error: unknown) => sendJson(res,
@@ -209,6 +212,17 @@ export async function handleDocumentRequest(
   try { query = requestQuery(req.url ?? ""); }
   catch (error) { failure(error); return; }
   const url = new URL(req.url ?? "", "http://localhost").pathname;
+  if (url === "/api/file") {
+    if (req.method !== "DELETE" && req.method !== "PATCH") { res.statusCode = 405; res.end(); return; }
+    try {
+      const request = JSON.parse(await readBody(req));
+      sendJson(res, 200, req.method === "DELETE" ? await deleteFile(request as FileOperationRequest, access, removeFile) : renameFile(request as RenameFileRequest, access));
+    } catch (error) {
+      if (error instanceof ReferencedImageError) sendJson(res, 400, { error: error.message, references: error.references });
+      else failure(error);
+    }
+    return;
+  }
   if (url === "/api/file-preview") {
     if (req.method !== "GET" && req.method !== "HEAD") { res.statusCode = 405; res.end(); return; }
     try {

@@ -19,7 +19,7 @@ import { imageAssets } from "./image-assets.ts";
 import { figureMediaPath } from "../shared/figure-media-path.ts";
 import { MarkdownInputRules } from "./markdown-input-rules.ts";
 import StarterKit from "@tiptap/starter-kit";
-import { useEffect, useId, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
+import { createContext, useContext, useEffect, useId, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
 import { isAdmonitionVariant, type EditableBlock, type FigureContent, type InlineContent } from "@ieumdoc/core";
 import { figureContentError } from "@ieumdoc/core/figure";
 import { headingNumbers, type HeadingNumbering } from "@ieumdoc/core/numbering";
@@ -362,7 +362,9 @@ const Divider = Node.create({
   },
 });
 
-const Figure = Node.create<{ documentPath?: string }>({
+export const DocumentPathContext = createContext<string | undefined>(undefined);
+
+const Figure = Node.create<{ documentPath?: string | (() => string) }>({
   name: "figure",
   group: "block",
   content: "(text | hardBreak | inlineMath | crossReference | footnoteReference | citation)*",
@@ -414,7 +416,7 @@ function equationNode(onDraftChange?: DraftListener) {
   });
 }
 
-function figureNode(documentPath?: string, onDraftChange?: DraftListener, validateFigure?: FigureValidator, chooseImage?: ImageChooser) {
+function figureNode(documentPath?: string | (() => string), onDraftChange?: DraftListener, validateFigure?: FigureValidator, chooseImage?: ImageChooser) {
   return Figure.configure({ documentPath }).extend({
     addNodeView() {
       return ReactNodeViewRenderer(createFigureNodeView(documentPath, onDraftChange, validateFigure, chooseImage));
@@ -422,7 +424,7 @@ function figureNode(documentPath?: string, onDraftChange?: DraftListener, valida
   });
 }
 
-function createFigureNodeView(documentPath?: string, onDraftChange?: DraftListener, validateFigure?: FigureValidator, chooseImage?: ImageChooser) {
+function createFigureNodeView(documentPath?: string | (() => string), onDraftChange?: DraftListener, validateFigure?: FigureValidator, chooseImage?: ImageChooser) {
   return function FigureAssetNodeView(props: ReactNodeViewProps) {
     return <FigureView {...props} documentPath={documentPath} onDraftChange={onDraftChange} validateFigure={validateFigure} chooseImage={chooseImage} />;
   };
@@ -775,7 +777,7 @@ const ParagraphMerge = Extension.create({
 
 export function editorExtensions(
   onDraftChange?: DraftListener,
-  documentPath?: string,
+  documentPath?: string | (() => string),
   validateFigure?: FigureValidator,
   hasActiveDraft?: () => boolean,
   chooseImage?: ImageChooser,
@@ -847,7 +849,7 @@ export function createEditorExtensions(
   baseline: TiptapJSON,
   onReject: (reason?: UiMessage) => void,
   onDraftChange?: DraftListener,
-  documentPath?: string,
+  documentPath?: string | (() => string),
   validateFigure?: FigureValidator,
   onAssetPendingChange?: (active: boolean) => void,
   onAssetError?: (reason: string) => void,
@@ -963,7 +965,8 @@ function figureAttrs(node: ProseMirrorNode): FigureContent {
   return figureContent(node.toJSON() as TiptapJSON);
 }
 
-function FigureView({ node, editor, selected, getPos, view, documentPath, onDraftChange, validateFigure, chooseImage }: ReactNodeViewProps & { documentPath?: string; onDraftChange?: DraftListener; validateFigure?: FigureValidator; chooseImage?: ImageChooser }) {
+function FigureView({ node, editor, selected, getPos, view, documentPath: initialDocumentPath, onDraftChange, validateFigure, chooseImage }: ReactNodeViewProps & { documentPath?: string | (() => string); onDraftChange?: DraftListener; validateFigure?: FigureValidator; chooseImage?: ImageChooser }) {
+  const documentPath = useContext(DocumentPathContext) ?? (typeof initialDocumentPath === "function" ? initialDocumentPath() : initialDocumentPath);
   useTranslation();
   // Core's computed label prefixes the caption; it is never saved.
   const numbered = useCaptionNumberText(editor, getPos, "figure");
@@ -1249,10 +1252,11 @@ function removeUnappliedBlock(
   }
 }
 
-export function resolveFigureSource(imageUrl: string, documentPath?: string): string {
+export function resolveFigureSource(imageUrl: string, documentPath?: string | (() => string)): string {
+  const locator = typeof documentPath === "function" ? documentPath() : documentPath;
   const encodedPath = figureMediaPath(imageUrl);
   if (encodedPath === undefined) return imageUrl;
-  const query = documentPath ? `?path=${encodeURIComponent(documentPath)}` : "";
+  const query = locator ? `?path=${encodeURIComponent(locator)}` : "";
   return `${import.meta.env?.BASE_URL ?? "/"}document/${encodedPath}${query}`;
 }
 
