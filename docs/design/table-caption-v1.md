@@ -101,7 +101,10 @@ and citation NodeViews are the same ones used in the body, including computed nu
 readiness, editing and navigation. MyST reads caption citations/endnotes before grid
 cells even though the caption is visually below them; numbering follows that Core order.
 No generated display text enters Markdown. Merged cells, additional legends and directive
-options still reject native admission. No new table editor engine or persistence
+options other than Label (`name` / `label`) reject native admission. Original options
+are checked using MyST's parsed directive option map before lifting, including options
+MyST omits from its table container (`align`, `widths`, unknown options), regardless of
+caption or Label presence. No new table editor engine or persistence
 architecture is introduced.
 
 CLI: `ieumdoc update-table-caption <file> --path <block> --text <caption>` (empty text removes it), or `--content <InlineContent JSON>`. `update-label` accepts tables; `inspect --format json` includes caption, label and computed table number.
@@ -120,7 +123,24 @@ exit, shared selection/slash authoring, whole-table move/delete, removal and add
 Existing table-authoring, table-cell-editing, cross-reference, property-drafts, citations,
 recovery-structure and continuous-editing protect their interface-specific integrations.
 
+Review-fix plan (#584): retain the parser's original `{table}` option evidence before
+directive lifting, so native admission rejects every option except the supported Label
+spellings (`name` and `label`). Use MyST's parsed option map, with no new source parser.
+Apply the same guard to captioned and captionless tables. Verify failure first through
+public Core and CLI check/format tests, then unchanged file bytes on refusal, supported
+Label round-trips, Core/CLI tests, typecheck, docs and PR CI. No UI or command change.
+
 ## All-table numbering verification (#584)
+
+Independent review reproduced silent source-option loss on `f45ae18`. Before the fix,
+all eight public Core refusal cases and all twelve CLI check/format cases failed:
+captioned and captionless tables accepted `align`, `widths` and unknown options; Core
+also accepted the YAML option spelling. MyST retains these in `mystDirective.options`,
+so the parse boundary now carries unsupported options to the container before lifting.
+Existing native field admission rejects that evidence; no source grammar is duplicated.
+Both Label spellings and GFM column alignment retain their canonical round-trip.
+Review-fix checks: Core 270/270, CLI 81/81 (including subtests), workspace typecheck,
+docs and whitespace pass. CLI refusal preserves exact original file bytes.
 
 Before implementation, the installed `myst-parser` 1.7.4 and `myst-transforms` 1.3.51
 parsed and enumerated argumentless, nameless `{table}` directives without diagnostics.

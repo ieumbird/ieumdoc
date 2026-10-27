@@ -2381,6 +2381,28 @@ test("real-file paragraph workflow matches Core and remains canonical", () => {
 });
 
 
+test("CLI check and format refuse table source options without changing file bytes", async (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-table-options-"));
+  const file = path.join(dir, "document.md");
+  try {
+    for (const caption of ["", " Values"]) {
+      for (const option of [":align: left", ":widths: 1 2", ":unknown: value"]) {
+        for (const command of ["check", "format"]) {
+          await t.test(`${command} ${caption || "no caption"} ${option}`, () => {
+            const source = nativeSource(`:::{table}${caption}\n${option}\n\n| A | B |\n|---|---|\n| x | y |\n:::\n`);
+            writeFileSync(file, source);
+            const before = readFileSync(file);
+            const result = run([command, file]);
+            assert.equal(result.status, 1, result.stdout + result.stderr);
+            assert.match(result.stderr, /Unsupported native content/);
+            assert.deepEqual(readFileSync(file), before);
+          });
+        }
+      }
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test("CLI authors table captions and labels through Core and rejects multiline captions without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-table-caption-"));
   const file = path.join(dir, "table.md");

@@ -84,6 +84,22 @@ const TABLE_DIRECTIVE_FIELDS = new Set(["type", "kind", "children", "label", "id
 const CAPTION_FIELDS = new Set(["type", "children", "position"]);
 
 /**
+ * MyST keeps original options on mystDirective, but drops some (including align)
+ * from its table container. Preserve unsupported evidence before directive lifting;
+ * admission's field whitelist and the write fingerprint must both see it.
+ */
+export function retainTableOptions(node: MystNode): void {
+  if (node.type === "mystDirective" && node.name === "table") {
+    const unsupported = Object.fromEntries(Object.entries(node.options ?? {})
+      .filter(([name]) => name !== "name" && name !== "label"));
+    if (Object.keys(unsupported).length && node.children?.[0]) {
+      node.children[0]["(unsupported table options)"] = unsupported;
+    }
+  }
+  node.children?.forEach(retainTableOptions);
+}
+
+/**
  * A `{table}` directive Core can author: a Markdown table with optional one-paragraph caption
  * and label. Other table directives (options, legends) are rejected by native admission.
  */
