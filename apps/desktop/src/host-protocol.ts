@@ -16,7 +16,7 @@ export const SCHEME = "ieumdoc";
 export const ORIGIN = `${SCHEME}://app`;
 
 /** The Host routes the Vite dev server forwards, with the same handlers. */
-const DOCUMENT_ROUTES = new Set(["/api/bibliography", "/api/file-preview", "/api/document", "/api/folder", "/api/folder-browse", "/api/folder-places", "/api/document-source", "/api/figure-validation"]);
+const DOCUMENT_ROUTES = new Set(["/api/file", "/api/bibliography", "/api/file-preview", "/api/document", "/api/folder", "/api/folder-browse", "/api/folder-places", "/api/document-source", "/api/figure-validation"]);
 
 type NodeResponse = { statusCode: number; setHeader(name: string, value: string): void; end(data?: string | Buffer): void };
 type Handler = (req: IncomingMessage, res: ServerResponse, notFound: () => void) => Promise<void> | void;
@@ -53,7 +53,7 @@ export type FirstDocument = { document: string } | { sample: string };
  * started with or, without one, a start without a document that offers the sample. The
  * development server's default file is not part of the app.
  */
-export function createProtocolHandler(editorDir: string, first: FirstDocument): (request: Request) => Promise<Response> {
+export function createProtocolHandler(editorDir: string, first: FirstDocument, trashItem: (file: string) => Promise<void> = async () => { throw new Error("OS trash is unavailable."); }): (request: Request) => Promise<Response> {
   // Lives as long as this process, as the development server's key does.
   const assetSigningKey = randomBytes(32);
   return async (request) => {
@@ -73,7 +73,7 @@ export function createProtocolHandler(editorDir: string, first: FirstDocument): 
         }
         url.searchParams.set("path", first.document);
       }
-      return callNodeHandler(request, url, (req, res, next) => handleDocumentRequest(req, res, next, LOCAL_FILE_ACCESS));
+      return callNodeHandler(request, url, (req, res, next) => handleDocumentRequest(req, res, next, LOCAL_FILE_ACCESS, Infinity, trashItem));
     }
     if (request.method !== "GET" && request.method !== "HEAD") return new Response(null, { status: 405, headers: SECURITY_HEADERS });
     return serveEditorFile(editorDir, url.pathname);

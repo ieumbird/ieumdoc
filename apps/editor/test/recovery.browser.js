@@ -329,7 +329,7 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
   // Unsupported/malformed format still exposes independently stored plaintext and explicit delete.
   await page.evaluate(async record => {
     const {recoveryStorage: store} = await import('/src/recovery-storage.ts');
-    const id = 'incompatible'; const ticket = await store.ticket(id);
+    const id = 'incompatible'; const ticket = await store.ticket(id, record.path);
     await store.write(id,ticket,() => ({...record,id,path:'C:\\Users\\한글 사용자\\' + 'very-long-unbroken-folder-name'.repeat(12) + '\\document.md',version:99,recordedAt:Date.now(),snapshot:null,recoveryText:'Plaintext survives incompatible schema.'}));
   },unsaveable);
   await page.reload(); await ready(page);
@@ -348,7 +348,7 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
   await page.evaluate(async record => {
     const {recoveryStorage: store} = await import('/src/recovery-storage.ts');
     const id = 'malformed';
-    await store.write(id,await store.ticket(id),() => ({...record,id,version:1,path:{broken:true},snapshot:null,recordedAt:Date.now(),recoveryText:'Malformed record text is still accessible.'}));
+    await store.write(id,await store.ticket(id, record.path),() => ({...record,id,version:1,path:{broken:true},snapshot:null,recordedAt:Date.now(),recoveryText:'Malformed record text is still accessible.'}));
   },unsaveable);
   await page.reload(); await ready(page);
   await page.getByRole('button',{name:'Review recovery'}).click();

@@ -240,7 +240,7 @@ if (!app.requestSingleInstanceLock()) {
     session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
     session.defaultSession.setPermissionCheckHandler(() => false);
     preferences = readPreferences(preferencesFile(), app.getVersion());
-    protocol.handle(SCHEME, createProtocolHandler(path.join(appRoot, "editor"), firstDocument(process.argv.slice(app.isPackaged ? 1 : 2), app.getPath("userData"), appRoot, log)));
+    protocol.handle(SCHEME, createProtocolHandler(path.join(appRoot, "editor"), firstDocument(process.argv.slice(app.isPackaged ? 1 : 2), app.getPath("userData"), appRoot, log), file => shell.trashItem(file)));
     const { autoUpdater } = electronUpdater;
     if (__IEUMDOC_REQUIRE_SIGNED_UPDATES__ && autoUpdater instanceof electronUpdater.NsisUpdater) {
       autoUpdater.verifyUpdateCodeSignature = verifyUpdateSignature;
