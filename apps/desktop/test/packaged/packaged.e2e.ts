@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { _electron as electron, expect, type ElectronApplication, type Page } from "@playwright/test";
-import { openDocument, reloadDocument } from "../../../editor/test/browser/navigation.ts";
+import { openDocument, openFolderPicker, reloadDocument } from "../../../editor/test/browser/navigation.ts";
 import { recoveryRecords, resetRecovery } from "../../../editor/test/browser/recovery-records.ts";
 import { processTree } from "./process-tree.ts";
 
@@ -319,7 +319,7 @@ test("pasting an image writes an asset; Open folder lists the folder and New cre
     await saved(page);
     assert.match(readFileSync(file, "utf8"), /\.\/assets\/image-[^)]+\.png/);
 
-    await page.getByTestId("sidebar").getByRole("button", { name: "Open folder…", exact: true }).click();
+    await openFolderPicker(page);
     await page.getByTestId("folder-path").fill(folder);
     await page.getByTestId("folder-open").click();
     await page.getByTestId("folder").getByRole("treeitem", { name: "doc.md" }).waitFor();
