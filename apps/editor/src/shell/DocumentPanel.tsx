@@ -54,7 +54,7 @@ export function DocumentPanel({ overlay, outline: store = emptyOutline, onSelect
         <div ref={tabs} className="view-toggle" role="tablist" aria-label={i18n.t("Document navigation")} onKeyDown={switchTab}>
           {kinds.map(value => <Button key={value} type="button" variant="ghost" size="sm" className="view-toggle-option"
             role="tab" id={`document-panel-tab-${value}`} aria-selected={kind === value} aria-controls={`document-panel-list-${value}`}
-            tabIndex={kind === value ? 0 : -1} onClick={() => setKind(value)}>{labels[value]}</Button>)}
+            tabIndex={kind === value ? 0 : -1} onClick={() => setKind(value)} data-segment-label={labels[value]}><span className="view-toggle-label">{labels[value]}</span></Button>)}
         </div>
       </div>
       {kinds.map(value => <Outline key={value} kind={value} active={kind === value}

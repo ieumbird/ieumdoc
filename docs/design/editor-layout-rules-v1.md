@@ -55,7 +55,7 @@
 The Document panel's Outline / Tables N / Figures N segments sit immediately below its
 40px drag header in a full-width `--layout-document-tab-height` row (#613). They reuse
 the Visual/Source 28px track and 24px Button segments; the three labels divide the available
-width with the existing compact inline spacing. The list keeps its two-line clamp and
+width with the existing compact inline spacing. All view segments reserve their semibold label width, so changing selection never moves the track or neighboring controls (#620). The list keeps its two-line clamp and
 semibold extent reservation. Heading/table/figure reveal uses the same measured-header
 scroll margin. Overlay placement and header caption reservations stay unchanged.
 

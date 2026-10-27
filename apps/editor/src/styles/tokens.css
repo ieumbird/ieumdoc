@@ -180,7 +180,7 @@
   --id-color-border: #d9dde4;
   --id-color-border-subtle: #e7eaf0;
   --id-color-border-strong: #bbc2cd;
-  /* Recognizable fields and persistent control states; >=3:1 even on pressed surfaces. */
+  /* Recognizable fields and outlined input-like controls; >=3:1 on adjacent surfaces. */
   --id-color-border-control: #7b8390;
   --id-color-border-focus: var(--id-color-interaction);
   --id-color-danger: #a12b32;
