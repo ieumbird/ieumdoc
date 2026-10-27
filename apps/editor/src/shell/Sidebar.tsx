@@ -48,13 +48,8 @@ export function Sidebar({
   return (
     <nav className={`sidebar${open ? "" : " sidebar--collapsed"}`} aria-label={i18n.t("Application")} data-testid="sidebar">
       <div className="sidebar-header">
-        {open ? <span className="product">IeumDoc</span> : null}
+        {open ? <span className="product">{i18n.t("Files")}</span> : null}
         <div className="sidebar-header-actions">
-          {open ? <Button type="button" variant="ghost" size="icon-sm"
-            aria-label={i18n.t("Open folder…")} title={i18n.t("Open folder…")}
-            onClick={event => onOpenFolder(event.currentTarget)}>
-            <FolderOpen aria-hidden="true" />
-          </Button> : null}
           <Button
             ref={toggleRef}
             className="sidebar-collapse"
@@ -70,9 +65,6 @@ export function Sidebar({
       </div>
       {/* Keep the tree mounted: collapse retains scroll and keyboard position. */}
       <div id="sidebar-files" className="sidebar-content" hidden={!open}>
-        {onNewDocument ? <Button type="button" size="sm" variant="ghost" className="w-full justify-start"
-          onClick={event => onNewDocument(event.currentTarget)}>
-          <Plus aria-hidden="true" />{i18n.t("New document")}</Button> : null}
         {folders.length > 0 ? folders.map(tree => (
           <FolderTree
             key={tree.root}
@@ -84,12 +76,20 @@ export function Sidebar({
             onOpenDocument={path => onOpenDocument?.(path)}
             onNew={button => onNew?.(tree.root, button)}
             onNewFolder={button => onNewFolder?.(tree.root, button)}
+            onOpenFolder={onOpenFolder}
             onRefresh={() => onRefreshFolder?.(tree.root)}
             onClose={() => onCloseFolder?.(tree.root)}
           />
         )) : (
           <section className="sidebar-empty" aria-label={i18n.t("Files")} data-testid="sidebar-empty">
             <p className="sidebar-empty-text">{i18n.t("Open a folder to browse its files and create documents.")}</p>
+            <Button type="button" size="sm" variant="ghost" className="w-full justify-start"
+              aria-label={i18n.t("Open folder…")} title={i18n.t("Open folder…")}
+              onClick={event => onOpenFolder(event.currentTarget)}>
+              <FolderOpen aria-hidden="true" />{i18n.t("Open folder…")}</Button>
+            {onNewDocument ? <Button type="button" size="sm" variant="ghost" className="w-full justify-start"
+              onClick={event => onNewDocument(event.currentTarget)}>
+              <Plus aria-hidden="true" />{i18n.t("New document…")}</Button> : null}
             {recent.length > 0 && onOpenRecent ? (
               <section className="sidebar-recent" aria-labelledby="sidebar-recent-label">
                 <p className="sidebar-recent-label" id="sidebar-recent-label">{i18n.t("Recent")}</p>
@@ -129,15 +129,17 @@ type FolderTreeProps = {
   onOpenDocument(path: string): void;
   onNew(button: HTMLButtonElement): void;
   onNewFolder(button: HTMLButtonElement): void;
+  onOpenFolder(returnFocus: HTMLElement | null): void;
   onRefresh(): void;
   onClose(): void;
 };
 
 /** One opened folder as a tree: folders expand in place, documents open. */
-function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, documentPath, onToggleFolder, onToggleSection, onOpenDocument, onNew, onNewFolder, onRefresh, onClose }: FolderTreeProps) {
+function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, documentPath, onToggleFolder, onToggleSection, onOpenDocument, onNew, onNewFolder, onOpenFolder, onRefresh, onClose }: FolderTreeProps) {
   useTranslation();
   const treeId = useId();
   const section = useRef<HTMLElement>(null);
+  const moreActions = useRef<HTMLButtonElement>(null);
   const [fileAction, setFileAction] = useState<{ action: FileAction; item: TreeItem }>();
   const actionReturn = useRef<HTMLElement | null>(null);
   const pendingFocus = useRef<string | null>(null);
@@ -184,17 +186,19 @@ function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, docu
       <div className="sidebar-folder-header">
         {/* Float actions before the name so later lines can use the full text width. */}
         <div className="sidebar-folder-actions">
-          <Button variant="ghost" size="icon-xs" aria-label={i18n.t("New file in folder")} title={i18n.t("New file…")} onClick={event => onNew(event.currentTarget)}>
+          <Button variant="ghost" size="icon-xs" aria-label={i18n.t("New document…")} title={i18n.t("New document…")} onClick={event => onNew(event.currentTarget)}>
             <Plus />
           </Button>
           <Button variant="ghost" size="icon-xs" aria-label={i18n.t("New folder")} title={i18n.t("New folder…")} onClick={event => onNewFolder(event.currentTarget)}>
             <FolderPlus />
           </Button>
           <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label={i18n.t("More actions")} />}>
+            <DropdownMenuTrigger ref={moreActions} render={<Button variant="ghost" size="icon-xs" aria-label={i18n.t("More actions")} />}>
               <Ellipsis />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onOpenFolder(moreActions.current)}>
+                <FolderOpen aria-hidden="true" />{i18n.t("Open folder…")}</DropdownMenuItem>
               <DropdownMenuItem onClick={onRefresh}>
                 <RotateCw aria-hidden="true" />{i18n.t("Refresh")}</DropdownMenuItem>
               <DropdownMenuItem onClick={onClose}>

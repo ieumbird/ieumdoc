@@ -53,8 +53,8 @@ export type DesktopBridge = {
   readonly fileDeletion: "trash";
   /** In-memory native appearance only; preference persistence stays in renderer localStorage. */
   setTheme(theme: "system" | "light" | "dark"): Promise<boolean>;
-  /** Resolved CSS role value; also marks the initial window appearance ready to show. */
-  setWindowBackground(color: string): Promise<void>;
+  /** Resolved canvas and caption CSS roles; also marks the initial appearance ready to show. */
+  setWindowBackground(color: string, overlay: { color: string; symbolColor: string }): Promise<void>;
   info(): Promise<DesktopInfo>;
   setChannel(channel: ReleaseChannel): Promise<DesktopInfo>;
   checkForUpdates(): Promise<void>;

@@ -31,7 +31,7 @@ async (page, { screenshots = false, openPath }) => {
     window.__desktop = {calls, push(state) { info.update = state; for (const listener of listeners) listener(state); }};
     window.ieumdocDesktop = {
       setTheme: async theme => theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches),
-      setWindowBackground: async () => {},
+      setWindowBackground: async (color, overlay) => { window.__desktop.appearance = { color, overlay }; },
       info: async () => ({...info}),
       setChannel: async (channel) => { calls.push(['channel', channel]); info.channel = channel; return {...info}; },
       checkForUpdates: async () => { calls.push(['check']); },
@@ -51,6 +51,37 @@ async (page, { screenshots = false, openPath }) => {
   await page.unrouteAll();
   await page.reload();
   await ready();
+  // Browser bridge coverage: resolved roles, explicit/System changes and geometry only.
+  // Real Window Controls Overlay/native window behavior is checked in packaged CI/manual review.
+  for (const theme of ['light', 'dark', 'system']) {
+    await page.getByRole('button', {name:'Settings', exact:true}).click();
+    await page.getByTestId('theme').selectOption(theme);
+    await page.waitForFunction(() => {
+      const style = getComputedStyle(document.documentElement), actual = window.__desktop.appearance;
+      return actual?.color === style.getPropertyValue('--id-color-canvas').trim() &&
+        actual.overlay.color === style.getPropertyValue('--id-color-surface-subtle').trim() &&
+        actual.overlay.symbolColor === style.getPropertyValue('--id-color-text').trim();
+    });
+    await page.keyboard.press('Escape');
+    await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+  }
+  const originalViewport = page.viewportSize();
+  for (const width of [1440, 640]) {
+    await page.setViewportSize({width, height:900});
+    // Representative caption width; production uses the native CSS environment, never this value.
+    await page.evaluate(() => document.documentElement.style.setProperty('--window-controls-width', '138px'));
+    for (const collapsed of [false, true]) {
+      if (collapsed) await page.getByRole('button', {name:'Collapse sidebar', exact:true}).click();
+      const blocked = await page.evaluate(() => [...document.querySelectorAll('.top-bar button, .sidebar-header button')].filter(button => {
+        const rect = button.getBoundingClientRect();
+        return rect.right > innerWidth || (rect.top < 40 && rect.right > innerWidth - 138) || getComputedStyle(button).getPropertyValue('app-region') !== 'no-drag';
+      }).map(button => button.getAttribute('aria-label') || button.textContent));
+      check(blocked.length === 0, `Caption controls overlap at ${width}px: ${blocked}`);
+      if (collapsed) await page.getByRole('button', {name:'Expand sidebar', exact:true}).click();
+    }
+  }
+  await page.evaluate(() => document.documentElement.style.removeProperty('--window-controls-width'));
+  await page.setViewportSize(originalViewport);
   await capture('desktop-after');
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;

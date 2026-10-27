@@ -24,13 +24,12 @@ Vite, Windows Desktop and the standalone [HTTP Host](http-host-v1.md) reuse this
 
 ## Behavior
 
-- The expanded Sidebar header has one Open folder… icon button in a fixed position with any
-  number of opened folders. Empty Files has no duplicate entry;
-  per-folder menus contain Refresh and Close folder (#494). Start-screen and command-center Open folder remain.
-  All use the existing picker/handler. The Sidebar button's accessible name and tooltip use the
-  existing English/Korean translation; Open, Cancel and Escape return focus to that button.
-  See the [ADR-0009 amendment](../adr/0009-multiple-opened-folders.md#amendment-2026-10-24-open-folder-entry-385)
-  and [same-state visual evidence](editor-ux-shell-v1.md#sidebar-open-folder-entry-385).
+- Each opened folder's More actions menu contains Open folder…, Refresh and Close folder.
+  Empty Files retains an Open folder… button; the header contains only Files and Collapse.
+  Start-screen and command-center entries remain. All use the same picker/handler; Cancel and
+  Escape return to the opener (the folder's menu trigger when opened from a menu). If successful
+  first-folder selection removes the empty-state opener, focus returns to the Sidebar toggle.
+  See [the approved explorer layout](editor-ux-shell-v1.md#sidebar-and-native-title-bar-582--605).
 
 - The path field determines the folder to open. Typing filters its parent's sub-folders;
   only user edits of the field set the filter. Selecting an image fills the path without
@@ -255,7 +254,7 @@ choosing a folder is interface/Host navigation, not a document semantic operatio
 
 ## New document in a sidebar folder
 
-- Start-screen and Files **New document**, and command-center **New document…**, reuse this
+- Start-screen, empty Files and command-center **New document…**, reuse this
   filename form (#553). Without an opened folder, the existing folder picker (including New
   folder) first selects and opens the location; after it closes, the filename form starts in
   that Host-normalized folder. Cancelling the picker opens nothing; cancelling the filename
@@ -263,7 +262,7 @@ choosing a folder is interface/Host navigation, not a document semantic operatio
   starts at the current document's folder in its opened tree, otherwise the first opened folder.
   The per-folder `+` retains its own section-specific default. See
   [New document entry](editor-ux-shell-v1.md#new-document-entry-553).
-- The sidebar folder heading has a `+` (New file in folder) and New folder beside its `⋯` menu (Refresh and Close folder). General Open folder… stays in the Sidebar header.
+- The sidebar folder heading has a `+` (New document…) and New folder beside its `⋯` menu (Open folder…, Refresh and Close folder).
 - `+` opens the filename form without an unsaved-work confirmation. Success adds a new tab; existing
   sessions and drafts remain. Cancelling or failed creation adds nothing. The shared **Save / Don't
   save / Cancel** confirmation belongs to closing a dirty tab. See

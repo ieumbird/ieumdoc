@@ -3,6 +3,8 @@
 }
 
 :root {
+  /* Native caption-button geometry, zero in ordinary browser tabs. */
+  --window-controls-width: max(0px, calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw)));
   color: var(--id-color-text);
   background: var(--id-color-canvas);
   font-family: var(--font-family-sans);
@@ -56,6 +58,8 @@ button {
 }
 
 .sidebar-header {
+  app-region: drag;
+  user-select: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -400,6 +404,8 @@ button {
 }
 
 .document-panel-header {
+  app-region: drag;
+  user-select: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -520,7 +526,20 @@ button {
   position: sticky;
   top: 0;
   z-index: 2;
+}
+
+/* When docked, Outline's header carries the native buttons. Otherwise the TopBar reserves
+ * their width. Reserve in the container so its existing wrapping sees the usable width. */
+.top-bar-container {
+  margin-right: max(0px, calc(var(--window-controls-width) - var(--shell-panel)));
   container-type: inline-size;
+}
+.document-panel:not(.document-panel--overlay) .document-panel-header {
+  padding-right: var(--window-controls-width);
+}
+.app-header { background: var(--id-color-surface-subtle); }
+:is(.sidebar-header, .top-bar, .document-panel-header, .settings-topbar) :is(button, input, select, textarea, a, [role="menu"], [role="menuitem"]) {
+  app-region: no-drag;
 }
 
 /* Only this row scrolls horizontally; the shared Save controls keep their own row. */
@@ -580,6 +599,8 @@ button {
 .document-tab > button:disabled, .document-tab > [aria-disabled="true"] { cursor: default; color: var(--id-color-text-subtle); }
 
 .top-bar {
+  app-region: drag;
+  user-select: none;
   display: grid;
   /* Equal side tracks reserve 21rem for document/view actions; the centered button yields
    * down to 10rem before the existing 56rem stacked layout takes over. */
@@ -590,7 +611,7 @@ button {
   min-height: var(--layout-header-row);
   padding: 0 var(--layout-ui-inset);
   border-bottom: var(--border-width) solid var(--id-color-border);
-  background: var(--id-color-surface);
+  background: var(--id-color-surface-subtle);
 }
 
 .top-bar-identity {
@@ -823,12 +844,16 @@ button {
 }
 
 .settings-topbar {
+  app-region: drag;
+  user-select: none;
+  background: var(--id-color-surface-subtle);
   display: flex;
   align-items: center;
   flex-shrink: 0;
   gap: var(--space-3);
   min-height: var(--layout-header-row);
   padding: var(--space-2) var(--layout-ui-inset);
+  padding-right: calc(var(--layout-ui-inset) + var(--window-controls-width));
   border-bottom: var(--border-width) solid var(--id-color-border);
 }
 .settings-topbar > button { flex-shrink: 0; }

@@ -1,6 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Shell verification: 2026-10-27 (#582 / #605: Editor 315 tests, Desktop 48 tests, typecheck/build and targeted persistent-Chrome regressions; [contract and captures](#sidebar-and-native-title-bar-582--605)).
 - Image rename verification: 2026-10-27 (#504: targeted file-actions browser flow; [1440px/640px save-first guidance comparison](#image-rename-guidance-504)).
 - File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
 - Property Apply verification: 2026-10-27 (#576: shared Ctrl/Cmd+Enter submission, validation/busy guards, IME/modifier exclusions and prose hard-break isolation; Editor tests and targeted Windows Chrome browser regressions, with Apple platform emulation rather than native macOS).
@@ -146,7 +147,7 @@ or dismissal. The existing References-region connection remains available.
 Settings still use the same editor/Core operations, dirty indication, Save and save
 failure handling. No Core/CLI operation, file format or device preference changes.
 Wide document remains its separate TopBar toggle. The 56rem TopBar breakpoint and
-48px boundary contract remain; the centered command trigger retains #556's reduction
+40px header contract (#605) applies; the centered command trigger retains #556's reduction
 order. Verification widths follow ADR-0010: 1440px and 640px, keyboard and pointer,
 light/dark and paper/white backgrounds. Current UI verification supersedes #554's
 placement; the following #554 measurements and captures are historical evidence.
@@ -339,6 +340,60 @@ while geometry, keyboard and editor-state checks provide automated coverage.
 | Saving & recovery | [After](assets/settings-screen-594/settings-en-recovery-1440.png) | [After](assets/settings-screen-594/settings-en-recovery-390.png) |
 | About & updates | [After](assets/settings-screen-594/settings-en-about-1440.png) | [After](assets/settings-screen-594/settings-en-about-390.png) |
 
+## Sidebar and native title bar (#582 / #605)
+
+The approved explorer layout puts only **Files / 파일** and Collapse sidebar in the header.
+Each opened folder collects **New document… / 새 문서…**, New folder and its More actions
+menu (Open folder…, Refresh, Close folder). There is no additional New document row while
+a folder is open. Empty Files retains Open folder… and New document…; the latter first
+chooses a folder, then opens the existing filename form. Start and command-center entries
+use the same New document… name. Folder selection and creation semantics are unchanged.
+Cancel returns to the invoking button; if opening the first folder removed that empty-state
+button, the visible Sidebar toggle receives focus. Menu-originated dialogs return to that
+folder's More actions trigger.
+
+The shared shell header is 40px at sufficient width. Desktop uses Electron's hidden title
+bar with native Windows caption buttons on the right, while tabs remain below TopBar.
+CSS Window Controls Overlay geometry reserves the native button area in the docked Outline
+header, or in TopBar when Outline is closed/overlaid. Ordinary browser tabs reserve zero
+caption width. Narrow desktop windows retain the existing command/status/action wrapping;
+640px must keep every control reachable and clear of native buttons. Header empty space
+drags the native window; controls use no-drag. Sidebar, TopBar, Outline header and Settings
+header share the surface-subtle role, including the native button background; text supplies
+the button symbol role. The existing #598 theme path updates both resolved colors.
+
+The active filename sets `document.title` to `<filename> — IeumDoc`, or `IeumDoc` without
+a document, including tab switches, renames and last-tab closure. Outline retains #590's
+toggle-only close and Escape/focus behavior; its header remains available for a future title
+control, with no new navigation mode here. These changes are interface-only: no Core semantic
+operation or CLI parity command is needed.
+
+Local verification (2026-10-27): Editor/Desktop tests, workspace typecheck and Editor build;
+folder-navigation, new-document, editor-shell, layout-rules, ui-language, desktop-updates,
+document-tabs and quiet-document browser scenarios. The first folder-navigation run exposed
+BODY focus after the removed empty-state opener; the existing shell fallback now returns to
+the Sidebar toggle. Language-menu verification waits for the opened menu before inspecting
+its translated item. No assertion or timeout was relaxed.
+
+Same-state browser captures: clean base `9dd7af40f30aa43bcce8ab0f8dc5e26dfba10055`
+versus this implementation, persistent Windows Chrome, Vite `127.0.0.1:5173`, English,
+Light/Paper/Blue, DPR 1, zoom 1, bundled Pretendard, scroll 0, empty Files with the same document.
+`pnpm browser:test quiet-document --screenshots` produced both pairs; regenerated traces and
+the larger capture matrix remain uncommitted.
+
+| Viewport | Before | After |
+| --- | --- | --- |
+| 1440×1000 | [PNG](assets/sidebar-titlebar-582-605/before-1440.png) | [PNG](assets/sidebar-titlebar-582-605/after-1440.png) |
+| 640×1000 | [PNG](assets/sidebar-titlebar-582-605/before-640.png) | [PNG](assets/sidebar-titlebar-582-605/after-640.png) |
+
+Opened-folder review from `folder-navigation --screenshots`: [1440px](assets/sidebar-titlebar-582-605/folder-1440.png),
+[640px](assets/sidebar-titlebar-582-605/folder-640.png), [menu](assets/sidebar-titlebar-582-605/folder-menu.png).
+These additional After captures show the consolidated folder actions; no new functionality is introduced.
+
+Native drag, double-click
+maximize, maximized spacing, rendered caption colors and taskbar/Alt+Tab presentation need
+manual Windows confirmation; browser bridge/geometry checks do not claim native proof.
+
 ## Structure
 
 Every Host has an expanded Sidebar footer Settings entry (also available through the command center), opening the [dedicated Settings screen](#dedicated-settings-screen-594). The start screen adds a minimal recovery list/empty state; matching Open offers the newest record in a shared recovery dialog. Standing recording failures use MessageArea. The [recovery contract](editing-session-save-v1.md#local-recovery-records-296-pr2) owns retention and lifecycle. The typed Desktop bridge additionally provides About and update notice/actions. Update notices do not take editor focus. Version/channel/progress/retry/restart policy is defined by [Desktop distribution](desktop-distribution-v1.md).
@@ -349,7 +404,7 @@ The shell has three responsibilities: the Sidebar on the left browses opened fol
 
 | Area | Current behavior |
 | --- | --- |
-| Sidebar | IeumDoc and, while expanded, one always-visible Open folder… icon button followed by Collapse sidebar in the header; always followed by file navigation and its New document button. There is no Files / Display switch. The collapsed rail contains only Expand sidebar, which restores file navigation. Files contains the opened folders (#112, [ADR-0009](../adr/0009-multiple-opened-folders.md)), each its own section in the order opened, or, without any, guidance followed by the browser's recent folders (name, full path in `title`): one click lists that folder like Open folder, without opening a document. User-controlled collapse/expand, with a 48px rail when collapsed. No workspace or placeholder navigation. Each folder heading names its folder (disclosure button and name, full path in `title`; [section visibility](#collapsible-folder-sections-425)) with `+` (New file in folder), New folder and a `⋯` menu containing Refresh and Close folder (removes only that folder; tabs stay open). The header Open folder… adds a folder; one already open is listed again in place. It stays in the same position with zero, one or several folders; the empty Files panel has no duplicate button (#385). Below each heading is a folder tree; file listing and activation follow [Folder files and image preview](#folder-files-and-image-preview-217). A `.md` file whose leading frontmatter lacks the native marker stays listed in subtle text with its own icon, and its tooltip and accessible description say it is not an IeumDoc document; opening it still shows the refusal and why ([Folder listing](filesystem-host-boundary-v1.md#folder-listing-v1-112)). On explicit active-document path changes, the containing sections and folders above it expand in each opened folder containing it; a document elsewhere adds nothing to the trees. The opened folders' paths are browser preferences: on start they are listed again in order, and one the Host refuses or no longer has is left out quietly. Child-folder expansion is page state only. Root section collapse is an origin-specific preference restored on Reload/Desktop restart; startup document restoration respects it. Opening document settings or collapsing the sidebar retains the mounted tree, its expansion, scroll and keyboard stop, without listing again. The tree takes the remaining height and scrolls by itself; the open document uses the shared selected surface/text with 600 semibold as a non-color cue, without a left marker there and Close folder removes it. Keyboard: Up/Down, Home/End move through visible items; Right expands a folder or moves into it; Left collapses it or moves to the parent; Enter or Space opens a document or toggles a folder. Files does not list the open document separately: the tab row and TopBar name it. |
+| Sidebar | Files and Collapse sidebar in the header, followed by file navigation; no duplicate New document row with opened folders (#582). There is no Files / Display switch. The collapsed rail contains only Expand sidebar, which restores file navigation. Files contains the opened folders (#112, [ADR-0009](../adr/0009-multiple-opened-folders.md)), each its own section in the order opened, or, without any, guidance followed by the browser's recent folders (name, full path in `title`): one click lists that folder like Open folder, without opening a document. User-controlled collapse/expand, with a 48px rail when collapsed. No workspace or placeholder navigation. Each folder heading names its folder (disclosure button and name, full path in `title`; [section visibility](#collapsible-folder-sections-425)) with `+` (New document…), New folder and a `⋯` menu containing Open folder…, Refresh and Close folder (removes only that folder; tabs stay open). Open folder… adds a folder; one already open is listed again in place. With no opened folder, the empty Files panel offers Open folder… and New document…. Below each heading is a folder tree; file listing and activation follow [Folder files and image preview](#folder-files-and-image-preview-217). A `.md` file whose leading frontmatter lacks the native marker stays listed in subtle text with its own icon, and its tooltip and accessible description say it is not an IeumDoc document; opening it still shows the refusal and why ([Folder listing](filesystem-host-boundary-v1.md#folder-listing-v1-112)). On explicit active-document path changes, the containing sections and folders above it expand in each opened folder containing it; a document elsewhere adds nothing to the trees. The opened folders' paths are browser preferences: on start they are listed again in order, and one the Host refuses or no longer has is left out quietly. Child-folder expansion is page state only. Root section collapse is an origin-specific preference restored on Reload/Desktop restart; startup document restoration respects it. Opening document settings or collapsing the sidebar retains the mounted tree, its expansion, scroll and keyboard stop, without listing again. The tree takes the remaining height and scrolls by itself; the open document uses the shared selected surface/text with 600 semibold as a non-color cue, without a left marker there and Close folder removes it. Keyboard: Up/Down, Home/End move through visible items; Right expands a folder or moves into it; Left collapses it or moves to the parent; Enter or Space opens a document or toggles a folder. Files does not list the open document separately: the tab row and TopBar name it. |
 | Document settings | Collapsed value summary at the top of the paper, before the title and outside ProseMirror (#580). Expands into grouped field rows for Number headings (H2–H6), Reference style (Default, Concise, Formal, Korean; unmatched values show Custom) with notation previews, and Connect bibliography…. Reuses existing operations, history, dirty indication and Save under the [numbering](heading-numbering-v1.md) and [bibliography](citations-v1.md#connect-and-disconnect-bibliography-files-438) contracts. Command center and Settings reveal/expand/focus it. Field controls disable during pending work; Source/start omit the block and read-only shows only summary. Escape inside collapses and focuses the disclosure; the style menu handles its own Escape first. Bibliography uses the existing connection dialog with return to the row’s Connect button. Expansion is per-tab session only. Opening/collapsing preserves editor instance, selection, history and unapplied drafts. App Settings remains separate. |
 | Document panel | The heading outline (#61), titled Outline, with no internal close button (#590). The TopBar Outline toggle opens and closes it. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read with selected background/text and 600 semibold (no left marker, #515); a hidden semibold copy reserves its two-line text extent to prevent selection height jumps. The current item stays inside the list's visible area. The list scrolls by itself and is never written to the document. At 1424px and wider the panel is docked and starts open; below 1424px it starts closed and, opened, overlays the document below the sticky header instead of narrowing it, so Save, File actions and the Outline toggle stay usable; Escape closes it and returns focus to the TopBar Outline toggle. The docking width is independent of the 1024px narrow sidebar. Entering the overlay layout always closes it. Returning to docked restores the user's last explicit docked open/closed choice, or opens by default if none exists. Overlay interactions do not overwrite that choice. Open/closed is page memory only and resets on reload; no persistent preference is added. |
 | TopBar | Actual status in the document area on the left; the centered command-center button leads with a search icon and Find documents and commands / 문서·명령 찾기; the document location/name is muted secondary information (full path in its title); the location names the folders from the outermost opened sidebar folder containing the document down, otherwise its own folder. Visual/Source, Wide document and Outline, then Save and File actions (`⋯`) on the right. File actions contains Reload and Copy path (the full path to the clipboard, confirmed by a temporary notice, or an explanatory error where the browser has no Clipboard API); the menu is unavailable without a document or during pending work. Enter/Space opens it, arrows navigate, Escape closes and returns focus. Reload keeps its existing discard confirmation and modal boundary while loading; closing that dialog returns focus to File actions. Wide document is a pressed toggle, remembered in device preferences and available without a document, during pending work and in Source. It changes no Markdown, history or dirty state, and its existing command remains. Outline shows or hides the Document panel (pressed while shown); closing the panel returns focus to it. Sticky while document scrolls. |
@@ -394,10 +449,9 @@ success shows the folder in the tree and returns focus to New folder. See [New f
 ### New document entry (#553)
 
 The start screen says **Start an IeumDoc document / 이음독 문서 시작하기**, with purpose-focused
-guidance about creating or continuing an IeumDoc document. **New document / 새 문서** is the
-primary text button, followed by the secondary **Open folder… / 폴더 열기…**. Files has a quiet
-text New document button above its existing folder/empty content; the Sidebar header, tool switch
-and per-folder controls retain their structure. The command center offers **New document… / 새 문서…**
+guidance about creating or continuing an IeumDoc document. **New document… / 새 문서…** is the
+primary text button, followed by the secondary **Open folder… / 폴더 열기…**. Empty Files has the
+same actions; opened folders collect their creation actions in the folder heading (#582). The command center offers **New document… / 새 문서…**
 with Korean and English document/file aliases, available without an open document and disabled
 during pending work or a close confirmation.
 
@@ -405,7 +459,7 @@ With no opened folder, New document opens the existing FolderDialog, including N
 Successful Open adds the Host-normalized folder to the Sidebar and recent/opened preferences,
 then, after the picker closes, opens the existing filename form in that exact folder. Cancelling
 the picker opens nothing. Cancelling the filename leaves the selected folder open and creates
-no document. Both cancellations return focus to the invoking control. A failed location stays
+no document. Both cancellations return focus to the invoking control, or the Sidebar toggle if opening the first folder removed that control. A failed location stays
 in the picker; a failed creation stays in the filename form.
 
 With opened folders, the common entry defaults to the current document's containing folder in
@@ -460,7 +514,7 @@ different list. Tree expansion and listing updates never write preferences. See
 [Folder picker behavior](folder-picker-v1.md#behavior).
 
 Behavior change (sidebar chrome cleanup): the sidebar no longer has the old Open…, Open folder…
-and New button row; #385 supplies the single header Open folder… described above. There is no separate current-document row. The app-level New, which took a full
+and New button row; #582 now collects those entries in folder headings or the empty Files state. There is no separate current-document row. The app-level New, which took a full
 file path in any existing directory, is removed rather than moved: a document is created by
 opening its folder and using the folder's `+`. The separate full-file-path Open file entry is also
 removed (#190); the shared document loader, Host file APIs and Desktop `.md` arguments remain.
@@ -540,7 +594,7 @@ An opened folder without remembered section collapse starts expanded. The chevro
 with localized `Collapse folder <name>` / `Expand folder <name>` labels and tooltips, `aria-expanded`
 and `aria-controls` naming that section's tree. The name remains the section/tree title and its
 full path remains in `title`. The chevron points right when collapsed and down when expanded,
-like subfolder chevrons. New file (`+`), New folder and More actions (`⋯`, Refresh and Close folder)
+like subfolder chevrons. New document… (`+`), New folder and More actions (`⋯`, Open folder…, Refresh and Close folder)
 remain visible and usable when the section is collapsed. Empty-folder help is hidden with the tree.
 Tab order within a section follows its existing actions, then the new toggle, then the tree's single
 retained keyboard stop when expanded. Enter/Space toggle; collapsed tree items are outside Tab and
@@ -596,7 +650,10 @@ Historical section decisions and captures: [Section persistence decision and ver
 
 ## Sidebar Open folder entry (#385)
 
-The [ADR-0009 amendment](../adr/0009-multiple-opened-folders.md#amendment-2026-10-24-open-folder-entry-385) records the owner-approved #380 decision 3. This changes entry placement only: the existing picker, handler, add/relist behavior, recent/opened preferences, start-screen entry and command-center command remain. The expanded header entry uses the existing English/Korean Open folder… name as both accessible label and tooltip. Tab order is Open folder → Collapse sidebar → file navigation; Shift+Tab reverses it. Picker Open, Cancel and Escape return focus to the header opener. Phone sidebar dismissal retains its TopBar focus behavior. The collapsed rail contains only Expand sidebar (#554).
+Historical placement decision: #385 moved Open folder into the header. The owner-approved
+[#582 amendment](../adr/0009-multiple-opened-folders.md#amendment-2026-10-27-explorer-sidebar-582)
+supersedes that placement with the [explorer layout](#sidebar-and-native-title-bar-582--605).
+The picker, handler, add/relist behavior, preferences and command-center entry remain unchanged.
 
 Historical sidebar captures and verification: [Sidebar entry capture evidence](#sidebar-entry-capture-evidence-385).
 

@@ -1,4 +1,4 @@
-async (page, { openDocument, reloadDocument, screenshots }) => {
+async (page, { openFolderPicker, openDocument, reloadDocument, screenshots }) => {
   page.setDefaultTimeout(15000);
   if (screenshots) await page.setViewportSize({width:1280,height:1000});
   await page.unrouteAll();
@@ -8,11 +8,11 @@ async (page, { openDocument, reloadDocument, screenshots }) => {
   const folder = [...loaded.path.split(sep).slice(0, -4), 'tmp', 'new-document'].join(sep);
   const check = (ok, reason) => { if (!ok) throw Error(reason); };
   const engine = page.locator('[data-document-tab][data-active=true] .document-editor');
-  await page.getByRole('button', {name:'Open folder…', exact:true}).click();
+  await openFolderPicker(page);
   await page.getByTestId('folder-path').fill(folder);
   await page.getByTestId('folder-open').click();
   await page.getByRole('dialog').waitFor({state:'detached'});
-  await page.getByRole('button', {name:'New file in folder', exact:true}).click();
+  await page.getByRole('button', {name:'New document…', exact:true}).click();
   await page.getByTestId('new-file-name').fill(`recovery-${Date.now()}`);
   await page.getByRole('dialog').getByRole('button', {name:'Create', exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'detached'});

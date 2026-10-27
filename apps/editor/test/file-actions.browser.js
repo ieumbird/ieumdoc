@@ -1,4 +1,4 @@
-async (page, { screenshots = false, fileActionsRoot, expect, recoveryRecords, activeDocument } = {}) => {
+async (page, { openFolderPicker, screenshots = false, fileActionsRoot, expect, recoveryRecords, activeDocument } = {}) => {
   const origin = page.url().split('/').slice(0, 3).join('/');
   const root = fileActionsRoot;
   const sep = root.includes('\\') ? '\\' : '/';
@@ -13,7 +13,7 @@ async (page, { screenshots = false, fileActionsRoot, expect, recoveryRecords, ac
     await page.getByRole('menuitem', {name:action, exact:true}).click();
     await dialog.waitFor();
   };
-  await page.getByTestId('sidebar').getByRole('button', {name:'Open folder…', exact:true}).click();
+  await openFolderPicker(page);
   await page.getByTestId('folder-path').fill(root + sep);
   await page.getByTestId('folder-open').click(); await row('a.md').waitFor();
   const nativeMenu = locator => locator.evaluate(node => node.dispatchEvent(new MouseEvent('contextmenu', {bubbles:true,cancelable:true})));

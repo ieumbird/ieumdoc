@@ -223,7 +223,7 @@
   --layout-document-gutter: calc(var(--space-2) + var(--size-control-compact) * 2 + var(--layout-gutter-gap) + var(--layout-gutter-safety));
   --layout-gutter-safety: var(--space-3);
   --layout-sidebar-rail-width: 3rem;
-  --layout-header-row: 3rem;
+  --layout-header-row: 2.5rem;
   --layout-ui-inset: var(--space-5);
   --size-control: 2rem;
   --size-control-compact: 1.75rem;

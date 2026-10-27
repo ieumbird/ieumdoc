@@ -2,7 +2,7 @@
 // Exercises Figure editing, insertion, Apply/Cancel, Save and Reload against a real file.
 // The file is a scratch copy under the repository's ignored tmp/ directory; prepare it first
 // (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
-async (page, { openDocument, waitForEditorFocus, expect, screenshots }) => {
+async (page, { openFolderPicker, openDocument, waitForEditorFocus, expect, screenshots }) => {
   const problems = [];
   const onConsole = message => {
     if (message.type() === 'error' || message.type() === 'warning') problems.push(`${message.type()}: ${message.text()}`);
@@ -650,11 +650,11 @@ async (page, { openDocument, waitForEditorFocus, expect, screenshots }) => {
     // In a new empty document, `/figure` makes the only block an empty Figure that saves.
     const emptyName = `empty-${Date.now()}.md`;
     const emptyPath = filePath.replace('technical-document.md', emptyName);
-    await page.getByTestId('sidebar').getByRole('button', {name:'Open folder…', exact:true}).click();
+    await openFolderPicker(page);
     await page.getByTestId('folder-path').fill(filePath.slice(0, -'technical-document.md'.length));
     await page.getByTestId('folder-open').click();
     await page.getByRole('dialog').waitFor({state:'detached'});
-    await page.getByRole('button', {name:'New file in folder', exact:true}).click();
+    await page.getByRole('button', {name:'New document…', exact:true}).click();
     await page.getByTestId('new-file-name').fill(emptyName);
     await page.getByRole('dialog').getByRole('button', {name:'Create', exact:true}).click();
     await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
