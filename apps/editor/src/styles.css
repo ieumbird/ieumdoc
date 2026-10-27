@@ -349,7 +349,7 @@ button {
   top: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 0;
   height: 100vh;
   min-width: 0;
   padding: 0 var(--space-3) var(--space-3);
@@ -391,6 +391,15 @@ button {
   line-height: var(--line-height-label);
 }
 
+.document-panel-navigation {
+  display: flex;
+  align-items: center;
+  flex: 0 0 var(--layout-document-tab-height);
+  min-width: 0;
+}
+.document-panel-navigation .view-toggle { width: 100%; }
+.document-panel-navigation .view-toggle-option { flex: 1; min-width: 0; padding-inline: var(--space-1); }
+
 /* The outline takes the panel's remaining height and scrolls by itself. */
 .document-outline {
   display: flex;
@@ -398,6 +407,7 @@ button {
   flex-direction: column;
   min-height: 0;
 }
+.document-outline[hidden] { display: none; }
 .document-outline-list {
   min-height: 0;
   margin: 0;
@@ -477,8 +487,8 @@ button {
   font-style: italic;
 }
 
-/* A heading reached from the outline clears the sticky header. */
-.document-editor > .heading {
+/* A navigation target clears the sticky header, including React's Figure wrapper. */
+.document-editor > :is(.heading, .node-table, .node-figure) {
   scroll-margin-top: calc(var(--app-header-height, var(--layout-header-row)) + var(--space-8));
 }
 
@@ -2462,12 +2472,12 @@ ol.list { list-style: decimal; }
   background: transparent;
 }
 
-.view-toggle .view-toggle-option:is([aria-pressed="true"], :not([aria-disabled="true"]):enabled:hover) {
+.view-toggle .view-toggle-option:is([aria-pressed="true"], [aria-selected="true"], :not([aria-disabled="true"]):enabled:hover) {
   color: var(--id-color-text);
 }
 
-.view-toggle .view-toggle-option[aria-pressed="true"],
-.view-toggle .view-toggle-option[aria-pressed="true"]:hover {
+.view-toggle .view-toggle-option:is([aria-pressed="true"], [aria-selected="true"]),
+.view-toggle .view-toggle-option:is([aria-pressed="true"], [aria-selected="true"]):hover {
   background: var(--id-color-surface);
   box-shadow: 0 0 0 var(--border-width) var(--id-color-border-control), var(--shadow-segment);
 }
@@ -2833,7 +2843,7 @@ ol.list { list-style: decimal; }
   box-shadow: var(--focus-ring-inset);
   --tw-ring-shadow: 0 0 #0000;
 }
-.view-toggle .view-toggle-option[aria-pressed="true"]:focus-visible {
+.view-toggle .view-toggle-option:is([aria-pressed="true"], [aria-selected="true"]):focus-visible {
   box-shadow: var(--focus-ring-inset), 0 0 0 var(--border-width) var(--id-color-border-control), var(--shadow-segment);
 }
 

@@ -44,6 +44,7 @@ export const STABLE_SCENARIOS = [
   "markdown-input",
   "basic-blocks",
   "outline",
+  "panel-lists",
   "list-authoring",
   "source-view",
   "source-view-pending",

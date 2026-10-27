@@ -25,7 +25,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
       return write.call(this,key,value);
     };
   });
-  check(await page.getByRole('tab').count() === 1, 'The startup document is not the first tab');
+  check(await page.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').count() === 1, 'The startup document is not the first tab');
   await page.getByRole('button', {name:'Close technical-document.md',exact:true}).click();
   await page.getByTestId('document-start').waitFor();
   await expect(page).toHaveTitle('IeumDoc');
@@ -35,8 +35,8 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
   await expect(page).toHaveTitle('technical-2.md — IeumDoc');
   await activate('technical-1.md');
   await page.reload(); await ready();
-  check(await page.getByRole('tab').count() === 2, 'Reload did not restore both open document tabs');
-  check(JSON.stringify(await page.getByRole('tab').allTextContents()) === JSON.stringify(['technical-1.md','technical-2.md']), 'Reload changed the remembered tab order');
+  check(await page.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').count() === 2, 'Reload did not restore both open document tabs');
+  check(JSON.stringify(await page.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').allTextContents()) === JSON.stringify(['technical-1.md','technical-2.md']), 'Reload changed the remembered tab order');
   check(await page.getByRole('tab',{name:'technical-1.md',exact:true}).getAttribute('aria-selected') === 'true', 'Reload did not restore the last active tab');
   check(JSON.stringify(await memory()) === JSON.stringify({paths:[a,b],activePath:a}), 'Navigation memory contains more than paths, order and active identity');
   await flush();
@@ -51,7 +51,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
   await editor().evaluate(n => { n.editor.commands.undo(); location.reload(); });
   await navigated; await ready();
   check(!await page.getByTestId('recovery-prompt').count(), 'Undo to saved content proposed obsolete recovery after immediate Reload');
-  check(JSON.stringify(await page.getByRole('tab').allTextContents()) === JSON.stringify(['technical-1.md','technical-2.md']),
+  check(JSON.stringify(await page.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').allTextContents()) === JSON.stringify(['technical-1.md','technical-2.md']),
     'Undo to saved content prevented remembered tab restoration');
   check(!(await editor().innerText()).includes('Undo before immediate Reload.'), 'Reload brought back the undone edit');
 
@@ -68,7 +68,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
     closing = await page.context().newPage();
     await closing.goto(origin);
     await closing.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-    check(!await closing.getByTestId('recovery-prompt').count() && await closing.getByRole('tab').count() === 2,
+    check(!await closing.getByTestId('recovery-prompt').count() && await closing.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').count() === 2,
       'Clean Undo followed by browser-tab close proposed obsolete recovery');
 
     // Undo that leaves real applied work must retain the record and its disk checkpoint.
@@ -123,7 +123,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
     for (const explicit of [false,true]) {
       targetReads = 0;
       await page.goto(explicit ? `${origin}/?path=${encodeURIComponent(b)}` : origin); await ready();
-      const names = await page.getByRole('tab').allTextContents();
+      const names = await page.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').allTextContents();
       const expected = explicit ? ['technical-2.md'] : ['technical-1.md','technical-2.md'];
       if (JSON.stringify(names) !== JSON.stringify(expected) || targetReads === 0 || await page.getByTestId('error').count()) {
         startupFailures.push(`${explicit ? 'Explicit URL' : 'Remembered tabs'} depended on the unused default: tabs=${JSON.stringify(names)}, targetReads=${targetReads}`);
@@ -132,7 +132,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
     // When the default actually is the fallback, its failure must still be visible.
     await page.evaluate(() => localStorage.removeItem('ieumdoc.openTabs'));
     await page.goto(origin); await ready();
-    check(await page.getByRole('tab').count() === 0 && (await page.getByTestId('error').innerText()).includes('Default document unavailable'), 'A real fallback failure lost its startup error');
+    check(await page.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').count() === 0 && (await page.getByTestId('error').innerText()).includes('Default document unavailable'), 'A real fallback failure lost its startup error');
   } finally {
     page.off('request',countTarget);
     await page.unroute('**/api/document',failedDefault);
@@ -156,7 +156,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
   } finally { await other.close(); }
   for (const name of ['technical-2.md','technical-1.md']) await page.getByRole('button',{name:`Close ${name}`,exact:true}).click();
   await page.reload(); await ready();
-  check(await page.getByTestId('document-start').isVisible() && await page.getByRole('tab').count() === 0, 'Closing every tab did not survive Reload');
+  check(await page.getByTestId('document-start').isVisible() && await page.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').count() === 0, 'Closing every tab did not survive Reload');
 
   // Mixed remembered paths are checked by the real Host. A held final response proves
   // startup cannot publish a partial list or write it back before all paths are checked.
@@ -176,10 +176,10 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
   try {
     await page.reload();
     await Promise.race([started,page.waitForTimeout(15000).then(() => { throw new Error('Restoration did not request the final remembered document'); })]);
-    check(await page.getByRole('tab').count() === 0 && JSON.stringify(await memory()) === JSON.stringify(saved), 'Pending restoration published or remembered an incomplete tab list');
+    check(await page.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').count() === 0 && JSON.stringify(await memory()) === JSON.stringify(saved), 'Pending restoration published or remembered an incomplete tab list');
     release(); await ready();
   } finally { release(); await page.unroute('**/api/document?**',hold); }
-  check(JSON.stringify(await page.getByRole('tab').allTextContents()) === JSON.stringify(['technical-1.md','technical-2.md']), 'Missing/refused/non-native paths or Host aliases changed restored order/deduplication');
+  check(JSON.stringify(await page.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').allTextContents()) === JSON.stringify(['technical-1.md','technical-2.md']), 'Missing/refused/non-native paths or Host aliases changed restored order/deduplication');
   check(await page.getByRole('tab',{name:'technical-1.md',exact:true}).getAttribute('aria-selected') === 'true', 'Missing active path did not fall back to the first surviving tab');
   check(!await page.getByTestId('error').count() && !await page.getByRole('dialog').count(), 'An excluded remembered path interrupted startup');
   await flush();
@@ -187,7 +187,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
 
   // An explicit URL request wins and still does not rewrite memory merely by starting.
   await page.goto(`${origin}/?path=${encodeURIComponent(b)}`); await ready();
-  check(await page.getByRole('tab').count() === 1 && await page.getByRole('tab',{name:'technical-2.md',exact:true}).count() === 1, 'Explicit URL did not take precedence over remembered tabs');
+  check(await page.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').count() === 1 && await page.getByRole('tab',{name:'technical-2.md',exact:true}).count() === 1, 'Explicit URL did not take precedence over remembered tabs');
   check(JSON.stringify(await memory()) === JSON.stringify(saved), 'Explicit startup rewrote the remembered list');
   await page.getByRole('tab',{name:'technical-2.md',exact:true}).click(); await flush();
   check(JSON.stringify(await memory()) === JSON.stringify({paths:[b],activePath:b}), 'The first user action did not prune excluded paths');
@@ -208,20 +208,20 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
     });
     await page.evaluate(saved => localStorage.setItem('ieumdoc.openTabs',JSON.stringify(saved)), {paths:[a,b],activePath:a});
     await desktopPage.goto(origin); await desktopPage.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-    check(await desktopPage.getByRole('tab').count() === 1 && await desktopPage.getByRole('tab',{name:'technical-document.md',exact:true}).count() === 1, 'Desktop file argument did not take precedence');
+    check(await desktopPage.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').count() === 1 && await desktopPage.getByRole('tab',{name:'technical-document.md',exact:true}).count() === 1, 'Desktop file argument did not take precedence');
     await desktopPage.route('**/api/document',route => route.fulfill({json:{start:true,sample:loaded.path}}));
     await desktopPage.reload(); await desktopPage.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-    check(JSON.stringify(await desktopPage.getByRole('tab').allTextContents()) === JSON.stringify(['technical-1.md','technical-2.md']) && await desktopPage.getByRole('tab',{name:'technical-1.md',exact:true}).getAttribute('aria-selected') === 'true', 'Desktop startup without an argument did not restore tabs');
+    check(JSON.stringify(await desktopPage.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').allTextContents()) === JSON.stringify(['technical-1.md','technical-2.md']) && await desktopPage.getByRole('tab',{name:'technical-1.md',exact:true}).getAttribute('aria-selected') === 'true', 'Desktop startup without an argument did not restore tabs');
     await desktopPage.goto(`${origin}/?path=${encodeURIComponent(b)}`);
     await desktopPage.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-    check(await desktopPage.getByRole('tab').count() === 1, 'URL did not override Desktop navigation memory');
+    check(await desktopPage.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').count() === 1, 'URL did not override Desktop navigation memory');
     await desktopPage.getByRole('button',{name:'Close technical-2.md',exact:true}).click();
     check(await desktopPage.getByTestId('document-start').getByRole('button',{name:'Open sample document',exact:true}).isVisible(), 'URL startup lost Host sample information after the last close');
     await page.evaluate(saved => localStorage.setItem('ieumdoc.openTabs',JSON.stringify(saved)), {paths:[a,b],activePath:a});
     await desktopPage.route('**/api/document',failedDefault);
     await desktopPage.goto(origin);
     await desktopPage.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-    check(await desktopPage.getByRole('tab').count() === 0 && (await desktopPage.getByTestId('error').innerText()).includes('Default document unavailable'), 'A failed Desktop launch file silently fell back to remembered tabs');
+    check(await desktopPage.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').count() === 0 && (await desktopPage.getByTestId('error').innerText()).includes('Default document unavailable'), 'A failed Desktop launch file silently fell back to remembered tabs');
     await desktopPage.goto(`${origin}/?path=${encodeURIComponent(b)}`);
     await desktopPage.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     check(await desktopPage.getByRole('tab',{name:'technical-2.md',exact:true}).count() === 1 && !await desktopPage.getByTestId('error').count(), 'An explicit URL was blocked by a failed Desktop default');
@@ -294,7 +294,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
 
   // An exact already-normalized path keeps the existing instance and edits.
   await openPath(page, b); await activate('technical-1.md');
-  check(await page.getByRole('tab').count() === 2, 'Reopening B made a duplicate tab');
+  check(await page.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').count() === 2, 'Reopening B made a duplicate tab');
   check(await editor().evaluate(n => n.editor === window.tabEditorA), 'Reopening replaced the existing editor');
   await page.getByRole('button',{name:'Source',exact:true}).click();
   await page.getByTestId('source-view').waitFor();
@@ -389,7 +389,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
     await page.getByTestId('folder').getByRole('treeitem',{name:'technical-1.md',exact:true}).click();
     await page.waitForFunction(path => document.querySelector('[data-testid="current-file"]')?.getAttribute('title') === path, a);
     check(switchRequests === 0, 'An exact open path performed a Host request');
-    check(await page.getByRole('tab').count() === 2 && !await page.getByTestId('error').count(), 'Activating a missing open file added a tab or an error');
+    check(await page.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').count() === 2 && !await page.getByTestId('error').count(), 'Activating a missing open file added a tab or an error');
     const retained = await editor().evaluate(n => ({same:n.editor === window.tabEditorA,json:JSON.stringify(n.editor.getJSON()),selection:n.editor.state.selection.toJSON()}));
     check(retained.same && retained.json === beforeRemoval.json && JSON.stringify(retained.selection) === JSON.stringify(beforeRemoval.selection), 'Missing-file activation replaced the retained session');
     await editor().focus(); await page.keyboard.press('Control+z');

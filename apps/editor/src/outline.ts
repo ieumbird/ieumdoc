@@ -1,14 +1,16 @@
-import { headingNumbers, type HeadingNumbering } from "@ieumdoc/core/numbering";
+import { captionNumberText, headingNumbers, type HeadingNumbering } from "@ieumdoc/core/numbering";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { blockNumbers } from "./cross-reference.tsx";
 
 // The document outline is Editor navigation derived from the engine document. It is never
 // written to the document and has no Core or CLI counterpart (`ieumdoc inspect` lists headings and
 // their section ranges).
 
 export type OutlineItem = {
-  /** Top-level block index of the heading. */
+  kind?: "table" | "figure";
+  /** Top-level block index of the navigation target. */
   index: number;
-  /** Engine position before the heading. */
+  /** Engine position before the target. */
   pos: number;
   level: number;
   /** Generated prefix only; text retains the full navigation/accessibility label. */
@@ -30,6 +32,20 @@ export function documentOutline(doc: ProseMirrorNode): OutlineItem[] {
   return items;
 }
 
+/** Caption text is already projected by Core into the native engine caption nodes. Reuse
+ * the very same Core counters/templates as the document's caption NodeViews. */
+export function documentTargets(doc: ProseMirrorNode, kind: "table" | "figure"): OutlineItem[] {
+  const numbers = blockNumbers(doc);
+  const items: OutlineItem[] = [];
+  doc.forEach((node, pos, index) => {
+    if (node.type.name !== kind) return;
+    const number = captionNumberText(kind, numbers[index][kind]!, doc.attrs.referenceTemplates);
+    const caption = kind === "figure" ? node.textContent : node.lastChild?.textContent ?? "";
+    items.push({ kind, index, pos, level: 1, number, text: `${number}${caption ? `: ${caption}` : ""}` });
+  });
+  return items;
+}
+
 /**
  * The section being read: the last heading whose top is above `line` (a viewport y below the
  * sticky header), or the first heading while the reader is above all of them. At the end of the
@@ -43,7 +59,8 @@ export function currentOutlineItem(headingTops: number[], line: number, bottom?:
   return current;
 }
 
-export type DocumentOutline = { items: OutlineItem[]; current: number };
+export type NavigationList = { items: OutlineItem[]; current: number };
+export type DocumentOutline = NavigationList & { tables: NavigationList; figures: NavigationList };
 
 /**
  * Outline state outside React's App state. Scrolling changes the current section often; only its
@@ -51,7 +68,7 @@ export type DocumentOutline = { items: OutlineItem[]; current: number };
  * can race a pending native caret move.
  */
 export function createOutlineStore() {
-  let outline: DocumentOutline = { items: [], current: -1 };
+  let outline: DocumentOutline = { items: [], current: -1, tables: { items: [], current: -1 }, figures: { items: [], current: -1 } };
   const listeners = new Set<() => void>();
   return {
     get: () => outline,
@@ -71,6 +88,6 @@ export type OutlineStore = ReturnType<typeof createOutlineStore>;
 export function sameOutline(left: OutlineItem[], right: OutlineItem[]): boolean {
   return left.length === right.length && left.every((item, index) => {
     const other = right[index];
-    return item.index === other.index && item.pos === other.pos && item.level === other.level && item.number === other.number && item.text === other.text;
+    return item.kind === other.kind && item.index === other.index && item.pos === other.pos && item.level === other.level && item.number === other.number && item.text === other.text;
   });
 }

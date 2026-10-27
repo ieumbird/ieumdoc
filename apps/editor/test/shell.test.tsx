@@ -528,17 +528,19 @@ test("without a chosen folder, recent folders list again with one click", () => 
   assert.doesNotMatch(renderToStaticMarkup(<Sidebar onFileAction={async () => ""} fileActionsDisabled={false} isFileDirty={() => false} open documentPath={PATH} onToggle={noop} onOpenFolder={noop} recent={recent} />), /Recent/);
 });
 
-test("document panel holds only the outline, and the TopBar Outline toggle shows whether it is open", () => {
+test("document panel offers navigation lists, and the TopBar Outline toggle shows whether it is open", () => {
   const outline = createOutlineStore();
-  outline.set({ items: [{ index: 0, pos: 0, level: 1, text: "Intro" }, { index: 2, pos: 9, level: 2, text: "Detail" }], current: 1 });
-  const panel = renderToStaticMarkup(<DocumentPanel overlay={false} outline={outline} onSelectHeading={noop} onClose={noop} />);
+  outline.set({ items: [{ index: 0, pos: 0, level: 1, text: "Intro" }, { index: 2, pos: 9, level: 2, text: "Detail" }], current: 1, tables: { items: [], current: -1 }, figures: { items: [], current: -1 } });
+  const panel = renderToStaticMarkup(<DocumentPanel overlay={false} outline={outline} onSelectItem={noop} onClose={noop} />);
   assert.match(panel, />Outline</);
   assert.doesNotMatch(panel, /aria-label="Hide outline"/);
   assert.match(panel, /data-testid="outline"/);
   const currentText = panel.match(/<button\b[^>]*aria-current="location"[^>]*>([\s\S]*?)<\/button>/)?.[1];
   assert.equal(currentText?.replace(/<[^>]+>/g, ""), "Detail");
-  // Outline only: no tabs or other document tools.
-  assert.doesNotMatch(panel, /role="tab/);
+  assert.match(panel, /role="tablist"/);
+  assert.match(panel, /aria-controls="document-panel-list-tables"/);
+  assert.match(panel, />Tables 0</);
+  assert.match(panel, />Figures 0</);
   for (const open of [true, false]) {
     const html = renderToStaticMarkup(
       <TooltipProvider>

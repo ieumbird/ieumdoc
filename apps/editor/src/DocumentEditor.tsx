@@ -47,7 +47,7 @@ import {
 } from "./editor-schema.tsx";
 import { appliedDocument, freshBlockPath, toTiptapDocument, type TiptapJSON } from "./tiptap-document.ts";
 import { MARKDOWN_INPUT_RULES } from "./markdown-input-rules.ts";
-import { currentOutlineItem, documentOutline, sameOutline, type DocumentOutline, type OutlineItem } from "./outline.ts";
+import { currentOutlineItem, documentOutline, documentTargets, sameOutline, type DocumentOutline, type NavigationList, type OutlineItem } from "./outline.ts";
 import { documentEnd, runHistoryShortcut } from "./document-interaction.ts";
 import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 
@@ -78,8 +78,8 @@ export type DocumentEditorHandle = {
   /** Live applied-content comparison with the acknowledged snapshot; excludes property drafts. */
   hasDocumentChanges(): boolean;
   hasUnsavedChanges(): boolean;
-  /** Move the caret to an outline heading and scroll it to the top of the document view. */
-  revealHeading(item: OutlineItem): void;
+  /** Reveal a heading, table or figure in the Visual document view. */
+  revealItem(item: OutlineItem): void;
   /** A click below the document places the caret at its end; returns whether it did. */
   focusEnd(clientY: number): boolean;
 };
@@ -118,7 +118,7 @@ type DocumentEditorProps = {
   validateFigure?: FigureValidator;
   /** Opens the Host image picker for a Figure's image. */
   chooseImage?: ImageChooser;
-  /** The heading outline and the section being read, for navigation outside the editor. */
+  /** Headings, tables and figures with their current reading positions. */
   onOutlineChange?: (outline: DocumentOutline) => void;
 };
 
@@ -147,7 +147,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   onDirtyChangeRef.current = onDirtyChange;
   const onOutlineChangeRef = useRef(onOutlineChange);
   onOutlineChangeRef.current = onOutlineChange;
-  // A heading revealed from the outline stays the current section until the reader scrolls,
+  // A revealed navigation target stays current until the reader scrolls,
   // even when the document ends before it can reach the top of the view.
   const revealed = useRef<{ index: number; scrollY: number } | null>(null);
   const scheduleOutline = useRef(() => {});
@@ -375,14 +375,16 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         return activeDrafts.current.size > 0 || hasDocumentChanges();
       },
       hasDocumentChanges,
-      revealHeading(item) {
+      revealItem(item) {
         // Source-to-Visual navigation is deferred; a later tab switch must not steal focus/scroll.
         if (!editor || editor.view.dom.closest("[hidden]")) return;
         const node = editor.state.doc.maybeChild(item.index);
-        if (!node || node.type.name !== "heading") return;
+        if (!node || node.type.name !== (item.kind ?? "heading")) return;
         let pos = 0;
         for (let i = 0; i < item.index; i++) pos += editor.state.doc.child(i).nodeSize;
-        const selection = TextSelection.create(editor.state.doc, pos + 1);
+        const selection = item.kind === "figure" ? NodeSelection.create(editor.state.doc, pos)
+          : item.kind === "table" ? TextSelection.near(editor.state.doc.resolve(pos + 1))
+          : TextSelection.create(editor.state.doc, pos + 1);
         editor.view.dispatch(editor.state.tr.setSelection(selection));
         editor.view.focus();
         const element = editor.view.nodeDOM(pos);
@@ -450,18 +452,23 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     let frame = 0;
     const report = () => {
       frame = 0;
-      const items = documentOutline(editor.state.doc);
-      const tops = items.map(item => {
-        const element = editor.view.nodeDOM(item.pos);
-        return element instanceof HTMLElement ? element.getBoundingClientRect().top : Number.POSITIVE_INFINITY;
-      });
-      // A heading that has scrolled into the upper part of the view starts the section being read.
       if (revealed.current && Math.abs(window.scrollY - revealed.current.scrollY) > 1) revealed.current = null;
-      const pinned = revealed.current && items.findIndex(item => item.index === revealed.current!.index);
-      const current = pinned !== null && pinned >= 0 ? pinned : currentOutlineItem(tops, window.innerHeight * 0.3,
-        window.scrollY > 0 && window.scrollY + window.innerHeight >= window.document.documentElement.scrollHeight - 1 ? window.innerHeight : undefined);
-      if (reported && reported.current === current && sameOutline(reported.items, items)) return;
-      reported = { items, current };
+      // All three lists share the existing reading line, pin and scroll/update/resize lifecycle.
+      const track = (items: OutlineItem[]): NavigationList => {
+        const tops = items.map(item => {
+          const element = editor.view.nodeDOM(item.pos);
+          return element instanceof HTMLElement ? element.getBoundingClientRect().top : Number.POSITIVE_INFINITY;
+        });
+        const pinned = revealed.current && items.findIndex(item => item.index === revealed.current!.index);
+        const current = pinned !== null && pinned >= 0 ? pinned : currentOutlineItem(tops, window.innerHeight * 0.3,
+          window.scrollY > 0 && window.scrollY + window.innerHeight >= window.document.documentElement.scrollHeight - 1 ? window.innerHeight : undefined);
+        return { items, current };
+      };
+      const next = { ...track(documentOutline(editor.state.doc)),
+        tables: track(documentTargets(editor.state.doc, "table")), figures: track(documentTargets(editor.state.doc, "figure")) };
+      const same = (left: NavigationList, right: NavigationList) => left.current === right.current && sameOutline(left.items, right.items);
+      if (reported && same(reported, next) && same(reported.tables, next.tables) && same(reported.figures, next.figures)) return;
+      reported = next;
       onOutlineChangeRef.current?.(reported);
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(report); };

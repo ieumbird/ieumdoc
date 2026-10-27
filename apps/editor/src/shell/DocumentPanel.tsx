@@ -1,21 +1,40 @@
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
-import { useEffect, useLayoutEffect, useRef, useSyncExternalStore, type CSSProperties, type KeyboardEvent } from "react";
-import type { OutlineItem, OutlineStore } from "../outline.ts";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent } from "react";
+import { createOutlineStore, type NavigationList, type OutlineItem, type OutlineStore } from "../outline.ts";
+import { Button } from "@/components/ui/button.tsx";
 
 type DocumentPanelProps = {
   /** Below the docking width the panel covers the document instead of narrowing it. */
   overlay: boolean;
-  /** Headings of the open document and the index of the section being read. */
+  /** Document navigation lists and the current item in each. */
   outline?: OutlineStore;
-  onSelectHeading(item: OutlineItem): void;
+  onSelectItem(item: OutlineItem): void;
   /** Dismiss the overlay with Escape and return focus to the TopBar Outline toggle. */
   onClose(): void;
 };
 
-/** Navigation inside the open document, shown while open. It holds only the outline. */
-export function DocumentPanel({ overlay, outline, onSelectHeading, onClose }: DocumentPanelProps) {
+const emptyOutline = createOutlineStore();
+const kinds = ["outline", "tables", "figures"] as const;
+type ListKind = typeof kinds[number];
+
+/** Navigation inside the open document. Choice is local to this mounted panel. */
+export function DocumentPanel({ overlay, outline: store = emptyOutline, onSelectItem, onClose }: DocumentPanelProps) {
   useTranslation();
+  const outline = useSyncExternalStore(store.subscribe, store.get, store.get);
+  const [kind, setKind] = useState<ListKind>("outline");
+  const tabs = useRef<HTMLDivElement>(null);
+  const labels = { outline: i18n.t("Outline"), tables: i18n.t("Tables {{count}}", { count: outline.tables.items.length }),
+    figures: i18n.t("Figures {{count}}", { count: outline.figures.items.length }) };
+  const switchTab = (event: KeyboardEvent<HTMLDivElement>) => {
+    const index = kinds.indexOf(kind);
+    const next = event.key === "ArrowRight" ? (index + 1) % kinds.length : event.key === "ArrowLeft" ? (index + kinds.length - 1) % kinds.length
+      : event.key === "Home" ? 0 : event.key === "End" ? kinds.length - 1 : undefined;
+    if (next === undefined) return;
+    event.preventDefault();
+    setKind(kinds[next]);
+    tabs.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
+  };
   return (
     <aside
       className={`document-panel${overlay ? " document-panel--overlay" : ""}`}
@@ -31,7 +50,15 @@ export function DocumentPanel({ overlay, outline, onSelectHeading, onClose }: Do
       <div className="document-panel-header">
         <h2 className="document-panel-title" id="document-panel-title">{i18n.t("Outline")}</h2>
       </div>
-      {outline ? <Outline outline={outline} onSelect={onSelectHeading} /> : null}
+      <div className="document-panel-navigation">
+        <div ref={tabs} className="view-toggle" role="tablist" aria-label={i18n.t("Document navigation")} onKeyDown={switchTab}>
+          {kinds.map(value => <Button key={value} type="button" variant="ghost" size="sm" className="view-toggle-option"
+            role="tab" id={`document-panel-tab-${value}`} aria-selected={kind === value} aria-controls={`document-panel-list-${value}`}
+            tabIndex={kind === value ? 0 : -1} onClick={() => setKind(value)}>{labels[value]}</Button>)}
+        </div>
+      </div>
+      {kinds.map(value => <Outline key={value} kind={value} active={kind === value}
+        outline={value === "outline" ? outline : outline[value]} onSelect={onSelectItem} />)}
     </aside>
   );
 }
@@ -49,9 +76,8 @@ function revealInList(list: HTMLElement, child: HTMLElement) {
 
 const useClientLayoutEffect = typeof document === "undefined" ? useEffect : useLayoutEffect;
 
-function Outline({ outline: store, onSelect }: { outline: OutlineStore; onSelect(item: OutlineItem): void }) {
+function Outline({ kind, active, outline, onSelect }: { kind: ListKind; active: boolean; outline: NavigationList; onSelect(item: OutlineItem): void }) {
   useTranslation();
-  const outline = useSyncExternalStore(store.subscribe, store.get, store.get);
   const list = useRef<HTMLOListElement>(null);
   const revealTracked = () => {
     const element = list.current;
@@ -66,7 +92,7 @@ function Outline({ outline: store, onSelect }: { outline: OutlineStore; onSelect
   revealTrackedRef.current = revealTracked;
   useClientLayoutEffect(() => {
     revealTrackedRef.current();
-  }, [outline.current, outline.items]);
+  }, [active, outline.current, outline.items]);
   useEffect(() => {
     const element = list.current;
     if (!element) return;
@@ -86,7 +112,7 @@ function Outline({ outline: store, onSelect }: { outline: OutlineStore; onSelect
       observer.disconnect();
       element.removeEventListener("focusout", onFocusOut);
     };
-  }, [outline.items.length === 0]);
+  }, [active, outline.items.length === 0]);
   // Arrow keys, Home and End move between headings; Enter or Space goes to one.
   const move = (event: KeyboardEvent<HTMLOListElement>) => {
     const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("button")];
@@ -98,8 +124,8 @@ function Outline({ outline: store, onSelect }: { outline: OutlineStore; onSelect
     buttons[Math.max(0, Math.min(buttons.length - 1, next))]?.focus();
   };
   return (
-    <section className="document-outline" aria-labelledby="document-panel-title" data-testid="outline">
-      {outline.items.length === 0 ? <p className="document-outline-empty">{i18n.t("No headings")}</p> : (
+    <section className="document-outline" role="tabpanel" hidden={!active} id={`document-panel-list-${kind}`} aria-labelledby={`document-panel-tab-${kind}`} data-testid={kind}>
+      {!active ? null : outline.items.length === 0 ? <p className="document-outline-empty">{i18n.t(kind === "tables" ? "No tables" : kind === "figures" ? "No figures" : "No headings")}</p> : (
         <ol ref={list} className="document-outline-list" onKeyDown={move}>
           {outline.items.map((item, index) => (
             <li key={item.index}>

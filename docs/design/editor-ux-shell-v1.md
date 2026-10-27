@@ -434,7 +434,7 @@ The shell has three responsibilities: the Sidebar on the left browses opened fol
 | --- | --- |
 | Sidebar | Files and Collapse sidebar in the header, followed by file navigation; no duplicate New document row with opened folders (#582). There is no Files / Display switch. The collapsed rail contains only Expand sidebar, which restores file navigation. Files contains the opened folders (#112, [ADR-0009](../adr/0009-multiple-opened-folders.md)), each its own section in the order opened, or, without any, guidance followed by the browser's recent folders (name, full path in `title`): one click lists that folder like Open folder, without opening a document. User-controlled collapse/expand, with a 48px rail when collapsed. No workspace or placeholder navigation. Each folder heading names its folder (disclosure button and name, full path in `title`; [section visibility](#collapsible-folder-sections-425)) with `+` (New document…) and a `⋯` menu containing New folder…, Open folder…, Refresh and Close folder (removes only that folder; tabs stay open). Open folder… adds a folder; one already open is listed again in place. With no opened folder, the empty Files panel offers Open folder… and New document…. Below each heading is a folder tree; file listing and activation follow [Folder files and image preview](#folder-files-and-image-preview-217). A `.md` file whose leading frontmatter lacks the native marker stays listed in subtle text with its own icon, and its tooltip and accessible description say it is not an IeumDoc document; opening it still shows the refusal and why ([Folder listing](filesystem-host-boundary-v1.md#folder-listing-v1-112)). On explicit active-document path changes, the containing sections and folders above it expand in each opened folder containing it; a document elsewhere adds nothing to the trees. The opened folders' paths are browser preferences: on start they are listed again in order, and one the Host refuses or no longer has is left out quietly. Child-folder expansion is page state only. Root section collapse is an origin-specific preference restored on Reload/Desktop restart; startup document restoration respects it. Opening document settings or collapsing the sidebar retains the mounted tree, its expansion, scroll and keyboard stop, without listing again. The tree takes the remaining height and scrolls by itself; the open document uses the shared selected surface/text with 600 semibold as a non-color cue, without a left marker there and Close folder removes it. Keyboard: Up/Down, Home/End move through visible items; Right expands a folder or moves into it; Left collapses it or moves to the parent; Enter or Space opens a document or toggles a folder. Files does not list the open document separately: the tab row and TopBar name it. |
 | Document settings | Collapsed value summary at the top of the paper, before the title and outside ProseMirror (#580). Expands into grouped field rows for Number headings (H2–H6), Reference style (Default, Concise, Formal, Korean; unmatched values show Custom) with notation previews, and Connect bibliography…. Reuses existing operations, history, dirty indication and Save under the [numbering](heading-numbering-v1.md) and [bibliography](citations-v1.md#connect-and-disconnect-bibliography-files-438) contracts. Command center and Settings reveal/expand/focus it. Field controls disable during pending work; Source/start omit the block and read-only shows only summary. Escape inside collapses and focuses the disclosure; the style menu handles its own Escape first. Bibliography uses the existing connection dialog with return to the row’s Connect button. Expansion is per-tab session only. Opening/collapsing preserves editor instance, selection, history and unapplied drafts. App Settings remains separate. |
-| Document panel | The heading outline (#61), titled Outline, with no internal close button (#590). The TopBar Outline toggle opens and closes it. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read with selected background/text and 600 semibold (no left marker, #515); a hidden semibold copy reserves its two-line text extent to prevent selection height jumps. The current item stays inside the list's visible area. The list scrolls by itself and is never written to the document. At 1424px and wider the panel is docked and starts open; below 1424px it starts closed and, opened, overlays the document below the sticky header instead of narrowing it, so Save, File actions and the Outline toggle stay usable; Escape closes it and returns focus to the TopBar Outline toggle. The docking width is independent of the 1024px narrow sidebar. Entering the overlay layout always closes it. Returning to docked restores the user's last explicit docked open/closed choice, or opens by default if none exists. Overlay interactions do not overwrite that choice. Open/closed is page memory only and resets on reload; no persistent preference is added. |
+| Document panel | Outline, Tables N and Figures N navigation (#613), titled Outline, with no internal close button (#590). The TopBar Outline toggle opens and closes it. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read with selected background/text and 600 semibold (no left marker, #515); a hidden semibold copy reserves its two-line text extent to prevent selection height jumps. The current item stays inside the list's visible area. The list scrolls by itself and is never written to the document. At 1424px and wider the panel is docked and starts open; below 1424px it starts closed and, opened, overlays the document below the sticky header instead of narrowing it, so Save, File actions and the Outline toggle stay usable; Escape closes it and returns focus to the TopBar Outline toggle. The docking width is independent of the 1024px narrow sidebar. Entering the overlay layout always closes it. Returning to docked restores the user's last explicit docked open/closed choice, or opens by default if none exists. Overlay interactions do not overwrite that choice. Open/closed is page memory only and resets on reload; no persistent preference is added. |
 | TopBar | Actual status in the document area on the left; the centered command-center button leads with a search icon and Find documents and commands / 문서·명령 찾기; the document location/name is muted secondary information (full path in its title); the location names the folders from the outermost opened sidebar folder containing the document down, otherwise its own folder. Visual/Source, Wide document and Outline, then Save and File actions (`⋯`) on the right. File actions contains Reload and Copy path (the full path to the clipboard, confirmed by a temporary notice, or an explanatory error where the browser has no Clipboard API); the menu is unavailable without a document or during pending work. Enter/Space opens it, arrows navigate, Escape closes and returns focus. Reload keeps its existing discard confirmation and modal boundary while loading; closing that dialog returns focus to File actions. Wide document is a pressed toggle, remembered in device preferences and available without a document, during pending work and in Source. It changes no Markdown, history or dirty state, and its existing command remains. Outline shows or hides the Document panel (pressed while shown); closing the panel returns focus to it. Sticky while document scrolls. |
 | Document tabs | A separate row inside the sticky header below TopBar. A pressed-surface track and raised white current tab reuse Visual/Source border-control/shadow/text tokens, without an underline; height and close targets are unchanged (#515). Filename, dirty dot, close button and full-path tooltip; same-named files show the shortest distinguishing parent folder after the name, which stays visible while the name ellipsizes. Only this row scrolls horizontally on narrow screens. Accessible tablist/tab/tabpanel relationships, Left/Right/Home/End switching and Delete to close. Closing selects the right neighbour, else left; an inactive close keeps the current tab. |
 | MessageArea | Load/save errors, conflict and temporary notices below the tab row; no reserved height when empty. Explicit table deletion shows `Table deleted` / `표를 삭제했습니다` with `Undo` / `되돌리기`, using the existing five-second temporary notice, informational surface and polite status role. It takes no focus. Undo restores the table in one editor history step and returns focus to the editor. The notice/action closes on the next document change, Save, Reload (including opening its discard prompt), Source preview request start, tab switch or timeout; a revoked action cannot undo other work. Source cannot undo the hidden Visual document, and returning to Visual does not revive the action. See [Table interaction](table-interaction-v1.md). |
@@ -548,9 +548,59 @@ opening its folder and using the folder's `+`. The separate full-file-path Open 
 removed (#190); the shared document loader, Host file APIs and Desktop `.md` arguments remain.
 Folder navigation changes no document meaning, so this removal adds no Core operation or CLI command.
 
+## Document navigation lists (#613)
+
+The Outline panel keeps its title and 40px drag header. Immediately below it, a full-width
+row shares the document-tab height and offers Outline, Tables N and Figures N. The row
+reuses the Visual/Source Button and segmented-control tokens, outside the drag header.
+It works in both docked and overlay layouts, independently of native caption-button space.
+
+The segments are keyboard-accessible tabs linked to their panels; only the selected list
+mounts its items. Arrow Left/Right,
+Home and End switch tabs; each list retains the outline's Arrow Up/Down, Home/End and
+Enter/Space navigation. Empty lists have localized guidance. The chosen list is page-local
+state, with no new preference or persistence.
+
+Tables and figures show the existing Core-computed caption number and caption text;
+captionless targets show only the number. Both reuse the outline's two-line clamp,
+current-item styling, scroll tracking and Visual-view reveal path. Equations are excluded.
+This is Editor navigation only: existing Core read-model projections and numbering suffice,
+so no semantic operation, Core read-model extension or CLI command is added.
+
+The existing navigation store and reveal path own all three lists. `panel-lists` verifies
+live edits, numbering, click/keyboard/Source navigation, current-item tracking, empty guidance,
+Korean labels and 1440px/640px light/dark geometry. Existing `outline`, `document-tabs`,
+`folder-navigation`, `layout-rules` and `quiet-document` regressions pass. The document-tab
+and recovery tests now count tabs inside the Documents tablist, retaining exact count/order assertions
+when navigation tabs are also visible. Editor tests (316), workspace typecheck, Editor build,
+documentation and whitespace checks pass. Packaging/platform coverage stays in CI.
+
+### Navigation list comparison
+
+Actual Windows Chrome 156.0.8078.48 captures use this checkout's persistent profile and
+runner-owned Vite origin `127.0.0.1:5173`, English UI, bundled Pretendard after fonts/images
+load, DPR/viewport scale/CSS zoom 1, scroll top, blurred controls and pointer outside the
+document. Before is product code at `d926c8ad4c9c530b4417997fb46999ce20738dd6`;
+After is that HEAD with #613's working changes. Both use the same three-table/three-figure
+scratch document, including empty and long captions. Before has only the heading list;
+each new list is compared with that baseline. The capture-only runner script is removed;
+traces, logs and regenerable full output remain in ignored `tmp/`.
+
+| State | 1440×900 Light | 640×900 Dark |
+| --- | --- | --- |
+| Before | [PNG](assets/panel-lists-613/before-1440.png) | [PNG](assets/panel-lists-613/before-640.png) |
+| Outline | [After](assets/panel-lists-613/after-outline-1440.png) | [After](assets/panel-lists-613/after-outline-640.png) |
+| Tables | [After](assets/panel-lists-613/after-tables-1440.png) | [After](assets/panel-lists-613/after-tables-640.png) |
+| Figures | [After](assets/panel-lists-613/after-figures-1440.png) | [After](assets/panel-lists-613/after-figures-640.png) |
+
+Direct review confirms the header/drag area remains separate, all segments fit the panel,
+and captionless numbers, current-item cues and two-line long captions remain readable in
+both modes. Browser tests verify simulated native caption-width reservation and CSS drag
+regions; actual native dragging and Windows caption buttons are not browser proof.
+
 ## Boundaries
 
-No workspace, recursive filesystem scan, folder watch, filesystem-wide or document-content search, accounts, autosave, new block semantics, overlay framework or persistence architecture is introduced. The right-side Document panel hosts only the Outline: no properties inspector, AI panel, References panel, tabs or generic panel/extension framework is introduced. Buttons enter through the Base UI `components/ui/button`; Notice remains a separate presentation primitive.
+No workspace, recursive filesystem scan, folder watch, filesystem-wide or document-content search, accounts, autosave, new block semantics, overlay framework or persistence architecture is introduced. The right-side Document panel hosts Outline, Tables and Figures navigation: no properties inspector, AI panel, References panel or generic panel/extension framework is introduced. Buttons enter through the Base UI `components/ui/button`; Notice remains a separate presentation primitive.
 
 Browser procedures and repeatable scratch preparation: [TEST_GUIDE](../test/TEST_GUIDE.md). Actual shell evidence: [#176 review](../reviews/editor-shell-176-2026-10-13.md); earlier visual evidence: [review record](editor-visual-refinement-v1-review.md).
 
@@ -631,7 +681,7 @@ and `aria-controls` naming that section's tree. The name remains the section/tre
 full path remains in `title`. The chevron points right when collapsed and down when expanded,
 like subfolder chevrons. New document… (`+`) and More actions (`⋯`, New folder…, Open folder…, Refresh and Close folder)
 remain visible and usable when the section is collapsed. Empty-folder help is hidden with the tree.
-Tab order within a section follows its existing actions, then the new toggle, then the tree's single
+Tab order within a section is disclosure → New document… → More actions → the tree's single
 retained keyboard stop when expanded. Enter/Space toggle; collapsed tree items are outside Tab and
 the accessibility tree. Tree arrow/Home/End behavior is unchanged.
 

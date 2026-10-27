@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getSchema } from "@tiptap/core";
 import { editorExtensions } from "../src/editor-schema.tsx";
-import { currentOutlineItem, documentOutline } from "../src/outline.ts";
+import { currentOutlineItem, documentOutline, documentTargets } from "../src/outline.ts";
 import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
 import { collectSupportedEdits, type TiptapJSON, toTiptapDocument } from "../src/tiptap-document.ts";
 import { saveEdits } from "../server/document-replay.ts";
@@ -53,4 +53,20 @@ test("heading numbering follows the single document state and saves as Core meta
   without.attrs!.headingNumbering = null;
   assert.equal(collectSupportedEdits(loadEditableDocument(saved.markdown), without).headingNumbering, false);
 
+});
+
+
+test("navigation targets use the current native captions and Core caption numbering/templates", () => {
+  const source = nativeSource("# Title\n\n:::{table} **Results**\n| A | B |\n| --- | --- |\n| 1 | 2 |\n:::\n\n:::{figure} diagram.svg\n:alt: Diagram\n\nFlow **chart**.\n:::\n\n:::{table}\n| A | B |\n| --- | --- |\n| 3 | 4 |\n:::\n\n:::{figure} diagram.svg\n:alt: Empty caption\n:::\n");
+  const schema = getSchema(editorExtensions());
+  const json = toTiptapDocument(loadEditableDocument(source));
+  const doc = schema.nodeFromJSON(json);
+  assert.deepEqual(documentTargets(doc, "table").map(item => item.text), ["Table 1: Results", "Table 2"]);
+  assert.deepEqual(documentTargets(doc, "figure").map(item => item.text), ["Figure 1: Flow chart.", "Figure 2"]);
+  for (const kind of ["table", "figure"] as const) {
+    for (const item of documentTargets(doc, kind)) assert.equal(doc.nodeAt(item.pos), doc.child(item.index));
+  }
+  json.attrs = { ...json.attrs, referenceTemplates: { table: "표 %s", figure: "그림 %s" } };
+  assert.deepEqual(documentTargets(schema.nodeFromJSON(json), "table").map(item => item.text), ["표 1: Results", "표 2"]);
+  assert.deepEqual(documentTargets(schema.nodeFromJSON(json), "figure").map(item => item.text), ["그림 1: Flow chart.", "그림 2"]);
 });
