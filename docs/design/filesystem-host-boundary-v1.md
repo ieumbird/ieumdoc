@@ -1,6 +1,7 @@
 # Filesystem Host Boundary v1
 
 - Status: Implemented
+- Post-replacement cleanup verification: 2026-10-27 (PR #609 review P1: four regressions failed before the fix; Host/HTTP 26, Editor 313, shared file-commit 4 passed / 2 platform skips, dedicated-port file-actions browser passed; shared file-commit behavior unchanged).
 - Referenced image rename verification: 2026-10-27 (#504 PR B: Core/CLI/Host tests, file-actions browser dirty/draft protection and clean-tab reload, other-window Save conflict, production HTTP Save/Reload/recovery; rollback failures use real temporary files with injected I/O errors).
 - File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
 - Folder refresh verification: 2026-10-26 (#494: loaded-list refresh and asset parent updates; [behavior and verification](editor-ux-shell-v1.md#folder-refresh-494)).
@@ -378,6 +379,17 @@ returns an explicit error listing present/absent image paths and documents requi
 `updatedDocuments` lists those whose rollback failed so open clean tabs can reload actual disk
 content. Case-only spelling changes use the existing OS rename instead of link publication;
 rollback reverses that spelling when all document restores succeed.
+
+The Host does not equate a thrown `commitFile` call with an unchanged document: temporary cleanup
+can throw after replacement. It retains the in-progress attempt as a rollback candidate unless
+the error is the shared `FileChangedError`, which is raised only by pre-replacement revision
+checks. Before rollback, an exact byte comparison with the original proves that no content
+restoration is needed. Otherwise rollback requires the expected new revision through `commitFile`;
+different external content or unreadable/uncertain state retains the new image name and reports
+the document in `updatedDocuments`. If rollback's own cleanup throws, the Host checks original
+bytes again: verified restoration is reported separately from the cleanup error, not as an
+unrestored document. Root/symlink checks apply to these reads too. The shared file-commit API and
+other callers remain unchanged; this is request-local Host outcome tracking.
 
 This is best-effort rollback, not a multi-file transaction. Other readers can observe intermediate
 states. A process/OS crash can leave two image names and a mixture of old/new document contents;

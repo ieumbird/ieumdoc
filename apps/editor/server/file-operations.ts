@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { assertUnicode, commitFile, preflightFileCommit, textRevision } from "@ieumdoc/file-commit";
+import { assertUnicode, commitFile, FileChangedError, preflightFileCommit, textRevision } from "@ieumdoc/file-commit";
 import { parse, serialize, updateMediaReferences } from "@ieumdoc/core";
 import { validFileStem, type FileOperationRequest, type RenameFileRequest, type FileOperationResponse } from "../shared/file-operations.ts";
 import { accessPath, FileAccessError, inside, LOCAL_FILE_ACCESS, RootAccess, type FileAccess } from "./file-access.ts";
@@ -129,23 +129,40 @@ export function renameFile(request: RenameFileRequest, access: FileAccess = LOCA
     if ((error as NodeJS.ErrnoException).code === "EEXIST") throw new Error("A file with this name already exists.");
     throw error;
   }
-  const committed: typeof plan.changes = [];
+  const rollbackCandidates: typeof plan.changes = [];
+  let pending: (typeof plan.changes)[number] | undefined;
+  const hasOriginalContent = (change: (typeof plan.changes)[number]): boolean => {
+    try {
+      const target = scope({ root, path: change.path }, access).file;
+      return fs.readFileSync(target).equals(Buffer.from(change.source, "utf8"));
+    } catch { return false; } // Unreadable/uncertain state must retain the image and be reported.
+  };
   try {
     for (const change of plan.changes) {
       // Recheck root/symlink policy immediately before each replacement as well as revision.
       scope({ root, path: change.path }, access);
+      pending = change;
       commitFile(change.path, change.markdown, change.revision);
-      committed.push(change);
+      rollbackCandidates.push(change);
+      pending = undefined;
     }
     assertOwner({ root, path: destination }, owner, access);
     if (!caseOnly) fs.unlinkSync(assertOwner(request, owner, access));
   } catch (error) {
-    const remaining: string[] = [], failures: string[] = [];
-    for (const change of [...committed].reverse()) {
+    // commitFile may throw from temporary cleanup AFTER replacing the document. Only
+    // its explicit revision conflict proves refusal before replacement. Keep every
+    // other interrupted attempt; actual bytes and revision checks decide restoration.
+    if (pending && !(error instanceof FileChangedError)) rollbackCandidates.push(pending);
+    const remaining: string[] = [], failures: string[] = [], cleanupFailures: string[] = [];
+    for (const change of [...rollbackCandidates].reverse()) {
+      if (hasOriginalContent(change)) continue;
       try {
         scope({ root, path: change.path }, access);
         commitFile(change.path, change.source, textRevision(change.markdown));
-      } catch (cause) { remaining.push(change.path); failures.push(`${change.path}: ${String(cause)}`); }
+      } catch (cause) {
+        if (hasOriginalContent(change)) cleanupFailures.push(`${change.path}: ${String(cause)}`);
+        else { remaining.push(change.path); failures.push(`${change.path}: ${String(cause)}`); }
+      }
     }
     if (!remaining.length) {
       try {
@@ -155,7 +172,8 @@ export function renameFile(request: RenameFileRequest, access: FileAccess = LOCA
     }
     throw new ImageRenameError(`File rename failed: ${String(error)}. ${failures.length
       ? `Rollback incomplete. Image paths: ${file} (${fs.existsSync(file) ? "present" : "absent"}), ${destination} (${fs.existsSync(destination) ? "present" : "absent"}). Documents requiring review: ${remaining.join(", ") || "none"}. ${failures.join("; ")}`
-      : "Image publication and committed document changes rolled back; external changes preserved."}`, remaining, plan.skipped);
+      : "Image publication and committed document changes rolled back; external changes preserved."}${cleanupFailures.length
+      ? ` Cleanup errors after verified content restoration: ${cleanupFailures.join("; ")}` : ""}`, remaining, plan.skipped);
   }
   return { path: destination, updatedDocuments: plan.changes.map(change => change.path), skippedDocuments: plan.skipped };
 }

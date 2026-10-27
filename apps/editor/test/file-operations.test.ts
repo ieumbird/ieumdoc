@@ -122,6 +122,51 @@ test("image rename checks admitted Figure read models recursively plus applied u
   assert.equal(fs.readFileSync(result.path, "utf8"), "<svg/>");
 });
 
+for (const cleanupFailure of ["once", "rollback", "external", "twice"] as const) {
+  test(`post-replacement cleanup failure (${cleanupFailure}) rolls back or reports the changed document`, t => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-rename-cleanup-"));
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const image = path.join(root, "old.svg"), destination = path.join(root, "new.svg");
+    const a = path.join(root, "a.md"), b = path.join(root, "b.md");
+    const original = nativeSource(":::{figure} ./old.svg\n\nCaption.\n:::\n");
+    fs.writeFileSync(image, "<svg/>"); fs.writeFileSync(a, original); fs.writeFileSync(b, original);
+    const rename = fs.renameSync, rm = fs.rmSync;
+    let replacements = 0, cleanupErrors = 0;
+    t.mock.method(fs, "renameSync", (from: fs.PathLike, to: fs.PathLike) => {
+      if (to === a && replacements && cleanupFailure === "rollback") throw new Error("rollback replacement failed");
+      rename(from, to);
+      if (to === a) replacements++;
+    });
+    t.mock.method(fs, "rmSync", (target: fs.PathLike, options?: fs.RmOptions) => {
+      if (path.basename(String(target)).startsWith(".a.md.") && replacements > cleanupErrors &&
+          (cleanupErrors === 0 || cleanupFailure === "twice")) {
+        cleanupErrors++;
+        if (cleanupFailure === "external") fs.writeFileSync(a, "External content after replacement");
+        throw Object.assign(new Error("post-replacement cleanup denied"), { code: "EACCES" });
+      }
+      return rm(target, options);
+    });
+    try {
+      const incomplete = cleanupFailure === "rollback" || cleanupFailure === "external";
+      assert.throws(() => renameFile({ root, path: image, name: "new" }), error => {
+        assert.ok(error instanceof ImageRenameError);
+        assert.match(error.message, /post-replacement cleanup denied/);
+        assert.deepEqual(error.updatedDocuments, incomplete ? [a] : []);
+        assert.match(error.message, incomplete ? /Rollback incomplete/ : /rolled back/);
+        if (cleanupFailure === "twice") assert.match(error.message, /Cleanup errors after verified content restoration/);
+        return true;
+      });
+      assert.equal(cleanupErrors, cleanupFailure === "twice" ? 2 : 1);
+      if (cleanupFailure === "rollback") assert.match(fs.readFileSync(a, "utf8"), /\.\/new.svg/);
+      else assert.equal(fs.readFileSync(a, "utf8"), cleanupFailure === "external" ? "External content after replacement" : original);
+      assert.equal(fs.readFileSync(b, "utf8"), original, "later documents were never attempted");
+      assert.equal(fs.readFileSync(image, "utf8"), "<svg/>");
+      assert.equal(fs.existsSync(destination), incomplete, "keep the new image while any changed document cannot be restored");
+      assert.equal(fs.readdirSync(root).some(name => name.endsWith(".tmp")), false);
+    } finally { t.mock.restoreAll(); }
+  });
+}
+
 for (const failure of ["preflight", "publication", "document", "unlink", "rollback", "conflict", "case-only"] as const) {
   test(`image rename ${failure} failure preserves originals or reports incomplete rollback`, t => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-rename-failure-"));
