@@ -1,5 +1,5 @@
 // Computed state combinations on the real UI; screenshot-only review stays outside this test.
-async (page, { withBlockHover }) => {
+async (page, { withBlockHover, reloadDocument, recoveryRecords, expect }) => {
   const themes = [];
   for (const theme of ['light', 'dark']) {
   const check = (value, message) => { if (!value) throw Error(message); };
@@ -361,6 +361,15 @@ async (page, { withBlockHover }) => {
     await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n=>n.editor.commands.undo());
     weightGeometry.push({width,files,outline,menu});
   }
+  // Each theme edits and mocks Save without writing the scratch file. Finish that session
+  // through the real Reload/discard path before clearing localStorage and reloading the app:
+  // otherwise a committed recovery record can correctly open a modal over the next theme.
+  const dirty = (await page.getByRole('tab', {selected:true}).getAttribute('aria-label')).includes('Unsaved changes');
+  await reloadDocument(page);
+  if (dirty) await page.getByRole('button', {name:'Discard and reload', exact:true}).click();
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  await expect.poll(async () => (await recoveryRecords(page)).filter(record => record.path.endsWith('/quiet-document.md') || record.path.endsWith('\\quiet-document.md')).length,
+    {message:'Reload must finish clearing this theme session recovery before the next app startup'}).toBe(0);
   themes.push({theme,paperRoles,navigation:results, wideOn, active, choiceRest, choiceHover, choiceFocus, ghostHover, menuOpen, pressed, field, contrasts, weightGeometry});
   }
   return themes;
