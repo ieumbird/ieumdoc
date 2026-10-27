@@ -130,7 +130,7 @@ async (page, { withBlockHover, reloadDocument, recoveryRecords, expect }) => {
   check(results[0].rest.background === results[1].rest.background && results[0].rest.color === results[1].rest.color &&
     results[0].rest.markerColor === results[1].rest.markerColor, 'File and outline current rules differ');
 
-  const ghost = page.getByRole('button', {name:'New file in folder', exact:true});
+  const ghost = page.getByRole('button', {name:'New document…', exact:true});
   await ghost.hover(); await settle(); const ghostHover = await state(ghost);
   check(ghostHover.background !== (await state(page.getByTestId('sidebar'))).background, 'Ghost hover disappears on panel');
   const menu = page.getByRole('button', {name:'More actions', exact:true});
@@ -208,7 +208,7 @@ async (page, { withBlockHover, reloadDocument, recoveryRecords, expect }) => {
   // Base UI completes its closing focus handoff asynchronously. Finish that real user step
   // before focusing the editor; otherwise the dialog can send the slash key back to its opener.
   await page.getByRole('dialog').waitFor({state:'detached'});
-  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'New file in folder');
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'New document…');
 
   // Both + and slash use this command menu; active is independent of keyboard focus.
   await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n => {

@@ -427,7 +427,7 @@ test("document path splits for display without changing the address", () => {
 
 test("sidebar without a folder offers only Open folder, and collapses", () => {
   const open = renderToStaticMarkup(<Sidebar onFileAction={async () => ""} fileActionsDisabled={false} isFileDirty={() => false} open documentPath={PATH} onToggle={noop} onOpenFolder={noop} />);
-  assert.match(open, /IeumDoc/);
+  assert.match(open, />Files</);
   assert.match(open, /<button\b(?=[^>]*aria-label="Open folder…")(?=[^>]*title="Open folder…")/);
   assert.doesNotMatch(open, /Open file…/);
   assert.doesNotMatch(open, /data-testid="folder"/);
@@ -466,7 +466,7 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
   assert.match(html, /title="C:\\docs"/);
   assert.match(html, />docs</);
   assert.match(html, /role="tree"/);
-  assert.match(html, />New document<\/button>/, "Files offers New document as visible text beside its existing tree");
+  assert.doesNotMatch(html, />New document…<\/button>/, "Opened folders have no duplicate New document row");
   assert.match(html, /<button\b(?=[^>]*aria-label="Collapse folder docs")(?=[^>]*aria-expanded="true")(?=[^>]*aria-controls="[^"]+")/);
   assert.match(html, /<li\b(?=[^>]*role="treeitem")(?=[^>]*aria-level="1")(?=[^>]*aria-expanded="true")[^>]*title="C:\\docs\\guides"/);
   assert.match(html, /<li\b(?=[^>]*role="treeitem")(?=[^>]*aria-level="2")(?=[^>]*aria-current="page")[^>]*title="C:\\docs\\guides\\guide.md"/);
@@ -476,9 +476,9 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
   assert.equal(html.match(/<li\b(?=[^>]*role="treeitem")(?=[^>]*tabindex="0")/g)?.length, 1);
   assert.doesNotMatch(html, /Up to/);
   // New names no folder here: its dialog shows and chooses the destination.
-  assert.match(html, /<button\b(?=[^>]*aria-label="New file in folder")(?=[^>]*title="New file…")[^>]*>/);
-  assert.match(html, /<button\b(?=[^>]*aria-label="New folder")(?=[^>]*title="New folder…")[^>]*>/);
-  // General Open stays in the header; the folder menu contains only folder actions.
+  assert.match(html, /<button\b(?=[^>]*aria-label="New document…")(?=[^>]*title="New document…")[^>]*>/);
+  assert.doesNotMatch(html, /<button\b[^>]*aria-label="New folder"/, "New folder belongs in the menu, leaving more root-name space");
+  // More actions collects folder creation/opening/refresh/close; no duplicate Open button is shown.
   assert.match(html, /<button\b(?=[^>]*aria-label="More actions")(?=[^>]*aria-haspopup="menu")[^>]*>/);
   assert.doesNotMatch(html, /data-testid="sidebar-empty"|>Open file…<|>Close folder</);
   const empty = listing(String.raw`C:\docs`, []);

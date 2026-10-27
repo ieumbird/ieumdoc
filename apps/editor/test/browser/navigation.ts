@@ -2,13 +2,25 @@ import path from "node:path";
 import type { Page } from "@playwright/test";
 import type { Editor } from "@tiptap/core";
 
+/** Follow the empty-state entry or an opened folder's menu, retaining its focus return target. */
+export async function openFolderPicker(page: Page, language = "en"): Promise<void> {
+  const sidebar = page.getByTestId("sidebar");
+  const name = language === "ko" ? "폴더 열기…" : "Open folder…";
+  const folders = sidebar.getByTestId("folder");
+  if (await folders.count()) {
+    await folders.first().getByRole("button", { name: language === "ko" ? "더 많은 작업" : "More actions", exact: true }).click();
+    await page.getByRole("menuitem", { name, exact: true }).click();
+  } else await sidebar.getByRole("button", { name, exact: true }).click();
+  await page.getByTestId("folder-path").waitFor();
+}
+
 /** Open (add) the file's folder through the picker, then choose the file in that folder's tree. An existing tab is activated without rereading its content. */
 export async function openDocument(page: Page, file: string): Promise<void> {
   const sidebar = page.getByTestId("sidebar");
   // Expand the Sidebar through its rail when the caller has collapsed it.
   const expand = page.getByRole("button", { name: "Expand sidebar", exact: true });
   if (await expand.isVisible()) await expand.click();
-  await sidebar.getByRole("button", { name: "Open folder…", exact: true }).click();
+  await openFolderPicker(page);
   await page.getByTestId("folder-path").fill(path.dirname(file));
   await page.getByTestId("folder-open").click();
   await page.getByRole("dialog", { name: "Open folder", exact: true }).waitFor({ state: "detached" });

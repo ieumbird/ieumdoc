@@ -1,5 +1,5 @@
 // Native PNG clipboard, actual local Host assets, file drop and compensated insertion failure.
-async (page, { openPath, openDocument }) => {
+async (page, { openFolderPicker, openPath, openDocument }) => {
   await page.unrouteAll();
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
@@ -13,7 +13,7 @@ async (page, { openPath, openDocument }) => {
   await openPath(page, file);
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const result = {};
-  await page.getByTestId('sidebar').getByRole('button', {name:'Open folder…', exact:true}).click();
+  await openFolderPicker(page);
   await page.getByTestId('folder-path').fill(imageFolder);
   await page.getByTestId('folder-open').click();
   await page.getByRole('dialog').waitFor({state:'detached'});

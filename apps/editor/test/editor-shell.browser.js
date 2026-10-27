@@ -32,9 +32,9 @@ async page => {
     const openFolder = page.getByRole('button',{name:'Open folder…', exact:true});
     result.folderOnlyEntry = await page.getByRole('button',{name:'Open file…', exact:true}).count() === 0;
     await openFolder.focus();
-    await page.keyboard.press('Tab');
-    result.headerTabToCollapse = await isFocused(page.getByRole('button', {name:'Collapse sidebar', exact:true}));
     await page.keyboard.press('Shift+Tab');
+    result.headerTabToCollapse = await isFocused(page.getByRole('button', {name:'Collapse sidebar', exact:true}));
+    await page.keyboard.press('Tab');
     result.headerReverseTab = await isFocused(openFolder);
     await openFolder.focus();
     await page.keyboard.press('Enter');

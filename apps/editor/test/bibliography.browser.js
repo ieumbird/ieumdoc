@@ -1,5 +1,5 @@
 // Real document-specific read boundary, independent tab snapshots and derived References.
-async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture, screenshots }) => {
+async (page, { openFolderPicker, openPath, waitForActivePath, reloadDocument, bibliographyFixture, screenshots }) => {
   page.setDefaultTimeout(15000);
   const assert = (ok, message) => { if (!ok) throw Error(message); };
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: 'attached' });
@@ -30,7 +30,7 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture,
   const chooseFolder = async folder => {
     const expand = page.getByRole('button', { name: 'Expand sidebar', exact: true });
     if (await expand.isVisible()) await expand.click();
-    await page.getByTestId('sidebar').getByRole('button', {name:'Open folder…', exact:true}).click();
+    await openFolderPicker(page);
     await page.getByTestId('folder-path').fill(folder);
     await page.getByTestId('folder-open').click();
     await page.getByRole('dialog', { name: 'Open folder', exact: true }).waitFor({ state: 'detached' });

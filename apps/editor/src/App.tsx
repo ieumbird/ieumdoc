@@ -220,6 +220,10 @@ export function App() {
   const selectImage = async (source: string) => session ? session.selectImage(source) : "";
 
   useEffect(() => {
+    globalThis.document.title = openedPath ? `${splitDocumentPath(openedPath).name} — IeumDoc` : "IeumDoc";
+  }, [openedPath]);
+
+  useEffect(() => {
     if (!commandFileFocus) return;
     if (openRefusal || recoveryReview) { setCommandFileFocus(null); return; }
     if (busy || session?.openedPath !== commandFileFocus) return;
@@ -822,27 +826,29 @@ export function App() {
       />
       <div className="app-main">
         <div className="app-header" ref={header}>
-          <TopBar
-            onOpenCommandCenter={() => openCommandCenter()}
-            documentPath={openedPath}
-            wide={documentWidth === "wide"}
-            onToggleWide={toggleDocumentWidth}
-            location={documentLocation(openedPath, folders.rootOf(openedPath))}
-            status={assetPending ? "adding-image" : status}
-            unsaved={documentDirty || draftActive}
-            view={view}
-            viewDisabled={!document || busy}
-            onViewChange={(next) => (next === "source" ? void showSource() : setView("visual"))}
-            saveDisabled={!document || busy}
-            onSave={() => void save()}
-            onReload={() => void reload()}
-            reloadDisabled={!document || busy}
-            onCopyPath={() => void copyPath()}
-            fileActionsRef={fileActionsToggle}
-            outline={panelOpen}
-            onToggleOutline={() => choosePanelOpen(!panelOpen)}
-            outlineToggleRef={outlineToggle}
-          />
+          <div className="top-bar-container">
+            <TopBar
+              onOpenCommandCenter={() => openCommandCenter()}
+              documentPath={openedPath}
+              wide={documentWidth === "wide"}
+              onToggleWide={toggleDocumentWidth}
+              location={documentLocation(openedPath, folders.rootOf(openedPath))}
+              status={assetPending ? "adding-image" : status}
+              unsaved={documentDirty || draftActive}
+              view={view}
+              viewDisabled={!document || busy}
+              onViewChange={(next) => (next === "source" ? void showSource() : setView("visual"))}
+              saveDisabled={!document || busy}
+              onSave={() => void save()}
+              onReload={() => void reload()}
+              reloadDisabled={!document || busy}
+              onCopyPath={() => void copyPath()}
+              fileActionsRef={fileActionsToggle}
+              outline={panelOpen}
+              onToggleOutline={() => choosePanelOpen(!panelOpen)}
+              outlineToggleRef={outlineToggle}
+            />
+          </div>
           {tabs.length > 0 ? <DocumentTabs tabs={tabs.map(tab => ({ ...tab,
             dirty: Boolean(sessions.current.get(tab.id)?.documentDirty || sessions.current.get(tab.id)?.draftActive),
           }))} active={activeId} disabled={busy || Boolean(continuation)} onActivate={activateTab} onClose={closeTab} /> : null}
@@ -935,7 +941,7 @@ export function App() {
         }}
         onCreateFolder={createFolder}
         returnFocus={dialogReturnFocus}
-        finalFocus={() => folderNewReady.current ? false : dialogReturnFocus.current ?? true}
+        finalFocus={() => folderNewReady.current ? false : shellReturnFocus(dialogReturnFocus.current)}
         onClose={() => { setFolderDialog(false); setNewAfterFolder(false); }}
       />
       <FolderDialog
@@ -957,6 +963,7 @@ export function App() {
         busy={busy}
         onCreate={(directory, name) => createFile(childPath(directory, name))}
         createdFocusTarget={() => editorRef.current?.getFocusTarget() ?? null}
+        finalFocus={() => shellReturnFocus(newFileButton.current)}
         returnFocus={newFileButton}
         onClose={() => { if (!switching) { setNewDialog(false); folderNewReady.current = false; } }}
       />

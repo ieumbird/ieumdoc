@@ -39,10 +39,11 @@ type NewDialogProps = {
   /** Successful creation hands focus to the new document after the modal closes. */
   createdFocusTarget?: () => HTMLElement | null;
   returnFocus?: RefObject<HTMLElement | null>;
+  finalFocus?: () => HTMLElement | true;
   onClose(): void;
 };
 
-export function NewDialog({ kind = "file", open, busy, destinations, directory, onCreate, createdFocusTarget, returnFocus, onClose }: NewDialogProps) {
+export function NewDialog({ kind = "file", open, busy, destinations, directory, onCreate, createdFocusTarget, returnFocus, finalFocus, onClose }: NewDialogProps) {
   useTranslation();
   const [name, setName] = useState("");
   const [destination, setDestination] = useState(directory);
@@ -67,7 +68,7 @@ export function NewDialog({ kind = "file", open, busy, destinations, directory, 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
       <DialogContent showCloseButton={false} initialFocus={nameField}
-        finalFocus={() => created.current && createdFocusTarget ? createdFocusTarget() ?? true : returnFocus?.current ?? true}>
+        finalFocus={() => created.current && createdFocusTarget ? createdFocusTarget() ?? true : finalFocus?.() ?? returnFocus?.current ?? true}>
         <form
           className="grid gap-3"
           onSubmit={async (event) => {

@@ -1,4 +1,4 @@
-async (page, { screenshots = false, fileActionsRoot, expect, recoveryRecords, activeDocument } = {}) => {
+async (page, { openFolderPicker, screenshots = false, fileActionsRoot, expect, recoveryRecords, activeDocument } = {}) => {
   const origin = page.url().split('/').slice(0, 3).join('/');
   const root = fileActionsRoot;
   const sep = root.includes('\\') ? '\\' : '/';
@@ -13,7 +13,7 @@ async (page, { screenshots = false, fileActionsRoot, expect, recoveryRecords, ac
     await page.getByRole('menuitem', {name:action, exact:true}).click();
     await dialog.waitFor();
   };
-  await page.getByTestId('sidebar').getByRole('button', {name:'Open folder…', exact:true}).click();
+  await openFolderPicker(page);
   await page.getByTestId('folder-path').fill(root + sep);
   await page.getByTestId('folder-open').click(); await row('a.md').waitFor();
   const nativeMenu = locator => locator.evaluate(node => node.dispatchEvent(new MouseEvent('contextmenu', {bubbles:true,cancelable:true})));
@@ -30,6 +30,14 @@ async (page, { screenshots = false, fileActionsRoot, expect, recoveryRecords, ac
     if (await expand.isVisible()) await expand.click();
     await page.emulateMedia({colorScheme:width === 640 ? 'dark' : 'light'});
     await expect(page.locator('html')).toHaveAttribute('data-theme',width === 640 ? 'dark' : 'light');
+    const target = await row('a.md').boundingBox();
+    await row('b.md').click({button:'right'}); await rename().waitFor();
+    // Real secondary-pointer input over another row while the first menu/backdrop is open.
+    await page.mouse.click(target.x + 8, target.y + target.height / 2, {button:'right'});
+    expect(await menu.count()).toBe(1);
+    await rename().click(); await dialog.waitFor();
+    expect(await dialog.getByRole('textbox', {name:'File name', exact:true}).inputValue()).toBe('a');
+    await cancel();
     await row('a.md').click({button:'right'}); await rename().waitFor();
     if (screenshots) await page.screenshot({path:`tmp/file-actions-evidence/after-menu-${width}.png`});
     await rename().click(); await dialog.waitFor();

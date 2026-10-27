@@ -1,6 +1,6 @@
 // Regression checks on real scratch files; optional captures are for manual visual review.
 // pnpm browser:test quiet-document --screenshots writes tmp/visual-refinement/after-*.png.
-async (page, { screenshots = false, openDocument, openPath, withBlockHover }) => {
+async (page, { openFolderPicker, screenshots = false, openDocument, openPath, withBlockHover }) => {
   // Manual review only, before the regression edits its disposable fixtures.
   const themeReview = screenshots ? await (async (page, { openPath, screenshots }) => {
   if (!screenshots) throw Error('Use --screenshots for the manual theme review');
@@ -882,7 +882,7 @@ async (page, { screenshots = false, openDocument, openPath, withBlockHover }) =>
   }
   await page.setViewportSize({width:768,height:1000});
   for(const [button,label] of [['Open folder…','Folder']]) {
-    await page.getByRole('button',{name:button,exact:true}).click();
+    await openFolderPicker(page);
     await bounds(page.getByRole('dialog'),`${label} dialog`);
     await shot(`768-${label.toLowerCase()}-dialog`);
     await page.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).click();

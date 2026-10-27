@@ -1,5 +1,5 @@
 // Real Core-backed scratch fixture; run with pnpm browser:test layout-rules.
-async (page, { openPath, withBlockHover, expect }) => {
+async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
   page.setDefaultTimeout(15000);
   await page.unrouteAll();
   const origin = page.url().split('/').slice(0,3).join('/');
@@ -11,7 +11,7 @@ async (page, { openPath, withBlockHover, expect }) => {
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await openPath(page, file);
   // The sidebar is measured with its folder: heading, actions and listed files.
-  await page.getByTestId('sidebar').getByRole('button',{name:'Open folder…',exact:true}).click();
+  await openFolderPicker(page);
   await page.getByTestId('folder-path').fill(file.slice(0,file.lastIndexOf(sep)));
   await page.getByTestId('folder-open').click();
   await page.getByRole('dialog').waitFor({state:'detached'});
@@ -66,7 +66,7 @@ async (page, { openPath, withBlockHover, expect }) => {
   await page.setViewportSize({width,height:1000});
   await page.getByTestId('document-panel').waitFor({state:width>=1424?'visible':'detached'});
   await language(locale,width===640&&locale==='en');
-  await page.getByTestId('sidebar').getByRole('button',{name:locale==='ko'?'폴더 열기…':'Open folder…',exact:true}).click();
+  await openFolderPicker(page, locale);
   await page.getByTestId('folder-path').fill(file.slice(0,file.lastIndexOf(sep)+1));
   // #522 removes the duplicate current-folder crumb. A ready New folder action means the
   // current path's listing is available; keep all typography and geometry assertions below.
@@ -249,12 +249,12 @@ async (page, { openPath, withBlockHover, expect }) => {
         const fail=result.centerDelta>1||result.blockDelta>1||result.gutterGap<11||Math.abs(before-after)>0.5||result.standard!==32||result.compact.some(h=>h!==28)||result.shellOverflow.length||!matchesType(result.body,expected.body)||result.headings.some((t,i)=>!matchesType(t,expected.headings[i])||t.weight!==expected.headings[i].weight)||!matchesType(result.caption,expected.caption)||!matchesType(result.table,expected.table)||Math.abs(result.sidebarWidth-result.expectedSidebar)>0.5||Math.abs(result.panelWidth-result.expectedPanel)>0.5||(!collapsed&&(Math.max(...result.labels)-Math.min(...result.labels)>1||!result.rowIcons.length||Math.max(...result.rowIcons)-Math.min(...result.rowIcons)>1||result.icons.some(i=>i.w!==16||i.h!==16)));
         // The center gets its own row when the header's actual width is below 56rem,
         // independently of how much width the sidebar and outline occupy.
-        if(width>=1280&&width<=1424&&result.header!==48)throw Error(`Docking boundary wrapped TopBar: ${JSON.stringify(result)}`);
+        if(width>=1280&&width<=1424&&result.header!==40)throw Error(`Docking boundary wrapped TopBar: ${JSON.stringify(result)}`);
         if(width>=1279&&Math.abs(await page.locator('.document-column').evaluate(n=>n.getBoundingClientRect().width)-928)>0.5)
           throw Error(`Docking reduced Standard column at ${width}px`);
         const stacked=result.headerWidth<896;
-        if(fail||result.sidebarHeader!==48||result.commandCenterDelta>1||(!stacked&&result.header!==48)||
-          (stacked&&(result.header<=48||result.actionsTop<result.centerBottom+7)))throw Error(JSON.stringify(result));
+        if(fail||result.sidebarHeader!==40||result.commandCenterDelta>1||(!stacked&&result.header!==40)||
+          (stacked&&(result.header<=40||result.actionsTop<result.centerBottom+7)))throw Error(JSON.stringify(result));
         results.push({...result,hoverShift:after-before});
         if(collapsed)await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
       }
@@ -488,7 +488,7 @@ async (page, { openPath, withBlockHover, expect }) => {
               locationShown,shortcutShown,actionClipped:name.scrollWidth>name.clientWidth+1,
               wideVisible:[...header.querySelectorAll('.top-bar-toggle')].every(n=>n.getBoundingClientRect().width===28)};
           });
-          if(geometry.height!==48||geometry.centerWidth<160||geometry.centerDelta>1||geometry.overlap.length||geometry.outside.length||!geometry.wideVisible||
+          if(geometry.height!==40||geometry.centerWidth<160||geometry.centerDelta>1||geometry.overlap.length||geometry.outside.length||!geometry.wideVisible||
             (geometry.actionClipped&&(geometry.locationShown||geometry.shortcutShown))||(!geometry.shortcutShown&&geometry.locationShown))
             throw Error(`Responsive TopBar: ${JSON.stringify({lang,width,collapsed,panel,geometry})}`);
           headerMatrix.push({lang,width,collapsed,panel,centerWidth:geometry.centerWidth});

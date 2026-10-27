@@ -3,7 +3,7 @@
 // checks that neither switches the document, so the late preview can only show A's Markdown.
 // Uses the scratch files prepared for source-view.browser.js (see docs/test/TEST_GUIDE.md);
 // the scenario writes nothing.
-async (page, { openPath }) => {
+async (page, { openFolderPicker, openPath }) => {
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
   await page.unrouteAll();
@@ -27,7 +27,7 @@ async (page, { openPath }) => {
 
   await openPath(page, documentA);
   // New creates in the displayed sidebar folder, so the scratch folder is opened first.
-  await page.getByTestId('sidebar').getByRole('button', {name:'Open folder…', exact:true}).click();
+  await openFolderPicker(page);
   await page.getByTestId('folder-path').fill(dir);
   await page.getByTestId('folder-open').click();
   await page.getByRole('dialog').waitFor({state:'detached'});
@@ -55,7 +55,7 @@ async (page, { openPath }) => {
     await otherDocument.click();
     await page.getByTestId('error').getByText('Wait for the current operation to finish.', {exact:true}).waitFor();
     result.openBlockedWhilePending = await currentFile() === documentA;
-    await page.getByRole('button', {name:'New file in folder', exact:true}).click();
+    await page.getByRole('button', {name:'New document…', exact:true}).click();
     await page.getByTestId('error').getByText('Wait for the current operation to finish.', {exact:true}).waitFor();
     result.newBlockedWhilePending = await currentFile() === documentA && await page.getByRole('dialog').count() === 0;
     result.newFileNotCreated = !await exists(created, 'created-during-preview.md');

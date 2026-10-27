@@ -173,8 +173,11 @@ async (page, { openPath, screenshots }) => {
     if (screenshots) await page.screenshot({ path: 'tmp/256/settings-ko.png' });
     await closeSettings();
     check(await page.evaluate(() => scrollY) === scrollBefore, 'Settings changed document scroll');
-    const koreanOpen = page.getByTestId('sidebar').getByRole('button', {name:'폴더 열기…', exact:true});
-    check(await koreanOpen.isVisible() && await koreanOpen.getAttribute('title') === '폴더 열기…', 'Korean header Open folder name and tooltip must match');
+    await page.getByTestId('folder').first().getByRole('button', {name:'더 많은 작업', exact:true}).click();
+    await page.getByRole('menuitem', {name:'폴더 열기…', exact:true}).waitFor();
+    check(await page.getByRole('menuitem', {name:'폴더 열기…', exact:true}).isVisible(), 'Folder menu must be translated');
+    await page.keyboard.press('Escape');
+    await page.getByRole('menu').waitFor({state:'detached'});
     check(await admonitionLabel.innerText() === '참고', 'Existing Admonition label did not switch language');
     check(await page.getByRole('button', { name: /번째 문단 블록 뒤에 삽입/ }).count() > 0, 'Paragraph handle exposes its internal English type');
     check(await page.getByRole('button', { name: /번째 제목 블록 이동/ }).count() > 0, 'Heading handle exposes its internal English type');

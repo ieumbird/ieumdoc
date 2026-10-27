@@ -27,11 +27,11 @@ async page => {
     await page.evaluate(() => document.activeElement?.blur());
     await page.mouse.move(0, 0);
   };
-  const create = page.getByRole('button', {name:'New file in folder', exact:true});
+  const create = page.getByRole('button', {name:'New document…', exact:true});
 
   await page.reload();
   await ready();
-  const startNew = page.getByTestId('document-start').getByRole('button', {name:'New document', exact:true});
+  const startNew = page.getByTestId('document-start').getByRole('button', {name:'New document…', exact:true});
   await startNew.click();
   await page.getByTestId('folder-path').waitFor();
   await page.keyboard.press('Escape');
@@ -39,13 +39,13 @@ async page => {
   check(await startNew.evaluate(node => node === document.activeElement), 'Cancelled location did not return to New document');
   check(await page.getByTestId('folder').count() === 0 && await page.getByRole('tab').count() === 0,
     'Cancelled location opened a folder or document');
-  const filesNew = page.getByTestId('sidebar').getByRole('button', {name:'New document',exact:true});
+  const filesNew = page.getByTestId('sidebar').getByRole('button', {name:'New document…',exact:true});
   await filesNew.click();
   await page.getByTestId('folder-path').waitFor();
   await page.getByRole('dialog').getByRole('button', {name:'Cancel',exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'detached'});
   check(await filesNew.evaluate(node => node === document.activeElement), 'Files New lost focus after cancelling location');
-  await startNew.click();
+  await filesNew.click();
   await page.getByTestId('folder-path').fill(folder.split(sep).slice(0,-1).join(sep) + sep);
   const picker = page.getByRole('dialog');
   await picker.getByRole('button', {name:'New folder', exact:true}).click();
@@ -59,9 +59,10 @@ async page => {
   check(await page.getByTestId('new-file-name').evaluate(node => node === document.activeElement), 'Folder-to-New handoff lost filename focus');
   await page.keyboard.press('Escape');
   await page.getByRole('dialog').waitFor({state:'detached'});
-  check(await startNew.evaluate(node => node === document.activeElement), 'Cancelled filename did not return to start New');
-  // The Files text entry now uses the opened folder without asking for a location again.
-  await page.getByTestId('sidebar').getByRole('button', {name:'New document',exact:true}).click();
+  check(await page.getByRole('button', {name:'Collapse sidebar', exact:true}).evaluate(node => node === document.activeElement),
+    'When first-folder selection removes the empty-state New entry, Cancel must return to the visible Sidebar toggle');
+  // The folder action now uses the opened folder without asking for a location again.
+  await page.getByTestId('sidebar').getByRole('button', {name:'New document…',exact:true}).click();
   await page.getByTestId('new-file-name').fill('new-document');
   await page.getByRole('dialog').getByRole('button', {name:'Create', exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'detached'});

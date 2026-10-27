@@ -55,6 +55,8 @@ child-folder expansion and listings remain unremembered. The original decisions 
 
 ## Amendment 2026-10-24: Open folder entry (#385)
 
+Entry placement is superseded by the [2026-10-27 explorer amendment](#amendment-2026-10-27-explorer-sidebar-582); the historical decision below is retained.
+
 - Status: Accepted. Repository owner approved [#380 decision 3](https://github.com/ieumbird/ieumdoc/issues/380); implemented by [#385](https://github.com/ieumbird/ieumdoc/issues/385).
 - The expanded Sidebar header has one always-visible `Open folder…` entry in the same position with zero, one or several opened folders, including while Display is selected. The collapsed rail retains its existing expand/tool controls.
 - Each folder's `⋯` contains only actions on that folder (`Close folder`). Remove the repeated `Open folder…` and the duplicate empty-Files entry. Keep the start-screen entry and command-center command.
@@ -106,3 +108,22 @@ child-folder expansion and listings remain unremembered. The original decisions 
   Host authorization and the no-Workspace boundary remain unchanged. The current
   [shell contract](../design/editor-ux-shell-v1.md#collapsible-folder-sections-425) records the
   detailed reveal/startup distinction, write boundary and regression evidence.
+
+## Amendment 2026-10-27: Explorer sidebar (#582)
+
+- Status: Accepted. The owner selected proposal A in [#582](https://github.com/ieumbird/ieumdoc/issues/582).
+- Sidebar header contains Files and Collapse only. Each opened folder shows New document…
+  and More actions (New folder…, Open folder…, Refresh, Close folder, in that order). Remove the separate New
+  document row when folders are open; use one New document… / 새 문서… action name.
+- Owner refinement: present each root as a depth-zero folder row matching child-folder chevrons,
+  typography and height, with root-only actions always visible on the right of that row. Folder
+  rows have no folder icon; file type icons remain. New folder is in More actions, and creation
+  or cancellation returns focus to that menu trigger. Long names ellipsize;
+  full path/name remain available. Preserve section/tree roles, keyboard navigation and #425
+  collapse memory; only the visual indentation of children gains the root step.
+- Empty Files retains Open folder… and New document…; New first chooses a folder through the
+  existing picker. Start-screen and command-center entries remain. This supersedes only #385's
+  entry placement; folder access, add/relist, persistence and creation semantics are unchanged.
+- This is interface composition, with no new Core operation or CLI command. The current
+  [shell contract](../design/editor-ux-shell-v1.md#sidebar-and-native-title-bar-582--605) defines
+  focus return and the related #605 native title-bar integration.

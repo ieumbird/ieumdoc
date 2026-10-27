@@ -13,6 +13,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
   const activate = async name => {
     await page.getByRole('tab', {name:new RegExp(`^${name.replaceAll('.', '\\.')}(, Unsaved changes)?$`)}).click();
     await page.waitForFunction(name => document.querySelector('[data-testid="current-file"]')?.textContent === name, name);
+    await expect(page).toHaveTitle(`${name} — IeumDoc`);
   };
   const memory = () => page.evaluate(() => JSON.parse(localStorage.getItem('ieumdoc.openTabs')));
   const flush = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
@@ -27,9 +28,11 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
   check(await page.getByRole('tab').count() === 1, 'The startup document is not the first tab');
   await page.getByRole('button', {name:'Close technical-document.md',exact:true}).click();
   await page.getByTestId('document-start').waitFor();
+  await expect(page).toHaveTitle('IeumDoc');
   // Navigation memory restores order and active identity, without restoring editor state.
   await openPath(page, a);
   await openPath(page, b);
+  await expect(page).toHaveTitle('technical-2.md — IeumDoc');
   await activate('technical-1.md');
   await page.reload(); await ready();
   check(await page.getByRole('tab').count() === 2, 'Reload did not restore both open document tabs');

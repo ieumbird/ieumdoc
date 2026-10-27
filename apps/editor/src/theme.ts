@@ -16,7 +16,11 @@ function render(dark: boolean): void {
 
 function syncBackground(): Promise<void> | undefined {
   // Keep the color value in tokens.css, including the native window's unpainted background.
-  return window.ieumdocDesktop?.setWindowBackground(getComputedStyle(root).getPropertyValue("--id-color-canvas").trim());
+  const style = getComputedStyle(root);
+  return window.ieumdocDesktop?.setWindowBackground(style.getPropertyValue("--id-color-canvas").trim(), {
+    color: style.getPropertyValue("--id-color-surface-subtle").trim(),
+    symbolColor: style.getPropertyValue("--id-color-text").trim(),
+  });
 }
 
 export async function applyTheme(theme: ThemePreference): Promise<void> {

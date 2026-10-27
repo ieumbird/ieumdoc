@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { _electron as electron, expect, type ElectronApplication, type Page } from "@playwright/test";
-import { openDocument, reloadDocument } from "../../../editor/test/browser/navigation.ts";
+import { openDocument, openFolderPicker, reloadDocument } from "../../../editor/test/browser/navigation.ts";
 import { recoveryRecords, resetRecovery } from "../../../editor/test/browser/recovery-records.ts";
 import { processTree } from "./process-tree.ts";
 
@@ -111,11 +111,32 @@ test("started without a document, it opens none; the sample opens with its figur
     const expectedVersion = process.env.IEUMDOC_TEST_VERSION ?? JSON.parse(readFileSync(path.join(desktop, "package.json"), "utf8")).version;
     assert.equal(await page.evaluate(async () => (await window.ieumdocDesktop!.info()).version), expectedVersion, "the packaged version matches its source");
     await page.getByTestId("document-start").waitFor();
+    await expect(page).toHaveTitle("IeumDoc");
+    await expect.poll(() => page.evaluate(() => (navigator as Navigator & { windowControlsOverlay: { visible: boolean } }).windowControlsOverlay.visible),
+      { message: "native caption buttons are exposed through Window Controls Overlay" }).toBe(true);
     assert.equal(await page.getByRole("button", { name: "Open file…", exact: true }).count(), 0);
     assert.equal(await page.getByTestId("current-file").innerText(), "No file opened");
     assert.equal(await page.locator(".ProseMirror").count(), 0, "nothing opens until the user chooses");
     await page.getByRole("button", { name: "Open sample document", exact: true }).click();
     await page.locator(".ProseMirror h1").first().waitFor();
+    await expect(page).toHaveTitle("technical-document.md — IeumDoc");
+    await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getTitle()),
+      { message: "native taskbar title follows the active file" }).toBe("technical-document.md — IeumDoc");
+    for (const width of [1440, 640]) {
+      await app.evaluate(({ BrowserWindow }, width) => BrowserWindow.getAllWindows()[0]!.setContentSize(width, 900), width);
+      await expect.poll(() => page.evaluate(() => innerWidth)).toBe(width);
+      const geometry = await page.evaluate(() => {
+        const overlay = (navigator as Navigator & { windowControlsOverlay: { getTitlebarAreaRect(): DOMRect } }).windowControlsOverlay.getTitlebarAreaRect();
+        const controls = [...document.querySelectorAll<HTMLElement>('.top-bar button, .sidebar-header button')];
+        return { reserved: innerWidth - overlay.right, height: overlay.height,
+          blocked: controls.filter(element => {
+            const r = element.getBoundingClientRect();
+            return r.width && (r.right > innerWidth || (r.top < overlay.bottom && r.right > overlay.right) || getComputedStyle(element).getPropertyValue('app-region') !== 'no-drag');
+          }).map(element => element.getAttribute('aria-label') || element.textContent) };
+      });
+      assert.ok(geometry.reserved > 0 && geometry.height === 40, JSON.stringify(geometry));
+      assert.deepEqual(geometry.blocked, [], "controls clear native caption buttons at each supported width");
+    }
     assert.match(await page.getByTestId("current-file").getAttribute("title") ?? "", /[\\/]sample-native-v1[\\/]technical-document\.md$/);
     assert.equal(await page.locator(".ProseMirror h1").first().innerText(), "Converter Control");
     assert.equal(await figuresLoaded(page), true);
@@ -150,7 +171,12 @@ test("a .md argument opens; edits save to disk and reopen", async () => {
       assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme), dark ? "dark" : "light");
     }
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.hide());
-    await page.evaluate(() => window.ieumdocDesktop!.setWindowBackground(getComputedStyle(document.documentElement).getPropertyValue("--id-color-canvas").trim()));
+    await page.evaluate(() => {
+      const style = getComputedStyle(document.documentElement);
+      return window.ieumdocDesktop!.setWindowBackground(style.getPropertyValue("--id-color-canvas").trim(), {
+        color: style.getPropertyValue("--id-color-surface-subtle").trim(), symbolColor: style.getPropertyValue("--id-color-text").trim(),
+      });
+    });
     assert.equal(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isVisible()), false, "later appearance updates must not show a hidden window");
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.show());
     await page.keyboard.press("Escape");
@@ -293,11 +319,11 @@ test("pasting an image writes an asset; Open folder lists the folder and New cre
     await saved(page);
     assert.match(readFileSync(file, "utf8"), /\.\/assets\/image-[^)]+\.png/);
 
-    await page.getByTestId("sidebar").getByRole("button", { name: "Open folder…", exact: true }).click();
+    await openFolderPicker(page);
     await page.getByTestId("folder-path").fill(folder);
     await page.getByTestId("folder-open").click();
     await page.getByTestId("folder").getByRole("treeitem", { name: "doc.md" }).waitFor();
-    await page.getByRole("button", { name: "New file in folder" }).click();
+    await page.getByRole("button", { name: "New document…", exact: true }).click();
     await page.getByTestId("new-file-name").fill("created");
     await page.getByRole("dialog").getByRole("button", { name: "Create", exact: true }).click();
     await ready(page);

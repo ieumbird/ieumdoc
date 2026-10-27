@@ -31,7 +31,7 @@ async (page, { screenshots = false, openPath }) => {
     window.__desktop = {calls, push(state) { info.update = state; for (const listener of listeners) listener(state); }};
     window.ieumdocDesktop = {
       setTheme: async theme => theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches),
-      setWindowBackground: async () => {},
+      setWindowBackground: async (color, overlay) => { window.__desktop.appearance = { color, overlay }; },
       info: async () => ({...info}),
       setChannel: async (channel) => { calls.push(['channel', channel]); info.channel = channel; return {...info}; },
       checkForUpdates: async () => { calls.push(['check']); },
@@ -51,10 +51,103 @@ async (page, { screenshots = false, openPath }) => {
   await page.unrouteAll();
   await page.reload();
   await ready();
-  await capture('desktop-after');
+  // Browser bridge coverage: resolved roles, explicit/System changes and geometry only.
+  // Real Window Controls Overlay/native window behavior is checked in packaged CI/manual review.
+  for (const theme of ['light', 'dark', 'system']) {
+    await page.getByRole('button', {name:'Settings', exact:true}).click();
+    await page.getByTestId('theme').selectOption(theme);
+    await page.waitForFunction(() => {
+      const style = getComputedStyle(document.documentElement), actual = window.__desktop.appearance;
+      return actual?.color === style.getPropertyValue('--id-color-canvas').trim() &&
+        actual.overlay.color === style.getPropertyValue('--id-color-surface-subtle').trim() &&
+        actual.overlay.symbolColor === style.getPropertyValue('--id-color-text').trim();
+    });
+    await page.keyboard.press('Escape');
+    await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+  }
+  const originalViewport = page.viewportSize();
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
   const sep = defaultPath.includes('\\') ? '\\' : '/';
+  const root = defaultPath.split(sep).slice(0, -4);
+  const longName = '긴파일이름' + 'unbrokendocumentname'.repeat(7) + '.md';
+  await openPath(page, [...root, 'tmp', 'open-files', longName].join(sep));
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  const captionFailures = [];
+  // Inspect modal backdrop boundaries and the direct header exclusion used by non-modal menus.
+  const inspectOverlay = async (popup, label) => {
+    await popup.waitFor();
+    const regions = await popup.evaluate(node => {
+      const portal = node.closest('[data-base-ui-portal]');
+      const header = document.querySelector('.top-bar').getBoundingClientRect();
+      const backdrop = document.elementFromPoint(header.left + 2, header.top + 2);
+      return {popup:getComputedStyle(node).getPropertyValue('app-region'),
+        positioner:getComputedStyle(node.parentElement).getPropertyValue('app-region'),
+        backdrop:getComputedStyle(backdrop).getPropertyValue('app-region'),
+        outsideHeader:!node.closest('.top-bar'), backdropCoversHeader:!!portal?.contains(backdrop),
+        headersExcluded:[...document.querySelectorAll('.sidebar-header, .top-bar, .document-panel-header')].every(header => getComputedStyle(header).getPropertyValue('app-region') === 'no-drag')};
+    });
+    if (regions.popup !== 'no-drag' || regions.backdrop !== 'no-drag' || !regions.outsideHeader ||
+        (label === 'menu' ? regions.positioner !== 'no-drag' || !regions.headersExcluded : !regions.backdropCoversHeader)) captionFailures.push({label, ...regions});
+  };
+  for (const width of [1440, 640]) {
+    await page.setViewportSize({width, height:900});
+    // Representative caption width; production uses the native CSS environment, never this value.
+    await page.evaluate(() => document.documentElement.style.setProperty('--window-controls-width', '138px'));
+    for (const collapsed of [false, true]) {
+      if (collapsed) await page.getByRole('button', {name:'Collapse sidebar', exact:true}).click();
+      const blocked = await page.evaluate(() => [...document.querySelectorAll('.top-bar button, .sidebar-header button')].filter(button => {
+        const rect = button.getBoundingClientRect();
+        return rect.right > innerWidth || (rect.top < 40 && rect.right > innerWidth - 138) || getComputedStyle(button).getPropertyValue('app-region') !== 'no-drag';
+      }).map(button => button.getAttribute('aria-label') || button.textContent));
+      check(blocked.length === 0, `Caption controls overlap at ${width}px: ${blocked}`);
+      if (collapsed) await page.getByRole('button', {name:'Expand sidebar', exact:true}).click();
+    }
+    await page.getByRole('button', {name:'Settings', exact:true}).click();
+    const settingsScreen = page.getByTestId('settings-dialog');
+    await settingsScreen.waitFor();
+    const geometry = await settingsScreen.evaluate(node => {
+      const header = node.querySelector('.settings-topbar');
+      const label = node.querySelector('.settings-document-name');
+      const style = getComputedStyle(header);
+      return {height:header.getBoundingClientRect().height, left:parseFloat(style.paddingLeft), right:parseFloat(style.paddingRight),
+        labelRight:label.getBoundingClientRect().right, labelText:label.textContent,
+        headerRegion:style.getPropertyValue('app-region'), screenRegion:getComputedStyle(node).getPropertyValue('app-region'),
+        bodyRegion:getComputedStyle(node.querySelector('.settings-body')).getPropertyValue('app-region'),
+        backRegion:getComputedStyle(node.querySelector('button')).getPropertyValue('app-region')};
+    });
+    if (geometry.height !== 40 || geometry.right !== geometry.left + 138 || geometry.labelRight > width - 138 || geometry.labelText !== longName ||
+        geometry.headerRegion !== 'drag' || geometry.screenRegion !== 'no-drag' || geometry.bodyRegion !== 'no-drag' || geometry.backRegion !== 'no-drag')
+      captionFailures.push({width, settings:geometry});
+    await page.keyboard.press('Escape');
+    await settingsScreen.waitFor({state:'detached'});
+    // A short 640px window puts the Command Center's search inside the wrapped drag rectangle.
+    await page.setViewportSize({width, height:480});
+    await page.keyboard.press('Control+Slash');
+    const center = page.getByRole('dialog', {name:'Command center', exact:true});
+    await inspectOverlay(center, 'command-center');
+    const search = center.getByRole('combobox');
+    if (width === 640) {
+      const overlap = await search.evaluate(node => node.getBoundingClientRect().top < document.querySelector('.top-bar').getBoundingClientRect().bottom);
+      check(overlap, 'Narrow-window search no longer exercises the wrapped drag area');
+    }
+    await search.click(); await search.fill('> settings');
+    check(await search.inputValue() === '> settings', 'Portal search did not accept pointer focus and typing');
+    const headerCorner = await page.locator('.top-bar').boundingBox();
+    await page.mouse.click(headerCorner.x + 2, headerCorner.y + 2);
+    await center.waitFor({state:'detached'});
+    await page.getByRole('button', {name:'File actions', exact:true}).click();
+    await inspectOverlay(page.getByRole('menu'), 'menu');
+    await page.mouse.click(headerCorner.x + 2, headerCorner.y + 2);
+    await page.getByRole('menu').waitFor({state:'hidden'});
+    check(await page.locator('.top-bar').evaluate(node => getComputedStyle(node).getPropertyValue('app-region')) === 'drag',
+      'Closing the menu must restore the header drag region');
+  }
+  check(captionFailures.length === 0, `Native caption/portal boundaries: ${JSON.stringify(captionFailures)}`);
+  await page.getByRole('button', {name:`Close ${longName}`, exact:true}).click();
+  await page.evaluate(() => document.documentElement.style.removeProperty('--window-controls-width'));
+  await page.setViewportSize(originalViewport);
+  await capture('desktop-after');
   const file = [...defaultPath.split(sep).slice(0, -4), 'tmp', 'desktop-updates', 'updates.md'].join(sep);
   await openPath(page, file);
   await page.getByRole('dialog').waitFor({state:'detached'});

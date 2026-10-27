@@ -1,5 +1,5 @@
 // Startup restoration competes with user navigation; inspect the Sidebar, preferences and Reload.
-async (page, {openPath, waitForActivePath}) => {
+async (page, { openFolderPicker, openPath, waitForActivePath }) => {
   const ready = (target = page) => target.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
@@ -42,7 +42,7 @@ async (page, {openPath, waitForActivePath}) => {
     await target.getByRole('menuitem', {name, exact:true}).click();
   };
   const startOpen = async (path, target = page) => {
-    await target.getByTestId('sidebar').getByRole('button', {name:'Open folder…', exact:true}).click();
+    await openFolderPicker(target);
     await target.getByTestId('folder-path').fill(path);
     await target.getByTestId('folder-open').click();
   };
@@ -390,7 +390,8 @@ async (page, {openPath, waitForActivePath}) => {
     await seed(saved);
     await waitRoots(saved);
     for (const kind of ['file', 'folder']) {
-      await section(a).getByRole('button', {name:kind === 'file' ? 'New file in folder' : 'New folder', exact:true}).click();
+      await section(a).getByRole('button', {name:kind === 'file' ? 'New document…' : 'More actions', exact:true}).click();
+      if (kind === 'folder') await page.getByRole('menuitem', {name:'New folder…', exact:true}).click();
       const select = page.getByTestId(`new-${kind}-directory`);
       const options = await select.locator('option').evaluateAll(nodes => nodes.map(node => ({path:node.value, label:node.textContent})));
       check(new Set(options.map(option => option.path)).size === options.length, `New ${kind} has duplicate destinations: ${JSON.stringify(options)}`);

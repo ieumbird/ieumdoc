@@ -149,9 +149,12 @@ function registerIpc(): void {
     nativeTheme.themeSource = value;
     return nativeTheme.shouldUseDarkColors;
   });
-  handle("desktop:set-window-background", (color) => {
-    if (typeof color !== "string" || !/^#[\da-f]{6}$/i.test(color)) throw new Error("Invalid window background.");
+  handle("desktop:set-window-background", (color, overlay) => {
+    const colors = overlay as { color?: unknown; symbolColor?: unknown } | null;
+    const valid = (value: unknown): value is string => typeof value === "string" && /^#[\da-f]{6}$/i.test(value);
+    if (!valid(color) || !valid(colors?.color) || !valid(colors?.symbolColor)) throw new Error("Invalid window appearance.");
     window?.setBackgroundColor(color);
+    window?.setTitleBarOverlay({ color: colors.color, symbolColor: colors.symbolColor });
     appearanceReady = true;
     showWhenReady();
   });
@@ -183,6 +186,7 @@ function createWindow(): void {
   appearanceReady = false;
   const created = new BrowserWindow({
     width: 1400, height: 900, minWidth: 640, minHeight: 480, title: "IeumDoc", show: false,
+    titleBarStyle: "hidden", titleBarOverlay: { height: 40 },
     icon: path.join(appRoot, "icon.ico"),
     webPreferences: {
       preload: path.join(appRoot, "preload.cjs"),

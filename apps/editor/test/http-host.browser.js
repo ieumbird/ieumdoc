@@ -1,5 +1,5 @@
 // Production bundle, real HTTP and two independent allowed roots. No mocked file API.
-async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture, screenshots }) => {
+async (page, { openFolderPicker, openPath, waitForActivePath, reloadDocument, bibliographyFixture, screenshots }) => {
   page.setDefaultTimeout(15000);
   const check = (ok, message) => { if (!ok) throw new Error(message); };
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
@@ -17,7 +17,7 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture,
   const sidebar = page.getByTestId('sidebar');
   const picker = page.getByRole('dialog', {name:'Open folder', exact:true});
   const openPicker = async () => {
-    await sidebar.getByRole('button', {name:'Open folder…', exact:true}).click();
+    await openFolderPicker(page);
     await picker.waitFor();
   };
   await openPicker();
@@ -109,12 +109,13 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture,
   // Both roots' folders stay open; create in B's own section.
   const folderB = sidebar.locator(`[data-testid="folder"][data-root=${JSON.stringify(join(b, 'fixture'))}]`);
   check(await sidebar.getByTestId('folder').count() === 2, 'Opening a folder in another root adds it beside the first');
-  await folderB.getByRole('button', {name:'New folder', exact:true}).click();
+  await folderB.getByRole('button', {name:'More actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'New folder…', exact:true}).click();
   await page.getByRole('dialog', {name:'New folder', exact:true}).getByRole('textbox', {name:'New folder name'}).fill('created');
   await page.getByRole('dialog', {name:'New folder', exact:true}).getByRole('button', {name:'Create', exact:true}).click();
   await page.getByRole('dialog', {name:'New folder', exact:true}).waitFor({state:'detached'});
   await folderB.getByRole('treeitem', {name:'created', exact:true}).waitFor();
-  await folderB.getByRole('button', {name:'New file in folder', exact:true}).click();
+  await folderB.getByRole('button', {name:'New document…', exact:true}).click();
   await page.getByTestId('new-file-name').fill('fresh');
   await page.getByRole('dialog', {name:'New document'}).getByRole('button', {name:'Create', exact:true}).click();
   await ready(); await page.getByRole('dialog', {name:'New document'}).waitFor({state:'detached'});

@@ -3,6 +3,8 @@
 }
 
 :root {
+  /* Native caption-button geometry, zero in ordinary browser tabs. */
+  --window-controls-width: max(0px, calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw)));
   color: var(--id-color-text);
   background: var(--id-color-canvas);
   font-family: var(--font-family-sans);
@@ -56,6 +58,8 @@ button {
 }
 
 .sidebar-header {
+  app-region: drag;
+  user-select: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -172,7 +176,6 @@ button {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: var(--space-1);
   min-height: 0;
 }
 
@@ -185,62 +188,27 @@ button {
   flex: none;
 }
 
-.sidebar-folder + .sidebar-folder {
-  margin-top: var(--space-3);
-}
-
 .sidebar-folder-header {
-  display: flow-root;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
   flex-shrink: 0;
-}
-
-/* Keep the folder identity's existing starts, 16px icon slot and 8px label gap. */
-.sidebar-folder-name {
-  min-width: 0;
-  min-height: var(--size-control-compact);
-  margin: 0;
-  padding-left: calc(var(--space-3) + var(--size-icon-slot) + var(--space-2));
-  color: var(--id-color-text);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-label);
-}
-
-/* Match the compact actions on the first line; following lines keep the UI text rhythm. */
-.sidebar-folder-name::first-line {
-  line-height: var(--size-control-compact);
 }
 
 .sidebar-folder-toggle {
   position: absolute;
-  top: calc((var(--line-height-label) - var(--size-control-compact)) / 2);
-  left: calc(-1 * (var(--size-icon-slot) + var(--space-2)) - (var(--size-control-compact) - var(--size-icon-slot)) / 2);
+  top: 0;
+  left: calc(var(--space-3) - (var(--size-control-compact) - var(--size-icon-slot)) / 2);
   color: var(--id-color-text-subtle);
   background: transparent;
 }
 
 .sidebar-folder-toggle:hover { background: var(--id-color-surface-hover); }
 
-.sidebar-folder-name span {
-  word-break: keep-all;
-  overflow-wrap: anywhere;
-}
-
-/* Keep the icon with the first word. If they cannot fit beside the actions, move together
- * below them; a word wider than the full text column still wraps inside this cap. */
-.sidebar-folder-first-word {
-  position: relative;
-  display: inline-block;
-  width: max-content;
-  max-width: 100%;
-  line-height: var(--line-height-label);
-}
-
 /* Ghost icon buttons already space their 16px icons 12px apart, so the group adds no gap. */
 .sidebar-folder-actions {
   display: flex;
-  float: right;
-  margin-left: var(--space-1);
+  flex: none;
 }
 
 .sidebar-tree {
@@ -251,12 +219,13 @@ button {
   list-style: none;
 }
 
-/* Chevron, icon and name. One 12px step per level, at most five, so deep names keep some width;
+/* Folder chevron or file icon, then name. One 12px step per level, at most five, so deep names keep some width;
  * a name that still does not fit ellipsizes and the full path stays in `title`. */
+.sidebar-folder-name,
 .sidebar-tree-item {
   position: relative;
   display: grid;
-  grid-template-columns: var(--size-icon-slot) var(--size-icon-slot) minmax(0, 1fr);
+  grid-template-columns: var(--size-icon-slot) minmax(0, 1fr);
   align-items: center;
   column-gap: var(--space-1);
   padding: var(--space-1) var(--space-3);
@@ -265,10 +234,13 @@ button {
   color: var(--id-color-text-muted);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-label);
-  cursor: pointer;
   user-select: none;
 }
 
+.sidebar-tree-item { cursor: pointer; }
+.sidebar-folder-name { flex: 1; min-width: 0; margin: 0; padding-right: 0; }
+
+.sidebar-folder-name svg,
 .sidebar-tree-item svg {
   width: var(--size-icon-slot);
   height: var(--size-icon-slot);
@@ -400,6 +372,8 @@ button {
 }
 
 .document-panel-header {
+  app-region: drag;
+  user-select: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -520,7 +494,20 @@ button {
   position: sticky;
   top: 0;
   z-index: 2;
+}
+
+/* When docked, Outline's header carries the native buttons. Otherwise the TopBar reserves
+ * their width. Reserve in the container so its existing wrapping sees the usable width. */
+.top-bar-container {
+  margin-right: max(0px, calc(var(--window-controls-width) - var(--shell-panel)));
   container-type: inline-size;
+}
+.document-panel:not(.document-panel--overlay) .document-panel-header {
+  padding-right: var(--window-controls-width);
+}
+.app-header { background: var(--id-color-surface-subtle); }
+:is(.sidebar-header, .top-bar, .document-panel-header, .settings-topbar) :is(button, input, select, textarea, a, [role="menu"], [role="menuitem"]) {
+  app-region: no-drag;
 }
 
 /* Only this row scrolls horizontally; the shared Save controls keep their own row. */
@@ -580,6 +567,8 @@ button {
 .document-tab > button:disabled, .document-tab > [aria-disabled="true"] { cursor: default; color: var(--id-color-text-subtle); }
 
 .top-bar {
+  app-region: drag;
+  user-select: none;
   display: grid;
   /* Equal side tracks reserve 21rem for document/view actions; the centered button yields
    * down to 10rem before the existing 56rem stacked layout takes over. */
@@ -590,7 +579,7 @@ button {
   min-height: var(--layout-header-row);
   padding: 0 var(--layout-ui-inset);
   border-bottom: var(--border-width) solid var(--id-color-border);
-  background: var(--id-color-surface);
+  background: var(--id-color-surface-subtle);
 }
 
 .top-bar-identity {
@@ -803,6 +792,19 @@ button {
   margin-top: auto;
 }
 
+/* Portal boundaries also exclude library-created transparent backdrops. Popups are nested
+ * inside positioners; Settings restores drag only on its own header below. */
+.ui-portal > *,
+.ui-portal [data-slot$="-content"] {
+  app-region: no-drag;
+}
+
+/* Menus allow a single click/right-click to reach another trigger. While open, disable
+ * underlying header drag directly instead of intercepting that input with a full-screen backdrop. */
+body:has(.ui-portal [role="menu"]) :is(.sidebar-header, .top-bar, .document-panel-header, .settings-topbar) {
+  app-region: no-drag;
+}
+
 /* Settings retains the mounted document shell behind an opaque full-screen modal boundary. */
 .settings-screen[data-slot="dialog-content"] {
   inset: 0;
@@ -823,19 +825,23 @@ button {
 }
 
 .settings-topbar {
+  app-region: drag;
+  user-select: none;
+  background: var(--id-color-surface-subtle);
   display: flex;
   align-items: center;
   flex-shrink: 0;
   gap: var(--space-3);
   min-height: var(--layout-header-row);
-  padding: var(--space-2) var(--layout-ui-inset);
+  padding: 0 var(--layout-ui-inset);
+  padding-right: calc(var(--layout-ui-inset) + var(--window-controls-width));
   border-bottom: var(--border-width) solid var(--id-color-border);
 }
 .settings-topbar > button { flex-shrink: 0; }
 .settings-document { display: flex; align-items: center; gap: var(--space-2); min-width: 0; color: var(--id-color-text-muted); }
 .settings-document svg { width: var(--size-icon-slot); height: var(--size-icon-slot); flex-shrink: 0; }
 .settings-document-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.settings-body { display: grid; grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr); flex: 1; min-height: 0; overflow-y: auto; }
+.settings-body { app-region: no-drag; display: grid; grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr); flex: 1; min-height: 0; overflow-y: auto; }
 .settings-navigation { display: flex; flex-direction: column; gap: var(--space-5); padding: var(--space-6) var(--space-3) var(--space-4); border-right: var(--border-width) solid var(--id-color-border); }
 .settings-navigation [data-slot="dialog-title"] { padding-inline: var(--space-3); }
 .settings-navigation nav { display: grid; gap: var(--space-1); }
@@ -885,7 +891,7 @@ button {
 .settings-recovery-details { display: grid; gap: var(--space-2); margin: 0; padding-left: var(--space-5); list-style: disc; font-size: var(--font-size-xs); color: var(--id-color-text-muted); }
 
 @media (width < 48rem) {
-  .settings-topbar { padding-inline: var(--space-3); gap: var(--space-2); }
+  .settings-topbar { padding-left: var(--space-3); padding-right: calc(var(--space-3) + var(--window-controls-width)); gap: var(--space-2); }
   .settings-body { grid-template-columns: minmax(0, 1fr); align-content: start; }
   .settings-navigation { gap: var(--space-3); border-right: 0; border-bottom: var(--border-width) solid var(--id-color-border); padding-block: var(--space-4); }
   .settings-document-note { margin-top: 0; padding-bottom: 0; }

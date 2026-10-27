@@ -36,7 +36,7 @@ export function DocumentStart({ mark, recovery, recent, sample, busy, onNewDocum
       <h1 id="document-start-title" className="document-start-title">{i18n.t("Start an IeumDoc document")}</h1>
       <p className="document-start-text">{i18n.t("Create a document, or open a folder to continue working on an IeumDoc document.")}</p>
       <div className="document-start-actions">
-        <Button size="sm" disabled={busy} onClick={event => onNewDocument(event.currentTarget)}>{i18n.t("New document")}</Button>
+        <Button size="sm" disabled={busy} onClick={event => onNewDocument(event.currentTarget)}>{i18n.t("New document…")}</Button>
         <Button size="sm" variant="outline" disabled={busy} onClick={event => onOpenFolder(event.currentTarget)}>
           <FolderOpen aria-hidden="true" />{i18n.t("Open folder…")}</Button>
       </div>
