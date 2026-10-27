@@ -1,6 +1,7 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
+- Version correction preparation: 2026-10-28 (#632: source candidate `0.0.2-beta.1` is unpublished; publication, public asset verification, actual GitHub update and old Release/tag withdrawal remain pending; [plan](../releases/v0.0.2-beta.1.md)).
 - CLI directory cleanup verification: 2026-10-28 (#629: isolated disable/uninstall ownership tests, Desktop typecheck and CI channel-order tests; actual Stable→Beta and NSIS checks run only in disposable Windows CI).
 - CLI integration verification: 2026-10-27 (#604: isolated environment/shim tests, CLI tests/offline package, Editor tests/typecheck/build, persistent-Chrome Settings and layout checks; packaged runtime and real registry/install/update/uninstall checks are required Windows CI, not local execution).
 - Title-bar verification: 2026-10-27 (#605: Desktop 48 tests, typecheck, browser bridge/theme/geometry checks; actual native overlay and packaged checks run in CI, manual Windows items remain explicit below).
@@ -182,7 +183,9 @@ regression. Native OS theme-change automation is not claimed.
 
 ## Channels and versions
 
-The public distribution version is `0.1.0-beta.2`; Stable publication is deferred. On first launch, an installed `X.Y.Z-beta.N` defaults to Beta and a Stable version defaults to Stable. A valid saved Stable/Beta choice always wins, including after installing a different version. Missing/damaged preferences or an invalid/missing channel fall back to the installed version's default. Preferences are persisted by temporary sibling/rename. Settings → About & updates shows installed version, channel, update status/actions and a Release notes link.
+The source candidate is `0.0.2-beta.1`, not yet published. The public distribution version remains `0.1.0-beta.2` until the replacement is verified; Stable publication is deferred. The owner confirmed there are no existing users and approved correcting only the version, followed by withdrawal of the two `0.1.0` Beta Releases/assets/tags after the new publication is verified. Downgrade protection and migration policy remain unchanged. See the [#632 preparation plan](../releases/v0.0.2-beta.1.md) for scope and pending work.
+
+On first launch, an installed `X.Y.Z-beta.N` defaults to Beta and a Stable version defaults to Stable. A valid saved Stable/Beta choice always wins, including after installing a different version. Missing/damaged preferences or an invalid/missing channel fall back to the installed version's default. Preferences are persisted by temporary sibling/rename. Settings → About & updates shows installed version, channel, update status/actions and a Release notes link.
 
 The [0.1.0-beta.2 release record](../releases/v0.1.0-beta.2.md) contains publication, verified public assets, master/release CI and the owner-approved exception leaving actual GitHub beta.1→beta.2 delivery unverified. The [0.1.0-beta.1 release record](../releases/v0.1.0-beta.1.md) preserves the earlier actual GitHub 0.0.1-beta.4→0.1.0-beta.1 update evidence. Earlier verification below remains historical.
 
