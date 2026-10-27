@@ -88,11 +88,19 @@ boundary still blocks Save and command-center shortcuts and prevents document in
 
 The named navigation uses buttons with `aria-current="page"`: Appearance & language /
 표시·언어, Saving & recovery / 저장·복구, and Desktop-only About & updates / 정보·업데이트.
-Ordinary entry starts at Appearance; an update notice's View opens About. Language and
-accent changes keep their immediate application, preference storage and failure notices.
+Ordinary entry starts at Appearance; an update notice's View opens About. Theme, language and
+accent changes apply immediately, with profile-local preference storage and failure notices.
+Theme offers System / Light / Dark (시스템 / 라이트 / 다크), defaulting to System.
+System follows live OS changes. `ieumdoc.theme` belongs to `preferences.ts` localStorage,
+never document content or Host preferences. Unavailable storage retains the current-page
+choice and shows the same style of localized persistence alert as accent/language.
+The same editor instances, drafts, selection and history remain mounted across theme changes.
+See [Visual Language](editor-visual-language-v1.md#system-light-and-dark-595) for role colors,
+startup/native synchronization, contrast and visual evidence. This presentation choice
+adds no Core operation or CLI command.
 Recovery retains its explanation, count and confirmed Clear all; individual records stay
 on the start screen. Desktop channel, status, release notes and update actions keep their
-existing bridge and restart guards. Search and theme controls are outside this change;
+existing bridge and restart guards. Settings search remains outside the implemented scope;
 Wide document stays in TopBar.
 
 The navigation footer explains that heading numbers, reference style and bibliography

@@ -320,7 +320,7 @@ button {
   padding-right: calc(var(--space-3) * 2 + var(--size-icon-slot));
   /* B1/C1 exception: an encoded SVG cannot inherit CSS vars; visual-tokens pins this
    * sole neutral stroke to --id-color-text-muted. It is not another UI palette. */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23545c68' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-image: var(--id-image-select-chevron);
   background-position: right var(--space-3) center;
   background-repeat: no-repeat;
   background-size: var(--size-icon-slot);
@@ -1034,9 +1034,9 @@ button {
   padding: var(--layout-document-block-padding) var(--layout-document-inline-padding);
   padding-bottom: var(--layout-document-end-space);
   padding-left: var(--layout-document-gutter);
-  background: var(--id-color-surface);
+  background: var(--id-color-paper);
   border-radius: var(--id-radius-paper);
-  box-shadow: inset 0 0 0 var(--border-width) var(--id-color-border-subtle), var(--shadow-paper);
+  box-shadow: inset 0 0 0 var(--size-paper-border) var(--id-color-paper-border), var(--shadow-paper);
 }
 
 /* No document open yet: the app's start, not a document (#298). It sits on the canvas in a

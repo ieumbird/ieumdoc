@@ -8,9 +8,11 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import type { DesktopBridge, DesktopInfo, OfferedUpdate, ReleaseChannel, UpdateState } from "../../shared/desktop-bridge.ts";
 import { RecoveryDeleteDialog } from "./Recovery.tsx";
 import { Notice } from "../ui/primitives.tsx";
-import { ACCENT_COLORS, readAccentColor, writeAccentColor, writeUiLanguage, type AccentColor, type UiLanguage } from "../preferences.ts";
+import { ACCENT_COLORS, readAccentColor, writeAccentColor, writeUiLanguage, THEMES, writeTheme, type AccentColor, type UiLanguage, type ThemePreference } from "../preferences.ts";
+import { applyTheme, currentTheme } from "../theme.ts";
 
 const ACCENT_LABELS = { blue: "Blue", violet: "Violet", plum: "Plum", teal: "Teal", green: "Green", graphite: "Graphite" } as const;
+const THEME_LABELS = { system: "System", light: "Light", dark: "Dark" } as const;
 
 const CHANNELS: { value: ReleaseChannel; label: string; hint: string }[] = [
   { value: "stable", get label() { return i18n.t("Stable"); }, get hint() { return i18n.t("Tested releases."); } },
@@ -86,6 +88,8 @@ export function SettingsDialog({ open, category, onCategoryChange, documentName,
   const [languageProblem, setLanguageProblem] = useState(false);
   const [accent, setAccent] = useState(readAccentColor);
   const [accentProblem, setAccentProblem] = useState(false);
+  const [theme, setTheme] = useState(currentTheme);
+  const [themeProblem, setThemeProblem] = useState(false);
   const state = info?.update;
   const offered = state && "version" in state ? state : state?.phase === "error" ? state.update : undefined;
   const busy = state?.phase === "downloading" || state?.phase === "installing";
@@ -147,6 +151,22 @@ export function SettingsDialog({ open, category, onCategoryChange, documentName,
                   : i18n.t("Version and how IeumDoc Desktop receives updates.")}</p>
               </header>
               {category === "appearance" ? <>
+                <section className="settings-section" aria-labelledby="settings-theme">
+                  <div className="settings-label">
+                    <h3 id="settings-theme" className="settings-heading">{i18n.t("Theme")}</h3>
+                    <p>{i18n.t("System follows your device’s appearance.")}</p>
+                  </div>
+                  <select className="form-select h-[var(--size-control)] w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring" aria-labelledby="settings-theme" data-testid="theme"
+                    value={theme} onChange={event => {
+                      const choice = event.target.value as ThemePreference;
+                      void applyTheme(choice);
+                      setTheme(choice);
+                      setThemeProblem(!writeTheme(choice));
+                    }}>
+                    {THEMES.map(value => <option key={value} value={value}>{i18n.t(THEME_LABELS[value])}</option>)}
+                  </select>
+                  {themeProblem ? <p role="alert">{i18n.t("Theme could not be saved. This choice applies until you close this page.")}</p> : null}
+                </section>
                 <section className="settings-section" aria-labelledby="settings-language">
                   <div className="settings-label">
                     <h3 id="settings-language" className="settings-heading">{i18n.t("Display language")}</h3>

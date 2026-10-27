@@ -64,6 +64,31 @@ async (page, { openPath, reloadDocument, assertSavedSource, expect }) => {
       return {actual:lowlight.listLanguages().sort(),expected:Object.keys(common).sort()};
     });
     check(JSON.stringify(languages.actual) === JSON.stringify(languages.expected), 'Deferred registration changed language set: '+JSON.stringify(languages));
+    // Measure actual highlighted text, including each role used by the grammar, in both themes.
+    await code.evaluate(n => {
+      const e=n.closest('.document-editor').editor, text=n.querySelector('code');
+      e.commands.insertContentAt(e.view.posAtDOM(text,0)+text.textContent.length,
+        {type:'text',text:'\n// readable comment\nconst label = "color";'});
+    });
+    await code.locator('.hljs-string').waitFor();
+    const beforeTheme = await snapshot();
+    for (const theme of ['light','dark']) {
+      await page.evaluate(theme => {document.documentElement.dataset.theme=theme;},theme);
+      const colors = await code.evaluate(n => {
+        const canvas=document.createElement('canvas'), context=canvas.getContext('2d');
+        const rgb=color=>{context.clearRect(0,0,1,1);context.fillStyle=color;context.fillRect(0,0,1,1);return [...context.getImageData(0,0,1,1).data];};
+        const lum=rgb=>rgb.slice(0,3).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);
+        return ['.hljs-keyword','.hljs-number','.hljs-string','.hljs-comment'].map(selector=>{
+          const node=n.querySelector(selector); if(!node)throw Error(`Missing code role ${selector}`);
+          let bg; for(let p=node;p;p=p.parentElement) {const color=rgb(getComputedStyle(p).backgroundColor);if(color[3]===255){bg=color;break;}}
+          const a=lum(rgb(getComputedStyle(node).color)),b=lum(bg);
+          return {selector,ratio:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)};
+        });
+      });
+      check(colors.every(c=>c.ratio>=4.5), `${theme} code contrast: ${JSON.stringify(colors)}`);
+      check(await snapshot() === beforeTheme, 'Theme changed code content, selection or history');
+    }
+    await page.evaluate(() => {document.documentElement.dataset.theme='light';});
   } finally { release(); releaseAsset(); await page.unroute('**/src/code-languages.ts*'); await page.unroute('**/api/asset?*'); }
   await page.getByRole('button', {name:'File actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Reload', exact:true}).click();

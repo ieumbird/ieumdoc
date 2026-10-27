@@ -1,6 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
+- Theme verification: 2026-10-27 (#595: System/Light/Dark, six dark accents, independent paper roles, live preferences and native appearance bridge; [values, contrast and captures](#system-light-and-dark-595)).
 - Document tab verification: 2026-10-27 (#581: flat bottom accent marker and adjustable 32px height; [comparison and measurements](#slim-document-tabs-581)).
 - Document settings verification: 2026-10-27 (#554: existing document operations and device width preference; [integration, checks and captures](editor-ux-shell-v1.md#document-settings-placement-554)).
 - Type-scale verification: 2026-10-27 ([#558](https://github.com/ieumbird/ieumdoc/issues/558): Editor tests, typecheck/build, layout-rules and quiet-document pass; 1440px 15/16px manual comparison remains pending because the Windows account failure counter reached the owner stop threshold of 6).
@@ -40,7 +41,7 @@
 
 ## Direction
 
-**Document at rest, application on interaction.** White document space, readable typography and a quiet shell take priority over persistent tools. A subtle paper boundary and an empty-document starting hint keep the writing area discoverable before it has content.
+**Document at rest, application on interaction.** Document space, readable typography and a quiet shell take priority over persistent tools. A subtle paper boundary and an empty-document starting hint keep the writing area discoverable before it has content.
 
 [Reference mockup](assets/quiet-document-reference.png) is a visual reference, not a screenshot of the product. Adopt its reading column, hierarchy, restrained borders and relationship between a selected Figure and its properties. Do not copy its workspace tree, search, account, window decorations, unimplemented numbering/reference behavior, autosave or technical claims. Current computed numbering and heading settings follow [Heading numbering](heading-numbering-v1.md) and [UX Shell](editor-ux-shell-v1.md). Primary actions, focus, selection and generated heading/Outline numbers share one chosen accent and its derivatives (#559); danger and warning retain their state meanings. Pretendard Variable is bundled and served by the app; it does not require a font CDN.
 
@@ -125,12 +126,14 @@ Inline code and math keep their prior context: `keep-all` within headings, `norm
 the other document surfaces. Their computed `overflow-wrap` remains `break-word`.
 This is presentation only, with no preference, source-format, Core or CLI change.
 
-The shared Settings language selector follows the existing 32px input/control size and typography. Korean and English use the same font stack and tokens. The [dedicated Settings screen](editor-ux-shell-v1.md#dedicated-settings-screen-594) is an opaque white viewport surface, without popup corners, shadow or a floating close control. Back, filename and an accessible unsaved dot occupy its header. Named categories use shared ghost Buttons; the current one takes selected background/text and 600 semibold without a left marker, following Sidebar navigation. Titles use the existing 24px start-title token, labels 14/20px and descriptions 12/16px. Thin subtle row separators and the common control axis keep the bounded content readable. The document-scope note remains at the navigation foot on wide screens and follows its categories on phones. Geometry follows [Layout Rules](editor-layout-rules-v1.md#controls-and-spacing). Long translations wrap and the Settings body scrolls within the viewport. The UI language policy and document-text boundary are defined in [UX Shell](editor-ux-shell-v1.md#ui-display-language-256).
+The shared Settings language selector follows the existing 32px input/control size and typography. Korean and English use the same font stack and tokens. The [dedicated Settings screen](editor-ux-shell-v1.md#dedicated-settings-screen-594) is an opaque themed `surface` viewport, without popup corners, shadow or a floating close control. Back, filename and an accessible unsaved dot occupy its header. Named categories use shared ghost Buttons; the current one takes selected background/text and 600 semibold without a left marker, following Sidebar navigation. Titles use the existing 24px start-title token, labels 14/20px and descriptions 12/16px. Thin subtle row separators and the common control axis keep the bounded content readable. The document-scope note remains at the navigation foot on wide screens and follows its categories on phones. Geometry follows [Layout Rules](editor-layout-rules-v1.md#controls-and-spacing). Long translations wrap and the Settings body scrolls within the viewport. The UI language policy and document-text boundary are defined in [UX Shell](editor-ux-shell-v1.md#ui-display-language-256).
+
+The following base values describe Light; [Dark overrides](#system-light-and-dark-595) preserve the same geometry and role relationships.
 
 | Role | Actual values / treatment |
 | --- | --- |
 | Shell | `#f6f7f9` sidebar and Document panel, white header; 48px header, 240px sidebar (200px at ≤1024px; below 640px no rail: closed, the TopBar opens it; open, it covers the whole screen), 48px collapsed rail, 256px Document panel (docked at ≥1424px; below, an overlay with the overlay shadow under the header) |
-| Document | White continuous writing surface on the adjustable `canvas` (`#eceef2`), with a 1px inset `border-subtle` edge, adjustable 6px paper radius and gentle paper shadow (`0 2px 8px rgb(32 36 44 / 6%)`). Paper elevation is quieter than the overlay shadow. 928px maximum column, 16px outer inset, 80px document inset on each side; 736px body at 1440px with sidebar open. At least the viewport height below the measured header, less the top/bottom outer insets; grows with content, without paper sizes or page breaks. |
+| Document | White continuous writing surface on the adjustable `canvas` (`#eceef2`), with a 1px inset `paper-border` edge (Light aliases `border-subtle`), adjustable 6px paper radius and gentle paper shadow (`0 2px 8px rgb(32 36 44 / 6%)`). Paper elevation is quieter than the overlay shadow. 928px maximum column, 16px outer inset, 80px document inset on each side; 736px body at 1440px with sidebar open. At least the viewport height below the measured header, less the top/bottom outer insets; grows with content, without paper sizes or page breaks. |
 | Narrow document | Below 1424px the Document panel starts closed and overlays when opened. At ≤1024px, retain 80px tool gutter; trailing inset becomes 16px. At ≤704px header wraps. Below 640px the sidebar starts closed and the document uses the whole width; opened, the sidebar covers the screen. Otherwise it remains user controlled. |
 | Body | Shared sans stack (below); 17px / 28.9px, 400; 16px paragraph gap |
 | H1–H6 | Same document stack, 700; 34/45.9, 24/32.4, 20/27, 18/24.3, 16/21.6, 14/18.9px; 32px before / 12px after; first block has no top margin |
@@ -148,11 +151,12 @@ Document and UI share `Pretendard Variable → Pretendard → Noto Sans KR → A
 
 The SIL OFL 1.1 notice text is copied from `pretendard/dist/LICENSE.txt` into [the public license](../../apps/editor/public/licenses/Pretendard-OFL.txt), served at `licenses/Pretendard-OFL.txt` in the built app. When updating the package, refresh that notice from the same version. The 2026-10-08 Noto Sans KR observation remains historical evidence; the [Pretendard verification](../reviews/pretendard-2026-10-09.md) records the new actual fonts and wrapping. Heading sizes/weights/line heights are unchanged; KaTeX and code fonts retain their own typography; inline math is sized by `--math-inline-size` ([verification](../reviews/inline-math-size-2026-10-09.md)).
 
-Colors originate in the Adjustable values of `styles/tokens.css`. `--id-color-accent` / `-hover` color Save/Apply and other primary actions; one chosen accent also owns focus, selection, current items, links/references and generated heading/Outline numbers. `--id-color-info` aliases neutral `text-muted` and `surface-info` aliases `surface-subtle`; danger (`#a12b32`) and warning (`#875717`) retain their existing surfaces and meaning. The shadcn primary/ring/destructive roles map one way to these product roles. In particular, shadcn `accent` is the neutral hover surface, and `muted` remains a quiet background rather than a universal interaction state. The Editor has one light theme: Tailwind's `dark:` variant follows a `.dark` class the Editor never sets, so an OS dark preference cannot gray out fields or outlined controls.
+Colors originate in the Adjustable values of `styles/tokens.css`. `--id-color-accent` / `-hover` color Save/Apply and other primary actions; one chosen accent also owns focus, selection, current items, links/references and generated heading/Outline numbers. `--id-color-info` aliases neutral `text-muted` and `surface-info` aliases `surface-subtle`; danger (`#a12b32`) and warning (`#875717`) retain their existing surfaces and meaning. The shadcn primary/ring/destructive roles map one way to these product roles. In particular, shadcn `accent` is the neutral hover surface, and `muted` remains a quiet background rather than a universal interaction state. The Editor offers System / Light / Dark, defaulting to System. The resolved `:root[data-theme]` drives the role values, `color-scheme` and Tailwind `dark:` variant together. Native and Base UI controls consume the same roles; no dark-only utility tint overrides their field, hover or error colors. See [theme behavior and validation](#system-light-and-dark-595).
 
 | Product role (prefix `--id-color-`) | Value / responsibility |
 | --- | --- |
-| `surface`, `surface-subtle` | White paper/dialogs and `#f6f7f9` panels |
+| `paper` | Document-only surface (`#ffffff` in Light), shared by Visual and Source |
+| `surface`, `surface-subtle` | Floating surfaces/fields/header/Settings (`#ffffff`) and panels (`#f6f7f9`); independent of paper |
 | `canvas` | Adjustable `#eceef2` background around the white paper; independent of panel surfaces |
 | `surface-hover` | `#eaedf2`, visible on both panels and white paper |
 | `surface-selected`, `surface-selected-hover`, `text-selected` | Chosen preset's two light surfaces and darker accent (`accent-hover`); current navigation, active command choice, text selection and on TopBar toggle icons. Blue defaults: `#e9f0ff`, `#e1eaff`, `#2449a6`. |
@@ -164,9 +168,114 @@ Colors originate in the Adjustable values of `styles/tokens.css`. `--id-color-ac
 | `interaction`, `interaction-soft` | Chosen preset's accent (Blue default `#315fd4`) for indicator/focus and an alias to `surface-selected`; no separate copied selection palette |
 | `accent`, `accent-hover` | An alias to `interaction` and `#2449a6`: primary action faces with `text-on-accent` |
 
-Focus indicators appear only on `:focus-visible` (keyboard), never after a mouse click. Buttons show a solid 2px outer ring (`--focus-ring`, `border-focus`); list rows (file tree, Outline, recent folders, menus, folder picker), tab-group controls, checkboxes and table tools show a solid 2px inset ring (`--focus-ring-inset`). The rings are opaque `border-focus`, so their composited contrast is 5.65:1 on white and at least 4.55:1 on the hover, pressed and selected surfaces; `visual-states` and `save-session` measure the rendered box-shadow ring against its surface. A current face, error boundary or pressed face stays visible alongside it. Normal UI text meets 4.5:1 and required control/state indicators meet 3:1 against adjacent backgrounds. Files, Outline and + / slash current items add 600 semibold as a non-color cue; selected text/background alone do not distinguish current from normal at 3:1. Visual/Source current tab faces retain dark text and white fill, and use a `border-control` painted boundary with at least 3:1 against the white face, pressed track and adjacent panel/header. Document-tab accent markers meet 3:1 against their rest and hover surfaces. Decorative dividers and the rest/hover color difference are not required to meet 3:1. Formula typography belongs to KaTeX, whose internals are not restyled. IeumDoc sets only the overall size of inline math (`--math-inline-size`); display equations keep KaTeX's 1.21em. A content-sized IeumDoc wrapper and the enclosing block own horizontal formula scrolling. Tables scroll within their block. Document-wide clipping is prohibited.
+Focus indicators appear only on `:focus-visible` (keyboard), never after a mouse click. Buttons show a solid 2px outer ring (`--focus-ring`, `border-focus`); list rows (file tree, Outline, recent folders, menus, folder picker), tab-group controls, checkboxes and table tools show a solid 2px inset ring (`--focus-ring-inset`). The rings are opaque `border-focus`, so their Light Blue composited contrast is 5.65:1 on white and at least 4.55:1 on the hover, pressed and selected surfaces; `visual-states` and `save-session` measure the rendered box-shadow ring against its surface. A current face, error boundary or pressed face stays visible alongside it. Normal UI text meets 4.5:1 and required control/state indicators meet 3:1 against adjacent backgrounds. Files, Outline and + / slash current items add 600 semibold as a non-color cue; selected text/background alone do not distinguish current from normal at 3:1. Visual/Source current tab faces retain `text` and floating `surface` fill, and use a `border-control` painted boundary with at least 3:1 against the white face, pressed track and adjacent panel/header. Document-tab accent markers meet 3:1 against their rest and hover surfaces. Decorative dividers and the rest/hover color difference are not required to meet 3:1. Formula typography belongs to KaTeX, whose internals are not restyled. IeumDoc sets only the overall size of inline math (`--math-inline-size`); display equations keep KaTeX's 1.21em. A content-sized IeumDoc wrapper and the enclosing block own horizontal formula scrolling. Tables scroll within their block. Document-wide clipping is prohibited.
 
 The destructive Button variant uses `danger` text and border on `surface`, with `surface-danger` on hover. Keyboard focus retains the danger text and adds the shared blue border/ring. Text meets 4.5:1 and enabled boundaries/focus indicators meet 3:1. Native disabled destructive buttons use an opaque muted face, secondary text (still 4.5:1) and structural border rather than opacity dimming; focusable `aria-disabled` buttons keep the shared disabled treatment. For #276, only **Discard and reload** uses this variant. **Keep editing** remains the initial focus and the existing button order is preserved.
+
+## System, Light and Dark (#595)
+
+Settings → Appearance & language offers System / Light / Dark, defaulting to System.
+System tracks `prefers-color-scheme` changes without a reload; explicit choices ignore
+the OS. `preferences.ts` stores only the choice in `ieumdoc.theme` localStorage.
+Absent, unknown or unavailable storage falls back to System. A write failure keeps the
+live choice and a localized Settings alert, like accent/language. Nothing enters Markdown,
+Core or the file Host, so no semantic operation or CLI surface is needed. Images are
+unaltered (no inversion/filter), and KaTeX inherits text without internal restyling.
+
+An external, blocking `theme-init.js` resolves the initial choice before styles and the
+application bundle. It temporarily sets native `color-scheme` without duplicating colors;
+the loaded stylesheet then owns that property. The production self-only script CSP is
+unchanged. The runtime applies accent/theme before the first React UI. Desktop first
+sets `nativeTheme.themeSource`, then uses its actual resolved answer and passes the CSS
+canvas color through the existing trusted bridge. Its hidden window waits for native
+appearance and the first background as well as `ready-to-show`; no Host theme persistence
+is added. See [Desktop appearance](desktop-distribution-v1.md#appearance-595).
+
+`paper` is exclusively the continuous Visual/Source sheet, `canvas` is the outside area,
+and `surface` is the floating face used by menus, dialogs, tabs, fields and Settings.
+Paper radius, edge width/color and elevation have separate variables. Light retains all
+prior values and pixels. Dark paper is one step brighter than canvas, with a thin visible
+edge and zero elevation. #593 can flatten the page using only variable values:
+`canvas: var(--id-color-paper)`, `size-paper-border: 0px`, `id-radius-paper: 0px`, and
+`shadow-paper: 0 0 0 transparent`; the floating surface is untouched. A transparent zero
+shadow is used instead of `none` because it is composed with an inset edge in a shadow list.
+There is no page-background selector in this change.
+
+Dark overrides in `tokens.css` (prefix `--id-color-` unless shown otherwise):
+
+| Roles | Dark values |
+| --- | --- |
+| `canvas`, `paper`, `surface`, `paper-border` | `#14171c`, `#1e2229`, `#262b34`, `#485363` |
+| `surface-subtle`, `surface-muted`, `surface-hover`, `surface-pressed` | `#191d24`, `#242a33`, `#303743`, `#37404d` |
+| `text`, `text-muted`, `text-subtle`, `text-on-accent` | `#edf0f5`, `#c3cad5`, `#b7c0ce`, `#14171c` |
+| `border`, `border-subtle`, `border-strong`, `border-control` | `#737f90`, `#363e4a`, `#8491a3`, `#9aa6b7` |
+| `danger`, `surface-danger`, `warning`, `surface-warning` | `#ffa4aa`, `#422b30`, `#efc079`, `#3e3323` |
+| `backdrop` | Black at 45% (Light remains 10%) |
+| `--shadow-paper` | `0 0 0 transparent`; the separate 1px inset edge remains |
+| `--shadow-overlay`, `--shadow-segment` | `0 8px 24px rgb(0 0 0 / 32%), 0 2px 6px rgb(0 0 0 / 24%)`; `0 1px 2px rgb(0 0 0 / 24%)` |
+
+Information still aliases neutral secondary text/panel roles. Code comments/quotes use
+`text-subtle`, keywords `info`, strings `warning` and numbers/types `danger` on `surface-muted`.
+The native select's SVG chevron is a theme-specific image token with its stroke checked
+against `text-muted`; data-URL SVG cannot inherit CSS color. No raw palette layer is added.
+
+| Dark preset | Interaction / primary / focus | Hover / selected text | Selected | Selected hover |
+| --- | --- | --- | --- | --- |
+| Blue | `#9abbff` | `#bdd2ff` | `#253954` | `#2d4260` |
+| Violet | `#c4a8ff` | `#dac8ff` | `#38304e` | `#44395e` |
+| Plum | `#dda3d5` | `#efc3e9` | `#432e40` | `#50384c` |
+| Teal | `#6dd6c7` | `#a0e9de` | `#203d3b` | `#284946` |
+| Green | `#9bce91` | `#c2e5ba` | `#2d3d2c` | `#374a35` |
+| Graphite | `#b5c6d1` | `#d4e0e8` | `#303b43` | `#3a4751` |
+
+### Theme verification and captures
+
+Existing `visual-states` now runs actual hover/current/pressed/focus/disabled/error states
+in both themes and measures every accent's resolved text, number, link, selection, primary,
+focus/control, code-role and status pairs. `save-session` measures destructive rest, hover,
+focus and in-flight disabled faces in both themes. `ui-language` also switches themes with
+live drafts/selection/history, follows live OS changes, checks first-UI and pre-bundle startup,
+localized persistence failure and real Save/Reload. `code-highlighting` measures actual
+keyword/number/string/comment spans in both themes and preserves code/history across switches.
+Existing token tests cover acyclic roles and all twelve theme/accent combinations.
+
+Measured Dark minima in persistent Chrome, 2026-10-27 (ratios rounded to two decimals):
+
+| Preset | Text/body/UI/code/status minimum | Primary text minimum | Focus/marker minimum | Control boundary minimum |
+| --- | --- | --- | --- | --- |
+| Blue | 5.71:1 | 9.35:1 | 5.30:1 | 4.13:1 |
+| Violet | 5.71:1 | 8.89:1 | 5.19:1 | 4.25:1 |
+| Plum | 5.71:1 | 8.79:1 | 5.11:1 | 4.23:1 |
+| Teal | 5.71:1 | 10.34:1 | 5.67:1 | 3.99:1 |
+| Green | 5.71:1 | 9.95:1 | 5.30:1 | 3.88:1 |
+| Graphite | 5.71:1 | 10.23:1 | 5.44:1 | 3.87:1 |
+
+Text minimum is 4.5:1; required control/state minimum is 3:1. Table borders in Dark measure
+3.93:1 or higher on paper/header cells. Light keeps the existing decorative table grid.
+Rest-versus-hover surface differences and decorative separators remain outside the 3:1
+state-indicator requirement. The same light palettes continue to pass their existing checks.
+
+Before is master `1c3eeeedc264dce318a2b51f2409f3365e5810e4`; After is this change.
+Same Windows Chrome persistent profile, bundled Pretendard, English UI/mixed Korean prose,
+1440×1000 and 390×1000, DPR/zoom 1. Fonts/images are ready and the pointer is outside content.
+Light document, equation, figure, table, callout and menu pairs at both widths are pixel-identical
+(12 pairs, RGB diff 0). Settings intentionally gains its Theme row. The thin dark paper edge,
+unaltered image, inherited math, readable code and responsive Settings/menu were visually inspected.
+
+| View | 1440px | 390px |
+| --- | --- | --- |
+| Light document | [Before](assets/dark-mode-595/before-blue-1440-document.png) / [After](assets/dark-mode-595/light-blue-1440-document.png) | [Before](assets/dark-mode-595/before-blue-390-document.png) / [After](assets/dark-mode-595/light-blue-390-document.png) |
+| Dark Blue document, math, image, table and callout | [Capture](assets/dark-mode-595/dark-blue-1440-document.png) | [Capture](assets/dark-mode-595/dark-blue-390-document.png) |
+| Dark Blue Settings | [Capture](assets/dark-mode-595/dark-blue-1440-settings.png) | [Capture](assets/dark-mode-595/dark-blue-390-settings.png) |
+| Dark Teal menu | [Capture](assets/dark-mode-595/dark-teal-1440-menu.png) | [Capture](assets/dark-mode-595/dark-teal-390-menu.png) |
+| Dark Blue code | [Capture](assets/dark-mode-595/dark-blue-1440-code.png) | [Capture](assets/dark-mode-595/dark-blue-390-code.png) |
+
+`pnpm browser:test quiet-document --screenshots` regenerates review-only captures in
+`tmp/dark-mode-595`; the theme capture tour runs only in that explicit screenshot mode. Only twelve representative
+PNGs (~1 MB total) are retained here; the full captures, traces and measurement JSON stay in
+ignored `tmp/`. Local layout-rules, quiet-document, desktop-updates and targeted state/preference/
+code browser checks pass. Packaged/native Desktop and the other required jobs run in PR CI;
+no Edge channel or packaged app was launched locally.
 
 ## State rules
 
@@ -175,7 +284,7 @@ The destructive Button variant uses `danger` text and border on `surface`, with 
 | Rest | No paragraph input box, persistent Edit button or block extent outline. Gutter tools are hidden except the first `+` in an empty editable document; its drag handle stays hidden. No invisible pointer targets. Figure/Equation/Table authoring metadata is hidden, inert text positioned in the gap above its block, so it takes no space at rest and showing it moves nothing; node attrs are untouched. Captions, reference chips, errors and restrictions remain visible. |
 | Hover | Gutter, typed-block Edit and metadata appear without moving text. The path from content to buttons remains inside the hover area. A pointer in a top-level block's vertical range inside the document host, including its gutter `+`/handle, shows a thin neutral outline overlay based on the drag-source rectangle, expanded by the adjustable inline/block gaps. Nested list items and table cells indicate their entire top-level block. Expansion gives the text breathing room, preserves clearance from controls/neighbors, and does not enlarge the hover hit area. The overlay captures no input and adds no border/padding to content. Document text input (including IME composition) and document-changing keydown commands hide only this neutral outline until the next real pointer movement; selection, transactions, scrolling and resizing alone do not restore it. Gutter, typed-block Edit and metadata keep their independent rules. It also disappears outside the host, between blocks and during a block drag, where the existing tint/drop line take priority. |
 | Keyboard focus | Native editor caret/selection, visible control focus; Tab reveals tools using `:focus-within`. The document editing surface shows focus with the caret only, never a frame around the document. |
-| Current tab group (#515, owner A1) | Visual/Source retains a `surface-pressed` track, a raised white (`surface`) current segment with a `border-control` painted boundary and `--shadow-segment`, dark `text`, and muted inactive text that darkens on hover. No horizontal interaction marker. Document tabs instead use the flat marker and adjustable height described below (#581). The collapsed Sidebar rail has only the named Expand sidebar ghost button. Focus adds its independent 2px inset ring. |
+| Current tab group (#515, owner A1) | Visual/Source retains a `surface-pressed` track, a raised themed (`surface`) current segment with a `border-control` painted boundary and `--shadow-segment`, `text`, and muted inactive text that takes normal text color on hover. No horizontal interaction marker. Document tabs instead use the flat marker and adjustable height described below (#581). The collapsed Sidebar rail has only the named Expand sidebar ghost button. Focus adds its independent 2px inset ring. |
 | Current list item (#515, owner A1) | Files current, Outline current and + / slash active choice use `surface-selected`, `text-selected` and 600 semibold as a non-color current cue; no left/inset marker. Command-center highlight keeps its Base UI behavior and selected colors. Ordinary hover uses `surface-hover`; current hover uses `surface-selected-hover`. Focus remains independent and never changes current/ARIA state. Current list glyph widths may change: 600 weight is intentional to distinguish current without color. Files keeps its one-line ellipsis; Outline reserves the semibold text extent with a hidden copy and retains its two-line clamp, so selection does not change row height. Command-center highlight and navigation remain owned by Base UI; existing disabled/foreign text exceptions retain their meaning; its row radius uses the existing control radius. |
 | Selected | A single chosen-accent block-selection outline for Figure/Equation/table and visible Edit access; no additional selection cue. Selection opens no properties panel and never supplies a hover extent. Figure/Equation selected/editing interaction outlines retain the chosen accent and existing offset alongside the optional expanded neutral hover outline. Their painted outer corner radius matches the inset hover outline outer edge: the element radius is the shared hover radius minus the existing outline offset and outline width. Typing hides no selection/editing outline. |
 | Editing | Form and editing outline persist independently of selection. |
@@ -264,7 +373,7 @@ New/More actions stay in place. See [section behavior and evidence](editor-ux-sh
 | Document tab row | A flat `surface` row with a structural bottom rule and adjustable 32px tab height (#581). 14px regular filename, a fixed dirty-dot slot, and 28px close target with a 16px icon. Active uses dark text and an inset bottom interaction-accent marker, without a raised face or control boundary. Inactive text is muted; hovering either tab adds `surface-hover` without removing the current marker. Keyboard focus adds the inset ring independently on the full-height activation area or close target. Long names ellipsize, full paths remain tooltips, and parent folders distinguish equal names: the distinguishing folder follows the filename in 12px subtle text and keeps its width (up to half the label), so the filename ellipsizes first. Tabs never move Save into their horizontal scroller. |
 | Sidebar and Document panel | One current rule for both the open file and section being read: selected surface, selected text and 600 semibold as a non-color cue, without a left marker (#515). Hover uses the neutral hover surface; current+hover uses selected-hover. An independent inset focus ring is not clipped by the scrolling lists. Current intentionally changes glyph widths to 600 semibold as a non-color cue (owner review decision, 2026-10-26). It preserves row insets, Files ellipsis and the Outline two-line clamp; the hidden semibold Outline copy reserves its line extent so current changes do not jump rows vertically. The folder and Outline headings remain 14px semibold; ordinary rows remain 14px regular. Folder icons/chevrons, wrapping/indent limits and compact ghost actions retain their behavior. File navigation stays mounted when the Sidebar is collapsed. Its rail contains only Expand sidebar. The expanded Sidebar header keeps one Open folder… ghost icon button before Collapse sidebar, regardless of folder count (#385). Its 28px target, 16px icon and 4px group gap use existing product tokens; the neutral hover face and keyboard focus ring follow the shared control rules. Accessible name and tooltip use the same English/Korean translation. Empty Files retains guidance/recent folders without a duplicate Open button, and per-folder menus contain only Close folder. See the [same-state capture review](editor-ux-shell-v1.md#sidebar-open-folder-entry-385). Document settings uses the shared Dialog surface, close/focus behavior and form controls, identifies its filename and shows the short document scope. Wide document is a TopBar pressed toggle whose tooltip explains that it is remembered on this device. Native checkboxes show their actual checked state, use the interaction color and an explicit keyboard focus ring; disabled numbering keeps a readable reason. Shared Settings stays in its separate footer. |
 | Controls | Base UI and native controls share 6px radii, 32px standard/28px compact targets and 16px icon slots. Ghost rest is transparent; hover is visible on a panel as well as white paper. Open menus, including TopBar File actions, use only the neutral pressed face, without a control boundary; Visual/Source uses the raised current segment and contrast-qualified control edge; document tabs use their flat accent marker; the on Outline toggle takes only its selected face. Secondary/Cancel uses a white outlined face, with neutral hover. Refs, events and selection preservation are retained. Controls and overlays change state without decorative transitions, pressed movement or enter/exit animations. Save alone keeps its reduced-motion-aware progress spinner. |
-| Forms and overlays | White fields have a control boundary, visible labels, secondary helper text, explicit errors and separated actions. Dialog titles are 16px semibold. Native selects share the field box and end in a 16px chevron. A refused Open first says in plain words why and what to do, then shows Core's exact reason and action as 12/16px details beside a structural rule. Open/New/Folder retain and associate their error messages. Refused Open descriptions use `overflow-wrap: anywhere` so unbroken names and Core detail paths do not enlarge the intrinsic grid width. An invalid New filename has an error boundary alongside focus; operation failures such as unsaved-work protection do not mislabel valid field values. Menus, dialogs and properties alone use the restrained overlay shadow. The continuous document uses its separate, gentler paper shadow. |
+| Forms and overlays | Themed fields have a control boundary, visible labels, secondary helper text, explicit errors and separated actions. Dialog titles are 16px semibold. Native selects share the field box and end in a 16px chevron. A refused Open first says in plain words why and what to do, then shows Core's exact reason and action as 12/16px details beside a structural rule. Open/New/Folder retain and associate their error messages. Refused Open descriptions use `overflow-wrap: anywhere` so unbroken names and Core detail paths do not enlarge the intrinsic grid width. An invalid New filename has an error boundary alongside focus; operation failures such as unsaved-work protection do not mislabel valid field values. Menus, dialogs and properties alone use the restrained overlay shadow. The continuous document uses its separate, gentler paper shadow. |
 | Color | One chosen accent (`interaction`, selected roles): actions, focus, selection, current item, drag, links/references and generated heading/Outline numbers. Information (`info`, `surface-info`) is neutral; danger/warning stay distinct. Current Outline rows keep selected colors. Most chrome stays neutral; the current document tab uses the bottom accent marker, Visual/Source and sidebar tools retain raised white segments, and the on Outline toggle uses the selected face. Document art retains its own colors. |
 | References | Read like links: content color, no box or fill; underline on hover, dashed underline and subtle color when unresolved. An unresolved reference explicitly reads `Unresolved reference: label` (localized), without a guessed kind prefix. Deleting a referenced target uses the existing transient MessageArea notice with platform-appropriate Undo guidance (Ctrl+Z / ⌘Z); explicit table deletion instead uses the table deletion notice and Undo action below. Selected uses the interaction axis. Citations use the same numeric text and selected treatment, with subtle dashed text for unchecked, incomplete, missing or duplicate resources; complete limited IEEE entries use content-link color without an underline. Their accessible label/tooltip gives exact keys and Core readiness in the chosen UI language; there is no navigation. |
 | Table deletion notice | Reuses the informational MessageArea surface, message text and action spacing, with one compact ghost Undo button. English/Korean text uses the shared typography and translations. No confirmation dialog or focus transfer on appearance; the polite status notice expires under the [table interaction contract](table-interaction-v1.md). No new color, size or overlay system. |
@@ -425,13 +534,15 @@ pixel-diff assertions or a substitute for user visual approval.
 Settings exposes six named, validated presets, with Blue as the default and no free color
 picker. The accent owns actions, selection background/text (including native text selection),
 focus rings, current/drag indicators, primary buttons, links/references, generated heading
-numbers and Outline numbers. Current Outline numbers use the darker selected text derivative.
+numbers and Outline numbers. Current Outline numbers use the selected text derivative (darker in Light, lighter in Dark).
 Information states are neutral; danger and warning retain their existing colors and surfaces.
 
 All color numbers live only in `styles/tokens.css` Adjustable values. The default `:root`
-palette is Blue; `:root[data-accent]` preset scopes override only interaction, primary-hover /
+palette is Light Blue; Dark overrides the existing role values in `:root[data-theme="dark"]`. Within each theme, `data-accent` scopes override only interaction, primary-hover /
 selected-text, selected-surface and selected-hover values. Other roles are shared aliases.
 The script sets only a validated preset ID, never color values. Typography and spacing are unchanged.
+
+Light presets (Dark values are [below](#system-light-and-dark-595)):
 
 | Preset | Interaction / number / focus / primary | Primary hover / selected text | Selected surface | Selected hover |
 | --- | --- | --- | --- | --- |
@@ -546,7 +657,7 @@ Values meant to be tuned by hand, or that change with a user's taste, are shared
 - Regression coverage (#536) checks token ownership, consumers and resolved relationships, not historical computed values. `quiet-document` uses Range geometry for Korean word boundaries and oversized-token fallback in prose/cells, contextual code/math wrapping, local table/formula scrolling, and document-independent UI/Source typography. The #506 master baseline and its shadow-table comparison were removed; the review evidence above remains historical. `layout-rules` reads the current document font and control radius tokens, and still enforces 28/32px controls and unmoved text. `visual-states` computes the generated-number contrast from current tokens (at least 4.5:1 on paper and the Outline panel).
 - A user preference switches between such variables (a class on `.app-shell`); it does not compute or store pixel values. Preferences are kept by `src/preferences.ts` in this browser's storage, never in Markdown, front matter or the Host. They are display choices, not document semantics, so Core and CLI do not know them.
 - Current entries: `--layout-content-width` (Standard document column, 928px) and `--layout-content-width-wide` (Wide document column, 1280px, capped by the window). The Wide document toggle beside Visual/Source chooses between them; its existing command uses the same device preference.
-- Paper surface entries (#226): `--id-color-canvas` (`#eceef2`), `--id-radius-paper` (0.375rem / 6px) and `--shadow-paper` (`0 2px 8px rgb(32 36 44 / 6%)`) distinguish the white paper with a slightly darker neutral canvas, small corners and gentle elevation. Visual and Source share this paper treatment; the start without a document deliberately does not (#298). Panel surfaces, control/overlay radii and `--shadow-overlay` retain their own roles. These are hand-tuned values, without a new preference control or theme.
+- Paper surface entries (#226): `--id-color-canvas` (`#eceef2`), `--id-radius-paper` (0.375rem / 6px) and `--shadow-paper` (`0 2px 8px rgb(32 36 44 / 6%)`) distinguish the white paper with a slightly darker neutral canvas, small corners and gentle elevation. Visual and Source share this paper treatment; the start without a document deliberately does not (#298). Panel surfaces, control/overlay radii and `--shadow-overlay` retain their own roles. Theme overrides now include independent `paper`, `paper-border` and `size-paper-border` values; see [#595](#system-light-and-dark-595). Page-background selection UI remains in #593.
 - Block hover entries (#225): `--id-color-block-hover-outline` aliases the neutral `border-strong` role (`#bbc2cd`), `--size-block-hover-outline` is 1px, and `--id-radius-block-hover` is the small radius plus the existing selection outline offset (`space-1`) and outline width (`border-width`), currently 9px; Figure/Equation use this shared value minus their offset and width for their element radius, so the painted outlines have matching curves. `--space-block-hover-inline` aliases `space-2` (8px per side) and `--space-block-hover-block` aliases `space-1` (4px above/below), expanding only the overlay for breathing room around text. The expansion keeps gutter controls clear and fits within block gaps; one hovered extent is shown at a time. These hand-tuned values have no preference control; CSS and browser checks read the variables. Selection/editing keeps its blue role and text moves 0px.
 - Paper padding entries: `--layout-document-block-padding` (32px) and `--layout-document-block-padding-narrow` (16px at ≤1024px) at the top, and `--layout-document-end-space` (35% of the viewport height) at the bottom, which also sets how far above the window bottom writing keeps the caret. The existing `--layout-content-gutter` supplies the outer canvas gap; the minimum paper height deducts that gap and the measured header rather than fixing a page size.
 - Sidebar entries: `--layout-sidebar-width` (expanded, 240px) and `--layout-sidebar-width-narrow` (expanded at ≤1024px, 200px). The collapsed rail is fixed.

@@ -138,12 +138,28 @@ test("a .md argument opens; edits save to disk and reopen", async () => {
     await page.keyboard.press("Control+S");
     await saved(page);
     assert.match(readFileSync(file, "utf8"), /DESKTOP /);
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    for (const theme of ["dark", "light", "system", "dark"] as const) {
+      await page.getByTestId("theme").selectOption(theme);
+      await expect.poll(() => app.evaluate(({ nativeTheme }) => nativeTheme.themeSource)).toBe(theme);
+      const dark = await app.evaluate(({ nativeTheme }) => nativeTheme.shouldUseDarkColors);
+      await expect(page.locator("html")).toHaveAttribute("data-theme", dark ? "dark" : "light");
+      const background = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--id-color-canvas").trim());
+      await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getBackgroundColor().toLowerCase())).toBe(background);
+      assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme), dark ? "dark" : "light");
+    }
+    await page.keyboard.press("Escape");
+    assert.equal(await page.evaluate(() => localStorage.getItem("ieumdoc.theme")), "dark");
+    const preferencesFile = path.join(userData, "preferences.json");
+    assert.ok(!existsSync(preferencesFile) || !readFileSync(preferencesFile, "utf8").includes('"theme"'), "the Host must not persist appearance");
   } finally {
     await closeApp(app);
   }
   ({ app, page } = await launch(userData, [file]));
   try {
     assert.match(await page.locator(".ProseMirror").innerText(), /DESKTOP /);
+    assert.equal(await page.locator("html").getAttribute("data-theme"), "dark", "saved appearance is ready when the Editor mounts");
+    assert.equal(await app.evaluate(({ nativeTheme }) => nativeTheme.themeSource), "dark");
   } finally {
     await closeApp(app);
   }

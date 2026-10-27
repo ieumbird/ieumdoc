@@ -1,6 +1,7 @@
 // Runtime display preferences preserve the editor, drafts, selection and real Save path.
 async (page, { openPath, screenshots }) => {
   page.setDefaultTimeout(15000);
+  await page.emulateMedia({colorScheme:'light'});
   const check = (ok, reason) => { if (!ok) throw Error(reason); };
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: 'attached' });
   await ready();
@@ -25,6 +26,7 @@ async (page, { openPath, screenshots }) => {
     const observer = new MutationObserver(() => {
       if (document.querySelector('#root')?.childElementCount) {
         window.accentAtFirstUi = document.documentElement.dataset.accent;
+        window.themeAtFirstUi = document.documentElement.dataset.theme;
         observer.disconnect();
       }
     });
@@ -59,9 +61,20 @@ async (page, { openPath, screenshots }) => {
     await page.keyboard.press('Tab'); await page.keyboard.press('Enter');
     check(await screen.getByRole('heading',{name:'Local recovery',exact:true}).isVisible(), 'Keyboard cannot select recovery');
     await screen.getByRole('button',{name:'Appearance & language',exact:true}).click();
+    const themePicker = page.getByTestId('theme');
+    check(await themePicker.inputValue() === 'system', 'Theme must default to System');
+    for (const colorScheme of ['dark','light']) {
+      await page.emulateMedia({colorScheme});
+      await page.waitForFunction(theme => document.documentElement.dataset.theme === theme, colorScheme);
+      check(await page.locator('html').evaluate(n => getComputedStyle(n).colorScheme) === colorScheme, 'Native controls must follow the resolved theme');
+    }
     const picker = page.getByRole('combobox', { name: 'Accent color', exact: true });
     const presets = await picker.locator('option').evaluateAll(options => options.map(option => option.value));
     check(presets.join(',') === 'blue,violet,plum,teal,green,graphite', 'Settings must expose the six validated presets');
+    for (const theme of ['light','dark']) {
+    await themePicker.selectOption(theme);
+    await page.emulateMedia({colorScheme:theme === 'light' ? 'dark' : 'light'});
+    check(await page.locator('html').getAttribute('data-theme') === theme, 'An explicit theme changed with the OS');
     for (const preset of presets) {
       await picker.selectOption(preset);
       await picker.focus();
@@ -74,7 +87,7 @@ async (page, { openPath, screenshots }) => {
         const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor');
         const picker = document.querySelector('[data-testid="accent-color"]');
         const selection = getComputedStyle(editor.querySelector('.paragraph'), '::selection');
-        return { preset: root.dataset.accent, interaction: resolve('interaction'), selected: resolve('text-selected'),
+        return { theme: root.dataset.theme, preset: root.dataset.accent, interaction: resolve('interaction'), selected: resolve('text-selected'),
           selectedSurface: resolve('surface-selected'), focus: getComputedStyle(picker).borderColor,
           save: getComputedStyle(document.querySelector('[data-testid="save"]')).backgroundColor,
           selectionText: selection.color, selectionBackground: selection.backgroundColor,
@@ -87,7 +100,8 @@ async (page, { openPath, screenshots }) => {
         `Accent consumers did not update: ${JSON.stringify(colors)}`);
       accentResults.push(colors);
     }
-    check(new Set(accentResults.map(result => result.interaction)).size === presets.length, 'Presets must produce distinct colors');
+    check(new Set(accentResults.filter(r => r.theme === theme).map(result => result.interaction)).size === presets.length, 'Presets must produce distinct colors');
+    }
     await picker.selectOption('teal');
     if (screenshots) await page.screenshot({ path: 'tmp/256/settings-en.png' });
     await page.getByTestId('ui-language').selectOption('ko');
@@ -168,13 +182,26 @@ async (page, { openPath, screenshots }) => {
     await page.getByTestId('save').click();
     await page.locator('[data-operation="saved"]').waitFor();
 
-    // Language preference persists across a page reload; it does not enter the Markdown.
-    await page.reload();
+    // Apply the saved theme even while the main application bundle is still loading.
+    let releaseMain, mainContinued;
+    const mainGate = new Promise(resolve => {releaseMain = resolve;});
+    const mainFinished = new Promise(resolve => {mainContinued = resolve;});
+    const holdMain = async route => {await mainGate; try {await route.continue();} finally {mainContinued();}};
+    await page.route('**/src/main.tsx*', holdMain);
+    try {
+      await page.reload({waitUntil:'commit'});
+      await page.waitForFunction(() => document.documentElement.style.colorScheme === 'dark');
+      check(await page.evaluate(() => document.documentElement.dataset.theme === 'dark' && !document.querySelector('#root')?.childElementCount),
+        'Startup theme must apply before the main bundle mounts');
+    } finally {releaseMain(); await mainFinished; await page.unroute('**/src/main.tsx*', holdMain);}
     await ready();
     check(await page.locator('html').getAttribute('lang') === 'ko', 'Language preference was not restored');
     check(await page.evaluate(() => window.accentAtFirstUi === 'teal' && document.documentElement.dataset.accent === 'teal'), 'Saved accent must apply at the first mounted UI');
-    check(!disk.source.includes('uiLanguage') && !disk.source.includes('accentColor'), 'Display preference leaked into document');
+    check(await page.evaluate(() => window.themeAtFirstUi === 'dark' && document.documentElement.dataset.theme === 'dark'), 'Saved theme must apply at the first mounted UI');
+    check(!disk.source.includes('uiLanguage') && !disk.source.includes('accentColor') && !disk.source.includes('ieumdoc.theme'), 'Display preference leaked into document');
     await settings('ko');
+    check(await page.getByRole('combobox',{name:'테마',exact:true}).inputValue() === 'dark' &&
+      await page.getByRole('option',{name:'시스템',exact:true}).count() === 1, 'Korean theme labels are missing');
     if (screenshots) {
       await page.setViewportSize({ width: 375, height: 812 });
       await page.screenshot({ path: 'tmp/256/settings-ko-375.png' });
@@ -183,23 +210,34 @@ async (page, { openPath, screenshots }) => {
     await page.getByTestId('ui-language').selectOption('en');
     await closeSettings();
     // Malformed and disabled storage fall back safely on startup. The live choice still works.
-    await page.evaluate(() => localStorage.setItem('ieumdoc.accentColor', 'unknown'));
+    await page.evaluate(() => { localStorage.setItem('ieumdoc.accentColor', 'unknown'); localStorage.setItem('ieumdoc.theme', 'unknown'); });
     await page.reload(); await ready();
     check(await page.evaluate(() => window.accentAtFirstUi === 'blue'), 'Invalid accent must fall back to blue before mounting');
+    check(await page.evaluate(() => window.themeAtFirstUi === 'light'), 'Invalid theme must fall back to System before mounting');
     await page.addInitScript(() => {
       const get = Storage.prototype.getItem, set = Storage.prototype.setItem;
-      Storage.prototype.getItem = function(key) { if (key === 'ieumdoc.accentColor') throw Error('blocked'); return get.call(this, key); };
-      Storage.prototype.setItem = function(key, value) { if (key === 'ieumdoc.accentColor') throw Error('blocked'); return set.call(this, key, value); };
+      Storage.prototype.getItem = function(key) { if (['ieumdoc.accentColor','ieumdoc.theme'].includes(key)) throw Error('blocked'); return get.call(this, key); };
+      Storage.prototype.setItem = function(key, value) { if (['ieumdoc.accentColor','ieumdoc.theme'].includes(key)) throw Error('blocked'); return set.call(this, key, value); };
     });
     await page.reload(); await ready();
     check(await page.evaluate(() => window.accentAtFirstUi === 'blue'), 'Unavailable accent store must not block startup');
     await settings('en');
+    check(await page.getByTestId('theme').inputValue() === 'system', 'Unavailable theme storage must fall back to System');
+    await page.getByTestId('theme').selectOption('dark');
+    check(await page.locator('html').getAttribute('data-theme') === 'dark', 'Live theme must work without storage');
+    await page.getByRole('alert').filter({hasText:'Theme could not be saved.'}).waitFor();
     await page.getByTestId('accent-color').selectOption('plum');
     check(await page.evaluate(() => document.documentElement.dataset.accent === 'plum'), 'Live accent must work without storage');
     await page.getByRole('alert').filter({ hasText: 'Accent color could not be saved.' }).waitFor();
     await closeSettings();
     await settings('en');
     check(await page.getByTestId('accent-color').inputValue() === 'plum', 'Reopening Settings lost the live choice');
+    check(await page.getByTestId('theme').inputValue() === 'dark', 'Reopening Settings lost the live theme choice');
+    await page.getByTestId('theme').selectOption('system');
+    await page.emulateMedia({colorScheme:'dark'});
+    await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
+    await page.emulateMedia({colorScheme:'light'});
+    await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
     await closeSettings();
     return { accentResults, firstUiAccent: true, invalidAndUnavailableStorage: true, editorPreserved: true, draftAndSelectionPreserved: true, undoRedo: true, liveError: true, saveReload: true, conflictPreserved: true, persisted: true };
   } finally {

@@ -227,6 +227,10 @@ async (page, { openDocument, waitForActivePath, reloadDocument }) => {
       focusVisible: element.matches(':focus-visible'), ringContrast: ring ? Math.min(contrast(ring, asCss(outer)), contrast(ring, style.backgroundColor)) : 0, focused: element === document.activeElement,
       opaque: style.opacity === '1' && rgb(style.backgroundColor)[3] === 255 };
   });
+  result.themeContrasts = [];
+  for (const theme of ['light','dark']) {
+  await page.evaluate(theme => {document.documentElement.dataset.theme = theme;}, theme);
+  await keepEditing.focus(); await page.mouse.move(0,0);
   const restAppearance = await discardAppearance();
   check('reloadDiscardUsesDangerAndReadableText', restAppearance.opaque && restAppearance.danger && restAppearance.textContrast >= 4.5 && restAppearance.boundaryContrast >= 3);
   await discard.hover();
@@ -238,6 +242,8 @@ async (page, { openDocument, waitForActivePath, reloadDocument }) => {
   const focusAppearance = await discardAppearance();
   check('reloadDiscardKeyboardFocusIsVisibleAndReadable', focusAppearance.opaque && focusAppearance.focusVisible && focusAppearance.focused &&
     focusAppearance.ringContrast >= 3 && focusAppearance.danger && focusAppearance.textContrast >= 4.5);
+  result.themeContrasts.push({theme,restAppearance,hoverAppearance,focusAppearance});
+  }
   await page.getByRole('button', {name:'Keep editing', exact:true}).click();
   check('reloadCancelKeepsWork', (await paragraph().innerText()).includes('Local'));
   check('beforeUnloadProtected', await page.evaluate(() => {
@@ -255,8 +261,12 @@ async (page, { openDocument, waitForActivePath, reloadDocument }) => {
   await page.route('**/api/document**', holdReload);
   try {
     await discard.click(); await reloadReceived;
+    for (const theme of ['light','dark']) {
+    await page.evaluate(theme => {document.documentElement.dataset.theme = theme;}, theme);
     const disabledAppearance = await discardAppearance();
     check('reloadDiscardDisabledRemainsReadable', await discard.isDisabled() && disabledAppearance.opaque && disabledAppearance.textContrast >= 4.5);
+    }
+    await page.evaluate(() => {document.documentElement.dataset.theme = 'light';});
     releaseReload(); await ready();
   } finally {
     releaseReload(); await page.unroute('**/api/document**', holdReload);

@@ -4,6 +4,25 @@
  */
 export type DocumentWidth = "standard" | "wide";
 
+export const THEMES = ["system", "light", "dark"] as const;
+export type ThemePreference = typeof THEMES[number];
+export const THEME_KEY = "ieumdoc.theme";
+
+export function readTheme(): ThemePreference {
+  try {
+    const saved = globalThis.localStorage?.getItem(THEME_KEY);
+    return THEMES.find(theme => theme === saved) ?? "system";
+  } catch { return "system"; }
+}
+
+export function writeTheme(theme: ThemePreference): boolean {
+  try {
+    if (!globalThis.localStorage) return false;
+    globalThis.localStorage.setItem(THEME_KEY, theme);
+    return true;
+  } catch { return false; }
+}
+
 export const ACCENT_COLORS = ["blue", "violet", "plum", "teal", "green", "graphite"] as const;
 export type AccentColor = typeof ACCENT_COLORS[number];
 export const ACCENT_COLOR_KEY = "ieumdoc.accentColor";

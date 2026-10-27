@@ -1,5 +1,11 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Theme": "Theme",
+  "System": "System",
+  "Light": "Light",
+  "Dark": "Dark",
+  "System follows your device’s appearance.": "System follows your device’s appearance.",
+  "Theme could not be saved. This choice applies until you close this page.": "Theme could not be saved. This choice applies until you close this page.",
   "Recovery records": "Recovery records",
   "What is kept": "What is kept",
   "Updates": "Updates",
@@ -521,6 +527,12 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Theme": "테마",
+  "System": "시스템",
+  "Light": "라이트",
+  "Dark": "다크",
+  "System follows your device’s appearance.": "시스템은 기기의 화면 설정을 따릅니다.",
+  "Theme could not be saved. This choice applies until you close this page.": "테마를 저장하지 못했습니다. 이 페이지를 닫을 때까지 적용됩니다.",
   "Recovery records": "복구 기록",
   "What is kept": "보관 범위",
   "Updates": "업데이트",
