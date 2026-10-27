@@ -105,64 +105,64 @@ button {
 /* Author display rules must not override the hidden panels' accessibility/layout boundary. */
 .sidebar-content[hidden] { display: none; }
 
-.display-settings {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-  min-height: 0;
-}
-
-.display-scope {
-  margin: 0 0 var(--space-2);
+.document-settings {
+  margin-bottom: var(--space-document-settings-after);
+  border-bottom: var(--border-width) solid var(--id-color-border-subtle);
+  padding-bottom: var(--space-3);
+  font-family: var(--font-family-sans);
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-label);
+  color: var(--id-color-text-muted);
+  scroll-margin-top: calc(var(--app-header-height, var(--layout-header-row)) + var(--space-4));
 }
-
-.display-file {
+.document-settings .document-settings-summary {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  justify-content: flex-start;
   margin: 0;
+  padding-inline: var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: 400;
+  color: var(--id-color-text-muted);
+}
+.document-settings-values {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--id-color-text-muted);
-  font-size: var(--font-size-xs);
-  line-height: var(--line-height-meta);
-}
-
-.display-choice {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
-  min-height: var(--size-control-compact);
-  padding-block: var(--space-1);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-label);
-  cursor: pointer;
-}
-
-.display-choice input {
-  flex: none;
-  width: var(--size-icon-slot);
-  height: var(--size-icon-slot);
-  margin: calc((var(--line-height-label) - var(--size-icon-slot)) / 2) 0 0;
-  accent-color: var(--id-color-interaction);
-}
-
-.display-choice input:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring-inset);
-}
-
-.display-choice:has(:disabled) {
   color: var(--id-color-text-subtle);
-  cursor: default;
 }
-
-.display-hint {
-  margin: var(--space-1) 0 0;
-  color: var(--id-color-text-subtle);
-  font-size: var(--font-size-xs);
-  line-height: var(--line-height-meta);
+.document-settings-values::before { content: "·"; margin-right: var(--space-2); }
+.document-settings-group { margin: 0; padding: 0; min-width: 0; border: 0; }
+.document-settings-row {
+  display: grid;
+  grid-template-columns: var(--layout-document-settings-label-width) minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+  padding-block: var(--space-2);
+}
+.document-settings-row > :first-child { padding-top: var(--space-1); overflow-wrap: anywhere; }
+.document-settings-control { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+.document-settings-row > label { min-height: var(--size-control-compact); cursor: pointer; }
+.document-settings-control input { width: var(--size-icon-slot); height: var(--size-icon-slot); accent-color: var(--id-color-interaction); }
+.document-settings-control input:focus-visible { outline: none; box-shadow: var(--focus-ring-inset); }
+.document-settings-control button { max-width: 100%; white-space: normal; height: auto; min-height: var(--size-control-compact); }
+.document-settings-group:disabled { color: var(--id-color-text-subtle); }
+.display-hint { margin: 0; color: var(--id-color-text-subtle); font-size: var(--font-size-xs); line-height: var(--line-height-meta); overflow-wrap: anywhere; }
+.document-settings-option {
+  display: flex; align-items: center; gap: var(--space-2);
+  min-height: var(--size-control); padding: var(--space-1) var(--space-2);
+  border-radius: var(--id-radius-sm); font-size: var(--font-size-sm);
+  line-height: var(--line-height-label); cursor: default; outline: none;
+}
+.document-settings-option[data-highlighted] { background: var(--id-color-surface-hover); }
+.document-settings-option[data-checked] { background: var(--id-color-surface-selected); color: var(--id-color-text-selected); }
+.document-settings-option:focus-visible { box-shadow: var(--focus-ring-inset); }
+.document-settings-option svg { width: var(--size-icon-slot); height: var(--size-icon-slot); flex: none; }
+.document-settings-preview { margin-left: var(--space-4); font-size: var(--font-size-xs); color: var(--id-color-text-muted); overflow-wrap: anywhere; }
+@media (width <= 60rem) {
+  .document-settings-row { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); }
 }
 
 .product {
@@ -713,7 +713,6 @@ button {
 @container (width < 35rem) {
   .top-bar-identity { display: contents; }
   .top-bar-sidebar { grid-column: 1; grid-row: 2; }
-  .top-bar-document-settings { grid-column: 2; grid-row: 2; justify-self: start; }
   .top-bar-actions { grid-column: 1 / -1; grid-row: 3; justify-self: stretch; min-width: 0; }
   .top-bar-identity .status { grid-column: 1 / -1; grid-row: 4; }
 }
@@ -2926,7 +2925,6 @@ ol.list { list-style: decimal; }
 .bibliography-choices > button { max-width: 100%; min-width: 0; flex-shrink: 1; }
 .bibliography-choices > button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
-.display-template-choice { display: grid; gap: var(--space-2); margin-top: var(--space-3); font-size: var(--font-size-sm); }
 
 /* The engine table owns its caption; native caption layout keeps it below the grid. */
 .table-grid:has(.table-caption) { padding-bottom: 0; }

@@ -1,3 +1,4 @@
+import { DocumentSettings, type DocumentSettingsHandle } from "./shell/DocumentSettings.tsx";
 import { EDITOR_SHORTCUTS, LINK_SHORTCUT } from "./shortcuts.ts";
 import { BibliographyContent, useBibliographyEntries, type BibliographyHandle } from "./Bibliography.tsx";
 import { CITATION_COMMAND, CitationForm, citationCommandItems, citationKeyOfCommand, insertCitation } from "./citation.tsx";
@@ -29,7 +30,7 @@ import { insertReference, referenceCommandItems, referenceOfCommand, ReferenceFo
 import { ENDNOTE_COMMAND, ENDNOTE_DRAFT_CLOSED, endnoteCommandItems, insertEndnote } from "./endnotes.ts";
 import { LinkForm, linkDraftOf, SelectionToolbar, type LinkDraft } from "./SelectionToolbar.tsx";
 import { Extension, getSchema, type Editor } from "@tiptap/core";
-import { EditorContent, useEditor, type UseEditorOptions } from "@tiptap/react";
+import { EditorContent, useEditor, useEditorState, type UseEditorOptions } from "@tiptap/react";
 import { Placeholder } from "@tiptap/extensions/placeholder";
 import { REFERENCE_STYLES, type ReferenceStyle } from "./reference-style.ts";
 import type { ReferenceTemplates } from "@ieumdoc/core/numbering";
@@ -68,6 +69,7 @@ export type DocumentEditorHandle = {
   canInsertInline(): boolean;
   openInlineInsertion(kind: "citation" | "reference"): void;
   openBibliographyConnection(returnFocus: HTMLElement | null): void;
+  openDocumentSettings(): void;
   toggleHeadingNumbering(): void;
   setReferenceStyle(style: ReferenceStyle): void;
   beginSave(): TiptapJSON;
@@ -92,6 +94,9 @@ function caretRoom(paper: RefObject<HTMLElement | null>, side: number) {
 }
 
 type DocumentEditorProps = {
+  settingsExpanded?: boolean;
+  onSettingsExpandedChange?(expanded: boolean): void;
+  settingsDisabled?: boolean;
   document: EditableDocument;
   bibliography?: DocumentFileResponse["bibliography"];
   /** Internal initialization only; the opening model remains the structural baseline. */
@@ -117,7 +122,7 @@ type DocumentEditorProps = {
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { document, bibliography, initialSnapshot, documentPath, onStructuralReject, onNotice, onDraftChange, onAssetPendingChange, onAssetError, onAssetChange, onDirtyChange, onAppliedEdit, onHeadingNumberingChange, onReferenceTemplatesChange, validateFigure, chooseImage, onOutlineChange },
+  { settingsExpanded = false, onSettingsExpandedChange, settingsDisabled = false, document, bibliography, initialSnapshot, documentPath, onStructuralReject, onNotice, onDraftChange, onAssetPendingChange, onAssetError, onAssetChange, onDirtyChange, onAppliedEdit, onHeadingNumberingChange, onReferenceTemplatesChange, validateFigure, chooseImage, onOutlineChange },
   ref,
 ) {
   useTranslation();
@@ -160,6 +165,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const [citationDraft, setCitationDraft] = useState<number | null>(null);
   const commandInsertion = useRef(false);
   const citationEntries = useBibliographyEntries(bibliography);
+  const documentSettings = useRef<DocumentSettingsHandle>(null);
   const bibliographyControls = useRef<BibliographyHandle>(null);
   const linkKey = useRef<(event: KeyboardEvent) => boolean>(() => false);
   const slashKeys = useRef<(event: KeyboardEvent) => boolean>(() => false);
@@ -265,6 +271,12 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     };
   });
   const editor = useEditor(editorOptions);
+  const settings = useEditorState({ editor, selector: ({ editor: current }) => current ? {
+    headingNumbering: Boolean(current.state.doc.attrs.headingNumbering),
+    referenceTemplates: current.state.doc.attrs.referenceTemplates as ReferenceTemplates | null,
+    bibliography: (current.state.doc.attrs.bibliography ?? []) as string[],
+    readOnly: !current.isEditable,
+  } : null });
   draftEditor.current = editor;
   // A draft transition invalidates the handle hints even when document geometry is unchanged.
   const moveBlockedHint = useCallback((index: number) => {
@@ -307,6 +319,17 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const hasDocumentChanges = (currentApplied?: string) => Boolean(editor && (currentApplied ?? JSON.stringify(appliedDocument(editorDocumentJSON(editor.state)))) !==
     JSON.stringify(appliedDocument(saved.current!)));
 
+  function setReferenceStyle(style: ReferenceStyle): void {
+    if (!editor?.isEditable) return;
+    editor.view.dispatch(closeHistory(editor.state.tr).setDocAttribute("referenceTemplates", REFERENCE_STYLES[style].templates));
+    editor.view.dispatch(closeHistory(editor.state.tr));
+  }
+  function toggleHeadingNumbering(): void {
+    if (!editor?.isEditable) return;
+    const settings = editor.state.doc.attrs.headingNumbering ? null : defaultHeadingNumbering(true);
+    editor.view.dispatch(editor.state.tr.setDocAttribute("headingNumbering", settings));
+  }
+
   useImperativeHandle(
     ref,
     () => ({
@@ -317,6 +340,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       undo() { if (editor?.isEditable) { runHistoryShortcut(editor.view, EDITOR_SHORTCUTS.undo); editor.view.focus(); } },
       redo() { if (editor?.isEditable) { runHistoryShortcut(editor.view, EDITOR_SHORTCUTS.redo); editor.view.focus(); } },
       canInsertInline() { return Boolean(editor?.isEditable && inlineInsertionAt(editor.state)); },
+      openDocumentSettings() { documentSettings.current?.reveal(); },
       openBibliographyConnection(returnFocus) { bibliographyControls.current?.connect(returnFocus); },
       openInlineInsertion(kind) {
         if (!editor?.isEditable) return;
@@ -329,16 +353,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         if (kind === "citation") setCitationDraft(caret.from);
         else setReferenceDraft({ from: caret.from, to: caret.to, text: "" });
       },
-      setReferenceStyle(style) {
-        if (!editor?.isEditable) return;
-        editor.view.dispatch(closeHistory(editor.state.tr).setDocAttribute("referenceTemplates", REFERENCE_STYLES[style].templates));
-        editor.view.dispatch(closeHistory(editor.state.tr));
-      },
-      toggleHeadingNumbering() {
-        if (!editor || !editor.isEditable) return;
-        const settings = editor.state.doc.attrs.headingNumbering ? null : defaultHeadingNumbering(true);
-        editor.view.dispatch(editor.state.tr.setDocAttribute("headingNumbering", settings));
-      },
+      setReferenceStyle,
+      toggleHeadingNumbering,
       beginSave() {
         if (!editor) throw new Error("Editor is not ready");
         // Separate subsequent typing from this save's undo event without changing the document.
@@ -566,6 +582,10 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         // The paper extends below the editor content, including in a brand-new document.
         if (event.button === 0 && event.target === event.currentTarget && focusEnd(event.clientY)) event.preventDefault();
       }}>
+      {settings ? <DocumentSettings ref={documentSettings} {...settings} expanded={settingsExpanded}
+        onExpandedChange={value => onSettingsExpandedChange?.(value)} disabled={settingsDisabled}
+        onToggleHeadingNumbering={toggleHeadingNumbering} onReferenceStyleChange={setReferenceStyle}
+        onConnectBibliography={target => bibliographyControls.current?.connect(target)} /> : null}
       {/* Outside the editable content, so it never takes the caret or reads as document text (#255). */}
       {editor.isEditable && editorTitleIndex(editor.state.doc) === undefined ? (
         <button type="button" className="document-title-slot" onMouseDown={event => event.preventDefault()}

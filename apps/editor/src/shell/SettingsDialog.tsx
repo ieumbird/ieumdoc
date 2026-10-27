@@ -1,7 +1,7 @@
 import { useMessageState } from "../ui-message.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, FileText, Info, Palette, History } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog.tsx";
@@ -81,6 +81,7 @@ export function SettingsDialog({ open, category, onCategoryChange, documentName,
   useTranslation();
   const backButton = useRef<HTMLButtonElement>(null);
   const connectDocumentSettings = useRef(false);
+  useEffect(() => { if (open) connectDocumentSettings.current = false; }, [open]);
   const [clearConfirm, setClearConfirm] = useState(false);
   const clearButton = useRef<HTMLButtonElement>(null);
   const [clearing, setClearing] = useState(false);
@@ -111,7 +112,6 @@ export function SettingsDialog({ open, category, onCategoryChange, documentName,
     <Dialog open={open} onOpenChange={(next) => { if (!next) close(); }}
       onOpenChangeComplete={next => {
         if (!next && connectDocumentSettings.current) {
-          connectDocumentSettings.current = false;
           onDocumentSettings();
         }
       }}>

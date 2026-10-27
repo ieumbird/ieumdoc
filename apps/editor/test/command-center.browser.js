@@ -476,13 +476,17 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   result.panelCommandsRetainFocus = true;
 
   // Resolve the exact named command even when folder paths match the same search words.
-  const documentSettings = page.getByRole('dialog',{name:'Document settings',exact:true});
+  const documentSettings = page.getByRole('region', {name:'Document settings',exact:true}).locator('.display-settings');
   for (const query of ['document settings', '문서 설정']) {
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     await run('Document settings…', query);
     await documentSettings.waitFor();
+    await page.getByRole('button',{name:'Document settings',exact:true}).and(page.locator(':focus')).waitFor();
+    const revealed = await page.getByRole('button',{name:'Document settings',exact:true}).evaluate(n => ({top:n.getBoundingClientRect().top, bottom:n.getBoundingClientRect().bottom, header:document.querySelector('.app-header').getBoundingClientRect().bottom, height:innerHeight}));
+    check(revealed.top>=revealed.header && revealed.bottom<=revealed.height, `Document settings is hidden behind the header: ${JSON.stringify(revealed)}`);
     await page.keyboard.press('Escape');
-    await documentSettings.waitFor({state:'detached'});
-    check(await page.getByRole('button',{name:'Collapse sidebar',exact:true}).evaluate(n=>n===document.activeElement), 'Document settings command lost its return target');
+    await documentSettings.waitFor({state:'hidden'});
+    check(await page.getByRole('button',{name:'Document settings',exact:true}).evaluate(n=>n===document.activeElement), 'Document settings command did not focus its disclosure');
   }
   result.documentSettingsCommands = true;
   const wideToggle = page.getByRole('button',{name:'Wide document',exact:true});

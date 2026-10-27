@@ -55,7 +55,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       { name: `${folder}/guide.md`, create: () => document("technical-document.md").create() },
       { name: `${folder}/diagram.svg`, create: () => document("diagram.svg").create() },
     ]),
-  ], scenarios: ["document-tabs", "recovery", "command-center"] },
+  ], scenarios: ["document-tabs", "recovery", "command-center", "inline-document-settings"] },
   // Preserve the parent directories: the running HTTP Host pins their filesystem identities.
   "http-host-a/fixture": { files: [
     { name: "bibliography.md", create: () => fixture("bibliography.md").create() },

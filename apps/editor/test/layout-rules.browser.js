@@ -191,7 +191,7 @@ async (page, { openPath, withBlockHover, expect }) => {
           const starts=selectors.map(s=>rect('[data-document-tab][data-active=true] .document-editor '+s).left);
           const controls=rect('.block-controls.visible');
           const standard=rect('[data-testid="save"]').height;
-          const compactSelectors=['.sidebar-header button','.top-bar-document-settings','[data-document-tab][data-active=true] .figure-edit','[data-document-tab][data-active=true] .equation-edit',...(collapsed?[]:['.sidebar-folder-actions button'])];
+          const compactSelectors=['.sidebar-header button','[data-document-tab][data-active=true] .figure-edit','[data-document-tab][data-active=true] .equation-edit',...(collapsed?[]:['.sidebar-folder-actions button'])];
           const compact=compactSelectors.flatMap(selector=>{
             const nodes=[...document.querySelectorAll(selector)];
             if(!nodes.length)throw Error(`Missing compact control: ${selector}`);
@@ -463,13 +463,13 @@ async (page, { openPath, withBlockHover, expect }) => {
   await toggle.click();
   if(!remembered||await page.locator('.app-shell--wide').count()!==0)throw Error('Wide document preference was not remembered or cleared');
   results.push({wide:{standard:standard.width,wide:wide.width}});
-  // The settings dialog fits the viewport independently of Sidebar width/state.
-  for(const width of [1920,1440,1280,1024,768,390,375]) {
+  // Inline settings fits the document at supported widths independently of Sidebar state.
+  for(const width of [1920,1440,1280,1024,768,640]) {
     await page.setViewportSize({width,height:800});
     await page.getByTestId('document-panel').waitFor({state:width>=1424?'visible':'detached'});
     const opener=page.getByRole('button',{name:'Document settings',exact:true});
     await opener.click();
-    const dialog=page.getByRole('dialog',{name:'Document settings',exact:true});
+    const dialog=page.getByRole('region', {name:'Document settings',exact:true}).locator('.display-settings');
     await dialog.waitFor();
     const bounds=await dialog.evaluate(n=>{
       const r=n.getBoundingClientRect();
@@ -478,7 +478,7 @@ async (page, { openPath, withBlockHover, expect }) => {
     });
     if(bounds.left<0||bounds.right>width||bounds.top<0||bounds.bottom>800||bounds.overflow||!bounds.controls.length||bounds.controls.some(c=>c.left<bounds.left||c.right>bounds.right||c.top<bounds.top||c.bottom>bounds.bottom))
       throw Error(`Document settings leaves viewport: ${JSON.stringify({width,bounds})}`);
-    await page.keyboard.press('Escape'); await dialog.waitFor({state:'detached'});
+    await page.keyboard.press('Escape'); await dialog.waitFor({state:'hidden'});
     if(!await opener.evaluate(n=>n===document.activeElement))throw Error('Settings did not restore opener focus');
     if(await page.getByTestId('sidebar').locator('.sidebar-tools').count())throw Error('Sidebar still switches tools');
   }

@@ -320,25 +320,22 @@ async (page, { screenshots = false, openPath }) => {
       if (width === 1440) {
         await page.getByRole('button',{name:language === 'en' ? 'Expand sidebar' : '사이드바 펼치기',exact:true})
           .and(page.locator(':focus')).waitFor();
-        // The document-settings handoff must resolve the visible return target when
-        // that dialog closes, including a second viewport change after the handoff.
-        for (const closeWidth of [390, 1440]) {
+        // Settings releases its modal before revealing the inline block, at supported widths.
+        for (const closeWidth of [640, 1440]) {
           await page.setViewportSize({width:1440,height:900});
           await page.getByRole('button',{name:language === 'en' ? 'Settings' : '설정',exact:true}).click();
           await dialog.waitFor();
-          await page.setViewportSize({width:390,height:900});
-          await page.getByTestId('sidebar').waitFor({state:'hidden'});
+          await page.setViewportSize({width:640,height:900});
           await dialog.getByRole('button',{name:language === 'en' ? 'Open document settings' : '문서 설정 열기',exact:true}).click();
           await dialog.waitFor({state:'detached'});
-          const documentSettings = page.getByRole('dialog',{name:language === 'en' ? 'Document settings' : '문서 설정',exact:true});
-          await documentSettings.waitFor();
+          const name = language === 'en' ? 'Document settings' : '문서 설정';
+          const body = page.getByRole('region',{name,exact:true}).locator('.display-settings');
+          const disclosure = page.getByRole('button',{name,exact:true});
+          await body.waitFor();
+          await disclosure.and(page.locator(':focus')).waitFor();
           await page.setViewportSize({width:closeWidth,height:900});
-          const returnName = closeWidth === 390
-            ? language === 'en' ? 'Expand sidebar' : '사이드바 펼치기'
-            : language === 'en' ? 'Collapse sidebar' : '사이드바 접기';
-          await page.getByRole('button',{name:returnName,exact:true,includeHidden:true}).filter({visible:true}).waitFor();
-          await page.keyboard.press('Escape'); await documentSettings.waitFor({state:'detached'});
-          await page.getByRole('button',{name:returnName,exact:true}).and(page.locator(':focus')).waitFor();
+          await page.keyboard.press('Escape'); await body.waitFor({state:'hidden'});
+          if (!await disclosure.evaluate(n=>n===document.activeElement)) throw Error('Inline settings lost focus after resize');
         }
       }
     }

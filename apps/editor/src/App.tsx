@@ -24,7 +24,6 @@ import { FolderDialog } from "./shell/FolderDialog.tsx";
 import { SettingsDialog, type SettingsCategory } from "./shell/SettingsDialog.tsx";
 import { UnsavedChangesDialog } from "./shell/UnsavedChangesDialog.tsx";
 import { Sidebar } from "./shell/Sidebar.tsx";
-import { DisplaySettings } from "./shell/DisplaySettings.tsx";
 import { folderChain, knownFolders, useFolderTrees, type FolderTreeState } from "./shell/folder-tree.ts";
 import { childPath, documentLocation, splitDocumentPath, unquotePath } from "./shell/document-path.ts";
 import { TopBar } from "./shell/TopBar.tsx";
@@ -208,7 +207,7 @@ export function App() {
   // A fresh editor action replaces an older shell notice such as Copy path.
   useLayoutEffect(() => { if (session?.noticeAction) setNotice(""); }, [session?.noticeAction]);
   const {
-    editorRef = emptyEditorRef, document, openedPath = "", headingNumbering = false, referenceTemplates, outlineStore,
+    editorRef = emptyEditorRef, document, openedPath = "", outlineStore,
     view = "visual", status: sessionStatus = "ready", error: sessionError = "", notice: sessionNotice = "",
     draftActive = false, assetPending = false, documentDirty = false, draftNotice = "", documentNotice = "",
     reloadDialog = false, imageChoice = null, imageReturnFocus = emptyImageRef,
@@ -363,10 +362,6 @@ export function App() {
   const [desktopInfo, setDesktopInfo] = useState<DesktopInfo | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsReturnFocus = useRef<HTMLElement | null>(null);
-  const [documentSettingsOpen, setDocumentSettingsOpen] = useState(false);
-  const documentSettingsButton = useRef<HTMLButtonElement>(null);
-  const documentSettingsReturnFocus = useRef<HTMLElement | null>(null);
-  const connectAfterSettings = useRef(false);
 
   // Resolve when an overlay closes: a viewport change can replace its original opener.
   function shellReturnFocus(preferred: HTMLElement | null): HTMLElement | true {
@@ -720,7 +715,7 @@ export function App() {
       keywords: ["settings", "설정"], run: () => { settingsReturnFocus.current = commandReturnFocus.current; setSettingsCategory("appearance"); setSettingsOpen(true); void refreshRecovery(); } },
     { id: "document-settings", kind: "command", label: i18n.t("Document settings…"), icon: SlidersHorizontal,
       disabled: historyDisabled, takesFocus: true, keywords: ["document settings", "문서 설정"],
-      run: () => { documentSettingsReturnFocus.current = commandReturnFocus.current; setDocumentSettingsOpen(true); } },
+      run: () => editorRef.current?.openDocumentSettings() },
     { id: "insert-citation", kind: "command", label: i18n.t("Insert citation…"), icon: Quote,
       disabled: inlineInsertionDisabled, takesFocus: true, keywords: ["insert citation", "인용 삽입"],
       run: () => editorRef.current?.openInlineInsertion("citation") },
@@ -792,10 +787,6 @@ export function App() {
             onOpenSidebar={sidebarOverlay && !sidebarOpen ? () => { sidebarFocus.current = "sidebar"; setSidebarOpen(true); } : undefined}
             openSidebarRef={openSidebarButton}
             documentPath={openedPath}
-            onDocumentSettings={() => { documentSettingsReturnFocus.current = documentSettingsButton.current; setDocumentSettingsOpen(true); }}
-            documentSettingsRef={documentSettingsButton}
-            documentSettingsDisabled={historyDisabled}
-            documentSettingsHint={documentSettingsHint}
             wide={documentWidth === "wide"}
             onToggleWide={toggleDocumentWidth}
             location={documentLocation(openedPath, folders.rootOf(openedPath))}
@@ -852,7 +843,7 @@ export function App() {
               })}
             />
           ) : null}
-          {tabs.map(tab => <DocumentTab key={tab.id} id={tab.id} file={tab.file} restored={tab.restored} recoveryId={tab.recoveryId} active={tab.id === activeId} report={reportSession} onAssetChange={onAssetChange} />)}
+          {tabs.map(tab => <DocumentTab settingsDisabled={busy} key={tab.id} id={tab.id} file={tab.file} restored={tab.restored} recoveryId={tab.recoveryId} active={tab.id === activeId} report={reportSession} onAssetChange={onAssetChange} />)}
         </main>
       </div>
       {panelOpen ? (
@@ -867,23 +858,6 @@ export function App() {
           }}
         />
       ) : null}
-      <Dialog open={documentSettingsOpen} onOpenChange={setDocumentSettingsOpen}
-        onOpenChangeComplete={open => {
-          if (!open && connectAfterSettings.current) {
-            connectAfterSettings.current = false;
-            editorRef.current?.openBibliographyConnection(documentSettingsReturnFocus.current);
-          }
-        }}>
-        <DialogContent finalFocus={() => connectAfterSettings.current ? false : shellReturnFocus(documentSettingsReturnFocus.current)}>
-          <DialogTitle>{i18n.t("Document settings")}</DialogTitle>
-          <DialogDescription className="sr-only">{i18n.t("Saved in this document")}</DialogDescription>
-          <DisplaySettings documentPath={openedPath} headingNumbering={headingNumbering} referenceTemplates={referenceTemplates}
-            onReferenceStyleChange={style => editorRef.current?.setReferenceStyle(style)}
-            onToggleHeadingNumbering={() => editorRef.current?.toggleHeadingNumbering()}
-            onConnectBibliography={() => { connectAfterSettings.current = true; setDocumentSettingsOpen(false); }}
-            numberingDisabled={historyDisabled} numberingHint={documentSettingsHint} />
-        </DialogContent>
-      </Dialog>
       <SettingsDialog
           open={settingsOpen}
           category={settingsCategory}
@@ -892,10 +866,7 @@ export function App() {
           unsaved={documentDirty || draftActive}
           documentSettingsDisabled={historyDisabled}
           documentSettingsHint={documentSettingsHint ?? ""}
-          onDocumentSettings={() => {
-            documentSettingsReturnFocus.current = settingsReturnFocus.current;
-            setDocumentSettingsOpen(true);
-          }}
+          onDocumentSettings={() => editorRef.current?.openDocumentSettings()}
           recoveryCount={recoveryRecords.length}
           recoveryProblem={recoveryProblem}
           onClearRecovery={() => deleteRecovery()}
