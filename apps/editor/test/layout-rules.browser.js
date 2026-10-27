@@ -355,9 +355,9 @@ async (page, { openPath, withBlockHover, expect }) => {
   const docked=await shell();
   const panelHeader=await page.locator('.document-panel-header').evaluate(header=>{
     const row=header.getBoundingClientRect(), title=header.querySelector('h2').getBoundingClientRect();
-    return {height:row.height,titleCenterDelta:Math.abs(title.top+title.height/2-row.top-row.height/2)};
+    return {height:row.height,sidebarHeight:document.querySelector('.sidebar-header').getBoundingClientRect().height,titleCenterDelta:Math.abs(title.top+title.height/2-row.top-row.height/2)};
   });
-  if(panelHeader.height!==48||panelHeader.titleCenterDelta>0.5)throw Error(`Outline header alignment: ${JSON.stringify(panelHeader)}`);
+  if(panelHeader.height!==panelHeader.sidebarHeight||panelHeader.titleCenterDelta>0.5)throw Error(`Outline header alignment: ${JSON.stringify(panelHeader)}`);
   await outlineToggle.click();
   await page.locator('.document-panel').waitFor({state:'detached'});
   const hidden=await shell();
