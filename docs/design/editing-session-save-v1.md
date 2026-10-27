@@ -23,6 +23,12 @@ before its first record. Queued local recording is also cancelled during the Hos
 subsequent dirty recording uses the new locator and a fresh nonce. Other paths and later edits
 keep their permissions. No new store or path tombstone is added. No file reread or semantic rewrite
 occurs. Storage failure after disk success is visible and does not pretend the disk operation failed.
+
+Deletion/rename recovery barriers match path strings. Until [#372](https://github.com/ieumbird/ieumdoc/issues/372)
+decides Windows locator identity, case-only aliases (for example, a different spelling in URL
+`?path=`) are treated as separate paths. Another window's delayed first recovery write may then
+leave an old-path record. There is no data loss; the extra record can be discarded.
+
 [Shell](editor-ux-shell-v1.md#file-context-menu-505--504-pr-a) and
 [Host](filesystem-host-boundary-v1.md#file-deletion-and-rename-505--504-pr-a) specify entry/validation.
 

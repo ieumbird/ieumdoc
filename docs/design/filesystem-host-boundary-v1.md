@@ -331,6 +331,11 @@ Vite/HTTP deletion is permanent, after the Editor names the file and confirms. D
 Successful operations return `{path}` and the Editor refreshes already-loaded parent listings.
 Asset rollback keeps its signed-receipt API and is not broadened by this user-confirmed file API.
 
+Deletion/rename recovery barriers match path strings. Until [#372](https://github.com/ieumbird/ieumdoc/issues/372)
+decides Windows locator identity, case-only aliases (for example, a different spelling in URL
+`?path=`) are treated as separate paths. Another window's delayed first recovery write may then
+leave an old-path record. There is no data loss; the extra record can be discarded.
+
 Image rename performs a request-local recursive scan of regular `.md` files under the outermost
 opened folder containing the image, including hidden files; symlinks are skipped. It admits each
 readable native document through Core's existing read model and resolves Figure paths through
