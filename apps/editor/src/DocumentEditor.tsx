@@ -26,7 +26,7 @@ import { addTitle, editorTitleIndex } from "./document-title.ts";
 import { CommandMenu, type CommandMenuItem } from "./CommandMenu.tsx";
 import { insertCommandIcon, blockCommandAppearance } from "./command-icons.ts";
 import { insertReference, referenceCommandItems, referenceOfCommand, ReferenceForm, referencesBrokenByDeletion, referenceTargets, isResolved, type ReferenceTarget } from "./cross-reference.tsx";
-import { ENDNOTE_COMMAND, ENDNOTE_DRAFT_CLOSED, endnoteCommandItems, insertEndnote } from "./endnotes.ts";
+import { ENDNOTE_COMMAND, ENDNOTE_DRAFT_CLOSED, endnoteAt, endnoteCommandItems, endnoteEditingKey, endnoteEditorToken, insertEndnote, setEndnoteEditing } from "./endnotes.ts";
 import { LinkForm, linkDraftOf, SelectionToolbar, type LinkDraft } from "./SelectionToolbar.tsx";
 import { Extension, getSchema, type Editor } from "@tiptap/core";
 import { EditorContent, useEditor, type UseEditorOptions } from "@tiptap/react";
@@ -403,6 +403,28 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
 
   useEffect(() => {
     if (!editor) return;
+    const leave = (event: Event) => {
+      const active = endnoteEditingKey.getState(editor.state);
+      if (!active) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      // The definition and its transient controls explicitly carry their owning label.
+      const owned = target.closest<HTMLElement>("[data-endnote-owner][data-endnote-editor]");
+      if (owned?.dataset.endnoteOwner === active && owned.dataset.endnoteEditor === endnoteEditorToken(editor)) return;
+      // Focus returns to the editor root after a form closes; its engine selection is authoritative.
+      if (event.type === "focusin" && target === editor.view.dom && endnoteAt(editor.state, editor.state.selection.from) === active) return;
+      setEndnoteEditing(editor, null);
+    };
+    globalThis.document.addEventListener("pointerdown", leave, true);
+    globalThis.document.addEventListener("focusin", leave, true);
+    return () => {
+      globalThis.document.removeEventListener("pointerdown", leave, true);
+      globalThis.document.removeEventListener("focusin", leave, true);
+    };
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor) return;
     if (!visible) return;
     // Recompute on edits, scrolling and resizing; report only when something changed.
     let reported: DocumentOutline | null = null;
@@ -579,6 +601,12 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         onOpenMenu={openBlockMenu}
         moveBlockedHint={moveBlockedHint}
       /> : null}
+      <div style={{ display: "contents" }} data-endnote-editor={endnoteEditorToken(editor)} data-endnote-owner={
+        referenceDraft ? endnoteAt(editor.state, referenceDraft.from) ?? undefined :
+          citationDraft !== null && citationDraft <= editor.state.doc.content.size ? endnoteAt(editor.state, citationDraft) ?? undefined :
+            linkDraft ? endnoteAt(editor.state, linkDraft.from) ?? undefined :
+              formatting ? endnoteAt(editor.state, formatting.from) ?? undefined : undefined
+      }>
       {referenceDraft && referenceStyle ? (
         <ReferenceForm
           editor={editor}
@@ -633,7 +661,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           }}
         />
       ) : null}
+      </div>
       {slashStyle && slash ? (
+        <div style={{ display: "contents" }} data-endnote-editor={endnoteEditorToken(editor)} data-endnote-owner={endnoteAt(editor.state, slash.from) ?? undefined}>
         <CommandMenu
           key={`slash-${slash.from}`}
           label={i18n.t("Insert block")}
@@ -643,6 +673,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           onSelect={id => runInsert(id, slash.index, slash)}
           onClose={() => setSlashDismissed(slash.from)}
         />
+        </div>
       ) : null}
       {blockMenu?.kind === "insert" && blockMenuStyle ? (
         <CommandMenu

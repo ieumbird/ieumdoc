@@ -13,6 +13,7 @@ import { referenceNumberText, captionNumberText, type ReferenceTemplates, blockT
 import { Button } from "@/components/ui/button.tsx";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 import { tableCaption } from "./tiptap-edits.ts";
+import { canEditEndnoteAt } from "./endnotes.ts";
 
 /** A labeled Equation, Figure, Table or section in the current editor document that a reference
  * can name, with its computed number or, for a section, its heading text. */
@@ -366,6 +367,11 @@ function CrossReferenceView({ node, editor, getPos, updateAttributes, selected }
   const role = node.attrs.role as ReferenceRole;
   const label = String(node.attrs.label ?? "");
   const [editing, setEditing] = useState(false);
+  const canEdit = useEditorState({ editor, selector: ({ editor: current }) => {
+    const pos = getPos();
+    return !!current && typeof pos === "number" && canEditEndnoteAt(current.state, pos);
+  } });
+  useEffect(() => { if (!canEdit) setEditing(false); }, [canEdit]);
   // Resolution follows label changes anywhere in the document, including unsaved ones.
   const targets = useEditorState({
     editor,
@@ -374,7 +380,7 @@ function CrossReferenceView({ node, editor, getPos, updateAttributes, selected }
   const { text, resolved, kindName } = referenceDisplay(JSON.parse(targets ?? "[]") as ReferenceTarget[], role, label);
   const close = () => {
     setEditing(false);
-    editor.commands.focus();
+    editor.view.focus();
   };
   // Replace the reference with its label as ordinary text, keeping bold/italic marks.
   const remove = () => {
@@ -398,14 +404,14 @@ function CrossReferenceView({ node, editor, getPos, updateAttributes, selected }
     >
       {/* A resolved reference goes to its target; one without a target opens the form. */}
       <span className="cross-reference-chip" title={status} aria-label={status}
-        onClick={() => { if (!revealReferenceTarget(editor, role, label)) setEditing(true); }}>
+        onClick={() => { if (!revealReferenceTarget(editor, role, label) && canEdit) setEditing(true); }}>
         {text}
       </span>
-      <button type="button" className="cross-reference-edit" aria-label={i18n.t("Edit reference")} title={i18n.t("Edit reference")}
+      {canEdit ? <button type="button" className="cross-reference-edit" aria-label={i18n.t("Edit reference")} title={i18n.t("Edit reference")}
         data-testid="cross-reference-edit" onMouseDown={(event) => event.preventDefault()} onClick={() => setEditing(true)}>
         <Pencil aria-hidden="true" size={12} />
-      </button>
-      {editing ? (
+      </button> : null}
+      {editing && canEdit ? (
         <ReferenceForm
           className="cross-reference-form"
           editor={editor}

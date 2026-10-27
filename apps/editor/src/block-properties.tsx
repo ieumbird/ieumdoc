@@ -9,7 +9,7 @@ import { Notice } from "./ui/primitives.tsx";
 
 /** Explicit block editing. Selection and outside interaction never apply or discard input. */
 export function BlockProperties({
-  anchor, initialFocus, kind, testId, open, error, busy, onApply, onCancel, children,
+  anchor, initialFocus, kind, testId, open, error, busy, onApply, onCancel, children, endnoteOwner,
 }: {
   anchor: RefObject<HTMLElement | null>;
   /** The field Edit focuses. Views that focus their own field after insertion omit it. */
@@ -19,6 +19,7 @@ export function BlockProperties({
   open: boolean;
   error?: string;
   busy?: boolean;
+  endnoteOwner?: { label: string; editor: string };
   onApply(): void;
   onCancel(): void;
   children: ReactNode;
@@ -39,6 +40,8 @@ export function BlockProperties({
         finalFocus={false}
         aria-label={i18n.t("{{kind}} properties", { kind: kind })}
         data-testid={`${testId}-properties`}
+        data-endnote-owner={endnoteOwner?.label}
+        data-endnote-editor={endnoteOwner?.editor}
         className="block-properties"
       >
         <p className="overlay-title">{kind}</p>

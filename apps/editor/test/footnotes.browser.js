@@ -55,6 +55,57 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   const placed = '---\nieumdoc: 1\n---\n\n# Footnotes\n\nFirst claim[^b] and second[^a].\n\nMiddle paragraph.\n\n[^b]: Defined first.\n\n' +
     '[^a]: Defined later,\n    on two lines.\n';
   await open(file);
+  const firstDefinition = editor.locator('[data-testid="footnote-definition"][data-label="b"]');
+  if (screenshots) {
+    for (const width of [1440, 640]) {
+      await page.setViewportSize({width, height: 900});
+      await firstDefinition.scrollIntoViewIfNeeded();
+      await page.evaluate(() => document.activeElement?.blur());
+      await page.mouse.move(0, 0);
+      await page.screenshot({path: `tmp/endnotes-579/rest-${width}.png`, fullPage: true});
+      await firstDefinition.locator('p').dblclick({position: {x: 8, y: 10}});
+      await page.keyboard.press('End');
+      await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.$from.parent.attrs.label === 'b');
+      await page.screenshot({path: `tmp/endnotes-579/edit-${width}.png`, fullPage: true});
+      await editor.locator('p.paragraph', {hasText: 'Middle paragraph.'}).click();
+    }
+    await page.setViewportSize({width: 1280, height: 720});
+  }
+  assert(await firstDefinition.getAttribute('aria-readonly') === 'true', 'Endnotes start read-only');
+  await editor.locator('p.paragraph', {hasText: 'Middle paragraph.'}).click();
+  await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.$from.parent.textContent === 'Middle paragraph.');
+  await page.keyboard.press('End');
+  await page.waitForFunction(() => { const {$from} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection; return $from.parentOffset === $from.parent.content.size; });
+  await page.keyboard.press('ArrowRight');
+  await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.node?.attrs.label === 'b');
+  await page.keyboard.press('Enter');
+  assert(await firstDefinition.getAttribute('aria-readonly') === 'false', 'Keyboard Enter starts editing');
+  await page.keyboard.press('Escape');
+  assert(await firstDefinition.getAttribute('aria-readonly') === 'true', 'Keyboard Escape ends editing');
+  await firstDefinition.locator('p').click();
+  await page.keyboard.type('Unexpected');
+  assert((await firstDefinition.locator('p').innerText()) === 'Defined first.', 'A single click and typing changed a read-only definition');
+  assert(await firstDefinition.getAttribute('aria-readonly') === 'true', 'A single click started editing');
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.evaluate(() => navigator.clipboard.writeText('Pasted text'));
+  await page.keyboard.press('Control+v');
+  assert((await firstDefinition.locator('p').innerText()) === 'Defined first.', 'Paste changed a read-only definition');
+  await firstDefinition.locator('p').click();
+  await page.keyboard.press('Enter');
+  assert(await firstDefinition.getAttribute('aria-readonly') === 'false', 'Enter did not start editing');
+  await page.keyboard.press('Escape');
+  assert(await firstDefinition.getAttribute('aria-readonly') === 'true', 'Escape did not end editing');
+  // Let the NodeView's editable-to-read-only rendering settle before the next physical key.
+  const rendered = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await rendered();
+  await page.keyboard.press('ArrowDown');
+  await rendered();
+  assert(await editor.evaluate(element => element.editor.state.selection.node?.attrs.label) === 'a', 'ArrowDown selects the next read-only definition');
+  await page.keyboard.press('ArrowUp');
+  await rendered();
+  assert(await editor.evaluate(element => element.editor.state.selection.node?.attrs.label) === 'b', 'ArrowUp selects the previous read-only definition');
+  await page.keyboard.press('Tab');
+  assert((await firstDefinition.locator('p').innerText()) === 'Defined first.', 'Arrow or Tab navigation changed a read-only definition');
   assert(await read() === written, 'Opening changed the file');
   assert(await order() === 'heading paragraph paragraph b a', `Opened order: ${await order()}`);
   assert(await status() !== 'Unsaved changes', 'Opening made the document dirty');
@@ -71,7 +122,7 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   result.numberedByFirstReference = true;
 
   await editor.locator('[data-testid="footnote-reference"][data-label="a"] sup').click();
-  const selected = await page.evaluate(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.$from.parent.attrs.label);
+  const selected = await page.evaluate(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.node?.attrs.label);
   assert(selected === 'a', `Chip went to ${selected}`);
   result.chipGoesToDefinition = true;
 
@@ -92,12 +143,14 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   assert(JSON.stringify(await texts(chips)) === '["1","2"]' && await notice.count() === 0, 'Reloaded chips or notice');
   result.firstSavePlacesEndnotes = true;
 
-  // A chip goes into its editable definition, which is edited in place.
+  // A chip selects its read-only definition; Enter explicitly begins editing.
   const caretIn = label => page.waitForFunction(label => {
     const {selection} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state;
     return selection.empty && selection.$from.parent.type.name === 'footnoteDefinition' && selection.$from.parent.attrs.label === label;
   }, label);
   await editor.locator('[data-testid="footnote-reference"][data-label="b"] sup').click();
+  assert(await editor.evaluate(element => element.editor.state.selection.node?.attrs.label) === 'b', 'Reference must select its definition before Enter');
+  await page.keyboard.press('Enter');
   await caretIn('b');
   await page.keyboard.type(' More.');
   result.chipGoesIntoEditableDefinition = true;
@@ -114,7 +167,7 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   await page.keyboard.press('Control+z');
   assert(JSON.stringify(await texts(chips)) === '["1","2"]' && await created.count() === 0, 'Undo left part of the footnote');
   await page.keyboard.press('Control+Shift+z');
-  await created.locator('p').click();
+  await created.locator('p').dblclick();
   await caretIn('1');
   await page.keyboard.type('New note.');
   assert(JSON.stringify(await texts(chips)) === '["1","2","3"]', `Chips after insertion: ${await texts(chips)}`);
@@ -179,6 +232,27 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   const regionsPlaced = [...regionsBody, ...regionsNotes].join('\n\n') + '\n';
   assert(regionsSource !== regionsPlaced, 'Fixture already places its endnotes');
   const originalState = await editor.evaluate(element => JSON.stringify(element.editor.getJSON()));
+  const richNote = editor.locator('[data-testid="footnote-definition"][data-label="c"]');
+  const inlineMath = richNote.getByTestId('inline-math');
+  await inlineMath.dblclick();
+  assert(await page.getByTestId('inline-math-properties').count() === 0, 'A read-only definition cannot open inline math properties');
+  assert(await richNote.getAttribute('aria-readonly') === 'true', 'Inline math does not implicitly open the definition');
+  await richNote.locator('p').dblclick({position: {x: 8, y: 10}});
+  await inlineMath.dblclick();
+  await page.getByTestId('inline-math-properties').waitFor();
+  assert(await richNote.getAttribute('aria-readonly') === 'false', 'Inline math properties retain their endnote edit session');
+  await page.getByTestId('inline-math-source').fill('x+1');
+  await page.getByRole('button', {name: 'Settings', exact: true}).focus();
+  assert(await richNote.getAttribute('aria-readonly') === 'true', 'Focus outside the properties ends endnote editing');
+  assert(await page.getByTestId('inline-math-source').isDisabled() && await page.getByTestId('inline-math-apply').isDisabled(), 'A retained property draft cannot edit a read-only definition');
+  await richNote.locator('p').dblclick({position: {x: 8, y: 10}});
+  assert(await page.getByTestId('inline-math-source').inputValue() === 'x+1' && !await page.getByTestId('inline-math-source').isDisabled(), 'Reopening retains the property draft');
+  await page.getByTestId('inline-math-cancel').click();
+  await page.getByTestId('inline-math-properties').waitFor({state: 'detached'});
+  assert(await richNote.getAttribute('aria-readonly') === 'false', 'Cancel returns to the editing definition');
+  await page.keyboard.press('Escape');
+  assert(await richNote.getAttribute('aria-readonly') === 'true', 'Escape returns the definition to read-only');
+  assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === originalState, 'Property entry changed the document');
   // The region's decorative label is not a heading: the Outline lists the document's one heading.
   // At the default 1280px viewport the Outline is an explicit overlay.
   await page.getByRole('button',{name:'Outline',exact:true}).click();
@@ -257,7 +331,7 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
     assert(await page.getByRole('menuitem', {name, exact:true}).isDisabled(), `Endnote menu enables ${name}`);
   }
   const actions = await page.getByRole('menuitem').allInnerTexts();
-  assert(actions.length > 0 && actions.every(item => !/미주로 모으기|Insert/.test(item)), `Endnote actions: ${actions}`);
+  assert(actions.length > 0 && actions.every(item => !/미주로 모으기|Insert|Change to/.test(item)), `Endnote actions: ${actions}`);
   await page.keyboard.press('Escape');
   const resumes = editor.locator('p.paragraph', {hasText:'Body resumes'});
   await resumes.hover({position:{x:4, y:4}});
@@ -277,7 +351,7 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
 
   // Enter exits a definition into the body before the region. The appended ordering
   // transaction shares the engine's original history event.
-  await editor.locator('[data-testid="footnote-definition"][data-label="b"] p').click();
+  await editor.locator('[data-testid="footnote-definition"][data-label="b"] p').dblclick();
   await caretIn('b');
   await page.keyboard.press('Enter');
   assert((await presentation()).notes.filter(note => note.heading === '"미주"').length === 1, 'Enter split the endnotes region');
@@ -393,13 +467,15 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   // Repeated references return to the invoking occurrence after definition and body edits.
   await open(fixture('repeat.md'));
   await editor.locator('[data-label="x"][data-testid="footnote-reference"] sup').nth(1).click();
+  await page.keyboard.press('Enter');
   await caretIn('x');
   await page.keyboard.type(' Edited.');
   await editor.locator('[data-testid="footnote-definition"][data-label="x"] [data-testid="footnote-number"]').click();
   assert(await editor.evaluate(element => element.editor.state.selection.$from.parent.textContent.startsWith('Second')), 'Returned to first reference');
   await editor.locator('[data-label="x"][data-testid="footnote-reference"] sup').nth(1).click();
-  await caretIn('x');
+  assert(await editor.evaluate(element => element.editor.state.selection.node?.attrs.label) === 'x', 'Repeated reference did not select the definition');
   await editor.locator('p.paragraph', {hasText:'First'}).click();
+  await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.$from.parent.textContent.startsWith('First'));
   await page.keyboard.press('Home');
   await page.keyboard.type('Prefix ');
   await editor.locator('[data-testid="footnote-definition"][data-label="x"] [data-testid="footnote-number"]').click();
@@ -408,8 +484,49 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   assert(await editor.locator('[data-testid="footnote-definition"][data-label="x"] [data-testid="footnote-number"]').getAttribute('aria-label') === 'Endnote 1. Return to the reference.', 'Number has no accessible name');
   await save.click();
   await saved();
-  assert(await reader(fixture('repeat.md'))() === '---\nieumdoc: 1\n---\n\n# Repeated note\n\nPrefix First[^x].\n\nSecond[^x] and other[^y].\n\n[^x]: Shared note. Edited.\n\n[^y]: Other note.\n', 'Repeated note saved differently');
+  const repeatedSaved = await reader(fixture('repeat.md'))();
+  assert(repeatedSaved === '---\nieumdoc: 1\n---\n\n# Repeated note\n\nPrefix First[^x].\n\nSecond[^x] and other[^y].\n\n[^x]: Shared note. Edited.\n\n[^y]: Other note.\n', 'Repeated note saved differently: ' + JSON.stringify(repeatedSaved));
   result.returnToInvokingReference = true;
+
+  const note = editor.locator('[data-testid="footnote-definition"][data-label="x"]');
+  await note.locator('p').dblclick();
+  await page.getByRole('button', {name: 'Settings', exact: true}).focus();
+  assert(await note.getAttribute('aria-readonly') === 'true', 'Focus outside the endnote ends editing');
+  await editor.evaluate(element => element.editor.view.focus());
+  assert(await editor.evaluate(element => element.editor.state.selection.node?.attrs.label) === 'x', 'Returning focus does not put a caret inside the read-only definition');
+  await note.locator('p').dblclick();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' /');
+  await page.getByRole('menu', {name: 'Insert block', exact: true}).waitFor();
+  await page.keyboard.press('Escape');
+  assert(await note.getAttribute('aria-readonly') === 'false', 'Escape closes the slash menu before the endnote');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.press('Escape');
+  assert(await note.getAttribute('aria-readonly') === 'true', 'Escape closes the endnote after the menu');
+
+  // Dragging inside the read-only definition cannot turn it into an editing selection.
+  const box = await note.locator('p').boundingBox();
+  await page.mouse.move(box.x + 8, box.y + 8);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 70, box.y + 8, {steps: 4});
+  await page.mouse.up();
+  const beforeDragInput = await editor.evaluate(element => JSON.stringify(element.editor.getJSON()));
+  await page.keyboard.type('drag');
+  assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === beforeDragInput, 'Drag then typing changed a read-only definition');
+
+  // Chromium composition on a selected read-only node cannot modify its document.
+  await note.locator('p').click();
+  const beforeCompositionText = await note.locator('p').innerText();
+  const beforeComposition = await editor.evaluate(element => JSON.stringify(element.editor.getJSON()));
+  const input = await page.context().newCDPSession(page);
+  await input.send('Input.imeSetComposition', {text: 'ㅎ', selectionStart: 1, selectionEnd: 1});
+  await input.send('Input.imeSetComposition', {text: '한글', selectionStart: 2, selectionEnd: 2});
+  await input.send('Input.insertText', {text: '한글'});
+  await rendered();
+  assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === beforeComposition, 'IME changed a read-only definition');
+  assert(await note.locator('p').innerText() === beforeCompositionText, 'IME changed read-only rendered text');
+  await input.detach();
 
   return result;
 }

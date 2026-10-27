@@ -1,4 +1,4 @@
-import { createContext, useContext, useId, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { flushSync } from "react-dom";
 import type { BibliographyEntry, BibliographyEvaluation } from "@ieumdoc/core";
 import { Node, type Editor } from "@tiptap/core";
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { Combobox } from "@base-ui/react/combobox";
 import { useEditorVisible } from "./editor-visibility.ts";
-import { endnoteBlocks } from "./endnotes.ts";
+import { canEditEndnoteAt, endnoteBlocks } from "./endnotes.ts";
 import { i18n } from "./i18n.ts";
 import { useMessageState } from "./ui-message.ts";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
@@ -106,9 +106,14 @@ function CitationView({ node, editor, getPos, updateAttributes, selected }: Reac
   const bibliography = useBibliography();
   const status = citationStatus(keys, text, bibliography);
   const [editing, setEditing] = useState(false);
+  const canEdit = useEditorState({ editor, selector: ({ editor: current }) => {
+    const pos = getPos();
+    return !!current && typeof pos === "number" && canEditEndnoteAt(current.state, pos);
+  } });
+  useEffect(() => { if (!canEdit) setEditing(false); }, [canEdit]);
   const close = () => {
     setEditing(false);
-    editor.commands.focus();
+    editor.view.focus();
   };
   // Core's removal deletes the atom and keeps the surrounding text; no key text is left behind.
   const remove = () => {
@@ -121,11 +126,11 @@ function CitationView({ node, editor, getPos, updateAttributes, selected }: Reac
     data-role={role} data-keys={JSON.stringify(keys)}
     data-selected={String(selected)} data-readiness={citationReadiness(keys, bibliography)}>
     <span className="cross-reference-chip" title={status} aria-label={status}>{text}</span>
-    <button type="button" className="cross-reference-edit" aria-label={i18n.t("Edit citation")} title={i18n.t("Edit citation")}
+    {canEdit ? <button type="button" className="cross-reference-edit" aria-label={i18n.t("Edit citation")} title={i18n.t("Edit citation")}
       data-testid="citation-edit" onMouseDown={event => event.preventDefault()} onClick={() => setEditing(true)}>
       <Pencil aria-hidden="true" size={12} />
-    </button>
-    {editing ? <CitationForm className="cross-reference-form" entries={bibliography?.entries} current={{ role, keys }}
+    </button> : null}
+    {editing && canEdit ? <CitationForm className="cross-reference-form" entries={bibliography?.entries} current={{ role, keys }}
       onApply={citation => { updateAttributes({ role: citation.role, keys: citation.keys }); close(); }}
       onRemove={remove} onClose={close} onDismiss={() => setEditing(false)} /> : null}
   </NodeViewWrapper>;

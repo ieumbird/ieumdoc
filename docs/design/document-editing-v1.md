@@ -122,6 +122,9 @@ A changed document recomputes numbering; source semantics and canonical output a
   metadata line is its object selection/double-click surface; cells and both Figure/Table
   captions retain normal text/caret/word selection. Figure image, empty-content and error
   surfaces and block/inline formula previews use the same property entry path.
+- Endnote definitions use the same explicit selection, Enter and double-click entry pattern for
+  in-place editing. Their read-only state and the ownership of their formatting and insertion
+  tools are specified in [Endnotes](footnotes-v1.md#editor).
 - Opening properties changes neither document nor history; re-entry preserves the current
   draft and error. A newly inserted empty Equation still opens automatically. Inline math
   uses the shared BlockProperties form with explicit Apply, Cancel and Escape. Outside
