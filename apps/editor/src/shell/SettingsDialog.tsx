@@ -8,10 +8,11 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import type { DesktopBridge, DesktopInfo, OfferedUpdate, ReleaseChannel, UpdateState } from "../../shared/desktop-bridge.ts";
 import { RecoveryDeleteDialog } from "./Recovery.tsx";
 import { Notice } from "../ui/primitives.tsx";
-import { ACCENT_COLORS, readAccentColor, writeAccentColor, writeUiLanguage, THEMES, writeTheme, type AccentColor, type UiLanguage, type ThemePreference } from "../preferences.ts";
-import { applyTheme, currentTheme } from "../theme.ts";
+import { PAGE_BACKGROUNDS, readPageBackground, writePageBackground, type PageBackground, ACCENT_COLORS, readAccentColor, writeAccentColor, writeUiLanguage, THEMES, writeTheme, type AccentColor, type UiLanguage, type ThemePreference } from "../preferences.ts";
+import { applyPageBackground, applyTheme, currentTheme } from "../theme.ts";
 
 const ACCENT_LABELS = { blue: "Blue", violet: "Violet", plum: "Plum", teal: "Teal", green: "Green", graphite: "Graphite" } as const;
+const PAGE_LABELS = { paper: "Paper view", flat: "White screen" } as const;
 const THEME_LABELS = { system: "System", light: "Light", dark: "Dark" } as const;
 
 const CHANNELS: { value: ReleaseChannel; label: string; hint: string }[] = [
@@ -89,6 +90,8 @@ export function SettingsDialog({ open, category, onCategoryChange, documentName,
   const [accent, setAccent] = useState(readAccentColor);
   const [accentProblem, setAccentProblem] = useState(false);
   const [theme, setTheme] = useState(currentTheme);
+  const [page, setPage] = useState(readPageBackground);
+  const [pageProblem, setPageProblem] = useState(false);
   const [themeProblem, setThemeProblem] = useState(false);
   const state = info?.update;
   const offered = state && "version" in state ? state : state?.phase === "error" ? state.update : undefined;
@@ -166,6 +169,22 @@ export function SettingsDialog({ open, category, onCategoryChange, documentName,
                     {THEMES.map(value => <option key={value} value={value}>{i18n.t(THEME_LABELS[value])}</option>)}
                   </select>
                   {themeProblem ? <p role="alert">{i18n.t("Theme could not be saved. This choice applies until you close this page.")}</p> : null}
+                </section>
+                <section className="settings-section" aria-labelledby="settings-page">
+                  <div className="settings-label">
+                    <h3 id="settings-page" className="settings-heading">{i18n.t("Page background")}</h3>
+                    <p>{i18n.t("White screen uses one dark surface in Dark theme.")}</p>
+                  </div>
+                  <select className="form-select h-[var(--size-control)] w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring" aria-labelledby="settings-page" data-testid="page-background"
+                    value={page} onChange={event => {
+                      const choice = event.target.value as PageBackground;
+                      applyPageBackground(choice);
+                      setPage(choice);
+                      setPageProblem(!writePageBackground(choice));
+                    }}>
+                    {PAGE_BACKGROUNDS.map(value => <option key={value} value={value}>{i18n.t(PAGE_LABELS[value])}</option>)}
+                  </select>
+                  {pageProblem ? <p role="alert">{i18n.t("Page background could not be saved. This choice applies until you close this page.")}</p> : null}
                 </section>
                 <section className="settings-section" aria-labelledby="settings-language">
                   <div className="settings-label">

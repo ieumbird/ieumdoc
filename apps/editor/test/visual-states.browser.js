@@ -1,5 +1,5 @@
 // Computed state combinations on the real UI; screenshot-only review stays outside this test.
-async (page, { withBlockHover }) => {
+async (page, { withBlockHover, reloadDocument, recoveryRecords, expect }) => {
   const themes = [];
   for (const theme of ['light', 'dark']) {
   const check = (value, message) => { if (!value) throw Error(message); };
@@ -82,18 +82,20 @@ async (page, { withBlockHover }) => {
       shadow:getComputedStyle(paper).boxShadow, radius:getComputedStyle(paper).borderRadius,
       floating:getComputedStyle(document.querySelector('.top-bar')).backgroundColor});
     const before = read();
-    const overrides = {'--id-color-canvas':'var(--id-color-paper)', '--size-paper-border':'0px',
-      '--shadow-paper':'0 0 0 transparent', '--id-radius-paper':'0px'};
+    const editor = paper.querySelector('.document-editor');
+    const geometry = () => {const r=editor.getBoundingClientRect(); return [r.x,r.y,r.width,r.height];};
+    const beforeGeometry = geometry();
     try {
-      for (const [key,value] of Object.entries(overrides)) root.style.setProperty(key,value);
-      return {before,flat:read()};
-    } finally { for (const key of Object.keys(overrides)) root.style.removeProperty(key); }
+      root.dataset.page = 'flat';
+      return {before,flat:read(),beforeGeometry,flatGeometry:geometry()};
+    } finally { root.dataset.page = 'paper'; }
   });
   check(paperRoles.before.paper !== paperRoles.before.canvas && paperRoles.before.shadow.includes('1px inset'),
     `Paper must retain a real thin boundary in ${theme}: ${JSON.stringify(paperRoles)}`);
   check(paperRoles.flat.paper === paperRoles.flat.canvas && paperRoles.flat.radius === '0px' &&
     !paperRoles.flat.shadow.includes('1px') && paperRoles.flat.floating === paperRoles.before.floating,
     'Flattening the page must only need paper variables and must not change floating surfaces');
+  check(JSON.stringify(paperRoles.beforeGeometry) === JSON.stringify(paperRoles.flatGeometry), 'Page background moved or resized the editor');
   await page.mouse.move(0,0);
   const results = [];
   for (const [label, current, other, direction] of [
@@ -287,6 +289,8 @@ async (page, { withBlockHover }) => {
   // Actual resolved product roles: thresholds apply to text, control boundaries and indicators,
   // not decorative separators or the small difference between rest and hover backgrounds.
   const contrasts = [];
+  for (const pageBackground of ['paper','flat']) {
+  await page.evaluate(value => {document.documentElement.dataset.page = value;}, pageBackground);
   for (const preset of ['blue','violet','plum','teal','green','graphite']) {
   await page.evaluate(preset => { document.documentElement.dataset.accent = preset; }, preset);
   const measured = await page.evaluate(() => {
@@ -309,14 +313,16 @@ async (page, { withBlockHover }) => {
     for (const fg of ['info','warning','danger']) pairs.push([fg,'surface-muted',4.5]);
     if (document.documentElement.dataset.theme === 'dark') for (const bg of ['paper','surface-subtle']) pairs.push(['border',bg,3]);
     for (const [fg,bg] of [['text-on-accent','accent'],['text-on-accent','accent-hover'],['danger','surface-danger'],['info','surface-info'],['warning','surface-warning']]) pairs.push([fg,bg,4.5]);
-    for (const bg of ['paper','surface','surface-subtle','surface-hover','surface-pressed','surface-selected','surface-selected-hover']) {
+    for (const bg of ['canvas','paper','surface','surface-subtle','surface-hover','surface-pressed','surface-selected','surface-selected-hover']) {
       pairs.push(['interaction',bg,3]);
       pairs.push(['border-control',bg,3]);
     }
     return pairs.map(([fg,bg,min]) => {const a=lum(rgb(fg)),b=lum(rgb(bg)); return {fg,bg,min,ratio:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)};});
   });
-  contrasts.push(...measured.map(c => ({theme,preset,...c})));
+  contrasts.push(...measured.map(c => ({theme,pageBackground,preset,...c})));
   }
+  }
+  await page.evaluate(() => {document.documentElement.dataset.page = "paper";});
   await page.evaluate(() => { document.documentElement.dataset.accent = 'blue'; });
   check(contrasts.every(c => c.ratio >= c.min), `Contrast failure: ${JSON.stringify(contrasts.filter(c => c.ratio < c.min))}`);
   // The approved non-color cue may change glyph widths. It must not jump these rows vertically,
@@ -355,6 +361,15 @@ async (page, { withBlockHover }) => {
     await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n=>n.editor.commands.undo());
     weightGeometry.push({width,files,outline,menu});
   }
+  // Each theme edits and mocks Save without writing the scratch file. Finish that session
+  // through the real Reload/discard path before clearing localStorage and reloading the app:
+  // otherwise a committed recovery record can correctly open a modal over the next theme.
+  const dirty = (await page.getByRole('tab', {selected:true}).getAttribute('aria-label')).includes('Unsaved changes');
+  await reloadDocument(page);
+  if (dirty) await page.getByRole('button', {name:'Discard and reload', exact:true}).click();
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  await expect.poll(async () => (await recoveryRecords(page)).filter(record => record.path.endsWith('/quiet-document.md') || record.path.endsWith('\\quiet-document.md')).length,
+    {message:'Reload must finish clearing this theme session recovery before the next app startup'}).toBe(0);
   themes.push({theme,paperRoles,navigation:results, wideOn, active, choiceRest, choiceHover, choiceFocus, ghostHover, menuOpen, pressed, field, contrasts, weightGeometry});
   }
   return themes;

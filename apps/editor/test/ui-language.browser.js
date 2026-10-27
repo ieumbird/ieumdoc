@@ -27,6 +27,7 @@ async (page, { openPath, screenshots }) => {
       if (document.querySelector('#root')?.childElementCount) {
         window.accentAtFirstUi = document.documentElement.dataset.accent;
         window.themeAtFirstUi = document.documentElement.dataset.theme;
+        window.pageAtFirstUi = document.documentElement.dataset.page;
         observer.disconnect();
       }
     });
@@ -61,6 +62,8 @@ async (page, { openPath, screenshots }) => {
     await page.keyboard.press('Tab'); await page.keyboard.press('Enter');
     check(await screen.getByRole('heading',{name:'Local recovery',exact:true}).isVisible(), 'Keyboard cannot select recovery');
     await screen.getByRole('button',{name:'Appearance & language',exact:true}).click();
+    const pagePicker = page.getByTestId('page-background');
+    check(await pagePicker.inputValue() === 'paper', 'Page background must default to paper');
     const themePicker = page.getByTestId('theme');
     check(await themePicker.inputValue() === 'system', 'Theme must default to System');
     for (const colorScheme of ['dark','light']) {
@@ -73,6 +76,9 @@ async (page, { openPath, screenshots }) => {
     check(presets.join(',') === 'blue,violet,plum,teal,green,graphite', 'Settings must expose the six validated presets');
     for (const theme of ['light','dark']) {
     await themePicker.selectOption(theme);
+    await pagePicker.selectOption('flat');
+    check(await page.locator('html').getAttribute('data-page') === 'flat', 'Page selection did not apply');
+    check(JSON.stringify(await snapshot()) === JSON.stringify(before), 'Page background changed document or selection');
     await page.emulateMedia({colorScheme:theme === 'light' ? 'dark' : 'light'});
     check(await page.locator('html').getAttribute('data-theme') === theme, 'An explicit theme changed with the OS');
     for (const preset of presets) {
@@ -191,17 +197,19 @@ async (page, { openPath, screenshots }) => {
     try {
       await page.reload({waitUntil:'commit'});
       await page.waitForFunction(() => document.documentElement.style.colorScheme === 'dark');
-      check(await page.evaluate(() => document.documentElement.dataset.theme === 'dark' && !document.querySelector('#root')?.childElementCount),
+      check(await page.evaluate(() => document.documentElement.dataset.page === 'flat' && document.documentElement.dataset.theme === 'dark' && !document.querySelector('#root')?.childElementCount),
         'Startup theme must apply before the main bundle mounts');
     } finally {releaseMain(); await mainFinished; await page.unroute('**/src/main.tsx*', holdMain);}
     await ready();
     check(await page.locator('html').getAttribute('lang') === 'ko', 'Language preference was not restored');
     check(await page.evaluate(() => window.accentAtFirstUi === 'teal' && document.documentElement.dataset.accent === 'teal'), 'Saved accent must apply at the first mounted UI');
     check(await page.evaluate(() => window.themeAtFirstUi === 'dark' && document.documentElement.dataset.theme === 'dark'), 'Saved theme must apply at the first mounted UI');
-    check(!disk.source.includes('uiLanguage') && !disk.source.includes('accentColor') && !disk.source.includes('ieumdoc.theme'), 'Display preference leaked into document');
+    check(await page.evaluate(() => window.pageAtFirstUi === 'flat'), 'Page background must restore before first mounted UI');
+    check(!disk.source.includes('pageBackground') && !disk.source.includes('uiLanguage') && !disk.source.includes('accentColor') && !disk.source.includes('ieumdoc.theme'), 'Display preference leaked into document');
     await settings('ko');
     check(await page.getByRole('combobox',{name:'테마',exact:true}).inputValue() === 'dark' &&
       await page.getByRole('option',{name:'시스템',exact:true}).count() === 1, 'Korean theme labels are missing');
+    check(await page.getByRole('combobox',{name:'페이지 배경',exact:true}).inputValue() === 'flat' && await page.getByRole('option',{name:'종이 보기',exact:true}).count() === 1 && await page.getByRole('option',{name:'흰 화면',exact:true}).count() === 1, 'Korean page labels are missing');
     if (screenshots) {
       await page.setViewportSize({ width: 375, height: 812 });
       await page.screenshot({ path: 'tmp/256/settings-ko-375.png' });
@@ -210,19 +218,24 @@ async (page, { openPath, screenshots }) => {
     await page.getByTestId('ui-language').selectOption('en');
     await closeSettings();
     // Malformed and disabled storage fall back safely on startup. The live choice still works.
-    await page.evaluate(() => { localStorage.setItem('ieumdoc.accentColor', 'unknown'); localStorage.setItem('ieumdoc.theme', 'unknown'); });
+    await page.evaluate(() => { localStorage.setItem('ieumdoc.accentColor', 'unknown'); localStorage.setItem('ieumdoc.theme', 'unknown'); localStorage.setItem('ieumdoc.pageBackground', 'unknown'); });
     await page.reload(); await ready();
     check(await page.evaluate(() => window.accentAtFirstUi === 'blue'), 'Invalid accent must fall back to blue before mounting');
     check(await page.evaluate(() => window.themeAtFirstUi === 'light'), 'Invalid theme must fall back to System before mounting');
+    check(await page.evaluate(() => window.pageAtFirstUi === 'paper'), 'Invalid page background must default to paper');
     await page.addInitScript(() => {
       const get = Storage.prototype.getItem, set = Storage.prototype.setItem;
-      Storage.prototype.getItem = function(key) { if (['ieumdoc.accentColor','ieumdoc.theme'].includes(key)) throw Error('blocked'); return get.call(this, key); };
-      Storage.prototype.setItem = function(key, value) { if (['ieumdoc.accentColor','ieumdoc.theme'].includes(key)) throw Error('blocked'); return set.call(this, key, value); };
+      Storage.prototype.getItem = function(key) { if (['ieumdoc.accentColor','ieumdoc.theme','ieumdoc.pageBackground'].includes(key)) throw Error('blocked'); return get.call(this, key); };
+      Storage.prototype.setItem = function(key, value) { if (['ieumdoc.accentColor','ieumdoc.theme','ieumdoc.pageBackground'].includes(key)) throw Error('blocked'); return set.call(this, key, value); };
     });
     await page.reload(); await ready();
     check(await page.evaluate(() => window.accentAtFirstUi === 'blue'), 'Unavailable accent store must not block startup');
     await settings('en');
     check(await page.getByTestId('theme').inputValue() === 'system', 'Unavailable theme storage must fall back to System');
+    check(await page.getByTestId('page-background').inputValue() === 'paper', 'Unavailable page store must default to paper');
+    await page.getByTestId('page-background').selectOption('flat');
+    check(await page.locator('html').getAttribute('data-page') === 'flat', 'Live page background must work without storage');
+    await page.getByRole('alert').filter({hasText:'Page background could not be saved.'}).waitFor();
     await page.getByTestId('theme').selectOption('dark');
     check(await page.locator('html').getAttribute('data-theme') === 'dark', 'Live theme must work without storage');
     await page.getByRole('alert').filter({hasText:'Theme could not be saved.'}).waitFor();
@@ -232,6 +245,7 @@ async (page, { openPath, screenshots }) => {
     await closeSettings();
     await settings('en');
     check(await page.getByTestId('accent-color').inputValue() === 'plum', 'Reopening Settings lost the live choice');
+    check(await page.getByTestId('page-background').inputValue() === 'flat', 'Reopening Settings lost live page choice');
     check(await page.getByTestId('theme').inputValue() === 'dark', 'Reopening Settings lost the live theme choice');
     await page.getByTestId('theme').selectOption('system');
     await page.emulateMedia({colorScheme:'dark'});

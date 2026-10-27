@@ -88,13 +88,19 @@ boundary still blocks Save and command-center shortcuts and prevents document in
 
 The named navigation uses buttons with `aria-current="page"`: Appearance & language /
 표시·언어, Saving & recovery / 저장·복구, and Desktop-only About & updates / 정보·업데이트.
-Ordinary entry starts at Appearance; an update notice's View opens About. Theme, language and
+Ordinary entry starts at Appearance; an update notice's View opens About. Theme, page background, language and
 accent changes apply immediately, with profile-local preference storage and failure notices.
 Theme offers System / Light / Dark (시스템 / 라이트 / 다크), defaulting to System.
 System follows live OS changes. `ieumdoc.theme` belongs to `preferences.ts` localStorage,
 never document content or Host preferences. Unavailable storage retains the current-page
 choice and shows the same style of localized persistence alert as accent/language.
-The same editor instances, drafts, selection and history remain mounted across theme changes.
+Page background offers Paper view / White screen (종이 보기 / 흰 화면), defaulting to Paper view.
+White screen makes canvas and paper one surface, including one dark surface in Dark theme.
+The paper's edge, elevation and corners disappear without moving or resizing content, in Visual
+and Source and at either document width. `ieumdoc.pageBackground` is profile-local localStorage,
+read before styles/UI by the existing theme initialization path. Unknown/unavailable storage
+falls back to Paper view; a failed write keeps the live choice and shows a localized alert.
+The same editor instances, drafts, selection and history remain mounted across theme and page-background changes.
 See [Visual Language](editor-visual-language-v1.md#system-light-and-dark-595) for role colors,
 startup/native synchronization, contrast and visual evidence. This presentation choice
 adds no Core operation or CLI command.

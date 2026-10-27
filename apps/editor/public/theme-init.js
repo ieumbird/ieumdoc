@@ -1,6 +1,9 @@
 // Run before styles and the application bundle, including under the production self-only CSP.
 // Only light/dark are explicit overrides; absent, invalid or unavailable storage follows the OS.
 (() => {
+  let page;
+  try { page = localStorage.getItem("ieumdoc.pageBackground"); } catch { /* Storage is optional. */ }
+  document.documentElement.dataset.page = page === "flat" ? "flat" : "paper";
   let choice;
   try { choice = localStorage.getItem("ieumdoc.theme"); } catch { /* Storage is optional. */ }
   const theme = choice === "light" || choice === "dark" ? choice
