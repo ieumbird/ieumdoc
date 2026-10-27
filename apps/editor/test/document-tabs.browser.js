@@ -197,6 +197,8 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
   try {
     await desktopPage.addInitScript(() => {
       window.ieumdocDesktop = {
+        setTheme: async theme => theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches),
+        setWindowBackground: async () => {},
         info: async () => ({version:'0.0.1',channel:'beta',updatesSupported:false,update:{phase:'idle'},postponed:null}),
         onUpdateState: () => () => {}, onRestartCheck: () => () => {},
       };

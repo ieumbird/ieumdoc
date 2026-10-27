@@ -3,7 +3,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, session, shell, type IpcMainEvent, type IpcMainInvokeEvent } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, protocol, session, shell, type IpcMainEvent, type IpcMainInvokeEvent } from "electron";
 import electronUpdater from "electron-updater";
 import { load as loadYaml } from "js-yaml";
 import type { DesktopInfo, RestartCheck } from "../../editor/shared/desktop-bridge.ts";
@@ -23,6 +23,17 @@ protocol.registerSchemesAsPrivileged([{ scheme: SCHEME, privileges: { standard: 
 const appRoot = path.dirname(fileURLToPath(import.meta.url));
 const preferencesFile = () => path.join(app.getPath("userData"), "preferences.json");
 let window: BrowserWindow | null = null;
+let readyToShow = false;
+let appearanceReady = false;
+
+function showWhenReady(): void {
+  if (readyToShow && appearanceReady && window) {
+    // Consume the startup gate: a later OS/theme update must not reveal a hidden window.
+    readyToShow = false;
+    window.show();
+    log("window shown");
+  }
+}
 let preferences: Preferences;
 let updates: UpdateController;
 /** Set after the Editor agreed to restart for an update; the installer starts once the window closed. */
@@ -133,6 +144,17 @@ function registerIpc(): void {
     });
   };
   handle("desktop:info", () => info());
+  handle("desktop:set-theme", (value) => {
+    if (value !== "system" && value !== "light" && value !== "dark") throw new Error("Unknown theme.");
+    nativeTheme.themeSource = value;
+    return nativeTheme.shouldUseDarkColors;
+  });
+  handle("desktop:set-window-background", (color) => {
+    if (typeof color !== "string" || !/^#[\da-f]{6}$/i.test(color)) throw new Error("Invalid window background.");
+    window?.setBackgroundColor(color);
+    appearanceReady = true;
+    showWhenReady();
+  });
   handle("desktop:set-channel", async (value) => {
     if (value !== "stable" && value !== "beta") throw new Error("Unknown release channel.");
     await updates.setChannel(parseChannel(value));
@@ -157,8 +179,10 @@ function registerIpc(): void {
 }
 
 function createWindow(): void {
+  readyToShow = false;
+  appearanceReady = false;
   const created = new BrowserWindow({
-    width: 1400, height: 900, minWidth: 360, minHeight: 480, title: "IeumDoc", show: false, backgroundColor: "#f6f7f9",
+    width: 1400, height: 900, minWidth: 360, minHeight: 480, title: "IeumDoc", show: false,
     icon: path.join(appRoot, "icon.ico"),
     webPreferences: {
       preload: path.join(appRoot, "preload.cjs"),
@@ -168,8 +192,8 @@ function createWindow(): void {
   });
   window = created;
   created.once("ready-to-show", () => {
-    created.show();
-    log("window shown");
+    readyToShow = true;
+    showWhenReady();
   });
   // The Editor's beforeunload asks before losing work; Electron needs the question shown here.
   created.webContents.on("will-prevent-unload", (event) => {

@@ -33,6 +33,27 @@ Completion requires the Windows installer, channel/state tests, packaged app and
 - Electron main owns window lifecycle, protocol, preferences and updater. The sandboxed, isolated renderer has no Node integration; its typed preload exposes only update/settings calls and a restart check. Host/Markdown/file writes never pass through this bridge.
 - IPC accepts only the app's main frame. External navigation/new windows are denied; http(s) links open in the system browser. Static paths are confined to the production build, including symlinks. CSP permits own scripts, own/inline styles needed by the editor/KaTeX, and local/data/blob images; no remote code or frames.
 
+## Appearance (#595)
+
+Settings uses the same System / Light / Dark preference as the browser Editor, stored only
+in the app profile's localStorage. The trusted main-frame bridge sets Electron
+[`nativeTheme.themeSource`](https://www.electronjs.org/docs/latest/api/native-theme) and
+returns `shouldUseDarkColors`; this controls native title bars and dialogs as well as the
+renderer media query. Returning from an explicit theme to System resolves the native
+answer before applying the final renderer theme. Live OS changes update System immediately.
+The renderer passes the resolved `canvas` CSS role to `setWindowBackground`; the main
+process validates the color and stores no theme or color preference. Both bridge calls
+use the existing sender check, and carry no document data.
+
+The hidden window appears only once `ready-to-show` and the first themed background are
+ready. The small external `theme-init.js` sets the renderer's initial theme and native
+color scheme before the application bundle, without weakening the self-only script CSP.
+Styles then own `color-scheme`. No window-background color literal is duplicated in main.
+The packaged argument/Save/restart regression also checks explicit/System native source,
+effective renderer/native agreement, background and profile restoration. This packaged
+verification runs in CI; local checks use Desktop unit/type checks and the browser bridge
+regression. Native OS theme-change automation is not claimed.
+
 ## Channels and versions
 
 The public distribution version is `0.1.0-beta.1`; Stable publication is deferred. On first launch, an installed `X.Y.Z-beta.N` defaults to Beta and a Stable version defaults to Stable. A valid saved Stable/Beta choice always wins, including after installing a different version. Missing/damaged preferences or an invalid/missing channel fall back to the installed version's default. Preferences are persisted by temporary sibling/rename. Settings → About & updates shows installed version, channel, update status/actions and a Release notes link.

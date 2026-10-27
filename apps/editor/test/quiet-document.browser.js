@@ -1,6 +1,92 @@
 // Regression checks on real scratch files; optional captures are for manual visual review.
 // pnpm browser:test quiet-document --screenshots writes tmp/visual-refinement/after-*.png.
-async (page, { screenshots = false, openDocument, withBlockHover }) => {
+async (page, { screenshots = false, openDocument, openPath, withBlockHover }) => {
+  // Manual review only, before the regression edits its disposable fixtures.
+  const themeReview = screenshots ? await (async (page, { openPath, screenshots }) => {
+  if (!screenshots) throw Error('Use --screenshots for the manual theme review');
+  const origin = page.url().split('/').slice(0,3).join('/');
+  const loaded = await (await page.request.get(`${origin}/api/document`)).json();
+  const sep = loaded.path.includes('\\') ? '\\' : '/';
+  const file = [...loaded.path.split(sep).slice(0, -4), 'tmp', 'quiet-document', 'quiet-document.md'].join(sep);
+  const open = async path => {
+    await page.setViewportSize({width:1440,height:1000});
+    await openPath(page, path);
+    await page.getByRole('button', {name:'More actions', exact:true}).click();
+    await page.getByRole('menuitem', {name:'Close folder', exact:true}).click();
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      await Promise.all([...document.querySelectorAll('.document img[src]')].map(img => img.decode()));
+    });
+  };
+  const available = await page.evaluate(() => !!document.documentElement.dataset.theme);
+  const captures = [];
+  const settings = async () => {
+    const button = page.getByRole('button',{name:'Settings',exact:true});
+    if (!await button.isVisible()) await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+    await button.click();
+  };
+  const closeSettings = async () => {
+    await page.keyboard.press('Escape');
+    await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+    if ((await page.viewportSize()).width < 640) {
+      const collapse = page.getByRole('button',{name:'Collapse sidebar',exact:true});
+      if (await collapse.isVisible()) await collapse.click();
+    }
+  };
+  for (const theme of available ? ['light','dark'] : ['before']) {
+    for (const accent of theme === 'dark' ? ['blue','teal'] : ['blue']) {
+      await open(file);
+      await settings();
+      if (available) await page.getByTestId('theme').selectOption(theme);
+      await page.getByTestId('accent-color').selectOption(accent);
+      await closeSettings();
+      for (const width of [1440,390]) {
+        await page.setViewportSize({width,height:1000});
+        await page.evaluate(() => { window.scrollTo(0,0); document.activeElement?.blur(); });
+        await page.mouse.move(0,0);
+        const shot = async name => {
+          const file = `tmp/dark-mode-595/${theme}-${accent}-${width}-${name}.png`;
+          await page.screenshot({path:file}); captures.push(file);
+        };
+        await shot('document');
+        for (const [name, selector] of [['figure','.figure'],['equation','.equation'],['table','.table-block'],['code','.code-block'],['callout','.admonition']]) {
+          const block = page.locator(`[data-document-tab][data-active=true] ${selector}`).first();
+          if (await block.count()) {
+            await block.evaluate(n => n.scrollIntoView({block:'center'}));
+            await shot(name);
+          }
+        }
+        await page.evaluate(() => window.scrollTo(0,0));
+        await settings();
+        await shot('settings');
+        await closeSettings();
+        await page.getByRole('button',{name:'File actions',exact:true}).click();
+        await page.mouse.move(0,0);
+        await shot('menu');
+        await page.keyboard.press('Escape');
+      }
+      const codeFile = [...loaded.path.split(sep).slice(0,-4), 'tmp', 'code-highlighting', 'code.md'].join(sep);
+      await open(codeFile);
+      await page.locator('[data-document-tab][data-active=true] .hljs-keyword').waitFor();
+      for (const width of [1440,390]) {
+        await page.setViewportSize({width,height:1000});
+        await page.evaluate(() => { window.scrollTo(0,0); document.activeElement?.blur(); });
+        await page.mouse.move(0,0);
+        const path = `tmp/dark-mode-595/${theme}-${accent}-${width}-code.png`;
+        await page.screenshot({path}); captures.push(path);
+      }
+      await page.setViewportSize({width:1440,height:1000});
+      await page.getByRole('button',{name:'Close code.md',exact:true}).click();
+    }
+  }
+  return {captures};
+}
+)(page, {openPath, screenshots}) : null;
+  if (screenshots) {
+    await page.evaluate(() => {localStorage.clear(); sessionStorage.clear();});
+    await page.reload();
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  }
   await page.unrouteAll();
   const origin = page.url().split('/').slice(0, 3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
@@ -802,5 +888,5 @@ async (page, { screenshots = false, openDocument, withBlockHover }) => {
     await shot(`768-${label.toLowerCase()}-dialog`);
     await page.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).click();
   }
-  return {screenshotCount,keyboardFigure,visualInteractionsPreservedJSON:true,compositionUndoRedo:true,statusSaveReload:true,blockDragUndo:true,results};
+  return {screenshotCount,themeReview,keyboardFigure,visualInteractionsPreservedJSON:true,compositionUndoRedo:true,statusSaveReload:true,blockDragUndo:true,results};
 }

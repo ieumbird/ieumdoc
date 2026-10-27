@@ -30,6 +30,8 @@ async (page, { screenshots = false, openPath }) => {
     const calls = [];
     window.__desktop = {calls, push(state) { info.update = state; for (const listener of listeners) listener(state); }};
     window.ieumdocDesktop = {
+      setTheme: async theme => theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches),
+      setWindowBackground: async () => {},
       info: async () => ({...info}),
       setChannel: async (channel) => { calls.push(['channel', channel]); info.channel = channel; return {...info}; },
       checkForUpdates: async () => { calls.push(['check']); },
