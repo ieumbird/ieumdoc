@@ -165,7 +165,8 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   await page.evaluate(() => {
     window.__endnoteDragEvents = [];
     for (const type of ['dragstart', 'drop', 'dragend']) document.addEventListener(type, event => {
-      window.__endnoteDragEvents.push({type: event.type, trusted: event.isTrusted});
+      const instance = document.querySelector('[data-document-tab][data-active=true] .document-editor')?.editor;
+      window.__endnoteDragEvents.push({type: event.type, trusted: event.isTrusted, selection: instance?.state.selection.toJSON().type});
     }, true);
   });
   const start = await textPoint(bodyForDrop, 0, 'left');
@@ -185,22 +186,32 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   assert(dragEvents.some(event => event.type === 'dragstart' && event.trusted) && dragEvents.some(event => event.type === 'drop' && event.trusted), 'Expected an actual trusted text drag and drop: ' + JSON.stringify(dragEvents));
   assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === beforeDrop, 'Body text drop changed a read-only definition or its source');
 
-  // An external draggable element supplies plain text through a native dragstart.
-  await page.evaluate(() => {
-    const source = document.createElement('div');
-    source.id = 'external-endnote-drop-probe'; source.draggable = true; source.textContent = 'External drag';
-    source.style.cssText = 'position:fixed;top:70px;left:10px;width:100px;height:28px;z-index:99999;background:white';
-    source.addEventListener('dragstart', event => { event.dataTransfer.setData('text/plain', 'EXTERNAL'); event.dataTransfer.effectAllowed = 'copy'; });
-    document.body.append(source);
-    window.__endnoteDragEvents = [];
-  });
-  const external = await page.locator('#external-endnote-drop-probe').boundingBox();
-  const externalDestination = await textPoint(noteForDrop, 5, 'left');
-  await page.mouse.move(external.x + 20, external.y + 12); await page.mouse.down();
-  await page.mouse.move(externalDestination.x, externalDestination.y, {steps: 15}); await page.mouse.up();
-  const externalEvents = await page.evaluate(() => { document.querySelector('#external-endnote-drop-probe').remove(); return window.__endnoteDragEvents; });
-  assert(externalEvents.some(event => event.type === 'dragstart' && event.trusted) && externalEvents.some(event => event.type === 'drop' && event.trusted), 'Expected an actual external text drop: ' + JSON.stringify(externalEvents));
-  assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === beforeDrop, 'External text drop changed a read-only definition');
+  // An external draggable element supplies plain text, both with ordinary and whole-document selection.
+  for (const selectAll of [false, true]) {
+    if (selectAll) {
+      await bodyForDrop.click();
+      await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.$from.parent.textContent === 'Middle paragraph.');
+      await page.keyboard.press('Control+a');
+      assert(await editor.evaluate(element => element.editor.state.selection.toJSON().type) === 'all', 'Ctrl+A must select the whole document');
+    }
+    await page.evaluate(() => {
+      const source = document.createElement('div');
+      source.id = 'external-endnote-drop-probe'; source.draggable = true; source.textContent = 'External drag';
+      source.style.cssText = 'position:fixed;top:70px;left:10px;width:100px;height:28px;z-index:99999;background:white';
+      source.addEventListener('dragstart', event => { event.dataTransfer.setData('text/plain', 'EXTERNAL'); event.dataTransfer.effectAllowed = 'copy'; });
+      document.body.append(source);
+      window.__endnoteDragEvents = [];
+    });
+    const external = await page.locator('#external-endnote-drop-probe').boundingBox();
+    const externalDestination = await textPoint(noteForDrop, 5, 'left');
+    await page.mouse.move(external.x + 20, external.y + 12); await page.mouse.down();
+    await page.mouse.move(externalDestination.x, externalDestination.y, {steps: 15}); await page.mouse.up();
+    const externalEvents = await page.evaluate(() => { document.querySelector('#external-endnote-drop-probe').remove(); return window.__endnoteDragEvents; });
+    const dragStart = externalEvents.find(event => event.type === 'dragstart' && event.trusted);
+    assert(dragStart && externalEvents.some(event => event.type === 'drop' && event.trusted), 'Expected an actual external text drop: ' + JSON.stringify(externalEvents));
+    if (selectAll) assert(dragStart.selection === 'all', 'Whole-document selection must still be active when the external drag starts');
+    assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === beforeDrop, `External text drop changed a read-only definition (AllSelection=${selectAll})`);
+  }
 
   // A paste transaction aimed inside the definition is also protected when selection is elsewhere.
   await editor.evaluate(element => {
@@ -219,6 +230,24 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   await reloadDocument(page); await ready();
   assert(await read() === edited && (await noteForDrop.innerText()) === 'Defined first.', 'Reload after blocked drops changed the definition');
   result.readonlyDropAndPaste = true;
+
+  // A true whole-document replacement is distinct from a targeted drop into an endnote.
+  const beforeWholeDocumentEdit = await editor.evaluate(element => JSON.stringify(element.editor.getJSON()));
+  for (const action of ['Backspace', 'Delete', 'type']) {
+    await editor.evaluate(element => element.editor.view.focus());
+    await page.keyboard.press('Control+a');
+    assert(await editor.evaluate(element => element.editor.state.selection.toJSON().type) === 'all', `${action}: whole document must be selected`);
+    if (action === 'type') await page.keyboard.type('Replacement');
+    else await page.keyboard.press(action);
+    assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) !== beforeWholeDocumentEdit, `${action}: whole-document replacement must happen`);
+    await page.keyboard.press('Control+z');
+    assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === beforeWholeDocumentEdit, `${action}: one Undo must restore the whole document`);
+  }
+  await editor.evaluate(element => element.editor.view.focus());
+  await page.keyboard.press('Control+a');
+  await page.keyboard.press('Control+x');
+  assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === beforeWholeDocumentEdit, 'Whole-document cut retains the existing lossless-copy refusal');
+  assert(/cannot be cut losslessly/.test(await page.getByTestId('notice').innerText()), 'Whole-document cut refusal must explain why nothing was removed');
 
   // A chip selects its read-only definition; Enter explicitly begins editing.
   const caretIn = label => page.waitForFunction(label => {

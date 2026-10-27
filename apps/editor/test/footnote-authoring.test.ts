@@ -4,7 +4,7 @@ import test from "node:test";
 import { getSchema } from "@tiptap/core";
 import { history, undo, redo } from "@tiptap/pm/history";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { EditorState, TextSelection, type Transaction } from "@tiptap/pm/state";
+import { AllSelection, EditorState, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { parse, serialize } from "@ieumdoc/core";
 import { BLOCK_COMMANDS } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
@@ -53,6 +53,18 @@ test("read-only definitions reject destination changes, including mark steps, wh
   assert.ok(pasted.doc.eq(state.doc), "a transaction aimed at a different read-only block must be refused");
   const formatted = state.apply(state.tr.addMark(note, note + 2, schema.marks.bold.create()));
   assert.ok(formatted.doc.eq(state.doc), "a mark step with no positional map must be refused");
+
+  const all = state.apply(state.tr.setSelection(new AllSelection(state.doc)));
+  assert.ok(all.apply(all.tr.insertText("external", note + 2).setMeta("uiEvent", "drop")).doc.eq(state.doc), "AllSelection must not permit a targeted drop");
+  assert.ok(all.apply(all.tr.insertText("external", note + 2).setMeta("uiEvent", "paste")).doc.eq(state.doc), "AllSelection must not permit a targeted paste");
+  assert.ok(all.apply(all.tr.addMark(note, note + 2, schema.marks.bold.create())).doc.eq(state.doc), "AllSelection must not permit a targeted mark");
+  assert.ok(all.apply(all.tr.delete(note - 1, note - 1 + state.doc.child(2).nodeSize)).doc.eq(state.doc), "AllSelection must not permit a targeted definition deletion");
+  const cleared = all.apply(all.tr.deleteSelection());
+  assert.ok(!cleared.doc.eq(state.doc), "whole-document deletion remains allowed");
+  assert.ok(run(cleared, undo).doc.eq(state.doc), "Undo restores a whole-document deletion");
+  const replaced = all.apply(all.tr.insertText("replacement"));
+  assert.equal(replaced.doc.textContent, "replacement", "whole-document typing remains allowed");
+  assert.ok(run(replaced, undo).doc.eq(state.doc), "Undo restores a whole-document replacement");
 
   const active = state.apply(state.tr.setSelection(TextSelection.create(state.doc, note)).setMeta(endnoteEditingKey, "a"));
   const edited = active.apply(active.tr.insertText("Edit ", note));

@@ -143,7 +143,16 @@ export function endnoteEditingPlugin(): Plugin<string | null> {
     },
     filterTransaction(tr, state) {
       if (!tr.docChanged || isHistoryTransaction(tr) || tr.getMeta(ORDER_META) || tr.getMeta("blockCommand") ||
-          tr.getMeta(LABEL_PROPERTIES_META) || state.selection instanceof AllSelection) return true;
+          tr.getMeta(LABEL_PROPERTIES_META)) return true;
+      // AllSelection alone says nothing about the destination of a drop or a targeted
+      // transaction. Preserve only a real whole-document replacement/deletion.
+      if (state.selection instanceof AllSelection && tr.getMeta("uiEvent") !== "drop") {
+        let replacesDocument = false;
+        tr.steps[0]?.getMap().forEach((from, to) => {
+          if (from === 0 && to === state.doc.content.size) replacesDocument = true;
+        });
+        if (replacesDocument) return true;
+      }
       const active = endnoteEditingKey.getState(state);
       // Compare the actual immutable nodes, not the previous selection: a drop can target a
       // different block, and mark/attribute steps may have an empty positional step map.
