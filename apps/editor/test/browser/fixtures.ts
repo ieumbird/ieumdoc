@@ -42,6 +42,8 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
     { name: "unused.svg", create: () => document("diagram.svg").create() },
     { name: "nested/ref.md", create: () => nativeSource("# Reference\n\n:::{figure} ../diagram.svg\n:alt: Figure\n\nCaption.\n:::\n") },
     { name: "ref.md", create: () => nativeSource("# Reference\n\n:::{figure} ./diagram.svg\n:alt: Figure\n\nCaption.\n:::\n") },
+    { name: "second-ref.md", create: () => nativeSource("# Another reference\n\n:::{figure} diagram.svg\n:name: second\n:alt: Figure\n\nSecond caption.\n:::\n") },
+    { name: "foreign.md", create: () => "# Ordinary Markdown\n\n![Unmanaged](diagram.svg)\n" },
   ], scenarios: ["file-actions"] },
   "table-caption": { files: [{ name: "caption.md", create: () => nativeSource(
     "# Table captions\n\nBefore.\n\n:::{figure}\n:name: fig-a\n:::\n\n" +

@@ -15,6 +15,7 @@ import {
   serialize,
   targetNumbers,
   updateFigure,
+  updateMediaReferences,
   updateLabel,
   validateFigure,
   validateStructure,
@@ -24,6 +25,29 @@ import {
 } from "./core-internal.ts";
 
 const FIGURE_PATH: NodePath = [6];
+
+test("media replacements are simultaneous, exact and preserve Figure properties and other content", () => {
+  const original = parse(":::{figure} ./old.svg\n:name: first\n:alt: Keep\n\n**Caption**.\n:::\n\n:::{figure} ./new.svg\n\nSecond.\n:::\n\n:::{figure} ./old.svg\n\nThird.\n:::\n\nLiteral ./old.svg and [link](./old.svg).\n");
+  const before = serialize(original);
+  const updated = updateMediaReferences(original, [{ from: "./old.svg", to: "./new.svg" }, { from: "./new.svg", to: "./last.svg" }]);
+  const figures = getEditableDocument(updated).blocks.filter(block => block.block === "figure");
+  assert.deepEqual(figures.map(block => block.imageUrl), ["./new.svg", "./last.svg", "./new.svg"]);
+  assert.equal(figures[0].imageAlt, "Keep"); assert.equal(figures[0].label, "first");
+  const first = getEditableDocument(original).blocks[0];
+  assert.ok(first.block === "figure");
+  assert.deepEqual(figures[0].caption, first.caption);
+  const output = serialize(updated);
+  assert.match(output, /Literal \.\/old.svg and \[link\]\(\.\/old.svg\)/);
+  assert.equal(serialize(parse(output)), output);
+  assert.equal(serialize(original), before);
+  assert.equal(serialize(updateMediaReferences(original, [{ from: "old.svg", to: "other.svg" }])), before);
+  for (const replacements of [[{ from: "", to: "new.svg" }], [{ from: "./old.svg", to: "" }], [{ from: "./old.svg", to: "bad\npath" }], [{ from: "a", to: "b" }, { from: "a", to: "c" }]]) {
+    assert.throws(() => updateMediaReferences(original, replacements));
+    assert.equal(serialize(original), before);
+  }
+  const incomplete = updateFigure(original, [0], { caption: [{ kind: "footnote", label: "missing" }] });
+  assert.throws(() => updateMediaReferences(incomplete, [{ from: "./old.svg", to: "new.svg" }]), /definition/);
+});
 const source = readFileSync(new URL("./fixtures/technical-document.md", import.meta.url), "utf8");
 
 test("Figure caption endnotes can be edited before their definitions are supplied", () => {

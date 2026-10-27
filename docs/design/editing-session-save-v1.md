@@ -1,6 +1,7 @@
 # Editing session and Save v1
 
 - Status: Implemented
+- Image rename verification: 2026-10-27 (#504: file-actions browser checks inactive dirty/property-draft refusal, clean active/inactive tabs, Source-to-Visual reload, subsequent Save and other-window revision conflict).
 - File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
 - Property Apply verification: 2026-10-27 (#576: shared Ctrl/Cmd+Enter submission, validation/busy guards, IME/modifier exclusions and prose hard-break isolation; Editor tests and targeted Windows Chrome browser regressions, with Apple platform emulation rather than native macOS).
 
@@ -14,7 +15,7 @@ Confirmed file deletion closes its open tab, discards applied edits/property dra
 all recovery records matching its path. Dirty work requires the explicit Delete and discard changes
 confirmation instead of the ordinary tab Save/Don't save prompt. The file tree receives focus.
 
-Same-folder rename keeps the mounted editor, history, selection and drafts. It changes the live
+Renaming a document file in the same folder keeps the mounted editor, history, selection and drafts. It changes the live
 session locator and tab navigation, then moves matching recovery record paths and snapshot file
 paths in one IndexedDB transaction. Each applied edit registers the live locator in its existing
 session barrier without capturing the document snapshot. File operations revoke every barrier
@@ -31,6 +32,30 @@ leave an old-path record. There is no data loss; the extra record can be discard
 
 [Shell](editor-ux-shell-v1.md#file-context-menu-505--504-pr-a) and
 [Host](filesystem-host-boundary-v1.md#file-deletion-and-rename-505--504-pr-a) specify entry/validation.
+
+### Referenced image rename (#504)
+
+Renaming an image updates its references in saved native documents under the selected opened
+folder through Core and the shared Host. Every dirty referring document tab in the requesting
+Editor window blocks the operation, including inactive tabs and unapplied property drafts. The
+dialog names the documents and asks to save first; neither image nor documents are written.
+Applied snapshots supplement saved references, so adding a reference only in unsaved work also
+blocks. Removing a saved reference in unsaved work still blocks until saved.
+
+The rename dialog remains modal through the operation and subsequent reads. All affected clean
+tabs use the existing load/accept path to install their new source, revision and Core read model
+before the dialog closes. They return to Visual view and start a new editor/history checkpoint;
+old undo history cannot silently restore obsolete image paths. Tab order and active tab stay the
+same. A read failure names the affected tab and remains visible; its old revision still prevents
+overwriting the changed disk file. On incomplete Host rollback, affected clean tabs likewise
+reload actual remaining disk contents. Skipped unreadable/non-native files appear in a notice.
+
+Only tabs in the same Editor window participate in the dirty check. No other-window/browser-tab
+or cross-Host live-state communication is introduced. **Cross-window protection is Save-time
+revision conflict**: another window retains its local edits, but its next Save against the old
+revision is refused after reference rewriting. The current #372 locator-alias limitation remains.
+Image/document commit order and best-effort rollback limits are specified by the
+[Host contract](filesystem-host-boundary-v1.md#referenced-image-rename-504-pr-b).
 
 
 ## Editor ownership

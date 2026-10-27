@@ -851,6 +851,25 @@ function tableAt(document: MystDocument, path: NodePath, operation: string): Mys
   return table;
 }
 
+/** Replace exact Figure media sources simultaneously; filesystem identity belongs to the Host. */
+export function updateMediaReferences(document: MystDocument, replacements: { from: string; to: string }[]): MystDocument {
+  const paths = new Map<string, string>();
+  for (const { from, to } of replacements) {
+    if (typeof from !== "string" || !from || typeof to !== "string" || !to) throw new Error("Media references require non-empty source and destination paths");
+    if (paths.has(from)) throw new Error(`Duplicate media source: ${from}`);
+    paths.set(from, to);
+  }
+  // Validate even a no-match request; never bypass the canonical loss-prevention guard.
+  serialize(document);
+  let next = document;
+  for (const block of getEditableDocument(document).blocks) {
+    if (block.block !== "figure" || !paths.has(block.imageUrl)) continue;
+    next = updateFigure(next, block.path, { imageUrl: paths.get(block.imageUrl)! });
+  }
+  serialize(next);
+  return next;
+}
+
 export function updateFigure(document: MystDocument, path: NodePath, changes: Partial<FigureContent>): MystDocument {
   const current = getNode(document, path);
   if (!isFigure(current)) {

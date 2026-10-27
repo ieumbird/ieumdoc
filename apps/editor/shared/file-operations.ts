@@ -2,10 +2,11 @@ export type FileOperationRequest = { root: string; path: string };
 export type RenameFileRequest = FileOperationRequest & {
   /** The stem only. The Host preserves the original extension. */
   name: string;
-  /** Applied, unsaved work supplements (never replaces) the disk reference check. */
-  openDocuments?: { path: string; source: string }[];
+  /** Dirty tabs in this Editor window. Applied source supplements the disk check;
+   * path-only entries include unapplied property drafts. Other windows use Save conflicts. */
+  openDocuments?: { path: string; source?: string }[];
 };
-export type FileOperationResponse = { path: string };
+export type FileOperationResponse = { path: string; updatedDocuments?: string[]; skippedDocuments?: string[] };
 
 /** Shared input feedback; Host remains the authority, including on non-Windows systems. */
 export function validFileStem(name: string): boolean {

@@ -40,6 +40,30 @@ const FROM = "The converter regulates voltage.";
 const TO = "The converter regulates voltage and current.";
 const INSERTED = "Added by CLI.";
 
+test("update-media-references supports dry-run, batch, revision conflict and failure without writes", () => {
+  const file = path.join(fixtures, "media-references.md"), batchFile = path.join(fixtures, "media-batch.md"), operations = path.join(fixtures, "media-operations.json");
+  const source = nativeSource(":::{figure} ./old.svg\n:alt: Keep\n\nCaption.\n:::\n");
+  writeFileSync(file, source); writeFileSync(batchFile, source);
+  const args = ["update-media-references", file, "--from", "./old.svg", "--to", "./new.svg"];
+  const preview = run([...args, "--dry-run", "--format", "json"]);
+  assert.equal(preview.status, 0, preview.stderr);
+  assert.equal(readFileSync(file, "utf8"), source);
+  const revision = textRevision(source);
+  const edited = run([...args, "--if-revision", revision]);
+  assert.equal(edited.status, 0, edited.stderr);
+  const output = readFileSync(file, "utf8");
+  assert.match(output, /\.\/new.svg/);
+  assert.match(output, /:alt: Keep/);
+  assert.equal(run([...args, "--if-revision", revision]).status, 1);
+  assert.equal(readFileSync(file, "utf8"), output);
+  assert.equal(run(["update-media-references", file, "--from", "./new.svg", "--to", "bad\npath"]).status, 1);
+  assert.equal(readFileSync(file, "utf8"), output);
+  writeFileSync(operations, JSON.stringify([{ command: "update-media-references", from: "./old.svg", to: "./new.svg" }]));
+  const batch = run(["apply-batch", batchFile, "--operations", operations]);
+  assert.equal(batch.status, 0, batch.stderr);
+  assert.equal(readFileSync(batchFile, "utf8"), output);
+});
+
 test("citation single edits, batch, check/inspect and format use the same Core report and never rewrite bibliography inputs", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-citations-"));
   try {
@@ -460,7 +484,7 @@ test("ieumdoc help exits successfully", () => {
       "Check": ["check"],
       "Edit — batch": ["apply-batch"],
       "Edit — insert blocks": ["insert-block", "insert-heading", "insert-admonition", "insert-quote", "insert-divider", "insert-equation", "insert-figure", "insert-list", "insert-code-block"],
-      "Edit — text and content": ["insert-hard-break", "replace-text", "update-heading", "update-admonition-variant", "update-quote", "update-figure", "update-list", "update-code-block", "update-node-text", "update-equation-latex"],
+      "Edit — text and content": ["insert-hard-break", "replace-text", "update-heading", "update-admonition-variant", "update-quote", "update-figure", "update-media-references", "update-list", "update-code-block", "update-node-text", "update-equation-latex"],
       "Edit — structure": ["split-paragraph", "merge-paragraph", "update-heading-level", "convert-block", "remove-block", "move-block", "move-section", "remove-section"],
       "Edit — tables": ["insert-table", "insert-table-row", "insert-table-column", "remove-table-row", "remove-table-column", "move-table-row", "move-table-column", "update-table-alignment", "update-table-caption", "update-table-cell"],
       "Edit — labels, footnotes and numbering": ["insert-citation", "insert-footnote", "insert-target", "remove-citation", "update-bibliography", "update-citation", "update-footnote", "update-heading-numbering", "update-label", "update-reference-templates"],
