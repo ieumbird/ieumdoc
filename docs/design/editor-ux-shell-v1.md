@@ -350,7 +350,13 @@ chooses a folder, then opens the existing filename form. Start and command-cente
 use the same New document… name. Folder selection and creation semantics are unchanged.
 Cancel returns to the invoking button; if opening the first folder removed that empty-state
 button, the visible Sidebar toggle receives focus. Menu-originated dialogs return to that
-folder's More actions trigger.
+folder's More actions trigger. Each opened root has the same chevron, open/closed folder icon,
+regular typography, 28px row and spacing as child folders, at visual depth zero, without extra
+heading or inter-section gaps. Root actions remain visible without hover. Children start
+one visual step deeper. Root-only actions stay right-aligned on that row; long names ellipsize
+with the full path in `title`. Existing section/disclosure/tree/treeitem semantics, ARIA levels
+and #425 collapse memory remain unchanged. Tab order follows the visual order from disclosure
+through the three actions to the retained tree stop.
 
 The shared shell header is 40px at sufficient width. Desktop uses Electron's hidden title
 bar with native Windows caption buttons on the right, while tabs remain below TopBar.
@@ -358,7 +364,10 @@ CSS Window Controls Overlay geometry reserves the native button area in the dock
 header, or in TopBar when Outline is closed/overlaid. Ordinary browser tabs reserve zero
 caption width. Narrow desktop windows retain the existing command/status/action wrapping;
 640px must keep every control reachable and clear of native buttons. Header empty space
-drags the native window; controls use no-drag. Sidebar, TopBar, Outline header and Settings
+drags the native window; controls use no-drag. Shared UI portal popups, positioners and
+backdrops also use no-drag, including Command Center, Recovery and transparent menu backdrops
+that cover the wrapped header. Full-screen Settings excludes its body from dragging and keeps
+only its 40px header draggable; its right inset retains native caption width even below 768px. Sidebar, TopBar, Outline header and Settings
 header share the surface-subtle role, including the native button background; text supplies
 the button symbol role. The existing #598 theme path updates both resolved colors.
 
@@ -375,6 +384,14 @@ BODY focus after the removed empty-state opener; the existing shell fallback now
 the Sidebar toggle. Language-menu verification waits for the opened menu before inspecting
 its translated item. No assertion or timeout was relaxed.
 
+Review follow-up verification (2026-10-27): folder-navigation compares root/child typography,
+row height, visual indentation, always-visible same-row actions and zero section gaps at
+1440/1024/640px, with multiple roots and long Korean/unbroken names. Existing section-memory
+and keyboard tests remain. Desktop mock checks 40px Settings and a representative 138px caption
+reservation with a long filename at 1440/640px. At 640×480 the Command Center search overlaps
+the wrapped header; popup/backdrop no-drag, typing and outside dismissal are checked, along
+with the shared menu boundaries. Native mouse behavior remains a manual item below.
+
 Same-state browser captures: clean base `9dd7af40f30aa43bcce8ab0f8dc5e26dfba10055`
 versus this implementation, persistent Windows Chrome, Vite `127.0.0.1:5173`, English,
 Light/Paper/Blue, DPR 1, zoom 1, bundled Pretendard, scroll 0, empty Files with the same document.
@@ -388,7 +405,9 @@ the larger capture matrix remain uncommitted.
 
 Opened-folder review from `folder-navigation --screenshots`: [1440px](assets/sidebar-titlebar-582-605/folder-1440.png),
 [640px](assets/sidebar-titlebar-582-605/folder-640.png), [menu](assets/sidebar-titlebar-582-605/folder-menu.png).
-These additional After captures show the consolidated folder actions; no new functionality is introduced.
+Multiple opened roots: [1440px](assets/sidebar-titlebar-582-605/folders-1440.png),
+[640px](assets/sidebar-titlebar-582-605/folders-640.png).
+These additional After captures show root folders styled as tree rows with same-row actions; no new functionality is introduced.
 
 Native drag, double-click
 maximize, maximized spacing, rendered caption colors and taskbar/Alt+Tab presentation need

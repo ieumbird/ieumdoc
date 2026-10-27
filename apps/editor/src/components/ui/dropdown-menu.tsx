@@ -26,7 +26,8 @@ function DropdownMenuContent({
     "align" | "alignOffset" | "side" | "sideOffset"
   >) {
   return (
-    <MenuPrimitive.Portal>
+    <MenuPrimitive.Portal className="ui-portal">
+      <MenuPrimitive.Backdrop className="fixed inset-0 z-50" />
       <MenuPrimitive.Positioner
         align={align}
         alignOffset={alignOffset}

@@ -95,6 +95,29 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
         }
       }
       if (state !== 'empty') {
+        const disclosure = section.first().getByRole('button', {name:/^(Collapse|Expand) folder /});
+        const collapsedForComparison = await disclosure.getAttribute('aria-expanded') === 'false';
+        if (collapsedForComparison) await disclosure.click();
+        const headings = await section.evaluateAll(sections => sections.map((element, index) => {
+          const header = element.querySelector('.sidebar-folder-header').getBoundingClientRect();
+          const toggle = element.querySelector('.sidebar-folder-toggle').getBoundingClientRect();
+          const actions = element.querySelector('.sidebar-folder-actions').getBoundingClientRect();
+          const root = element.querySelector('.sidebar-folder-name');
+          const child = sections.flatMap(section => [...section.querySelectorAll('.sidebar-tree-item[aria-expanded]')])[0];
+          const ownChild = element.querySelector('.sidebar-tree-item');
+          const rootStyle = getComputedStyle(root), childStyle = getComputedStyle(child);
+          const indent = parseFloat(rootStyle.getPropertyValue('--space-sidebar-tree-indent')) * parseFloat(getComputedStyle(document.documentElement).fontSize);
+          return {sameRow:Math.abs(toggle.top - actions.top) < 1, rightAligned:Math.abs(actions.right - header.right) < 1,
+            noHeadingGap:!ownChild || !ownChild.getBoundingClientRect().height || ownChild.getBoundingClientRect().top === header.bottom,
+            noSectionGap:index === 0 || element.getBoundingClientRect().top === sections[index - 1].getBoundingClientRect().bottom,
+            sameTypography:['fontSize', 'fontWeight', 'lineHeight', 'color'].every(key => rootStyle[key] === childStyle[key]),
+            sameHeight:root.getBoundingClientRect().height === child.getBoundingClientRect().height,
+            childIndent:child.querySelector('.sidebar-tree-chevron').getBoundingClientRect().left - root.querySelector('.sidebar-tree-chevron').getBoundingClientRect().left === indent,
+            sameIconSize:root.querySelector('.sidebar-tree-icon').getBoundingClientRect().width === child.querySelector('.sidebar-tree-icon').getBoundingClientRect().width};
+        }));
+        assert(headings.every(heading => heading.sameRow && heading.rightAligned && heading.noHeadingGap && heading.noSectionGap && heading.sameTypography && heading.sameHeight && heading.childIndent && heading.sameIconSize),
+          `Folder identity and actions must share the first row: ${state}/${width}px ${JSON.stringify(headings)}`);
+        if (collapsedForComparison) await disclosure.click();
         assert(await openFolder.count() === 0, 'Opened folders use their menu instead of a second Open entry');
         assert(await section.first().getByRole('button', {name:'New document…', exact:true}).getAttribute('title') === 'New document…', 'New document has one consistent name');
       }
@@ -397,14 +420,18 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
   await page.keyboard.press('Space');
   assert(await toggle.getAttribute('aria-expanded') === 'false' && !await tree.isVisible() && await current() === 'install.md',
     'Space must hide even the current document without changing it');
-  await page.keyboard.press('Shift+Tab');
-  assert(await item('More actions').evaluate(node => node === document.activeElement), 'Reverse Tab returns to folder actions');
   await page.keyboard.press('Tab');
-  assert(await toggle.evaluate(node => node === document.activeElement), 'Tab reaches the section toggle after folder actions');
+  assert(await item('New document…').evaluate(node => node === document.activeElement), 'Tab follows the visual order from disclosure to creation');
+  await page.keyboard.press('Shift+Tab');
+  assert(await toggle.evaluate(node => node === document.activeElement), 'Reverse Tab returns to the section toggle');
   await page.keyboard.press('Space');
   assert(await row('guides').getAttribute('aria-expanded') === 'true' && await row('install.md').getAttribute('aria-current') === 'page' &&
     JSON.stringify(await treeState()) === JSON.stringify(retained) && folderRequests.length === requestsBeforeSwitch,
     'Expanding section must retain child expansion, current marker, scroll and keyboard stop without relisting');
+  for (const action of ['New document…', 'New folder', 'More actions']) {
+    await page.keyboard.press('Tab');
+    assert(await item(action).evaluate(node => node === document.activeElement), `Tab reaches ${action} in visual order`);
+  }
   await page.keyboard.press('Tab');
   assert(await tree.locator('[tabindex="0"]').evaluate(node => node === document.activeElement), 'Tab enters the retained tree stop');
   await page.getByRole('button', {name:'Document settings', exact:true}).click();
@@ -686,7 +713,7 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
     await row('추가.md').getAttribute('aria-current') === 'page' && await row('guides').getAttribute('aria-expanded') === 'false';
   await folderMenu('Close folder');
 
-  // Identity is readable without hover, including an unbroken name; short names retain alignment.
+  // Root identity uses the same compact row as child folders; long names ellipsize with the full path available.
   for (const name of ['a', '한글 English 프로젝트 문서와 설계 자료를 모아둔 아주 긴 폴더 이름 Long Folder Name 2026', 'UnbrokenFolderName'.repeat(7)]) {
     await openFolderPicker(page);
     await enterFolder(folder);
@@ -710,33 +737,24 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
         };
         const header = required('.sidebar-folder-header');
         const heading = required('.sidebar-folder-name');
-        const label = heading.querySelector('span');
+        const label = heading.querySelector('.sidebar-tree-name');
         const bounds = header.getBoundingClientRect();
-        const icon = heading.querySelector('svg').getBoundingClientRect();
+        const icon = heading.querySelector('.sidebar-tree-icon').getBoundingClientRect();
         const actions = required('.sidebar-folder-actions').getBoundingClientRect();
-        const range = document.createRange();
-        const glyphs = [];
-        const textNodes = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
-        for (let text = textNodes.nextNode(); text; text = textNodes.nextNode()) {
-          for (let index = 0; index < text.length; index++) {
-            if (/\s/.test(text.data[index])) continue;
-            range.setStart(text, index);
-            range.setEnd(text, index + 1);
-            glyphs.push(...range.getClientRects());
-          }
-        }
+        const labelBounds = label.getBoundingClientRect();
         const toggle = required('.sidebar-folder-toggle');
         const buttons = [...required('.sidebar-folder-actions').querySelectorAll('button'), toggle];
         const rootStyle = getComputedStyle(document.documentElement);
         return {
           text: label.textContent,
-          lines: new Set(glyphs.map(rect => rect.top)).size,
-          clipped: glyphs.some(rect => rect.width <= 0 || rect.left < bounds.left || rect.right > bounds.right + 0.5 ||
-            rect.top < bounds.top || rect.bottom > bounds.bottom + 0.5 ||
-            (rect.left < actions.right && rect.right > actions.left && rect.top < actions.bottom && rect.bottom > actions.top)),
+          fullPath: heading.title,
+          ellipsis: getComputedStyle(label).textOverflow === 'ellipsis' && getComputedStyle(label).whiteSpace === 'nowrap',
+          truncated: label.scrollWidth > label.clientWidth,
+          clipped: labelBounds.width <= 0 || labelBounds.left < icon.right || labelBounds.right > actions.left,
           overflow: header.scrollWidth > header.clientWidth || document.documentElement.scrollWidth > innerWidth,
           actionsAtTop: Math.abs(actions.top - bounds.top) < 0.5,
-          iconAtFirstLine: Math.abs(icon.top + icon.height / 2 - glyphs[0].top - glyphs[0].height / 2) < 0.5,
+          sameFirstRow: Math.abs(toggle.getBoundingClientRect().top - actions.top) < 0.5,
+          iconAtFirstLine: Math.abs(icon.top + icon.height / 2 - labelBounds.top - labelBounds.height / 2) < 0.5,
           reachable: buttons.every(button => {
             const rect = button.getBoundingClientRect();
             return rect.left >= bounds.left && rect.right <= bounds.right + 0.5 &&
@@ -746,14 +764,14 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
             toggle.getBoundingClientRect().height === parseFloat(rootStyle.getPropertyValue('--size-control-compact')) * parseFloat(rootStyle.fontSize),
           toggleNeutral: getComputedStyle(toggle).backgroundColor === 'rgba(0, 0, 0, 0)',
           compact: Math.abs(bounds.height - actions.height) < 0.5 && Math.abs(icon.top + icon.height / 2 - actions.top - actions.height / 2) < 0.5,
-          labelGap: glyphs[0].left - icon.right,
+          labelGap: labelBounds.left - icon.right,
           expectedGap: parseFloat(rootStyle.getPropertyValue('--space-2')) * parseFloat(rootStyle.fontSize),
         };
       }, name);
-      assert(geometry.text === name && !geometry.clipped && !geometry.overflow && geometry.actionsAtTop && geometry.iconAtFirstLine && geometry.reachable && geometry.toggleTarget && geometry.toggleNeutral,
-        `Folder name must be fully visible with reachable actions at ${width}px: ${JSON.stringify(geometry)}`);
-      assert(name === 'a' ? geometry.lines === 1 && geometry.compact && Math.abs(geometry.labelGap - geometry.expectedGap) < 0.5 : geometry.lines > 1,
-        `Short folder alignment / long folder wrapping at ${width}px: ${JSON.stringify(geometry)}`);
+      assert(geometry.text === name && geometry.fullPath === [folder, name].join(sep) && geometry.ellipsis && !geometry.clipped && !geometry.overflow && geometry.actionsAtTop && geometry.sameFirstRow && geometry.iconAtFirstLine && geometry.reachable && geometry.toggleTarget && geometry.toggleNeutral,
+        `Root folder name must remain accessible with reachable actions at ${width}px: ${JSON.stringify(geometry)}`);
+      assert(geometry.compact && Math.abs(geometry.labelGap - geometry.expectedGap) < 0.5 && geometry.truncated === (name !== 'a'),
+        `Compact root row / long name ellipsis at ${width}px: ${JSON.stringify(geometry)}`);
       const empty = section.getByText('No files or folders', {exact:true});
       await toggle.click();
       assert(!await empty.isVisible() && !await section.getByRole('tree').isVisible(), 'Empty help must collapse with the tree');

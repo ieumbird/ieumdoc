@@ -115,6 +115,10 @@ Entry placement is superseded by the [2026-10-27 explorer amendment](#amendment-
 - Sidebar header contains Files and Collapse only. Each opened folder collects New document…,
   New folder and More actions (Open folder…, Refresh, Close folder). Remove the separate New
   document row when folders are open; use one New document… / 새 문서… action name.
+- Owner refinement: present each root as a depth-zero folder row matching child-folder icons,
+  typography and height, with root-only actions on the right of that row. Long names ellipsize;
+  full path/name remain available. Preserve section/tree roles, keyboard navigation and #425
+  collapse memory; only the visual indentation of children gains the root step.
 - Empty Files retains Open folder… and New document…; New first chooses a folder through the
   existing picker. Start-screen and command-center entries remain. This supersedes only #385's
   entry placement; folder access, add/relist, persistence and creation semantics are unchanged.

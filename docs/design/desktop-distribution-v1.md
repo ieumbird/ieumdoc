@@ -59,7 +59,9 @@ The native window enforces a minimum width of **640px** (minimum height 480px), 
 `BrowserWindow` uses `titleBarStyle: "hidden"` and a 40px `titleBarOverlay`, retaining native
 minimize/maximize/close controls. Editor CSS reserves their actual Window Controls Overlay
 geometry without a fixed button width; browser Hosts have no reservation. Header empty areas
-use `app-region: drag`, interactive controls `no-drag`. Native move/double-click maximize and
+use `app-region: drag`, interactive controls and shared portal popup/positioner/backdrop
+boundaries `no-drag`. Full-screen Settings leaves only its 40px header draggable and retains
+caption reservation at 640px. Native move/double-click maximize and
 maximized inset behavior require Windows manual checks. Document tabs remain below TopBar.
 The renderer title is the active filename followed by ` — IeumDoc`, or `IeumDoc` without a
 document, for native taskbar/Alt+Tab identification as well as browser tabs. The existing
@@ -67,7 +69,8 @@ beforeunload/unsaved-work protection remains authoritative for native Close.
 
 Packaged CI checks actual Window Controls Overlay visibility/geometry at 1440px and 640px,
 control exclusion from drag, and BrowserWindow title. Local checks use persistent Chrome with
-the bridge and representative caption-width geometry; they do not launch packaged Desktop.
+the bridge and representative caption-width geometry, including long filenames in Settings
+and portal overlays over the wrapped header at 640×480; they do not launch packaged Desktop.
 Manual checks cover drag, double-click maximize, maximized gaps, rendered light/dark button
 colors on theme changes, and taskbar/Alt+Tab presentation.
 

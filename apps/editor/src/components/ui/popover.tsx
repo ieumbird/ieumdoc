@@ -21,7 +21,7 @@ function PopoverContent({
     "align" | "alignOffset" | "side" | "sideOffset" | "anchor"
   >) {
   return (
-    <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Portal className="ui-portal">
       <PopoverPrimitive.Positioner
         align={align}
         alignOffset={alignOffset}

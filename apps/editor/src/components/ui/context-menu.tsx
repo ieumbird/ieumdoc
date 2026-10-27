@@ -28,7 +28,8 @@ export function ContextMenu({ trigger, actions, disabled = false }: {
       // Base UI's trigger owns the anchor, focus and opening path for every entry method.
       event.currentTarget.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: rect.left + 12, clientY: rect.bottom }));
     }} />
-    <Primitive.Portal>
+    <Primitive.Portal className="ui-portal">
+      <Primitive.Backdrop className="fixed inset-0 z-50" />
       <Primitive.Positioner className="isolate z-50 outline-none" sideOffset={4}>
         <Primitive.Popup data-slot="context-menu-content" className={MENU_POPUP_CLASS}
           finalFocus={() => handingOff.current ? false : true}>

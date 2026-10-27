@@ -147,7 +147,6 @@ function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, docu
   const name = (path: string) => splitDocumentPath(path).name || path;
   const folderName = name(tree.root);
   const toggleName = i18n.t(tree.sectionExpanded ? "Collapse folder {{name}}" : "Expand folder {{name}}", { name: folderName });
-  const firstWord = folderName.match(/^\s*\S+/)?.[0] ?? folderName;
   const items = visibleTreeItems(tree);
   const rows = useRef(new Map<string, HTMLLIElement>());
   useLayoutEffect(() => {
@@ -184,7 +183,15 @@ function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, docu
   return (
     <section ref={section} className="sidebar-folder" aria-label={folderName} data-testid="folder" data-root={tree.root}>
       <div className="sidebar-folder-header">
-        {/* Float actions before the name so later lines can use the full text width. */}
+        <p className="sidebar-folder-name" title={tree.root}>
+          <span className="sidebar-tree-chevron">
+            <Button type="button" variant="ghost" size="icon-xs" className="sidebar-folder-toggle"
+              aria-label={toggleName} title={toggleName} aria-expanded={tree.sectionExpanded} aria-controls={treeId}
+              onClick={onToggleSection}><ChevronRight aria-hidden="true" /></Button>
+          </span>
+          {tree.sectionExpanded ? <FolderOpen className="sidebar-tree-icon" aria-hidden="true" /> : <Folder className="sidebar-tree-icon" aria-hidden="true" />}
+          <span className="sidebar-tree-name">{folderName}</span>
+        </p>
         <div className="sidebar-folder-actions">
           <Button variant="ghost" size="icon-xs" aria-label={i18n.t("New document…")} title={i18n.t("New document…")} onClick={event => onNew(event.currentTarget)}>
             <Plus />
@@ -206,13 +213,6 @@ function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, docu
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <p className="sidebar-folder-name" title={tree.root}>
-          <span><span className="sidebar-folder-first-word">
-            <Button type="button" variant="ghost" size="icon-xs" className="sidebar-folder-toggle"
-              aria-label={toggleName} title={toggleName} aria-expanded={tree.sectionExpanded} aria-controls={treeId}
-              onClick={onToggleSection}><ChevronRight aria-hidden="true" /></Button>
-            {firstWord}</span>{folderName.slice(firstWord.length)}</span>
-        </p>
       </div>
       <ul id={treeId} className="sidebar-tree" role="tree" aria-label={folderName} hidden={!tree.sectionExpanded} onKeyDown={keyDown}>
         {items.map(item => {
@@ -230,7 +230,7 @@ function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, docu
               role="treeitem"
               className="sidebar-tree-item"
               data-foreign={foreign || undefined}
-              style={{ "--tree-depth": item.depth } as CSSProperties}
+              style={{ "--tree-depth": item.depth + 1 } as CSSProperties}
               tabIndex={entry.path === tabStop ? 0 : -1}
               title={description ? `${entry.path}\n${description}` : entry.path}
               aria-description={description}
