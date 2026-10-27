@@ -399,9 +399,9 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   await page.keyboard.press('Tab');
   assert(await tree.locator('[tabindex="0"]').evaluate(node => node === document.activeElement), 'Tab enters the retained tree stop');
   await page.getByRole('button', {name:'Document settings', exact:true}).click();
-  assert(await section.locator('[role="tree"]').isVisible(), 'Document settings must retain the mounted file navigation behind its modal');
+  assert(await section.locator('[role="tree"]').isVisible(), 'Document settings must retain the mounted file navigation while expanded');
   await page.keyboard.press('Escape');
-  await page.getByRole('dialog', {name:'Document settings', exact:true}).waitFor({state:'detached'});
+  await page.getByRole('region', {name:'Document settings',exact:true}).locator('.display-settings').waitFor({state:'hidden'});
   assert(JSON.stringify(await treeState()) === JSON.stringify(retained), 'Settings reset tree scroll or keyboard stop');
   await page.getByRole('button', {name:'Collapse sidebar', exact:true}).click();
   await page.getByRole('button', {name:'Expand sidebar', exact:true}).click();

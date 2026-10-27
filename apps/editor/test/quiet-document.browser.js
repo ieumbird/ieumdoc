@@ -209,7 +209,7 @@ async (page, { screenshots = false, openDocument, openPath, withBlockHover }) =>
       for(const [name,value,priority] of saved)value?root.style.setProperty(name,value,priority):root.style.removeProperty(name);
     }
   },selectors);
-  const uiIsolation=await checkUIIsolation(['[data-testid="save"]','.top-bar-document-settings','.document-outline-item','.document-outline-number',
+  const uiIsolation=await checkUIIsolation(['[data-testid="save"]','.document-settings-summary','.document-outline-item','.document-outline-number',
     '.code-language','.figure-edit','.table-column-handle']);
   check(JSON.stringify(uiIsolation.before)===JSON.stringify(uiIsolation.after),
     `Document typography leaked into UI: ${JSON.stringify(uiIsolation)}`);
@@ -636,9 +636,10 @@ async (page, { screenshots = false, openDocument, openPath, withBlockHover }) =>
       await page.getByRole('button',{name:'Document settings',exact:true}).click();
       await rest();
       await shot(`${width}-display`);
+      // Capture preparation blurs focus; direct Escape back to the inline disclosure.
+      await page.getByRole('button',{name:'Document settings',exact:true}).focus();
       await page.keyboard.press('Escape');
-      await page.getByRole('dialog', {name:'Document settings', exact:true}).waitFor({state:'detached'});
-
+      await page.getByRole('region', {name:'Document settings',exact:true}).locator('.display-settings').waitFor({state:'hidden'});
 
     }
   }

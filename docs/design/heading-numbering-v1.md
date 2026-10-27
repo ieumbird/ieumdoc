@@ -1,7 +1,7 @@
 # Heading numbering v1
 
 - Status: Implemented
-- Document settings verification: 2026-10-27 (#554: existing document operations and device width preference; [integration, checks and captures](editor-ux-shell-v1.md#document-settings-placement-554)).
+- Document settings verification: 2026-10-27 (#580: inline settings, per-tab expansion, notation previews and existing document operations; [integration, checks and captures](editor-ux-shell-v1.md#document-settings-placement-554)).
 - Accent verification: 2026-10-27 (#559: generated heading/Outline numbers share the local accent; all presets checked by the token contrast and existing Outline browser tests).
 - Body-heading authoring verification: 2026-10-26 (#472 Editor unit/browser checks; Core/CLI and numbering behavior unchanged). [Verification details](document-editing-v1.md).
 - Last verified: 2026-10-26 (#511 generated-number color: Editor tests, typecheck/build, Outline/layout-rules/quiet-document/visual-states browser checks and 1440px manual comparison).
@@ -19,7 +19,7 @@ see [document title and body authoring](document-editing-v1.md#document-title-25
 
 `updateHeadingNumbering(document, enabled)` updates only heading settings in native frontmatter with the existing YAML library, preserving reference templates and other admitted metadata. `HeadingNumbering` and `headingNumbers` expose the editor-neutral display rule. Editor headings and Outline call the same rule; one ProseMirror document attribute participates in Undo/Redo. Save applies the Core operation without changing snapshot paths. Metadata is hidden from the body, never inserted as an editor block.
 
-In the Document settings dialog, opened from the TopBar document area or command center, Number headings belongs to Saved in this document. It is disabled without a document, during pending work and in Source. Wide document is a separate TopBar toggle and device preference. Source is read-only. Supported top-level headings advance counters; unsupported nested structures never enter a native document.
+In the inline Document settings block above the title (#580), Number headings belongs to Saved in this document. The block starts collapsed; the command center or Settings link expands and focuses it. It is disabled without a document, during pending work and in Source. Wide document is a separate TopBar toggle and device preference. Source is read-only. Supported top-level headings advance counters; unsupported nested structures never enter a native document.
 
 CLI: `ieumdoc update-heading-numbering <file> --enabled true|false`. `inspect --format json` reports computed `headingNumber` values. Figure/equation numbering is independent.
 
@@ -91,7 +91,7 @@ form `{ template: "…" }`, edit existing template scalars in place to retain ma
 the existing canonical round-trip guard. A numbering map emptied by removal is removed. Heading and
 reference edits preserve one another. Setting an existing object-form template to the same value leaves source metadata untouched; shorthand is converted to object form with its comments retained.
 
-The Document settings dialog offers **Reference style** beside Number headings,
+The expanded Document settings block offers **Reference style** beside Number headings, with actual notation previews in every menu choice,
 with the same unavailable states. Each choice is one undoable document attribute change;
 Save replays the Core operation. The file stores templates, never a choice name. Effective
 values matching a choice select it (including explicitly authored default values); unmatched

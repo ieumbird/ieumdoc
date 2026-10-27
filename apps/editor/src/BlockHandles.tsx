@@ -182,6 +182,9 @@ export const BlockHandles = memo(function BlockHandles({ editor, menuIndex, onIn
     resize.observe(host);
     // A minimum-height paper can stay fixed while fonts, images or NodeViews resize the content.
     resize.observe(editor.view.dom);
+    // Settings can move the content without resizing either the paper or editor.
+    const settings = host.querySelector(".document-settings");
+    if (settings) resize.observe(settings);
     host.addEventListener("mousemove", hover);
     editor.view.dom.addEventListener("beforeinput", input, true);
     editor.view.dom.addEventListener("keydown", keydown, true);

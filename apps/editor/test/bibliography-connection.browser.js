@@ -17,7 +17,7 @@ async (page, { openPath, reloadDocument, waitForEditorFocus, bibliographyFixture
   if (await references().count()) regressions.push('Unused document must have no References area');
   if (screenshots) await page.screenshot({ path: 'tmp/visual-refinement/references-unused-1280.png', fullPage: true });
   const settings = page.getByRole('button', { name: 'Document settings', exact: true });
-  const settingsDialog = page.getByRole('dialog', {name:'Document settings',exact:true});
+  const settingsDialog = page.getByRole('region', {name:'Document settings',exact:true}).locator('.display-settings');
   for (const entry of ['Document settings', 'command center']) {
     if (entry === 'Document settings') {
       await settings.click(); await settingsDialog.waitFor();
@@ -40,7 +40,11 @@ async (page, { openPath, reloadDocument, waitForEditorFocus, bibliographyFixture
     assert(await references().count() === 0, 'Opening the connection UI alone leaves an unused document without References');
     await page.getByRole('button', { name: 'Connect refs.bib', exact: true }).click();
     await page.getByRole('dialog', {name:'Connect bibliography…',exact:true}).waitFor({state:'detached'});
-    if(entry==='Document settings') assert(await settings.evaluate(n=>n===document.activeElement),'Bibliography must return focus to the document settings opener');
+    if(entry==='Document settings') {
+      await connect.and(page.locator(':focus')).waitFor();
+      assert(await connect.evaluate(n=>n===document.activeElement),'Bibliography must return focus to Connect');
+      await page.keyboard.press('Escape');
+    }
     assert(await references().count() === 1, `${entry} connection shows References before Save`);
     assert(!(await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(unused)}`)).json()).source.includes('bibliography:'), `${entry} stages without writing`);
     await save(); await reloadDocument(page);
@@ -98,7 +102,7 @@ async (page, { openPath, reloadDocument, waitForEditorFocus, bibliographyFixture
     await page.keyboard.type(text);
   };
   await type(' Unsaved before connection.');
-  await tab.getByRole('button', { name: 'Connect bibliography…', exact: true }).click();
+  await references().getByRole('button', { name: 'Connect bibliography…', exact: true }).click();
   await page.getByRole('button', { name: 'Connect refs.bib', exact: true }).click();
   const pending = tab.getByText('Save this document to load the connected bibliography files.', { exact: true });
   await pending.waitFor();
@@ -129,7 +133,7 @@ async (page, { openPath, reloadDocument, waitForEditorFocus, bibliographyFixture
   await page.getByRole('button', { name: 'Source', exact: true }).click();
   await tab.getByTestId('source-view').waitFor();
   assert((await tab.getByTestId('source-view').innerText()).includes('refs.bib'), 'Source previews the staged Core operation');
-  assert(await settings.isDisabled(), 'Document settings cannot open from Source');
+  assert(await settings.count() === 0, 'Document settings is hidden in Source');
   await page.keyboard.press('Control+/');
   await page.getByRole('combobox', { name: 'Search documents and commands', exact: true }).fill('> Connect bibliography');
   assert(await page.getByRole('option', { name: 'Connect bibliography…', exact: true }).getAttribute('aria-disabled') === 'true', 'Command cannot connect from Source');
@@ -145,8 +149,16 @@ async (page, { openPath, reloadDocument, waitForEditorFocus, bibliographyFixture
     if (route.request().method() !== 'POST') return route.continue();
     const response = await route.fetch(); committed(); await held; await route.fulfill({ response });
   });
-  await page.getByRole('button', { name: 'Save', exact: true }).click(); await disk;
-  assert(await settings.isDisabled(), 'Document settings cannot open during Save');
+  if (await settings.getAttribute('aria-expanded') !== 'true') await settings.click();
+  await page.getByRole('button',{name:'Reference style',exact:true}).click();
+  await page.getByRole('menu',{name:'Reference style',exact:true}).waitFor();
+  await page.keyboard.press('Control+s'); await disk;
+  const styleMenu = page.getByRole('menu',{name:'Reference style',exact:true});
+  if (await styleMenu.count()) {
+    assert(await styleMenu.getByRole('menuitemradio').evaluateAll(items => items.length > 0 && items.every(n => n.getAttribute('aria-disabled') === 'true')), 'An already-open notation menu cannot change settings during Save');
+    await page.keyboard.press('Escape'); await styleMenu.waitFor({state:'detached'});
+  }
+  assert(await page.getByRole('checkbox',{name:'Number headings',exact:true}).isDisabled(), 'Document settings cannot change during Save');
   await page.keyboard.press('Control+/');
   await page.getByRole('combobox', { name: 'Search documents and commands', exact: true }).fill('> Connect bibliography');
   assert(await page.getByRole('option', { name: 'Connect bibliography…', exact: true }).getAttribute('aria-disabled') === 'true', 'Command cannot connect during Save');
@@ -186,7 +198,7 @@ async (page, { openPath, reloadDocument, waitForEditorFocus, bibliographyFixture
   for (const index of [0, 1]) {
     const connected = file.replace('connect.md', `connected-${index}.md`);
     await openPath(page, connected);
-    await tab.getByRole('button', { name: 'Connect bibliography…', exact: true }).click();
+    await references().getByRole('button', { name: 'Connect bibliography…', exact: true }).click();
     const choices = page.getByRole('group', { name: 'Bibliography files in this folder', exact: true });
     await choices.waitFor();
     if (await choices.getByRole('button', { name: 'Connect refs.bib', exact: true }).count()) failures.push(`P1: connected-${index} offers an equivalent refs.bib declaration`);
@@ -195,7 +207,7 @@ async (page, { openPath, reloadDocument, waitForEditorFocus, bibliographyFixture
     await page.getByRole('dialog', { name: 'Connect bibliography…', exact: true }).waitFor({ state: 'detached' });
   }
   await openPath(page, file);
-  await tab.getByRole('button', { name: 'Connect bibliography…', exact: true }).click();
+  await references().getByRole('button', { name: 'Connect bibliography…', exact: true }).click();
   const choices = page.getByRole('group', { name: 'Bibliography files in this folder', exact: true });
   const longName = 'References-' + 'unbroken'.repeat(18) + '.bib';
   const longCandidate = choices.getByRole('button', { name: `Connect ${longName}`, exact: true });

@@ -70,7 +70,7 @@ async (page, { openPath }) => {
     check.arm = false;
     if (hold && !check.held) throw new Error("ProseMirror's post-focus selection check was not scheduled; recheck the prosemirror-view patch");
   }, hold);
-  // Tab from the final header control into the editor after selection has left it (as after a click elsewhere),
+  // Tab through the collapsed document settings into the editor after selection has left it,
   // recording the browser caret before the engine handles focus.
   const tabIn = async () => {
     await editor.evaluate(el => el.addEventListener('focus', () => {
@@ -80,7 +80,9 @@ async (page, { openPath }) => {
     await page.getByRole('button', {name:'Close focus.md', exact:true}).focus();
     await page.evaluate(() => getSelection().removeAllRanges());
     await page.keyboard.press('Tab');
-    assert(await editor.evaluate(el => el.editor.view.hasFocus()), 'Tab from the final tab control focuses the editor');
+    assert(await page.getByRole('button',{name:'Document settings',exact:true}).evaluate(n => n === document.activeElement), 'Tab from the final tab control reaches document settings');
+    await page.keyboard.press('Tab');
+    assert(await editor.evaluate(el => el.editor.view.hasFocus()), 'Tab from collapsed document settings focuses the editor');
     const reset = await page.evaluate(() => window.__focusDom);
     assert(reset === 1, `The browser resets the DOM caret to the document start on focus: ${reset}`);
   };
@@ -104,7 +106,7 @@ async (page, { openPath }) => {
   await page.waitForTimeout(250);
   await typed('^', '^Focus|First paragraph.|Last paragraph.!', 'Typing after Control+Home');
 
-  // 3. Control: Tab from the final tab control lets the browser put the DOM caret at the document start;
+  // 3. Control: Tab through collapsed settings lets the browser put the DOM caret at the document start;
   // the editor's caret is restored, and typing lands there.
   await caret('First paragraph.', 3);
   await tabIn();

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { operationText, type Operation } from "../operation.ts";
 import { useLayoutEffect, useRef, useState, type Ref } from "react";
-import { Copy, Ellipsis, LoaderCircle, PanelRight, RotateCcw, Search, SlidersHorizontal, StretchHorizontal } from "lucide-react";
+import { Copy, Ellipsis, LoaderCircle, PanelRight, RotateCcw, Search, StretchHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -13,10 +13,6 @@ export type DocumentView = "visual" | "source";
 type TopBarProps = {
   onOpenCommandCenter?(): void;
   documentPath: string;
-  onDocumentSettings?(): void;
-  documentSettingsRef?: Ref<HTMLButtonElement>;
-  documentSettingsDisabled?: boolean;
-  documentSettingsHint?: string;
   wide?: boolean;
   onToggleWide?(): void;
   /** The folders holding the document, shown before its name; the tab row already names it. */
@@ -43,13 +39,13 @@ type TopBarProps = {
 /**
  * The centered Find documents and commands button opens the command center. Status has its own left cell,
  * so an unsaved/saved notice never moves the center or actions.
- * Document settings stays in the document area. On the right: Visual/Source, Wide document and
+ * On the right: Visual/Source, Wide document and
  * Outline, then Save and File actions. Only Save with unsaved changes takes the accent.
  * Spaced groups separate view and file actions; Visual/Source is segmented and width/Outline
  * are pressed toggles.
  */
 export function TopBar({
-  onOpenCommandCenter, documentPath, onDocumentSettings, documentSettingsRef, documentSettingsDisabled, documentSettingsHint, wide, onToggleWide,
+  onOpenCommandCenter, documentPath, wide, onToggleWide,
   location = [], status, unsaved = false, view, viewDisabled, onViewChange, saveDisabled,
   onSave, onReload, reloadDisabled, onCopyPath, fileActionsRef,
   outline, onToggleOutline, outlineToggleRef,
@@ -106,9 +102,6 @@ export function TopBar({
   return (
     <header className="top-bar">
       <div className="top-bar-identity">
-        {onDocumentSettings ? <Button ref={documentSettingsRef} type="button" variant="ghost" size="sm" className="top-bar-document-settings"
-          aria-haspopup="dialog" disabled={documentSettingsDisabled} title={documentSettingsHint}
-          onClick={onDocumentSettings}><SlidersHorizontal aria-hidden="true" />{i18n.t("Document settings")}</Button> : null}
         <p className="status" data-testid="status" data-operation={status} role="status">
           {displayStatus}
         </p>

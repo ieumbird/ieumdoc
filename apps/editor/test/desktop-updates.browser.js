@@ -316,15 +316,25 @@ async (page, { screenshots = false, openPath }) => {
       await page.keyboard.press('Escape'); await dialog.waitFor({state:'detached'});
       await page.getByRole('button',{name:language === 'en' ? 'Settings' : '설정',exact:true})
         .and(page.locator(':focus')).waitFor();
-      await page.getByRole('button',{name:language === 'en' ? 'Settings' : '설정',exact:true}).click();
-      await dialog.waitFor();
-      await dialog.getByRole('button',{name:language === 'en' ? 'Open document settings' : '문서 설정 열기',exact:true}).click();
-      await dialog.waitFor({state:'detached'});
-      const documentSettings = page.getByRole('dialog',{name:language === 'en' ? 'Document settings' : '문서 설정',exact:true});
-      await documentSettings.waitFor();
-      await page.keyboard.press('Escape'); await documentSettings.waitFor({state:'detached'});
-      await page.getByRole('button',{name:language === 'en' ? 'Settings' : '설정',exact:true})
-        .and(page.locator(':focus')).waitFor();
+      if (width === 1440) {
+        // Settings releases its modal before revealing the inline block, at supported widths.
+        for (const closeWidth of [640, 1440]) {
+          await page.setViewportSize({width:1440,height:900});
+          await page.getByRole('button',{name:language === 'en' ? 'Settings' : '설정',exact:true}).click();
+          await dialog.waitFor();
+          await page.setViewportSize({width:640,height:900});
+          await dialog.getByRole('button',{name:language === 'en' ? 'Open document settings' : '문서 설정 열기',exact:true}).click();
+          await dialog.waitFor({state:'detached'});
+          const name = language === 'en' ? 'Document settings' : '문서 설정';
+          const body = page.getByRole('region',{name,exact:true}).locator('.display-settings');
+          const disclosure = page.getByRole('button',{name,exact:true});
+          await body.waitFor();
+          await disclosure.and(page.locator(':focus')).waitFor();
+          await page.setViewportSize({width:closeWidth,height:900});
+          await page.keyboard.press('Escape'); await body.waitFor({state:'hidden'});
+          if (!await disclosure.evaluate(n=>n===document.activeElement)) throw Error('Inline settings lost focus after resize');
+        }
+      }
     }
     // Change through the actual preference control; never rewrite UI text in a capture.
     const expand = page.getByRole('button',{name:language === 'en' ? 'Expand sidebar' : '사이드바 펼치기',exact:true});

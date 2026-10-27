@@ -31,6 +31,8 @@ const technical = [document("technical-document.md"), document("diagram.svg")];
 
 /** Scratch directory under `tmp/` → the files a fresh copy holds, and the scenarios using it. */
 export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: string[] }> = {
+  "inline-document-settings": { files: [{ name: "short.md", create: () => nativeSource(
+    "# Short settings\n\n## Section\n\nFirst paragraph.\n\n| Name | Value |\n| --- | --- |\n| A | 1 |\n") }], scenarios: ["inline-document-settings"] },
   "file-actions": { files: [
     { name: "a.md", create: () => nativeSource("# File actions\n\nAlpha.\n") },
     { name: "b.md", create: () => nativeSource("# Second\n\nBeta.\n") },
@@ -72,7 +74,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       { name: `${folder}/guide.md`, create: () => document("technical-document.md").create() },
       { name: `${folder}/diagram.svg`, create: () => document("diagram.svg").create() },
     ]),
-  ], scenarios: ["document-tabs", "recovery", "command-center"] },
+  ], scenarios: ["document-tabs", "recovery", "command-center", "inline-document-settings"] },
   // Preserve the parent directories: the running HTTP Host pins their filesystem identities.
   "http-host-a/fixture": { files: [
     { name: "bibliography.md", create: () => fixture("bibliography.md").create() },

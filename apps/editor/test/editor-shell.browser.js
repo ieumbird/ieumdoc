@@ -48,15 +48,18 @@ async page => {
     await dialog.waitFor({state:'detached'});
     result.folderCancelReturnsFocus = await isFocused(openFolder);
 
-    // Document settings is modal, retains the editor, and returns focus to its opener.
+    // Document settings stays outside ProseMirror and preserves the mounted editor.
     const settings = page.getByRole('button', {name:'Document settings', exact:true});
-    const settingsDialog = page.getByRole('dialog', {name:'Document settings', exact:true});
+    const settingsDialog = page.getByRole('region', {name:'Document settings',exact:true}).locator('.display-settings');
     const editorHandle = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluateHandle(n => n.editor);
     await settings.focus(); await page.keyboard.press('Enter');
     await settingsDialog.waitFor();
-    result.documentSettingsTarget = await settingsDialog.locator('.display-file').textContent() === 'technical-document.md';
+    result.documentSettingsTarget = await settingsDialog.locator('input[type=checkbox]').count() === 1;
+    result.settingsOutsideContent = await page.locator('.ProseMirror .document-settings').count() === 0;
+    result.noTopBarSettings = await page.locator('.top-bar').getByRole('button',{name:'Document settings',exact:true}).count() === 0;
+    await page.keyboard.press('Tab');
     result.documentSettingsKeyboardEntry = await isFocused(page.getByRole('checkbox', {name:'Number headings', exact:true}));
-    await page.keyboard.press('Escape'); await settingsDialog.waitFor({state:'detached'});
+    await page.keyboard.press('Escape'); await settingsDialog.waitFor({state:'hidden'});
     result.documentSettingsEscapeReturnsFocus = await isFocused(settings);
     await page.getByRole('button',{name:'Collapse sidebar'}).click();
     result.railOnlyReopensFiles = await page.getByTestId('sidebar').getByRole('button').count() === 1;
@@ -119,7 +122,7 @@ async page => {
     await page.getByTestId('selection-toolbar').waitFor();
     const keyboardSelection = await editorState();
     await settings.click();
-    await page.keyboard.press('Escape'); await settingsDialog.waitFor({state:'detached'});
+    await page.keyboard.press('Escape'); await settingsDialog.waitFor({state:'hidden'});
     result.settingsKeepsSelectionAndHistory = await editorState() === keyboardSelection;
     await page.locator('[data-document-tab][data-active=true] .document-editor').focus();
     await page.keyboard.press('Tab');
@@ -146,7 +149,7 @@ async page => {
     result.saveAvailableDuringDraft = await page.getByTestId('save').isEnabled();
     result.draftScopeExplained = await page.getByTestId('draft-notice').isVisible();
     await settings.click();
-    await page.keyboard.press('Escape'); await settingsDialog.waitFor({state:'detached'});
+    await page.keyboard.press('Escape'); await settingsDialog.waitFor({state:'hidden'});
     result.settingsKeepsEquationDraft = await page.getByTestId('equation-latex').inputValue() === 'x + 1' &&
       await page.getByTestId('draft-notice').isVisible();
     await fileActions.click();
@@ -166,7 +169,7 @@ async page => {
     await page.getByRole('button', {name:'Edit figure'}).click();
     result.figurePopover = await page.getByTestId('figure-editor').isVisible();
     await settings.click();
-    await page.keyboard.press('Escape'); await settingsDialog.waitFor({state:'detached'});
+    await page.keyboard.press('Escape'); await settingsDialog.waitFor({state:'hidden'});
     result.settingsKeepsFigureForm = await page.getByTestId('figure-editor').isVisible();
     await page.getByTestId('figure-cancel').click();
 

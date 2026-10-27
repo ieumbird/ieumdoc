@@ -44,7 +44,7 @@ async (page, { screenshots = false, fileActionsRoot, expect, recoveryRecords, ac
   }
   await page.setViewportSize({width:1440,height:900}); await page.emulateMedia({colorScheme:'light'});
   await row('a.md').click(); await expect(page.getByTestId('current-file')).toHaveText('a.md');
-  const paragraph = activeDocument(page).locator('p').first();
+  const paragraph = activeDocument(page).locator('.document-editor p').first();
   await paragraph.click(); await page.keyboard.press('End'); await page.keyboard.type(' Changed.');
   await expect(page.getByRole('tab',{name:'a.md, Unsaved changes',exact:true})).toBeVisible();
   await expect.poll(async () => (await recoveryRecords(page)).some(record => record.path === file('a.md'))).toBe(true);
@@ -198,7 +198,7 @@ async (page, { screenshots = false, fileActionsRoot, expect, recoveryRecords, ac
           return result;
         };
       });
-      await activeDocument(other).locator('p').first().click();
+      await activeDocument(other).locator('.document-editor p').first().click();
       await other.keyboard.press('End'); await other.keyboard.type(' Delayed first record.');
       await other.waitForFunction(() => window.pendingRecoveryWrite === true);
       expect((await recoveryRecords(other)).filter(record => record.path === file(name))).toHaveLength(0);

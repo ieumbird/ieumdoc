@@ -270,7 +270,7 @@ async (page, { openDocument, reloadDocument, expect }) => {
   await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor h2')?.getAttribute('data-heading-number') === '1' &&
     document.querySelectorAll('[data-testid="outline"] button')[1]?.textContent.startsWith('1 '));
   await page.keyboard.press('Escape');
-  await page.getByRole('dialog', {name:'Document settings', exact:true}).waitFor({state:'detached'});
+  await page.getByRole('region', {name:'Document settings',exact:true}).locator('.display-settings').waitFor({state:'hidden'});
   result.headingNumbersApplied = await editor.locator('h1').getAttribute('data-heading-number') === null &&
     (await texts())[1].startsWith('1 ');
   await items.nth(1).click();
@@ -354,7 +354,7 @@ async (page, { openDocument, reloadDocument, expect }) => {
   await toggle.click();
   result.headingNumberingDisabled = await editor.locator('h2').first().getAttribute('data-heading-number') === null;
   await page.keyboard.press('Escape');
-  await page.getByRole('dialog', {name:'Document settings', exact:true}).waitFor({state:'detached'});
+  await page.getByRole('region', {name:'Document settings',exact:true}).locator('.display-settings').waitFor({state:'hidden'});
   const offAck = page.waitForResponse(response => response.request().method() === 'POST' && /\/api\/document(?:\?|$)/.test(response.url()));
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await offAck;

@@ -11,6 +11,7 @@ import { createDocumentSessionLifetime } from "../src/document-session.ts";
 import { readCollapsedFolderSections, readOpenTabs, visibleRecentFolders, writeCollapsedFolderSections, writeOpenTabs } from "../src/preferences.ts";
 import { DocumentPanel } from "../src/shell/DocumentPanel.tsx";
 import { DisplaySettings } from "../src/shell/DisplaySettings.tsx";
+import { DocumentSettings } from "../src/shell/DocumentSettings.tsx";
 import { documentLocation, splitDocumentPath, unquotePath } from "../src/shell/document-path.ts";
 import { MessageArea } from "../src/shell/MessageArea.tsx";
 import { NewDialog } from "../src/shell/NewDialog.tsx";
@@ -329,7 +330,6 @@ test("translated messages and commands follow language changes while operation i
 
 const noop = () => {};
 const PATH = String.raw`C:\docs\guide.md`;
-const display = { headingNumbering: false, numberingDisabled: false, onToggleHeadingNumbering: noop };
 
 test("tabs use Host paths, choose the right then left neighbour, and leave an inactive close alone", () => {
   const tabs = [{ id: "a", path: "C:/a/guide.md" }, { id: "b", path: "C:/b/guide.md" }, { id: "c", path: "C:/c/readme.md" }];
@@ -550,22 +550,27 @@ test("document panel holds only the outline, and the TopBar Outline toggle shows
   }
 });
 
-test("document settings reuses numbering, reference and bibliography controls and unavailable states", () => {
-  const html = renderToStaticMarkup(<DisplaySettings {...display} documentPath={PATH} headingNumbering />);
-  assert.match(html, /guide\.md/);
-  assert.match(html, /Saved in this document/);
-  assert.match(html, /Reference style/);
-  assert.match(html, /Connect bibliography…/);
-  assert.match(html, /<option value="default" selected="">Default<\/option>/);
-  assert.doesNotMatch(html, /Wide document|Local view/);
-  assert.match(html, /aria-describedby="display-numbering-hint"[^>]*checked/);
-  const custom = renderToStaticMarkup(<DisplaySettings {...display} documentPath={PATH} referenceTemplates={{figure: "Illustration %s"}} />);
-  assert.match(custom, /<option value="custom" disabled="" selected="">Custom<\/option>/);
-  const blocked = renderToStaticMarkup(<DisplaySettings {...display} documentPath="" numberingDisabled numberingHint="Open a document to change numbering." />);
-  assert.match(blocked, /No document open/);
-  assert.match(blocked, /<select\b[^>]*disabled/);
-  assert.match(blocked, /<button\b(?=[^>]*disabled)(?=[^>]*aria-describedby="display-numbering-hint")[^>]*>Connect bibliography…<\/button>/);
-  assert.match(blocked, /<input\b(?=[^>]*disabled)(?=[^>]*aria-describedby="display-numbering-hint")[^>]*>/);
+test("document settings renders grouped fields independently of placement", () => {
+  const html = renderToStaticMarkup(<DisplaySettings disabled={false} groups={[{label: "Behavior", fields: [
+    {id: "numbers", label: "Number headings", summary: "Save to keep changes", control: {kind: "checkbox", checked: true, onChange: noop}},
+    {id: "resource", label: "Bibliography", summary: "refs.bib", control: {kind: "custom", render: id => <button aria-describedby={id}>Connect</button>}},
+  ]}]} />);
+  assert.match(html, /<legend[^>]*>Behavior/);
+  assert.match(html, /checked=""/);
+  assert.match(html, /refs.bib/);
+  assert.match(html, /aria-describedby=/);
+});
+
+test("document settings summarizes current values and readonly has no editable controls", () => {
+  const props = {expanded: false, onExpandedChange: noop, readOnly: false, disabled: false, headingNumbering: true,
+    referenceTemplates: {figure: "Fig. %s", table: "Table %s", equation: "(%s)"}, bibliography: ["refs.bib"],
+    onToggleHeadingNumbering: noop, onReferenceStyleChange: noop, onConnectBibliography: noop};
+  const html = renderToStaticMarkup(<DocumentSettings {...props} />);
+  assert.match(html, /aria-expanded="false"/);
+  assert.match(html, /Numbered headings · Concise references · refs.bib/);
+  const readonly = renderToStaticMarkup(<DocumentSettings {...props} readOnly />);
+  assert.doesNotMatch(readonly, /aria-expanded=|<input|<button/);
+  assert.match(readonly, /Numbered headings · Concise references · refs.bib/);
 });
 
 test("top bar shows filename while keeping the complete path in its title", () => {

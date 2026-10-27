@@ -47,6 +47,9 @@
   /* Expanded sidebar: its width, and its width at window widths of 1024px and below. */
   --layout-sidebar-width: 15rem;
   --layout-sidebar-width-narrow: 12.5rem;
+  /* Inline document settings: aligned field labels and separation from the title. */
+  --layout-document-settings-label-width: 9rem;
+  --space-document-settings-after: var(--space-5);
   /* Dedicated Settings: bounded reading column and aligned controls. */
   --layout-settings-content-width: 42.5rem;
   --layout-settings-control-width: 15rem;

@@ -1,5 +1,10 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Bibliography": "Bibliography",
+  "No bibliography connected": "No bibliography connected",
+  "{{style}} references": "{{style}} references",
+  "Unnumbered headings": "Unnumbered headings",
+  "Numbered headings": "Numbered headings",
   "Save these documents before renaming the image: {{documents}}": "Save these documents before renaming the image: {{documents}}",
   "Skipped unreadable or non-IeumDoc documents: {{documents}}": "Skipped unreadable or non-IeumDoc documents: {{documents}}",
   "The files changed, but these tabs could not be reloaded: {{documents}}": "The files changed, but these tabs could not be reloaded: {{documents}}",
@@ -599,6 +604,11 @@ export const ko: Record<keyof typeof en, string> = {
   "How IeumDoc looks on this device.": "이 기기에서 이음독이 표시되는 방식을 정합니다.",
   "Local recovery keeps applied edits on this device.": "적용한 편집 내용은 이 기기의 로컬 복구 기록에 보관됩니다.",
   "Version and how IeumDoc Desktop receives updates.": "이음독 데스크톱의 버전과 업데이트 방식을 확인합니다.",
+  "Numbered headings": "제목 번호 켜짐",
+  "Unnumbered headings": "제목 번호 꺼짐",
+  "{{style}} references": "상호 참조: {{style}}",
+  "No bibliography connected": "연결된 참고문헌 없음",
+  "Bibliography": "참고문헌",
   "Document settings": "문서 설정",
   "Document settings…": "문서 설정…",
   "Saved in this document": "이 문서에 저장됩니다",

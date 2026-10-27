@@ -49,7 +49,9 @@ async (page, { openPath }) => {
   try {
     await page.getByTestId('view-source').click();
     await requested;
-    result.settingsBlockedWhilePending = await page.getByRole('button', {name:'Document settings', exact:true}).isDisabled();
+    const disclosure = page.getByRole('button', {name:'Document settings', exact:true});
+    if (await disclosure.getAttribute('aria-expanded') !== 'true') await disclosure.click();
+    result.settingsBlockedWhilePending = await page.getByRole('checkbox',{name:'Number headings',exact:true}).isDisabled();
     await otherDocument.click();
     await page.getByTestId('error').getByText('Wait for the current operation to finish.', {exact:true}).waitFor();
     result.openBlockedWhilePending = await currentFile() === documentA;
@@ -64,7 +66,7 @@ async (page, { openPath }) => {
   const source = await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').locator('pre').textContent();
   result.identityStillA = await currentFile() === documentA;
   result.sourceIsA = source.includes('# Converter Control') && !source.includes('Editable paragraph.');
-  result.settingsSourceIsReadOnly = await page.getByRole('button', {name:'Document settings', exact:true}).isDisabled() &&
+  result.settingsSourceIsReadOnly = (await page.getByRole('button', {name:'Document settings', exact:true}).count() === 0) &&
     await page.getByRole('button', {name:'Wide document', exact:true}).isEnabled();
   await page.unroute('**/api/document-source');
 
