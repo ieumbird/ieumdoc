@@ -105,9 +105,9 @@ test("foreign PATH commands and foreign files are reported without replacement o
     }
     await mkdir(integration.bin, { recursive: true });
     await writeFile(integration.shim, "user script");
-    assert.equal((await integration.state()).status, "broken");
+    assert.equal((await integration.state()).status, "off");
     await assert.rejects(integration.setEnabled(true), /Another file/);
-    await assert.rejects(integration.setEnabled(false), /Another file/);
+    assert.match((await integration.setEnabled(false)).conflict!, /Another file/);
     assert.equal(await readFile(integration.shim, "utf8"), "user script");
     assert.equal(data.writes, 0);
   });
@@ -133,14 +133,36 @@ test("repair rebinds a moved app; uninstall of an older copy does not remove the
   });
 });
 
-test("replaced junctions and command files are not deleted, including by uninstall", async () => {
-  await fixture(async ({ integration, root }) => {
+test("replaced junctions survive uninstall while their PATH entry is removed and the conflict reported", async () => {
+  await fixture(async ({ integration, root, data }) => {
+    const original = { ...data.user };
     await integration.setEnabled(true);
     await unlink(integration.junction);
     await mkdir(integration.junction);
     await writeFile(path.join(integration.junction, "keep.txt"), "user data");
-    await assert.rejects(integration.setEnabled(false, true), /Another file/);
+    const result = await integration.setEnabled(false, true);
+    assert.equal(result.status, "off");
+    assert.match(result.conflict!, /Another file/);
+    assert.deepEqual(data.user, original);
     assert.equal(await readFile(path.join(root, "IeumDoc", "bin", "app", "keep.txt"), "utf8"), "user data");
+  });
+});
+
+test("damaged ownership cannot trap Settings or uninstall in a registered state; uncertain files stay", async () => {
+  for (const uninstall of [false, true]) await fixture(async ({ integration, data }) => {
+    const original = { ...data.user };
+    await integration.setEnabled(true);
+    await writeFile(integration.record, "damaged owner");
+    assert.equal((await integration.state()).status, "broken");
+    await assert.rejects(integration.setEnabled(true), /unrecognized/);
+    const result = await integration.setEnabled(false, uninstall);
+    assert.equal(result.status, "off");
+    assert.match(result.conflict!, /unrecognized/);
+    assert.deepEqual(data.user, original);
+    assert.deepEqual(await integration.state(), result);
+    assert.equal(await readFile(integration.record, "utf8"), "damaged owner");
+    assert.equal(await readFile(integration.shim, "utf8"), CLI_SHIM);
+    assert.ok((await lstat(integration.junction)).isSymbolicLink());
   });
 });
 

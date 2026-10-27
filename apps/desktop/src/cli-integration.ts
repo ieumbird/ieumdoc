@@ -7,7 +7,7 @@ export type RegistryPath = { value: string; kind: "String" | "ExpandString" | nu
 export type PathSnapshot = { user: RegistryPath; machine: string; inherited: string };
 export interface EnvironmentPort {
   read(): Promise<PathSnapshot>;
-  /** Compare-and-set the unexpanded value and kind; notify Explorer after a successful change. */
+  /** Reject a stale value/kind snapshot before writing; not atomic against external writers. Notify Explorer. */
   write(previous: RegistryPath, next: RegistryPath): Promise<void>;
   expand(value: string): string;
 }
@@ -106,11 +106,11 @@ export class CliIntegration {
 
   async state(): Promise<CliIntegrationState> {
     const snapshot = await this.environment.read();
+    const registered = editUserPath(snapshot.user.value, this.bin, false, this.environment.expand) !== snapshot.user.value;
     let owner: Ownership | null;
     try { owner = await this.ownership(); await this.ownFiles(owner); }
-    catch (error) { return { status: "broken", conflict: (error as Error).message }; }
+    catch (error) { return { status: registered ? "broken" : "off", conflict: (error as Error).message }; }
     const conflict = await this.conflict(snapshot);
-    const registered = editUserPath(snapshot.user.value, this.bin, false, this.environment.expand) !== snapshot.user.value;
     if (!owner) return { status: registered ? "broken" : "off", ...(conflict ? { conflict } : {}) };
     const valid = registered && await exists(owner.executable) &&
       normalized(owner.executable, value => value) === normalized(this.executable, value => value) &&
@@ -123,12 +123,18 @@ export class CliIntegration {
     if (this.busy) throw new Error("A CLI integration change is already in progress.");
     this.busy = true;
     try {
-      const owner = await this.ownership();
+      let owner: Ownership | null = null;
+      let fileProblem: string | undefined;
+      try { owner = await this.ownership(); await this.ownFiles(owner); }
+      catch (error) {
+        if (enabled) throw error;
+        // Untrusted files must stay, but they cannot prevent removing our PATH entry.
+        fileProblem = (error as Error).message;
+      }
       // A different installed copy must not remove the current registration during uninstall.
-      if (uninstall && (!owner || normalized(owner.executable, value => value) !== normalized(this.executable, value => value))) {
+      if (uninstall && owner && normalized(owner.executable, value => value) !== normalized(this.executable, value => value)) {
         return { status: "off" };
       }
-      await this.ownFiles(owner);
       const snapshot = await this.environment.read();
       if (enabled) {
         const collision = await this.conflict(snapshot);
@@ -145,6 +151,7 @@ export class CliIntegration {
       }
       const value = editUserPath(snapshot.user.value, this.bin, enabled, this.environment.expand);
       if (value !== snapshot.user.value) await this.environment.write(snapshot.user, { value, kind: snapshot.user.kind ?? "ExpandString" });
+      if (!enabled && fileProblem) return { status: "off", conflict: fileProblem };
       if (!enabled && owner) {
         // Remove only these individual owned entries, never recursively delete a user directory.
         if (await entry(this.shim)) await fs.unlink(this.shim);

@@ -70,12 +70,21 @@ expand environment variables and normalize Windows paths; edits do not rewrite u
 WM_SETTINGCHANGE notifies Explorer. The Settings hint tells users to open a new terminal.
 Conflict checks include fresh user/machine PATH and the app's inherited PATH. No administrator
 rights or machine PATH writes are used.
+Fixed PowerShell code receives base64 UTF-8 JSON on stdin, never in argv. Long values, Unicode,
+quotes and literal `%VAR%` expressions are preserved. The pre-write value/kind comparison detects
+a stale snapshot; another process can still write between comparison and SetValue (not atomic).
 
 Updates preserve the external integration and fixed installation target. NSIS actual uninstall
 runs the same cleanup before removing application files; update's internal uninstall skips it.
 Cleanup only removes owned files/junctions and the integration's PATH entry, and an uninstall
-from another installation cannot remove a registration owned by the current one. A failure is
-reported rather than silently claiming cleanup. Moving an installation leaves a broken target;
+from another installation cannot remove a registration owned by the current one. Damaged ownership
+or conflicting files do not prevent removing our bin's PATH entries; unverifiable files stay and
+Settings reports Off with the remaining conflict after successful PATH removal. Registry failures
+remain errors. Optional cleanup failure never aborts app removal, including `/S`: NSIS writes a
+unique diagnostic under `%LOCALAPPDATA%\IeumDoc\uninstall-logs` (TEMP fallback), with the bin path,
+helper error and manual Environment Variables cleanup instructions. Interactive removal displays
+a warning; silent removal logs it without waiting for input. This does not claim CLI cleanup
+succeeded. Moving an installation leaves a broken target;
 Repair from the new app rebinds it after the same ownership/conflict checks.
 
 Verification scope: scratch files and an injected environment boundary test state, conflict, repair,
@@ -83,9 +92,12 @@ failure and raw PATH preservation without changing the developer's registry. Per
 bridge mocks exercise the actual Settings UI at 1440px and 640px. Disposable Windows CI checks
 the packaged Electron Node engines range, Desktop version identity, shim help/check JSON and exit-code parity with Node,
 argument/pipe forwarding, `serve`, real enable/disable, update preservation and uninstall cleanup.
+CI also injects damaged ownership, foreign files, missing helpers and environment access failures
+into interactive and silent actual removal, and checks long raw registry values round-trip.
 Manual acceptance still includes enabling in an installed app, running from a new terminal,
 disabling, running after update and checking cleanup after removal. Local tests must not modify
 the real user's PATH or registry; packaged Desktop/install tests run in CI for this work.
+Long-running `serve`, actual console Ctrl+C and all `%`/`^`/`!` argument combinations remain manual.
 
 Real Settings captures with a Desktop bridge mock: [1440px](../reviews/assets/desktop-cli-604/settings-1440.png)
 and [640px](../reviews/assets/desktop-cli-604/settings-640.png). These show the Korean initial Off

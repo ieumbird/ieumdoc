@@ -55,6 +55,16 @@ path is embedded. Enabling adds only this bin directory to the user's PATH; disa
 uninstall remove it. Installation and update never opt the user in. Existing foreign commands and
 files are not overwritten; broken registrations can be repaired or disabled.
 
+Disabling removes our bin's PATH entries even when ownership records are damaged, leaving
+unverifiable files untouched and reporting them. Optional CLI cleanup must never block app
+uninstallation, including silent `/S` removal: NSIS records failures, remaining paths and manual
+cleanup instructions, warns interactive users, and continues removing the app. Updates still skip
+cleanup. A valid record owned by another installation remains protected.
+
+Registry scripts receive values through stdin, separate from fixed executable code, so long PATH
+values do not consume the Windows argv limit. Before writing, the helper checks for a stale
+snapshot; this is not an atomic compare-and-set against concurrent external writers.
+
 Electron's RunAsNode fuse stays enabled (its current default). This explicitly accepts the cost
 that the installed, potentially signed executable can execute arbitrary JavaScript under the
 user's authority, as with VS Code `code` and Paseo. It is not a trust boundary for scripts. No other

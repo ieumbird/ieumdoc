@@ -9,7 +9,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -200,6 +200,25 @@ test("installs per user, then updates from Settings only after the open document
       await cli.getByText("Off", { exact: true }).waitFor();
       assert.deepEqual((await cliEnvironment.read()).user, originalUserPath, "disable preserves the original raw PATH and registry kind");
       assert.equal(existsSync(path.join(cliBin, "ieumdoc.cmd")), false);
+      await cli.getByRole("button", { name: "Turn on", exact: true }).click();
+      await cli.getByText("Installed", { exact: true }).waitFor();
+      // A damaged ownership record disables Repair, but Turn off must still unregister PATH.
+      writeFileSync(path.join(cliBin, "owner.json"), "damaged owner");
+      await page.reload();
+      await page.locator('[data-testid="status"][data-operation="ready" i]').waitFor({ state: "attached" });
+      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await page.getByRole("button", { name: "About & updates", exact: true }).click();
+      await cli.getByText("Broken path", { exact: true }).waitFor();
+      assert.equal(await cli.getByRole("button", { name: "Repair", exact: true }).isDisabled(), true);
+      await cli.getByRole("button", { name: "Turn off", exact: true }).click();
+      await page.locator('[data-testid="cli-integration"][aria-busy="false"]').waitFor();
+      assert.equal(await cli.getByTestId("cli-status").innerText(), "Off");
+      assert.deepEqual((await cliEnvironment.read()).user, originalUserPath);
+      assert.equal(readFileSync(path.join(cliBin, "owner.json"), "utf8"), "damaged owner");
+      // Fixture-only cleanup after verifying preservation, then continue the update with CLI on.
+      for (const name of ["app", "ieumdoc.cmd", "owner.json"]) unlinkSync(path.join(cliBin, name));
+      await cli.getByRole("button", { name: "Refresh status", exact: true }).click();
+      await page.locator('[data-testid="cli-integration"][aria-busy="false"]').waitFor();
       await cli.getByRole("button", { name: "Turn on", exact: true }).click();
       await cli.getByText("Installed", { exact: true }).waitFor();
     }

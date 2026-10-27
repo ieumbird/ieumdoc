@@ -1,9 +1,7 @@
 import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import path from "node:path";
 import type { EnvironmentPort, PathSnapshot, RegistryPath } from "./cli-integration.ts";
 
-const exec = promisify(execFile);
 const registry = String.raw`
 $ErrorActionPreference = 'Stop'
 $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment', $true)
@@ -16,12 +14,16 @@ function Read-Path {
 }
 `;
 
-async function powershell(script: string): Promise<string> {
+async function powershell(script: string, input = ""): Promise<string> {
   const executable = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
-  const { stdout } = await exec(executable, ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand",
-    Buffer.from(`[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)\n${script}`, "utf16le").toString("base64")],
-  { windowsHide: true, encoding: "utf8", timeout: 15_000 });
-  return stdout.trim();
+  return new Promise((resolve, reject) => {
+    const child = execFile(executable, ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand",
+      Buffer.from(`[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)\n${script}`, "utf16le").toString("base64")],
+    { windowsHide: true, encoding: "utf8", timeout: 15_000 },
+    (error, stdout) => error ? reject(error) : resolve(stdout.trim()));
+    child.stdin!.on("error", reject);
+    child.stdin!.end(input);
+  });
 }
 
 /** No registry access occurs until an explicit read/write call. Tests inject another port. */
@@ -43,11 +45,13 @@ try {
       return { ...result, inherited: process.env.PATH ?? "" };
     },
     async write(previous: RegistryPath, next: RegistryPath): Promise<void> {
-      // Encode data separately from executable PowerShell; no path or registry value is shell code.
+      // ASCII stdin carries UTF-8 JSON independently of code/argv size and console input encoding.
       const data = Buffer.from(JSON.stringify({ previous, next }), "utf8").toString("base64");
-      await powershell(registry + `\n$data = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${data}')) | ConvertFrom-Json\n` + String.raw`
+      await powershell(registry + String.raw`
 try {
+  $data = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String([Console]::In.ReadToEnd())) | ConvertFrom-Json
   $current = Read-Path
+  # Stale-snapshot check only: SetValue is not atomic with this comparison.
   if ($current.value -cne $data.previous.value -or $current.kind -cne $data.previous.kind) { throw 'User PATH changed; try again.' }
   $key.SetValue('Path', $data.next.value, [Microsoft.Win32.RegistryValueKind]$data.next.kind)
 } finally { $key.Dispose() }
@@ -61,7 +65,7 @@ public static class IeumDocEnvironment {
 '@
 $result = [UIntPtr]::Zero
 [void][IeumDocEnvironment]::SendMessageTimeout([IntPtr]0xffff, 0x001a, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result)
-`);
+`, data);
     },
   };
 }
