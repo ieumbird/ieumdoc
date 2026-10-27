@@ -94,7 +94,7 @@ test("interactive and silent NSIS removal survive CLI ownership, helper and envi
       assert.match(diagnostic, /Environment Variables > User Path/);
       assert.match(diagnostic, fault === "owner" ? /ownership file is unrecognized/
         : fault === "foreign" ? /Another file already uses/
-        : fault === "helper" ? /Cannot find module/ : /powershell\.exe.*ENOENT|ENOENT.*powershell\.exe/s,
+        : fault === "helper" ? /Cleanup helper is missing/ : /powershell\.exe.*ENOENT|ENOENT.*powershell\.exe/s,
       `${label}: diagnostic identifies the injected failure`);
       const expected = fault === "owner" || fault === "foreign" ? longPath : registered;
       assert.deepEqual((await environment.read()).user, expected, `${label}: report actual PATH outcome`);
