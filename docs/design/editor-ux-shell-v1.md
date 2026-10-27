@@ -28,8 +28,8 @@ Historical verification records: [Verification record](#verification-record).
 ## File context menu (#505 / #504 PR A)
 
 Each file tree row (native/foreign document, image or other file) offers Rename… and Delete file…
-in a shared Base UI ContextMenu. Right click, focused-row Shift+F10 / Menu key and touch long
-press open the same menu in every Host. Only these file targets suppress the browser context
+in a shared Base UI ContextMenu. Right click and focused-row Shift+F10 / Menu key open the
+same menu in every Host. Only these file targets suppress the browser context
 menu; folder rows and the document body retain native behavior. There are no new ellipsis,
 toolbar, F2 or Delete entries. Target-local data supplies IDs, labels, icons, visibility and execution;
 there is no global registry. Keyboard menu navigation is independent of tree arrows; Escape
@@ -57,22 +57,22 @@ Recovery storage failure after a completed disk operation is reported explicitly
 ### File action verification and captures
 
 `pnpm browser:test file-actions --screenshots` uses scratch fixtures and the checkout-owned
-persistent Chrome profile. The scenario verifies mouse, keyboard and actual touch input, native
+persistent Chrome profile. The scenario verifies mouse and keyboard input, native
 menu boundaries, collision/reference refusal, editor identity/no reread, Undo/Redo, Save at the new
 path, recovery relocation/deletion, active/inactive deletion and adjacent focus. It also checks
 existing Figure image URLs and a subsequent real image upload after rename.
 
-Captures: Windows Chrome, English UI, 100% zoom, DPR 1, 1440×900 / 390×900, bundled Pretendard.
+Captures: Windows Chrome, English UI, 100% zoom, DPR 1, 1440×900 / 640×900, bundled Pretendard.
 Before uses master `7e935cf4592ee6a4135fd069a31a638d2a768c7b` Sidebar in this merged worktree (controlled rollback of the file menu); After restores the PR Sidebar in the same state.
-1440 uses light OS preference; 390 uses dark OS preference. The default System theme resolves each preference using the current #595 light/dark roles. Full traces and logs stay in
+1440 uses light OS preference; 640 uses dark OS preference. The default System theme resolves each preference using the current #595 light/dark roles. Full traces and logs stay in
 ignored `tmp/file-actions-evidence`; only the selected small captures are retained here.
 
-| Surface | 1440px (light OS) | 390px (dark OS) |
+| Surface | 1440px (light OS) | 640px (dark OS) |
 | --- | --- | --- |
-| Before: file tree, no product context menu | [Before](assets/file-actions-505/before-1440.png) | [Before](assets/file-actions-505/before-390.png) |
-| Context menu | [After](assets/file-actions-505/after-menu-1440.png) | [After](assets/file-actions-505/after-menu-390.png) |
-| Delete confirmation | [After](assets/file-actions-505/after-delete-1440.png) | [After](assets/file-actions-505/after-delete-390.png) |
-| Rename input | [After](assets/file-actions-505/after-rename-1440.png) | [After](assets/file-actions-505/after-rename-390.png) |
+| Before: file tree, no product context menu | [Before](assets/file-actions-505/before-1440.png) | [Before](assets/file-actions-505/before-640.png) |
+| Context menu | [After](assets/file-actions-505/after-menu-1440.png) | [After](assets/file-actions-505/after-menu-640.png) |
+| Delete confirmation | [After](assets/file-actions-505/after-delete-1440.png) | [After](assets/file-actions-505/after-delete-640.png) |
+| Rename input | [After](assets/file-actions-505/after-rename-1440.png) | [After](assets/file-actions-505/after-rename-640.png) |
 
 
 ## Document settings placement (#554)

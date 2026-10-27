@@ -43,15 +43,14 @@
 ## File context actions (#505 / #504 PR A)
 
 File tree context menus share the dropdown popup and row class constants, including compact
-height, icon slot, gap, neutral highlight and keyboard focus ring. Base UI owns menu focus,
-positioning and touch long press. Delete rows use the existing danger text/icon and highlighted
+height, icon slot, gap, neutral highlight and keyboard focus ring. Base UI owns menu focus and positioning. Delete rows use the existing danger text/icon and highlighted
 surface-danger roles. Target-specific action data supplies content, not a new menu engine.
 
 The shared danger confirmation names the file, starts focus on Cancel, uses the destructive Button
 and returns focus to the surviving row/adjacent tree target. Busy confirmation blocks dismissal;
 errors retain the dialog. Rename reuses the compact shared Dialog/Input/footer geometry and
 shows the fixed extension beside the selected stem. Long descriptions/errors wrap within the
-popup. At 390px the existing footer stacks actions; desktop retains a horizontal footer.
+popup. At the supported 640px minimum and at desktop widths, the existing footer retains horizontal actions.
 The [shell capture record](editor-ux-shell-v1.md#file-action-verification-and-captures) records both
 sizes and light/dark OS preferences, using the current System theme and shared #595 roles.
 

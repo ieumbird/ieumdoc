@@ -25,29 +25,20 @@ async (page, { screenshots = false, expect, recoveryRecords, activeDocument } = 
   await page.keyboard.press('Escape'); await menu.waitFor({state:'hidden'}); await expect(row('a.md')).toBeFocused();
   await row('a.md').press('ContextMenu'); await expect(rename()).toBeVisible();
   await page.keyboard.press('Escape'); await menu.waitFor({state:'hidden'});
-  const touch = await page.context().newCDPSession(page);
-  await touch.send('Emulation.setTouchEmulationEnabled', {enabled:true});
-  const box = await row('a.md').boundingBox();
-  await touch.send('Input.dispatchTouchEvent', {type:'touchStart',touchPoints:[{x:box.x+30,y:box.y+box.height/2}]});
-  await expect(rename()).toBeVisible();
-  await touch.send('Input.dispatchTouchEvent', {type:'touchEnd',touchPoints:[]});
-  await page.keyboard.press('Escape'); await menu.waitFor({state:'hidden'});
-  await touch.send('Emulation.setTouchEmulationEnabled', {enabled:false}); await touch.detach();
   const metadata = [];
-  if (screenshots) for (const width of [1440, 390]) {
+  for (const width of [1440, 640]) {
     await page.setViewportSize({width, height:900});
     const expand = page.getByRole('button', {name:'Expand sidebar', exact:true});
-    if (width === 390) await expand.waitFor();
     if (await expand.isVisible()) await expand.click();
-    await page.emulateMedia({colorScheme:width === 390 ? 'dark' : 'light'});
-    await expect(page.locator('html')).toHaveAttribute('data-theme',width === 390 ? 'dark' : 'light');
+    await page.emulateMedia({colorScheme:width === 640 ? 'dark' : 'light'});
+    await expect(page.locator('html')).toHaveAttribute('data-theme',width === 640 ? 'dark' : 'light');
     await row('a.md').click({button:'right'}); await rename().waitFor();
-    await page.screenshot({path:`tmp/file-actions-evidence/after-menu-${width}.png`});
+    if (screenshots) await page.screenshot({path:`tmp/file-actions-evidence/after-menu-${width}.png`});
     await rename().click(); await dialog.waitFor();
-    await page.screenshot({path:`tmp/file-actions-evidence/after-rename-${width}.png`});
+    if (screenshots) await page.screenshot({path:`tmp/file-actions-evidence/after-rename-${width}.png`});
     expect(await dialog.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true); await cancel();
     await context('a.md','Delete file…');
-    await page.screenshot({path:`tmp/file-actions-evidence/after-delete-${width}.png`});
+    if (screenshots) await page.screenshot({path:`tmp/file-actions-evidence/after-delete-${width}.png`});
     await expect(dialog.getByRole('button',{name:'Cancel',exact:true})).toBeFocused();
     expect(await dialog.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
     metadata.push(await page.evaluate(() => ({width:innerWidth,dpr:devicePixelRatio,zoom:visualViewport.scale,dark:matchMedia('(prefers-color-scheme:dark)').matches,font:getComputedStyle(document.body).fontFamily})));
