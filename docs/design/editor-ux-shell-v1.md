@@ -98,7 +98,9 @@ Wide document stays in TopBar.
 The navigation footer explains that heading numbers, reference style and bibliography
 belong to each document. With an open document it offers the existing Document settings
 dialog, respecting its current availability and returning focus to the original Settings
-opener. The Settings screen closes before handing focus to that dialog.
+opener. The Settings screen closes before handing focus to that dialog. Both screens
+resolve the return target at dismissal: a disconnected or hidden opener falls back to
+the currently visible Sidebar toggle, including viewport changes after the handoff.
 
 Implementation/verification scope: Editor shell, shared controls and bundled Korean/English
 copy only; no new Core operation or CLI command. Reuse the existing language, recovery,
@@ -115,7 +117,14 @@ editor-shell, layout-rules and quiet-document. The existing layout helper now ga
 screen's Back focus rather than the old popup's language selector; its deliberate delayed
 focus assertion remains. The Desktop scenario also crosses 1440→390px while Settings
 is open: if the old Sidebar opener disappears, Back/Escape focuses the visible Expand
-sidebar control. Packaged Desktop and install/update execution remain required CI checks.
+sidebar control. Review follow-up: the same viewport traversal includes the Document
+settings link and Escape, in both languages, with dismissal at 390px or after returning
+to 1440px. Before the fix, the first linked-dialog case failed with focus on BODY;
+the shared dismissal-time resolver retains the original visible opener or selects the
+current Sidebar toggle. Follow-up local checks passed: the expanded desktop-updates
+scenario, ui-language, command-center, editor-shell and layout-rules, Editor 297/297,
+workspace typecheck, production build, docs and whitespace checks. Packaged Desktop
+and install/update execution remain required CI checks.
 
 Manual comparison: Windows Chrome, bundled Pretendard Variable, DPR 1, zoom 1,
 1440×900 and 390×900, English, content scroll 0, clean `updates.md`, mock Desktop

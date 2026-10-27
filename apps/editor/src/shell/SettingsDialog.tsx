@@ -1,7 +1,7 @@
 import { useMessageState } from "../ui-message.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
-import { useRef, useState, type RefObject } from "react";
+import { useRef, useState } from "react";
 import { ArrowLeft, FileText, Info, Palette, History } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog.tsx";
@@ -60,7 +60,6 @@ type SettingsDialogProps = {
   documentSettingsDisabled: boolean;
   documentSettingsHint: string;
   onDocumentSettings(): void;
-  fallbackFocus(): HTMLElement | null;
   desktop?: DesktopBridge;
   recoveryCount?: number;
   recoveryProblem?: string;
@@ -69,13 +68,13 @@ type SettingsDialogProps = {
   onInfo(info: DesktopInfo): void;
   /** Restart to install; resolves to why not, or "" when the app is restarting. */
   onInstall(): Promise<string>;
-  /** The control that opened Settings, which gets focus back when it closes. */
-  returnFocus?: RefObject<HTMLElement | null>;
+  /** Resolve the opener or its current visible replacement when Settings closes. */
+  returnFocus(): HTMLElement | true;
   onClose(): void;
 };
 
 /** Shared local recovery settings; About and update controls require the Desktop bridge. */
-export function SettingsDialog({ open, category, onCategoryChange, documentName, unsaved, documentSettingsDisabled, documentSettingsHint, onDocumentSettings, fallbackFocus, desktop, info, onInfo, onInstall, returnFocus, onClose, recoveryCount = 0, recoveryProblem: storageProblem, onClearRecovery }: SettingsDialogProps) {
+export function SettingsDialog({ open, category, onCategoryChange, documentName, unsaved, documentSettingsDisabled, documentSettingsHint, onDocumentSettings, desktop, info, onInfo, onInstall, returnFocus, onClose, recoveryCount = 0, recoveryProblem: storageProblem, onClearRecovery }: SettingsDialogProps) {
   useTranslation();
   const backButton = useRef<HTMLButtonElement>(null);
   const connectDocumentSettings = useRef(false);
@@ -110,11 +109,7 @@ export function SettingsDialog({ open, category, onCategoryChange, documentName,
         }
       }}>
       <DialogContent className="settings-screen" data-testid="settings-dialog" showCloseButton={false}
-        initialFocus={backButton} finalFocus={() => {
-          if (connectDocumentSettings.current) return false;
-          const target = returnFocus?.current;
-          return target?.isConnected && target.getClientRects().length ? target : fallbackFocus() ?? true;
-        }}>
+        initialFocus={backButton} finalFocus={() => connectDocumentSettings.current ? false : returnFocus()}>
         <header className="settings-topbar">
           <Button ref={backButton} data-testid="settings-back" variant="ghost" size="sm" onClick={close}>
             <ArrowLeft aria-hidden="true" />{i18n.t(documentName ? "Back to document" : "Back to start")}

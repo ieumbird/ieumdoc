@@ -368,6 +368,12 @@ export function App() {
   const documentSettingsReturnFocus = useRef<HTMLElement | null>(null);
   const connectAfterSettings = useRef(false);
 
+  // Resolve when an overlay closes: a viewport change can replace its original opener.
+  function shellReturnFocus(preferred: HTMLElement | null): HTMLElement | true {
+    return preferred?.isConnected && preferred.getClientRects().length ? preferred
+      : (sidebarOpen ? sidebarToggle.current : openSidebarButton.current ?? sidebarToggle.current) ?? true;
+  }
+
   // The overlaid Document panel starts below the sticky header, whose height changes when the
   // TopBar wraps or a message appears; it never covers Save, File actions or the Outline toggle.
   useEffect(() => {
@@ -868,7 +874,7 @@ export function App() {
             editorRef.current?.openBibliographyConnection(documentSettingsReturnFocus.current);
           }
         }}>
-        <DialogContent finalFocus={() => connectAfterSettings.current ? false : documentSettingsReturnFocus.current ?? true}>
+        <DialogContent finalFocus={() => connectAfterSettings.current ? false : shellReturnFocus(documentSettingsReturnFocus.current)}>
           <DialogTitle>{i18n.t("Document settings")}</DialogTitle>
           <DialogDescription className="sr-only">{i18n.t("Saved in this document")}</DialogDescription>
           <DisplaySettings documentPath={openedPath} headingNumbering={headingNumbering} referenceTemplates={referenceTemplates}
@@ -890,7 +896,6 @@ export function App() {
             documentSettingsReturnFocus.current = settingsReturnFocus.current;
             setDocumentSettingsOpen(true);
           }}
-          fallbackFocus={() => sidebarOpen ? sidebarToggle.current : openSidebarButton.current ?? sidebarToggle.current}
           recoveryCount={recoveryRecords.length}
           recoveryProblem={recoveryProblem}
           onClearRecovery={() => deleteRecovery()}
@@ -898,7 +903,7 @@ export function App() {
           info={desktopInfo}
           onInfo={setDesktopInfo}
           onInstall={installUpdate}
-          returnFocus={settingsReturnFocus}
+          returnFocus={() => shellReturnFocus(settingsReturnFocus.current)}
           onClose={() => setSettingsOpen(false)}
         />
       <CommandCenter open={commandQuery !== null} initialQuery={commandQuery ?? ""} items={commandItems}
