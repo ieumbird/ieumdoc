@@ -153,11 +153,16 @@ test("the exact shim preserves quoted Unicode arguments, binary stdin/stdout and
     await integration.setEnabled(true);
     const args = ["한글 문서 😀.md", 'a "quoted" value', "C:\\space ! & (x)\\", ""];
     const input = Buffer.from([0, 255, 13, 10, 65, 0, 66]);
-    const result = spawnSync(process.env.ComSpec ?? "cmd.exe", windowsCommand(integration.shim, args), {
-      windowsVerbatimArguments: true, windowsHide: true, input, timeout: 15_000,
-    });
-    assert.equal(result.status, 37, result.stderr?.toString());
-    assert.deepEqual(result.stdout, Buffer.concat([input, Buffer.from(`\n${JSON.stringify(args)}`)]));
-    assert.equal(result.stderr.toString(), "probe stderr");
+    const env = { ...process.env };
+    for (const key of Object.keys(env)) if (key.toLowerCase() === "path") delete env[key];
+    env.Path = `${integration.bin};${process.env.PATH ?? ""}`;
+    for (const command of [integration.shim, "ieumdoc"]) {
+      const result = spawnSync(process.env.ComSpec ?? "cmd.exe", windowsCommand(command, args), {
+        cwd: app, env, windowsVerbatimArguments: true, windowsHide: true, input, timeout: 15_000,
+      });
+      assert.equal(result.status, 37, `${command}: ${result.stderr?.toString()}`);
+      assert.deepEqual(result.stdout, Buffer.concat([input, Buffer.from(`\n${JSON.stringify(args)}`)]));
+      assert.equal(result.stderr.toString(), "probe stderr");
+    }
   });
 });
