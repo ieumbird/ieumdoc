@@ -4,11 +4,11 @@ import test from "node:test";
 import { getSchema } from "@tiptap/core";
 import { history, undo, redo } from "@tiptap/pm/history";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { EditorState, TextSelection, type Transaction } from "@tiptap/pm/state";
+import { AllSelection, EditorState, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { parse, serialize } from "@ieumdoc/core";
 import { BLOCK_COMMANDS } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
-import { endnoteLabel, endnoteNumber, endnotesPlugin } from "../src/endnotes.ts";
+import { endnoteEditingKey, endnoteEditingPlugin, endnoteLabel, endnoteNumber, endnotesPlugin } from "../src/endnotes.ts";
 import { assertSupportedDocumentChange, collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
@@ -42,6 +42,62 @@ const run = (state: EditorState, command: (state: EditorState, dispatch: (tr: Tr
   assert.ok(command(state, tr => { next = state.apply(tr); }));
   return next;
 };
+
+test("read-only definitions reject destination changes, including mark steps, while editing and block deletion remain undoable", () => {
+  const projection = toTiptapDocument(loadEditableDocument(source));
+  let state = EditorState.create({ schema, doc: schema.nodeFromJSON(projection), plugins: [history(), endnoteEditingPlugin(), endnotesPlugin()] });
+  const body = blockPos(state.doc, 1) + 2;
+  const note = blockPos(state.doc, 2) + 1;
+  state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, body)));
+  const pasted = state.apply(state.tr.insertText("external", note + 2).setMeta("uiEvent", "paste"));
+  assert.ok(pasted.doc.eq(state.doc), "a transaction aimed at a different read-only block must be refused");
+  const formatted = state.apply(state.tr.addMark(note, note + 2, schema.marks.bold.create()));
+  assert.ok(formatted.doc.eq(state.doc), "a mark step with no positional map must be refused");
+
+  const all = state.apply(state.tr.setSelection(new AllSelection(state.doc)));
+  assert.ok(all.apply(all.tr.insertText("external", note + 2).setMeta("uiEvent", "drop")).doc.eq(state.doc), "AllSelection must not permit a targeted drop");
+  assert.ok(all.apply(all.tr.insertText("external", note + 2).setMeta("uiEvent", "paste")).doc.eq(state.doc), "AllSelection must not permit a targeted paste");
+  assert.ok(all.apply(all.tr.addMark(note, note + 2, schema.marks.bold.create())).doc.eq(state.doc), "AllSelection must not permit a targeted mark");
+  assert.ok(all.apply(all.tr.delete(note - 1, note - 1 + state.doc.child(2).nodeSize)).doc.eq(state.doc), "AllSelection must not permit a targeted definition deletion");
+  const cleared = all.apply(all.tr.deleteSelection());
+  assert.ok(!cleared.doc.eq(state.doc), "whole-document deletion remains allowed");
+  assert.ok(run(cleared, undo).doc.eq(state.doc), "Undo restores a whole-document deletion");
+  const replaced = all.apply(all.tr.insertText("replacement"));
+  assert.equal(replaced.doc.textContent, "replacement", "whole-document typing remains allowed");
+  assert.ok(run(replaced, undo).doc.eq(state.doc), "Undo restores a whole-document replacement");
+  const wholePaste = all.apply(all.tr.insertText("pasted").setMeta("uiEvent", "paste"));
+  assert.equal(wholePaste.doc.textContent, "pasted", "a paste replacing the selected whole document remains allowed");
+  assert.ok(run(wholePaste, undo).doc.eq(state.doc), "Undo restores a whole-document paste");
+  assert.ok(all.apply(all.tr.insertText("drop").setMeta("uiEvent", "drop")).doc.eq(state.doc), "a drop must not use the whole-document exception");
+
+  // Chromium composition normalizes whole selection to the first/last content positions;
+  // its fitted replace consumes the final block boundary as well.
+  const size = state.doc.content.size;
+  const normalized = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1, size - 1)));
+  const composition = () => normalized.tr.replaceRangeWith(1, size, schema.text("ㅎ")).setMeta("composition", 1);
+  const composed = normalized.apply(composition());
+  assert.equal(composed.doc.textContent, "ㅎ", "a fitted full-content composition must replace the document");
+  assert.ok(run(composed, undo).doc.eq(state.doc), "Undo restores the document after full-content composition");
+  for (const uiEvent of ["drop", "paste"]) {
+    assert.ok(normalized.apply(composition().setMeta("uiEvent", uiEvent)).doc.eq(state.doc), `${uiEvent} must not use the composition exception`);
+    assert.ok(normalized.apply(normalized.tr.insertText("external", note + 2).setMeta("composition", 1).setMeta("uiEvent", uiEvent)).doc.eq(state.doc), `${uiEvent} into one note must be refused`);
+  }
+  assert.ok(normalized.apply(normalized.tr.insertText("almost", 1, size - 1).setMeta("composition", 1)).doc.eq(state.doc), "a step that does not consume the final boundary is not a whole-document replacement");
+  assert.ok(normalized.apply(normalized.tr.replaceRangeWith(1, size, schema.text("not composition"))).doc.eq(state.doc), "a normalized text selection alone does not grant a whole-document exception");
+  const nearlyAll = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1, size - 2)));
+  assert.ok(nearlyAll.apply(nearlyAll.tr.replaceRangeWith(1, size, schema.text("almost")).setMeta("composition", 1)).doc.eq(state.doc), "a partial selection must not authorize replacing the entire document");
+
+  const active = state.apply(state.tr.setSelection(TextSelection.create(state.doc, note)).setMeta(endnoteEditingKey, "a"));
+  const edited = active.apply(active.tr.insertText("Edit ", note));
+  assert.equal(edited.doc.child(2).textContent, "Edit Short note.");
+  assert.ok(run(edited, undo).doc.eq(state.doc), "Undo keeps its normal behavior");
+  assert.ok(run(run(edited, undo), redo).doc.eq(edited.doc), "Redo restores the definition edit");
+
+  const deletion = BLOCK_COMMANDS.find(command => command.id === "delete")!;
+  const deleted = state.apply(deletion.run(state, 2));
+  assert.deepEqual(labels(deleted.doc), ["heading", "paragraph", "b"]);
+  assert.ok(run(deleted, undo).doc.eq(state.doc), "explicit block deletion remains undoable");
+});
 
 test("an opened document shows Core's order; unchanged Save writes the canonical Markdown Core and the CLI write", () => {
   const scattered = nativeSource("# Notes\n\nClaim[^b] and second[^a].\n\n[^a]: Short note.\n\nBody resumes.\n\n[^b]: First paragraph.\n\nTail.\n");

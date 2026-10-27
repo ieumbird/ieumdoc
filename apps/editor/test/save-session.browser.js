@@ -431,9 +431,8 @@ async (page, { openDocument, waitForActivePath, reloadDocument }) => {
     await page.getByTestId('save').click(); await received;
     same('Held Save writes only its snapshot', (await read(notes)).source, captioned);
     const note = editor.locator('[data-block="footnote"][data-label="b"] p');
-    await note.click();
-    // A Figure's node selection changes to the clicked definition on the next frame.
-    // Wait for the real caret before typing, as the existing footnotes scenario does.
+    await note.dblclick();
+    // Wait for the explicitly opened definition's caret before typing during Save.
     await page.waitForFunction(() => {
       const selection = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection;
       return selection.empty && selection.$from.parent.type.name === 'footnoteDefinition' && selection.$from.parent.attrs.label === 'b';

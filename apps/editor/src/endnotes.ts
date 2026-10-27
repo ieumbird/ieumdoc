@@ -1,10 +1,11 @@
 import { i18n } from "./i18n.ts";
 import { Extension, type Editor } from "@tiptap/core";
-import { closeHistory } from "@tiptap/pm/history";
+import { closeHistory, isHistoryTransaction } from "@tiptap/pm/history";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { NodeSelection, Plugin, PluginKey, Selection, TextSelection } from "@tiptap/pm/state";
+import { NodeSelection, Plugin, PluginKey, Selection, TextSelection, type EditorState } from "@tiptap/pm/state";
 import { useEditorState } from "@tiptap/react";
 import { endnoteOrder, footnoteNumbers, nextFootnoteLabel, orphanedEndnotes, type EndnoteBlock } from "@ieumdoc/core/numbering";
+import { LABEL_PROPERTIES_META } from "./label-rename.ts";
 
 /**
  * The Editor's endnotes. MyST footnotes keep their syntax and node names (`footnoteReference`,
@@ -96,6 +97,110 @@ type ReturnPoint = { label: string; pos: number };
 const returnPointKey = new PluginKey<ReturnPoint | null>("endnoteReturn");
 const ORDER_META = "endnoteOrder";
 
+/** Ephemeral editor interaction, never a document attribute or history event. */
+export const endnoteEditingKey = new PluginKey<string | null>("endnoteEditing");
+const ownerTokens = new WeakMap<Editor, string>();
+let nextOwnerToken = 0;
+
+export function endnoteEditorToken(editor: Editor): string {
+  let token = ownerTokens.get(editor);
+  if (!token) ownerTokens.set(editor, token = `endnote-editor-${++nextOwnerToken}`);
+  return token;
+}
+
+export function endnoteAt(state: EditorState, pos: number): string | null {
+  const $pos = state.doc.resolve(pos);
+  for (let depth = $pos.depth; depth > 0; depth--) {
+    if ($pos.node(depth).type.name === "footnoteDefinition") return String($pos.node(depth).attrs.label);
+  }
+  return null;
+}
+
+/** Inline editors inside a definition follow that definition's explicit edit session. */
+export function canEditEndnoteAt(state: EditorState, pos: number): boolean {
+  const label = endnoteAt(state, pos);
+  return label === null || endnoteEditingKey.getState(state) === label;
+}
+
+export function setEndnoteEditing(editor: Editor, label: string | null): void {
+  editor.view.dispatch(editor.state.tr.setMeta(endnoteEditingKey, label));
+}
+
+/** Protect native input crossing a read-only definition while retaining engine history and
+ * explicit whole-block deletion. Other semantic operations may update references elsewhere. */
+export function endnoteEditingPlugin(): Plugin<string | null> {
+  return new Plugin<string | null>({
+    key: endnoteEditingKey,
+    state: {
+      init: () => null,
+      apply(tr, active, _oldState, newState) {
+        const requested = tr.getMeta(endnoteEditingKey) as string | null | undefined;
+        if (requested !== undefined) return requested;
+        if (!active) return null;
+        const { selection } = tr;
+        return endnoteAt(newState, selection.from) === active && endnoteAt(newState, selection.to) === active ? active : null;
+      },
+    },
+    filterTransaction(tr, state) {
+      if (!tr.docChanged || isHistoryTransaction(tr) || tr.getMeta(ORDER_META) || tr.getMeta("blockCommand") ||
+          tr.getMeta(LABEL_PROPERTIES_META)) return true;
+      // A whole-document selection alone says nothing about a drop or targeted
+      // transaction. Composition can first normalize AllSelection to text positions
+      // just inside the outer blocks; ProseMirror's fitted replacement also consumes
+      // the last block's closing boundary. Restrict that case to composition input.
+      const { selection, doc } = state;
+      const uiEvent = tr.getMeta("uiEvent");
+      const wholeSelection = selection.from === 0 && selection.to === doc.content.size;
+      const wholeComposition = !selection.empty && selection.from === 1 && selection.to === doc.content.size - 1 &&
+        tr.getMeta("composition") !== undefined && uiEvent !== "paste";
+      if ((wholeSelection || wholeComposition) && uiEvent !== "drop") {
+        let replacesDocument = false;
+        tr.steps[0]?.getMap().forEach((from, to) => {
+          if (from === (wholeSelection ? 0 : selection.from) && to === doc.content.size) replacesDocument = true;
+        });
+        if (replacesDocument) return true;
+      }
+      const active = endnoteEditingKey.getState(state);
+      // Compare the actual immutable nodes, not the previous selection: a drop can target a
+      // different block, and mark/attribute steps may have an empty positional step map.
+      const after = new Map<string, ProseMirrorNode>();
+      tr.doc.forEach(node => { const label = endnoteLabel(node); if (label !== undefined) after.set(label, node); });
+      let allowed = true;
+      state.doc.forEach(node => {
+        const label = endnoteLabel(node);
+        if (label === undefined || label === active) return;
+        const replacement = after.get(label);
+        if (!replacement || !replacement.content.eq(node.content)) allowed = false;
+      });
+      return allowed;
+    },
+    appendTransaction(transactions, _oldState, state) {
+      if (endnoteEditingKey.getState(state) || !transactions.some(tr => tr.selectionSet)) return null;
+      const { selection } = state;
+      if (!(selection instanceof TextSelection) || !selection.empty) return null;
+      const label = endnoteAt(state, selection.from);
+      if (!label) return null;
+      let pos: number | undefined;
+      state.doc.forEach((node, at) => { if (endnoteLabel(node) === label) pos = at; });
+      return pos === undefined ? null : state.tr.setSelection(NodeSelection.create(state.doc, pos));
+    },
+    props: {
+      handleDOMEvents: {
+        focus(view) {
+          const { state } = view;
+          if (endnoteEditingKey.getState(state) || !(state.selection instanceof TextSelection) || !state.selection.empty) return false;
+          const label = endnoteAt(state, state.selection.from);
+          if (!label) return false;
+          state.doc.forEach((node, pos) => {
+            if (endnoteLabel(node) === label) view.dispatch(state.tr.setSelection(NodeSelection.create(state.doc, pos)));
+          });
+          return false;
+        },
+      },
+    },
+  });
+}
+
 /** Engine meta: a block draft closed, so a placement it postponed can run. */
 export const ENDNOTE_DRAFT_CLOSED = "endnoteDraftClosed";
 
@@ -156,8 +261,53 @@ export function endnotesPlugin(canOrder: () => boolean = () => true): Plugin<Ret
 /** The engine extension of `endnotesPlugin`. */
 export const Endnotes = Extension.create<{ canOrder(): boolean }>({
   name: "endnotes",
+  priority: 125,
   addOptions() { return { canOrder: () => true }; },
-  addProseMirrorPlugins() { return [endnotesPlugin(this.options.canOrder)]; },
+  addProseMirrorPlugins() { return [endnoteEditingPlugin(), endnotesPlugin(this.options.canOrder)]; },
+  addKeyboardShortcuts() {
+    const selectAdjacent = (direction: -1 | 1) => {
+      const { state, view } = this.editor;
+      const { selection, doc } = state;
+      if (view.composing) return false;
+      if (selection instanceof NodeSelection && selection.node.type.name === "footnoteDefinition") {
+        const adjacent = direction > 0 ? doc.nodeAt(selection.to) : doc.resolve(selection.from).nodeBefore;
+        if (endnoteLabel(adjacent ?? doc) === undefined) return false;
+        const pos = direction > 0 ? selection.to : selection.from - adjacent!.nodeSize;
+        view.dispatch(state.tr.setSelection(NodeSelection.create(doc, pos)));
+        return true;
+      }
+      if (direction < 0 || !selection.empty || selection.$from.depth !== 1 ||
+          selection.$from.parentOffset !== selection.$from.parent.content.size) return false;
+      const pos = selection.$from.after();
+      if (endnoteLabel(doc.nodeAt(pos) ?? doc) === undefined) return false;
+      view.dispatch(state.tr.setSelection(NodeSelection.create(doc, pos)));
+      return true;
+    };
+    return {
+      ArrowRight: () => selectAdjacent(1),
+      ArrowDown: () => selectAdjacent(1),
+      ArrowLeft: () => selectAdjacent(-1),
+      ArrowUp: () => selectAdjacent(-1),
+      Enter: () => {
+        const { state, view } = this.editor;
+        const selection = state.selection;
+        if (view.composing || !(selection instanceof NodeSelection) || selection.node.type.name !== "footnoteDefinition") return false;
+        const label = String(selection.node.attrs.label);
+        view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, selection.to - 1)).setMeta(endnoteEditingKey, label));
+        return true;
+      },
+      Escape: () => {
+        const { state, view } = this.editor;
+        const label = endnoteEditingKey.getState(state);
+        if (!label || view.composing) return false;
+        let pos: number | undefined;
+        state.doc.forEach((node, at) => { if (endnoteLabel(node) === label) pos = at; });
+        if (pos === undefined) return false;
+        view.dispatch(state.tr.setSelection(NodeSelection.create(state.doc, pos)).setMeta(endnoteEditingKey, null));
+        return true;
+      },
+    };
+  },
 });
 
 /** Every footnote label the editor document uses, defined or referenced. */
@@ -173,7 +323,7 @@ export function revealEndnote(editor: Editor, label: string, referencePos?: numb
   let at = 0;
   doc.forEach((block, pos) => { if (!target && endnoteLabel(block) === label) { target = block; at = pos; } });
   if (!target) return false;
-  const selection = TextSelection.create(doc, at + 1 + target.content.size);
+  const selection = NodeSelection.create(doc, at);
   return reveal(editor, selection, at, referencePos === undefined ? undefined : { label, pos: referencePos });
 }
 
@@ -223,7 +373,7 @@ export function insertEndnote(editor: Editor, range: { from: number; to: number 
   const end = tr.doc.content.size;
   tr.insert(end, state.schema.nodes.footnoteDefinition.create({ sourcePath, label }));
   editor.view.dispatch(tr.setSelection(TextSelection.create(tr.doc, end + 1))
-    .setMeta(returnPointKey, { label, pos: from }).scrollIntoView());
+    .setMeta(returnPointKey, { label, pos: from }).setMeta(endnoteEditingKey, label).scrollIntoView());
   editor.view.focus();
   return true;
 }

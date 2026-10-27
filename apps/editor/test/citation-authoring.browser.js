@@ -329,18 +329,51 @@ async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, 
       await center.waitFor({ state: 'detached' });
     }
     await waitForEditorFocus(page);
-    assert(await editor.evaluate(element => element.editor.state.selection.from) === caretBefore, `${location}: center dismissal retains caret`);
+    if (location === 'Definition.') {
+      assert(await editor.evaluate(element => element.editor.state.selection.node?.type.name) === 'footnoteDefinition', 'Leaving an endnote for Command center returns to its read-only selection');
+    } else {
+      assert(await editor.evaluate(element => element.editor.state.selection.from) === caretBefore, `${location}: center dismissal retains caret`);
+    }
   };
   const surfaces = ['Item.', 'Nested item.', 'Quote.', 'Callout.', 'Header', 'Cell.', 'Caption.', 'Heading.', 'Nested inline', 'Definition.'];
   for (const text of surfaces) {
+    if (text === 'Definition.') await editor.getByTestId('footnote-definition').filter({hasText: text}).locator('p').dblclick();
     await caret(text);
     await checkInsertionAvailability(true, text);
+    if (text === 'Definition.') {
+      await editor.getByTestId('footnote-definition').filter({hasText: text}).locator('p').dblclick();
+      await caret(text, true);
+      await page.keyboard.press('Tab');
+      const toolbar = page.getByTestId('selection-toolbar');
+      await toolbar.getByRole('button', {name: 'Bold', exact: true}).focus();
+      await page.keyboard.press('Enter');
+      assert(await editor.getByTestId('footnote-definition').filter({hasText: text}).getAttribute('aria-readonly') === 'false', 'Formatting toolbar retains the endnote edit session');
+      assert(await editor.getByTestId('footnote-definition').filter({hasText: text}).locator('strong').count() === 1, 'Formatting applies inside the endnote');
+      await caret(text);
+    }
     await page.keyboard.type(' /');
     await menu.waitFor();
     const names = await menu.getByRole('menuitem').allTextContents();
     assert(names.every(name => /^(Endnote|Citation…|Section reference:)/.test(name.trim())), `${text}: only inline commands are offered: ${names}`);
     assert(await menu.getByRole('menuitem', { name: 'Endnote', exact: true }).count() === (text === 'Definition.' ? 0 : 1), `${text}: Endnote follows the Core definition restriction`);
     await insertArticle();
+    if (text === 'Definition.') {
+      await page.keyboard.type(' /cite');
+      await menu.getByRole('menuitem', {name: 'Citation…', exact: true}).click();
+      await form.waitFor();
+      assert(await editor.getByTestId('footnote-definition').filter({hasText: text}).getAttribute('aria-readonly') === 'false', 'Citation form retains its endnote edit session');
+      await page.getByTestId('citation-key').fill('article');
+      await page.getByTestId('citation-apply').click();
+      await form.waitFor({state: 'detached'});
+      assert(await editor.getByTestId('footnote-definition').filter({hasText: text}).getAttribute('aria-readonly') === 'false', 'Citation Apply returns to the same endnote');
+      await page.keyboard.type(' /cite');
+      await menu.getByRole('menuitem', {name: 'Citation…', exact: true}).click();
+      await form.waitFor();
+      await page.keyboard.press('Escape');
+      await page.keyboard.press('Escape');
+      await form.waitFor({state: 'detached'});
+      assert(await editor.getByTestId('footnote-definition').filter({hasText: text}).getAttribute('aria-readonly') === 'false', 'Closing the citation form does not close the endnote');
+    }
     await page.keyboard.type(' /reference');
     await menu.getByRole('menuitem', { name: 'Section reference: Target', exact: true }).click();
     if (text !== 'Definition.') {
@@ -384,6 +417,31 @@ async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, 
   await reloadDocument(page); await ready();
   assert(await citationOnly(), 'Save → Reload retains the citation-only list item');
   assert(await inlineContent() === nestedContent, 'Save → Reload retains exact inline content on every supported surface, including new endnote definitions');
+  const readonlyNote = editor.getByTestId('footnote-definition').filter({hasText: 'Definition.'});
+  assert(await readonlyNote.getAttribute('aria-readonly') === 'true', 'Reloaded definition is read-only');
+  const readonlyCitation = readonlyNote.locator('[data-citation]').first();
+  await readonlyCitation.hover();
+  assert(await readonlyCitation.getByTestId('citation-edit').count() === 0, 'A read-only citation has no edit entry point');
+  assert(await readonlyNote.getByTestId('cross-reference-edit').count() === 0, 'Read-only references have no edit entry points');
+  const unresolved = readonlyNote.locator('[data-testid="cross-reference"][data-label="missing"]');
+  assert(await unresolved.getAttribute('data-resolved') === 'false', 'Unresolved reference retains its reading status');
+  await unresolved.locator('.cross-reference-chip').click();
+  assert(await page.getByTestId('reference-form').count() === 0, 'An unresolved reference does not open an editor in a read-only definition');
+  assert(await inlineContent() === nestedContent, 'Read-only inline controls do not change content');
+  // The paragraph center can be a citation chip; enter through its definition text.
+  await readonlyNote.locator('p').dblclick({position: {x: 8, y: 10}});
+  await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] [data-testid="footnote-definition"][data-label="n"]')?.getAttribute('aria-readonly') === 'false');
+  assert(await readonlyCitation.getByTestId('citation-edit').count() === 1, 'Citation editing becomes available in the active definition');
+  await unresolved.locator('.cross-reference-chip').click();
+  await page.getByTestId('reference-form').waitFor();
+  await page.keyboard.press('Escape');
+  await page.getByTestId('reference-form').waitFor({state: 'detached'});
+  assert(await readonlyNote.getAttribute('aria-readonly') === 'false', 'Closing a reference form preserves the definition edit session');
+  await page.keyboard.press('Escape');
+  assert(await readonlyNote.getAttribute('aria-readonly') === 'true', 'A subsequent Escape exits the definition');
+  await readonlyNote.locator('[data-testid="cross-reference"][data-label="section"] .cross-reference-chip').click();
+  assert(await editor.evaluate(element => element.editor.state.selection.$from.parent.textContent.startsWith('Target')), 'Reference inside a read-only endnote still navigates');
+  assert(await inlineContent() === nestedContent, 'Navigation in a read-only endnote does not edit content');
   // #374 + #377: these references came from the real nested slash menu, including
   // the document title, a heading and the Figure caption. Rename through the property form.
   const references = editor.getByTestId('cross-reference');
@@ -398,7 +456,8 @@ async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, 
   await page.getByTestId('label-target-apply').click();
   await page.getByTestId('label-target-editor').waitFor({ state: 'detached' });
   const referencesFollow = async () => await references.count() === referenceCount && referenceCount > 0 &&
-    await references.evaluateAll(nodes => nodes.every(node => node.dataset.label === 'section-renamed' && node.dataset.resolved === 'true'));
+    await references.evaluateAll(nodes => nodes.filter(node => node.dataset.label === 'missing' && node.dataset.resolved === 'false').length === 1 &&
+      nodes.filter(node => node.dataset.label !== 'missing').every(node => node.dataset.label === 'section-renamed' && node.dataset.resolved === 'true'));
   assert(await referencesFollow(), 'All slash-inserted references follow the renamed section');
   await page.keyboard.press('ControlOrMeta+z');
   assert(await inlineContent() === beforeRename && await page.getByTestId('label-target').getAttribute('data-label') === 'section',
@@ -427,7 +486,10 @@ async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, 
   const hasFocus = () => editor.evaluate(element => element.editor.view.hasFocus());
   await editor.evaluate(element => {
     const instance = element.editor;
-    instance.commands.setTextSelection(instance.state.doc.content.size - 1);
+    let bodyEnd;
+    instance.state.doc.forEach((node, pos) => { if (node.type.name === 'paragraph') bodyEnd = pos + node.nodeSize - 1; });
+    if (bodyEnd === undefined) throw Error('Missing body paragraph');
+    instance.commands.setTextSelection(bodyEnd);
     instance.view.focus();
   });
   await page.keyboard.insertText('한글문장계속');

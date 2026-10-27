@@ -1765,6 +1765,12 @@ ol.list { list-style: decimal; }
   margin: 0;
 }
 
+.footnote-definition:is([data-selected="true"], [data-editing="true"]) {
+  outline: var(--border-width) solid var(--id-color-interaction);
+  outline-offset: var(--space-1);
+  border-radius: var(--id-radius-sm);
+}
+
 /* A section label is authoring metadata, like a Figure label. It takes no layout space (its
  * margins collapse through), sits in the heading's top margin, and is hidden and inert at rest. */
 .label-target {

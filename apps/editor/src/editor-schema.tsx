@@ -30,7 +30,7 @@ import { CodeLanguageInput } from "./code-language-input.tsx";
 import { BlockProperties } from "./block-properties.tsx";
 import { ADMONITION_LABELS, admonitionTone, BLOCK_COMMAND_META, updateFigure } from "./block-commands.ts";
 import { CrossReference, useBlockNumber, useCaptionNumberText } from "./cross-reference.tsx";
-import { Endnotes, revealReference, useEndnoteNumber } from "./endnotes.ts";
+import { Endnotes, canEditEndnoteAt, endnoteAt, endnoteEditingKey, endnoteEditorToken, revealReference, useEndnoteNumber } from "./endnotes.ts";
 import { DocumentTitle, TITLE_FIXED, titleKept } from "./document-title.ts";
 import { FootnoteReference } from "./footnote.tsx";
 import { Citation } from "./citation.tsx";
@@ -321,8 +321,15 @@ const FootnoteDefinition = Node.create({
   },
 });
 
-function FootnoteDefinitionView({ node, editor }: ReactNodeViewProps) {
+function FootnoteDefinitionView({ node, editor, getPos, selected }: ReactNodeViewProps) {
   const label = String(node.attrs.label ?? "");
+  const editing = useEditorState({ editor, selector: ({ editor: current }) => !!current && endnoteEditingKey.getState(current.state) === label });
+  const begin = () => {
+    const pos = getPos();
+    if (typeof pos !== "number" || !editor.isEditable) return;
+    editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, pos + node.nodeSize - 1)).setMeta(endnoteEditingKey, label));
+    editor.view.focus();
+  };
   return (
     <NodeViewWrapper
       as="div"
@@ -330,7 +337,28 @@ function FootnoteDefinitionView({ node, editor }: ReactNodeViewProps) {
       data-block="footnote"
       data-testid="footnote-definition"
       data-label={label}
+      data-selected={String(selected)}
+      data-editing={String(editing)}
+      data-endnote-owner={label}
+      data-endnote-editor={endnoteEditorToken(editor)}
+      role="textbox"
+      aria-label={`${i18n.t("Endnote")} ${useEndnoteNumber(editor, label) ?? label}`}
+      aria-readonly={!editing}
+      aria-multiline="true"
       data-source-path={String(node.attrs.sourcePath ?? "")}
+      onMouseDown={(event: ReactMouseEvent) => {
+        if (editing || event.button !== 0 || (event.target as HTMLElement).closest("[data-testid=footnote-number], [data-testid=cross-reference], [data-citation], [data-testid=inline-math]")) return;
+        const pos = getPos();
+        if (typeof pos !== "number") return;
+        event.preventDefault();
+        editor.view.dispatch(editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, pos)));
+        editor.view.focus();
+      }}
+      onDoubleClick={(event: ReactMouseEvent) => {
+        if ((event.target as HTMLElement).closest("[data-testid=footnote-number], [data-testid=cross-reference], [data-citation], [data-testid=inline-math]")) return;
+        event.preventDefault();
+        begin();
+      }}
     >
       <EndnoteNumber editor={editor} label={label} />
       <NodeViewContent<"p"> as="p" className="footnote-definition-body" />
@@ -1438,17 +1466,22 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
   const input = useRef<HTMLInputElement>(null);
   const value = String(node.attrs.value ?? "");
   const [editing, setEditing] = useState(false);
+  const canEdit = useEditorState({ editor, selector: ({ editor: current }) => {
+    const pos = getPos();
+    return !!current && typeof pos === "number" && canEditEndnoteAt(current.state, pos);
+  } });
   const [draft, setDraft] = useState(value);
   const [error, setError] = useMessageState("");
   const rendered = renderEquation(value, false);
   const open = () => {
-    if (!editor.isEditable || editing) return;
+    if (!editor.isEditable || !canEdit || editing) return;
     setDraft(value);
     setError("");
     setEditing(true);
   };
   usePropertyEntry(anchor, open);
   const position = getPos();
+  const endnoteOwner = typeof position === "number" ? endnoteAt(editor.state, position) : null;
   const path = typeof position === "number" ? String(editor.state.doc.resolve(position).node(1).attrs.sourcePath) : "";
   const onDraftChange = editor.extensionManager.extensions.find(extension => extension.name === "inlineMath")?.options.onDraftChange as DraftListener | undefined;
   const dirty = editing && draft !== value;
@@ -1463,6 +1496,7 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
     focusBlock(editor.view, getPos);
   };
   const apply = () => {
+    if (!canEdit) return;
     // Core validates the source on Save; only an empty or multi-line source is refused here.
     if (draft.length === 0) return setError({ key: "Enter LaTeX, or use Remove." });
     updateAttributes({ value: draft });
@@ -1470,6 +1504,7 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
   };
   // Replace the math with its source as ordinary text, keeping bold/italic/link marks.
   const remove = () => {
+    if (!canEdit) return;
     const position = getPos();
     if (typeof position !== "number") return;
     setEditing(false);
@@ -1494,7 +1529,8 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
         {...(rendered.html ? { dangerouslySetInnerHTML: { __html: rendered.html } } : { children: `$${value}$` })}
       />
       <BlockProperties anchor={anchor} initialFocus={input} kind={i18n.t("Inline math")} testId="inline-math"
-        open={editing} error={error} onApply={apply} onCancel={close}>
+        endnoteOwner={endnoteOwner ? { label: endnoteOwner, editor: endnoteEditorToken(editor) } : undefined}
+        open={editing} error={error} busy={!canEdit} onApply={apply} onCancel={close}>
           <label className="form-label" htmlFor={formId}>LaTeX</label>
           <Input
             id={formId}
@@ -1502,13 +1538,14 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
             aria-label="LaTeX"
             data-testid="inline-math-source"
             value={draft}
+            disabled={!canEdit}
             aria-invalid={error ? true : undefined}
             onChange={(event) => {
               setDraft(event.target.value.replace(/[\r\n]+/g, " "));
               setError("");
             }}
           />
-          <Button type="button" size="sm" variant="outline" data-testid="inline-math-remove" onClick={remove}>{i18n.t("Remove")}</Button>
+          <Button type="button" size="sm" variant="outline" data-testid="inline-math-remove" disabled={!canEdit} onClick={remove}>{i18n.t("Remove")}</Button>
       </BlockProperties>
     </NodeViewWrapper>
   );

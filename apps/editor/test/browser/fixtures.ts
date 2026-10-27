@@ -140,7 +140,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
     { name: "connect.md", create: () => nativeSource("# Connect bibliography\n\nExisting {cite:p}`article`.\n\nWrite here.\n") },
     { name: "unused.md", create: () => nativeSource("# No bibliography\n\nWrite here.\n") },
     { name: "chapters/authoring.md", create: () => '---\nieumdoc: 1\nbibliography: [../refs.bib]\n---\n\n# Citation authoring\n\nFirst claim {cite:p}`article`.\n\nWrite here.\n' },
-    { name: "chapters/nested.md", create: () => '---\nieumdoc: 1\nbibliography: [../refs.bib]\n---\n\n# Nested inline\n\n(section)=\n\n## Target\n\n## Heading.\n\n- Only citation\n- Item.\n  - Nested item.\n\n> Quote.\n\n:::{note}\nCallout.\n:::\n\nBody[^n].\n\n| Header |\n| --- |\n| Cell. |\n\n:::{figure}\n\nCaption.\n:::\n\n```\nCode.\n```\n\n[^n]: Definition.\n' },
+    { name: "chapters/nested.md", create: () => '---\nieumdoc: 1\nbibliography: [../refs.bib]\n---\n\n# Nested inline\n\n(section)=\n\n## Target\n\n## Heading.\n\n- Only citation\n- Item.\n  - Nested item.\n\n> Quote.\n\n:::{note}\nCallout.\n:::\n\nBody[^n].\n\n| Header |\n| --- |\n| Cell. |\n\n:::{figure}\n\nCaption.\n:::\n\n```\nCode.\n```\n\n[^n]: Definition.{ref}`missing`\n' },
   ], scenarios: ["bibliography", "citation-authoring", "bibliography-connection"] },
   "citations": { files: [fixture("citations.md")], scenarios: ["citations"] },
   "block-move": { files: [...technical, { name: "draft-boundaries.md", create: () => nativeSource(
