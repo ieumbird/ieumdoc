@@ -16,7 +16,9 @@ const OWNER = "io.github.ieumbird.ieumdoc.cli/v1";
 const MARKER = `rem ${OWNER}`;
 export const CLI_SHIM = ["@echo off", MARKER, "setlocal DisableDelayedExpansion",
   'set "ELECTRON_RUN_AS_NODE=1"',
-  '"%~dp0app\\IeumDoc.exe" "%~dp0app\\resources\\cli\\cli.mjs" %*',
+  // Bundled markdown-it loads built-in punycode. Node suppresses its DEP0040 inside npm's
+  // node_modules, but resources/cli is outside that boundary. Keep other warnings/errors visible.
+  '"%~dp0app\\IeumDoc.exe" --disable-warning=DEP0040 "%~dp0app\\resources\\cli\\cli.mjs" %*',
   "exit /b %errorlevel%", ""].join("\r\n");
 type Ownership = { owner: typeof OWNER; executable: string };
 

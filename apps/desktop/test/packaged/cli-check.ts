@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import semver from "semver";
 import { windowsCommand } from "../windows-command.ts";
@@ -8,6 +8,11 @@ import { windowsCommand } from "../windows-command.ts";
 export function verifyPackagedCli(exe: string, shim: string, folder: string, expectedVersion: string, env = process.env): void {
   const bundle = path.join(path.dirname(exe), "resources", "cli", "cli.mjs");
   const manifest = JSON.parse(readFileSync(path.join(path.dirname(bundle), "package.json"), "utf8"));
+  // Match the standalone CLI's npm installation context, which Node uses for dependency
+  // deprecation reporting. The separate offline package regression verifies npm installation.
+  const standalone = path.join(folder, "node_modules", "@ieumdoc", "cli");
+  mkdirSync(standalone, { recursive: true });
+  cpSync(path.dirname(bundle), standalone, { recursive: true });
   const node = spawnSync(exe, ["-p", "process.versions.node"], { env: { ...env, ELECTRON_RUN_AS_NODE: "1" }, encoding: "utf8", timeout: 15_000 });
   assert.equal(node.status, 0, node.stderr);
   assert.ok(semver.satisfies(node.stdout.trim(), manifest.engines.node), `Electron Node ${node.stdout.trim()} must satisfy ${manifest.engines.node}`);
@@ -22,7 +27,7 @@ export function verifyPackagedCli(exe: string, shim: string, folder: string, exp
   writeFileSync(bad, "Not an IeumDoc document.\n");
   for (const [args, status] of [[['help'], 0], [['check', good, '--format', 'json'], 0], [['check', bad, '--format', 'json'], 1]] as const) {
     const actual = run([...args]);
-    const independent = spawnSync(process.execPath, [bundle, ...args], { cwd: folder, env, encoding: "utf8", timeout: 20_000 });
+    const independent = spawnSync(process.execPath, [path.join(standalone, "cli.mjs"), ...args], { cwd: folder, env, encoding: "utf8", timeout: 20_000 });
     assert.equal(actual.status, status, actual.stderr);
     assert.deepEqual({ status: actual.status, stdout: actual.stdout, stderr: actual.stderr },
       { status: independent.status, stdout: independent.stdout, stderr: independent.stderr }, `shim/Node parity: ${args[0]}`);

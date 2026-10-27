@@ -47,6 +47,12 @@ the CLI exit code. It runs `app\IeumDoc.exe` with `ELECTRON_RUN_AS_NODE=1` and t
 `resources\cli\cli.mjs` bundle. It neither invokes a second command interpreter with `call` nor
 changes the console code page. Core/CLI document semantics remain unchanged.
 
+Like the [Paseo reference shim](https://github.com/getpaseo/paseo/blob/main/packages/desktop/bin/paseo.cmd),
+it passes `--disable-warning=DEP0040`: the existing markdown-it dependency loads built-in punycode,
+whose deprecation Node suppresses in npm's `node_modules` context but reports under `resources/cli`.
+Other warnings and errors remain visible. Remove this targeted option when the shared bundle no
+longer loads built-in punycode. This changes neither the dependency nor document parsing behavior.
+
 The common CLI's standalone `--version` prints `ieumdoc <CLI package version> (<commit>)`;
 Desktop's bundle prints `ieumdoc <Desktop package version> (desktop, <commit>)`. Both are one
 stdout line with exit code 0. Combining it with any other argument fails through the existing
