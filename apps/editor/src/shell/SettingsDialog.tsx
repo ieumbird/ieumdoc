@@ -2,7 +2,7 @@ import { useMessageState } from "../ui-message.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Check, FileText, Info, Palette, History } from "lucide-react";
+import { ArrowLeft, FileText, Info, Palette, History } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog.tsx";
 import type { DesktopBridge, DesktopInfo, OfferedUpdate, ReleaseChannel, UpdateState } from "../../shared/desktop-bridge.ts";
@@ -206,21 +206,21 @@ export function SettingsDialog({ open, category, onCategoryChange, documentName,
                     <h3 id="settings-accent" className="settings-heading">{i18n.t("Accent color")}</h3>
                     <p>{i18n.t("Remembered here; never saved in the document.")}</p>
                   </div>
-                  <div className="settings-accents" role="radiogroup" aria-labelledby="settings-accent" data-testid="accent-color">
-                    {ACCENT_COLORS.map(color => <label key={color} className="settings-accent">
-                      <input type="radio" name="accent-color" value={color} checked={accent === color}
-                        onChange={() => {
-                          document.documentElement.dataset.accent = color;
-                          setAccent(color);
-                          setAccentProblem(!writeAccentColor(color));
-                        }} />
-                      <span className="settings-accent-face">
-                        <span className="settings-accent-swatch" style={{ backgroundColor: `var(--id-color-accent-${color})` }} aria-hidden="true">
-                          {accent === color ? <Check /> : null}
+                  <div className="settings-accent-control">
+                    <div className="settings-accents" role="radiogroup" aria-labelledby="settings-accent" data-testid="accent-color">
+                      {ACCENT_COLORS.map(color => <label key={color} className="settings-accent" title={i18n.t(ACCENT_LABELS[color])}>
+                        <input type="radio" name="accent-color" value={color} checked={accent === color} aria-label={i18n.t(ACCENT_LABELS[color])}
+                          onChange={() => {
+                            document.documentElement.dataset.accent = color;
+                            setAccent(color);
+                            setAccentProblem(!writeAccentColor(color));
+                          }} />
+                        <span className="settings-accent-face">
+                          <span className="settings-accent-swatch" style={{ backgroundColor: `var(--id-color-accent-${color})` }} aria-hidden="true" />
                         </span>
-                        <span>{i18n.t(ACCENT_LABELS[color])}</span>
-                      </span>
-                    </label>)}
+                      </label>)}
+                    </div>
+                    <span className="settings-accent-name">{i18n.t(ACCENT_LABELS[accent])}</span>
                   </div>
                   {accentProblem ? <p role="alert">{i18n.t("Accent color could not be saved. This choice applies until you close this page.")}</p> : null}
                 </section>

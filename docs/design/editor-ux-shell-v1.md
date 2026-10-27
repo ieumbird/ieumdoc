@@ -489,8 +489,10 @@ Verification and implementation scope are recorded in the [#256 plan](ui-languag
 ## Local accent color (#559)
 
 Settings offers six named presets: Blue (default), Violet, Plum, Teal, Green and Graphite.
-The accent control (#615) is one named radio group (Accent color / 포인트 색): each
-option shows a circular swatch and its name, and the selected option has a check mark.
+The accent control (#617) is one named radio group (Accent color / 포인트 색): six
+small circles form one row, without option boxes, check marks or individual visible
+names. Each radio retains its translated accessible name and title tooltip. Only the
+selected color name appears beside the row; an offset outer ring marks selection.
 Tab enters the selected option; arrow keys move and select, with native radio state
 and a visible keyboard focus ring. Swatches use the same theme-specific token values
 as the actual accents. Storage failure retains the live choice and existing alert.
