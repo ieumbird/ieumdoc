@@ -61,6 +61,12 @@ uninstallation, including silent `/S` removal: NSIS records failures, remaining 
 cleanup instructions, warns interactive users, and continues removing the app. Updates still skip
 cleanup. A valid record owned by another installation remains protected.
 
+The owner's #629 cleanup clarification (2026-10-28) removes the bin directory nonrecursively
+after its owned files/junction have been removed, only if it is empty. User files and subdirectories
+keep a nonempty bin in place without a cleanup error. The parent `%LOCALAPPDATA%\IeumDoc` is
+preserved because its creation is not ownership-tracked and it also holds uninstall diagnostics;
+CLI cleanup does not extend to application user data, updater cache or the installation directory.
+
 Registry scripts receive values through stdin, separate from fixed executable code, so long PATH
 values do not consume the Windows argv limit. Before writing, the helper checks for a stale
 snapshot; this is not an atomic compare-and-set against concurrent external writers.

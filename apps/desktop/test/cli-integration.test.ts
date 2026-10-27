@@ -52,7 +52,7 @@ test("off by default; enable/disable preserves registry kind and user files, and
   await fixture(async ({ data, integration, app }) => {
     assert.deepEqual(await integration.state(), { status: "off" });
     assert.equal(data.writes, 0);
-    for (const kind of ["String", "ExpandString"] as const) {
+    for (const uninstall of [false, true]) for (const kind of ["String", "ExpandString"] as const) {
       data.user.kind = kind;
       const original = { ...data.user };
       assert.equal((await integration.setEnabled(true)).status, "installed");
@@ -64,13 +64,26 @@ test("off by default; enable/disable preserves registry kind and user files, and
       const writes: number = data.writes;
       assert.equal((await integration.setEnabled(true)).status, "installed");
       assert.equal(data.writes, writes);
-      assert.equal((await integration.setEnabled(false)).status, "off");
+      assert.deepEqual(await integration.setEnabled(false, uninstall), { status: "off" });
       assert.deepEqual(data.user, original);
       assert.equal(await readFile(path.join(integration.bin, "user-note.txt"), "utf8"), "keep");
       await assert.rejects(lstat(integration.shim), { code: "ENOENT" });
       await assert.rejects(lstat(integration.junction), { code: "ENOENT" });
-      assert.equal((await integration.setEnabled(false)).status, "off");
+      await assert.rejects(lstat(integration.record), { code: "ENOENT" });
+      assert.deepEqual(await integration.setEnabled(false, uninstall), { status: "off" });
     }
+  });
+});
+
+test("disable and uninstall remove an empty owned bin without removing its parent", async () => {
+  for (const uninstall of [false, true]) await fixture(async ({ integration, data }) => {
+    const original = { ...data.user };
+    await integration.setEnabled(true);
+    assert.deepEqual(await integration.setEnabled(false, uninstall), { status: "off" });
+    assert.deepEqual(data.user, original);
+    await assert.rejects(lstat(integration.bin), { code: "ENOENT" });
+    assert.ok((await lstat(path.dirname(integration.bin))).isDirectory());
+    assert.deepEqual(await integration.setEnabled(false, uninstall), { status: "off" });
   });
 });
 

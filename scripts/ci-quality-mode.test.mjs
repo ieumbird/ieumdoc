@@ -129,8 +129,14 @@ test('merge_group requests full quality, all browser shards, both HTTP OSes and 
     for (const job of [browser, http, desktop]) {
       assert.equal(evaluate(job.if, context), eventName !== 'pull_request', job.name);
     }
-    assert.equal(evaluate(desktop.steps.find(step => step.name === 'Install and update through a local test feed').if, context),
-      eventName !== 'pull_request');
+    const updateSteps = desktop.steps.filter(step => step.run === 'pnpm --filter @ieumdoc/desktop test:update');
+    const release = load(readFileSync(new URL('../.github/workflows/desktop-release.yml', import.meta.url), 'utf8'));
+    const releaseUpdateSteps = release.jobs.build.steps.filter(step => step.run === 'pnpm --filter @ieumdoc/desktop test:update');
+    assert.deepEqual(updateSteps.map(step => step.env?.IEUMDOC_TEST_UPDATE_CHANNEL ?? 'stable'), ['stable', 'beta'],
+      'Stable must clean up before Beta starts on the same runner');
+    assert.deepEqual(updateSteps.map(step => step.env), releaseUpdateSteps.map(step => step.env),
+      'PR CI must preserve the release workflow channel order');
+    for (const step of updateSteps) assert.equal(evaluate(step.if, context), eventName !== 'pull_request');
   }
   assert.equal(quality.if, undefined);
   assert.deepEqual(browser.strategy.matrix.shard, [1, 2, 3, 4]);
