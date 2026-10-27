@@ -108,7 +108,7 @@ than a persistently pressed action. Other open-menu/pressed faces are unchanged.
 | Document tabs and close slot | Use the adjustable 32px navigation row, a full-height activation area, 28px close target with a 16px icon and the existing roving keyboard owner. Current document tabs use a flat bottom accent marker (#581); focus stays independently inset. |
 | Visual/Source | The documented 24px inner segment sits inside a 28px track; measure the whole segmented control. |
 | Native checkboxes | 16px OS checkbox inside an associated label target of at least 28px; retain native accessibility, accent and focus behavior. |
-| Accent swatch radios (#615) | Content-height choice faces contain a 28px circular swatch and 12/16px name, with 8px block padding and 4px gap. Native radios own arrow selection and checked state; the associated face draws the shared focus ring, control edge and selected surface. A 16px check on the chosen swatch supplies a non-color cue. |
+| Accent swatch radios (#617) | Six 20px circles in 28px transparent circular targets, with space-2 (8px) between circles (4px inside each target edge). Size is compact control minus space-2; no new size token. Native radios own arrow selection and checked state. The selected circle has a 2px interaction-color outline with a 2px offset exposing the Settings surface. Keyboard focus independently adds the shared outer focus ring to the target. Hover subtly brightens the circle. Only the selected name is visible, in muted 12/16px text to the right with a space-2 gap. Each radio retains its translated accessible name and title tooltip. No option border, background, check icon or per-circle visible name. |
 | Picker path input | 20px inner line box inside the recognizable 32px/6px field wrapper; the wrapper owns boundary and focus. |
 | Multiline LaTeX/recovery fields | Minimum 80px/128px respectively, retaining editable/copyable multi-line content rather than a one-line action size. Recovery's 4px field radius remains a specific existing treatment. |
 | Content/surface radii | Existing 4px content, 8px popover, 12px dialog and 6px paper radii express content/surface hierarchy; B1's 6px is a control rule. |
@@ -561,9 +561,9 @@ The script sets only a validated preset ID, never color values. Typography and s
 For the Settings swatches (#615), theme-scoped `--id-color-accent-{preset}` tokens
 hold each interaction color once. Both the preset's interaction role and its circular
 swatch reference that token. Unselected swatches remain visible in Light and Dark;
-only the selected swatch contains a check, using the existing text-on-accent role.
-The choice face keeps the neutral control border, selected surface and visible focus
-ring described in the control exceptions above. Page style / 페이지 모양 uses Paper /
+selection uses an offset outer interaction-color ring in both themes (#617).
+The transparent target retains the independent keyboard focus ring described in the
+control exceptions above. Page style / 페이지 모양 uses Paper /
 종이 and Flat / 평면; this naming change does not alter stored values or presentation.
 
 Light presets (Dark values are [below](#system-light-and-dark-595)):
@@ -1287,3 +1287,29 @@ screenshot-based assertions; full traces and generated logs stay in `tmp/`.
 | Light / 640px | [Before](assets/settings-615/before-light-640.png) | [After](assets/settings-615/after-light-640.png) |
 | Dark / 1440px | [Before](assets/settings-615/before-dark-1440.png) | [After](assets/settings-615/after-dark-1440.png) |
 | Dark / 640px | [Before](assets/settings-615/before-dark-640.png) | [After](assets/settings-615/after-dark-640.png) |
+
+## Minimal Settings accent swatches (#617)
+
+The #615 capture record above is historical; #617 replaces its boxes/checks and
+per-option names with the single-row circles described in the current contract.
+Native radio keyboard selection, one Tab stop, immediate application, persistence,
+storage-failure alerts and the shared accent-role variables remain unchanged.
+This is display-only: no Core semantic operation or CLI command is needed.
+
+Before/After captures use base `f2fc60c0a92dd8a9f70037724cbbc01415e0db5a`, the same
+checkout and Vite origin (`127.0.0.1:5317`) through `pnpm browser:test ui-language
+--screenshots`. English Settings, Paper, Blue selected, edited technical document
+with an unapplied equation draft, 900px height, DPR 1, 100% zoom, bundled Pretendard,
+Settings body scroll 0, no focus or pointer hover. Captures are manual review evidence;
+generated logs and traces stay in tmp. Manual review confirms the offset ring is
+visible in both themes and six circles plus the current name fit on one line at
+both widths. The existing scenario checks the single row,
+current name beside it, radio names/tooltips, offset selection ring in both themes,
+keyboard focus and unchanged display-preference/document behavior.
+
+| Theme / width | Before | After |
+| --- | --- | --- |
+| Light / 1440px | [Before](assets/settings-617/before-light-1440.png) | [After](assets/settings-617/after-light-1440.png) |
+| Light / 640px | [Before](assets/settings-617/before-light-640.png) | [After](assets/settings-617/after-light-640.png) |
+| Dark / 1440px | [Before](assets/settings-617/before-dark-1440.png) | [After](assets/settings-617/after-dark-1440.png) |
+| Dark / 640px | [Before](assets/settings-617/before-dark-640.png) | [After](assets/settings-617/after-dark-640.png) |

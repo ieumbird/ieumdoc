@@ -70,7 +70,7 @@ async (page, { openPath, screenshots }) => {
           await page.setViewportSize({width,height:900});
           await page.evaluate(async () => { await document.fonts.ready; document.activeElement?.blur(); document.querySelector('.settings-body').scrollTop = 0; });
           await page.mouse.move(0,0);
-          await page.screenshot({path:`tmp/settings-615/${theme}-${width}.png`});
+          await page.screenshot({path:`tmp/settings-617/${theme}-${width}.png`});
           captureMetadata.push(await page.evaluate(() => ({theme:document.documentElement.dataset.theme,
             width:innerWidth,height:innerHeight,dpr:devicePixelRatio,scale:visualViewport.scale,
             zoom:getComputedStyle(document.documentElement).zoom,font:getComputedStyle(document.querySelector('.settings-content')).fontFamily,
@@ -114,8 +114,11 @@ async (page, { openPath, screenshots }) => {
       await page.setViewportSize({width,height:900});
       check(await picker.evaluate(n => n.scrollWidth <= n.clientWidth && [...n.querySelectorAll('label')].every(label => {
         const r = label.getBoundingClientRect();
-        return r.left >= 0 && r.right <= innerWidth && label.scrollWidth <= label.clientWidth;
+        return r.top === n.firstElementChild.getBoundingClientRect().top && r.left >= 0 && r.right <= innerWidth && label.scrollWidth <= label.clientWidth;
       })), `${theme}/${width}: accent choices must fit without clipping or sideways overflow`);
+      check(await screen.locator('.settings-accent-control').evaluate(n => n.scrollWidth <= n.clientWidth &&
+        n.lastElementChild.getBoundingClientRect().left >= n.firstElementChild.getBoundingClientRect().right),
+        `${theme}/${width}: current color name must fit beside the swatch row`);
     }
     await page.setViewportSize({width:1280,height:720});
     await pagePicker.selectOption('flat');
@@ -136,19 +139,28 @@ async (page, { openPath, screenshots }) => {
         const picker = document.querySelector('[data-testid="accent-color"] input:checked + .settings-accent-face');
         const selection = getComputedStyle(editor.querySelector('.paragraph'), '::selection');
         return { theme: root.dataset.theme, preset: root.dataset.accent, interaction: resolve('interaction'), selected: resolve('text-selected'),
-          selectedSurface: resolve('surface-selected'), focus: getComputedStyle(picker).borderColor, swatch: getComputedStyle(picker.querySelector('.settings-accent-swatch')).backgroundColor,
+          selectedSurface: resolve('surface-selected'), ring: getComputedStyle(picker.querySelector('.settings-accent-swatch')).outlineColor, swatch: getComputedStyle(picker.querySelector('.settings-accent-swatch')).backgroundColor,
           save: getComputedStyle(document.querySelector('[data-testid="save"]')).backgroundColor,
           selectionText: selection.color, selectionBackground: selection.backgroundColor,
           link: getComputedStyle(editor.querySelector('a')).color,
           reference: getComputedStyle(editor.querySelector('.cross-reference-chip')).color };
       });
-      check(colors.preset === preset && colors.swatch === colors.interaction && colors.focus === colors.interaction && colors.save === colors.interaction &&
+      check(colors.preset === preset && colors.swatch === colors.interaction && colors.ring === colors.interaction && colors.save === colors.interaction &&
         colors.link === colors.interaction && colors.reference === colors.interaction &&
         colors.selectionText === colors.selected && colors.selectionBackground === colors.selectedSurface,
         `Accent consumers did not update: ${JSON.stringify(colors)}`);
       check(colors.interaction === swatches[presets.indexOf(preset)], 'Every swatch must match its actual theme accent before selection');
-      check(await picker.locator('input:checked + .settings-accent-face .settings-accent-swatch svg').count() === 1,
-        'Selected accent must show a check mark');
+      const radio = picker.locator(`input[value="${preset}"]`);
+      const name = await radio.getAttribute('aria-label');
+      check(!!name && await radio.locator('..').getAttribute('title') === name &&
+        await screen.locator('.settings-accent-name').innerText() === name,
+        'Each swatch must retain its accessible name and tooltip; only the selected name appears beside the row');
+      check(await picker.locator('.settings-accent-swatch').evaluateAll(nodes => nodes.every(n => {
+        const style = getComputedStyle(n);
+        return n.closest('label').querySelector('input').checked
+          ? style.outlineStyle === 'solid' && parseFloat(style.outlineWidth) >= 2 && parseFloat(style.outlineOffset) >= 2
+          : style.outlineStyle === 'none';
+      })), 'Only the selected accent must show an offset selection ring');
       accentResults.push(colors);
     }
     check(new Set(accentResults.filter(r => r.theme === theme).map(result => result.interaction)).size === presets.length, 'Presets must produce distinct colors');
