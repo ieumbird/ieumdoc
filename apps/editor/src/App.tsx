@@ -21,7 +21,7 @@ import productMark from "../../desktop/assets/icon.svg?url";
 import { MessageArea } from "./shell/MessageArea.tsx";
 import { NewDialog, type NewDestination } from "./shell/NewDialog.tsx";
 import { FolderDialog } from "./shell/FolderDialog.tsx";
-import { SettingsDialog } from "./shell/SettingsDialog.tsx";
+import { SettingsDialog, type SettingsCategory } from "./shell/SettingsDialog.tsx";
 import { UnsavedChangesDialog } from "./shell/UnsavedChangesDialog.tsx";
 import { Sidebar } from "./shell/Sidebar.tsx";
 import { DisplaySettings } from "./shell/DisplaySettings.tsx";
@@ -99,6 +99,7 @@ export function App() {
   const [commandQuery, setCommandQuery] = useState<string | null>(null);
   const commandReturnFocus = useRef<HTMLElement | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [settingsCategory, setSettingsCategory] = useState<SettingsCategory>("appearance");
   const shortcutsReturnFocus = useRef<HTMLElement | null>(null);
   const [commandFileFocus, setCommandFileFocus] = useState<string | null>(null);
   const [recentFolders, setRecentFolders] = useState(readRecentFolders);
@@ -593,7 +594,8 @@ export function App() {
   const updateNotice = update && (update.phase === "available" || update.phase === "downloaded") && update.version !== desktopInfo?.postponed
     ? update.phase === "available"
       ? { text: i18n.t("IeumDoc {{version}}{{channel}} is available.", { version: update.version, channel: update.prerelease ? i18n.t(" (Beta)") : "" }), action: i18n.t("View"), onAction: () => {
-          settingsReturnFocus.current = null;
+          settingsReturnFocus.current = globalThis.document.activeElement as HTMLElement | null;
+          setSettingsCategory("about");
           setSettingsOpen(true);
         }, onLater: () => postponeUpdate(update.version) }
       : { text: i18n.t("IeumDoc {{version}} is ready to install.", { version: update.version }), action: i18n.t("Restart to update"),
@@ -709,7 +711,7 @@ export function App() {
     { id: "width", kind: "command", label: i18n.t(documentWidth === "wide" ? "Standard document width" : "Wide document"), icon: documentWidth === "wide" ? Columns3 : StretchHorizontal,
       keywords: ["document width", "문서 너비"], run: toggleDocumentWidth },
     { id: "settings", kind: "command", label: i18n.t("Settings"), icon: Settings2, takesFocus: true,
-      keywords: ["settings", "설정"], run: () => { settingsReturnFocus.current = commandReturnFocus.current; setSettingsOpen(true); void refreshRecovery(); } },
+      keywords: ["settings", "설정"], run: () => { settingsReturnFocus.current = commandReturnFocus.current; setSettingsCategory("appearance"); setSettingsOpen(true); void refreshRecovery(); } },
     { id: "document-settings", kind: "command", label: i18n.t("Document settings…"), icon: SlidersHorizontal,
       disabled: historyDisabled, takesFocus: true, keywords: ["document settings", "문서 설정"],
       run: () => { documentSettingsReturnFocus.current = commandReturnFocus.current; setDocumentSettingsOpen(true); } },
@@ -772,6 +774,7 @@ export function App() {
         onCloseFolder={folders.close}
         onSettings={(returnFocus) => {
           settingsReturnFocus.current = returnFocus;
+          setSettingsCategory("appearance");
           setSettingsOpen(true);
           void refreshRecovery();
         }}
@@ -877,6 +880,17 @@ export function App() {
       </Dialog>
       <SettingsDialog
           open={settingsOpen}
+          category={settingsCategory}
+          onCategoryChange={setSettingsCategory}
+          documentName={openedPath ? splitDocumentPath(openedPath).name : ""}
+          unsaved={documentDirty || draftActive}
+          documentSettingsDisabled={historyDisabled}
+          documentSettingsHint={documentSettingsHint ?? ""}
+          onDocumentSettings={() => {
+            documentSettingsReturnFocus.current = settingsReturnFocus.current;
+            setDocumentSettingsOpen(true);
+          }}
+          fallbackFocus={() => sidebarOpen ? sidebarToggle.current : openSidebarButton.current ?? sidebarToggle.current}
           recoveryCount={recoveryRecords.length}
           recoveryProblem={recoveryProblem}
           onClearRecovery={() => deleteRecovery()}

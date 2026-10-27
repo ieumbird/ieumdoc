@@ -48,7 +48,17 @@ async (page, { openPath, screenshots }) => {
     await page.getByTestId('equation-latex').fill('x_{language} = 42');
     const before = await snapshot();
     const tabCount = await page.getByRole('tab').count();
+    const scrollBefore = await page.evaluate(() => scrollY);
     await settings('en');
+    const screen = page.getByTestId('settings-dialog');
+    await page.waitForFunction(() => document.activeElement?.textContent === 'Back to document');
+    check(await screen.locator('.settings-document-name').innerText() === 'technical-document.md' &&
+      await screen.getByRole('img',{name:'Unsaved changes',exact:true}).count() === 1, 'Settings lost the return document or unsaved cue');
+    await page.keyboard.press('Tab');
+    check(await screen.getByRole('button',{name:'Appearance & language',exact:true}).evaluate(n => n === document.activeElement), 'Back does not lead to category navigation');
+    await page.keyboard.press('Tab'); await page.keyboard.press('Enter');
+    check(await screen.getByRole('heading',{name:'Local recovery',exact:true}).isVisible(), 'Keyboard cannot select recovery');
+    await screen.getByRole('button',{name:'Appearance & language',exact:true}).click();
     const picker = page.getByRole('combobox', { name: 'Accent color', exact: true });
     const presets = await picker.locator('option').evaluateAll(options => options.map(option => option.value));
     check(presets.join(',') === 'blue,violet,plum,teal,green,graphite', 'Settings must expose the six validated presets');
@@ -85,6 +95,7 @@ async (page, { openPath, screenshots }) => {
     check(await page.locator('html').getAttribute('lang') === 'ko', 'Page language did not update');
     if (screenshots) await page.screenshot({ path: 'tmp/256/settings-ko.png' });
     await closeSettings();
+    check(await page.evaluate(() => scrollY) === scrollBefore, 'Settings changed document scroll');
     const koreanOpen = page.getByTestId('sidebar').getByRole('button', {name:'폴더 열기…', exact:true});
     check(await koreanOpen.isVisible() && await koreanOpen.getAttribute('title') === '폴더 열기…', 'Korean header Open folder name and tooltip must match');
     check(await admonitionLabel.innerText() === '참고', 'Existing Admonition label did not switch language');
@@ -96,6 +107,15 @@ async (page, { openPath, screenshots }) => {
     check(await page.getByTestId('equation-latex').inputValue() === 'x_{language} = 42', 'Language change lost property draft');
     check(await page.getByTestId('equation-apply').innerText() === '적용', 'NodeView did not update language');
     check(await page.getByTestId('status').innerText() === '저장하지 않은 변경 사항', 'Dirty state did not survive');
+    // The screen hands off to the existing document settings dialog, preserving the
+    // original Settings opener for the eventual focus return.
+    await settings('ko');
+    await screen.getByRole('button',{name:'문서 설정 열기',exact:true}).click();
+    await screen.waitFor({state:'detached'});
+    const documentSettings = page.getByRole('dialog',{name:'문서 설정',exact:true});
+    await documentSettings.waitFor();
+    await page.keyboard.press('Escape'); await documentSettings.waitFor({state:'detached'});
+    check(await page.getByRole('button',{name:'설정',exact:true}).evaluate(n => n === document.activeElement), 'Document settings lost the Settings opener');
     await page.getByTestId('equation-apply').click();
     const applied = await snapshot();
     await editor.evaluate(node => node.editor.commands.undo());

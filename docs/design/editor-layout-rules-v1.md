@@ -48,6 +48,14 @@
 
 ## Controls and spacing
 
+- Dedicated Settings (#594) covers the viewport with a 48px minimum header, the existing
+  240px sidebar width and a bounded 680px content column (`--layout-settings-content-width`).
+  Label/description and control columns share row axes; selectors use the adjustable
+  `--layout-settings-control-width` (240px) and existing 32px control tokens. Content uses
+  the 64px inline/32px block spacing scale; below 768px the named category list stacks above
+  content with 24px content insets and single-column rows. The body scrolls inside the
+  viewport, leaving Back reachable. No document or shell geometry changes underneath it.
+
 - The [folder dialog](folder-picker-v1.md#folder-presentation-522) keeps one column at wide and phone widths. Its folder-only child list has a 16rem maximum (eight standard 32px rows); longer lists scroll and the enclosing dialog remains scrollable for short viewports. The shared image mode retains its 15rem bound. Starting-place names wrap inside the column, retaining the whole name and path description; New folder shares the child-list heading row. Ancestor breadcrumbs retain wrapping and disappear with Up at the Root.
 
 - B1 (#514): standard controls/inputs 32px; compact controls/actions/fields 28px; control radius 6px; UI text 14/20px; line icons 16px. Use Button/Input and existing size/radius/UI tokens; do not derive control metrics from document type. Measure actual rendered height after transitions complete. Role-specific exceptions and reasons are in [Visual Language](editor-visual-language-v1.md#deliberate-control-exceptions): document-sized title/inline/backlinks, metadata, tab/close slots, native checkbox and wrapper-owned path field, 24px inner view segment, multiline fields, wrapping breadcrumbs/list rows and content/surface radii.

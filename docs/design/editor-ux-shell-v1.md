@@ -76,9 +76,69 @@ the underlying document remains in place. These images support manual layout rev
 checks separately assert geometry, operations, availability and focus. Historical Display captures
 below retain their original date and behavior.
 
+## Dedicated Settings screen (#594)
+
+Settings from the Sidebar or command center covers the entire app with an opaque,
+viewport-sized screen. The document shell stays mounted beneath it: tabs, independent
+editor instances, unapplied drafts, selection, Undo history and scroll remain intact.
+Back to document / 문서로 돌아가기 names the active file and its unsaved state;
+without a document the same control reads Back to start / 시작 화면으로 돌아가기.
+Back and Escape restore the opener's focus. Entry focuses Back. The existing modal
+boundary still blocks Save and command-center shortcuts and prevents document interaction.
+
+The named navigation uses buttons with `aria-current="page"`: Appearance & language /
+표시·언어, Saving & recovery / 저장·복구, and Desktop-only About & updates / 정보·업데이트.
+Ordinary entry starts at Appearance; an update notice's View opens About. Language and
+accent changes keep their immediate application, preference storage and failure notices.
+Recovery retains its explanation, count and confirmed Clear all; individual records stay
+on the start screen. Desktop channel, status, release notes and update actions keep their
+existing bridge and restart guards. Search and theme controls are outside this change;
+Wide document stays in TopBar.
+
+The navigation footer explains that heading numbers, reference style and bibliography
+belong to each document. With an open document it offers the existing Document settings
+dialog, respecting its current availability and returning focus to the original Settings
+opener. The Settings screen closes before handing focus to that dialog.
+
+Implementation/verification scope: Editor shell, shared controls and bundled Korean/English
+copy only; no new Core operation or CLI command. Reuse the existing language, recovery,
+command-center and Desktop-update scenarios; extend their interface coverage for full-screen
+bounds, keyboard navigation/focus, state retention and 1440/390/375px layout. Run Editor
+tests, workspace typecheck, build, docs check and layout-rules/quiet-document regressions.
+Keep only the representative small captures below in Git; generated traces, full browser
+results, scratch fixtures and downloaded owner mockups stay outside the commit.
+
+Local verification (2026-10-27): Editor 297/297 and Desktop 47/47 tests, workspace
+typecheck, Editor production build, docs and whitespace checks passed. Targeted browser
+coverage: ui-language, desktop-updates, recovery, recovery-storage, command-center,
+editor-shell, layout-rules and quiet-document. The existing layout helper now gates the
+screen's Back focus rather than the old popup's language selector; its deliberate delayed
+focus assertion remains. The Desktop scenario also crosses 1440→390px while Settings
+is open: if the old Sidebar opener disappears, Back/Escape focuses the visible Expand
+sidebar control. Packaged Desktop and install/update execution remain required CI checks.
+
+Manual comparison: Windows Chrome, bundled Pretendard Variable, DPR 1, zoom 1,
+1440×900 and 390×900, English, content scroll 0, clean `updates.md`, mock Desktop
+version 0.2.0 / Stable / idle and zero recovery records. Before is master
+`987ae137ce0615b51b682fffefe040fca4cec872`; After is this change. Before shows the
+initial language focus; After shows the selected category. The original popup contains
+all three groups and requires vertical scrolling. After covers Sidebar, tabs, document
+and Outline; on phones navigation stacks above content and all controls remain reachable.
+The same geometry assertions cover Korean and 375px (18 language/width/category states);
+the additional captures remain in `tmp/desktop-visual`. Capture with
+`pnpm browser:test desktop-updates --screenshots`; these images support manual review,
+while geometry, keyboard and editor-state checks provide automated coverage.
+
+| State | 1440px | 390px |
+| --- | --- | --- |
+| Before: combined popup | [Before](assets/settings-screen-594/settings-before-1440.png) | [Before](assets/settings-screen-594/settings-before-390.png) |
+| Appearance & language | [After](assets/settings-screen-594/settings-en-appearance-1440.png) | [After](assets/settings-screen-594/settings-en-appearance-390.png) |
+| Saving & recovery | [After](assets/settings-screen-594/settings-en-recovery-1440.png) | [After](assets/settings-screen-594/settings-en-recovery-390.png) |
+| About & updates | [After](assets/settings-screen-594/settings-en-about-1440.png) | [After](assets/settings-screen-594/settings-en-about-390.png) |
+
 ## Structure
 
-Every Host has an expanded Sidebar footer Settings entry (also available through the command center) for Local recovery explanations and confirmed Clear all. The start screen adds a minimal recovery list/empty state; matching Open offers the newest record in a shared recovery dialog. Standing recording failures use MessageArea. The [recovery contract](editing-session-save-v1.md#local-recovery-records-296-pr2) owns retention and lifecycle. The typed Desktop bridge additionally provides About and update notice/actions. About reuses Base UI dialog focus/dismiss behavior; update notices do not take editor focus. Version/channel/progress/retry/restart policy is defined by [Desktop distribution](desktop-distribution-v1.md).
+Every Host has an expanded Sidebar footer Settings entry (also available through the command center), opening the [dedicated Settings screen](#dedicated-settings-screen-594). The start screen adds a minimal recovery list/empty state; matching Open offers the newest record in a shared recovery dialog. Standing recording failures use MessageArea. The [recovery contract](editing-session-save-v1.md#local-recovery-records-296-pr2) owns retention and lifecycle. The typed Desktop bridge additionally provides About and update notice/actions. Update notices do not take editor focus. Version/channel/progress/retry/restart policy is defined by [Desktop distribution](desktop-distribution-v1.md).
 
 The document is the primary surface. Each document tab keeps one Tiptap/ProseMirror document state owning selection, history and editing; typed blocks use NodeViews and overlays.
 

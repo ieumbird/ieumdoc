@@ -333,6 +333,7 @@ test("the release channel persists across restarts; an update check never blocks
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     const dialog = page.getByTestId("settings-dialog");
     await dialog.waitFor();
+    await dialog.getByRole("button", { name: "About & updates", exact: true }).click();
     assert.equal(await page.getByTestId("app-version").innerText(), version);
     assert.equal(await page.getByRole("radio", { name: channelName(initialChannel) }).isChecked(), true, "first launch uses the installed version's channel");
     // The choice shows once the Desktop app has saved it.
@@ -354,6 +355,7 @@ test("the release channel persists across restarts; an update check never blocks
   try {
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByTestId("settings-dialog").waitFor();
+    await page.getByRole("button", { name: "About & updates", exact: true }).click();
     assert.equal(await page.getByRole("radio", { name: channelName(selectedChannel) }).isChecked(), true, "the user's choice survives a restart instead of reverting to the build's default");
   } finally {
     await closeApp(app);
@@ -375,6 +377,7 @@ test("a damaged update configuration leaves the Editor and Settings usable", {
     app = launched.app;
     const { page } = launched;
     await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("button", { name: "About & updates", exact: true }).click();
     assert.equal(await page.getByTestId("app-version").isVisible(), true);
     assert.equal(await page.evaluate(async () => (await window.ieumdocDesktop!.info()).updatesSupported), false);
     await page.keyboard.press("Escape");

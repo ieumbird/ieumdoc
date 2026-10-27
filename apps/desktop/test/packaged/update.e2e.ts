@@ -172,6 +172,9 @@ test("installs per user, then updates from Settings only after the open document
     await page.evaluate(() => localStorage.setItem("ieumdoc.uiLanguage", "en"));
     const phase = () => page.getByTestId("update-status").getAttribute("data-phase");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
+    // LIVE starts an older published build whose Settings has no categories.
+    if (await page.getByRole("button", { name: "About & updates", exact: true }).count())
+      await page.getByRole("button", { name: "About & updates", exact: true }).click();
     assert.equal(await page.getByTestId("app-version").innerText(), OLD);
     assert.equal(await page.getByRole("radio", { name: BETA ? /^Beta/ : /^Stable/ }).isChecked(), true, "first install uses its own channel");
     await page.getByRole("button", { name: "Check for updates" }).click();
@@ -197,6 +200,8 @@ test("installs per user, then updates from Settings only after the open document
     page.on("dialog", () => {});
     await page.locator('[data-testid="status"][data-operation="ready" i]').waitFor({ state: "attached" });
     await page.getByRole("button", { name: "Settings", exact: true }).click();
+    if (await page.getByRole("button", { name: "About & updates", exact: true }).count())
+      await page.getByRole("button", { name: "About & updates", exact: true }).click();
     assert.equal(await page.getByTestId("app-version").innerText(), OLD);
     await page.getByRole("button", { name: "Check for updates" }).click();
     await page.getByRole("button", { name: "Download update" }).click();

@@ -35,7 +35,7 @@ Completion requires the Windows installer, channel/state tests, packaged app and
 
 ## Channels and versions
 
-The public distribution version is `0.1.0-beta.1`; Stable publication is deferred. On first launch, an installed `X.Y.Z-beta.N` defaults to Beta and a Stable version defaults to Stable. A valid saved Stable/Beta choice always wins, including after installing a different version. Missing/damaged preferences or an invalid/missing channel fall back to the installed version's default. Preferences are persisted by temporary sibling/rename. Settings → About shows installed version, channel, update status/actions and a Release notes link.
+The public distribution version is `0.1.0-beta.1`; Stable publication is deferred. On first launch, an installed `X.Y.Z-beta.N` defaults to Beta and a Stable version defaults to Stable. A valid saved Stable/Beta choice always wins, including after installing a different version. Missing/damaged preferences or an invalid/missing channel fall back to the installed version's default. Preferences are persisted by temporary sibling/rename. Settings → About & updates shows installed version, channel, update status/actions and a Release notes link.
 
 The [0.1.0-beta.1 release record](../releases/v0.1.0-beta.1.md) contains publication, verified public assets, master CI and actual GitHub 0.0.1-beta.4→0.1.0-beta.1 update evidence. Earlier verification below remains historical.
 

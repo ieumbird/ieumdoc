@@ -8,6 +8,8 @@ async (page, { screenshots = false, openPath }) => {
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   check(await page.getByRole('button', {name:'Settings', exact:true}).count() === 1, 'Common recovery Settings is missing');
   await page.getByRole('button', {name:'Settings',exact:true}).click();
+  check(await page.getByRole('button',{name:'About & updates',exact:true}).count() === 0, 'Browser exposes Desktop-only category');
+  await page.getByRole('button',{name:'Saving & recovery',exact:true}).click();
   check(await page.getByRole('heading',{name:'Local recovery',exact:true}).isVisible() && !await page.getByTestId('app-version').count(), 'Browser settings mixed recovery with Desktop-only information');
   await page.keyboard.press('Escape');
   const capture = async name => {
@@ -70,13 +72,12 @@ async (page, { screenshots = false, openPath }) => {
   check(await settings.evaluate(node => node === document.activeElement), 'Tab from Open file did not reach Settings');
   await page.keyboard.press('Enter');
   await dialog.waitFor();
+  await page.waitForFunction(() => document.activeElement?.textContent === 'Back to document', undefined, {timeout:5_000});
+  await dialog.getByRole('button',{name:'About & updates',exact:true}).click();
   check(await page.getByTestId('app-version').innerText() === '0.2.0', 'About does not show the version');
   const stable = page.getByRole('radio', {name:/^Stable/});
   const beta = page.getByRole('radio', {name:/^Beta/});
   check(await stable.isChecked() && !await beta.isChecked(), 'Stable is not the default channel');
-  // Base UI queues initial focus on an animation frame; visible is not yet focus-ready.
-  // Observe real focus without moving it, so missing initial focus still fails.
-  await page.waitForFunction(() => document.activeElement?.matches('[data-testid="ui-language"]'), undefined, {timeout:5_000});
   await stable.focus();
   await push({phase:'no-stable-release'});
   await waitForStatus('No Stable release has been published yet.');
@@ -102,6 +103,7 @@ async (page, { screenshots = false, openPath }) => {
   // Observe each committed phase before checking that a postponed version stays quiet.
   await settings.click();
   await dialog.waitFor();
+  await dialog.getByRole('button',{name:'About & updates',exact:true}).click();
   await push({phase:'checking'});
   await page.locator('[data-testid="update-status"][data-phase="checking"]').waitFor({state:'attached', timeout:5000});
   await push({phase:'available', version:'0.3.0-beta.1', prerelease:true});
@@ -160,6 +162,7 @@ async (page, { screenshots = false, openPath }) => {
   await page.getByRole('tab', {name:'technical-document.md',exact:true}).click();
   await settings.click();
   await dialog.waitFor();
+  await dialog.getByRole('button',{name:'About & updates',exact:true}).click();
   await restart.click();
   await page.getByTestId('update-problem').waitFor();
   check((await page.getByTestId('update-problem').innerText()).includes('Apply or Cancel the open edits'), 'An unapplied edit did not refuse the restart');
@@ -255,6 +258,74 @@ async (page, { screenshots = false, openPath }) => {
   check(JSON.stringify(recorded) === JSON.stringify(['channel:beta', 'check', 'notes:', 'postpone:0.3.0-beta.1', 'download', 'install:false', 'install:false', 'install:false', 'install:false', 'install:false', 'install:true']),
     `Unexpected Desktop calls ${JSON.stringify(recorded)}`);
 
+  // Restore the baseline display state for the screen comparison (mock version 0.2.0,
+  // Stable, idle, no records); the updater interaction assertions above are complete.
+  await settings.click();
+  await dialog.getByRole('button',{name:'About & updates',exact:true}).click();
+  await stable.check();
+  await push({phase:'idle'});
+  await waitForStatus('IeumDoc checks for updates automatically.');
+  await page.keyboard.press('Escape'); await dialog.waitFor({state:'detached'});
+
+  // The actual screen stays bounded with every category and both languages, using the
+  // same traversal for geometry assertions and optional manual-review captures.
+  const screenResults = [];
+  for (const language of ['en', 'ko']) {
+    for (const width of [1440, 390, 375]) {
+      await page.setViewportSize({width, height:900});
+      const expand = page.getByRole('button',{name:language === 'en' ? 'Expand sidebar' : '사이드바 펼치기',exact:true});
+      if (await expand.isVisible()) await expand.click();
+      await page.getByRole('button',{name:language === 'en' ? 'Settings' : '설정',exact:true}).click();
+      await dialog.waitFor();
+      for (const [category, name] of language === 'en'
+        ? [['appearance','Appearance & language'],['recovery','Saving & recovery'],['about','About & updates']]
+        : [['appearance','표시·언어'],['recovery','저장·복구'],['about','정보·업데이트']]) {
+        const entry = dialog.getByRole('button',{name,exact:true});
+        await entry.click();
+        check(await entry.getAttribute('aria-current') === 'page', 'Current category has no accessible cue');
+        const geometry = await dialog.evaluate(n => {
+          const box = n.getBoundingClientRect();
+          const content = n.querySelector('.settings-content-inner').getBoundingClientRect();
+          const nav = n.querySelector('.settings-navigation').getBoundingClientRect();
+          const main = n.querySelector('.settings-content').getBoundingClientRect();
+          return {x:box.x,y:box.y,width:box.width,height:box.height,
+            overflow:n.scrollWidth > n.clientWidth || n.querySelector('.settings-body').scrollWidth > n.querySelector('.settings-body').clientWidth,
+            bounded:content.width <= parseFloat(getComputedStyle(n.querySelector('.settings-content-inner')).maxWidth) + 1,
+            stacked:main.top >= nav.bottom, dpr:devicePixelRatio, zoom:visualViewport.scale};
+        });
+        check(geometry.x === 0 && geometry.y === 0 && geometry.width === width && geometry.height === 900,
+          `Settings does not cover the app: ${JSON.stringify(geometry)}`);
+        check(!geometry.overflow && geometry.bounded && (width >= 768 || geometry.stacked),
+          `Settings layout failed at ${language}/${width}/${category}: ${JSON.stringify(geometry)}`);
+        const scrollState = await dialog.evaluate(n => ({
+          scrollers:[n,...n.querySelectorAll('*')].filter(e => e.scrollTop).map(e => ({className:e.className,top:e.scrollTop})),
+          note:n.querySelector('.settings-document-note').getBoundingClientRect().toJSON(),
+          nav:n.querySelector('.settings-navigation').getBoundingClientRect().toJSON(),
+        }));
+        screenResults.push({language,width,category,...geometry,scrollState});
+        if (width !== 375) await capture(`settings-${language}-${category}-${width}`);
+        const lastControl = dialog.locator('main button, main select, main input').last();
+        await lastControl.scrollIntoViewIfNeeded();
+        check(await lastControl.isVisible(), `Last control unreachable at ${width}/${category}`);
+        await dialog.locator('.settings-body').evaluate(n => n.scrollTop = 0);
+      }
+      // Crossing the phone boundary hides the old Sidebar opener while Settings is
+      // covering it. Back must then focus the visible control that can reopen Sidebar.
+      if (width === 1440) await page.setViewportSize({width:390,height:900});
+      await page.keyboard.press('Escape'); await dialog.waitFor({state:'detached'});
+      if (width === 1440) {
+        await page.getByRole('button',{name:language === 'en' ? 'Expand sidebar' : '사이드바 펼치기',exact:true})
+          .and(page.locator(':focus')).waitFor();
+      }
+    }
+    // Change through the actual preference control; never rewrite UI text in a capture.
+    const expand = page.getByRole('button',{name:language === 'en' ? 'Expand sidebar' : '사이드바 펼치기',exact:true});
+    if (await expand.isVisible()) await expand.click();
+    await page.getByRole('button',{name:language === 'en' ? 'Settings' : '설정',exact:true}).click();
+    await page.getByTestId('ui-language').selectOption(language === 'en' ? 'ko' : 'en');
+    await page.keyboard.press('Escape'); await dialog.waitFor({state:'detached'});
+  }
+  await page.setViewportSize({width:1440,height:900});
   // Started without a document, nothing can be lost: the start allows the restart.
   // Close the saved tabs so navigation memory also deliberately starts empty (#383).
   for (const name of ['updates.md','technical-document.md']) await page.getByRole('button',{name:`Close ${name}`,exact:true}).click();
@@ -263,6 +334,11 @@ async (page, { screenshots = false, openPath }) => {
   try {
     await page.reload();
     await page.getByTestId('document-start').waitFor();
+    await page.getByRole('button',{name:'Settings',exact:true}).click();
+    check(await dialog.getByRole('button',{name:'Back to start',exact:true}).isVisible(), 'Settings has no start return');
+    check(await dialog.getByRole('button',{name:'Open document settings',exact:true}).count() === 0, 'Start offers document settings');
+    await dialog.getByRole('button',{name:'Back to start',exact:true}).click();
+    await dialog.waitFor({state:'detached'});
     await push({phase:'downloaded', version:'0.3.0-beta.2', prerelease:true});
     await notice.getByRole('button', {name:'Restart to update'}).click();
     await page.waitForFunction(() => window.__desktop.calls.some(call => call[0] === 'install'));
@@ -270,5 +346,5 @@ async (page, { screenshots = false, openPath }) => {
   } finally {
     await page.unroute(/\/api\/document$/, firstRequest);
   }
-  return {calls: recorded};
+  return {calls: recorded, screenResults};
 }

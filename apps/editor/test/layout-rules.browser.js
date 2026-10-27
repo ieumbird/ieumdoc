@@ -37,7 +37,7 @@ async (page, { openPath, withBlockHover, expect }) => {
     if(delayFocus)await page.evaluate(()=>{
       const focus=HTMLElement.prototype.focus;
       HTMLElement.prototype.focus=function(...args){
-        if(this.matches('[data-testid="ui-language"]')){
+        if(this.matches('[data-testid="settings-back"]')){
           window.releaseSettingsFocus=()=>{HTMLElement.prototype.focus=focus;focus.apply(this,args);};
           return;
         }
@@ -47,7 +47,7 @@ async (page, { openPath, withBlockHover, expect }) => {
     await page.getByRole('button',{name:current==='ko'?'설정':'Settings',exact:true}).click();
     // selectOption does not focus the select. Escape on the opener can dismiss the phone sidebar.
     let focusReady=false;
-    const focused=expect(page.getByTestId('ui-language')).toBeFocused().then(()=>{focusReady=true;});
+    const focused=expect(page.getByTestId('settings-back')).toBeFocused().then(()=>{focusReady=true;});
     try{
       if(delayFocus){
         await page.waitForFunction(()=>!!window.releaseSettingsFocus);

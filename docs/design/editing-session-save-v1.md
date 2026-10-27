@@ -412,7 +412,7 @@ packaged-platform coverage remain the required Desktop CI boundary.
 
 ## Save shortcut and work-loss protection (#56)
 
-Ctrl/Cmd+S runs the same Save as the button, with the same status, error and conflict messages, and never the browser's page save. It keeps focus, selection and history in the editor. While Open, New, Reload, recovery or Settings dialogs are open it does nothing, as the covered Save button would. The top bar's `Unsaved changes` status is the in-session indicator. The Save button shows the shortcut and declares it as `aria-keyshortcuts`.
+Ctrl/Cmd+S runs the same Save as the button, with the same status, error and conflict messages, and never the browser's page save. It keeps focus, selection and history in the editor. While Open, New, Reload or recovery dialogs or the dedicated Settings screen are open it does nothing, as the covered Save button would. The top bar's `Unsaved changes` status is the in-session indicator. The Save button shows the shortcut and declares it as `aria-keyshortcuts`.
 
 Current behavior: explicit Save and separate local recovery of applied work; no autosave or recovery of unapplied drafts. `beforeunload` remains the guard against closing or navigating away with unsaved work. [ADR-0007](../adr/0007-editing-session-lifetime.md)'s independent tabs, shared tab-close confirmation and client recovery are implemented above. Windows Desktop/HTTP persistence and crash checks, their required CI and remaining platform/guarantee limits are recorded in [Host persistence verification](#host-persistence-verification-296-pr3). Autosave is deferred (#297).
 
