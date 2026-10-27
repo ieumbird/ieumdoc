@@ -59,6 +59,13 @@ prefix to navigation text, keep number-only empty captions and retain English do
 notation under Korean UI. Core still owns numbering/templates; body and navigation share
 the Editor caption-prefix function, replacing the list's separate colon.
 
+The first PR CI run's artifacts exposed two existing resize-readiness assumptions:
+Figure preview checked page overflow immediately after viewport emulation, and the folder
+menu-switch check cached TopBar coordinates before the Document panel finished docking.
+The tests now wait for the resized document's no-overflow state and the expected docked/closed
+panel respectively, retaining the direct geometry assertions and one physical click.
+No retry count or timeout was increased.
+
 Manual same-state captures use base `719ee2477fe82e83ad11c9b4ac14d71f5a77f2dc` and `tmp/outline/panel-lists.md`,
 with Visual and Tables selected, the right panel open, loaded Pretendard and 900px height.
 They are review evidence, not pixel assertions. The temporary capture driver used
