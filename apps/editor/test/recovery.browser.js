@@ -251,6 +251,7 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
   await openPath(page,file);
   await edit(page,'Before clear. '); await count(1);
   await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await page.getByRole('button',{name:'Saving & recovery',exact:true}).click();
   await capture('settings');
   await page.keyboard.press('Control+s');
   check(await page.getByTestId('status').getAttribute('data-operation') === 'ready', 'Save shortcut bypassed Settings modal');
@@ -365,6 +366,7 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
   check(await page.getByRole('tab').count() === 0, 'Unavailable recovery was bypassed by automatic tab restoration');
   await capture('unavailable');
   await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await page.getByRole('button',{name:'Saving & recovery',exact:true}).click();
   await page.getByRole('heading',{name:'Local recovery',exact:true}).waitFor();
   await page.keyboard.press('Escape');
   await openPath(page,file);
