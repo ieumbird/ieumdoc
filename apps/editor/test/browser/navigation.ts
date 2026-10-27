@@ -5,7 +5,7 @@ import type { Editor } from "@tiptap/core";
 /** Open (add) the file's folder through the picker, then choose the file in that folder's tree. An existing tab is activated without rereading its content. */
 export async function openDocument(page: Page, file: string): Promise<void> {
   const sidebar = page.getByTestId("sidebar");
-  // The rail's toggle, or the TopBar's at phone widths, where a closed sidebar has no rail.
+  // Expand the Sidebar through its rail when the caller has collapsed it.
   const expand = page.getByRole("button", { name: "Expand sidebar", exact: true });
   if (await expand.isVisible()) await expand.click();
   await sidebar.getByRole("button", { name: "Open folder…", exact: true }).click();

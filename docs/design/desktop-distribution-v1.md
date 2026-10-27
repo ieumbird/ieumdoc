@@ -43,6 +43,8 @@ The Desktop Host lives in `apps/desktop`. It ships the existing Editor productio
 
 Completion requires the Windows installer, channel/state tests, packaged app and actual install/update regressions, the existing Core/CLI/Editor/browser checks, CI configuration and this documentation. Unsigned publication is restricted to exact `vX.Y.Z-beta.N` releases after these checks, with its signature status and possible Windows warnings disclosed. Authenticode credentials are prerequisites for signed releases and Stable publication. All publication requires explicit approval and actual environment protection configured in GitHub. Real GitHub update delivery is distinct from the local feed checks.
 
+The native window enforces a minimum width of **640px** (minimum height 480px), following [ADR-0010](../adr/0010-supported-viewport-and-input.md). Keyboard and pointer input are the supported interaction model. The packaged regression checks the native minimum size.
+
 ## App and Host
 
 - App/product name: `IeumDoc`; App ID: `io.github.ieumbird.ieumdoc`; updater cache: `%LOCALAPPDATA%\ieumdoc-updater`; preferences/sample/logs: `%APPDATA%\IeumDoc`. Keep these identities stable after first publication.

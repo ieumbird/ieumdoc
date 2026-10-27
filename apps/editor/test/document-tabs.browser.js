@@ -339,7 +339,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
     : t.color === tabFaces.tokens.muted && t.shadow === 'none')), `Document tabs need a flat current marker / muted inactive labels ${JSON.stringify(tabFaces)}`);
   check(tabFaces.tabs.every(t => t.height === parseFloat(tabFaces.tokens.height) && t.close === parseFloat(tabFaces.tokens.close)), 'Tab or close height differs from its token');
 
-  for (const width of [1440,390,375]) {
+  for (const width of [1440,640]) {
     await page.setViewportSize({width,height:900});
     await tabA.focus();
     await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowLeft');
@@ -398,7 +398,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
   await openPath(page, file(['beta','guide.md'].join(sep)));
   check(await page.getByRole('tab',{name:'guide.md — alpha',exact:true}).count() === 1 &&
     await page.getByRole('tab',{name:'guide.md — beta',exact:true}).count() === 1, 'Same-name files are ambiguous');
-  await page.setViewportSize({width:375,height:900});
+  await page.setViewportSize({width:640,height:900});
   const narrow = await page.evaluate(() => {
     const row = document.querySelector('[role="tablist"]');
     const save = document.querySelector('[data-testid="save"]').getBoundingClientRect();
@@ -424,7 +424,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
 
   if (screenshots) {
     // Manual review only: captures and rough heap/switch timings do not impose performance gates.
-    for (const width of [1440,375]) {
+    for (const width of [1440,640]) {
       await page.setViewportSize({width,height:900});
       const shot = async state => {
         await page.evaluate(async () => { await document.fonts.ready; window.scrollTo(0,0); document.activeElement?.blur(); });

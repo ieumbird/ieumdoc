@@ -18,8 +18,6 @@ type SidebarProps = {
   documentPath: string;
   onToggle(): void;
   toggleRef?: RefObject<HTMLButtonElement | null>;
-  /** Set where the open sidebar covers the document: Escape inside it closes it. */
-  onDismiss?(): void;
   /** Names the control the folder dialog returns focus to. */
   onOpenFolder(returnFocus: HTMLElement | null): void;
   onNewDocument?(returnFocus: HTMLElement): void;
@@ -43,19 +41,12 @@ type SidebarProps = {
 
 /** File navigation stays mounted when collapsed. Outline remains independent on the right. */
 export function Sidebar({
-  onFileAction, fileActionsDisabled, isFileDirty, open, documentPath, onToggle, toggleRef, onDismiss, onOpenFolder, onNewDocument, recent = [], onOpenRecent, onNew, onNewFolder,
+  onFileAction, fileActionsDisabled, isFileDirty, open, documentPath, onToggle, toggleRef, onOpenFolder, onNewDocument, recent = [], onOpenRecent, onNew, onNewFolder,
   folders = [], onToggleFolder, onToggleSection, onOpenDocument, onCloseFolder, onRefreshFolder, onSettings,
 }: SidebarProps) {
   useTranslation();
   return (
-    <nav className={`sidebar${open ? "" : " sidebar--collapsed"}`} aria-label={i18n.t("Application")} data-testid="sidebar"
-      onKeyDown={event => {
-        // Portaled menus and dialogs bubble through React; they keep their own Escape.
-        if (event.key !== "Escape" || event.defaultPrevented || !open || !onDismiss ||
-          !event.currentTarget.contains(event.target as Node)) return;
-        event.preventDefault();
-        onDismiss();
-      }}>
+    <nav className={`sidebar${open ? "" : " sidebar--collapsed"}`} aria-label={i18n.t("Application")} data-testid="sidebar">
       <div className="sidebar-header">
         {open ? <span className="product">IeumDoc</span> : null}
         <div className="sidebar-header-actions">
