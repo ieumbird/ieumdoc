@@ -1,13 +1,13 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
-- Version correction preparation: 2026-10-28 (#632: source candidate `0.0.2-beta.1` is unpublished; publication, public asset verification, actual GitHub update and old Release/tag withdrawal remain pending; [plan](../releases/v0.0.2-beta.1.md)).
+- Version correction verification: 2026-10-28 (#632: `0.0.2-beta.1` published; anonymous assets and withdrawal of both `0.1.0` Beta Releases/assets/remote tags verified; actual GitHub installation/update unverified; [record](../releases/v0.0.2-beta.1.md)).
 - CLI directory cleanup verification: 2026-10-28 (#629: isolated disable/uninstall ownership tests, Desktop typecheck and CI channel-order tests; actual Stable→Beta and NSIS checks run only in disposable Windows CI).
 - CLI integration verification: 2026-10-27 (#604: isolated environment/shim tests, CLI tests/offline package, Editor tests/typecheck/build, persistent-Chrome Settings and layout checks; packaged runtime and real registry/install/update/uninstall checks are required Windows CI, not local execution).
 - Title-bar verification: 2026-10-27 (#605: Desktop 48 tests, typecheck, browser bridge/theme/geometry checks; actual native overlay and packaged checks run in CI, manual Windows items remain explicit below).
 - File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
 - Documentation verification: 2026-10-26 (Host startup response versus Editor tab restoration compared with first-document.ts, host-protocol.ts, App.tsx and the session contract; no new Desktop execution).
-- Last verified: 2026-10-28 (public 0.1.0-beta.2, release CI, anonymous asset sizes/SHA-256 and installer SHA-512 verified; environment reviewer requirement removed at owner's request, master-only deployment policy preserved; actual GitHub beta.1→beta.2 update explicitly unverified).
+- Last verified: 2026-10-28 (public 0.0.2-beta.1, release CI attempt 2, anonymous asset sizes/SHA-256, installer SHA-512 and old Release/tag withdrawal verified; attempt 1 cleanup race recorded; actual GitHub installation/update unverified).
 - Previous verification: 2026-10-26 (public 0.1.0-beta.1, release CI, anonymous assets, real GitHub 0.0.1-beta.4→0.1.0-beta.1 update and Korean Windows packaged regression with #450; see the release record).
 - Previous verification: 2026-10-16 (#296 PR3: actual packaged Windows process crash/normal close, same-profile recovery, pending Figure, Save/Reload and external conflict. Native close answer is stubbed; no install/update/release performed).
 - Previous verification: 2026-10-16 (#296 PR2: native Close without saving wording; Desktop tests/typecheck and mock-bridge browser guards).
@@ -183,11 +183,11 @@ regression. Native OS theme-change automation is not claimed.
 
 ## Channels and versions
 
-The source candidate is `0.0.2-beta.1`, not yet published. The public distribution version remains `0.1.0-beta.2` until the replacement is verified; Stable publication is deferred. The owner confirmed there are no existing users and approved correcting only the version, followed by withdrawal of the two `0.1.0` Beta Releases/assets/tags after the new publication is verified. Downgrade protection and migration policy remain unchanged. See the [#632 preparation plan](../releases/v0.0.2-beta.1.md) for scope and pending work.
+The source and public distribution version is `0.0.2-beta.1`; Stable publication is deferred. The owner confirmed there are no existing users and approved correcting only the version. After verifying the new public assets, the two `0.1.0` Beta Releases/assets/remote tags were withdrawn; source commits and historical verification records remain. Downgrade protection and migration policy remain unchanged: an installed `0.1.0-beta.*` cannot automatically update down to `0.0.2-beta.1` and requires manual replacement. See the [#632 release record](../releases/v0.0.2-beta.1.md) for publication, withdrawal and the unverified actual GitHub installation/update boundary.
 
 On first launch, an installed `X.Y.Z-beta.N` defaults to Beta and a Stable version defaults to Stable. A valid saved Stable/Beta choice always wins, including after installing a different version. Missing/damaged preferences or an invalid/missing channel fall back to the installed version's default. Preferences are persisted by temporary sibling/rename. Settings → About & updates shows installed version, channel, update status/actions and a Release notes link.
 
-The [0.1.0-beta.2 release record](../releases/v0.1.0-beta.2.md) contains publication, verified public assets, master/release CI and the owner-approved exception leaving actual GitHub beta.1→beta.2 delivery unverified. The [0.1.0-beta.1 release record](../releases/v0.1.0-beta.1.md) preserves the earlier actual GitHub 0.0.1-beta.4→0.1.0-beta.1 update evidence. Earlier verification below remains historical.
+The withdrawn [0.1.0-beta.2 release record](../releases/v0.1.0-beta.2.md) preserves its publication, public asset hashes, CI and unverified actual GitHub beta.1→beta.2 delivery. The withdrawn [0.1.0-beta.1 release record](../releases/v0.1.0-beta.1.md) preserves its earlier actual GitHub 0.0.1-beta.4→0.1.0-beta.1 update evidence. These historical results do not verify the current release; earlier verification below also remains historical.
 
 | Channel | Feed and offer | Release assets |
 | --- | --- | --- |
