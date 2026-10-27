@@ -533,7 +533,7 @@ test("document panel holds only the outline, and the TopBar Outline toggle shows
   outline.set({ items: [{ index: 0, pos: 0, level: 1, text: "Intro" }, { index: 2, pos: 9, level: 2, text: "Detail" }], current: 1 });
   const panel = renderToStaticMarkup(<DocumentPanel overlay={false} outline={outline} onSelectHeading={noop} onClose={noop} />);
   assert.match(panel, />Outline</);
-  assert.match(panel, /aria-label="Hide outline"/);
+  assert.doesNotMatch(panel, /aria-label="Hide outline"/);
   assert.match(panel, /data-testid="outline"/);
   const currentText = panel.match(/<button\b[^>]*aria-current="location"[^>]*>([\s\S]*?)<\/button>/)?.[1];
   assert.equal(currentText?.replace(/<[^>]+>/g, ""), "Detail");

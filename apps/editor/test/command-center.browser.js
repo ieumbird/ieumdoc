@@ -463,7 +463,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   // No explicit Outline choice yet: wait for the wide-layout default to commit.
   // An immediate isVisible + toggle can close it as the matchMedia handler opens it.
   await panel.waitFor();
-  await panel.getByRole('button',{name:'Hide outline',exact:true}).focus();
+  await panel.getByRole('button').first().focus();
   await run('Hide outline');
   await panel.waitFor({state:'detached'});
   await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Outline', null, {timeout:5000});
