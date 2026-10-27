@@ -125,16 +125,27 @@ test("started without a document, it opens none; the sample opens with its figur
     for (const width of [1440, 640]) {
       await app.evaluate(({ BrowserWindow }, width) => BrowserWindow.getAllWindows()[0]!.setContentSize(width, 900), width);
       await expect.poll(() => page.evaluate(() => innerWidth)).toBe(width);
+      // Native env(titlebar-area-*) is the unique packaged risk; the browser matrix uses a stand-in.
+      const outlineToggle = page.getByRole("button", { name: "Outline", exact: true });
+      if (await outlineToggle.getAttribute("aria-pressed") === "true") await outlineToggle.click();
       const geometry = await page.evaluate(() => {
         const overlay = (navigator as Navigator & { windowControlsOverlay: { getTitlebarAreaRect(): DOMRect } }).windowControlsOverlay.getTitlebarAreaRect();
         const controls = [...document.querySelectorAll<HTMLElement>('.top-bar button, .sidebar-header button')];
-        return { reserved: innerWidth - overlay.right, height: overlay.height,
+        const header = document.querySelector('.app-header')!.getBoundingClientRect();
+        const tabs = document.querySelector('.document-tabs')!.getBoundingClientRect();
+        const captionEdgeLines = [...document.querySelectorAll('.app-header *')].filter(element => {
+          const r = element.getBoundingClientRect(), style = getComputedStyle(element);
+          return r.left <= header.right - 0.5 && r.right >= header.right && r.bottom === tabs.top &&
+            style.borderBottomStyle === 'solid' && parseFloat(style.borderBottomWidth) === 1;
+        }).length;
+        return { reserved: innerWidth - overlay.right, height: overlay.height, captionEdgeLines,
           blocked: controls.filter(element => {
             const r = element.getBoundingClientRect();
             return r.width && (r.right > innerWidth || (r.top < overlay.bottom && r.right > overlay.right) || getComputedStyle(element).getPropertyValue('app-region') !== 'no-drag');
           }).map(element => element.getAttribute('aria-label') || element.textContent) };
       });
       assert.ok(geometry.reserved > 0 && geometry.height === 40, JSON.stringify(geometry));
+      assert.equal(geometry.captionEdgeLines, 1, "one separator reaches the actual native caption edge with Outline closed");
       assert.deepEqual(geometry.blocked, [], "controls clear native caption buttons at each supported width");
     }
     assert.match(await page.getByTestId("current-file").getAttribute("title") ?? "", /[\\/]sample-native-v1[\\/]technical-document\.md$/);

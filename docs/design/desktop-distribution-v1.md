@@ -1,6 +1,7 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
+- Separator verification: 2026-10-28 (#635: persistent Windows Chrome, light/dark, 1440/1424/1423/640px, Outline/sidebar open and closed, representative 138px/zero caption reservations; four 1440/640px before/after PNG pairs differ only in the missing 138×1px line. Actual native geometry remains Windows packaged CI; native visual acceptance is separate).
 - Version correction preparation: 2026-10-28 (#632: source candidate `0.0.2-beta.1` is unpublished; publication, public asset verification, actual GitHub update and old Release/tag withdrawal remain pending; [plan](../releases/v0.0.2-beta.1.md)).
 - CLI directory cleanup verification: 2026-10-28 (#629: isolated disable/uninstall ownership tests, Desktop typecheck and CI channel-order tests; actual Stable→Beta and NSIS checks run only in disposable Windows CI).
 - CLI integration verification: 2026-10-27 (#604: isolated environment/shim tests, CLI tests/offline package, Editor tests/typecheck/build, persistent-Chrome Settings and layout checks; packaged runtime and real registry/install/update/uninstall checks are required Windows CI, not local execution).
@@ -148,12 +149,15 @@ boundaries `no-drag`. Menus preserve pointer input to other triggers; while
 a menu is open, underlying shell headers temporarily use no-drag for outside dismissal. Full-screen Settings leaves only its 40px header draggable and retains
 caption reservation at 640px. Native move/double-click maximize and
 maximized inset behavior require Windows manual checks. Document tabs remain below TopBar.
+The TopBar bottom separator spans its full column, including the native button reservation
+when Outline is closed or overlaid, without a second line or a header-height change (#635).
 The renderer title is the active filename followed by ` — IeumDoc`, or `IeumDoc` without a
 document, for native taskbar/Alt+Tab identification as well as browser tabs. The existing
 beforeunload/unsaved-work protection remains authoritative for native Close.
 
 Packaged CI checks actual Window Controls Overlay visibility/geometry at 1440px and 640px,
-control exclusion from drag, and BrowserWindow title. Local checks use persistent Chrome with
+control exclusion from drag, the separator at the real native caption edge with Outline closed,
+and BrowserWindow title. Local checks use persistent Chrome with
 the bridge and representative caption-width geometry, including long filenames in Settings
 and portal overlays over the wrapped header at 640×480; they do not launch packaged Desktop.
 Manual checks cover drag, double-click maximize, maximized gaps, rendered light/dark button

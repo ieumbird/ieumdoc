@@ -122,6 +122,65 @@ async (page, { screenshots = false, openPath }) => {
   await openPath(page, [...root, 'tmp', 'open-files', longName].join(sep));
   await page.getByRole('dialog').waitFor({state:'detached'});
   const captionFailures = [];
+  const separatorGeometry = [];
+  // #635: inspect the painted bottom-border spans, independent of which wrapper owns them.
+  // This is representative geometry in Chrome, not a native Windows visual acceptance check.
+  for (const width of [1440, 1424, 1423, 640]) {
+    await page.setViewportSize({width, height:900});
+    for (const theme of ['light', 'dark']) {
+      await page.getByRole('button', {name:'Settings', exact:true}).click();
+      await page.getByTestId('theme').selectOption(theme);
+      await page.keyboard.press('Escape');
+      await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+      for (const reserved of [0, 138]) {
+        await page.evaluate(value => document.documentElement.style.setProperty('--window-controls-width', `${value}px`), reserved);
+        for (const panelOpen of [false, true]) {
+          const toggle = page.getByRole('button', {name:'Outline', exact:true});
+          if (await toggle.getAttribute('aria-pressed') !== String(panelOpen)) await toggle.click();
+          for (const collapsed of [false, true]) {
+            const sidebar = page.getByRole('button', {name:collapsed ? 'Collapse sidebar' : 'Expand sidebar', exact:true});
+            if (await sidebar.isVisible()) await sidebar.click();
+            // Wait for the measured header height used by overlay placement, not a fixed delay.
+            await page.waitForFunction(() => {
+              const shell = document.querySelector('.app-shell');
+              return parseFloat(shell.style.getPropertyValue('--app-header-height')) === document.querySelector('.app-header').offsetHeight;
+            });
+            const geometry = await page.evaluate(reserved => {
+              const header = document.querySelector('.app-header').getBoundingClientRect();
+              const bar = document.querySelector('.top-bar').getBoundingClientRect();
+              const tabs = document.querySelector('.document-tabs').getBoundingClientRect();
+              const lines = [...document.querySelectorAll('.app-header *')].flatMap(node => {
+                const r = node.getBoundingClientRect(), style = getComputedStyle(node), thickness = parseFloat(style.borderBottomWidth);
+                return thickness && style.borderBottomStyle === 'solid' && r.bottom >= bar.bottom && r.bottom <= tabs.top
+                  ? [{left:r.left, right:r.right, bottom:r.bottom, thickness, color:style.borderBottomColor}] : [];
+              });
+              const borderColor = getComputedStyle(document.querySelector('.document-tabs')).borderBottomColor;
+              const continuous = Array.from({length:Math.ceil(header.width)}, (_, i) => header.left + i + 0.5)
+                .filter(x => x < header.right).every(x => lines.filter(line => line.left <= x && line.right > x && line.bottom === tabs.top && line.thickness === 1 && line.color === borderColor).length === 1);
+              const blocked = [...document.querySelectorAll('.top-bar button, .sidebar-header button, .document-panel-header button')].filter(node => {
+                const r = node.getBoundingClientRect();
+                return r.width && (r.right > innerWidth || (r.top < 40 && r.right > innerWidth - reserved) || getComputedStyle(node).getPropertyValue('app-region') !== 'no-drag');
+              }).map(node => node.getAttribute('aria-label') || node.textContent);
+              const panel = document.querySelector('.document-panel--overlay');
+              const usableWidth = document.querySelector('.top-bar').getBoundingClientRect().width;
+              return {continuous, singleLine:lines.every(line => line.bottom === tabs.top && line.thickness === 1), lines, blocked,
+                rowHeight:tabs.top - bar.top, usableWidth, barBottom:bar.bottom, tabsTop:tabs.top, headerBottom:header.bottom,
+                overlayTop:panel?.getBoundingClientRect().top, drag:getComputedStyle(document.querySelector('.top-bar')).getPropertyValue('app-region')};
+            }, reserved);
+            separatorGeometry.push({width, theme, reserved, panelOpen, collapsed, ...geometry});
+            if (!geometry.continuous || !geometry.singleLine || geometry.blocked.length || geometry.tabsTop - geometry.barBottom > 1 || geometry.drag !== 'drag' ||
+                (geometry.usableWidth >= 896 && geometry.rowHeight !== 40) ||
+                (geometry.overlayTop !== undefined && geometry.overlayTop !== geometry.headerBottom))
+              captionFailures.push({width, theme, reserved, panelOpen, collapsed, ...geometry});
+            if (reserved && !collapsed && !panelOpen && [1440, 640].includes(width))
+              await capture(`titlebar-${theme}-${width}`);
+          }
+          await page.getByRole('button', {name:'Expand sidebar', exact:true}).click();
+        }
+      }
+    }
+  }
+  check(captionFailures.length === 0, `TopBar separator/geometry: ${JSON.stringify(captionFailures)}`);
   // Inspect modal backdrop boundaries and the direct header exclusion used by non-modal menus.
   const inspectOverlay = async (popup, label) => {
     await popup.waitFor();
@@ -505,5 +564,5 @@ async (page, { screenshots = false, openPath }) => {
   } finally {
     await page.unroute(/\/api\/document$/, firstRequest);
   }
-  return {calls: recorded, screenResults};
+  return {calls: recorded, screenResults, separatorGeometry};
 }
