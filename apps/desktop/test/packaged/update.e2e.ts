@@ -199,7 +199,7 @@ test("installs per user, then updates from Settings only after the open document
       await cli.getByRole("button", { name: "Turn off", exact: true }).click();
       await cli.getByText("Off", { exact: true }).waitFor();
       assert.deepEqual((await cliEnvironment.read()).user, originalUserPath, "disable preserves the original raw PATH and registry kind");
-      assert.equal(existsSync(path.join(cliBin, "ieumdoc.cmd")), false);
+      assert.equal(existsSync(cliBin), false, "disable must remove an empty owned bin");
       await cli.getByRole("button", { name: "Turn on", exact: true }).click();
       await cli.getByText("Installed", { exact: true }).waitFor();
       // A damaged ownership record disables Repair, but Turn off must still unregister PATH.
@@ -330,5 +330,6 @@ test("installs per user, then updates from Settings only after the open document
   if (!LIVE) {
     assert.deepEqual((await cliEnvironment.read()).user, originalUserPath, "uninstall restores only our PATH entry");
     for (const name of ["ieumdoc.cmd", "owner.json", "app"]) assert.equal(existsSync(path.join(cliBin, name)), false, `uninstall left ${name}`);
+    assert.equal(existsSync(cliBin), false, "uninstall must remove an empty owned bin before the next channel runs");
   }
 });

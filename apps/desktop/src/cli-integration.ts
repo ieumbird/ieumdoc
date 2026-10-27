@@ -157,6 +157,10 @@ export class CliIntegration {
         if (await entry(this.shim)) await fs.unlink(this.shim);
         if (await entry(this.junction)) await fs.unlink(this.junction);
         await fs.unlink(this.record);
+        try { await fs.rmdir(this.bin); } catch (error) {
+          // Nonrecursive removal preserves user files/subdirectories, including concurrent additions.
+          if (!["ENOENT", "ENOTEMPTY", "EEXIST"].includes((error as NodeJS.ErrnoException).code ?? "")) throw error;
+        }
       }
       return this.state();
     } finally { this.busy = false; }

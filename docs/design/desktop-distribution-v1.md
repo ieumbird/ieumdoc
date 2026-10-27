@@ -1,6 +1,7 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
+- CLI directory cleanup verification: 2026-10-28 (#629: isolated disable/uninstall ownership tests, Desktop typecheck and CI channel-order tests; actual Stable→Beta and NSIS checks run only in disposable Windows CI).
 - CLI integration verification: 2026-10-27 (#604: isolated environment/shim tests, CLI tests/offline package, Editor tests/typecheck/build, persistent-Chrome Settings and layout checks; packaged runtime and real registry/install/update/uninstall checks are required Windows CI, not local execution).
 - Title-bar verification: 2026-10-27 (#605: Desktop 48 tests, typecheck, browser bridge/theme/geometry checks; actual native overlay and packaged checks run in CI, manual Windows items remain explicit below).
 - File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
@@ -76,7 +77,12 @@ a stale snapshot; another process can still write between comparison and SetValu
 
 Updates preserve the external integration and fixed installation target. NSIS actual uninstall
 runs the same cleanup before removing application files; update's internal uninstall skips it.
-Cleanup only removes owned files/junctions and the integration's PATH entry, and an uninstall
+Cleanup removes owned files/junctions and the integration's PATH entry, then removes the bin
+directory with a nonrecursive `rmdir` if it is empty. A nonempty bin is preserved without error,
+including user files and subdirectories. The parent `%LOCALAPPDATA%\IeumDoc` stays: its creation
+is not ownership-tracked and it also holds uninstall diagnostics. User data remains at
+`%APPDATA%\IeumDoc`, the updater cache at `%LOCALAPPDATA%\ieumdoc-updater`, and the default
+installation at `%LOCALAPPDATA%\Programs\IeumDoc`; none is part of CLI directory cleanup. An uninstall
 from another installation cannot remove a registration owned by the current one. Damaged ownership
 or conflicting files do not prevent removing our bin's PATH entries; unverifiable files stay and
 Settings reports Off with the remaining conflict after successful PATH removal. Registry failures
@@ -94,6 +100,9 @@ the packaged Electron Node engines range, Desktop version identity, shim help/ch
 argument/pipe forwarding, `serve`, real enable/disable, update preservation and uninstall cleanup.
 CI also injects damaged ownership, foreign files, missing helpers and environment access failures
 into interactive and silent actual removal, and checks long raw registry values round-trip.
+Empty-bin removal and nonempty-bin preservation are checked for disable and uninstall. PR CI
+and release verification run Stable then Beta install/update regressions on the same Windows
+runner, retaining the precondition that no CLI bin directory exists before either run.
 Manual acceptance still includes enabling in an installed app, running from a new terminal,
 disabling, running after update and checking cleanup after removal. Local tests must not modify
 the real user's PATH or registry; packaged Desktop/install tests run in CI for this work.

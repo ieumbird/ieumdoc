@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -58,5 +58,16 @@ test("packaged RunAsNode satisfies CLI engines and the shim runs version/check/h
       }
     }
     await integration.setEnabled(false);
+    assert.equal(existsSync(integration.bin), false, "disable removes an empty owned bin");
+    const note = path.join(integration.bin, "user-files", "keep.txt");
+    for (const uninstall of [false, true]) {
+      await integration.setEnabled(true);
+      mkdirSync(path.dirname(note), { recursive: true });
+      writeFileSync(note, "Preserve user files.\n");
+      assert.deepEqual(await integration.setEnabled(false, uninstall), { status: "off" });
+      assert.equal(readFileSync(note, "utf8"), "Preserve user files.\n");
+      for (const entry of [integration.shim, integration.record, integration.junction])
+        assert.throws(() => lstatSync(entry), { code: "ENOENT" });
+    }
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });

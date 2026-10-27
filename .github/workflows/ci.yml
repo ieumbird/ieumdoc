@@ -300,8 +300,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @ieumdoc/desktop typecheck
       - run: pnpm --filter @ieumdoc/desktop test
-      - name: Install and update through a local test feed
+      - name: Stable install/update regression before the final package
         if: needs.changes.outputs.update == 'true'
+        run: pnpm --filter @ieumdoc/desktop test:update
+      - name: Beta install/update regression before the final package
+        if: needs.changes.outputs.update == 'true'
+        env:
+          IEUMDOC_TEST_UPDATE_CHANNEL: beta
         run: pnpm --filter @ieumdoc/desktop test:update
       - name: Build a clean package from the actual app version
         run: pnpm --filter @ieumdoc/desktop package

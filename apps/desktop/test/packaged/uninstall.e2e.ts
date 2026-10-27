@@ -1,7 +1,7 @@
 // Destructive to a disposable account only. CI runs this after building the actual NSIS package.
 import assert from "node:assert/strict";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
@@ -19,7 +19,7 @@ function entries(): string {
     "Get-ChildItem HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall | Get-ItemProperty | Where-Object { $_.DisplayName -like 'IeumDoc*' } | ForEach-Object { $_.UninstallString }"], { encoding: "utf8" }).trim();
 }
 
-test("interactive and silent NSIS removal survive CLI ownership, helper and environment failures", {
+test("NSIS removal cleans owned CLI entries, preserves user files and survives optional cleanup failures", {
   skip: process.platform !== "win32" || process.env.CI !== "true", timeout: 10 * 60_000,
 }, async () => {
   assert.equal(entries(), "", "requires an uninstalled disposable Windows account");
@@ -37,7 +37,9 @@ test("interactive and silent NSIS removal survive CLI ownership, helper and envi
     // A stale snapshot must fail without overwriting the longer value.
     await assert.rejects(environment.write(original, original), /User PATH changed/);
     assert.deepEqual((await environment.read()).user, longPath);
-    for (const silent of [false, true]) for (const fault of ["owner", "foreign", "helper", "environment"] as const) {
+    for (const silent of [false, true]) for (const fault of ["empty", "user", "owner", "foreign", "helper", "environment"] as const) {
+      const healthy = fault === "empty" || fault === "user";
+      if (healthy && !silent) continue;
       const label = `${silent ? "silent" : "interactive"}-${fault}`;
       const install = path.join(work, label);
       const setup = spawnSync(installer, ["/S", `/D=${install}`], { timeout: 60_000, encoding: "utf8" });
@@ -47,6 +49,8 @@ test("interactive and silent NSIS removal survive CLI ownership, helper and envi
       const integration = new CliIntegration(path.join(install, "IeumDoc.exe"), local, environment);
       await integration.setEnabled(true);
       const registered = (await environment.read()).user;
+      const userFile = path.join(bin, "user-note.txt");
+      if (fault === "user") writeFileSync(userFile, "Preserve user files.\n");
       if (fault === "owner") writeFileSync(integration.record, "damaged owner");
       if (fault === "foreign") writeFileSync(integration.shim, "user owned script");
       if (fault === "helper") unlinkSync(path.join(install, "resources", "uninstall-cli.cjs"));
@@ -87,6 +91,21 @@ test("interactive and silent NSIS removal survive CLI ownership, helper and envi
       assert.equal(status, 0, `${label}: app removal must succeed despite optional cleanup failure`);
       assert.equal(entries(), "", `${label}: uninstall registration removed`);
       assert.equal(existsSync(integration.executable), false, `${label}: app executable removed`);
+      if (healthy) {
+        assert.deepEqual((await environment.read()).user, longPath, `${label}: only the CLI PATH entry was removed`);
+        for (const entry of [integration.record, integration.shim, integration.junction])
+          assert.throws(() => lstatSync(entry), { code: "ENOENT" });
+        if (fault === "user") {
+          assert.equal(readFileSync(userFile, "utf8"), "Preserve user files.\n");
+          // Remove only this test's preserved file and empty directory after asserting the outcome.
+          unlinkSync(userFile);
+          rmdirSync(bin);
+        } else assert.equal(existsSync(bin), false, "uninstall must remove an empty owned bin");
+        assert.deepEqual(existsSync(logFolder) ? readdirSync(logFolder) : [], [...logsBefore],
+          `${label}: successful cleanup, including a nonempty bin, must not report a failure`);
+        console.log(`${label}: app and owned CLI entries removed; user files preserved`);
+        continue;
+      }
       assert.deepEqual(readFileSync(integration.record), ownerBefore, "uncertain files preserved");
       assert.deepEqual(readFileSync(integration.shim), shimBefore);
       assert.ok(lstatSync(integration.junction).isSymbolicLink(), "junction preserved, including dangling target");
