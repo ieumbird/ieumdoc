@@ -333,8 +333,10 @@ Asset rollback keeps its signed-receipt API and is not broadened by this user-co
 
 Image rename performs a request-local recursive scan of regular `.md` files under the outermost
 opened folder containing the image, including hidden files; symlinks are skipped. It admits each
-readable native document through Core's existing read model and matches Figure paths through
-`resolveMediaPath`, using the same URL-segment encoding as image requests. Unreadable/non-native
+readable native document through Core's existing read model and resolves Figure paths through
+`resolveMediaPath`, using the same URL-segment encoding as image requests. Matching compares
+filesystem `dev`/`ino` identity, so Windows case variants and hard-link aliases cannot evade the
+check; it never equates names by string lowercasing. Unreadable/non-native
 documents are skipped. Applied unsaved sources from open sessions supplement the disk check.
 A match refuses the rename and returns the referring document names. No Markdown parser,
 reference rewrite, persistent index or background watcher is added. Recursive scan here is only

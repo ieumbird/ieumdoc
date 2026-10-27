@@ -1,9 +1,7 @@
-async (page, { screenshots = false, expect, recoveryRecords, activeDocument } = {}) => {
+async (page, { screenshots = false, fileActionsRoot, expect, recoveryRecords, activeDocument } = {}) => {
   const origin = page.url().split('/').slice(0, 3).join('/');
-  const initial = await (await page.request.get(origin + '/api/document')).json();
-  const sep = initial.path.includes('\\') ? '\\' : '/';
-  const repo = initial.path.split(sep).slice(0, -4).join(sep);
-  const root = [repo, 'tmp', 'file-actions'].join(sep);
+  const root = fileActionsRoot;
+  const sep = root.includes('\\') ? '\\' : '/';
   const file = name => root + sep + name;
   const row = name => page.getByRole('treeitem', {name, exact:true});
   const dialog = page.getByRole('dialog');
@@ -114,5 +112,38 @@ async (page, { screenshots = false, expect, recoveryRecords, activeDocument } = 
   await dialog.getByRole('button',{name:'Delete and discard changes',exact:true}).click(); await dialog.waitFor({state:'hidden'});
   await expect(page.getByTestId('current-file')).toHaveText('b.md');
   expect((await recoveryRecords(page)).some(record => record.path === file('ref-renamed.md'))).toBe(false);
-  return {metadata,root,renamedWithoutRead:true,undoPreserved:true,recoveryMovedAndDeleted:true};
+  // Real session tickets in a second window precede its first persisted record. The file
+  // action in this window must revoke them even though it cannot suspend that recorder.
+  for (const action of ['delete', 'rename']) {
+    const name = `race-${action}.md`;
+    const other = await page.context().newPage();
+    try {
+      await other.goto(origin + '/?path=' + encodeURIComponent(file(name)));
+      await expect(other.getByTestId('current-file')).toHaveText(name);
+      await other.evaluate(async () => {
+        const { recoveryStorage } = await import('/src/recovery-storage.ts');
+        const write = recoveryStorage.write;
+        recoveryStorage.write = async (...args) => {
+          window.pendingRecoveryWrite = true;
+          await new Promise(resolve => { window.releaseRecoveryWrite = resolve; });
+          const result = await write(...args);
+          window.pendingRecoveryResult = result;
+          return result;
+        };
+      });
+      await activeDocument(other).locator('p').first().click();
+      await other.keyboard.press('End'); await other.keyboard.type(' Delayed first record.');
+      await other.waitForFunction(() => window.pendingRecoveryWrite === true);
+      expect((await recoveryRecords(other)).filter(record => record.path === file(name))).toHaveLength(0);
+      await context(name, action === 'delete' ? 'Delete file…' : 'Rename…');
+      if (action === 'rename') await dialog.getByRole('textbox',{name:'File name',exact:true}).fill('race-renamed');
+      await dialog.getByRole('button',{name:action === 'delete' ? 'Delete file' : 'Rename',exact:true}).click();
+      await dialog.waitFor({state:'hidden'}); await expect(row(name)).toHaveCount(0);
+      await other.evaluate(() => window.releaseRecoveryWrite());
+      await other.waitForFunction(() => typeof window.pendingRecoveryResult === 'boolean');
+      expect(await other.evaluate(() => window.pendingRecoveryResult)).toBe(false);
+      expect((await recoveryRecords(other)).filter(record => record.path === file(name))).toHaveLength(0);
+    } finally { await other.close(); }
+  }
+  return {metadata,root,renamedWithoutRead:true,undoPreserved:true,recoveryMovedAndDeleted:true,otherWindowFirstWriteRevoked:true};
 }

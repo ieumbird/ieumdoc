@@ -17,7 +17,7 @@ export type RecoveryRecord = {
 const TICKET_LIFETIME = RECOVERY_DAYS * 86400000;
 const CLEAN_PREFIX = "ieumdoc.recoveryClean.v1.";
 type Ticket = [number, string | null, number];
-type Barrier = { generation: string; expiresAt: number };
+type Barrier = { generation: string; expiresAt: number; path: string };
 
 // A session-local clean acknowledgement must survive a reload before IndexedDB's
 // next turn. It contains no document data. New applied work clears it before writing.
@@ -89,6 +89,17 @@ export const recoveryStorage = {
   /** File operations invalidate queued writes and move/discard matching records atomically. */
   changePath(previous: string, next: string | null): Promise<void> {
     return transaction((records, barriers, done, fail) => {
+      // Permission exists before the first record. Revoke all sessions registered to this
+      // path, including writers in other windows that have not reached their write turn.
+      const pending = barriers.openCursor();
+      pending.onsuccess = () => {
+        const entry = pending.result;
+        if (!entry) return;
+        try {
+          if (Array.isArray(entry.key) && entry.key[0] === "session" && (entry.value as Barrier).path === previous) entry.delete();
+          entry.continue();
+        } catch (error) { fail(error); }
+      };
       const cursor = records.openCursor();
       cursor.onsuccess = () => {
         const entry = cursor.result;
@@ -122,7 +133,7 @@ export const recoveryStorage = {
       };
     });
   },
-  async ticket(id: string): Promise<Ticket> {
+  async ticket(id: string, path: string): Promise<Ticket> {
     const db = await database();
     return new Promise<Ticket>((resolve, reject) => {
       const tx = db.transaction("barriers", "readwrite");
@@ -134,9 +145,9 @@ export const recoveryStorage = {
         try {
           const previous = session.result as Barrier | undefined;
           const issuedAt = Date.now();
-          const generation = previous?.generation ?? newRecoveryId();
+          const generation = previous?.path === path ? previous.generation : newRecoveryId();
           // A backwards clock must not shorten an earlier pending ticket's registration.
-          barriers.put({ generation, expiresAt: Math.max(previous?.expiresAt ?? 0, issuedAt + TICKET_LIFETIME) } satisfies Barrier, ["session", id]);
+          barriers.put({ generation, path, expiresAt: Math.max(previous?.expiresAt ?? 0, issuedAt + TICKET_LIFETIME) } satisfies Barrier, ["session", id]);
           result = [Number(all.result ?? 0), generation, issuedAt];
         } catch (error) { reject(error); tx.abort(); }
       };
@@ -256,7 +267,7 @@ export function recoveryText(snapshot: DocumentSessionSnapshot): string {
 }
 
 /** One recorder per mounted document session. Recovery never gates editing, Save or closing. */
-export function createRecoveryRecorder(id: string, capture: () => DocumentSessionSnapshot | null, failed: (error: unknown) => void, succeeded: () => void = () => {}) {
+export function createRecoveryRecorder(id: string, documentPath: () => string, capture: () => DocumentSessionSnapshot | null, failed: (error: unknown) => void, succeeded: () => void = () => {}) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let epoch = 0;
   let permit: Promise<Ticket | null> | undefined;
@@ -302,7 +313,7 @@ export function createRecoveryRecorder(id: string, capture: () => DocumentSessio
         cancel(); reportFailure(error); return;
       }
       const current = epoch;
-      permit = recoveryStorage.ticket(id).catch(error => { if (current === epoch) reportFailure(error); return null; });
+      permit = recoveryStorage.ticket(id, documentPath()).catch(error => { if (current === epoch) reportFailure(error); return null; });
       schedule();
     },
     checkpoint: schedule,

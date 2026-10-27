@@ -62,6 +62,12 @@ menu boundaries, collision/reference refusal, editor identity/no reread, Undo/Re
 path, recovery relocation/deletion, active/inactive deletion and adjacent focus. It also checks
 existing Figure image URLs and a subsequent real image upload after rename.
 
+Review regressions run actual file operations only in the checkout's OS temporary fixture folder.
+Two-window tests hold the other editor's first recovery write until deletion/rename completes,
+then require its old-path ticket to be refused. The storage scenario separately verifies that
+unrelated tickets and post-operation edits still work. Selected UI captures below retain the
+original implementation state; these review corrections do not change menu/dialog presentation.
+
 Captures: Windows Chrome, English UI, 100% zoom, DPR 1, 1440×900 / 640×900, bundled Pretendard.
 Before uses master `7e935cf4592ee6a4135fd069a31a638d2a768c7b` Sidebar in this merged worktree (controlled rollback of the file menu); After restores the PR Sidebar in the same state.
 1440 uses light OS preference; 640 uses dark OS preference. The default System theme resolves each preference using the current #595 light/dark roles. Full traces and logs stay in

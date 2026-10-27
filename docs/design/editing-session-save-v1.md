@@ -16,8 +16,12 @@ confirmation instead of the ordinary tab Save/Don't save prompt. The file tree r
 
 Same-folder rename keeps the mounted editor, history, selection and drafts. It changes the live
 session locator and tab navigation, then moves matching recovery record paths and snapshot file
-paths in one IndexedDB transaction. Queued local old-path recording is cancelled during the Host
-operation; subsequent dirty recording uses the new locator. No file reread or semantic rewrite
+paths in one IndexedDB transaction. Each applied edit registers the live locator in its existing
+session barrier without capturing the document snapshot. File operations revoke every barrier
+registered to the old path in the record-move/delete transaction, including another window's ticket
+before its first record. Queued local recording is also cancelled during the Host operation;
+subsequent dirty recording uses the new locator and a fresh nonce. Other paths and later edits
+keep their permissions. No new store or path tombstone is added. No file reread or semantic rewrite
 occurs. Storage failure after disk success is visible and does not pretend the disk operation failed.
 [Shell](editor-ux-shell-v1.md#file-context-menu-505--504-pr-a) and
 [Host](filesystem-host-boundary-v1.md#file-deletion-and-rename-505--504-pr-a) specify entry/validation.

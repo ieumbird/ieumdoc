@@ -45,6 +45,7 @@ export async function deleteFile(request: FileOperationRequest, access: FileAcce
 
 function imageReferences(root: string, file: string, openDocuments: RenameFileRequest["openDocuments"], access: FileAccess): string[] {
   const references = new Set<string>();
+  const image = fs.statSync(file);
   const inspect = (documentPath: string, document: ReturnType<typeof readModel>["document"]) => {
     if (!inside(root, documentPath)) return;
     for (const block of document.blocks) {
@@ -52,7 +53,8 @@ function imageReferences(root: string, file: string, openDocuments: RenameFileRe
       try {
         // Match the existing segment-encoded media request, including literal percent signs.
         const target = resolveMediaPath(block.imageUrl.split("/").map(encodeURIComponent).join("/"), documentPath, access);
-        if (fs.realpathSync(target) === fs.realpathSync(file)) references.add(path.relative(root, documentPath));
+        const referenced = fs.statSync(target);
+        if (referenced.dev === image.dev && referenced.ino === image.ino) references.add(path.relative(root, documentPath));
       } catch { /* Remote, missing and out-of-scope media are not this local image. */ }
     }
   };

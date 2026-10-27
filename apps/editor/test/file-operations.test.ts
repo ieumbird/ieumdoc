@@ -7,6 +7,29 @@ import { deleteFile, renameFile, ReferencedImageError } from "../server/file-ope
 import { RootAccess } from "../server/file-access.ts";
 import { nativeSource } from "./helpers/document.ts";
 
+test("image rename detects references through differently cased file aliases by identity", t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-image-case-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const image = path.join(root, "diagram.svg"), alias = path.join(root, "DIAGRAM.svg");
+  fs.writeFileSync(image, "<svg/>");
+  // Windows resolves this spelling directly. Case-sensitive systems exercise the same
+  // identity contract through a hard link, rather than pretending names compare alike.
+  if (!fs.existsSync(alias)) fs.linkSync(image, alias);
+  const original = fs.statSync(image), referenced = fs.statSync(alias);
+  assert.equal(original.dev, referenced.dev); assert.equal(original.ino, referenced.ino);
+  fs.writeFileSync(path.join(root, "ref.md"), nativeSource("# Reference\n\n:::{figure} ./DIAGRAM.svg\n:alt: Image\n\nCaption.\n:::\n"));
+  assert.throws(() => renameFile({ root, path: image, name: "renamed" }), ReferencedImageError);
+  assert.equal(fs.readFileSync(image, "utf8"), "<svg/>");
+  assert.equal(fs.existsSync(path.join(root, "renamed.svg")), false);
+  if (fs.readdirSync(root).includes("DIAGRAM.svg")) {
+    // Case-sensitive filesystems may hold two distinct files with these spellings.
+    // Lowercasing names would wrongly reject this unreferenced file's rename.
+    fs.unlinkSync(alias); fs.writeFileSync(alias, "<svg>different file</svg>");
+    assert.equal(renameFile({ root, path: image, name: "renamed" }).path, path.join(root, "renamed.svg"));
+    assert.equal(fs.readFileSync(alias, "utf8"), "<svg>different file</svg>");
+  }
+});
+
 test("file operations constrain roots, symlinks, regular files, names and extension; publish without overwrite", async t => {
   const base = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-file-ops-"));
   t.after(() => fs.rmSync(base, { recursive: true, force: true }));
