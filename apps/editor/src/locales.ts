@@ -1,5 +1,16 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Command-line tools (CLI)": "Command-line tools (CLI)",
+  "CLI installed": "Installed",
+  "CLI off": "Off",
+  "CLI path is broken": "Broken path",
+  "Run ieumdoc commands without installing Node.js. PATH changes apply to new terminals.": "Run ieumdoc commands without installing Node.js. PATH changes apply to new terminals.",
+  "Available in the installed Windows app.": "Available in the installed Windows app.",
+  "Turn on CLI": "Turn on",
+  "Turn off CLI": "Turn off",
+  "Repair CLI": "Repair",
+  "Refresh CLI status": "Refresh status",
+  "Another command or file conflicts with IeumDoc CLI. Nothing was overwritten.": "Another command or file conflicts with IeumDoc CLI. Nothing was overwritten.",
   "Bibliography": "Bibliography",
   "No bibliography connected": "No bibliography connected",
   "{{style}} references": "{{style}} references",
@@ -564,6 +575,17 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Command-line tools (CLI)": "명령줄 도구(CLI)",
+  "CLI installed": "설치됨",
+  "CLI off": "꺼짐",
+  "CLI path is broken": "경로 깨짐",
+  "Run ieumdoc commands without installing Node.js. PATH changes apply to new terminals.": "Node.js 설치 없이 ieumdoc 명령을 실행합니다. PATH 변경은 새 터미널부터 적용됩니다.",
+  "Available in the installed Windows app.": "설치된 Windows 앱에서 사용할 수 있습니다.",
+  "Turn on CLI": "켜기",
+  "Turn off CLI": "끄기",
+  "Repair CLI": "복구",
+  "Refresh CLI status": "상태 새로 고침",
+  "Another command or file conflicts with IeumDoc CLI. Nothing was overwritten.": "다른 명령 또는 파일이 IeumDoc CLI와 충돌합니다. 기존 파일은 덮어쓰지 않았습니다.",
   "Save these documents before renaming the image: {{documents}}": "이미지 이름을 변경하려면 먼저 저장하세요: {{documents}}",
   "Skipped unreadable or non-IeumDoc documents: {{documents}}": "읽을 수 없거나 이음독 문서가 아니어서 건너뛴 파일: {{documents}}",
   "The files changed, but these tabs could not be reloaded: {{documents}}": "파일은 변경되었지만 다음 탭을 다시 불러오지 못했습니다: {{documents}}",

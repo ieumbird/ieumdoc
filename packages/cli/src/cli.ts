@@ -1,4 +1,5 @@
 import { readBibliographySources } from "../../../apps/editor/server/bibliography.ts";
+import { versionText } from "./version.ts";
 import fs, { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -782,6 +783,11 @@ const COMMANDS: CommandSpec[] = [
 ];
 
 function main(argv: string[]): number {
+  if (argv.includes("--version")) {
+    if (argv.length !== 1) throw new Error("--version must be used alone");
+    process.stdout.write(versionText());
+    return 0;
+  }
   const [command, ...rest] = argv;
   if (!command) {
     process.stderr.write(topLevelHelp());
@@ -1296,6 +1302,7 @@ function topLevelHelp(): string {
     "",
     "Usage:",
     "  ieumdoc <command> [options]",
+    "  ieumdoc --version  Show the build version and commit (use alone).",
     "",
     "Start here:",
     "  Before editing, use ieumdoc inspect <file> --format json for current paths and revision.",
@@ -1758,7 +1765,7 @@ export function runCli(args: string[]): number {
 if (import.meta.main) {
   const args = process.argv.slice(2);
   try {
-    if (args[0] === "serve" && !isCommandHelpRequest(args.slice(1))) {
+    if (args[0] === "serve" && !args.includes("--version") && !isCommandHelpRequest(args.slice(1))) {
       const { serve } = await import("./serve.ts");
       // Source checkout runs use an explicit Editor build; the distributable carries it beside cli.mjs.
       const editorDir = fileURLToPath(new URL(import.meta.url.endsWith(".ts") ? "../../../apps/editor/dist/" : "./editor/", import.meta.url));

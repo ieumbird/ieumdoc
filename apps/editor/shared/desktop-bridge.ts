@@ -48,6 +48,14 @@ export type DesktopInfo = {
 /** The Editor's answer when an update asks to restart: never yes with unsaved work. */
 export type RestartCheck = { ok: true } | { ok: false; reason: string };
 
+export type CliIntegrationState = {
+  status: "off" | "installed" | "broken";
+  /** A foreign PATH command or file; never overwritten. */
+  conflict?: string;
+  /** Integration is available only in a packaged Windows application. */
+  unsupported?: boolean;
+};
+
 export type DesktopBridge = {
   /** The shared Host deletes through the operating system trash. */
   readonly fileDeletion: "trash";
@@ -56,6 +64,8 @@ export type DesktopBridge = {
   /** Resolved canvas and caption CSS roles; also marks the initial appearance ready to show. */
   setWindowBackground(color: string, overlay: { color: string; symbolColor: string }): Promise<void>;
   info(): Promise<DesktopInfo>;
+  cliIntegration(): Promise<CliIntegrationState>;
+  setCliIntegration(enabled: boolean): Promise<CliIntegrationState>;
   setChannel(channel: ReleaseChannel): Promise<DesktopInfo>;
   checkForUpdates(): Promise<void>;
   downloadUpdate(): Promise<void>;

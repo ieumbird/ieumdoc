@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, FileText, Info, Palette, History } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog.tsx";
-import type { DesktopBridge, DesktopInfo, OfferedUpdate, ReleaseChannel, UpdateState } from "../../shared/desktop-bridge.ts";
+import type { CliIntegrationState, DesktopBridge, DesktopInfo, OfferedUpdate, ReleaseChannel, UpdateState } from "../../shared/desktop-bridge.ts";
 import { RecoveryDeleteDialog } from "./Recovery.tsx";
 import { Notice } from "../ui/primitives.tsx";
 import { PAGE_BACKGROUNDS, readPageBackground, writePageBackground, type PageBackground, ACCENT_COLORS, readAccentColor, writeAccentColor, writeUiLanguage, THEMES, writeTheme, type UiLanguage, type ThemePreference } from "../preferences.ts";
@@ -53,6 +53,47 @@ export function updateStatusText(info: DesktopInfo): string {
 }
 
 export type SettingsCategory = "appearance" | "recovery" | "about";
+
+function CliSettings({ desktop }: { desktop: DesktopBridge }) {
+  const [state, setState] = useState<CliIntegrationState | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState("");
+  useEffect(() => {
+    let active = true;
+    void desktop.cliIntegration().then(value => { if (active) setState(value); })
+      .catch(error => { if (active) setProblem(String(error)); });
+    return () => { active = false; };
+  }, [desktop]);
+  const change = async (enabled?: boolean) => {
+    setBusy(true); setProblem("");
+    try { setState(await (enabled === undefined ? desktop.cliIntegration() : desktop.setCliIntegration(enabled))); }
+    catch (error) {
+      setProblem(error instanceof Error ? error.message : String(error));
+      // A failed operation can leave an owned, repairable registration. Reflect its real state.
+      try { setState(await desktop.cliIntegration()); } catch { /* Keep the first actionable error. */ }
+    } finally { setBusy(false); }
+  };
+  return <div className="settings-section" data-testid="cli-integration" aria-busy={busy}>
+    <div className="settings-label">
+      <h4 className="settings-heading">{i18n.t("Command-line tools (CLI)")}</h4>
+      <p className="settings-status" role="status" data-testid="cli-status">{!state ? i18n.t("Loading…")
+        : state.status === "installed" ? i18n.t("CLI installed") : state.status === "broken" ? i18n.t("CLI path is broken") : i18n.t("CLI off")}</p>
+      <p>{i18n.t("Run ieumdoc commands without installing Node.js. PATH changes apply to new terminals.")}</p>
+      {state?.unsupported ? <p>{i18n.t("Available in the installed Windows app.")}</p> : null}
+    </div>
+    <div className="settings-actions">
+      {state ? <>
+        {state.status !== "installed" ? <Button size="sm" variant="secondary" disabled={busy || state.unsupported || !!state.conflict}
+          onClick={() => void change(true)}>{i18n.t(state.status === "broken" ? "Repair CLI" : "Turn on CLI")}</Button> : null}
+        {state.status !== "off" ? <Button size="sm" variant="secondary" disabled={busy || state.unsupported}
+          onClick={() => void change(false)}>{i18n.t("Turn off CLI")}</Button> : null}
+      </> : null}
+      {problem || state?.conflict ? <Button size="sm" variant="ghost" disabled={busy} onClick={() => void change()}>{i18n.t("Refresh CLI status")}</Button> : null}
+    </div>
+    {state?.conflict ? <Notice tone="error">{i18n.t("Another command or file conflicts with IeumDoc CLI. Nothing was overwritten.")} {state.conflict}</Notice> : null}
+    {problem ? <Notice tone="error" data-testid="cli-problem">{problem}</Notice> : null}
+  </div>;
+}
 
 type SettingsDialogProps = {
   open: boolean;
@@ -256,6 +297,7 @@ export function SettingsDialog({ open, category, onCategoryChange, documentName,
                     <dt>{i18n.t("Version")}</dt>
                     <dd data-testid="app-version">{info.version}</dd>
                   </dl>
+                  <CliSettings desktop={desktop} />
                   <h3 className="settings-group-heading">{i18n.t("Updates")}</h3>
                   <div className="settings-section settings-section--stacked">
                     <fieldset className="settings-channel" disabled={busy}>

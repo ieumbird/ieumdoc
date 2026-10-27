@@ -1,5 +1,5 @@
-// Stage the desktop app in build/app: the Editor's production build, the bundled main process and
-// preload, and the sample document. The staged folder needs no node_modules and no Vite at run time.
+// Stage main/preload/sample in build/app and the shared CLI/Editor distribution in build/cli.
+// Neither needs node_modules or Vite at runtime.
 // IEUMDOC_REQUIRE_SIGNED_UPDATES=1 (release builds) makes the app refuse updates it cannot verify.
 // Runtime libraries (electron-updater, semver) are bundled here, so they are devDependencies and
 // electron-builder copies no node_modules into the app.
@@ -28,10 +28,15 @@ export async function buildDesktop(): Promise<string> {
   rmSync(stage, { recursive: true, force: true });
   mkdirSync(stage, { recursive: true });
 
-  execSync("pnpm --filter @ieumdoc/editor build", { cwd: repo, stdio: ["ignore", "inherit", "inherit"] });
-  const editorBuild = path.join(repo, "apps", "editor", "dist");
+  execSync("pnpm --filter @ieumdoc/cli build", { cwd: repo, stdio: ["ignore", "inherit", "inherit"],
+    env: { ...process.env, IEUMDOC_CLI_DESKTOP_VERSION: appVersion() } });
+  const cliBuild = path.join(repo, "packages", "cli", "dist");
+  const editorBuild = path.join(cliBuild, "editor");
   if (!existsSync(path.join(editorBuild, "index.html"))) throw new Error("The Editor build has no index.html");
-  cpSync(editorBuild, path.join(stage, "editor"), { recursive: true });
+  // One relocatable CLI distribution; Desktop and serve use the same production Editor assets.
+  const stagedCli = path.join(desktop, "build", "cli");
+  rmSync(stagedCli, { recursive: true, force: true });
+  cpSync(cliBuild, stagedCli, { recursive: true });
   // Runtime window icon (also used by the development Electron shell).
   cpSync(path.join(desktop, "assets", "icon.ico"), path.join(stage, "icon.ico"));
 
@@ -60,6 +65,11 @@ export async function buildDesktop(): Promise<string> {
     target: "node22",
     external: ["electron"],
     logLevel: "warning",
+  });
+  await build({
+    entryPoints: [path.join(desktop, "src", "uninstall-cli.ts")],
+    outfile: path.join(desktop, "build", "uninstall-cli.cjs"),
+    bundle: true, platform: "node", format: "cjs", target: "node24", logLevel: "warning",
   });
 
   mkdirSync(path.join(stage, "sample"));

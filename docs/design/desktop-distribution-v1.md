@@ -1,6 +1,7 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
+- CLI integration verification: 2026-10-27 (#604: isolated environment/shim tests, CLI tests/offline package, Editor tests/typecheck/build, persistent-Chrome Settings and layout checks; packaged runtime and real registry/install/update/uninstall checks are required Windows CI, not local execution).
 - Title-bar verification: 2026-10-27 (#605: Desktop 48 tests, typecheck, browser bridge/theme/geometry checks; actual native overlay and packaged checks run in CI, manual Windows items remain explicit below).
 - File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
 - Documentation verification: 2026-10-26 (Host startup response versus Editor tab restoration compared with first-document.ts, host-protocol.ts, App.tsx and the session contract; no new Desktop execution).
@@ -29,6 +30,78 @@ Local protocol tests cover injected trash success/failure and shared path valida
 Windows behavior remains a required CI check; no local package/install/update run is required
 because packaging and update boundaries are unchanged.
 
+
+## Optional command-line tools (#604)
+
+Settings exposes **Command-line tools (CLI)** only when the Desktop bridge exists. The initial
+state is Off; neither setup nor update adds anything to PATH. Enabled reports Installed, while
+missing or mismatched owned files, application target or PATH registration report Broken path.
+Broken registrations offer Repair and Turn off. A conflicting external `ieumdoc` command or an
+unowned file is reported without overwriting it. Operations report failures and allow another try.
+The UI follows existing Settings sections, controls and tokens, in Korean and English.
+
+The per-user `%LOCALAPPDATA%\IeumDoc\bin` directory contains a marked `ieumdoc.cmd`, ownership
+record and an owned `app` junction to the fixed installation folder. The ASCII shim uses relative
+paths, disables delayed expansion, forwards `%*` directly, preserves standard streams and returns
+the CLI exit code. It runs `app\IeumDoc.exe` with `ELECTRON_RUN_AS_NODE=1` and the existing
+`resources\cli\cli.mjs` bundle. It neither invokes a second command interpreter with `call` nor
+changes the console code page. Core/CLI document semantics remain unchanged.
+
+Like the [Paseo reference shim](https://github.com/getpaseo/paseo/blob/main/packages/desktop/bin/paseo.cmd),
+it passes `--disable-warning=DEP0040`: the existing markdown-it dependency loads built-in punycode,
+whose deprecation Node suppresses in npm's `node_modules` context but reports under `resources/cli`.
+Other warnings and errors remain visible. Remove this targeted option when the shared bundle no
+longer loads built-in punycode. This changes neither the dependency nor document parsing behavior.
+
+The common CLI's standalone `--version` prints `ieumdoc <CLI package version> (<commit>)`;
+Desktop's bundle prints `ieumdoc <Desktop package version> (desktop, <commit>)`. Both are one
+stdout line with exit code 0. Combining it with any other argument fails through the existing
+argument-error path. Build metadata is injected as literals, never read from files at runtime.
+The commit is the actual checkout's `git rev-parse --short=12 HEAD`; a build without Git uses
+`unknown`. Unbuilt source/tsx execution explicitly reports `ieumdoc development (unknown)`.
+
+The existing CLI build and all its chunks/notices/assets are packaged outside ASAR as
+`resources/cli`. Desktop and CLI `serve` both use its `editor/` production files: one build and one
+copy, so their contents cannot drift. The standalone Node CLI/HTTP package is unchanged.
+
+Only explicit enable/disable changes HKCU Environment PATH. The raw registry value and its
+REG_SZ/REG_EXPAND_SZ kind are preserved, along with unrelated entries and ordering. Comparisons
+expand environment variables and normalize Windows paths; edits do not rewrite unrelated text.
+WM_SETTINGCHANGE notifies Explorer. The Settings hint tells users to open a new terminal.
+Conflict checks include fresh user/machine PATH and the app's inherited PATH. No administrator
+rights or machine PATH writes are used.
+Fixed PowerShell code receives base64 UTF-8 JSON on stdin, never in argv. Long values, Unicode,
+quotes and literal `%VAR%` expressions are preserved. The pre-write value/kind comparison detects
+a stale snapshot; another process can still write between comparison and SetValue (not atomic).
+
+Updates preserve the external integration and fixed installation target. NSIS actual uninstall
+runs the same cleanup before removing application files; update's internal uninstall skips it.
+Cleanup only removes owned files/junctions and the integration's PATH entry, and an uninstall
+from another installation cannot remove a registration owned by the current one. Damaged ownership
+or conflicting files do not prevent removing our bin's PATH entries; unverifiable files stay and
+Settings reports Off with the remaining conflict after successful PATH removal. Registry failures
+remain errors. Optional cleanup failure never aborts app removal, including `/S`: NSIS writes a
+unique diagnostic under `%LOCALAPPDATA%\IeumDoc\uninstall-logs` (TEMP fallback), with the bin path,
+helper error and manual Environment Variables cleanup instructions. Interactive removal displays
+a warning; silent removal logs it without waiting for input. This does not claim CLI cleanup
+succeeded. Moving an installation leaves a broken target;
+Repair from the new app rebinds it after the same ownership/conflict checks.
+
+Verification scope: scratch files and an injected environment boundary test state, conflict, repair,
+failure and raw PATH preservation without changing the developer's registry. Persistent-browser
+bridge mocks exercise the actual Settings UI at 1440px and 640px. Disposable Windows CI checks
+the packaged Electron Node engines range, Desktop version identity, shim help/check JSON and exit-code parity with Node,
+argument/pipe forwarding, `serve`, real enable/disable, update preservation and uninstall cleanup.
+CI also injects damaged ownership, foreign files, missing helpers and environment access failures
+into interactive and silent actual removal, and checks long raw registry values round-trip.
+Manual acceptance still includes enabling in an installed app, running from a new terminal,
+disabling, running after update and checking cleanup after removal. Local tests must not modify
+the real user's PATH or registry; packaged Desktop/install tests run in CI for this work.
+Long-running `serve`, actual console Ctrl+C and all `%`/`^`/`!` argument combinations remain manual.
+
+Real Settings captures with a Desktop bridge mock: [1440px](../reviews/assets/desktop-cli-604/settings-1440.png)
+and [640px](../reviews/assets/desktop-cli-604/settings-640.png). These show the Korean initial Off
+state and existing Settings layout; the mock does not establish native registry/install behavior.
 
 ## Native sample
 

@@ -9,7 +9,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +18,8 @@ import { _electron as electron } from "@playwright/test";
 import { RELEASE_REPOSITORY } from "../../src/update-policy.ts";
 import { readUpdateInfo } from "../../scripts/verify-release.ts";
 import { readPreferences, writePreferences } from "../../src/preferences.ts";
+import { windowsEnvironment } from "../../src/windows-environment.ts";
+import { verifyPackagedCli } from "./cli-check.ts";
 
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const repo = path.resolve(desktop, "../..");
@@ -130,6 +132,17 @@ function requireCleanUser(): void {
 
 test("installs per user, then updates from Settings only after the open document is saved", { timeout: 15 * 60_000 }, async () => {
   requireCleanUser();
+  const cliEnvironment = windowsEnvironment();
+  const originalUserPath = !LIVE ? (await cliEnvironment.read()).user : null;
+  const cliBin = path.join(process.env.LOCALAPPDATA!, "IeumDoc", "bin");
+  if (!LIVE) assert.equal(existsSync(cliBin), false, "CLI integration already exists; use a disposable Windows account");
+  const freshTerminalEnvironment = async () => {
+    const snapshot = await cliEnvironment.read();
+    const env = { ...process.env };
+    for (const key of Object.keys(env)) if (key.toLowerCase() === "path") delete env[key];
+    env.Path = cliEnvironment.expand(`${snapshot.machine};${snapshot.user.value}`);
+    return env;
+  };
   rmSync(work, { recursive: true, force: true });
   const oldBuild = LIVE ? await publicBeta() : packageVersion(OLD);
   const newBuild = LIVE ? "" : packageVersion(NEW);
@@ -176,8 +189,43 @@ test("installs per user, then updates from Settings only after the open document
     if (await page.getByRole("button", { name: "About & updates", exact: true }).count())
       await page.getByRole("button", { name: "About & updates", exact: true }).click();
     assert.equal(await page.getByTestId("app-version").innerText(), OLD);
+    if (!LIVE) {
+      assert.deepEqual((await cliEnvironment.read()).user, originalUserPath, "installation must not opt in");
+      const cli = page.getByTestId("cli-integration");
+      await cli.getByText("Off", { exact: true }).waitFor();
+      await cli.getByRole("button", { name: "Turn on", exact: true }).click();
+      await cli.getByText("Installed", { exact: true }).waitFor();
+      verifyPackagedCli(exe, "ieumdoc", documents, OLD, await freshTerminalEnvironment());
+      await cli.getByRole("button", { name: "Turn off", exact: true }).click();
+      await cli.getByText("Off", { exact: true }).waitFor();
+      assert.deepEqual((await cliEnvironment.read()).user, originalUserPath, "disable preserves the original raw PATH and registry kind");
+      assert.equal(existsSync(path.join(cliBin, "ieumdoc.cmd")), false);
+      await cli.getByRole("button", { name: "Turn on", exact: true }).click();
+      await cli.getByText("Installed", { exact: true }).waitFor();
+      // A damaged ownership record disables Repair, but Turn off must still unregister PATH.
+      writeFileSync(path.join(cliBin, "owner.json"), "damaged owner");
+      await page.reload();
+      await page.locator('[data-testid="status"][data-operation="ready" i]').waitFor({ state: "attached" });
+      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await page.getByRole("button", { name: "About & updates", exact: true }).click();
+      await cli.getByText("Broken path", { exact: true }).waitFor();
+      assert.equal(await cli.getByRole("button", { name: "Repair", exact: true }).isDisabled(), true);
+      await cli.getByRole("button", { name: "Turn off", exact: true }).click();
+      await page.locator('[data-testid="cli-integration"][aria-busy="false"]').waitFor();
+      assert.equal(await cli.getByTestId("cli-status").innerText(), "Off");
+      assert.deepEqual((await cliEnvironment.read()).user, originalUserPath);
+      assert.equal(readFileSync(path.join(cliBin, "owner.json"), "utf8"), "damaged owner");
+      // Fixture-only cleanup after verifying preservation, then continue the update with CLI on.
+      for (const name of ["app", "ieumdoc.cmd", "owner.json"]) unlinkSync(path.join(cliBin, name));
+      await cli.getByRole("button", { name: "Refresh status", exact: true }).click();
+      await page.locator('[data-testid="cli-integration"][aria-busy="false"]').waitFor();
+      await cli.getByRole("button", { name: "Turn on", exact: true }).click();
+      await cli.getByText("Installed", { exact: true }).waitFor();
+    }
     assert.equal(await page.getByRole("radio", { name: BETA ? /^Beta/ : /^Stable/ }).isChecked(), true, "first install uses its own channel");
-    await page.getByRole("button", { name: "Check for updates" }).click();
+    // CLI verification can outlast the scheduled initial check. Wait for its actual offer,
+    // which replaces Check for updates with Download update; manual checking is exercised
+    // after relaunch below. All offer/no-download/consent assertions remain the same.
     await page.getByRole("button", { name: "Download update" }).waitFor({ timeout: 30_000 });
     assert.match(await page.getByTestId("update-status").innerText(), new RegExp(`IeumDoc ${NEW.replaceAll(".", "\\.")} \\(${BETA ? "Beta" : "Stable"}\\) is available`));
     if (!LIVE) {
@@ -263,6 +311,7 @@ test("installs per user, then updates from Settings only after the open document
     assert.deepEqual(readPreferences(preferencesFile, NEW), prefs, "saved channel and preferences survived installation");
     assert.equal(readFileSync(canary, "utf8"), "Preserve existing user data.\n");
     assert.ok(readFileSync(log, "utf8").includes(`started ${NEW} (${prefs.channel})`), "the new app loaded the preserved channel");
+    if (!LIVE) verifyPackagedCli(exe, "ieumdoc", documents, NEW, await freshTerminalEnvironment());
   } finally {
     if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
     for (const process of installedAt ? (() => { try { return appProcesses(installedAt); } catch { return []; } })() : []) {
@@ -278,4 +327,8 @@ test("installs per user, then updates from Settings only after the open document
     if (ownsData) for (const folder of [appData, updaterCache]) rmSync(folder, { recursive: true, force: true });
   }
   assert.equal(installedEntry(), "", "the uninstaller left its entry");
+  if (!LIVE) {
+    assert.deepEqual((await cliEnvironment.read()).user, originalUserPath, "uninstall restores only our PATH entry");
+    for (const name of ["ieumdoc.cmd", "owner.json", "app"]) assert.equal(existsSync(path.join(cliBin, name)), false, `uninstall left ${name}`);
+  }
 });

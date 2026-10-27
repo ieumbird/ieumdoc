@@ -40,6 +40,8 @@ export function packageConfiguration(appVersion: string, release: boolean): Conf
     directories: { app: "build/app", output: "release" },
     files: ["**/*"],
     asar: true,
+    extraResources: [{ from: "build/cli", to: "cli" }, { from: "build/uninstall-cli.cjs", to: "uninstall-cli.cjs" }],
+    // RunAsNode is intentionally kept at Electron's enabled default (ADR-0004 #604).
     npmRebuild: false,
     electronLanguages: ["en-US", "ko"],
     forceCodeSigning: release,
@@ -49,6 +51,7 @@ export function packageConfiguration(appVersion: string, release: boolean): Conf
     publish: [publishTarget(appVersion, release)],
     win: { target: [{ target: "nsis", arch: ["x64"] }], icon: "assets/icon.ico" },
     nsis: {
+      include: "installer/cli.nsh",
       installerIcon: "assets/icon.ico",
       uninstallerIcon: "assets/icon.ico",
       // Per-user, no administrator rights, installed and updated without a wizard.

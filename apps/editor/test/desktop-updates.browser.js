@@ -9,6 +9,7 @@ async (page, { screenshots = false, openPath }) => {
   check(await page.getByRole('button', {name:'Settings', exact:true}).count() === 1, 'Common recovery Settings is missing');
   await page.getByRole('button', {name:'Settings',exact:true}).click();
   check(await page.getByRole('button',{name:'About & updates',exact:true}).count() === 0, 'Browser exposes Desktop-only category');
+  check(await page.getByTestId('cli-integration').count() === 0, 'Browser exposes Desktop CLI integration');
   await page.getByRole('button',{name:'Saving & recovery',exact:true}).click();
   check(await page.getByRole('heading',{name:'Local recovery',exact:true}).isVisible() && !await page.getByTestId('app-version').count(), 'Browser settings mixed recovery with Desktop-only information');
   await page.keyboard.press('Escape');
@@ -29,10 +30,19 @@ async (page, { screenshots = false, openPath }) => {
     const info = {version:'0.2.0', channel:'stable', updatesSupported:true, update:{phase:'idle'}, postponed:null};
     const calls = [];
     window.__desktop = {calls, push(state) { info.update = state; for (const listener of listeners) listener(state); }};
+    window.__cli = {state:{status:'off'}, calls:[], pending:false, fail:false};
     window.ieumdocDesktop = {
       setTheme: async theme => theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches),
       setWindowBackground: async (color, overlay) => { window.__desktop.appearance = { color, overlay }; },
       info: async () => ({...info}),
+      cliIntegration: async () => ({...window.__cli.state}),
+      setCliIntegration: async enabled => {
+        const cli = window.__cli;
+        cli.calls.push(enabled);
+        if (cli.pending) await new Promise(resolve => cli.finish = resolve);
+        if (cli.fail) { cli.state = {status:'broken'}; throw Error('Injected CLI registration failure'); }
+        return cli.state = {status:enabled ? 'installed' : 'off'};
+      },
       setChannel: async (channel) => { calls.push(['channel', channel]); info.channel = channel; return {...info}; },
       checkForUpdates: async () => { calls.push(['check']); },
       downloadUpdate: async () => { calls.push(['download']); },
@@ -65,6 +75,44 @@ async (page, { screenshots = false, openPath }) => {
     await page.keyboard.press('Escape');
     await page.getByTestId('settings-dialog').waitFor({state:'detached'});
   }
+  // Real Settings controls; only OS integration is mocked. A completed promise must update the
+  // direct DOM state, with no reload/poll hiding a stale status after the busy boundary.
+  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await page.getByRole('button',{name:'About & updates',exact:true}).click();
+  const cli = page.getByTestId('cli-integration');
+  await cli.getByText('Off',{exact:true}).waitFor();
+  await page.evaluate(() => window.__cli.pending = true);
+  await cli.getByRole('button',{name:'Turn on',exact:true}).click();
+  check(await cli.getByRole('button',{name:'Turn on',exact:true}).isDisabled(), 'CLI enable remains clickable while pending');
+  await page.evaluate(() => { window.__cli.pending = false; window.__cli.finish(); });
+  await page.locator('[data-testid="cli-integration"][aria-busy="false"]').waitFor();
+  check(await page.getByTestId('cli-status').innerText() === 'Installed', 'CLI did not show completed installation');
+  await cli.getByRole('button',{name:'Turn off',exact:true}).click();
+  await page.locator('[data-testid="cli-integration"][aria-busy="false"]').waitFor();
+  check(await page.getByTestId('cli-status').innerText() === 'Off', 'CLI did not show completed removal');
+  await page.evaluate(() => window.__cli.fail = true);
+  await cli.getByRole('button',{name:'Turn on',exact:true}).click();
+  await page.getByTestId('cli-problem').waitFor();
+  await page.locator('[data-testid="cli-integration"][aria-busy="false"]').waitFor();
+  check(await page.getByTestId('cli-status').innerText() === 'Broken path', 'Partial failure did not expose repair');
+  check(await cli.getByRole('button',{name:'Turn off',exact:true}).isEnabled(), 'Broken integration cannot be disabled');
+  await page.evaluate(() => window.__cli.fail = false);
+  await cli.getByRole('button',{name:'Repair',exact:true}).click();
+  await page.locator('[data-testid="cli-integration"][aria-busy="false"]').waitFor();
+  check(await page.getByTestId('cli-status').innerText() === 'Installed', 'Repair did not complete');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+  await page.evaluate(() => window.__cli.state = {status:'off',conflict:'C:\\Another CLI\\ieumdoc.cmd'});
+  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await page.getByRole('button',{name:'About & updates',exact:true}).click();
+  await cli.getByText(/Another command or file conflicts/).waitFor();
+  check(await cli.getByRole('button',{name:'Turn on',exact:true}).isDisabled(), 'Foreign command can be overwritten');
+  await page.evaluate(() => window.__cli.state = {status:'off'});
+  await cli.getByRole('button',{name:'Refresh status',exact:true}).click();
+  await page.locator('[data-testid="cli-integration"][aria-busy="false"]').waitFor();
+  check(await cli.getByRole('button',{name:'Turn on',exact:true}).isEnabled(), 'Resolved conflict cannot be retried');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('settings-dialog').waitFor({state:'detached'});
   const originalViewport = page.viewportSize();
   const origin = page.url().split('/').slice(0, 3).join('/');
   const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;

@@ -1,5 +1,5 @@
 // Build a relocatable Node CLI plus the production Editor. No source checkout or node_modules at runtime.
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +8,11 @@ import { build } from "esbuild";
 const cli = fileURLToPath(new URL("..", import.meta.url));
 const repo = path.resolve(cli, "../..");
 const destination = path.join(cli, "dist");
+const manifest = JSON.parse(readFileSync(path.join(cli, "package.json"), "utf8"));
+const desktopVersion = process.env.IEUMDOC_CLI_DESKTOP_VERSION;
+let commit = "unknown";
+try { commit = execFileSync("git", ["rev-parse", "--short=12", "HEAD"], { cwd: repo, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); }
+catch { /* An exported source tree can be built without Git. */ }
 // Fixed output directory, never a caller-supplied path.
 rmSync(destination, { recursive: true, force: true });
 mkdirSync(destination, { recursive: true });
@@ -17,12 +22,12 @@ const result = await build({
   absWorkingDir: repo,
   entryPoints: { cli: path.join(cli, "src/cli.ts") }, outdir: destination, outExtension: { ".js": ".mjs" },
   bundle: true, splitting: true, platform: "node", format: "esm", target: "node24", metafile: true,
+  define: { __IEUMDOC_CLI_BUILD__: JSON.stringify({ version: desktopVersion ?? manifest.version, desktop: desktopVersion !== undefined, commit }) },
   banner: { js: 'import { createRequire as __ieumdocCreateRequire } from "node:module"; const require = __ieumdocCreateRequire(import.meta.url);' },
   legalComments: "linked", logLevel: "warning",
 });
 const executable = path.join(destination, "cli.mjs");
 writeFileSync(executable, `#!/usr/bin/env node\n${readFileSync(executable, "utf8")}`, { mode: 0o755 });
-const manifest = JSON.parse(readFileSync(path.join(cli, "package.json"), "utf8"));
 writeFileSync(path.join(destination, "package.json"), JSON.stringify({ name: "@ieumdoc/cli", version: manifest.version,
   description: "IeumDoc document CLI and HTTP Editor Host", license: "MIT", type: "module", private: true,
   bin: { ieumdoc: "cli.mjs" }, files: ["*.mjs", "*.txt", "*.md", "editor/", "LICENSE"], engines: { node: ">=24.21.0 <25" } }, null, 2) + "\n");
@@ -57,5 +62,5 @@ const notices = [...packageDirs].sort().map(directory => {
     licenses.map(name => readFileSync(path.join(directory, name), "utf8")).join("\n");
 });
 writeFileSync(path.join(destination, "THIRD_PARTY_LICENSES.txt"), notices.join("\n\n--------------------\n\n"));
-writeFileSync(path.join(destination, "README.md"), "# IeumDoc CLI and HTTP Editor\n\nRequires Node.js >=24.21.0 <25.\n\nRun `ieumdoc serve --root <folder> [--root <folder>]` after local package installation, or `node cli.mjs serve --root <folder>`.\n\nDefault: http://127.0.0.1:5180. Roots are allowed server folders, selected individually with Open Folder. No built-in authentication. Use an access-controlled reverse proxy and `--public-origin` for remote access. See https://github.com/ieumbird/ieumdoc/blob/master/docs/design/http-host-v1.md for the security and deployment contract.\n");
+writeFileSync(path.join(destination, "README.md"), "# IeumDoc CLI and HTTP Editor\n\nRequires Node.js >=24.21.0 <25.\n\n`ieumdoc --version` alone prints the build version and commit (or unknown without Git).\n\nRun `ieumdoc serve --root <folder> [--root <folder>]` after local package installation, or `node cli.mjs serve --root <folder>`.\n\nDefault: http://127.0.0.1:5180. Roots are allowed server folders, selected individually with Open Folder. No built-in authentication. Use an access-controlled reverse proxy and `--public-origin` for remote access. See https://github.com/ieumbird/ieumdoc/blob/master/docs/design/http-host-v1.md for the security and deployment contract.\n");
 console.log(`CLI and Editor built in ${path.relative(repo, destination)}`);

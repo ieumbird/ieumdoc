@@ -14,6 +14,8 @@ import { parseChannel, releaseNotesUrl, RELEASE_REPOSITORY, RESTART_CHECK_TIMEOU
 import { UpdateController, type UpdaterPort } from "./updates.ts";
 import { verifyUpdateSignature } from "./signatures.ts";
 import { IeumGitHubProvider } from "./github-provider.ts";
+import { CliIntegration } from "./cli-integration.ts";
+import { windowsEnvironment } from "./windows-environment.ts";
 
 /** Set by the release build: an update must carry the publisher signature the installed app names. */
 declare const __IEUMDOC_REQUIRE_SIGNED_UPDATES__: boolean;
@@ -36,6 +38,7 @@ function showWhenReady(): void {
 }
 let preferences: Preferences;
 let updates: UpdateController;
+let cliIntegration: CliIntegration | undefined;
 /** Set after the Editor agreed to restart for an update; the installer starts once the window closed. */
 let installing = false;
 
@@ -144,6 +147,12 @@ function registerIpc(): void {
     });
   };
   handle("desktop:info", () => info());
+  handle("desktop:cli-state", () => cliIntegration?.state() ?? { status: "off", unsupported: true });
+  handle("desktop:cli-set", (enabled) => {
+    if (typeof enabled !== "boolean") throw new Error("Invalid CLI integration choice.");
+    if (!cliIntegration) throw new Error("CLI integration is available in the installed Windows app.");
+    return cliIntegration.setEnabled(enabled);
+  });
   handle("desktop:set-theme", (value) => {
     if (value !== "system" && value !== "light" && value !== "dark") throw new Error("Unknown theme.");
     nativeTheme.themeSource = value;
@@ -244,7 +253,11 @@ if (!app.requestSingleInstanceLock()) {
     session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
     session.defaultSession.setPermissionCheckHandler(() => false);
     preferences = readPreferences(preferencesFile(), app.getVersion());
-    protocol.handle(SCHEME, createProtocolHandler(path.join(appRoot, "editor"), firstDocument(process.argv.slice(app.isPackaged ? 1 : 2), app.getPath("userData"), appRoot, log), file => shell.trashItem(file)));
+    const cliRoot = path.join(app.isPackaged ? process.resourcesPath : path.dirname(appRoot), "cli");
+    protocol.handle(SCHEME, createProtocolHandler(path.join(cliRoot, "editor"), firstDocument(process.argv.slice(app.isPackaged ? 1 : 2), app.getPath("userData"), appRoot, log), file => shell.trashItem(file)));
+    if (app.isPackaged && process.platform === "win32" && process.env.LOCALAPPDATA) {
+      cliIntegration = new CliIntegration(process.execPath, process.env.LOCALAPPDATA, windowsEnvironment());
+    }
     const { autoUpdater } = electronUpdater;
     if (__IEUMDOC_REQUIRE_SIGNED_UPDATES__ && autoUpdater instanceof electronUpdater.NsisUpdater) {
       autoUpdater.verifyUpdateCodeSignature = verifyUpdateSignature;

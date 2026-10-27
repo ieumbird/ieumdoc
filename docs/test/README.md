@@ -266,6 +266,14 @@ pnpm browser:test desktop-updates
 
 `test:update`는 기존 IeumDoc 설치/user data/updater cache가 있으면 거부한다. 테스트 전용 NSIS 두 버전을 로컬 feed로 설치·업데이트하고, 미저장 재시작 거부, Save 후 설치/재실행과 문서 보존, uninstall을 검증한다. 실패 시에도 자신이 설치한 프로세스와 data를 정리한다. 사용자 설치를 지워서 실행하지 않는다. 생성 경로는 `tmp/desktop-update/`와 앱의 기존 generated build/release 폴더다. 테스트 후 normal `package`를 실행해야 테스트 버전/HTTP feed가 산출물에 남지 않는다.
 
+`pnpm --filter @ieumdoc/desktop test:uninstall`은 일회용 Windows CI에서만 실행한다(`CI=true` guard).
+clean package를 실제 설치하고 손상된 CLI owner, 외부 파일, helper 누락, 환경 접근 실패를 각각
+interactive/silent 제거에 주입한다. 앱·제거 등록 삭제, 불확실한 파일 보존, 실제 PATH 결과와 경고
+진단을 확인한다. 4,000자 이상의 한글·따옴표·`%VAR%` PATH 및 stale snapshot 거부도 실제 레지스트리에서
+검사한 뒤 원래 PATH로 돌린다. native dialog driver는 테스트가 시작한 uninstaller PID의 OK만 누른다.
+진단은 `tmp/desktop-uninstall/`에 수집한다. #604 작업에서는 실제 registry/install/update/packaged
+검증과 저장소 밖 npm 설치를 로컬에서 실행하지 않는다.
+
 기본 설치·업데이트 검증은 Stable `0.0.1 → 0.0.2`다. Beta 릴리즈 회귀에서는 아래 PowerShell 명령으로 `0.0.1-beta.4 → 0.1.0-beta.1`도 검증한다. Beta feed에는 Stable Release가 없으며 최초 기본 채널, `beta.yml` 검색과 Beta 설치/재실행, 저장된 preferences·채널·사용자 데이터·Markdown 보존을 확인한다. 이후 환경 변수를 제거하고 normal `package`를 실행한다.
 
 ```powershell

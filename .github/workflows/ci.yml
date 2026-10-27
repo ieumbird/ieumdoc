@@ -49,6 +49,7 @@ jobs:
               - 'packages/file-commit/**'
             desktop:
               - 'apps/desktop/**'
+              - 'packages/cli/**'
               - 'apps/editor/**'
               - 'packages/core/**'
               - 'packages/file-commit/**'
@@ -311,6 +312,7 @@ jobs:
           pnpm --filter @ieumdoc/desktop exec tsx scripts/verify-release.ts --tag "v$version"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - run: pnpm --filter @ieumdoc/desktop test:packaged
+      - run: pnpm --filter @ieumdoc/desktop test:uninstall
       - name: Upload development installer
         uses: actions/upload-artifact@v6
         with:
@@ -329,6 +331,7 @@ jobs:
           path: |
             tmp/desktop-e2e/profiles/*/logs/
             tmp/desktop-update/
+            tmp/desktop-uninstall/
           if-no-files-found: ignore
           retention-days: 7
 

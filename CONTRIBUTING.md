@@ -117,7 +117,7 @@ CI 경로 규칙의 기준은 [ci.yml의 changes job](.github/workflows/ci.yml)�
 | PR 변경 경로 요약 | quality 외 추가 검증 |
 | --- | --- |
 | `docs/**`, 루트·하위 `*.md`, `.github/ISSUE_TEMPLATE/**`만 변경 | 없음 (아래 패키지·공용 경로에 속하는 Markdown은 해당 경로 규칙 우선) |
-| `packages/cli/**` | http |
+| `packages/cli/**` | http, desktop (Desktop bundles the CLI) |
 | `apps/editor/**`, `packages/core/**`, `packages/file-commit/**` | browser, http, desktop |
 | `apps/desktop/**`, Editor의 업데이트 화면(`apps/editor/shared/desktop-bridge.ts`, `apps/editor/src/shell/SettingsDialog.tsx`, `apps/editor/src/shell/MessageArea.tsx`) | desktop + `test:update` (Editor 파일은 Editor 규칙도 함께 적용) |
 | 공용 설정·도구 (`package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `patches/**`, 루트 `tsconfig*`, `.github/workflows/**`, `scripts/**`) 또는 미분류 경로 | browser, http, desktop + `test:update` |
