@@ -428,7 +428,9 @@ async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, 
   await unresolved.locator('.cross-reference-chip').click();
   assert(await page.getByTestId('reference-form').count() === 0, 'An unresolved reference does not open an editor in a read-only definition');
   assert(await inlineContent() === nestedContent, 'Read-only inline controls do not change content');
-  await readonlyNote.locator('p').dblclick();
+  // The paragraph center can be a citation chip; enter through its definition text.
+  await readonlyNote.locator('p').dblclick({position: {x: 8, y: 10}});
+  await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] [data-testid="footnote-definition"][data-label="n"]')?.getAttribute('aria-readonly') === 'false');
   assert(await readonlyCitation.getByTestId('citation-edit').count() === 1, 'Citation editing becomes available in the active definition');
   await unresolved.locator('.cross-reference-chip').click();
   await page.getByTestId('reference-form').waitFor();
