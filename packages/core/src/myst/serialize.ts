@@ -129,6 +129,8 @@ function prepareWriter(tree: MystDocument, blockPaths: number[][]): string {
     if (node.type === "table" && node.children?.[0]?.children?.some(cell => cell.align !== undefined)) {
       node.align = node.children[0].children.map(cell => cell.align ?? null);
     }
+    // Do this before inline math becomes raw dollar output, and only on the write clone.
+    if (node.type === "tableCell") escapeTableCodeAndMath(node);
     // myst-to-md does not protect literal dollars or citation-triggering @ text.
     // The writer emits these escaped `html` values verbatim.
     if (node.children?.some(child => child.type === "text" && /[$@]/.test(String(child.value)))) {
@@ -190,6 +192,16 @@ function prepareWriter(tree: MystDocument, blockPaths: number[][]): string {
   visit(tree, 0);
   if (prefix) tree.children.shift();
   return prefix;
+}
+
+function escapeTableCodeAndMath(node: MystNode): void {
+  // markdown-it's table splitter removes one backslash immediately before each pipe,
+  // regardless of preceding backslashes. Add exactly one, retaining the authored value.
+  // Text/link fields already use the upstream GFM escaping; MyST code/math bypass it.
+  if ((node.type === "inlineCode" || node.type === "inlineMath") && typeof node.value === "string") {
+    node.value = node.value.replaceAll("|", "\\|");
+  }
+  node.children?.forEach(escapeTableCodeAndMath);
 }
 
 /** Whether inline math can be written as `$...$`. The value must not hold `$` or end in a

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import * as core from "@ieumdoc/core";
 import {
   getEditableDocument,
   insertTable,
@@ -97,6 +98,51 @@ test("cells can be cleared and filled, and Markdown syntax is kept as literal te
   assert.equal(serialize(updateTableCell(filled, [0, 1, 0], [{ kind: "text", text: "" }])), markdown);
 });
 
+test("table cell code and math pipes retain exact values, alignment and stable native saves", async (t) => {
+  for (const kind of ["code", "math"] as const) {
+    const values = kind === "math"
+      ? ["|x|", "P(A|B)", String.raw`\|x\|`, String.raw`\left|x\right|`, "a$|b", "a|b\\"]
+      : ["a | b", "flags | MASK", String.raw`a \| b`, "a`|b"];
+    values.push("|", "a||b", ...[0, 1, 2, 3, 4].map(count => `a${"\\".repeat(count)}|b`));
+    for (const value of values) await t.test(`${kind} ${JSON.stringify(value)}`, () => {
+      const content: InlineContent[] = [{ kind, value }];
+      const inserted = core.insertTable(core.createDocument(), 1,
+        [["Header", content], ["Body", content]], ["left", "right"]);
+      const before = structuredClone(inserted);
+      const markdown = core.serialize(inserted);
+      assert.deepEqual(inserted, before);
+      const reopened = core.parse(markdown);
+      const block = core.getEditableDocument(reopened).blocks.find(block => block.block === "table");
+      assert(block?.block === "table");
+      assert.deepEqual(block.rows.map(row => row.cells.map(cell => cell.content)), [
+        [[{ kind: "text", text: "Header" }], content],
+        [[{ kind: "text", text: "Body" }], content],
+      ]);
+      for (const row of block.rows) assert.deepEqual(row.cells.map(cell => cell.align), ["left", "right"]);
+      assert.equal(core.serialize(reopened), markdown);
+      assert.equal(core.serialize(core.parse(core.serialize(reopened))), markdown);
+
+      // Existing cells use the same write path, including nested marks and link content.
+      const nested: InlineContent[] = [{ kind: "strong", children: [
+        { kind: "link", url: "https://example.com", children: content },
+      ] }];
+      const edited = core.updateTableCell(reopened, [1, 1, 1], nested);
+      const editedMarkdown = core.serialize(edited);
+      const editedBlock = core.getEditableDocument(core.parse(editedMarkdown)).blocks.find(block => block.block === "table");
+      assert(editedBlock?.block === "table");
+      assert.deepEqual(editedBlock.rows[1].cells[1].content, nested);
+      for (const row of editedBlock.rows) assert.deepEqual(row.cells.map(cell => cell.align), ["left", "right"]);
+      assert.equal(core.serialize(core.parse(editedMarkdown)), editedMarkdown);
+    });
+  }
+});
+
+test("cell pipe escaping leaves prose and table captions unchanged", () => {
+  const inline = "`a | b` $|x|$ $\\|x\\|$ {math}`a$|b`";
+  const source = `---\nieumdoc: 1\n---\n\n${inline}\n\n:::{table} ${inline}\n\n| H |\n| - |\n| x |\n:::\n`;
+  assert.equal(core.serialize(core.parse(source)), source);
+});
+
 test("updateTableCell fails closed without mutating the document", () => {
   const document = parse(technical);
   const before = structuredClone(document);
@@ -106,8 +152,6 @@ test("updateTableCell fails closed without mutating the document", () => {
     [[TABLE, 1, 1], [{ kind: "strong", children: [{ kind: "text", text: "AC " }] }], /whitespace/],
     [[TABLE, 1, 1], " AC", /whitespace/],
     [[TABLE, 1, 1], "AC ", /whitespace/],
-    // The writer does not escape a pipe inside inline code or math, so it would end the cell.
-    [[TABLE, 1, 1], [{ kind: "code", value: "a|b" }], /table cell text cannot be preserved through canonical round-trip/],
     [[TABLE, 1], "x", /requires a top-level table cell path/],
     [[2, 0, 0], "x", /not editable/],
     [[TABLE, 9, 0], "x", /out of range/],
