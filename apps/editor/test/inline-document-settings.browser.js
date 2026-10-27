@@ -81,6 +81,3 @@ async (page, { openPath, screenshots }) => {
     }
   }
 }
-
-
-
