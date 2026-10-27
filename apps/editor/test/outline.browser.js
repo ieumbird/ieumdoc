@@ -176,7 +176,7 @@ async (page, { openDocument, reloadDocument, expect }) => {
     };
     return active.textContent?.trim() === 'Section 1' && current.textContent?.trim() === 'Section 4' && shown(active) && !shown(current);
   });
-  await page.evaluate(() => document.querySelector('[aria-label="Hide outline"]')?.focus());
+  await page.evaluate(() => document.querySelector('[aria-label="Outline"]')?.focus());
   await page.waitForFunction(() => {
     const list = document.querySelector('.document-outline-list');
     const item = document.querySelector('[data-testid="outline"] [aria-current="location"]');
@@ -188,7 +188,7 @@ async (page, { openDocument, reloadDocument, expect }) => {
   });
   const exited = await outlineView();
   const focusExitRestoresCurrent = Boolean(exited?.visible && exited.text === 'Section 4'
-    && await page.evaluate(() => document.activeElement?.getAttribute('aria-label') === 'Hide outline'));
+    && await page.evaluate(() => document.activeElement?.getAttribute('aria-label') === 'Outline'));
   const trackingPreservesDocument = Boolean(beforeTracking && exited
     && Math.abs(exited.scrollY - beforeTracking.scrollY) < 1
     && exited.from === beforeTracking.from && exited.to === beforeTracking.to && exited.options);

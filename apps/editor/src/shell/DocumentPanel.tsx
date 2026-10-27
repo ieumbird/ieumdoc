@@ -1,8 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { useEffect, useLayoutEffect, useRef, useSyncExternalStore, type CSSProperties, type KeyboardEvent } from "react";
-import { PanelRightClose } from "lucide-react";
-import { Button } from "@/components/ui/button.tsx";
 import type { OutlineItem, OutlineStore } from "../outline.ts";
 
 type DocumentPanelProps = {
@@ -11,7 +9,7 @@ type DocumentPanelProps = {
   /** Headings of the open document and the index of the section being read. */
   outline?: OutlineStore;
   onSelectHeading(item: OutlineItem): void;
-  /** The TopBar Outline toggle opens the panel again. */
+  /** Dismiss the overlay with Escape and return focus to the TopBar Outline toggle. */
   onClose(): void;
 };
 
@@ -32,9 +30,6 @@ export function DocumentPanel({ overlay, outline, onSelectHeading, onClose }: Do
     >
       <div className="document-panel-header">
         <h2 className="document-panel-title" id="document-panel-title">{i18n.t("Outline")}</h2>
-        <Button variant="ghost" size="icon-sm" aria-label={i18n.t("Hide outline")} onClick={onClose}>
-          <PanelRightClose />
-        </Button>
       </div>
       {outline ? <Outline outline={outline} onSelect={onSelectHeading} /> : null}
     </aside>

@@ -853,7 +853,7 @@ export function App() {
           onSelectHeading={item => session?.revealHeading(item)}
           onClose={() => {
             choosePanelOpen(false);
-            // The panel's own controls go away; its toggle keeps the focus.
+            // Escape dismisses the overlay; its toggle keeps the focus.
             outlineToggle.current?.focus();
           }}
         />

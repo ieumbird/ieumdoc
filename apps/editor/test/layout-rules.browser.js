@@ -353,7 +353,12 @@ async (page, { openPath, withBlockHover, expect }) => {
   await page.setViewportSize({width:1440,height:1000});
   await page.getByTestId('outline').waitFor();
   const docked=await shell();
-  await page.getByRole('button',{name:'Hide outline',exact:true}).click();
+  const panelHeader=await page.locator('.document-panel-header').evaluate(header=>{
+    const row=header.getBoundingClientRect(), title=header.querySelector('h2').getBoundingClientRect();
+    return {height:row.height,titleCenterDelta:Math.abs(title.top+title.height/2-row.top-row.height/2)};
+  });
+  if(panelHeader.height!==48||panelHeader.titleCenterDelta>0.5)throw Error(`Outline header alignment: ${JSON.stringify(panelHeader)}`);
+  await outlineToggle.click();
   await page.locator('.document-panel').waitFor({state:'detached'});
   const hidden=await shell();
   const hiddenFocus=await outlineToggle.evaluate(n=>n===document.activeElement);
@@ -368,8 +373,8 @@ async (page, { openPath, withBlockHover, expect }) => {
     await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   };
   // A docked choice survives both directions; overlay dismissal must not overwrite it.
-  for(const close of [async()=>page.getByRole('button',{name:'Hide outline',exact:true}).click(),async()=>outlineToggle.click()]) {
-    await close();
+  {
+    await outlineToggle.click();
     await expect(outlineToggle).toHaveAttribute('aria-pressed','false');
     await resizePanel(1423);
     await resizePanel(1424);
@@ -378,7 +383,7 @@ async (page, { openPath, withBlockHover, expect }) => {
     await resizePanel(1423);
     await expect(outlineToggle).toHaveAttribute('aria-pressed','false');
     await outlineToggle.click();
-    await page.getByRole('button',{name:'Hide outline',exact:true}).click();
+    await outlineToggle.click();
     await resizePanel(1424);
     await expect(outlineToggle).toHaveAttribute('aria-pressed','true');
   }
