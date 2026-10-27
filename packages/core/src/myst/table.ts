@@ -1,5 +1,6 @@
 import { inlineContentToNodes, projectInlineContent, type InlineContent } from "../inline.ts";
 import type { MystNode } from "./tree.ts";
+import type { VFile } from "vfile";
 
 /**
  * Editable cells of a top-level Markdown (GFM) table hold supported inline content
@@ -83,20 +84,35 @@ export function setTableColumnAlignNode(table: MystNode, index: number, align: "
 const TABLE_DIRECTIVE_FIELDS = new Set(["type", "kind", "children", "label", "identifier", "position"]);
 const CAPTION_FIELDS = new Set(["type", "children", "position"]);
 
+// Source-kind admission is distinct from semantic equality: the internal MyST
+// writer can preserve CSV grids, but the native document format does not admit them.
+// Public parse rejects these nodes before any operation can clone their tree.
+const nonNativeTableSources = new WeakSet<MystNode>();
+export function isNativeTableSource(node: MystNode): boolean {
+  return !nonNativeTableSources.has(node);
+}
+
 /**
- * MyST keeps original options on mystDirective, but drops some (including align)
- * from its table container. Preserve unsupported evidence before directive lifting;
- * admission's field whitelist and the write fingerprint must both see it.
+ * Retain source evidence before directive lifting. MyST's option map can itself
+ * drop names inherited from Object.prototype; VFile diagnostics still record them.
+ * Unsupported options and diagnostics also participate in the write fingerprint.
  */
-export function retainTableOptions(node: MystNode): void {
+export function retainTableSource(node: MystNode, file: VFile): void {
+  if (node.type === "mystDirective" && node.name !== "table") {
+    node.children?.filter(child => child.type === "container" && child.kind === "table")
+      .forEach(child => nonNativeTableSources.add(child));
+  }
   if (node.type === "mystDirective" && node.name === "table") {
     const unsupported = Object.fromEntries(Object.entries(node.options ?? {})
       .filter(([name]) => name !== "name" && name !== "label"));
-    if (Object.keys(unsupported).length && node.children?.[0]) {
-      node.children[0]["(unsupported table options)"] = unsupported;
+    const diagnostics = file.messages.filter(message => message.line != null && node.position &&
+      message.line >= node.position.start.line && message.line <= node.position.end.line)
+      .map(message => message.reason);
+    if ((Object.keys(unsupported).length || diagnostics.length) && node.children?.[0]) {
+      node.children[0]["(unsupported table options)"] = { options: unsupported, diagnostics };
     }
   }
-  node.children?.forEach(retainTableOptions);
+  node.children?.forEach(child => retainTableSource(child, file));
 }
 
 /**

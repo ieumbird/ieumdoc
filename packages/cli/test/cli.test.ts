@@ -2386,10 +2386,22 @@ test("CLI check and format refuse table source options without changing file byt
   const file = path.join(dir, "document.md");
   try {
     for (const caption of ["", " Values"]) {
-      for (const option of [":align: left", ":widths: 1 2", ":unknown: value"]) {
+      const grid = "| A | B |\n|---|---|\n| x | y |\n";
+      const options = [":align: left", ":widths: 1 2", ":unknown: value",
+        ...["constructor", "__proto__", "toString", "hasOwnProperty"].flatMap(name => [
+          `:${name}: value`, `---\n${name}: value\n---`,
+        ])];
+      const bodies = [
+        ...options.map(option => `:::{table}${caption}\n${option}\n\n${grid}:::\n`),
+        ...["", ":unknown: value\n"].flatMap(unknown => [
+          `:::{csv-table}${caption}\n:header: A, B\n${unknown}\n1,2\n:::\n`,
+          `:::{list-table}${caption}\n:header-rows: 1\n${unknown}\n* -\n  -\n:::\n`,
+        ]),
+      ];
+      for (const body of bodies) {
         for (const command of ["check", "format"]) {
-          await t.test(`${command} ${caption || "no caption"} ${option}`, () => {
-            const source = nativeSource(`:::{table}${caption}\n${option}\n\n| A | B |\n|---|---|\n| x | y |\n:::\n`);
+          await t.test(`${command} ${body}`, () => {
+            const source = "\uFEFF" + nativeSource(body).replaceAll("\n", "\r\n");
             writeFileSync(file, source);
             const before = readFileSync(file);
             const result = run([command, file]);
@@ -2398,6 +2410,16 @@ test("CLI check and format refuse table source options without changing file byt
             assert.deepEqual(readFileSync(file), before);
           });
         }
+      }
+      for (const body of [grid, ...["", ":name: values\n", ":label: values\n"].map(option =>
+        `:::{table}${caption}\n${option}\n${grid}:::\n`)]) {
+        writeFileSync(file, nativeSource(body));
+        const before = getEditableDocument(parse(readFileSync(file, "utf8")));
+        for (const command of ["check", "format"]) {
+          const result = run([command, file]);
+          assert.equal(result.status, 0, result.stdout + result.stderr);
+        }
+        assert.deepEqual(getEditableDocument(parse(readFileSync(file, "utf8"))), before);
       }
     }
   } finally { rmSync(dir, { recursive: true, force: true }); }

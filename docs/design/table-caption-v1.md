@@ -101,10 +101,13 @@ and citation NodeViews are the same ones used in the body, including computed nu
 readiness, editing and navigation. MyST reads caption citations/endnotes before grid
 cells even though the caption is visually below them; numbering follows that Core order.
 No generated display text enters Markdown. Merged cells, additional legends and directive
-options other than Label (`name` / `label`) reject native admission. Original options
-are checked using MyST's parsed directive option map before lifting, including options
-MyST omits from its table container (`align`, `widths`, unknown options), regardless of
-caption or Label presence. No new table editor engine or persistence
+options other than Label (`name` / `label`) reject native admission. Only plain GFM and
+the exact `{table}` directive are accepted; `{csv-table}`, `{list-table}` and other
+table directives are refused regardless of caption, Label or options. Before lifting,
+Core checks MyST's option map and refuses any VFile diagnostic within the table
+directive's source range. The map alone is insufficient: some option names are dropped
+before it is built. Thus duplicate/unknown-option diagnostics also prevent admission,
+including for YAML options. No new table editor engine or persistence
 architecture is introduced.
 
 CLI: `ieumdoc update-table-caption <file> --path <block> --text <caption>` (empty text removes it), or `--content <InlineContent JSON>`. `update-label` accepts tables; `inspect --format json` includes caption, label and computed table number.
@@ -130,7 +133,28 @@ Apply the same guard to captioned and captionless tables. Verify failure first t
 public Core and CLI check/format tests, then unchanged file bytes on refusal, supported
 Label round-trips, Core/CLI tests, typecheck, docs and PR CI. No UI or command change.
 
+Second review-fix plan (#584): supplement the option map with MyST VFile diagnostics
+within each table directive's source range. Refuse any such diagnostic, without a list
+of special option names. At native admission, only the exact `table` directive is
+supported; CSV/list-table source is refused regardless of caption or options. Retain
+source-kind evidence separately from semantic equality, as native syntax admission
+does elsewhere; internal MyST serializer tests do not establish native input support.
+Extend fail-first public Core and CLI regressions to inherited option names, YAML
+options and alternate table directives, with BOM/CRLF byte preservation and supported
+input controls. Verify Core/CLI, typecheck, docs and all PR CI checks.
+
 ## All-table numbering verification (#584)
+
+Second review reproduced two remaining paths on `f76e027`: inherited option names
+were absent from the map but present in VFile diagnostics, and CSV/list-table source
+was accepted after its directive name was lifted away. Before this fix, 24 added Core
+cases and 48 CLI command cases failed their refusal assertion. The revised source
+admission passes Core 295/295 and CLI 129/129 (including subtests), workspace typecheck,
+docs and whitespace. Refused CLI files keep their BOM, CRLF and exact bytes. Supported
+Label spellings, optionless directives and GFM remain accepted and preserve their grids.
+The existing internal CSV semantic round-trip and security-probe tests pass unchanged;
+they are not public native admission tests. No local browser run was needed for this
+Core-only fix; the complete PR CI remains required.
 
 Independent review reproduced silent source-option loss on `f45ae18`. Before the fix,
 all eight public Core refusal cases and all twelve CLI check/format cases failed:
