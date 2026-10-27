@@ -156,7 +156,7 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
   await page.getByRole('button',{name:'Restore work',exact:true}).click();
   await page.getByTestId('recovery-prompt').waitFor({state:'detached'});
   await engine(page).getByText(/Recovered applied text/).waitFor();
-  check(await page.getByRole('tab').count() === 1, 'Recovery and remembered tabs opened the document twice');
+  check(await page.getByRole('tablist', {name:'Documents',exact:true}).getByRole('tab').count() === 1, 'Recovery and remembered tabs opened the document twice');
   check(await engine(page).evaluate(n => !n.editor.can().undo()), 'Restored Undo history should be empty');
   await page.getByTestId('save').click();
   await page.locator('[data-testid="status"][data-operation="saved"]').waitFor(); await count(0);
@@ -361,7 +361,7 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
   await page.evaluate(path => localStorage.setItem('ieumdoc.openTabs',JSON.stringify({paths:[path],activePath:path})),file);
   await page.reload(); await ready(page);
   await page.getByTestId('writeability-warning').filter({hasText:'Local recovery is unavailable'}).waitFor();
-  check(await page.getByRole('tab').count() === 0, 'Unavailable recovery was bypassed by automatic tab restoration');
+  check(await page.getByRole('tablist', {name:'Documents',exact:true}).getByRole('tab').count() === 0, 'Unavailable recovery was bypassed by automatic tab restoration');
   await capture('unavailable');
   await page.getByRole('button',{name:'Settings',exact:true}).click();
   await page.getByRole('button',{name:'Saving & recovery',exact:true}).click();

@@ -112,7 +112,7 @@ function Outline({ kind, active, outline, onSelect }: { kind: ListKind; active: 
       observer.disconnect();
       element.removeEventListener("focusout", onFocusOut);
     };
-  }, [outline.items.length === 0]);
+  }, [active, outline.items.length === 0]);
   // Arrow keys, Home and End move between headings; Enter or Space goes to one.
   const move = (event: KeyboardEvent<HTMLOListElement>) => {
     const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("button")];
@@ -125,7 +125,7 @@ function Outline({ kind, active, outline, onSelect }: { kind: ListKind; active: 
   };
   return (
     <section className="document-outline" role="tabpanel" hidden={!active} id={`document-panel-list-${kind}`} aria-labelledby={`document-panel-tab-${kind}`} data-testid={kind}>
-      {outline.items.length === 0 ? <p className="document-outline-empty">{i18n.t(kind === "tables" ? "No tables" : kind === "figures" ? "No figures" : "No headings")}</p> : (
+      {!active ? null : outline.items.length === 0 ? <p className="document-outline-empty">{i18n.t(kind === "tables" ? "No tables" : kind === "figures" ? "No figures" : "No headings")}</p> : (
         <ol ref={list} className="document-outline-list" onKeyDown={move}>
           {outline.items.map((item, index) => (
             <li key={item.index}>

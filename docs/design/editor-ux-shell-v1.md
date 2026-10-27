@@ -555,7 +555,8 @@ row shares the document-tab height and offers Outline, Tables N and Figures N. T
 reuses the Visual/Source Button and segmented-control tokens, outside the drag header.
 It works in both docked and overlay layouts, independently of native caption-button space.
 
-The segments are keyboard-accessible tabs linked to the selected list. Arrow Left/Right,
+The segments are keyboard-accessible tabs linked to their panels; only the selected list
+mounts its items. Arrow Left/Right,
 Home and End switch tabs; each list retains the outline's Arrow Up/Down, Home/End and
 Enter/Space navigation. Empty lists have localized guidance. The chosen list is page-local
 state, with no new preference or persistence.
@@ -570,7 +571,7 @@ The existing navigation store and reveal path own all three lists. `panel-lists`
 live edits, numbering, click/keyboard/Source navigation, current-item tracking, empty guidance,
 Korean labels and 1440px/640px light/dark geometry. Existing `outline`, `document-tabs`,
 `folder-navigation`, `layout-rules` and `quiet-document` regressions pass. The document-tab
-test now counts tabs inside the Documents tablist, retaining its exact count/order assertions
+and recovery tests now count tabs inside the Documents tablist, retaining exact count/order assertions
 when navigation tabs are also visible. Editor tests (316), workspace typecheck, Editor build,
 documentation and whitespace checks pass. Packaging/platform coverage stays in CI.
 
