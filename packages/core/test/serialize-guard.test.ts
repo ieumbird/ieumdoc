@@ -118,6 +118,21 @@ test("canonical LF output keeps preserved front matter and its meaningful traili
 });
 
 test("legitimate canonicalizations are normalized explicitly", () => {
+  const grid = "| a | b |\n| :--- | ---: |\n| 1 | 2 |\n";
+  const plain = semanticFingerprint(parse(grid));
+  assert.deepEqual(semanticFingerprint(parse(`:::{table}\n\n${grid}:::\n`)), plain);
+  // Only the empty directive wrapper is representational. Authored content and
+  // unknown fields still participate in the full semantic-loss guard.
+  for (const changed of [
+    `:::{table} Caption\n\n${grid}:::\n`,
+    `:::{table}\n:name: tbl-a\n\n${grid}:::\n`,
+    grid.replace("1 | 2", "1 | 3"), grid.replace(":---", "---"),
+    grid.replace("| 1 | 2 |\n", ""), grid.replaceAll("| b |", "| b | c |").replace("---: |", "---: | --- |"),
+  ]) assert.notEqual(semanticDifference(plain, semanticFingerprint(parse(changed))), undefined);
+  const unknown = parse(`:::{table}\n\n${grid}:::\n`);
+  unknown.children[0].unexpected = true;
+  assert.notEqual(semanticDifference(plain, semanticFingerprint(unknown)), undefined);
+  assert.throws(() => serialize(unknown), /cannot be preserved/);
   // csv-table and table directives are written as list-table; cells gain a paragraph wrapper.
   for (const source of [
     ":::{csv-table} Cap\n:header: a, b\n1,2\n:::\n",

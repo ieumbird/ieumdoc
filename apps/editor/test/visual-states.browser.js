@@ -1,5 +1,7 @@
 // Computed state combinations on the real UI; screenshot-only review stays outside this test.
-async (page, { withBlockHover }) => {
+async (page, { withBlockHover, reloadDocument, recoveryRecords, expect }) => {
+  const themes = [];
+  for (const theme of ['light', 'dark']) {
   const check = (value, message) => { if (!value) throw Error(message); };
   const origin = page.url().split('/').slice(0, 3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();
@@ -46,10 +48,11 @@ async (page, { withBlockHover }) => {
       rect: [r.x, r.y, r.width, r.height], focused: n.matches(':focus-visible'), ringContrast, ringWidth, ringColor: inset?.color, active: document.activeElement === n };
   });
   await page.setViewportSize({width:1440, height:1000});
-  await page.evaluate(() => {localStorage.clear(); sessionStorage.clear();});
+  await page.emulateMedia({colorScheme:'light'});
+  await page.evaluate(theme => {localStorage.clear(); sessionStorage.clear(); localStorage.setItem('ieumdoc.theme',theme);}, theme);
   await page.reload();
   const openFolder = page.getByRole('button', {name:'Open folder…', exact:true});
-  // One light theme: an OS dark preference must not gray out fields or outlined controls.
+  // An explicit theme ignores OS changes; System behavior is covered with the preference UI.
   const faces = async () => {
     await page.mouse.move(0,0);
     const button = (await state(openFolder)).background;
@@ -73,6 +76,26 @@ async (page, { withBlockHover }) => {
   await currentFile.and(page.locator('[aria-current="page"]')).waitFor();
   await page.locator('.document-outline-item[aria-current="location"]').waitFor();
   await page.evaluate(async () => {await document.fonts.ready; document.activeElement?.blur();});
+  const paperRoles = await page.locator('.document').first().evaluate(paper => {
+    const root = document.documentElement;
+    const read = () => ({paper:getComputedStyle(paper).backgroundColor, canvas:getComputedStyle(document.body).backgroundColor,
+      shadow:getComputedStyle(paper).boxShadow, radius:getComputedStyle(paper).borderRadius,
+      floating:getComputedStyle(document.querySelector('.top-bar')).backgroundColor});
+    const before = read();
+    const editor = paper.querySelector('.document-editor');
+    const geometry = () => {const r=editor.getBoundingClientRect(); return [r.x,r.y,r.width,r.height];};
+    const beforeGeometry = geometry();
+    try {
+      root.dataset.page = 'flat';
+      return {before,flat:read(),beforeGeometry,flatGeometry:geometry()};
+    } finally { root.dataset.page = 'paper'; }
+  });
+  check(paperRoles.before.paper !== paperRoles.before.canvas && paperRoles.before.shadow.includes('1px inset'),
+    `Paper must retain a real thin boundary in ${theme}: ${JSON.stringify(paperRoles)}`);
+  check(paperRoles.flat.paper === paperRoles.flat.canvas && paperRoles.flat.radius === '0px' &&
+    !paperRoles.flat.shadow.includes('1px') && paperRoles.flat.floating === paperRoles.before.floating,
+    'Flattening the page must only need paper variables and must not change floating surfaces');
+  check(JSON.stringify(paperRoles.beforeGeometry) === JSON.stringify(paperRoles.flatGeometry), 'Page background moved or resized the editor');
   await page.mouse.move(0,0);
   const results = [];
   for (const [label, current, other, direction] of [
@@ -265,7 +288,12 @@ async (page, { withBlockHover }) => {
 
   // Actual resolved product roles: thresholds apply to text, control boundaries and indicators,
   // not decorative separators or the small difference between rest and hover backgrounds.
-  const contrasts = await page.evaluate(() => {
+  const contrasts = [];
+  for (const pageBackground of ['paper','flat']) {
+  await page.evaluate(value => {document.documentElement.dataset.page = value;}, pageBackground);
+  for (const preset of ['blue','violet','plum','teal','green','graphite']) {
+  await page.evaluate(preset => { document.documentElement.dataset.accent = preset; }, preset);
+  const measured = await page.evaluate(() => {
     const canvas = document.createElement('canvas'), context = canvas.getContext('2d');
     if (!context) throw Error('Missing contrast canvas');
     const rgb = token => {
@@ -277,15 +305,25 @@ async (page, { withBlockHover }) => {
     };
     const lum = rgb => rgb.map(v => {v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4;})
       .reduce((sum,v,i) => sum + v * [.2126,.7152,.0722][i],0);
-    const pairs = [['document-heading-number','surface',4.5],['document-heading-number','surface-subtle',4.5]];
-    for (const bg of ['surface','surface-subtle','surface-hover','surface-pressed'])
+    const pairs = [['document-heading-number','paper',4.5],['document-heading-number','surface',4.5],['document-heading-number','surface-subtle',4.5]];
+    for (const bg of ['paper','canvas','surface','surface-subtle','surface-muted','surface-hover','surface-pressed'])
       for (const fg of ['text','text-muted','text-subtle']) pairs.push([fg,bg,4.5]);
     for (const bg of ['surface-selected','surface-selected-hover']) pairs.push(['text-selected',bg,4.5]);
+    for (const fg of ['interaction','accent-hover']) pairs.push([fg,'paper',4.5]);
+    for (const fg of ['info','warning','danger']) pairs.push([fg,'surface-muted',4.5]);
+    if (document.documentElement.dataset.theme === 'dark') for (const bg of ['paper','surface-subtle']) pairs.push(['border',bg,3]);
     for (const [fg,bg] of [['text-on-accent','accent'],['text-on-accent','accent-hover'],['danger','surface-danger'],['info','surface-info'],['warning','surface-warning']]) pairs.push([fg,bg,4.5]);
-    for (const bg of ['surface','surface-subtle','surface-hover','surface-pressed','surface-selected','surface-selected-hover']) pairs.push(['interaction',bg,3]);
-    for (const bg of ['surface','surface-subtle','surface-pressed']) pairs.push(['border-control',bg,3]);
+    for (const bg of ['canvas','paper','surface','surface-subtle','surface-hover','surface-pressed','surface-selected','surface-selected-hover']) {
+      pairs.push(['interaction',bg,3]);
+      pairs.push(['border-control',bg,3]);
+    }
     return pairs.map(([fg,bg,min]) => {const a=lum(rgb(fg)),b=lum(rgb(bg)); return {fg,bg,min,ratio:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)};});
   });
+  contrasts.push(...measured.map(c => ({theme,pageBackground,preset,...c})));
+  }
+  }
+  await page.evaluate(() => {document.documentElement.dataset.page = "paper";});
+  await page.evaluate(() => { document.documentElement.dataset.accent = 'blue'; });
   check(contrasts.every(c => c.ratio >= c.min), `Contrast failure: ${JSON.stringify(contrasts.filter(c => c.ratio < c.min))}`);
   // The approved non-color cue may change glyph widths. It must not jump these rows vertically,
   // remove Files ellipsis, exceed Outline's two-line clamp or overflow the real menu at either width.
@@ -323,5 +361,16 @@ async (page, { withBlockHover }) => {
     await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n=>n.editor.commands.undo());
     weightGeometry.push({width,files,outline,menu});
   }
-  return {navigation:results, wideOn, active, choiceRest, choiceHover, choiceFocus, ghostHover, menuOpen, pressed, field, contrasts, weightGeometry};
+  // Each theme edits and mocks Save without writing the scratch file. Finish that session
+  // through the real Reload/discard path before clearing localStorage and reloading the app:
+  // otherwise a committed recovery record can correctly open a modal over the next theme.
+  const dirty = (await page.getByRole('tab', {selected:true}).getAttribute('aria-label')).includes('Unsaved changes');
+  await reloadDocument(page);
+  if (dirty) await page.getByRole('button', {name:'Discard and reload', exact:true}).click();
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  await expect.poll(async () => (await recoveryRecords(page)).filter(record => record.path.endsWith('/quiet-document.md') || record.path.endsWith('\\quiet-document.md')).length,
+    {message:'Reload must finish clearing this theme session recovery before the next app startup'}).toBe(0);
+  themes.push({theme,paperRoles,navigation:results, wideOn, active, choiceRest, choiceHover, choiceFocus, ghostHover, menuOpen, pressed, field, contrasts, weightGeometry});
+  }
+  return themes;
 }

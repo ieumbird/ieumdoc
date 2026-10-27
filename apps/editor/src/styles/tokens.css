@@ -4,8 +4,13 @@
 
   /* Adjustable values: tuned by hand or chosen by a user preference. Change them here only;
    * no rule or script repeats these numbers. See Visual Language "Adjustable values". */
-  /* Canvas around the white paper; panels keep their separate subtle surface. */
+  /* Paper and canvas are independent of floating surfaces (surface). #593 can flatten the
+   * page by equating canvas/paper and setting paper border width/radius to 0 and elevation
+   * to 0 0 0 transparent (a valid shadow-list entry alongside the inset edge). */
+  --id-color-paper: #ffffff;
   --id-color-canvas: #eceef2;
+  --id-color-paper-border: var(--id-color-border-subtle);
+  --size-paper-border: var(--border-width);
   /* Paper corners and gentle elevation; overlays keep their own radius and shadow. */
   --id-radius-paper: 0.375rem;
   --shadow-paper: 0 2px 8px rgb(32 36 44 / 6%);
@@ -42,10 +47,13 @@
   /* Expanded sidebar: its width, and its width at window widths of 1024px and below. */
   --layout-sidebar-width: 15rem;
   --layout-sidebar-width-narrow: 12.5rem;
+  /* Dedicated Settings: bounded reading column and aligned controls. */
+  --layout-settings-content-width: 42.5rem;
+  --layout-settings-control-width: 15rem;
   /* Document panel (outline) beside the document; in the narrow layout it overlays at this width. */
   --layout-document-panel-width: 16rem;
   /* Document tabs: compact row height and maximum label width before ellipsis. */
-  --layout-document-tab-height: 2.5rem;
+  --layout-document-tab-height: 2rem;
   --layout-document-tab-max-width: 16rem;
   /* Pretendard glyph variants for UI and document text. `cv08` gives capital I its serifs, so
    * "IeumDoc" never reads as "leumDoc" and a variable I stays distinct from l. */
@@ -132,7 +140,9 @@
   /* Outline indentation per heading level; row insets stay structural. */
   --space-outline-indent: var(--space-3);
 
+  /* Floating surfaces: menus, dialogs, tabs, fields and the Settings screen; never paper. */
   --id-color-surface: #ffffff;
+  --id-color-backdrop: rgb(0 0 0 / 10%);
   --id-color-surface-subtle: #f6f7f9;
   --id-color-surface-muted: #eef0f4;
   /* Hover is visible on both the paper and panels. Open/pressed controls stay neutral. */
@@ -145,6 +155,8 @@
   --id-color-surface-warning: #fff8ed;
   --id-color-text: #20242c;
   --id-color-text-muted: #545c68;
+  /* A data-URL SVG cannot inherit color; its stroke matches text-muted in each theme. */
+  --id-image-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23545c68' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   --id-color-text-subtle: #606874;
   --id-color-text-selected: var(--id-color-accent-hover);
   --id-color-text-readonly: var(--id-color-text-muted);
@@ -260,4 +272,82 @@
   --id-color-accent-hover: #3d4a53;
   --id-color-surface-selected: #eaf0f3;
   --id-color-surface-selected-hover: #dfe8ed;
+}
+
+/* Dark role values, not a second palette layer. Images retain their original pixels;
+ * KaTeX inherits text. The brighter paper and thin edge remain visible without elevation. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --id-color-canvas: #14171c;
+  --id-color-paper: #1e2229;
+  --id-color-paper-border: #485363;
+  --shadow-paper: 0 0 0 transparent;
+  --id-color-surface: #262b34;
+  --id-color-surface-subtle: #191d24;
+  --id-color-surface-muted: #242a33;
+  --id-color-surface-hover: #303743;
+  --id-color-surface-pressed: #37404d;
+  --id-color-surface-selected: #253954;
+  --id-color-surface-selected-hover: #2d4260;
+  --id-color-surface-danger: #422b30;
+  --id-color-surface-warning: #3e3323;
+  --id-color-text: #edf0f5;
+  --id-color-text-muted: #c3cad5;
+  --id-image-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23c3cad5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --id-color-text-subtle: #b7c0ce;
+  --id-color-text-on-accent: #14171c;
+  --id-color-interaction: #9abbff;
+  --id-color-accent-hover: #bdd2ff;
+  --id-color-border: #737f90;
+  --id-color-border-subtle: #363e4a;
+  --id-color-border-strong: #8491a3;
+  --id-color-border-control: #9aa6b7;
+  --id-color-danger: #ffa4aa;
+  --id-color-warning: #efc079;
+  --id-color-backdrop: rgb(0 0 0 / 45%);
+  --shadow-overlay: 0 8px 24px rgb(0 0 0 / 32%), 0 2px 6px rgb(0 0 0 / 24%);
+  --shadow-segment: 0 1px 2px rgb(0 0 0 / 24%);
+}
+
+:root[data-theme="dark"][data-accent="violet"] {
+  --id-color-interaction: #c4a8ff;
+  --id-color-accent-hover: #dac8ff;
+  --id-color-surface-selected: #38304e;
+  --id-color-surface-selected-hover: #44395e;
+}
+
+:root[data-theme="dark"][data-accent="plum"] {
+  --id-color-interaction: #dda3d5;
+  --id-color-accent-hover: #efc3e9;
+  --id-color-surface-selected: #432e40;
+  --id-color-surface-selected-hover: #50384c;
+}
+
+:root[data-theme="dark"][data-accent="teal"] {
+  --id-color-interaction: #6dd6c7;
+  --id-color-accent-hover: #a0e9de;
+  --id-color-surface-selected: #203d3b;
+  --id-color-surface-selected-hover: #284946;
+}
+
+:root[data-theme="dark"][data-accent="green"] {
+  --id-color-interaction: #9bce91;
+  --id-color-accent-hover: #c2e5ba;
+  --id-color-surface-selected: #2d3d2c;
+  --id-color-surface-selected-hover: #374a35;
+}
+
+:root[data-theme="dark"][data-accent="graphite"] {
+  --id-color-interaction: #b5c6d1;
+  --id-color-accent-hover: #d4e0e8;
+  --id-color-surface-selected: #303b43;
+  --id-color-surface-selected-hover: #3a4751;
+}
+
+/* Page presentation only: keep document geometry and floating surfaces unchanged. */
+:root[data-page="flat"] {
+  --id-color-canvas: var(--id-color-paper);
+  --size-paper-border: 0px;
+  --id-radius-paper: 0px;
+  --shadow-paper: 0 0 0 transparent;
 }

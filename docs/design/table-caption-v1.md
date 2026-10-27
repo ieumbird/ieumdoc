@@ -1,5 +1,16 @@
 # Table caption and label v1
 
+Implementation plan (#584, owner decision 2026-10-27): number every table through
+Core and canonically write every table as a `{table}` directive. Keep accepting plain
+GFM input; treat its wrapper as an explicit canonical equivalence while retaining
+the full reparse/fingerprint guard for grid, alignment, caption, label and other fields.
+Caption/label edits must not change table numbers. Existing CLI operations and inspect
+provide the command surface; no new option or operation is needed. Editor consumes
+Core numbering. No migration, alternate unnumbered table kind or #588 empty-table Save
+change is included. Completion requires pinned MyST parsing/enumeration and grid
+preservation evidence, fail-first Core coverage, targeted Core/CLI/Editor and browser
+checks, comparable 1440/390px captures, docs/typecheck/build and passing PR CI.
+
 Historical implementation plan (#555, approved table-caption portion of #557, 2026-10-26;
 empty-caption discovery superseded by #577 below):
 make captions editable inline children of the Editor table, retaining existing cell
@@ -27,20 +38,28 @@ the existing `updateTableCaption` operation already owns the persistent semantic
 - Previous verification: 2026-10-11 (contract compared with current code and regression coverage; caption inline math and reference display, #165).
 - Scope: Core table caption/label operations and their Editor/CLI interfaces; [Table interaction](table-interaction-v1.md).
 
-Issue #94. Core owns `updateTableCaption` and table `updateLabel`. Plain tables become MyST `{table}` directives when caption or label is present, and return to plain Markdown when both are removed. Canonical writing uses the existing Markdown writer for the caption and GFM grid, then verifies the complete semantic round-trip. Cell paths remain logical `[block,row,column]` regardless of the directive wrapper.
+Issues #94 / #584. Core owns `updateTableCaption`, table `updateLabel` and table numbering.
+Every table receives a number in document order, regardless of caption or Label, and is
+canonically written as a MyST `{table}` directive. Without caption or Label, the directive
+has neither an argument nor `:name:`. Plain GFM input remains supported and is normalized
+on any official write. Canonical writing uses the existing Markdown writer for the caption
+and GFM grid, then verifies the complete semantic round-trip. The fingerprint treats only
+the plain top-level table and its empty directive wrapper as equivalent; grid content,
+rows/columns, alignment, caption, Label and other fields remain checked. Cell paths remain
+logical `[block,row,column]` regardless of the directive wrapper. No migration or alternate
+unnumbered table kind is introduced.
 
 Editor uses the existing single document state. Captions are edited directly below the
 table, including formatting, links, inline math, cross-references and citations, with the
 same inline controls as Figure captions and prose. A table owns its caption: moving or
 deleting the table includes its caption, and Undo/Redo restores them together. ArrowDown
 from the final grid row enters the caption; ArrowUp from its first line returns to the
-last cell. Enter leaves the table. Emptying a caption removes its persistent content;
-a label alone still numbers the table. Removing both immediately removes the number.
-An empty table without a label shows only the input hint, with no number: MyST/Core
-do not currently number it. No prospective number is invented; typing a caption or
-applying a label makes the existing official number appear. Numbering every table,
-including captionless, unlabeled tables, is a separate Core/serialization change in
-[#584](https://github.com/ieumbird/ieumdoc/issues/584), outside this Editor-only change.
+last cell. Enter leaves the table. Emptying a caption removes its persistent content.
+Every empty caption surface shows its official `Table N.` and the input hint. Filling or
+clearing the caption or Label never changes the table's kind or number, nor the numbers
+of later tables. References to a retained Label therefore keep their number. Clearing a
+Label retains reference text but makes references to that removed target unresolved.
+The Editor uses Core numbering, without a separate prospective-number rule.
 
 Hover a table and choose Edit (the pencil below the grid, beside Table actions, which
 also offers Edit label). The properties form contains only Label; Apply/Cancel and
@@ -49,7 +68,7 @@ edits made while properties are open. The inline caret surface is present below 
 editable table, including after clearing and reopening. No Add caption button is needed.
 Read-only captions retain existing content and official numbers, like Figure captions,
 but omit the editable empty-input hint. Save omits empty caption content. Cell and row coordinates remain
-unchanged. Core read models, canonical MyST and CLI surfaces are unchanged.
+unchanged. CLI and Editor share the Core read model and numbering rule.
 The Editor schema requires exactly one caption after the rows. Native parsing and
 replacement therefore retain the surface even when a range deletion removes everything
 after the final cell while keeping the table. No repair transaction or Undo step is added.
@@ -82,10 +101,20 @@ and citation NodeViews are the same ones used in the body, including computed nu
 readiness, editing and navigation. MyST reads caption citations/endnotes before grid
 cells even though the caption is visually below them; numbering follows that Core order.
 No generated display text enters Markdown. Merged cells, additional legends and directive
-options still reject native admission. No new table editor engine or persistence
+options other than Label (`name` / `label`) reject native admission. Only plain GFM and
+the exact `{table}` directive are accepted; `{csv-table}`, `{list-table}` and other
+table directives are refused regardless of caption, Label or options. Before lifting,
+Core checks MyST's option map and refuses any VFile diagnostic within the table
+directive's source range. The map alone is insufficient: some option names are dropped
+before it is built. Thus duplicate/unknown-option diagnostics also prevent admission,
+including for YAML options. No new table editor engine or persistence
 architecture is introduced.
 
 CLI: `ieumdoc update-table-caption <file> --path <block> --text <caption>` (empty text removes it), or `--content <InlineContent JSON>`. `update-label` accepts tables; `inspect --format json` includes caption, label and computed table number.
+
+No new CLI option is needed for #584: `format`, `insert-table`, caption/Label edits and
+`apply-batch` already use the Core write path; `inspect` already projects Core numbers.
+They now retain numbered directives and report a number for captionless, unlabeled tables.
 
 Insertion (#280): `insert-table <file> --at <index|end> --cells <json> [--align <json>] [--caption <text> | --caption-content <InlineContent JSON>] [--label <label>]` composes Core `insertTable`, optional `updateTableCaption`, then `updateLabel` in one edit and one atomic file replacement. A label does not require a caption. The caption uses the existing single-line inline contract; label validation and collision refusal use `updateLabel` and the shared [label rules](section-references-v1.md#core), including implicit heading IDs. Any failure leaves the original bytes unchanged. `apply-batch` shares the options and accepts `"at": "end"`, resolved by Core before endnotes on the current step's snapshot.
 
@@ -97,7 +126,105 @@ exit, shared selection/slash authoring, whole-table move/delete, removal and add
 Existing table-authoring, table-cell-editing, cross-reference, property-drafts, citations,
 recovery-structure and continuous-editing protect their interface-specific integrations.
 
+Review-fix plan (#584): retain the parser's original `{table}` option evidence before
+directive lifting, so native admission rejects every option except the supported Label
+spellings (`name` and `label`). Use MyST's parsed option map, with no new source parser.
+Apply the same guard to captioned and captionless tables. Verify failure first through
+public Core and CLI check/format tests, then unchanged file bytes on refusal, supported
+Label round-trips, Core/CLI tests, typecheck, docs and PR CI. No UI or command change.
+
+Second review-fix plan (#584): supplement the option map with MyST VFile diagnostics
+within each table directive's source range. Refuse any such diagnostic, without a list
+of special option names. At native admission, only the exact `table` directive is
+supported; CSV/list-table source is refused regardless of caption or options. Retain
+source-kind evidence separately from semantic equality, as native syntax admission
+does elsewhere; internal MyST serializer tests do not establish native input support.
+Extend fail-first public Core and CLI regressions to inherited option names, YAML
+options and alternate table directives, with BOM/CRLF byte preservation and supported
+input controls. Verify Core/CLI, typecheck, docs and all PR CI checks.
+
+## All-table numbering verification (#584)
+
+Second review reproduced two remaining paths on `f76e027`: inherited option names
+were absent from the map but present in VFile diagnostics, and CSV/list-table source
+was accepted after its directive name was lifted away. Before this fix, 24 added Core
+cases and 48 CLI command cases failed their refusal assertion. The revised source
+admission passes Core 295/295 and CLI 129/129 (including subtests), workspace typecheck,
+docs and whitespace. Refused CLI files keep their BOM, CRLF and exact bytes. Supported
+Label spellings, optionless directives and GFM remain accepted and preserve their grids.
+The existing internal CSV semantic round-trip and security-probe tests pass unchanged;
+they are not public native admission tests. No local browser run was needed for this
+Core-only fix; the complete PR CI remains required.
+
+Independent review reproduced silent source-option loss on `f45ae18`. Before the fix,
+all eight public Core refusal cases and all twelve CLI check/format cases failed:
+captioned and captionless tables accepted `align`, `widths` and unknown options; Core
+also accepted the YAML option spelling. MyST retains these in `mystDirective.options`,
+so the parse boundary now carries unsupported options to the container before lifting.
+Existing native field admission rejects that evidence; no source grammar is duplicated.
+Both Label spellings and GFM column alignment retain their canonical round-trip.
+Review-fix checks: Core 270/270, CLI 81/81 (including subtests), workspace typecheck,
+docs and whitespace pass. CLI refusal preserves exact original file bytes.
+
+Before implementation, the installed `myst-parser` 1.7.4 and `myst-transforms` 1.3.51
+parsed and enumerated argumentless, nameless `{table}` directives without diagnostics.
+Empty-cell, header-only and aligned rich grids retained their full semantic fingerprints.
+Raw mixed GFM/directive input only numbers its directives in MyST; after Core canonical
+writing all four tables are directives, and MyST and Core both report 1, 2, 3, 4.
+MyST's visible-caption behavior is distinguished from official enumeration in
+[Caption number labels](heading-numbering-v1.md#caption-number-labels-462).
+
+The new Core regression failed before implementation at native admission of the empty
+directive. It now checks input admission, numbering, rich grid preservation, idempotent
+canonical output and caption/Label edits. Existing fingerprint tests additionally reject
+changed content, row/column shape, alignment, caption, Label and unknown wrapper fields.
+Existing CLI file-write/refusal and Editor schema/Save tests retain their exact data
+assertions with the canonical directive spelling. Headerless CSV security-probe containers
+retain the upstream writer; they are not admitted as native GFM grids.
+
+Local checks: Core 261/261, CLI 68/68, Editor 297/297, workspace typecheck, Editor build,
+docs/whitespace, and `table-caption`, `table-authoring`, `cross-reference`, `layout-rules`,
+`quiet-document`. The first table-authoring run looked for its old `Table 1` reference;
+failure state showed the correct `Table 2` after counting the preceding uncaptioned table.
+Updated expectations retain exact source/grid assertions. The added caption-clear/Undo
+checks read the official caption and reference number immediately, without polling.
+After integrating master `0e1e30d` (PR #589 / #588), the Editor's new-empty-table Save
+permission is retained. The merged table-authoring checks also verify that a completely
+empty inserted table is saved as a directive, retains its grid on Reload and receives
+`Table 1`, while the following table remains `Table 2`. Repeated Save is byte-identical.
+The removal of Editor/Host empty-table refusals belongs to #588; this work adds only the
+canonical-format and number assertions to that coverage.
+Post-merge checks: Editor targets 110/110, `table-authoring` and `table-caption` browser
+scenarios, workspace typecheck, Editor build and docs/whitespace all passed.
+
+The first PR CI's external-HTML paste artifact showed a successful Save with the new
+directive; its two expected Markdown strings still assumed plain GFM. They now include
+the canonical wrapper. The exact Source/disk comparison and Reload structure equality
+remain unchanged. Local `external-html-paste` passes after this expectation correction;
+no timeout, retry or state-wait change was needed.
+The next CI's table-cell-editing artifact passed editing, formatting, grid preservation
+and Save/Reload; only its old GFM-to-following-paragraph regex failed. It now explicitly
+requires the directive opener and closer around the same exact grid. Local
+`table-cell-editing` passes; all other product CI jobs on that head had passed.
+
+Manual captures compare baseline `586a9b61ac1d06dd0708466faead6717396bb74e` with this
+change through `pnpm browser:test table-caption --screenshots`. Both use the same scratch
+document, open tabs, preferences, scroll, loaded fonts, DPR 1 and 100% zoom on the same
+checkout-owned Windows Chrome profile and Vite origin `http://127.0.0.1:5384`.
+The narrow surface retains the number and input hint without horizontal overflow.
+BadPasswordAttempts was 1 before the first browser launch and 3 during the initial checks;
+the later post-merge browser checks started and ended at 0.
+No local Edge or packaged Desktop run; platform coverage belongs to CI.
+
+| Viewport | Before | After |
+| --- | --- | --- |
+| 1440×900 | [PNG](assets/table-numbering-584/before-1440.png) | [PNG](assets/table-numbering-584/after-1440.png) |
+| 390×900 | [PNG](assets/table-numbering-584/before-390.png) | [PNG](assets/table-numbering-584/after-390.png) |
+
 ## Always available empty caption (#577)
+
+This historical verification describes #577. Its number appearance/removal behavior is
+superseded by #584's all-table rule above; the caret, schema and history evidence remains.
 
 Baseline `97a73bb55aa93f31d67ed6b043cfaaa468ad29e4`: a temporary browser probe opened
 the uncaptioned `tmp/table-authoring/tables.md` and immediately checked the caption

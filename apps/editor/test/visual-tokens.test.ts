@@ -16,18 +16,32 @@ function definitions(source: string): Map<string, string> {
 }
 
 function accentPalettes(tokens: string): Map<string, Map<string, string>> {
-  const scopes = [...tokens.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, selector]) => selector!.trim());
-  assert.equal(scopes.filter(selector => selector === ":root").length, 1, "one default product-token scope");
-  for (const selector of scopes) assert.match(selector, /^:root(?:\[data-accent="[\w-]+"\])?$/, `unexpected product-token scope: ${selector}`);
-  const base = definitions(tokens.match(/:root\s*\{([^}]+)\}/)![1]!);
-  const palettes = new Map([["blue", base]]);
-  for (const [, preset, body] of tokens.matchAll(/:root\[data-accent="([\w-]+)"\]\s*\{([^}]+)\}/g)) {
-    assert.ok(!palettes.has(preset!), `duplicate preset: ${preset}`);
-    const overrides = definitions(body!);
-    assert.deepEqual([...overrides.keys()].sort(), ["--id-color-interaction", "--id-color-accent-hover", "--id-color-surface-selected", "--id-color-surface-selected-hover"].sort());
-    palettes.set(preset!, new Map([...base, ...overrides]));
+  const scopes = new Map<string, Map<string, string>>();
+  for (const [, selector, body] of tokens.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const key = selector!.trim();
+    assert.match(key, /^:root(?:\[data-theme="dark"\])?(?:\[data-accent="[\w-]+"\])?(?:\[data-page="flat"\])?$/, `unexpected product-token scope: ${key}`);
+    assert.ok(!scopes.has(key), `duplicate scope: ${key}`);
+    const values = definitions(body!);
+    if (key.includes("data-accent")) {
+      const preset = key.match(/data-accent="([\w-]+)"/)![1];
+      assert.ok(ACCENT_COLORS.some(color => color === preset), `unknown accent scope: ${key}`);
+      assert.deepEqual([...values.keys()].sort(), ["--id-color-interaction", "--id-color-accent-hover", "--id-color-surface-selected", "--id-color-surface-selected-hover"].sort());
+    }
+    scopes.set(key, values);
   }
-  assert.deepEqual([...palettes.keys()].sort(), [...ACCENT_COLORS].sort());
+  const palettes = new Map<string, Map<string, string>>();
+  for (const theme of ["light", "dark"]) for (const preset of ACCENT_COLORS) {
+    const themeScope = theme === "dark" ? ':root[data-theme="dark"]' : ":root";
+    assert.ok(scopes.has(themeScope), `missing ${theme} roles`);
+    const accentScope = `${themeScope}[data-accent="${preset}"]`;
+    if (preset !== "blue") assert.ok(scopes.has(accentScope), `missing ${theme}/${preset}`);
+    palettes.set(`${theme}-${preset}`, new Map([...scopes.get(":root")!,
+      ...(scopes.get(`:root[data-accent="${preset}"]`) ?? []),
+      ...scopes.get(themeScope)!, ...(scopes.get(accentScope) ?? [])]));
+  }
+  for (const [name, values] of [...palettes]) {
+    palettes.set(`${name}-flat`, new Map([...values, ...scopes.get(':root[data-page="flat"]')!]));
+  }
   return palettes;
 }
 
@@ -37,6 +51,8 @@ test("product tokens and Tailwind adapters have unique, acyclic definitions in e
   const adapterValues = definitions(adapters);
   const palettes = accentPalettes(tokens);
   for (const palette of palettes.values()) {
+    assert.equal(decodeURIComponent(palette.get("--id-image-select-chevron")!.match(/%23[\da-f]{6}/i)![0]),
+      palette.get("--id-color-text-muted"), "select chevron follows the theme's readable secondary text");
     for (const name of adapterValues.keys()) assert.ok(!palette.has(name), `adapter overwrites product token: ${name}`);
     const values = new Map([...palette, ...adapterValues]);
     for (const name of values.keys()) {
@@ -49,7 +65,7 @@ test("product tokens and Tailwind adapters have unique, acyclic definitions in e
       visit(name, []);
     }
   }
-  const values = new Map([...palettes.get("blue")!, ...adapterValues]);
+  const values = new Map([...palettes.get("light-blue")!, ...adapterValues]);
   const productDefinitions = [...tokens.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)];
   const productNames = new Set(productDefinitions.map(([, name]) => name));
   for (const [, , value] of productDefinitions) {
@@ -96,16 +112,20 @@ test("every accent preset meets text, primary-action, focus and control contrast
       const ratio = (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
       assert.ok(ratio >= minimum, `${preset}: ${fg} / ${bg} = ${ratio.toFixed(3)} < ${minimum}`);
     };
-    for (const bg of ["surface", "surface-subtle", "surface-selected", "surface-selected-hover"]) {
+    for (const bg of ["paper", "surface", "surface-subtle", "surface-selected", "surface-selected-hover"]) {
       check("document-heading-number", bg, 4.5);
       check("text-selected", bg, 4.5);
     }
     for (const bg of ["accent", "accent-hover"]) check("text-on-accent", bg, 4.5);
-    for (const bg of ["surface", "surface-subtle", "surface-hover", "surface-pressed", "surface-selected", "surface-selected-hover"]) {
+    for (const bg of ["canvas", "paper", "surface", "surface-subtle", "surface-hover", "surface-pressed", "surface-selected", "surface-selected-hover"]) {
       check("border-focus", bg, 3);
       check("border-control", bg, 3);
     }
     for (const role of ["info", "danger", "warning"]) check(role, `surface-${role}`, 4.5);
+    for (const bg of ["paper", "canvas", "surface", "surface-subtle", "surface-muted", "surface-hover", "surface-pressed"])
+      for (const fg of ["text", "text-muted", "text-subtle"]) check(fg, bg, 4.5);
+    for (const fg of ["info", "warning", "danger"]) check(fg, "surface-muted", 4.5);
+    if (preset.startsWith("dark-")) for (const bg of ["paper", "surface-subtle"]) check("border", bg, 3);
   }
 });
 
@@ -142,13 +162,6 @@ test("UI consumers use shared colors, control geometry and reasoned native-butto
         // Mask alpha and transparent ring bookkeeping paint no UI color.
         if (file === "styles.css" && ((mechanism === "mask-image" && literal === "#000") ||
           (mechanism === "--tw-ring-shadow" && literal === "#0000"))) continue;
-        // SVG data URLs cannot inherit CSS variables. Pin its single neutral stroke to the token.
-        if (file === "styles.css" && mechanism === "background-image" && /^%23[\da-f]{6}$/i.test(literal)) {
-          const tokens = readFileSync(new URL("styles/tokens.css", root), "utf8");
-          const muted = tokens.match(/--id-color-text-muted:\s*([^;]+);/)?.[1].trim();
-          assert.equal(decodeURIComponent(literal), muted, "update the encoded select chevron with text-muted");
-          continue;
-        }
         failures.push(`${file}: literal UI color ${literal}`);
       }
     };

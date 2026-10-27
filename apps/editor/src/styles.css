@@ -320,7 +320,7 @@ button {
   padding-right: calc(var(--space-3) * 2 + var(--size-icon-slot));
   /* B1/C1 exception: an encoded SVG cannot inherit CSS vars; visual-tokens pins this
    * sole neutral stroke to --id-color-text-muted. It is not another UI palette. */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23545c68' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-image: var(--id-image-select-chevron);
   background-position: right var(--space-3) center;
   background-repeat: no-repeat;
   background-size: var(--size-icon-slot);
@@ -550,7 +550,7 @@ button {
   display: flex;
   overflow-x: auto;
   min-width: 0;
-  background: var(--id-color-surface-pressed);
+  background: var(--id-color-surface);
   border-bottom: var(--border-width) solid var(--id-color-border);
   padding-inline: var(--layout-ui-inset);
 }
@@ -562,18 +562,15 @@ button {
   max-width: min(var(--layout-document-tab-max-width), 100%);
   min-height: var(--layout-document-tab-height);
   position: relative;
-  border-radius: var(--id-radius-md);
   color: var(--id-color-text-muted);
 }
 
-.document-tab[data-selected="true"],
-.document-tab[data-selected="true"]:hover {
+.document-tab[data-selected="true"] {
   color: var(--id-color-text);
-  background: var(--id-color-surface);
-  box-shadow: 0 0 0 var(--border-width) var(--id-color-border-control), var(--shadow-segment);
+  box-shadow: inset 0 calc(-1 * var(--size-current-marker)) var(--id-color-interaction);
 }
 
-.document-tab:hover { color: var(--id-color-text); }
+.document-tab:hover { background: var(--id-color-surface-hover); }
 .document-tab > button {
   display: flex;
   align-items: center;
@@ -588,7 +585,7 @@ button {
   font-size: var(--font-size-sm);
   cursor: pointer;
 }
-.document-tab > [role="tab"] { padding: var(--space-2); }
+.document-tab > [role="tab"] { align-self: stretch; padding-inline: var(--space-2); padding-block: 0; }
 .document-tab > button:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring-inset);
@@ -830,10 +827,77 @@ button {
   margin-top: auto;
 }
 
-/* Settings, including Desktop About: facts, the release channel and update status. */
+/* Settings retains the mounted document shell behind an opaque full-screen modal boundary. */
+.settings-screen[data-slot="dialog-content"] {
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  translate: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--id-color-surface);
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.settings-topbar {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: var(--space-3);
+  min-height: var(--layout-header-row);
+  padding: var(--space-2) var(--layout-ui-inset);
+  border-bottom: var(--border-width) solid var(--id-color-border);
+}
+.settings-topbar > button { flex-shrink: 0; }
+.settings-document { display: flex; align-items: center; gap: var(--space-2); min-width: 0; color: var(--id-color-text-muted); }
+.settings-document svg { width: var(--size-icon-slot); height: var(--size-icon-slot); flex-shrink: 0; }
+.settings-document-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-body { display: grid; grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr); flex: 1; min-height: 0; overflow-y: auto; }
+.settings-navigation { display: flex; flex-direction: column; gap: var(--space-5); padding: var(--space-6) var(--space-3) var(--space-4); border-right: var(--border-width) solid var(--id-color-border); }
+.settings-navigation [data-slot="dialog-title"] { padding-inline: var(--space-3); }
+.settings-navigation nav { display: grid; gap: var(--space-1); }
+.settings-navigation nav button { justify-content: start; width: 100%; }
+.settings-navigation nav button[aria-current="page"] { background: var(--id-color-surface-selected); color: var(--id-color-text-selected); font-weight: var(--font-weight-semibold); }
+.settings-navigation nav button[aria-current="page"]:hover { background: var(--id-color-surface-selected-hover); }
+.settings-document-note { margin-top: auto; padding: var(--space-3); border-top: var(--border-width) solid var(--id-color-border-subtle); font-size: var(--font-size-xs); line-height: var(--line-height-meta); color: var(--id-color-text-muted); }
+.settings-document-note p { margin: 0; }
+.settings-document-link { margin-top: var(--space-2); justify-content: start; color: var(--id-color-interaction); text-decoration: underline; }
+.settings-content { min-width: 0; padding: var(--space-8) var(--space-16); }
+.settings-content-inner { max-width: var(--layout-settings-content-width); }
+.settings-category-header { margin-bottom: var(--space-6); }
+.settings-category-header h2 { margin: 0 0 var(--space-1); font-size: var(--font-size-start-title); font-weight: var(--font-weight-semibold); line-height: var(--line-height-start-title); }
+.settings-category-header p { margin: 0; color: var(--id-color-text-muted); }
 .settings-section {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--layout-settings-control-width));
+  align-items: start;
   gap: var(--space-3);
+  padding-block: var(--space-4);
+  border-bottom: var(--border-width) solid var(--id-color-border-subtle);
+}
+.settings-section > [role="alert"] { grid-column: 1 / -1; }
+.settings-section > progress { grid-column: 1 / -1; }
+.settings-section--stacked { grid-template-columns: minmax(0, 1fr); }
+.settings-section--stacked > button { justify-self: start; }
+.settings-label p { margin: var(--space-1) 0 0; font-size: var(--font-size-xs); color: var(--id-color-text-muted); }
+.settings-label p.settings-status { font-size: var(--font-size-sm); color: var(--id-color-text); }
+.settings-group-heading { margin: var(--space-6) 0 0; padding-bottom: var(--space-3); border-bottom: var(--border-width) solid var(--id-color-border-subtle); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); color: var(--id-color-text-muted); }
+.settings-recovery-details { display: grid; gap: var(--space-2); margin: 0; padding-left: var(--space-5); list-style: disc; font-size: var(--font-size-xs); color: var(--id-color-text-muted); }
+
+@media (width < 48rem) {
+  .settings-topbar { padding-inline: var(--space-3); gap: var(--space-2); }
+  .settings-body { grid-template-columns: minmax(0, 1fr); align-content: start; }
+  .settings-navigation { gap: var(--space-3); border-right: 0; border-bottom: var(--border-width) solid var(--id-color-border); padding-block: var(--space-4); }
+  .settings-document-note { margin-top: 0; padding-bottom: 0; }
+  .settings-content { padding: var(--space-6); }
+  .settings-section { grid-template-columns: minmax(0, 1fr); }
 }
 
 .settings-heading {
@@ -844,13 +908,13 @@ button {
 
 .settings-facts {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--space-1) var(--space-4);
   margin: 0;
 }
 
 .settings-facts dt { color: var(--id-color-text-muted); }
-.settings-facts dd { margin: 0; font-variant-numeric: tabular-nums; }
+.settings-facts dd { margin: 0; text-align: end; font-variant-numeric: tabular-nums; }
 
 .settings-channel {
   display: grid;
@@ -970,9 +1034,9 @@ button {
   padding: var(--layout-document-block-padding) var(--layout-document-inline-padding);
   padding-bottom: var(--layout-document-end-space);
   padding-left: var(--layout-document-gutter);
-  background: var(--id-color-surface);
+  background: var(--id-color-paper);
   border-radius: var(--id-radius-paper);
-  box-shadow: inset 0 0 0 var(--border-width) var(--id-color-border-subtle), var(--shadow-paper);
+  box-shadow: inset 0 0 0 var(--size-paper-border) var(--id-color-paper-border), var(--shadow-paper);
 }
 
 /* No document open yet: the app's start, not a document (#298). It sits on the canvas in a

@@ -37,7 +37,7 @@ async (page, { openPath, withBlockHover, expect }) => {
     if(delayFocus)await page.evaluate(()=>{
       const focus=HTMLElement.prototype.focus;
       HTMLElement.prototype.focus=function(...args){
-        if(this.matches('[data-testid="ui-language"]')){
+        if(this.matches('[data-testid="settings-back"]')){
           window.releaseSettingsFocus=()=>{HTMLElement.prototype.focus=focus;focus.apply(this,args);};
           return;
         }
@@ -47,7 +47,7 @@ async (page, { openPath, withBlockHover, expect }) => {
     await page.getByRole('button',{name:current==='ko'?'설정':'Settings',exact:true}).click();
     // selectOption does not focus the select. Escape on the opener can dismiss the phone sidebar.
     let focusReady=false;
-    const focused=expect(page.getByTestId('ui-language')).toBeFocused().then(()=>{focusReady=true;});
+    const focused=expect(page.getByTestId('settings-back')).toBeFocused().then(()=>{focusReady=true;});
     try{
       if(delayFocus){
         await page.waitForFunction(()=>!!window.releaseSettingsFocus);
@@ -324,15 +324,28 @@ async (page, { openPath, withBlockHover, expect }) => {
   // header: the document keeps its width, the page does not scroll sideways, and Save, Reload and the
   // Outline toggle stay uncovered, also when the TopBar wraps. Escape closes it and returns focus.
   const outlineToggle=page.getByRole('button',{name:'Outline',exact:true});
-  const shell=()=>page.evaluate(()=>{
+  const shell=async()=>{
+    // Viewport changes complete before the next ResizeObserver delivery. Wait for its
+    // actual measurement, then assert heading/panel geometry without a retry or reload.
+    await page.waitForFunction(()=>parseFloat(getComputedStyle(document.querySelector('.app-shell')).getPropertyValue('--app-header-height'))===document.querySelector('.app-header').offsetHeight);
+    return page.evaluate(()=>{
     const rect=s=>{const n=document.querySelector(s);if(!n)throw Error(`Missing required ${s}`);return n.getBoundingClientRect();};
+    const measured=parseFloat(getComputedStyle(document.querySelector('.app-shell')).getPropertyValue('--app-header-height'));
+    const header=rect('.app-header').height;
+    const heading=document.querySelector('[data-document-tab][data-active=true] .heading');
+    if(!heading)throw Error('Missing heading for measured-header scroll margin check');
+    const gapProbe=document.createElement('span');document.body.append(gapProbe);gapProbe.style.height='var(--space-8)';
+    const gap=parseFloat(getComputedStyle(gapProbe).height);gapProbe.remove();
+    if(Math.abs(measured-header)>0.5 || Math.abs(parseFloat(getComputedStyle(heading).scrollMarginTop)-header-gap)>0.5)
+      throw Error(`Heading scroll margin did not follow the measured header: ${JSON.stringify({measured,header,gap,margin:getComputedStyle(heading).scrollMarginTop})}`);
     const panel=document.querySelector('.document-panel')?.getBoundingClientRect();
     const token=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--layout-document-panel-width'))*parseFloat(getComputedStyle(document.documentElement).fontSize);
     const uncovered=['[data-testid="save"]','.top-bar-actions button[aria-label="File actions"]','.top-bar-actions button[aria-label="Outline"]'].every(s=>{
       const r=rect(s);const hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return document.querySelector(s).contains(hit);
     });
     return {main:rect('.app-main').width,column:rect('.document-column').width,panelLeft:panel?.left??null,panelRight:panel?.right??null,panelTop:panel?.top??null,panelBottom:panel?.bottom??null,headerBottom:rect('.app-header').bottom,uncovered,token,overflow:document.documentElement.scrollWidth>innerWidth};
-  });
+    });
+  };
   for(const width of [1423,1280,1279,1024,768,704]) {
     await page.setViewportSize({width,height:1000});
     await page.locator('.document-panel').waitFor({state:'detached'});

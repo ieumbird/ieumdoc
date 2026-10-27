@@ -1,5 +1,6 @@
 import { inlineContentToNodes, projectInlineContent, type InlineContent } from "../inline.ts";
 import type { MystNode } from "./tree.ts";
+import type { VFile } from "vfile";
 
 /**
  * Editable cells of a top-level Markdown (GFM) table hold supported inline content
@@ -83,9 +84,40 @@ export function setTableColumnAlignNode(table: MystNode, index: number, align: "
 const TABLE_DIRECTIVE_FIELDS = new Set(["type", "kind", "children", "label", "identifier", "position"]);
 const CAPTION_FIELDS = new Set(["type", "children", "position"]);
 
+// Source-kind admission is distinct from semantic equality: the internal MyST
+// writer can preserve CSV grids, but the native document format does not admit them.
+// Public parse rejects these nodes before any operation can clone their tree.
+const nonNativeTableSources = new WeakSet<MystNode>();
+export function isNativeTableSource(node: MystNode): boolean {
+  return !nonNativeTableSources.has(node);
+}
+
 /**
- * A `{table}` directive Core can author: a Markdown table with a one-paragraph caption, a label,
- * or both. Other table directives (options, legends, no caption and no label) are rejected by native admission.
+ * Retain source evidence before directive lifting. MyST's option map can itself
+ * drop names inherited from Object.prototype; VFile diagnostics still record them.
+ * Unsupported options and diagnostics also participate in the write fingerprint.
+ */
+export function retainTableSource(node: MystNode, file: VFile): void {
+  if (node.type === "mystDirective" && node.name !== "table") {
+    node.children?.filter(child => child.type === "container" && child.kind === "table")
+      .forEach(child => nonNativeTableSources.add(child));
+  }
+  if (node.type === "mystDirective" && node.name === "table") {
+    const unsupported = Object.fromEntries(Object.entries(node.options ?? {})
+      .filter(([name]) => name !== "name" && name !== "label"));
+    const diagnostics = file.messages.filter(message => message.line != null && node.position &&
+      message.line >= node.position.start.line && message.line <= node.position.end.line)
+      .map(message => message.reason);
+    if ((Object.keys(unsupported).length || diagnostics.length) && node.children?.[0]) {
+      node.children[0]["(unsupported table options)"] = { options: unsupported, diagnostics };
+    }
+  }
+  node.children?.forEach(child => retainTableSource(child, file));
+}
+
+/**
+ * A `{table}` directive Core can author: a Markdown table with optional one-paragraph caption
+ * and label. Other table directives (options, legends) are rejected by native admission.
  */
 export function isTableDirective(node: MystNode | undefined): boolean {
   if (node?.type !== "container" || node.kind !== "table") return false;
@@ -94,10 +126,14 @@ export function isTableDirective(node: MystNode | undefined): boolean {
   const caption = children[0]?.type === "caption" ? children[0] : undefined;
   const rest = caption ? children.slice(1) : children;
   if (rest.length !== 1 || rest[0].type !== "table") return false;
+  // Native grids have a header row. Headerless csv/list-table containers are
+  // outside this writer's GFM shape and must not acquire an invented header.
+  const header = rest[0].children?.[0]?.children;
+  if (!header?.length || !header.every(cell => cell.header === true)) return false;
   if (caption && !(Object.keys(caption).every((key) => CAPTION_FIELDS.has(key)) &&
       caption.children?.length === 1 && caption.children[0].type === "paragraph" &&
       Object.keys(caption.children[0]).every(key => CAPTION_FIELDS.has(key)))) return false;
-  return caption !== undefined || (typeof node.label === "string" && node.label.length > 0);
+  return true;
 }
 
 /** The Markdown table of a top-level block: a plain table, or the table of a table directive. */
@@ -112,11 +148,9 @@ export function tableCaptionParagraph(node: MystNode | undefined): MystNode | un
 }
 
 /**
- * The top-level block for a table with this caption and label: a plain Markdown table when it has
- * neither, otherwise a `{table}` directive holding the table.
+ * The top-level block for every authored table: a `{table}` directive, even without caption or label.
  */
 export function tableBlockNode(table: MystNode, caption: InlineContent[], label: string, identifier?: string): MystNode {
-  if (caption.length === 0 && label.length === 0) return table;
   return {
     type: "container",
     kind: "table",

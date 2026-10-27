@@ -699,7 +699,7 @@ const COMMANDS: CommandSpec[] = [
     group: "Edit — tables",
     summary: "Set or remove a table caption through Core",
     usage: "ieumdoc update-table-caption <file> --path <table> (--text <text> | --content <json>)",
-    details: ["Set a single-line caption; empty text removes it. A caption or label makes a numbered table directive."],
+    details: ["Set a single-line caption; empty text removes it. Every table remains a numbered table directive, with or without a caption or label."],
   },
   {
     name: "update-table-cell",

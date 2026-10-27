@@ -138,12 +138,32 @@ test("a .md argument opens; edits save to disk and reopen", async () => {
     await page.keyboard.press("Control+S");
     await saved(page);
     assert.match(readFileSync(file, "utf8"), /DESKTOP /);
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    for (const theme of ["dark", "light", "system", "dark"] as const) {
+      await page.getByTestId("theme").selectOption(theme);
+      await expect.poll(() => app.evaluate(({ nativeTheme }) => nativeTheme.themeSource)).toBe(theme);
+      const dark = await app.evaluate(({ nativeTheme }) => nativeTheme.shouldUseDarkColors);
+      await expect(page.locator("html")).toHaveAttribute("data-theme", dark ? "dark" : "light");
+      const background = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--id-color-canvas").trim());
+      await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getBackgroundColor().toLowerCase())).toBe(background);
+      assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme), dark ? "dark" : "light");
+    }
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.hide());
+    await page.evaluate(() => window.ieumdocDesktop!.setWindowBackground(getComputedStyle(document.documentElement).getPropertyValue("--id-color-canvas").trim()));
+    assert.equal(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isVisible()), false, "later appearance updates must not show a hidden window");
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.show());
+    await page.keyboard.press("Escape");
+    assert.equal(await page.evaluate(() => localStorage.getItem("ieumdoc.theme")), "dark");
+    const preferencesFile = path.join(userData, "preferences.json");
+    assert.ok(!existsSync(preferencesFile) || !readFileSync(preferencesFile, "utf8").includes('"theme"'), "the Host must not persist appearance");
   } finally {
     await closeApp(app);
   }
   ({ app, page } = await launch(userData, [file]));
   try {
     assert.match(await page.locator(".ProseMirror").innerText(), /DESKTOP /);
+    assert.equal(await page.locator("html").getAttribute("data-theme"), "dark", "saved appearance is ready when the Editor mounts");
+    assert.equal(await app.evaluate(({ nativeTheme }) => nativeTheme.themeSource), "dark");
   } finally {
     await closeApp(app);
   }
@@ -333,6 +353,7 @@ test("the release channel persists across restarts; an update check never blocks
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     const dialog = page.getByTestId("settings-dialog");
     await dialog.waitFor();
+    await dialog.getByRole("button", { name: "About & updates", exact: true }).click();
     assert.equal(await page.getByTestId("app-version").innerText(), version);
     assert.equal(await page.getByRole("radio", { name: channelName(initialChannel) }).isChecked(), true, "first launch uses the installed version's channel");
     // The choice shows once the Desktop app has saved it.
@@ -354,6 +375,7 @@ test("the release channel persists across restarts; an update check never blocks
   try {
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByTestId("settings-dialog").waitFor();
+    await page.getByRole("button", { name: "About & updates", exact: true }).click();
     assert.equal(await page.getByRole("radio", { name: channelName(selectedChannel) }).isChecked(), true, "the user's choice survives a restart instead of reverting to the build's default");
   } finally {
     await closeApp(app);
@@ -375,6 +397,7 @@ test("a damaged update configuration leaves the Editor and Settings usable", {
     app = launched.app;
     const { page } = launched;
     await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("button", { name: "About & updates", exact: true }).click();
     assert.equal(await page.getByTestId("app-version").isVisible(), true);
     assert.equal(await page.evaluate(async () => (await window.ieumdocDesktop!.info()).updatesSupported), false);
     await page.keyboard.press("Escape");

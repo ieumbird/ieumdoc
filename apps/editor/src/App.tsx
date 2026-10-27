@@ -21,7 +21,7 @@ import productMark from "../../desktop/assets/icon.svg?url";
 import { MessageArea } from "./shell/MessageArea.tsx";
 import { NewDialog, type NewDestination } from "./shell/NewDialog.tsx";
 import { FolderDialog } from "./shell/FolderDialog.tsx";
-import { SettingsDialog } from "./shell/SettingsDialog.tsx";
+import { SettingsDialog, type SettingsCategory } from "./shell/SettingsDialog.tsx";
 import { UnsavedChangesDialog } from "./shell/UnsavedChangesDialog.tsx";
 import type { FileActionHandler } from "./shell/FileActionDialog.tsx";
 import { Sidebar } from "./shell/Sidebar.tsx";
@@ -100,6 +100,7 @@ export function App() {
   const [commandQuery, setCommandQuery] = useState<string | null>(null);
   const commandReturnFocus = useRef<HTMLElement | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [settingsCategory, setSettingsCategory] = useState<SettingsCategory>("appearance");
   const shortcutsReturnFocus = useRef<HTMLElement | null>(null);
   const [commandFileFocus, setCommandFileFocus] = useState<string | null>(null);
   const [recentFolders, setRecentFolders] = useState(readRecentFolders);
@@ -415,6 +416,12 @@ export function App() {
   const documentSettingsReturnFocus = useRef<HTMLElement | null>(null);
   const connectAfterSettings = useRef(false);
 
+  // Resolve when an overlay closes: a viewport change can replace its original opener.
+  function shellReturnFocus(preferred: HTMLElement | null): HTMLElement | true {
+    return preferred?.isConnected && preferred.getClientRects().length ? preferred
+      : (sidebarOpen ? sidebarToggle.current : openSidebarButton.current ?? sidebarToggle.current) ?? true;
+  }
+
   // The overlaid Document panel starts below the sticky header, whose height changes when the
   // TopBar wraps or a message appears; it never covers Save, File actions or the Outline toggle.
   useEffect(() => {
@@ -641,7 +648,8 @@ export function App() {
   const updateNotice = update && (update.phase === "available" || update.phase === "downloaded") && update.version !== desktopInfo?.postponed
     ? update.phase === "available"
       ? { text: i18n.t("IeumDoc {{version}}{{channel}} is available.", { version: update.version, channel: update.prerelease ? i18n.t(" (Beta)") : "" }), action: i18n.t("View"), onAction: () => {
-          settingsReturnFocus.current = null;
+          settingsReturnFocus.current = globalThis.document.activeElement as HTMLElement | null;
+          setSettingsCategory("about");
           setSettingsOpen(true);
         }, onLater: () => postponeUpdate(update.version) }
       : { text: i18n.t("IeumDoc {{version}} is ready to install.", { version: update.version }), action: i18n.t("Restart to update"),
@@ -757,7 +765,7 @@ export function App() {
     { id: "width", kind: "command", label: i18n.t(documentWidth === "wide" ? "Standard document width" : "Wide document"), icon: documentWidth === "wide" ? Columns3 : StretchHorizontal,
       keywords: ["document width", "문서 너비"], run: toggleDocumentWidth },
     { id: "settings", kind: "command", label: i18n.t("Settings"), icon: Settings2, takesFocus: true,
-      keywords: ["settings", "설정"], run: () => { settingsReturnFocus.current = commandReturnFocus.current; setSettingsOpen(true); void refreshRecovery(); } },
+      keywords: ["settings", "설정"], run: () => { settingsReturnFocus.current = commandReturnFocus.current; setSettingsCategory("appearance"); setSettingsOpen(true); void refreshRecovery(); } },
     { id: "document-settings", kind: "command", label: i18n.t("Document settings…"), icon: SlidersHorizontal,
       disabled: historyDisabled, takesFocus: true, keywords: ["document settings", "문서 설정"],
       run: () => { documentSettingsReturnFocus.current = commandReturnFocus.current; setDocumentSettingsOpen(true); } },
@@ -822,6 +830,7 @@ export function App() {
         onCloseFolder={folders.close}
         onSettings={(returnFocus) => {
           settingsReturnFocus.current = returnFocus;
+          setSettingsCategory("appearance");
           setSettingsOpen(true);
           void refreshRecovery();
         }}
@@ -915,7 +924,7 @@ export function App() {
             editorRef.current?.openBibliographyConnection(documentSettingsReturnFocus.current);
           }
         }}>
-        <DialogContent finalFocus={() => connectAfterSettings.current ? false : documentSettingsReturnFocus.current ?? true}>
+        <DialogContent finalFocus={() => connectAfterSettings.current ? false : shellReturnFocus(documentSettingsReturnFocus.current)}>
           <DialogTitle>{i18n.t("Document settings")}</DialogTitle>
           <DialogDescription className="sr-only">{i18n.t("Saved in this document")}</DialogDescription>
           <DisplaySettings documentPath={openedPath} headingNumbering={headingNumbering} referenceTemplates={referenceTemplates}
@@ -927,6 +936,16 @@ export function App() {
       </Dialog>
       <SettingsDialog
           open={settingsOpen}
+          category={settingsCategory}
+          onCategoryChange={setSettingsCategory}
+          documentName={openedPath ? splitDocumentPath(openedPath).name : ""}
+          unsaved={documentDirty || draftActive}
+          documentSettingsDisabled={historyDisabled}
+          documentSettingsHint={documentSettingsHint ?? ""}
+          onDocumentSettings={() => {
+            documentSettingsReturnFocus.current = settingsReturnFocus.current;
+            setDocumentSettingsOpen(true);
+          }}
           recoveryCount={recoveryRecords.length}
           recoveryProblem={recoveryProblem}
           onClearRecovery={() => deleteRecovery()}
@@ -934,7 +953,7 @@ export function App() {
           info={desktopInfo}
           onInfo={setDesktopInfo}
           onInstall={installUpdate}
-          returnFocus={settingsReturnFocus}
+          returnFocus={() => shellReturnFocus(settingsReturnFocus.current)}
           onClose={() => setSettingsOpen(false)}
         />
       <CommandCenter open={commandQuery !== null} initialQuery={commandQuery ?? ""} items={commandItems}

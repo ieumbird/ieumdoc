@@ -1469,7 +1469,7 @@ test("inspect and check expose stable machine-readable Core results", () => {
     assert.equal(typeof paragraph.text, "string");
     // Computed target numbers, as MyST numbers them; they are never written.
     const numbered = inspectResult.nodes.flatMap((node) => "numbers" in node ? [[node.type, node.numbers]] : []);
-    assert.deepEqual(numbered, [["figure", { figure: 1 }], ["equation", { equation: 1 }]]);
+    assert.deepEqual(numbered, [["figure", { figure: 1 }], ["equation", { equation: 1 }], ["table", { table: 1 }]]);
     assert.match(textInspect.stdout, /^7 figure .* numbers=figure:1$/m);
 
     const checked = run(["check", file, "--format", "json"]);
@@ -1816,7 +1816,7 @@ test("CLI updates Markdown table cells through Core and rejects unsupported text
     const formatted = run(["update-table-cell", file, "--path", "13,2,0", "--content", JSON.stringify(bold)]);
     assert.equal(formatted.status, 0, formatted.stderr);
     const saved = readFileSync(file, "utf8");
-    assert.match(saved, /\| Port name \| Type +\|\n\| -+ \| -+ \|\n\| U +\| AC-side \|\n\| \*\*P\*\* +\| +\|\n$/);
+    assert.match(saved, /\| Port name \| Type +\|\n\| -+ \| -+ \|\n\| U +\| AC-side \|\n\| \*\*P\*\* +\| +\|\n:::\n$/);
     assert.equal(serialize(parse(saved)), saved);
     const table = getEditableDocument(parse(saved)).blocks[12];
     assert.equal(table?.block, "table");
@@ -1958,7 +1958,7 @@ test("CLI creates a table, adds, moves and removes rows and columns, and aligns 
       assert.equal(result.status, 0, `${args[0]}: ${result.stderr}`);
     }
     const saved = readFileSync(file, "utf8");
-    assert.equal(saved, nativeSource("# Ratings\n\n| Port |   | Type |\n| :--- | - | ---: |\n| U    |   |   AC |\n| P    |   |      |\n"));
+    assert.equal(saved, nativeSource("# Ratings\n\n:::{table}\n\n| Port |   | Type |\n| :--- | - | ---: |\n| U    |   |   AC |\n| P    |   |      |\n:::\n"));
     assert.equal(serialize(parse(saved)), saved);
     const invalid: [string[], RegExp?][] = [
       [["insert-table", file, "--at", "1", "--cells", "[[\"A\",\"B\"],[\"x\"]]"]],
@@ -1985,7 +1985,7 @@ test("CLI creates a table, adds, moves and removes rows and columns, and aligns 
       assert.equal(result.status, 0, `${args[0]}: ${result.stderr}`);
     }
     const reshaped = readFileSync(file, "utf8");
-    assert.equal(reshaped, nativeSource("# Ratings\n\n| Type | Port |\n| ---- | :--- |\n|      | P    |\n"));
+    assert.equal(reshaped, nativeSource("# Ratings\n\n:::{table}\n\n| Type | Port |\n| ---- | :--- |\n|      | P    |\n:::\n"));
     for (const [args, reason] of [
       [["remove-table-row", file, "--path", "2", "--at", "0"], /from 1 to 1/],
       [["update-table-alignment", file, "--path", "2", "--column", "0", "--align", "justify"], /--align must be/],
@@ -2381,11 +2381,62 @@ test("real-file paragraph workflow matches Core and remains canonical", () => {
 });
 
 
+test("CLI check and format refuse table source options without changing file bytes", async (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-table-options-"));
+  const file = path.join(dir, "document.md");
+  try {
+    for (const caption of ["", " Values"]) {
+      const grid = "| A | B |\n|---|---|\n| x | y |\n";
+      const options = [":align: left", ":widths: 1 2", ":unknown: value",
+        ...["constructor", "__proto__", "toString", "hasOwnProperty"].flatMap(name => [
+          `:${name}: value`, `---\n${name}: value\n---`,
+        ])];
+      const bodies = [
+        ...options.map(option => `:::{table}${caption}\n${option}\n\n${grid}:::\n`),
+        ...["", ":unknown: value\n"].flatMap(unknown => [
+          `:::{csv-table}${caption}\n:header: A, B\n${unknown}\n1,2\n:::\n`,
+          `:::{list-table}${caption}\n:header-rows: 1\n${unknown}\n* -\n  -\n:::\n`,
+        ]),
+      ];
+      for (const body of bodies) {
+        for (const command of ["check", "format"]) {
+          await t.test(`${command} ${body}`, () => {
+            const source = "\uFEFF" + nativeSource(body).replaceAll("\n", "\r\n");
+            writeFileSync(file, source);
+            const before = readFileSync(file);
+            const result = run([command, file]);
+            assert.equal(result.status, 1, result.stdout + result.stderr);
+            assert.match(result.stderr, /Unsupported native content/);
+            assert.deepEqual(readFileSync(file), before);
+          });
+        }
+      }
+      for (const body of [grid, ...["", ":name: values\n", ":label: values\n"].map(option =>
+        `:::{table}${caption}\n${option}\n${grid}:::\n`)]) {
+        writeFileSync(file, nativeSource(body));
+        const before = getEditableDocument(parse(readFileSync(file, "utf8")));
+        for (const command of ["check", "format"]) {
+          const result = run([command, file]);
+          assert.equal(result.status, 0, result.stdout + result.stderr);
+        }
+        assert.deepEqual(getEditableDocument(parse(readFileSync(file, "utf8"))), before);
+      }
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test("CLI authors table captions and labels through Core and rejects multiline captions without writing", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-table-caption-"));
   const file = path.join(dir, "table.md");
   writeFileSync(file, nativeSource("| A |\n|---|\n| 1 |\n"));
+  const numbers = () => {
+    const result = run(["inspect", file, "--format", "json"]);
+    assert.equal(result.status, 0, result.stderr);
+    return JSON.parse(result.stdout).nodes.filter((node: { type: string }) => node.type === "table")
+      .map((node: { captionNumberText: string }) => node.captionNumberText);
+  };
   try {
+    assert.deepEqual(numbers(), ["Table 1"]);
     for (const args of [
       ["update-table-caption", file, "--path", "1", "--text", "Values"],
       ["update-label", file, "--path", "1", "--label", "tbl-values"],
@@ -2395,6 +2446,19 @@ test("CLI authors table captions and labels through Core and rejects multiline c
     const result = run(["update-table-caption", file, "--path", "1", "--text", "two\nlines"]);
     assert.notEqual(result.status, 0);
     assert.equal(readFileSync(file, "utf8"), saved);
+    for (const args of [
+      ["update-table-caption", file, "--path", "1", "--text", ""],
+      ["update-label", file, "--path", "1", "--label", ""],
+    ]) {
+      const changed = run(args);
+      assert.equal(changed.status, 0, changed.stderr);
+      assert.deepEqual(numbers(), ["Table 1"]);
+    }
+    assert.match(readFileSync(file, "utf8"), /:::\{table\}\n\n\| A \|/);
+    const inserted = run(["insert-table", file, "--at", "end", "--cells", '[[""],[""]]']);
+    assert.equal(inserted.status, 0, inserted.stderr);
+    assert.deepEqual(numbers(), ["Table 1", "Table 2"]);
+    assert.equal(readFileSync(file, "utf8").match(/:::\{table\}/g)?.length, 2);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

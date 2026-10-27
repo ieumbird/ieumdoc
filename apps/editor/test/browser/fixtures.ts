@@ -157,7 +157,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   },
   "code-highlighting": {
     files: [{ name: "code.md", create: () => nativeSource("# Code\n\n```js\nconst value = 1;\n```\n\nAfter.\n") }],
-    scenarios: ["code-highlighting"],
+    scenarios: ["code-highlighting", "quiet-document"],
   },
   "writeability-preflight": {
     files: [fixture("writable.md"), fixture("blocked-markdown.md"),

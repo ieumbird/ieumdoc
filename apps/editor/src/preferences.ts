@@ -4,6 +4,43 @@
  */
 export type DocumentWidth = "standard" | "wide";
 
+export const PAGE_BACKGROUNDS = ["paper", "flat"] as const;
+export type PageBackground = typeof PAGE_BACKGROUNDS[number];
+export const PAGE_BACKGROUND_KEY = "ieumdoc.pageBackground";
+
+export function readPageBackground(): PageBackground {
+  try {
+    return globalThis.localStorage?.getItem(PAGE_BACKGROUND_KEY) === "flat" ? "flat" : "paper";
+  } catch { return "paper"; }
+}
+
+export function writePageBackground(page: PageBackground): boolean {
+  try {
+    if (!globalThis.localStorage) return false;
+    globalThis.localStorage.setItem(PAGE_BACKGROUND_KEY, page);
+    return true;
+  } catch { return false; }
+}
+
+export const THEMES = ["system", "light", "dark"] as const;
+export type ThemePreference = typeof THEMES[number];
+export const THEME_KEY = "ieumdoc.theme";
+
+export function readTheme(): ThemePreference {
+  try {
+    const saved = globalThis.localStorage?.getItem(THEME_KEY);
+    return THEMES.find(theme => theme === saved) ?? "system";
+  } catch { return "system"; }
+}
+
+export function writeTheme(theme: ThemePreference): boolean {
+  try {
+    if (!globalThis.localStorage) return false;
+    globalThis.localStorage.setItem(THEME_KEY, theme);
+    return true;
+  } catch { return false; }
+}
+
 export const ACCENT_COLORS = ["blue", "violet", "plum", "teal", "green", "graphite"] as const;
 export type AccentColor = typeof ACCENT_COLORS[number];
 export const ACCENT_COLOR_KEY = "ieumdoc.accentColor";

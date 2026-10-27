@@ -63,9 +63,8 @@ path, recovery relocation/deletion, active/inactive deletion and adjacent focus.
 existing Figure image URLs and a subsequent real image upload after rename.
 
 Captures: Windows Chrome, English UI, 100% zoom, DPR 1, 1440×900 / 390×900, bundled Pretendard.
-Before is base `1cd199cda9b70318586a6264cadc7044a4b8e57e` before product edits; After is this PR's working tree.
-1440 uses light OS preference; 390 uses dark OS preference. The product intentionally retains its
-single light theme under either preference, per Visual Language. Full traces and logs stay in
+Before uses master `7e935cf4592ee6a4135fd069a31a638d2a768c7b` Sidebar in this merged worktree (controlled rollback of the file menu); After restores the PR Sidebar in the same state.
+1440 uses light OS preference; 390 uses dark OS preference. The default System theme resolves each preference using the current #595 light/dark roles. Full traces and logs stay in
 ignored `tmp/file-actions-evidence`; only the selected small captures are retained here.
 
 | Surface | 1440px (light OS) | 390px (dark OS) |
@@ -128,9 +127,92 @@ the underlying document remains in place. These images support manual layout rev
 checks separately assert geometry, operations, availability and focus. Historical Display captures
 below retain their original date and behavior.
 
+## Dedicated Settings screen (#594)
+
+Settings from the Sidebar or command center covers the entire app with an opaque,
+viewport-sized screen. The document shell stays mounted beneath it: tabs, independent
+editor instances, unapplied drafts, selection, Undo history and scroll remain intact.
+Back to document / 문서로 돌아가기 names the active file and its unsaved state;
+without a document the same control reads Back to start / 시작 화면으로 돌아가기.
+Back and Escape restore the opener's focus. Entry focuses Back. The existing modal
+boundary still blocks Save and command-center shortcuts and prevents document interaction.
+
+The named navigation uses buttons with `aria-current="page"`: Appearance & language /
+표시·언어, Saving & recovery / 저장·복구, and Desktop-only About & updates / 정보·업데이트.
+Ordinary entry starts at Appearance; an update notice's View opens About. Theme, page background, language and
+accent changes apply immediately, with profile-local preference storage and failure notices.
+Theme offers System / Light / Dark (시스템 / 라이트 / 다크), defaulting to System.
+System follows live OS changes. `ieumdoc.theme` belongs to `preferences.ts` localStorage,
+never document content or Host preferences. Unavailable storage retains the current-page
+choice and shows the same style of localized persistence alert as accent/language.
+Page background offers Paper view / White screen (종이 보기 / 흰 화면), defaulting to Paper view.
+White screen makes canvas and paper one surface, including one dark surface in Dark theme.
+The paper's edge, elevation and corners disappear without moving or resizing content, in Visual
+and Source and at either document width. `ieumdoc.pageBackground` is profile-local localStorage,
+read before styles/UI by the existing theme initialization path. Unknown/unavailable storage
+falls back to Paper view; a failed write keeps the live choice and shows a localized alert.
+The same editor instances, drafts, selection and history remain mounted across theme and page-background changes.
+See [Visual Language](editor-visual-language-v1.md#system-light-and-dark-595) for role colors,
+startup/native synchronization, contrast and visual evidence. This presentation choice
+adds no Core operation or CLI command.
+Recovery retains its explanation, count and confirmed Clear all; individual records stay
+on the start screen. Desktop channel, status, release notes and update actions keep their
+existing bridge and restart guards. Settings search remains outside the implemented scope;
+Wide document stays in TopBar.
+
+The navigation footer explains that heading numbers, reference style and bibliography
+belong to each document. With an open document it offers the existing Document settings
+dialog, respecting its current availability and returning focus to the original Settings
+opener. The Settings screen closes before handing focus to that dialog. Both screens
+resolve the return target at dismissal: a disconnected or hidden opener falls back to
+the currently visible Sidebar toggle, including viewport changes after the handoff.
+
+Implementation/verification scope: Editor shell, shared controls and bundled Korean/English
+copy only; no new Core operation or CLI command. Reuse the existing language, recovery,
+command-center and Desktop-update scenarios; extend their interface coverage for full-screen
+bounds, keyboard navigation/focus, state retention and 1440/390/375px layout. Run Editor
+tests, workspace typecheck, build, docs check and layout-rules/quiet-document regressions.
+Keep only the representative small captures below in Git; generated traces, full browser
+results, scratch fixtures and downloaded owner mockups stay outside the commit.
+
+Local verification (2026-10-27): Editor 297/297 and Desktop 47/47 tests, workspace
+typecheck, Editor production build, docs and whitespace checks passed. Targeted browser
+coverage: ui-language, desktop-updates, recovery, recovery-storage, command-center,
+editor-shell, layout-rules and quiet-document. The existing layout helper now gates the
+screen's Back focus rather than the old popup's language selector; its deliberate delayed
+focus assertion remains. The Desktop scenario also crosses 1440→390px while Settings
+is open: if the old Sidebar opener disappears, Back/Escape focuses the visible Expand
+sidebar control. Review follow-up: the same viewport traversal includes the Document
+settings link and Escape, in both languages, with dismissal at 390px or after returning
+to 1440px. Before the fix, the first linked-dialog case failed with focus on BODY;
+the shared dismissal-time resolver retains the original visible opener or selects the
+current Sidebar toggle. Follow-up local checks passed: the expanded desktop-updates
+scenario, ui-language, command-center, editor-shell and layout-rules, Editor 297/297,
+workspace typecheck, production build, docs and whitespace checks. Packaged Desktop
+and install/update execution remain required CI checks.
+
+Manual comparison: Windows Chrome, bundled Pretendard Variable, DPR 1, zoom 1,
+1440×900 and 390×900, English, content scroll 0, clean `updates.md`, mock Desktop
+version 0.2.0 / Stable / idle and zero recovery records. Before is master
+`987ae137ce0615b51b682fffefe040fca4cec872`; After is this change. Before shows the
+initial language focus; After shows the selected category. The original popup contains
+all three groups and requires vertical scrolling. After covers Sidebar, tabs, document
+and Outline; on phones navigation stacks above content and all controls remain reachable.
+The same geometry assertions cover Korean and 375px (18 language/width/category states);
+the additional captures remain in `tmp/desktop-visual`. Capture with
+`pnpm browser:test desktop-updates --screenshots`; these images support manual review,
+while geometry, keyboard and editor-state checks provide automated coverage.
+
+| State | 1440px | 390px |
+| --- | --- | --- |
+| Before: combined popup | [Before](assets/settings-screen-594/settings-before-1440.png) | [Before](assets/settings-screen-594/settings-before-390.png) |
+| Appearance & language | [After](assets/settings-screen-594/settings-en-appearance-1440.png) | [After](assets/settings-screen-594/settings-en-appearance-390.png) |
+| Saving & recovery | [After](assets/settings-screen-594/settings-en-recovery-1440.png) | [After](assets/settings-screen-594/settings-en-recovery-390.png) |
+| About & updates | [After](assets/settings-screen-594/settings-en-about-1440.png) | [After](assets/settings-screen-594/settings-en-about-390.png) |
+
 ## Structure
 
-Every Host has an expanded Sidebar footer Settings entry (also available through the command center) for Local recovery explanations and confirmed Clear all. The start screen adds a minimal recovery list/empty state; matching Open offers the newest record in a shared recovery dialog. Standing recording failures use MessageArea. The [recovery contract](editing-session-save-v1.md#local-recovery-records-296-pr2) owns retention and lifecycle. The typed Desktop bridge additionally provides About and update notice/actions. About reuses Base UI dialog focus/dismiss behavior; update notices do not take editor focus. Version/channel/progress/retry/restart policy is defined by [Desktop distribution](desktop-distribution-v1.md).
+Every Host has an expanded Sidebar footer Settings entry (also available through the command center), opening the [dedicated Settings screen](#dedicated-settings-screen-594). The start screen adds a minimal recovery list/empty state; matching Open offers the newest record in a shared recovery dialog. Standing recording failures use MessageArea. The [recovery contract](editing-session-save-v1.md#local-recovery-records-296-pr2) owns retention and lifecycle. The typed Desktop bridge additionally provides About and update notice/actions. Update notices do not take editor focus. Version/channel/progress/retry/restart policy is defined by [Desktop distribution](desktop-distribution-v1.md).
 
 The document is the primary surface. Each document tab keeps one Tiptap/ProseMirror document state owning selection, history and editing; typed blocks use NodeViews and overlays.
 
@@ -711,7 +793,7 @@ Historical layout-specific failures and browser probes: [Shortcut layout verific
 - Figure selection shows the selection outline only. Explicit Edit, selected Enter or double-click on its image surface (including the pending frame and image-load error) opens Image/Alt text/Label fields. All captions are edited directly in the document; caption double-click keeps normal text selection. Metadata Apply preserves the live caption and its formatting. Editing survives selection movement and outside interaction. Core validation failure preserves values. Apply/Cancel and explicit Escape-to-Cancel retain existing behavior; Cancel never removes the Figure.
 - `/figure` and `+` insert an empty Figure without opening its properties; the caret starts in its caption. Image-less Figures, with or without caption or label, remain as pending Figures with a dashed `No content yet` frame. Clicking the frame selects the Figure; existing Edit connects an image URL later. Pending Figures retain normal Figure metadata, numbering and references and are included in Save/Source. See [Figure authoring](figure-authoring-v1.md).
 - Equations, Figures, Tables, inline math and section labels use the shared explicit properties form: selecting a block opens no panel; Edit opens the form anchored to its metadata line (Equation: LaTeX, preview, label; Figure: image, alt text, label), with Apply/Cancel and Escape. Figure image surfaces, block/inline formula previews and Table metadata offer double-click through the same path; Enter on a selected Figure, Table or math node also opens properties (#557). Figure/Table caption and cell double-click keeps native text selection. Inline math has an explicit Cancel button and retains its unapplied draft on outside focus, Save/Source and tab switching. Edit, double-click and selected Enter focus the first field; closing retains a text selection inside the block or returns a [caret after the block](document-editing-v1.md#continuous-editing), so subsequent typing preserves it. Opening properties and focus restoration change neither document nor history; double-click while already editing leaves the existing form untouched. Unapplied changes retain the block-local notice and an explicit applied-only Save/Source notice.
-- Authoring restrictions, reference chips, caption text and errors stay visible. Authoring metadata is hidden at rest and revealed during interaction; actual labels remain explicit in properties/editing. Figure, Equation and captioned/labeled Table numbers are computed for display and never written into their text. The [Number headings](heading-numbering-v1.md) checkbox in Document settings optionally numbers H2–H6 in the document and Outline, leaves H1 as a title, and saves MyST numbering settings only.
+- Authoring restrictions, reference chips, caption text and errors stay visible. Authoring metadata is hidden at rest and revealed during interaction; actual labels remain explicit in properties/editing. Figure, Equation and every Table number are computed for display and never written into their text. Table numbers do not depend on caption or Label; [all tables use numbered directives](table-caption-v1.md). The [Number headings](heading-numbering-v1.md) checkbox in Document settings optionally numbers H2–H6 in the document and Outline, leaves H1 as a title, and saves MyST numbering settings only.
 
 ### Unified action menus (#516)
 

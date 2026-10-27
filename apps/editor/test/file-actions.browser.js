@@ -40,6 +40,7 @@ async (page, { screenshots = false, expect, recoveryRecords, activeDocument } = 
     if (width === 390) await expand.waitFor();
     if (await expand.isVisible()) await expand.click();
     await page.emulateMedia({colorScheme:width === 390 ? 'dark' : 'light'});
+    await expect(page.locator('html')).toHaveAttribute('data-theme',width === 390 ? 'dark' : 'light');
     await row('a.md').click({button:'right'}); await rename().waitFor();
     await page.screenshot({path:`tmp/file-actions-evidence/after-menu-${width}.png`});
     await rename().click(); await dialog.waitFor();

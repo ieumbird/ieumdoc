@@ -30,10 +30,15 @@ export function semanticFingerprint(node: MystNode): Fingerprint {
 }
 
 /**
- * Explicit canonicalizations observed in myst-parser/myst-to-md round-trips.
+ * Explicit canonicalizations allowed by the native format and MyST round-trips.
  * Anything not listed here must match exactly.
  */
 function normalizeChildren(node: MystNode, children: Fingerprint[]): Fingerprint[] {
+  // Native top-level GFM input and its canonical uncaptioned/unlabeled directive
+  // have the same table meaning. Keep every grid field and every wrapper field:
+  // caption, label, alignment or any unknown attribute must still match exactly.
+  if (node.type === "root") children = children.map(child => child.type === "table"
+    ? { type: "container", fields: { kind: "table" }, children: [child] } : child);
   // Marks are flattened by the nearest non-mark parent below.
   if (MARKS.has(node.type)) return children;
   // Table directives (`table`, `csv-table`) are written as `list-table`, whose cells

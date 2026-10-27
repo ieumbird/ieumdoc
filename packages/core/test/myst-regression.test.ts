@@ -15,7 +15,8 @@ const inlineSource = '# Inline contract\n\nPlain **strong** and *emphasis* with 
 // These outputs are the existing write contract, not snapshots of the new versions.
 // Intentional changes since: Canonical Input Safety v1 keeps straight quotes as
 // written, so the inline-contract quote line is no longer typographic, and inline
-// math is written as `$...$` instead of the `{math}` role.
+// math is written as `$...$` instead of the `{math}` role. #584 wraps every table
+// in a numbered `{table}` directive; the technical-document canonical fixture records it.
 for (const name of ["document", "technical-document", "inline-contract"]) {
   test(`MyST preserves the baseline canonical and semantic contract: ${name}`, () => {
     const source = name === "inline-contract" ? inlineSource
@@ -34,7 +35,8 @@ for (const name of ["document", "technical-document", "inline-contract"]) {
     // Opening-source locations and spelling are provenance, not semantics.
     assert.deepEqual(getEditableDocument(reparsed).blocks,
       getEditableDocument(original).blocks);
-    assert.deepEqual(inspectDocument(reparsed), inspectDocument(original));
+    assert.deepEqual(inspectDocument(reparsed), inspectDocument(original).map(block =>
+      block.type === "table" ? { ...block, type: "container", kind: "table" } : block));
     assert.equal(serialize(reparsed), canonical);
 
     if (name === "technical-document") {
