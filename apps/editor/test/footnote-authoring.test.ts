@@ -65,6 +65,27 @@ test("read-only definitions reject destination changes, including mark steps, wh
   const replaced = all.apply(all.tr.insertText("replacement"));
   assert.equal(replaced.doc.textContent, "replacement", "whole-document typing remains allowed");
   assert.ok(run(replaced, undo).doc.eq(state.doc), "Undo restores a whole-document replacement");
+  const wholePaste = all.apply(all.tr.insertText("pasted").setMeta("uiEvent", "paste"));
+  assert.equal(wholePaste.doc.textContent, "pasted", "a paste replacing the selected whole document remains allowed");
+  assert.ok(run(wholePaste, undo).doc.eq(state.doc), "Undo restores a whole-document paste");
+  assert.ok(all.apply(all.tr.insertText("drop").setMeta("uiEvent", "drop")).doc.eq(state.doc), "a drop must not use the whole-document exception");
+
+  // Chromium composition normalizes whole selection to the first/last content positions;
+  // its fitted replace consumes the final block boundary as well.
+  const size = state.doc.content.size;
+  const normalized = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1, size - 1)));
+  const composition = () => normalized.tr.replaceRangeWith(1, size, schema.text("ㅎ")).setMeta("composition", 1);
+  const composed = normalized.apply(composition());
+  assert.equal(composed.doc.textContent, "ㅎ", "a fitted full-content composition must replace the document");
+  assert.ok(run(composed, undo).doc.eq(state.doc), "Undo restores the document after full-content composition");
+  for (const uiEvent of ["drop", "paste"]) {
+    assert.ok(normalized.apply(composition().setMeta("uiEvent", uiEvent)).doc.eq(state.doc), `${uiEvent} must not use the composition exception`);
+    assert.ok(normalized.apply(normalized.tr.insertText("external", note + 2).setMeta("composition", 1).setMeta("uiEvent", uiEvent)).doc.eq(state.doc), `${uiEvent} into one note must be refused`);
+  }
+  assert.ok(normalized.apply(normalized.tr.insertText("almost", 1, size - 1).setMeta("composition", 1)).doc.eq(state.doc), "a step that does not consume the final boundary is not a whole-document replacement");
+  assert.ok(normalized.apply(normalized.tr.replaceRangeWith(1, size, schema.text("not composition"))).doc.eq(state.doc), "a normalized text selection alone does not grant a whole-document exception");
+  const nearlyAll = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1, size - 2)));
+  assert.ok(nearlyAll.apply(nearlyAll.tr.replaceRangeWith(1, size, schema.text("almost")).setMeta("composition", 1)).doc.eq(state.doc), "a partial selection must not authorize replacing the entire document");
 
   const active = state.apply(state.tr.setSelection(TextSelection.create(state.doc, note)).setMeta(endnoteEditingKey, "a"));
   const edited = active.apply(active.tr.insertText("Edit ", note));

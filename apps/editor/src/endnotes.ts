@@ -2,7 +2,7 @@ import { i18n } from "./i18n.ts";
 import { Extension, type Editor } from "@tiptap/core";
 import { closeHistory, isHistoryTransaction } from "@tiptap/pm/history";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { AllSelection, NodeSelection, Plugin, PluginKey, Selection, TextSelection, type EditorState } from "@tiptap/pm/state";
+import { NodeSelection, Plugin, PluginKey, Selection, TextSelection, type EditorState } from "@tiptap/pm/state";
 import { useEditorState } from "@tiptap/react";
 import { endnoteOrder, footnoteNumbers, nextFootnoteLabel, orphanedEndnotes, type EndnoteBlock } from "@ieumdoc/core/numbering";
 import { LABEL_PROPERTIES_META } from "./label-rename.ts";
@@ -144,12 +144,19 @@ export function endnoteEditingPlugin(): Plugin<string | null> {
     filterTransaction(tr, state) {
       if (!tr.docChanged || isHistoryTransaction(tr) || tr.getMeta(ORDER_META) || tr.getMeta("blockCommand") ||
           tr.getMeta(LABEL_PROPERTIES_META)) return true;
-      // AllSelection alone says nothing about the destination of a drop or a targeted
-      // transaction. Preserve only a real whole-document replacement/deletion.
-      if (state.selection instanceof AllSelection && tr.getMeta("uiEvent") !== "drop") {
+      // A whole-document selection alone says nothing about a drop or targeted
+      // transaction. Composition can first normalize AllSelection to text positions
+      // just inside the outer blocks; ProseMirror's fitted replacement also consumes
+      // the last block's closing boundary. Restrict that case to composition input.
+      const { selection, doc } = state;
+      const uiEvent = tr.getMeta("uiEvent");
+      const wholeSelection = selection.from === 0 && selection.to === doc.content.size;
+      const wholeComposition = !selection.empty && selection.from === 1 && selection.to === doc.content.size - 1 &&
+        tr.getMeta("composition") !== undefined && uiEvent !== "paste";
+      if ((wholeSelection || wholeComposition) && uiEvent !== "drop") {
         let replacesDocument = false;
         tr.steps[0]?.getMap().forEach((from, to) => {
-          if (from === 0 && to === state.doc.content.size) replacesDocument = true;
+          if (from === (wholeSelection ? 0 : selection.from) && to === doc.content.size) replacesDocument = true;
         });
         if (replacesDocument) return true;
       }

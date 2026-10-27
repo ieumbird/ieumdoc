@@ -243,6 +243,27 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
     await page.keyboard.press('Control+z');
     assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === beforeWholeDocumentEdit, `${action}: one Undo must restore the whole document`);
   }
+  // Chromium may normalize AllSelection to a document-covering TextSelection before the
+  // composition transaction. This is real composition, not a native Windows IME probe.
+  await editor.evaluate(element => element.editor.view.focus());
+  await page.keyboard.press('Control+a');
+  assert(await editor.evaluate(element => element.editor.state.selection.toJSON().type) === 'all', 'Composition must start with a whole-document selection');
+  const wholeComposition = await page.context().newCDPSession(page);
+  try {
+    await wholeComposition.send('Input.dispatchKeyEvent', {type: 'rawKeyDown', key: 'Process', code: 'KeyH', windowsVirtualKeyCode: 229, nativeVirtualKeyCode: 229});
+    await wholeComposition.send('Input.imeSetComposition', {text: 'ㅎ', selectionStart: 1, selectionEnd: 1});
+    await page.waitForTimeout(120);
+    assert(await editor.evaluate(element => element.editor.state.doc.textContent) === 'ㅎ', 'The first composition update must replace the document');
+    await wholeComposition.send('Input.imeSetComposition', {text: '한글', selectionStart: 2, selectionEnd: 2});
+    await page.waitForTimeout(120);
+    assert(await editor.evaluate(element => element.editor.state.doc.textContent) === '한글', 'The second composition update must be retained');
+    await wholeComposition.send('Input.insertText', {text: '한글'});
+    await page.waitForTimeout(120);
+    assert(await editor.evaluate(element => element.editor.state.doc.textContent) === '한글', 'Whole-document composition must replace the document');
+    await page.waitForFunction(() => !document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.composing);
+  } finally { await wholeComposition.detach(); }
+  await page.keyboard.press('Control+z');
+  assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === beforeWholeDocumentEdit, 'One Undo must restore the document after composition');
   await editor.evaluate(element => element.editor.view.focus());
   await page.keyboard.press('Control+a');
   await page.keyboard.press('Control+x');
