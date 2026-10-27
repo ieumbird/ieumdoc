@@ -12,7 +12,7 @@ type AssetHost = {
   create(file: File, documentPath: string): Promise<AssetResponse>;
   rollback(created: AssetResponse, documentPath: string): Promise<void>;
 };
-type Options = { documentPath: string; reject(reason: string): void; pending?(active: boolean): void; changed?(path: string): void; host?: AssetHost };
+type Options = { documentPath: string | (() => string); reject(reason: string): void; pending?(active: boolean): void; changed?(path: string): void; host?: AssetHost };
 
 const browserHost: AssetHost = {
   async create(file, documentPath) {
@@ -61,6 +61,7 @@ export function imageAssetsPlugin(options: Options): Plugin {
   const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
 
   const upload = async (view: EditorView, file: File, position: number) => {
+    const documentPath = typeof options.documentPath === "function" ? options.documentPath() : options.documentPath;
     uploading = true;
     options.pending?.(true);
     let created: AssetResponse | undefined;
@@ -70,7 +71,7 @@ export function imageAssetsPlugin(options: Options): Plugin {
       const target = view.state.doc.nodeAt(anchor);
       const emptyFigure = target?.type.name === "figure" && !target.attrs.imageUrl ? target : undefined;
       view.dispatch(view.state.tr.setMeta(key, { anchor, selectionMoved: false, emptyFigure }));
-      created = await host.create(file, options.documentPath);
+      created = await host.create(file, documentPath);
       const pending = key.getState(view.state);
       if (destroyed || !view.editable || pending?.anchor == null) throw new Error("Image insertion was cancelled because its Editor or target block changed.");
       const index = view.state.doc.resolve(pending.anchor).index(0);
@@ -92,7 +93,7 @@ export function imageAssetsPlugin(options: Options): Plugin {
     } catch (error) {
       let message = `Image could not be inserted: ${errorText(error)}`;
       if (created) {
-        try { await host.rollback(created, options.documentPath); }
+        try { await host.rollback(created, documentPath); }
         catch (rollbackError) { message += ` Rollback failed; asset remains at ${created.path}: ${errorText(rollbackError)}`; }
       }
       options.reject(message);

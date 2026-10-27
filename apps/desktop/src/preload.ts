@@ -16,6 +16,7 @@ ipcRenderer.on("desktop:restart-check", (_event, id: number) => {
 });
 
 const bridge: DesktopBridge = {
+  fileDeletion: "trash",
   setTheme: (theme) => ipcRenderer.invoke("desktop:set-theme", theme),
   setWindowBackground: (color) => ipcRenderer.invoke("desktop:set-window-background", color),
   info: () => ipcRenderer.invoke("desktop:info"),

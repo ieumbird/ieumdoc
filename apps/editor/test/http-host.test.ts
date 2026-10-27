@@ -11,6 +11,20 @@ import { RootAccess } from "../server/file-access.ts";
 
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
 
+test("HTTP file mutations reuse shared validation, strict bodies and allowlisted roots", async t => {
+  const { a, outside, send } = await fixture(t);
+  const file = path.join(a, "document.md");
+  const original = fs.readFileSync(file);
+  assert.equal((await send("/api/file", "GET")).status, 405);
+  assert.equal((await send("/api/file", "PATCH", {root:a, path:file, name:"CON"})).status, 400);
+  assert.equal((await send("/api/file", "DELETE", {root:a, path:path.join(outside,"document.md")})).status, 403);
+  assert.equal((await send("/api/file", "PATCH", {root:a, path:file, name:"renamed"})).status, 200);
+  const renamed = path.join(a, "renamed.md");
+  assert.deepEqual(fs.readFileSync(renamed), original);
+  assert.equal((await send("/api/file", "DELETE", {root:a, path:renamed})).status, 200);
+  assert.equal(fs.existsSync(renamed), false);
+});
+
 test("folder image preview is read-only, root bounded and isolated for GET, HEAD and direct SVG URLs", async t => {
   const { a, outside, send } = await fixture(t);
   const route = (root: string, file: string) => `/api/file-preview?${new URLSearchParams({ root, path: file })}`;
