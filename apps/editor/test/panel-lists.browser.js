@@ -22,12 +22,19 @@ async (page, { openDocument, expect }) => {
   await expect(panel.getByRole('tabpanel')).toHaveCount(1);
   await tabs.nth(1).click();
   await expect(tables.getByRole('button')).toHaveText([
-    'Table 1: Measured results', 'Table 2',
-    'Table 3: A very long caption with enough words to wrap across more than two lines in the document navigation panel without widening the panel',
+    'Table 1. Measured results', 'Table 2',
+    'Table 3. A very long caption with enough words to wrap across more than two lines in the document navigation panel without widening the panel',
   ]);
   await tabs.nth(2).click();
-  await expect(figures.getByRole('button').nth(0)).toHaveText('Figure 1: Signal flow through the system.');
+  await expect(figures.getByRole('button').nth(0)).toHaveText('Figure 1. Signal flow through the system.');
   await expect(figures.getByRole('button').nth(1)).toHaveText('Figure 2');
+  // Compare the actual body prefix, including its separator, rather than a second template.
+  for (const [kind, list] of [['table', tables], ['figure', figures]]) {
+    await tabs.nth(kind === 'table' ? 1 : 2).click();
+    const bodyCaption = await editor.locator(`[data-block="${kind}"] .caption`).first().evaluate(n =>
+      JSON.parse(getComputedStyle(n, '::before').content) + n.textContent);
+    await expect(list.getByRole('button').first()).toHaveText(bodyCaption);
+  }
 
   // Roving tab stop, automatic arrow activation, Home/End and connection to the list.
   await tabs.nth(2).focus();
@@ -84,7 +91,7 @@ async (page, { openDocument, expect }) => {
       editor.state.doc.forEach((node, pos) => { if (node.type.name === kind) last = editor.view.nodeDOM(pos); });
       window.scrollTo(0, window.scrollY + last.getBoundingClientRect().top - window.innerHeight * 0.25);
     }, kind);
-    await expect(list.locator('[aria-current="location"]')).toContainText(kind === 'table' ? 'Table 3:' : 'Figure 3:');
+    await expect(list.locator('[aria-current="location"]')).toContainText(kind === 'table' ? 'Table 3.' : 'Figure 3.');
   }
 
   // A real keyboard deletion changes count/number immediately; Undo restores both.
@@ -103,9 +110,9 @@ async (page, { openDocument, expect }) => {
   await caption.click();
   await page.keyboard.press('End');
   await page.keyboard.type(' revised');
-  await expect(tables.getByRole('button').first()).toHaveText('Table 1: Measured results revised');
+  await expect(tables.getByRole('button').first()).toHaveText('Table 1. Measured results revised');
   await page.keyboard.press('Control+z');
-  await expect(tables.getByRole('button').first()).toHaveText('Table 1: Measured results');
+  await expect(tables.getByRole('button').first()).toHaveText('Table 1. Measured results');
 
   // Docked and overlay geometry, native caption reservation, independent drag region and themes.
   for (const width of [1440, 640]) {
@@ -113,8 +120,25 @@ async (page, { openDocument, expect }) => {
     if (!await panel.isVisible()) await page.getByRole('button', { name: 'Outline', exact: true }).click();
     for (const theme of ['light', 'dark']) {
       await page.evaluate(theme => { document.documentElement.dataset.theme = theme; }, theme);
+      const originalBounds = await tabs.evaluateAll(buttons => buttons.map(button => {
+        const r = button.getBoundingClientRect(); return [r.x, r.y, r.width, r.height];
+      }));
       for (let tab = 0; tab < 3; tab++) {
         await tabs.nth(tab).click();
+        expect(await tabs.evaluateAll(buttons => buttons.map(button => {
+          const r = button.getBoundingClientRect(); return [r.x, r.y, r.width, r.height];
+        }))).toEqual(originalBounds);
+        const faces = await tabs.evaluateAll(buttons => buttons.map(button => {
+          const style = getComputedStyle(button);
+          const probe = document.createElement('span');
+          probe.style.background = 'var(--id-color-surface)';
+          probe.style.boxShadow = 'var(--shadow-segment)'; button.append(probe);
+          const themed = getComputedStyle(probe);
+          const result = { weight: Number(style.fontWeight), selected: button.getAttribute('aria-selected') === 'true',
+            face: style.backgroundColor === themed.backgroundColor, shadow: style.boxShadow === themed.boxShadow };
+          probe.remove(); return result;
+        }));
+        expect(faces.every(face => face.selected ? face.weight === 600 && face.face && face.shadow : face.weight < 600)).toBe(true);
         const geometry = await panel.evaluate(panel => {
           const header = panel.querySelector('.document-panel-header');
           const nav = panel.querySelector('.document-panel-navigation');
@@ -156,6 +180,13 @@ async (page, { openDocument, expect }) => {
     await page.setViewportSize({ width: 640, height: 900 });
     if (!await panel.isVisible()) await page.getByRole('button', { name: '개요', exact: true }).click();
     expect(await tabs.evaluateAll(buttons => buttons.every(button => button.scrollWidth <= button.clientWidth))).toBe(true);
+    // UI localization changes navigation labels, never the document's caption notation.
+    await page.getByRole('button', { name: '개요', exact: true }).click();
+    const fileTab = page.getByRole('tab', { name: 'panel-lists.md', exact: true });
+    await fileTab.click();
+    await page.getByRole('button', { name: '개요', exact: true }).click();
+    await tabs.nth(1).click();
+    await expect(tables.getByRole('button').first()).toHaveText('Table 1. Measured results');
   } finally {
     await page.evaluate(() => localStorage.setItem('ieumdoc.uiLanguage', 'en'));
   }

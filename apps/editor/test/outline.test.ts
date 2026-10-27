@@ -61,12 +61,12 @@ test("navigation targets use the current native captions and Core caption number
   const schema = getSchema(editorExtensions());
   const json = toTiptapDocument(loadEditableDocument(source));
   const doc = schema.nodeFromJSON(json);
-  assert.deepEqual(documentTargets(doc, "table").map(item => item.text), ["Table 1: Results", "Table 2"]);
-  assert.deepEqual(documentTargets(doc, "figure").map(item => item.text), ["Figure 1: Flow chart.", "Figure 2"]);
+  assert.deepEqual(documentTargets(doc, "table").map(item => item.text), ["Table 1. Results", "Table 2"]);
+  assert.deepEqual(documentTargets(doc, "figure").map(item => item.text), ["Figure 1. Flow chart.", "Figure 2"]);
   for (const kind of ["table", "figure"] as const) {
     for (const item of documentTargets(doc, kind)) assert.equal(doc.nodeAt(item.pos), doc.child(item.index));
   }
   json.attrs = { ...json.attrs, referenceTemplates: { table: "표 %s", figure: "그림 %s" } };
-  assert.deepEqual(documentTargets(schema.nodeFromJSON(json), "table").map(item => item.text), ["표 1: Results", "표 2"]);
-  assert.deepEqual(documentTargets(schema.nodeFromJSON(json), "figure").map(item => item.text), ["그림 1: Flow chart.", "그림 2"]);
+  assert.deepEqual(documentTargets(schema.nodeFromJSON(json), "table").map(item => item.text), ["표 1. Results", "표 2"]);
+  assert.deepEqual(documentTargets(schema.nodeFromJSON(json), "figure").map(item => item.text), ["그림 1. Flow chart.", "그림 2"]);
 });

@@ -29,7 +29,7 @@ import { Input } from "@/components/ui/input.tsx";
 import { CodeLanguageInput } from "./code-language-input.tsx";
 import { BlockProperties } from "./block-properties.tsx";
 import { ADMONITION_LABELS, admonitionTone, BLOCK_COMMAND_META, updateFigure } from "./block-commands.ts";
-import { CrossReference, useBlockNumber, useCaptionNumberText } from "./cross-reference.tsx";
+import { CrossReference, captionPrefixText, useBlockNumber, useCaptionNumberText } from "./cross-reference.tsx";
 import { Endnotes, canEditEndnoteAt, endnoteAt, endnoteEditingKey, endnoteEditorToken, revealReference, useEndnoteNumber } from "./endnotes.ts";
 import { DocumentTitle, TITLE_FIXED, titleKept } from "./document-title.ts";
 import { FootnoteReference } from "./footnote.tsx";
@@ -508,7 +508,7 @@ function TableCaptionView({ node, editor, getPos }: ReactNodeViewProps) {
   useTranslation();
   const editable = useEditorState({ editor, selector: ({ editor: current }) => current.isEditable });
   const numbered = useCaptionNumberText(editor, getPos, "table");
-  return <NodeViewWrapper className="caption" data-testid="table-caption" data-number={numbered} onMouseDown={(event: ReactMouseEvent) => {
+  return <NodeViewWrapper className="caption" data-testid="table-caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)} onMouseDown={(event: ReactMouseEvent) => {
     if (!editor.isEditable || node.content.size !== 0 || event.button !== 0) return;
     const position = getPos();
     if (typeof position !== "number") return;
@@ -1191,7 +1191,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath: initia
       {editableFigure && !src ? (
         <div className="figure-no-content" data-testid="figure-no-content" contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>{i18n.t("No content yet")}</div>
       ) : null}
-      <figcaption className="caption" data-number={numbered}><NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")} /></figcaption>
+      <figcaption className="caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}><NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")} /></figcaption>
       {editableFigure && !editing ? (
         <Button className="figure-edit" size="sm" variant="outline" aria-label={i18n.t("Edit figure")} contentEditable={false} onClick={beginEdit}>{i18n.t("Edit")}</Button>
       ) : null}

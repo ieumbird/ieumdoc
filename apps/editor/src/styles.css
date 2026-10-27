@@ -656,7 +656,9 @@ button {
   padding-inline: var(--space-3);
   color: var(--id-color-text-muted);
   background: var(--id-color-surface-subtle);
+  border-color: var(--id-color-border);
 }
+.command-center-trigger[data-slot="button"]:hover { background: var(--id-color-surface-hover); }
 .command-center-action { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--id-color-text); }
 .command-center-trigger[data-detail="path"] .command-center-action { flex-shrink: 0; }
 .command-center-trigger .document-path { flex: 0 1 auto; max-width: 35%; color: var(--id-color-text-muted); font-size: var(--font-size-xs); }
@@ -1646,7 +1648,7 @@ ol.list { list-style: decimal; }
 
 /* A Figure's computed number leads its caption; the caption text stays editable after it. */
 .caption[data-number]::before {
-  content: attr(data-number) ". ";
+  content: attr(data-caption-prefix);
   color: var(--id-color-text);
   font-weight: var(--font-weight-semibold);
 }
@@ -2464,8 +2466,18 @@ ol.list { list-style: decimal; }
 }
 
 .view-toggle .view-toggle-option {
+  display: inline-grid;
   height: var(--size-view-segment);
   color: var(--id-color-text-muted);
+}
+
+/* Reserve the selected label's extent without adding accessible or copyable text. */
+.view-toggle-label,
+.view-toggle-option::before { grid-area: 1 / 1; }
+.view-toggle-option::before {
+  content: attr(data-segment-label);
+  visibility: hidden;
+  font-weight: var(--font-weight-semibold);
 }
 
 .view-toggle .view-toggle-option:hover {
@@ -2479,7 +2491,8 @@ ol.list { list-style: decimal; }
 .view-toggle .view-toggle-option:is([aria-pressed="true"], [aria-selected="true"]),
 .view-toggle .view-toggle-option:is([aria-pressed="true"], [aria-selected="true"]):hover {
   background: var(--id-color-surface);
-  box-shadow: 0 0 0 var(--border-width) var(--id-color-border-control), var(--shadow-segment);
+  font-weight: var(--font-weight-semibold);
+  box-shadow: var(--shadow-segment);
 }
 
 /* Source wraps visually, keeping one number per Markdown line and the Visual text axis. */
@@ -2844,7 +2857,7 @@ ol.list { list-style: decimal; }
   --tw-ring-shadow: 0 0 #0000;
 }
 .view-toggle .view-toggle-option:is([aria-pressed="true"], [aria-selected="true"]):focus-visible {
-  box-shadow: var(--focus-ring-inset), 0 0 0 var(--border-width) var(--id-color-border-control), var(--shadow-segment);
+  box-shadow: var(--focus-ring-inset), var(--shadow-segment);
 }
 
 /* An open menu's ghost trigger keeps a quiet pressed face, without a border box. */

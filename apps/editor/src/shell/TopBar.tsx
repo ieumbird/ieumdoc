@@ -91,6 +91,7 @@ export function TopBar({
     onClick: () => onViewChange("source"),
     disabled: viewDisabled,
     "data-testid": "view-source",
+    "data-segment-label": i18n.t("Source"),
   };
   const saving = status === "saving";
   const saveState = saving ? "saving" : unsaved ? "unsaved" : "clean";
@@ -134,8 +135,9 @@ export function TopBar({
               onClick={() => onViewChange("visual")}
               disabled={viewDisabled}
               data-testid="view-visual"
-            >{i18n.t("Visual")}</Button>
-            <Button {...sourceProps}>{i18n.t("Source")}</Button>
+              data-segment-label={i18n.t("Visual")}
+            ><span className="view-toggle-label">{i18n.t("Visual")}</span></Button>
+            <Button {...sourceProps}><span className="view-toggle-label">{i18n.t("Source")}</span></Button>
           </div>
           {onToggleWide ? <Button type="button" size="icon-sm" variant="ghost" className="top-bar-toggle"
             aria-label={i18n.t("Wide document")} aria-pressed={wide} onClick={onToggleWide}

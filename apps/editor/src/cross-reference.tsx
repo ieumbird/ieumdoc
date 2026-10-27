@@ -59,6 +59,11 @@ export function useBlockNumber(editor: Editor, getPos: () => number | undefined,
   }) ?? undefined;
 }
 
+/** Shared body/navigation caption prefix; the number itself comes from Core templates. */
+export function captionPrefixText(numbered: string): string {
+  return `${numbered}. `;
+}
+
 /** Core caption text follows both the current number and document template changes. */
 export function useCaptionNumberText(editor: Editor, getPos: () => number | undefined, kind: "figure" | "table"): string | undefined {
   return useEditorState({

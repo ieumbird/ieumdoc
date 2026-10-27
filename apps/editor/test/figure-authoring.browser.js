@@ -326,6 +326,10 @@ async (page, { openFolderPicker, openDocument, waitForEditorFocus, expect, scree
       expect(await pathField.getAttribute('aria-activedescendant')).toBe(await picker.getByRole('option', {name:'diagram-v2.svg', exact:true}).getAttribute('id'));
       for (const [width, height] of [[1440, 1000], [1366, 768], [640, 667]]) {
         await page.setViewportSize({width, height});
+        // Browser viewport emulation completes before responsive layout/scroll-lock updates.
+        // Keep the no-overflow requirement, but measure the rendered resized document.
+        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+          {message:`${width}px resized document has no horizontal overflow`}).toBe(true);
         const layout = await picker.evaluate(dialog => ({
           client:dialog.clientWidth, scroll:dialog.scrollWidth,
           children:[...dialog.children].map(element => ({tag:element.tagName, class:element.className,

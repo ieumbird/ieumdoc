@@ -154,6 +154,9 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
     }
     if (state === 'several') for (const width of [1440, 640]) {
       await page.setViewportSize({width, height:720});
+      // Docking changes the TopBar's width after the media-query state update. Do not
+      // cache coordinates from the preceding layout for the one-physical-click check.
+      await page.getByTestId('document-panel').waitFor({state:width >= 1424 ? 'visible' : 'hidden'});
       // One physical click must switch open menus; an overlay must not consume it.
       const first = section.first().getByRole('button', {name:'More actions', exact:true, includeHidden:true});
       const second = section.nth(1).getByRole('button', {name:'More actions', exact:true, includeHidden:true});

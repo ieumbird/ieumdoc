@@ -32,7 +32,8 @@ async (page, { withBlockHover, reloadDocument, recoveryRecords, expect }) => {
     const edgeColor = edge?.[1];
     const adjacent = [base, surface(n.parentElement), surface(n.closest('.sidebar, .top-bar') ?? n.parentElement)];
     const edgeContrasts = edgeColor ? adjacent.map(bg => ratio(over(rgba(edgeColor), bg), bg)) : [];
-    const ringContrast = inset ? ratio(over(rgba(inset.color), base), base) : 0, ringWidth = inset ? inset.spread : 0;
+    const focusRing = inset ?? (n.matches(':focus-visible') && [...c.boxShadow.matchAll(/(rgba?\([^)]+\)) 0px 0px 0px ([\d.]+)px/g)].map(([,color,spread]) => ({color,spread:Number(spread)})).find(s => s.spread >= 2));
+    const ringContrast = focusRing ? ratio(over(rgba(focusRing.color), base), base) : 0, ringWidth = focusRing ? focusRing.spread : 0;
     const resolve = (property, value) => { const probe = document.createElement('span'); probe.style.setProperty(property, value); n.append(probe);
       const result = getComputedStyle(probe).getPropertyValue(property); probe.remove(); return result; };
     const textRects = []; const walker = document.createTreeWalker(n, NodeFilter.SHOW_TEXT);
@@ -44,8 +45,9 @@ async (page, { withBlockHover, reloadDocument, recoveryRecords, expect }) => {
       selected: resolve('background-color','var(--id-color-surface-selected)'), selectedHover: resolve('background-color','var(--id-color-surface-selected-hover)'),
       selectedText: resolve('color','var(--id-color-text-selected)'), surface: resolve('background-color','var(--id-color-surface)'),
       track: resolve('background-color','var(--id-color-surface-pressed)'), text: resolve('color','var(--id-color-text)'), muted: resolve('color','var(--id-color-text-muted)'),
-      segment: resolve('box-shadow','0 0 0 var(--border-width) var(--id-color-border-control), var(--shadow-segment)'),
-      rect: [r.x, r.y, r.width, r.height], focused: n.matches(':focus-visible'), ringContrast, ringWidth, ringColor: inset?.color, active: document.activeElement === n };
+      segment: resolve('box-shadow','var(--shadow-segment)'),
+      subtle: resolve('background-color','var(--id-color-surface-subtle)'), structural: resolve('border-color','var(--id-color-border)'),
+      rect: [r.x, r.y, r.width, r.height], focused: n.matches(':focus-visible'), ringContrast, ringWidth, ringColor: focusRing?.color, active: document.activeElement === n };
   });
   await page.setViewportSize({width:1440, height:1000});
   await page.emulateMedia({colorScheme:'light'});
@@ -159,7 +161,9 @@ async (page, { withBlockHover, reloadDocument, recoveryRecords, expect }) => {
   const visual = page.getByTestId('view-visual'), source = page.getByTestId('view-source');
   await page.mouse.move(0,0); await settle();
   const active = await state(visual), inactiveRest = await state(source);
-  check(active.edgeContrasts.length === 3 && active.edgeContrasts.every(r => r >= 3), `Visual segment border needs 3:1 contrast ${JSON.stringify(active.edgeContrasts)}`);
+  check(active.weight === 600 && inactiveRest.weight < 600 && active.background === active.surface && active.color === active.text &&
+    active.ring === active.segment && !active.edgeColor && active.textContrast >= 4.5 && inactiveRest.textContrast >= 4.5,
+    `Visual selection needs semibold, themed surface/shadow and readable text without a control edge ${JSON.stringify({active,inactiveRest})}`);
   check(active.background !== inactiveRest.background && active.ring !== 'none' && inactiveRest.ring === 'none' &&
     await marker(visual) === 'none' && await marker(source) === 'none', 'Chosen view lacks its raised segment');
   // Hovering the other view darkens its text without a face.
@@ -169,6 +173,30 @@ async (page, { withBlockHover, reloadDocument, recoveryRecords, expect }) => {
     'Inactive view hover needs restrained feedback distinct from the chosen view');
   await visual.hover(); await settle();
   check(JSON.stringify((await state(visual)).background) === JSON.stringify(active.background), 'Hover changes the chosen view');
+  // Switching selection must preserve the track and both segment extents in either theme.
+  await source.click(); await expect(source).toHaveAttribute('aria-pressed', 'true'); await expect(source).toBeEnabled(); await page.mouse.move(0,0);
+  const sourceSelected = await state(source), visualUnselected = await state(visual);
+  check(sourceSelected.weight === 600 && sourceSelected.background === sourceSelected.surface && sourceSelected.ring === sourceSelected.segment &&
+    sourceSelected.textContrast >= 4.5 && visualUnselected.weight < 600 && visualUnselected.color === visualUnselected.muted &&
+    JSON.stringify(sourceSelected.rect) === JSON.stringify(inactiveRest.rect) && JSON.stringify(visualUnselected.rect) === JSON.stringify(active.rect),
+    `View selection changed segment geometry or lost its non-color cue ${JSON.stringify({sourceSelected,visualUnselected,active,inactiveRest})}`);
+  await page.keyboard.press('Tab'); await page.keyboard.press('Shift+Tab');
+  const sourceFocus = await state(source);
+  check(sourceFocus.focused && sourceFocus.ringWidth >= 2 && sourceFocus.ringContrast >= 3 && sourceFocus.weight === 600 && sourceFocus.background === sourceFocus.surface,
+    'Selected view must retain semibold/surface alongside keyboard focus');
+  await visual.click(); await expect(visual).toHaveAttribute('aria-pressed', 'true');
+  const command = page.getByRole('button', {name:'Find documents and commands',exact:true});
+  await page.mouse.move(0,0);
+  const commandRest = await state(command);
+  check(commandRest.background === commandRest.subtle && commandRest.border === commandRest.structural && commandRest.textContrast >= 4.5,
+    'Command Center must use a quiet surface/structural border and readable text');
+  await command.hover(); const commandHover = await state(command);
+  check(commandHover.background !== commandRest.background && commandHover.textContrast >= 4.5, 'Command Center hover needs visible feedback');
+  await command.focus(); await page.keyboard.press('Tab'); await page.keyboard.press('Shift+Tab');
+  const commandFocus = await state(command);
+  check(commandFocus.focused && commandFocus.ringWidth >= 2 && commandFocus.ringContrast >= 3,
+    'Command Center must show its independent keyboard focus ring');
+  await page.mouse.move(0,0);
   const wide=page.getByRole('button',{name:'Wide document',exact:true});
   await wide.click(); await page.mouse.move(0,0); await settle();
   const wideOn=await state(wide);
