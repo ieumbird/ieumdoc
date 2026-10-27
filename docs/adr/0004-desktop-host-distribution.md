@@ -1,7 +1,7 @@
 # ADR-0004: Desktop Host & Distribution
 
 - Status: Accepted
-- Last verified: 2026-10-28 (unsigned v0.1.0-beta.2 publication and public asset hashes verified; owner removed the separate environment approval for future releases; actual GitHub beta.1→beta.2 update remains unverified by explicit exception; Stable unpublished).
+- Last verified: 2026-10-28 (unsigned v0.0.2-beta.1 release CI, anonymous asset hashes and withdrawal of v0.1.0-beta.1/v0.1.0-beta.2 Releases/assets/remote tags verified; actual GitHub 0.0.1-beta.4→0.0.2-beta.1 installation/update unverified; Stable unpublished; [record](../releases/v0.0.2-beta.1.md)).
 - Authority: architectural decision under [AGENTS.md](../../AGENTS.md). Related: [ADR-0002](0002-document-persistence-semantic-ownership.md) · [Filesystem Host boundary](../design/filesystem-host-boundary-v1.md) · [Desktop distribution](../design/desktop-distribution-v1.md) · historical evidence [Desktop shell spike](../reviews/desktop-shell-spike-v1.md)
 - Decision date: 2026-10-12
 

@@ -2,7 +2,7 @@
 
 > Document first. Semantics in Core. Interfaces replaceable.
 >
-> **Status: Beta** — [v0.1.0-beta.2](https://github.com/ieumbird/ieumdoc/releases/tag/v0.1.0-beta.2)가 Windows x64 설치형 앱으로 공개되었습니다. Stable은 아직 없습니다. 공개 API·문서 지원 범위는 바뀔 수 있습니다.
+> **Status: Beta** — [v0.0.2-beta.1](https://github.com/ieumbird/ieumdoc/releases/tag/v0.0.2-beta.1)가 Windows x64 설치형 앱으로 공개되었습니다. Stable은 아직 없습니다. 공개 API·문서 지원 범위는 바뀔 수 있습니다.
 
 IeumDoc은 Git의 plain-text 문서를 단일 진실 공급원(SSOT)으로 사용하는 구조화 기술문서 에디터입니다.
 
@@ -23,15 +23,15 @@ IeumDoc은 Git의 plain-text 문서를 단일 진실 공급원(SSOT)으로 사�
 
 ## Windows Desktop
 
-일반 사용자용 공개 버전은 **v0.1.0-beta.2** Windows x64 Beta입니다. Stable은 아직 없습니다. 아래 개발 실행과 달리, 설치된 앱에는 별도 Node.js, pnpm, 브라우저나 Vite 서버가 필요 없습니다.
+일반 사용자용 공개 버전은 **v0.0.2-beta.1** Windows x64 Beta입니다. Stable은 아직 없습니다. 아래 개발 실행과 달리, 설치된 앱에는 별도 Node.js, pnpm, 브라우저나 Vite 서버가 필요 없습니다.
 
-1. [공개 Beta Release](https://github.com/ieumbird/ieumdoc/releases/tag/v0.1.0-beta.2)의 **Assets**에서 `IeumDoc-Setup-0.1.0-beta.2.exe`를 다운로드하고 실행합니다. 현재 사용자에게 설치하며 관리자 권한이 필요하지 않습니다.
+1. [공개 Beta Release](https://github.com/ieumbird/ieumdoc/releases/tag/v0.0.2-beta.1)의 **Assets**에서 `IeumDoc-Setup-0.0.2-beta.1.exe`를 다운로드하고 실행합니다. 현재 사용자에게 설치하며 관리자 권한이 필요하지 않습니다.
 2. 설치 파일은 unsigned이므로 알 수 없는 게시자 또는 SmartScreen 경고가 나타날 수 있습니다. 공식 저장소의 다운로드인지 확인하고 PC의 보안 정책을 따르세요.
 3. 시작 화면에서 폴더 또는 sample을 선택합니다. **Open folder**로 폴더를 열고 Sidebar의 네이티브 `.md` 파일을 선택하거나 **New file**로 새 문서를 만듭니다. 편집 후 **Save**로 저장합니다. 기억한 탭이 있으면 시작 시 복원합니다.
 
-이 공개 버전에는 표·그림·수식·참조와 인용/BibTeX 참고문헌 저작, 한국어·영어 UI, 여러 폴더·문서 탭, 미저장 작업의 로컬 복구가 포함됩니다. **복구는 원본 파일의 자동 저장이 아닙니다.** 변경 사항과 알려진 제한은 [v0.1.0-beta.2 릴리스 기록](docs/releases/v0.1.0-beta.2.md)을 확인하세요. 아래 [Current capabilities](#current-capabilities)와 설계 계약은 현재 master 기준이며 공개 버전의 기능 목록을 대신하지 않습니다.
+이 공개 버전에는 표·그림·수식·참조와 인용/BibTeX 참고문헌 저작, 한국어·영어 UI, 여러 폴더·문서 탭, 미저장 작업의 로컬 복구가 포함됩니다. **복구는 원본 파일의 자동 저장이 아닙니다.** 변경 사항과 알려진 제한은 [v0.0.2-beta.1 릴리스 기록](docs/releases/v0.0.2-beta.1.md)을 확인하세요. 아래 [Current capabilities](#current-capabilities)와 설계 계약은 현재 master 기준이며 공개 버전의 기능 목록을 대신하지 않습니다.
 
-beta.2는 테마·문서 표현 설정, 표·그림 목록 탐색과 선택적 내장 CLI를 제공합니다. 개발 단계이므로 beta.1에서 저장한 문서·복구 기록·설정과의 하위 호환성을 보장하지 않으며 자동 migration을 제공하지 않습니다. 실제 GitHub beta.1→beta.2 업데이트는 이번 릴리스에서 미검증입니다.
+현재 배포는 테마·문서 표현 설정, 표·그림 목록 탐색과 선택적 내장 CLI를 유지하며 버전 번호만 정정했습니다. 잘못된 `0.1.0-beta.1`·`0.1.0-beta.2`의 Release·첨부 파일·원격 tag는 철회했습니다. 해당 설치본에서는 낮은 버전으로 자동 업데이트되지 않으므로 새 설치본으로 수동 전환해야 합니다. 개발 단계이므로 과거 문서·복구 기록·설정의 하위 호환성을 보장하지 않으며 자동 migration을 제공하지 않습니다. 실제 GitHub `0.0.1-beta.4 → 0.0.2-beta.1` 업데이트는 미검증입니다.
 
 Sidebar 하단 **Settings → About**에서 버전, Stable/Beta 채널과 업데이트를 확인합니다. Beta 설치본은 첫 실행에 Beta 채널을 선택하며 저장된 선택은 유지합니다. 업데이트 확인은 자동이고, **Download update**와 **Restart to update**는 각각 사용자 요청 후 실행합니다. 미저장 작업이 있으면 업데이트 재시작을 거부합니다. 상세 동작은 [Desktop contract](docs/design/desktop-distribution-v1.md), 개발자 빌드·릴리즈는 [Contributing](CONTRIBUTING.md#windows-desktop-builds-and-releases)을 따릅니다.
 
