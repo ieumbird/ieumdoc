@@ -45,7 +45,7 @@ Support is decided from Core semantic structure and existing authoring helpers, 
 | Equation | Display math value (including empty) and optional label; empty equations use dollar fences, filled equations use `{math}`. A label must preserve its identity in the chosen notation. No enumeration overrides or arbitrary attributes. |
 | Figure | Empty/pending or one image, optional alt text, label and one supported inline caption. Alt text requires an image. No legends, subfigures, Mermaid or extra directive/image attributes. |
 | Table | Rectangular GFM grid with a header row, supported inline cells without line breaks, column alignment; optional supported table caption and label. Only plain GFM and the exact `{table}` directive are accepted. Its options may contain only `name` / `label`, and any MyST VFile diagnostic within the directive's source range causes refusal, including duplicate/unknown options in colon-line or YAML syntax. `{csv-table}`, `{list-table}` and other table directives are refused with or without caption/Label. Every table is numbered and canonically saved as `{table}`, including without caption or label. No merged cells, legends or extra directive attributes. |
-| List | Ordered or unordered lists with supported paragraph content and supported nested lists; existing start and nesting rules. A list retains at least one item. Each item may be empty, including a parent with only a nested list, or contain supported inline content such as text, a citation, footnote reference, math, code or semantic reference. This applies at every nesting level. Whitespace/line-break-only or whitespace-only marked content that cannot round-trip is still refused. No tasks or arbitrary nested blocks. |
+| List | Ordered or unordered lists with supported paragraph content and supported nested lists; existing start and nesting rules. A list retains at least one item. Each item may be empty, including a parent with only a nested list, or contain supported inline content such as text, a citation, footnote reference, math, code or semantic reference. This applies at every nesting level. Insert/update operations normalize whitespace-only content to empty content as described below. No tasks or arbitrary nested blocks. |
 | Code | Plain fenced code with the existing language contract; no captioned/directive variants. |
 | Quote, divider, admonition | An empty quote or one supported paragraph; thematic break; all standard admonition kinds with an empty body or one supported paragraph. No custom titles/options or additional nested blocks. |
 | Footnote and target | One non-empty supported paragraph per definition, no footnote references inside definitions; citations and document references are supported. Label targets and semantic references follow their existing contracts. |
@@ -60,6 +60,17 @@ Core admission and existing insert/update operations accept an empty body as an 
 structure. MyST's empty body has no paragraph child; Core creates that exact shape for
 empty admonitions, quotes and list items, keeping the complete fingerprint guard intact.
 No parse-time content removal or synthetic placeholder text is used.
+
+For admonitions, quotes and list items at every nesting level, Core insert/update operations
+normalize content with no visible inline content to `[]` (#624). The existing visibility
+predicate treats spaces, tabs, newlines and other JavaScript `trim()` whitespace, including
+whitespace inside inline marks or links and break-only content, as empty. Citations,
+semantic references, footnote references, inline math and inline code remain meaningful
+even without a plain-text node and are not removed. If any visible content remains, the
+existing content normalization and lossless-write rules apply unchanged, including leading
+and trailing whitespace handling. Editor and CLI share these operations; neither applies
+its own whitespace rule. Heading, footnote and endnote empty-content restrictions are
+unchanged. Native admission and the full canonical round-trip guard are unchanged.
 
 | Element | Canonical empty form | Filled form |
 | --- | --- | --- |

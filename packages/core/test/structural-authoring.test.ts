@@ -48,7 +48,6 @@ test("public Core rejects invalid admonition inserts without mutating the source
   const document = parse("Intro paragraph.\n");
   const before = serialize(document);
   const invalid = [
-    () => insertAdmonition(document, 1, "note", [{ kind: "text", text: "   " }]),
     () => insertAdmonition(document, 1, "admonition" as never, [{ kind: "text", text: "Body." }]),
     () => insertAdmonition(document, -1, "warning", [{ kind: "text", text: "Body." }]),
     () => insertAdmonition(document, 3, "warning", [{ kind: "text", text: "Body." }]),
@@ -192,7 +191,6 @@ test("invalid quote writes change nothing", () => {
   const before = serialize(document);
   for (const operation of [
     () => updateQuoteInlineContent(document, [1], [{ kind: "text", text: "Not a quote." }]),
-    () => insertQuote(document, 2, [{ kind: "text", text: "  " }]),
     () => insertDivider(document, 9),
   ]) {
     assert.throws(operation);

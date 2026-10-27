@@ -250,26 +250,72 @@ function assertStableEmpty(document: ReturnType<typeof core.createDocument>) {
   assert.equal(core.serialize(reopened), source);
   return source;
 }
-test("empty structural elements insert, fill, clear and reopen without losing structure", () => {
-  for (const variant of core.ADMONITION_VARIANTS) {
-    const empty = core.insertAdmonition(core.createDocument(), 1, variant, []);
-    assert.match(assertStableEmpty(empty), new RegExp(":::\\{" + variant + "\\}\\n:::"));
-    const filled = core.updateAdmonitionInlineContent(empty, [1], filledText);
-    assertStableEmpty(filled);
-    assert.equal(assertStableEmpty(core.updateAdmonitionInlineContent(filled, [1], [])), assertStableEmpty(empty));
+test("empty and whitespace-only structural elements insert, fill, clear and reopen without losing structure", () => {
+  const emptyContents: core.InlineContent[][] = [
+    [], [{ kind: "text", text: " " }], [{ kind: "text", text: "\t\r\n\u00a0\u2003\ufeff" }],
+    [{ kind: "break" }], [{ kind: "break" }, { kind: "text", text: " " }, { kind: "break" }],
+    ...(["strong", "emphasis", "delete", "subscript", "superscript"] as const).map(kind =>
+      [{ kind, children: [{ kind: "text" as const, text: " \t " }] }]),
+    [{ kind: "strong", children: [{ kind: "emphasis", children: [{ kind: "break" }, { kind: "text", text: " " }] }] }],
+    [{ kind: "link", url: "https://example.com", children: [{ kind: "text", text: "   " }] }],
+  ];
+  for (const content of emptyContents) {
+    for (const variant of core.ADMONITION_VARIANTS) {
+      const empty = core.insertAdmonition(core.createDocument(), 1, variant, []);
+      assert.equal(assertStableEmpty(core.insertAdmonition(core.createDocument(), 1, variant, content)), assertStableEmpty(empty));
+      assert.match(assertStableEmpty(empty), new RegExp(":::\\{" + variant + "\\}\\n:::"));
+      const filled = core.updateAdmonitionInlineContent(empty, [1], filledText);
+      assertStableEmpty(filled);
+      assert.equal(assertStableEmpty(core.updateAdmonitionInlineContent(filled, [1], content)), assertStableEmpty(empty));
+    }
+    const quote = core.insertQuote(core.createDocument(), 1, []);
+    assert.equal(assertStableEmpty(core.insertQuote(core.createDocument(), 1, content)), assertStableEmpty(quote));
+    assert.match(assertStableEmpty(quote), />\n$/);
+    assert.equal(assertStableEmpty(core.updateQuoteInlineContent(core.updateQuoteInlineContent(quote, [1], filledText), [1], content)), assertStableEmpty(quote));
+    for (const ordered of [false, true]) {
+      const list = { ordered, ...(ordered ? { start: 3 } : {}), items: [
+        { content: [] }, { content: [], list: { ordered: false, items: [{ content: [] }] } },
+      ] };
+      const empty = core.insertList(core.createDocument(), 1, list);
+      const whitespaceList = { ...list, items: [
+        { content }, { content, list: { ordered: false, items: [{ content }] } },
+      ] };
+      assert.equal(assertStableEmpty(core.insertList(core.createDocument(), 1, whitespaceList)), assertStableEmpty(empty));
+      assertStableEmpty(empty);
+      const filled = core.updateList(empty, [1], { ...list, items: [{ content: filledText }] });
+      assertStableEmpty(filled);
+      assert.equal(assertStableEmpty(core.updateList(filled, [1], whitespaceList)), assertStableEmpty(empty));
+    }
   }
-  const quote = core.insertQuote(core.createDocument(), 1, []);
-  assert.match(assertStableEmpty(quote), />\n$/);
-  assert.equal(assertStableEmpty(core.updateQuoteInlineContent(core.updateQuoteInlineContent(quote, [1], filledText), [1], [])), assertStableEmpty(quote));
-  for (const ordered of [false, true]) {
-    const list = { ordered, ...(ordered ? { start: 3 } : {}), items: [
-      { content: [] }, { content: [], list: { ordered: false, items: [{ content: [] }] } },
-    ] };
-    const empty = core.insertList(core.createDocument(), 1, list);
-    assertStableEmpty(empty);
-    const filled = core.updateList(empty, [1], { ...list, items: [{ content: filledText }] });
-    assertStableEmpty(filled);
-    assert.equal(assertStableEmpty(core.updateList(filled, [1], list)), assertStableEmpty(empty));
+});
+
+test("structural whitespace normalization preserves visible text and semantic-only inline content", () => {
+  const document = core.parse(native("After[^note].\n\n[^note]: Note.\n"));
+  const original = core.serialize(document);
+  const contents: core.InlineContent[][] = [
+    [{ kind: "text", text: "Keep   spacing" }],
+    [{ kind: "math", value: "x" }], [{ kind: "code", value: "x" }],
+    [{ kind: "reference", role: "eq", label: "eq-pending" }], [{ kind: "footnote", label: "note" }],
+    ...(["cite", "cite:t", "cite:p"] as const).map(role => [{ kind: "citation" as const, role, keys: ["Alpha"] }]),
+    [{ kind: "strong", children: [{ kind: "citation", role: "cite:p", keys: ["Alpha"] }] }],
+  ];
+  for (const content of contents) {
+    const note = core.insertAdmonition(document, 1, "note", content);
+    const quote = core.insertQuote(document, 1, content);
+    const list = { ordered: false, items: [{ content, list: { ordered: true, start: 3, items: [{ content }] } }] };
+    const insertedList = core.insertList(document, 1, list);
+    for (const next of [note, core.updateAdmonitionInlineContent(note, [1], content),
+      quote, core.updateQuoteInlineContent(quote, [1], content)]) {
+      assertStableEmpty(next);
+      const block = core.getEditableDocument(next).blocks[0];
+      assert(block.block === "admonition" || block.block === "quote");
+      assert.deepEqual(block.content, content);
+    }
+    for (const next of [insertedList, core.updateList(insertedList, [1], list)]) {
+      assertStableEmpty(next);
+      assert.deepEqual(core.getEditableDocument(next).blocks[0], { block: "list", path: [1], ...list });
+    }
+    assert.equal(core.serialize(document), original);
   }
 });
 test("empty labeled equations retain identity and numbering through notation changes", () => {

@@ -274,10 +274,7 @@ export function insertAdmonition(
 ): MystDocument {
   if (!isAdmonitionVariant(variant)) throw new Error(`unsupported admonition variant: ${variant}`);
   assertInlineContent(content);
-  if (content.length > 0 && inlineContentText(content).trim().length === 0) {
-    throw new DocumentWriteError("admonition body must contain non-empty text", { action: "Enter text in the admonition or delete this block." });
-  }
-  const normalizedContent = concatenateInlineContent(content);
+  const normalizedContent = hasVisibleContent(content) ? concatenateInlineContent(content) : [];
   const admonition: MystNode = {
     type: "admonition",
     kind: variant,
@@ -325,8 +322,7 @@ export function updateQuoteInlineContent(document: MystDocument, path: NodePath,
 
 function quoteContent(content: InlineContent[]): InlineContent[] {
   assertInlineContent(content);
-  if (content.length > 0 && inlineContentText(content).trim().length === 0) throw new DocumentWriteError("quote must contain non-empty text", { action: "Enter text or delete this quote." });
-  return concatenateInlineContent(content);
+  return hasVisibleContent(content) ? concatenateInlineContent(content) : [];
 }
 
 function assertQuoteRoundTrip(document: MystDocument, index: number, content: InlineContent[]): void {
@@ -523,8 +519,7 @@ function normalizeList(list: ListContent): ListContent {
   const items = list.items.map((item) => {
     if (!item || typeof item !== "object") throw new Error("list item must be an object");
     assertInlineContent(item.content);
-    if (item.content.length > 0 && !hasVisibleContent(item.content)) throw new DocumentWriteError("list item must contain non-empty text", { action: "Enter text in the empty list item or remove it." });
-    const content = concatenateInlineContent(item.content);
+    const content = hasVisibleContent(item.content) ? concatenateInlineContent(item.content) : [];
     return item.list === undefined ? { content } : { content, list: normalizeList(item.list) };
   });
   return list.ordered ? { ordered: true, start, items } : { ordered: false, items };
@@ -1180,15 +1175,12 @@ export function updateAdmonitionInlineContent(
 ): MystDocument {
   assertInlineContent(content);
   if (path.length !== 1) throw new Error("admonition edits require a top-level path");
-  if (content.length > 0 && inlineContentText(content).trim().length === 0) {
-    throw new DocumentWriteError("admonition body must contain non-empty text", { action: "Enter text in the admonition or delete this block." });
-  }
   const next = cloneDocument(document);
   const node = getNode(next, path);
   if (!supportedAdmonitionContent(node)) {
     throw new Error(`admonition edit is not supported at [${path.join(",")}]`);
   }
-  const normalized = concatenateInlineContent(content);
+  const normalized = hasVisibleContent(content) ? concatenateInlineContent(content) : [];
   node.children = normalized.length ? [{ type: "paragraph", children: inlineContentToNodes(normalized) }] : [];
 
   const failure = "admonition body edit cannot round-trip losslessly through canonical Markdown";
