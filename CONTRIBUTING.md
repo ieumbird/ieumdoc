@@ -142,7 +142,7 @@ Windows에서 아래 명령으로 로컬 개발용 installer를 만든다. 패�
 
 ```bash
 pnpm --filter @ieumdoc/desktop package
-pnpm --filter @ieumdoc/desktop exec tsx scripts/verify-release.ts --tag v0.1.0-beta.1
+pnpm --filter @ieumdoc/desktop exec tsx scripts/verify-release.ts --tag v0.1.0-beta.2
 pnpm --filter @ieumdoc/desktop test:packaged
 ```
 
