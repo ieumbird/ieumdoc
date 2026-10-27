@@ -164,6 +164,9 @@ Core tests, workspace typecheck, docs/whitespace checks and required PR CI.
 Local verification (2026-10-27): all 24 code/math preservation cases failed before
 the writer fix and pass after it. Core 325/325, workspace typecheck, docs and
 whitespace checks pass. Prose/caption output remains byte-identical in its regression.
+The existing Host file-save regression also replaces its former pipe refusal with
+an actual file write, native reopen and byte-identical second save, retaining all
+malformed-input refusals. Editor 316/316, Editor typecheck and production build pass.
 
 ## All-table numbering verification (#584)
 
