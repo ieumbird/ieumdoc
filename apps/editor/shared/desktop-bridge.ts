@@ -49,6 +49,8 @@ export type DesktopInfo = {
 export type RestartCheck = { ok: true } | { ok: false; reason: string };
 
 export type DesktopBridge = {
+  /** The shared Host deletes through the operating system trash. */
+  readonly fileDeletion: "trash";
   info(): Promise<DesktopInfo>;
   setChannel(channel: ReleaseChannel): Promise<DesktopInfo>;
   checkForUpdates(): Promise<void>;

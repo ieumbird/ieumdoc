@@ -426,7 +426,7 @@ test("document path splits for display without changing the address", () => {
 });
 
 test("sidebar without a folder offers only Open folder, and collapses", () => {
-  const open = renderToStaticMarkup(<Sidebar open documentPath={PATH} onToggle={noop} onOpenFolder={noop} />);
+  const open = renderToStaticMarkup(<Sidebar onFileAction={async () => ""} fileActionsDisabled={false} isFileDirty={() => false} open documentPath={PATH} onToggle={noop} onOpenFolder={noop} />);
   assert.match(open, /IeumDoc/);
   assert.match(open, /<button\b(?=[^>]*aria-label="Open folder…")(?=[^>]*title="Open folder…")/);
   assert.doesNotMatch(open, /Open file…/);
@@ -436,7 +436,7 @@ test("sidebar without a folder offers only Open folder, and collapses", () => {
   assert.doesNotMatch(open, /aria-current/);
   assert.doesNotMatch(open, /sidebar-tools|sidebar-display|aria-label="Display"/);
   assert.match(open, /aria-label="Collapse sidebar"/);
-  const collapsed = renderToStaticMarkup(<Sidebar open={false} documentPath={PATH} onToggle={noop} onOpenFolder={noop} onSettings={noop} />);
+  const collapsed = renderToStaticMarkup(<Sidebar onFileAction={async () => ""} fileActionsDisabled={false} isFileDirty={() => false} open={false} documentPath={PATH} onToggle={noop} onOpenFolder={noop} onSettings={noop} />);
   assert.match(collapsed, /aria-label="Expand sidebar"/);
   assert.doesNotMatch(collapsed, /Open file…|IeumDoc/);
   assert.match(collapsed, /id="sidebar-files"[^>]*hidden/);
@@ -461,7 +461,7 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
     pending: new Map(),
   };
   const html = renderToStaticMarkup(
-    <Sidebar open documentPath={String.raw`C:\docs\guides\guide.md`} folders={[folder]} onToggle={noop} onOpenFolder={noop} onNewDocument={noop} />,
+    <Sidebar onFileAction={async () => ""} fileActionsDisabled={false} isFileDirty={() => false} open documentPath={String.raw`C:\docs\guides\guide.md`} folders={[folder]} onToggle={noop} onOpenFolder={noop} onNewDocument={noop} />,
   );
   assert.match(html, /title="C:\\docs"/);
   assert.match(html, />docs</);
@@ -483,12 +483,12 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
   assert.doesNotMatch(html, /data-testid="sidebar-empty"|>Open file…<|>Close folder</);
   const empty = listing(String.raw`C:\docs`, []);
   const top = renderToStaticMarkup(
-    <Sidebar open documentPath={PATH} folders={[{ ...folder, nodes: new Map([[empty.path, empty]]), expanded: new Set() }]}
+    <Sidebar onFileAction={async () => ""} fileActionsDisabled={false} isFileDirty={() => false} open documentPath={PATH} folders={[{ ...folder, nodes: new Map([[empty.path, empty]]), expanded: new Set() }]}
       onToggle={noop} onOpenFolder={noop} />,
   );
   assert.match(top, /No files or folders/);
   const collapsed = renderToStaticMarkup(
-    <Sidebar open documentPath={PATH} folders={[{ ...folder, sectionExpanded: false }]}
+    <Sidebar onFileAction={async () => ""} fileActionsDisabled={false} isFileDirty={() => false} open documentPath={PATH} folders={[{ ...folder, sectionExpanded: false }]}
       onToggle={noop} onOpenFolder={noop} />,
   );
   assert.match(collapsed, /<ul\b(?=[^>]*role="tree")(?=[^>]*hidden)/);
@@ -500,7 +500,7 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
     { name: "note.md", kind: "document", path: String.raw`C:\docs\note.md`, native: true },
   ]);
   const marked = renderToStaticMarkup(
-    <Sidebar open documentPath={PATH} folders={[{ ...folder, nodes: new Map([[mixed.path, mixed]]), expanded: new Set() }]}
+    <Sidebar onFileAction={async () => ""} fileActionsDisabled={false} isFileDirty={() => false} open documentPath={PATH} folders={[{ ...folder, nodes: new Map([[mixed.path, mixed]]), expanded: new Set() }]}
       onToggle={noop} onOpenFolder={noop} />,
   );
   assert.match(marked, /<li\b(?=[^>]*data-foreign="true")(?=[^>]*aria-description="Not an IeumDoc document")[^>]*>/);
@@ -508,7 +508,7 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
   try {
     void i18n.changeLanguage("ko");
     const localized = renderToStaticMarkup(
-      <Sidebar open documentPath={PATH} folders={[{ ...folder, nodes: new Map([[mixed.path, mixed]]), expanded: new Set() }]}
+      <Sidebar onFileAction={async () => ""} fileActionsDisabled={false} isFileDirty={() => false} open documentPath={PATH} folders={[{ ...folder, nodes: new Map([[mixed.path, mixed]]), expanded: new Set() }]}
         onToggle={noop} onOpenFolder={noop} />,
     );
     assert.match(localized, /title="C:\\docs\\plain.md\n이음독 문서가 아님"/);
@@ -520,12 +520,12 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
 test("without a chosen folder, recent folders list again with one click", () => {
   const recent = [String.raw`C:\work\docs`, "/srv/notes/"];
   const html = renderToStaticMarkup(
-    <Sidebar open documentPath={PATH} onToggle={noop} onOpenFolder={noop} recent={recent} onOpenRecent={noop} />,
+    <Sidebar onFileAction={async () => ""} fileActionsDisabled={false} isFileDirty={() => false} open documentPath={PATH} onToggle={noop} onOpenFolder={noop} recent={recent} onOpenRecent={noop} />,
   );
   assert.match(html, /<button\b(?=[^>]*title="C:\\work\\docs")[^>]*>.*?>docs</);
   assert.match(html, /<button\b(?=[^>]*title="\/srv\/notes\/")[^>]*>.*?>notes</);
   // No recent list without a way to open one.
-  assert.doesNotMatch(renderToStaticMarkup(<Sidebar open documentPath={PATH} onToggle={noop} onOpenFolder={noop} recent={recent} />), /Recent/);
+  assert.doesNotMatch(renderToStaticMarkup(<Sidebar onFileAction={async () => ""} fileActionsDisabled={false} isFileDirty={() => false} open documentPath={PATH} onToggle={noop} onOpenFolder={noop} recent={recent} />), /Recent/);
 });
 
 test("document panel holds only the outline, and the TopBar Outline toggle shows whether it is open", () => {

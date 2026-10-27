@@ -1,6 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
 - Property Apply verification: 2026-10-27 (#576: shared Ctrl/Cmd+Enter submission, validation/busy guards, IME/modifier exclusions and prose hard-break isolation; Editor tests and targeted Windows Chrome browser regressions, with Apple platform emulation rather than native macOS).
 - Property-entry update: 2026-10-27 (#557: shared selection/Enter/double-click and explicit property drafts; see [Continuous editing](document-editing-v1.md#continuous-editing)).
 - Command find verification: 2026-10-27 (#556: Editor 295 tests, typecheck/build/docs, command-center/editor-shell/layout-rules/quiet-document/file-preview; [scope and captures](#action-and-search-scope-556)).
@@ -23,6 +24,57 @@
 - Scope: existing Editor interactions. [Visual Language (current v4.8)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
 
 Historical verification records: [Verification record](#verification-record).
+
+## File context menu (#505 / #504 PR A)
+
+Each file tree row (native/foreign document, image or other file) offers Rename… and Delete file…
+in a shared Base UI ContextMenu. Right click, focused-row Shift+F10 / Menu key and touch long
+press open the same menu in every Host. Only these file targets suppress the browser context
+menu; folder rows and the document body retain native behavior. There are no new ellipsis,
+toolbar, F2 or Delete entries. Target-local data supplies IDs, labels, icons, visibility and execution;
+there is no global registry. Keyboard menu navigation is independent of tree arrows; Escape
+restores the target row. Choosing an action hands focus to its shared dialog.
+
+Rename uses a small dialog with the selected stem and a separate immutable extension, matching
+New file shell controls. Cancel/Escape/outside dismissal restores the row. Invalid names and
+collisions retain input and show the reason. Referenced images are refused with the referring
+native document names; [Host checking](filesystem-host-boundary-v1.md#file-deletion-and-rename-505--504-pr-a)
+includes saved and applied unsaved work. No references are rewritten in PR A.
+
+Deletion names the file and distinguishes permanent deletion in Vite/HTTP from OS Trash on
+Desktop. An open dirty document additionally says its unsaved changes will be discarded and
+uses Delete and discard changes. Cancel has initial focus. The shared danger confirmation blocks
+dismissal while pending and keeps failures visible. Success closes the deleted document's tab,
+removes all local recovery records for that path and focuses the adjacent visible tree item (next,
+then previous; the folder disclosure if empty). An inactive deletion leaves the active tab intact.
+
+Rename updates open tab paths, session locators and matching recovery record/snapshot paths
+without rereading the file or replacing its Tiptap editor. Unsaved content, property drafts, selection
+and Undo/Redo remain. Existing Figure NodeViews, future image uploads and asset callbacks read
+the new locator. Both operations update remembered tab navigation and loaded parent listings.
+Recovery storage failure after a completed disk operation is reported explicitly for manual review.
+
+### File action verification and captures
+
+`pnpm browser:test file-actions --screenshots` uses scratch fixtures and the checkout-owned
+persistent Chrome profile. The scenario verifies mouse, keyboard and actual touch input, native
+menu boundaries, collision/reference refusal, editor identity/no reread, Undo/Redo, Save at the new
+path, recovery relocation/deletion, active/inactive deletion and adjacent focus. It also checks
+existing Figure image URLs and a subsequent real image upload after rename.
+
+Captures: Windows Chrome, English UI, 100% zoom, DPR 1, 1440×900 / 390×900, bundled Pretendard.
+Before is base `1cd199cda9b70318586a6264cadc7044a4b8e57e` before product edits; After is this PR's working tree.
+1440 uses light OS preference; 390 uses dark OS preference. The product intentionally retains its
+single light theme under either preference, per Visual Language. Full traces and logs stay in
+ignored `tmp/file-actions-evidence`; only the selected small captures are retained here.
+
+| Surface | 1440px (light OS) | 390px (dark OS) |
+| --- | --- | --- |
+| Before: file tree, no product context menu | [Before](assets/file-actions-505/before-1440.png) | [Before](assets/file-actions-505/before-390.png) |
+| Context menu | [After](assets/file-actions-505/after-menu-1440.png) | [After](assets/file-actions-505/after-menu-390.png) |
+| Delete confirmation | [After](assets/file-actions-505/after-delete-1440.png) | [After](assets/file-actions-505/after-delete-390.png) |
+| Rename input | [After](assets/file-actions-505/after-rename-1440.png) | [After](assets/file-actions-505/after-rename-390.png) |
+
 
 ## Document settings placement (#554)
 

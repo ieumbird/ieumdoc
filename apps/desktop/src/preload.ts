@@ -16,6 +16,7 @@ ipcRenderer.on("desktop:restart-check", (_event, id: number) => {
 });
 
 const bridge: DesktopBridge = {
+  fileDeletion: "trash",
   info: () => ipcRenderer.invoke("desktop:info"),
   setChannel: (channel) => ipcRenderer.invoke("desktop:set-channel", channel),
   checkForUpdates: () => ipcRenderer.invoke("desktop:check"),

@@ -48,6 +48,14 @@ const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
       context.setDefaultNavigationTimeout(workerInfo.project.use.navigationTimeout!);
       await context.clearCookies();
       const scratch = path.join(REPOSITORY_ROOT, "tmp").replaceAll("\\", "/") + "/";
+      await context.route("**/api/file", route => {
+        const body = route.request().postDataJSON();
+        const paths = [body?.root, body?.path].map(value => String(value ?? "").replaceAll("\\", "/"));
+        if (paths.some(file => !file.startsWith(scratch) || file.split("/").includes(".."))) {
+          return route.fulfill({ status: 403, json: { error: "Browser tests may mutate scratch files only." } });
+        }
+        return route.continue();
+      });
       await context.route("**/api/document**", route => {
         if (route.request().method() === "GET") return route.continue();
         const file = String(route.request().postDataJSON()?.path ?? "").replaceAll("\\", "/");

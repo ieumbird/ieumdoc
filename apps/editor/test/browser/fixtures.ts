@@ -28,6 +28,16 @@ const technical = [document("technical-document.md"), document("diagram.svg")];
 
 /** Scratch directory under `tmp/` → the files a fresh copy holds, and the scenarios using it. */
 export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: string[] }> = {
+  "file-actions": { files: [
+    { name: "a.md", create: () => nativeSource("# File actions\n\nAlpha.\n") },
+    { name: "b.md", create: () => nativeSource("# Second\n\nBeta.\n") },
+    { name: "notes.txt", create: () => "plain text" },
+    { name: "README", create: () => "extensionless" },
+    document("diagram.svg"),
+    { name: "unused.svg", create: () => document("diagram.svg").create() },
+    { name: "nested/ref.md", create: () => nativeSource("# Reference\n\n:::{figure} ../diagram.svg\n:alt: Figure\n\nCaption.\n:::\n") },
+    { name: "ref.md", create: () => nativeSource("# Reference\n\n:::{figure} ./diagram.svg\n:alt: Figure\n\nCaption.\n:::\n") },
+  ], scenarios: ["file-actions"] },
   "table-caption": { files: [{ name: "caption.md", create: () => nativeSource(
     "# Table captions\n\nBefore.\n\n:::{figure}\n:name: fig-a\n:::\n\n" +
     ":::{table} **Results** with {numref}`fig-a`, {cite:p}`alpha` and $x^2$\n:name: tbl-a\n\n| Header |\n| --- |\n| Cell |\n:::\n\nAfter.\n") }], scenarios: ["table-caption"] },

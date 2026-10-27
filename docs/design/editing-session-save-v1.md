@@ -1,11 +1,27 @@
 # Editing session and Save v1
 
 - Status: Implemented
+- File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
 - Property Apply verification: 2026-10-27 (#576: shared Ctrl/Cmd+Enter submission, validation/busy guards, IME/modifier exclusions and prose hard-break isolation; Editor tests and targeted Windows Chrome browser regressions, with Apple platform emulation rather than native macOS).
 
 - Last verified: 2026-10-27 (#557 Editor tests/typecheck/build and inline-math property draft regressions: outside focus, independent instances, applied-only Save/Source, tab switching and discard/close guards).
 
 - Boundaries: ADR-0001, ADR-0002, ADR-0003. Markdown remains the disk SSOT; Core operations and canonical validation remain the write path.
+
+## File deletion and rename (#505 / #504 PR A)
+
+Confirmed file deletion closes its open tab, discards applied edits/property drafts and deletes
+all recovery records matching its path. Dirty work requires the explicit Delete and discard changes
+confirmation instead of the ordinary tab Save/Don't save prompt. The file tree receives focus.
+
+Same-folder rename keeps the mounted editor, history, selection and drafts. It changes the live
+session locator and tab navigation, then moves matching recovery record paths and snapshot file
+paths in one IndexedDB transaction. Queued local old-path recording is cancelled during the Host
+operation; subsequent dirty recording uses the new locator. No file reread or semantic rewrite
+occurs. Storage failure after disk success is visible and does not pretend the disk operation failed.
+[Shell](editor-ux-shell-v1.md#file-context-menu-505--504-pr-a) and
+[Host](filesystem-host-boundary-v1.md#file-deletion-and-rename-505--504-pr-a) specify entry/validation.
+
 
 ## Editor ownership
 

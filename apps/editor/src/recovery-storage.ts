@@ -86,6 +86,25 @@ function ticket(barriers: IDBObjectStore, id: string, done: (value: Ticket) => v
 /** Tickets are captured on an applied edit, never on a later Save or timer turn.
  * IndexedDB transactions order deletion with writes across windows, without relying on messages. */
 export const recoveryStorage = {
+  /** File operations invalidate queued writes and move/discard matching records atomically. */
+  changePath(previous: string, next: string | null): Promise<void> {
+    return transaction((records, barriers, done, fail) => {
+      const cursor = records.openCursor();
+      cursor.onsuccess = () => {
+        const entry = cursor.result;
+        if (!entry) { done(undefined); return; }
+        try {
+          const record = entry.value as RecoveryRecord;
+          if (record.path === previous) {
+            barriers.delete(["session", record.id]);
+            if (next === null) entry.delete();
+            else entry.update({ ...record, path: next, snapshot: { ...record.snapshot, file: { ...record.snapshot.file, path: next } } });
+          }
+          entry.continue();
+        } catch (error) { fail(error); }
+      };
+    });
+  },
   restore(record: RecoveryRecord, id: string): Promise<void> {
     return transaction((records, barriers, done, fail) => {
       const stored = records.get(record.id);
