@@ -68,6 +68,14 @@ async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, 
   assert(await keyInput.getAttribute('aria-controls') === await choices.getAttribute('id'), 'Combobox controls the bibliography list');
   assert(await choices.getByRole('option', { name: /article.*W\. Zhang.*Control Study/ }).count() === 1, 'Candidates show their key, author and title');
   await page.setViewportSize({ width: 640, height: 812 });
+  // setViewportSize can return before the resize handler fits the overlay.
+  // Wait for its actual placement; keep the overflow assertions below independent.
+  await page.waitForFunction(() => {
+    const form = document.querySelector('[data-testid="citation-form"]');
+    if (!form) return false;
+    const rect = form.getBoundingClientRect();
+    return rect.left >= 0 && rect.right <= window.innerWidth;
+  });
   const narrow = await form.evaluate(element => {
     const list = element.querySelector('[role="listbox"]');
     const rect = element.getBoundingClientRect();
