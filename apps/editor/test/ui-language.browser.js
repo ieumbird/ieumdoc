@@ -203,17 +203,21 @@ async (page, { openPath, screenshots }) => {
     await editor.evaluate(node => node.editor.commands.redo());
     check((await snapshot()).json === applied.json, 'Redo did not restore applied edits');
 
+    // Block equations may now be empty; inline math still requires content or explicit Remove.
     // Test failure text at its origin, then switch language while the error remains visible.
-    await equation.hover();
-    await equation.getByRole('button', { name: '편집', exact: true }).click();
-    await page.getByTestId('equation-latex').fill('');
-    await page.getByTestId('equation-apply').click();
-    await page.getByText('수식 LaTeX는 비워 둘 수 없습니다.', { exact: true }).waitFor();
+    await editor.evaluate(node => node.editor.commands.insertContentAt(3, { type: 'inlineMath', attrs: { value: 'x' } }));
+    await editor.getByTestId('inline-math').first().locator('.inline-math-rendered').dblclick();
+    const beforeInvalidApply = (await snapshot()).json;
+    await page.getByTestId('inline-math-source').fill('');
+    await page.getByTestId('inline-math-apply').click();
+    await page.getByText('LaTeX를 입력하거나 제거를 선택하세요.', { exact: true }).waitFor();
     await settings('ko');
     await page.getByTestId('ui-language').selectOption('en');
     await closeSettings();
-    await page.getByText('Equation LaTeX cannot be empty.', { exact: true }).waitFor();
-    await page.getByTestId('equation-cancel').click();
+    await page.getByText('Enter LaTeX, or use Remove.', { exact: true }).waitFor();
+    check((await snapshot()).json === beforeInvalidApply, 'Invalid Apply or language change modified the document');
+    check(await page.getByTestId('inline-math-source').inputValue() === '', 'Language change lost the invalid draft');
+    await page.getByTestId('inline-math-cancel').click();
     await settings('en');
     await page.getByTestId('ui-language').selectOption('ko');
     await closeSettings();

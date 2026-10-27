@@ -71,10 +71,15 @@ async (page, { openPath, reloadDocument, expect, screenshots }) => {
   expect(await snapshot()).toEqual(empty);
   await prompts('Enter an equation','Enter admonition text','Enter a quote','Enter a list item');
   await page.getByRole('button',{name:'Settings',exact:true}).click();
-  await page.getByTestId('ui-language').selectOption('ko');
-  await page.getByRole('button',{name:'문서로 돌아가기',exact:true}).click();
-  await prompts('수식을 입력하세요','안내 내용을 입력하세요','인용문을 입력하세요','목록 항목을 입력하세요');
-  expect(await snapshot()).toEqual(empty);
-  expect(await read()).toBe(stored);
+  try {
+    await page.getByTestId('ui-language').selectOption('ko');
+    await page.getByRole('button',{name:'문서로 돌아가기',exact:true}).click();
+    await prompts('수식을 입력하세요','안내 내용을 입력하세요','인용문을 입력하세요','목록 항목을 입력하세요');
+    expect(await snapshot()).toEqual(empty);
+    expect(await read()).toBe(stored);
+  } finally {
+    // Preserve the shared persistent profile while restoring this scenario's preference.
+    await page.evaluate(() => localStorage.setItem('ieumdoc.uiLanguage', 'en'));
+  }
   return {emptySaveReload:true, displayOnlyGuidance:true, languageSwitch:true, typingUndo:true};
 }

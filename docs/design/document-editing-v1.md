@@ -58,6 +58,14 @@ build, docs/whitespace, and `empty-elements`, `equation-insertion`,
 `equation-save-during-edit`, `list-authoring`, `admonition-authoring`, `layout-rules` and
 `quiet-document` passed. Edge and packaged Desktop checks are left to CI.
 
+The first CI artifacts exposed two test assumptions: `empty-elements` left Korean
+as the shared profile preference, and `ui-language` expected a now-valid empty block
+equation to fail. The former restores its preference in `finally`; the latter uses
+the existing empty inline-math refusal to retain live error-translation coverage,
+including unchanged document and draft checks. `ui-language`, `empty-elements` and
+`quote-save-reload` also pass in one sequential local run. No retry or timeout increase
+was used to address either failure.
+
 Capture-only `pnpm browser:test empty-elements --screenshots` uses identical scratch
 content, insertion commands, scroll, fonts and 1440/640×900 viewports. Before is the
 base product at `1304a90e650d8cd54a7c0a0c5368a4d854dfa93e`; after is #574. Four small
