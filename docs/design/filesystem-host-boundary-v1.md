@@ -1,6 +1,7 @@
 # Filesystem Host Boundary v1
 
 - Status: Implemented
+- Referenced image rename verification: 2026-10-27 (#504 PR B: Core/CLI/Host tests, file-actions browser dirty/draft protection and clean-tab reload, other-window Save conflict, production HTTP Save/Reload/recovery; rollback failures use real temporary files with injected I/O errors).
 - File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
 - Folder refresh verification: 2026-10-26 (#494: loaded-list refresh and asset parent updates; [behavior and verification](editor-ux-shell-v1.md#folder-refresh-494)).
 - Last verified: 2026-10-25 (#425 owner persistence decision: Editor tests/typecheck/build, folder-memory/navigation/command-center/document-tabs/editor-shell/quiet-document; [restoration evidence](editor-ux-shell-v1.md#section-persistence-decision-and-verification-2026-10-25)).
@@ -310,7 +311,9 @@ New Document v1은 Workspace를 만들지 않고 특정 file path를 Host에 전
 ## File deletion and rename (#505 / #504 PR A)
 
 `DELETE /api/file` accepts `{root, path}`; `PATCH /api/file` additionally accepts a filename
-stem `name` and optional `{path, source}[]` `openDocuments` containing applied unsaved content.
+stem `name` and optional `{path, source?}[]` `openDocuments` containing dirty tabs in the
+requesting Editor window. `source` contains applied unsaved content when present; a path-only
+entry covers property drafts against the saved document's references.
 Vite, Desktop and HTTP reuse this stateless handler. The selected root is supplied per request;
 HTTP additionally enforces the operator Root allowlist. No open-folder registry is retained.
 
@@ -328,7 +331,9 @@ steps are separate and do not sandbox a hostile concurrent filesystem administra
 
 Vite/HTTP deletion is permanent, after the Editor names the file and confirms. Desktop supplies
 `shell.trashItem` to the same checked handler; failure never falls back to permanent deletion.
-Successful operations return `{path}` and the Editor refreshes already-loaded parent listings.
+Successful operations return `{path, updatedDocuments?, skippedDocuments?}` and the Editor
+refreshes already-loaded parent listings. Updated document locators are absolute; skipped
+unreadable/non-native `.md` names are relative to the requested root and shown in a notice.
 Asset rollback keeps its signed-receipt API and is not broadened by this user-confirmed file API.
 
 Deletion/rename recovery barriers match path strings. Until [#372](https://github.com/ieumbird/ieumdoc/issues/372)
@@ -342,13 +347,53 @@ readable native document through Core's existing read model and resolves Figure 
 `resolveMediaPath`, using the same URL-segment encoding as image requests. Matching compares
 filesystem `dev`/`ino` identity, so Windows case variants and hard-link aliases cannot evade the
 check; it never equates names by string lowercasing. Unreadable/non-native
-documents are skipped. Applied unsaved sources from open sessions supplement the disk check.
-A match refuses the rename and returns the referring document names. No Markdown parser,
-reference rewrite, persistent index or background watcher is added. Recursive scan here is only
-this on-demand safety check, an exception to general tree-listing/index non-goals below.
+documents are skipped and reported. Applied unsaved sources from open sessions supplement the
+disk check. A dirty tab matching either the disk references or its applied snapshot refuses the
+whole rename with document names and save-first guidance. A draft alone also counts as dirty.
+Recursive scan is limited to this requested operation, not a persistent index or watcher.
 
-These are filesystem operations, with no document semantic change; there is no CLI command.
-Referenced-image rewriting and its Core/CLI operations belong to PR B of #504.
+### Referenced image rename (#504 PR B)
+
+The Host passes the matched Figure source strings to Core's `updateMediaReferences` operation.
+It writes a `./`-prefixed document-relative path with `/` separators to the new image. Figure
+caption, label and alt text are preserved. Plain text, links and unsupported/remote image
+references are not rewritten. A hard-link alias whose new destination would escape the
+document's existing media boundary refuses the operation before writing; the media boundary
+is not broadened. Core canonical write and loss-prevention guards apply to every target.
+
+The stateless request performs these steps:
+
+1. Read all admitted target documents, calculate/validate all new contents and run the existing
+   file-commit revision/write-permission preflight for every document. Any failure writes nothing.
+2. Publish the image's new name exclusively as a hard link, retaining the original name.
+   Existing destinations and unsupported hard-link filesystems fail before any document write.
+3. Replace each document through shared `commitFile`: temporary sibling, revision recheck,
+   atomic per-file replacement. Root/symlink policy is rechecked before each commit.
+4. Verify image ownership and unlink the original image name only after every document commit.
+
+On failure after publication, restore committed documents in reverse order through `commitFile`
+using their newly written revisions. External changes are not overwritten. Remove the new image
+link only after successful rollback. Failed rollback retains both image names when possible and
+returns an explicit error listing present/absent image paths and documents requiring review;
+`updatedDocuments` lists those whose rollback failed so open clean tabs can reload actual disk
+content. Case-only spelling changes use the existing OS rename instead of link publication;
+rollback reverses that spelling when all document restores succeed.
+
+This is best-effort rollback, not a multi-file transaction. Other readers can observe intermediate
+states. A process/OS crash can leave two image names and a mixture of old/new document contents;
+there is no durable transaction journal or startup repair. A simultaneous external filesystem
+change can also prevent rollback; errors describe that remaining state. The existing validation/use
+race boundary and #372 path-alias policy remain unchanged.
+
+Same-window dirty tabs refuse and clean affected tabs reload before the rename dialog closes.
+Other windows do not share live state: **cross-window protection is Save-time revision conflict**.
+Their old content remains local and cannot overwrite rewritten documents without resolving the
+existing conflict. See [session behavior](editing-session-save-v1.md#referenced-image-rename-504).
+
+CLI exposes only [one-document media reference replacement](figure-authoring-v1.md#media-reference-replacement-504).
+Folder traversal and image-file rename remain Host responsibilities; CLI does not duplicate the
+Host's filesystem orchestration or session checks. File delete and ordinary file rename have no
+new Core or CLI operation.
 
 ## Non-goals
 

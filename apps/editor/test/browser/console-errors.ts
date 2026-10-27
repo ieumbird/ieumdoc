@@ -11,7 +11,7 @@ type ExpectedConsoleErrorRule = {
 
 const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
   "file-actions": [
-    { status:400, pathname:"/api/file", minimum:2, description:"duplicate file name and referenced image renames are refused" },
+    { status:400, pathname:"/api/file", minimum:2, description:"duplicate file name and dirty referenced image renames are refused" },
   ],
   "command-center": [
     { status: 400, pathname: "/api/document", queryPath: path.join(REPOSITORY_ROOT, "tmp", "document-tabs", "foreign.md"), minimum: 1, description: "listed non-native Markdown uses the existing admission refusal" },

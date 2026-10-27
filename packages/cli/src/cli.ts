@@ -54,6 +54,7 @@ import {
   updateHeadingInlineContent,
   updateEquationLatex,
   updateFigure,
+  updateMediaReferences,
   updateLabel,
   updateTableCell,
   updateTableCaption,
@@ -490,6 +491,15 @@ const COMMANDS: CommandSpec[] = [
       "--label sets the new Figure's label in the same write, under update-label's rules.",
       "Connect an image to a pending Figure later with update-figure --image.",
     ],
+  },
+  {
+    name: "update-media-references",
+    group: "Edit — text and content",
+    summary: "Replace exact Figure media sources in one document through Core",
+    usage: "ieumdoc update-media-references <file> --from <source> --to <source>",
+    details: ["Replace every matching Figure image source, preserving caption, alt and label.",
+      "Sources match exactly. No filesystem traversal, image rename or URL normalization is performed.",
+      "Uses canonical validation and the normal revision-checked write, dry-run and batch contracts."],
   },
   {
     name: "update-figure",
@@ -1047,6 +1057,10 @@ function changeFor(command: string, flags: string[]): Change {
         return label.length > 0 ? updateLabel(inserted, [at], label) : inserted;
       };
     }
+    case "update-media-references": {
+      const from = flag(flags, "--from"), to = flag(flags, "--to");
+      return document => updateMediaReferences(document, [{ from, to }]);
+    }
     case "update-figure": {
       const changes = {
         imageUrl: optionalFlag(flags, "--image"),
@@ -1349,6 +1363,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "insert-equation": ["--at", "--latex", "--label"],
   "insert-figure": ["--at", "--image", "--alt", "--caption", "--caption-content", "--label"],
   "update-figure": ["--path", "--image", "--alt", "--caption", "--caption-content"],
+  "update-media-references": ["--from", "--to"],
   "insert-table": ["--at", "--cells", "--align", "--caption", "--caption-content", "--label"],
   "insert-list": ["--at", "--list"],
   "update-list": ["--path", "--list"],

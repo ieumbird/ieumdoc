@@ -366,8 +366,13 @@ export function App() {
       const openDocuments = [];
       if (action === "rename" && entry.kind === "image") {
         for (const current of sessions.current.values()) {
-          if (folderChain(root, current.openedPath).length && current.editorRef.current?.hasDocumentChanges()) {
-            openDocuments.push({ path: current.openedPath, source: await current.appliedSource() });
+          if (folderChain(root, current.openedPath).length && current.editorRef.current?.hasUnsavedChanges()) {
+            try {
+              openDocuments.push({ path: current.openedPath,
+                ...(current.editorRef.current.hasDocumentChanges() ? { source: await current.appliedSource() } : {}) });
+            } catch (cause) {
+              throw new Error(`${i18n.t("Save these documents before renaming the image: {{documents}}", { documents: splitDocumentPath(current.openedPath).name })}\n${messageOf(cause)}`);
+            }
           }
         }
       }
@@ -376,8 +381,18 @@ export function App() {
         body: JSON.stringify({ root, path: entry.path, ...(action === "rename" ? { name, openDocuments } : {}) }),
       });
       const result = await response.json();
-      if (Array.isArray(result.references)) throw new Error(i18n.t("This image is referenced by: {{documents}}", { documents: result.references.join(", ") }));
-      if (!response.ok || typeof result.path !== "string") throw new Error(result.error ?? `File operation failed (${response.status})`);
+      if (Array.isArray(result.references)) throw new Error(i18n.t("Save these documents before renaming the image: {{documents}}", { documents: result.references.join(", ") }));
+      // The rename dialog remains modal throughout the request and reloads. No tab can
+      // accept new input between the dirty check and installing the new disk checkpoint.
+      const reloadErrors: string[] = [];
+      for (const current of sessions.current.values()) {
+        if (!result.updatedDocuments?.includes(current.openedPath)) continue;
+        const message = await current.load(current.openedPath);
+        if (message) reloadErrors.push(`${splitDocumentPath(current.openedPath).name}: ${message}`);
+      }
+      if (reloadErrors.length) setError({ key: "The files changed, but these tabs could not be reloaded: {{documents}}", values: { documents: reloadErrors.join(", ") } });
+      if (result.skippedDocuments?.length) setNotice({ key: "Skipped unreadable or non-IeumDoc documents: {{documents}}", values: { documents: result.skippedDocuments.join(", ") } });
+      if (!response.ok || typeof result.path !== "string") { folders.refreshParents(entry.path); throw new Error(result.error ?? `File operation failed (${response.status})`); }
       completed = true;
       try { await recoveryStorage.changePath(entry.path, action === "rename" ? result.path : null); }
       catch { setError({ key: "The file changed, but local recovery could not be updated. Review local recovery in Settings." }); }

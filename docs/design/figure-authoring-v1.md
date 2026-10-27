@@ -1,6 +1,7 @@
 # Figure authoring v1
 
 - Status: Implemented
+- Media reference verification: 2026-10-27 (#504: simultaneous exact source replacement, canonical preservation/refusal, CLI dry-run/batch/revision conflicts, real Host rename and Editor reload).
 - Property-entry update: 2026-10-27 (#557: shared selection/Enter/double-click and explicit property drafts; see [Continuous editing](document-editing-v1.md#continuous-editing)).
 - Active image preview verification: 2026-10-26 (#480: Figure browser preview/race/focus/overflow checks and [same-state manual captures](folder-picker-v1.md#active-image-preview-480); Editor tests/typecheck/build).
 - Double-click verification: 2026-10-26 (#470: figure-authoring checks Image-field focus, Edit-equivalent Cancel/Escape, unchanged document and Undo/Redo, caption word selection, pending entry and preservation of invalid/unapplied drafts; new entry assertions failed before the change).
@@ -82,6 +83,26 @@ After removing the optional leading `./` for display, ordinary paths use segment
 If an image cannot load, the Figure shows `Image could not be loaded. Check the image path or URL.` in the existing error Notice, including at rest. The broken image is hidden; caption, numbering and properties remain available. Successful loading or changing the source clears the failed-source display state. This state never changes document attributes, dirty state, Source or Save, and adds no Core asset-existence check. CLI filesystem warnings are described below.
 
 ## CLI and readiness
+
+### Media reference replacement (#504)
+
+`updateMediaReferences(document, [{from, to}, ...])` replaces every exact matching Figure image
+source simultaneously through Core. This is editor-neutral and uses the existing Figure read
+model and update operation; no caller parses Markdown. It preserves Figure caption, alt text,
+label and position. Plain text, inline links, unrelated images and pending Figures are unchanged.
+Duplicate source mappings and empty source/destination strings are rejected. Destinations must
+pass existing Figure validity/round-trip rules, and the complete input/output must pass canonical
+serialization's loss-prevention guards. Mappings do not cascade (`a → b`, `b → c` changes an
+original `a` only to `b`). Core does not decide filesystem identity or existence.
+
+`ieumdoc update-media-references <file> --from ./old.svg --to ./new.svg` is the thin one-document
+CLI command. Normal dry-run, JSON output, revision-checked writes and `apply-batch` apply.
+Matching is exact, without path/URL normalization. This command does not rename image files or
+scan folders. The [Host image rename](filesystem-host-boundary-v1.md#referenced-image-rename-504-pr-b)
+uses filesystem identity to supply all matching source spellings and the new relative path to
+this same operation, then coordinates the file writes and image rename.
+
+### Figure commands
 
 ```bash
 pnpm ieumdoc insert-figure doc.md --at 2 --label fig-pfc-control --caption "PFC Current Control Architecture"

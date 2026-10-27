@@ -1,14 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
-import { assertUnicode } from "@ieumdoc/file-commit";
-import { validFileStem, type FileOperationRequest, type RenameFileRequest } from "../shared/file-operations.ts";
+import { assertUnicode, commitFile, preflightFileCommit, textRevision } from "@ieumdoc/file-commit";
+import { parse, serialize, updateMediaReferences } from "@ieumdoc/core";
+import { validFileStem, type FileOperationRequest, type RenameFileRequest, type FileOperationResponse } from "../shared/file-operations.ts";
 import { accessPath, FileAccessError, inside, LOCAL_FILE_ACCESS, RootAccess, type FileAccess } from "./file-access.ts";
 import { loadDocumentFile, MEDIA_TYPES } from "./document-api.ts";
 import { resolveMediaPath } from "./document-path.ts";
 import { readModel } from "./document-replay.ts";
 
 export class ReferencedImageError extends Error {
-  constructor(readonly references: string[]) { super(`This image is referenced by: ${references.join(", ")}`); }
+  constructor(readonly references: string[]) { super(`Save these documents before renaming the image: ${references.join(", ")}`); }
+}
+
+export class ImageRenameError extends Error {
+  constructor(message: string, readonly updatedDocuments: string[], readonly skippedDocuments: string[]) { super(message); }
 }
 
 /** No retained roots or sessions: every request validates its chosen folder and file anew. */
@@ -43,41 +48,61 @@ export async function deleteFile(request: FileOperationRequest, access: FileAcce
   return { path: file };
 }
 
-function imageReferences(root: string, file: string, openDocuments: RenameFileRequest["openDocuments"], access: FileAccess): string[] {
-  const references = new Set<string>();
+function imageReferences(root: string, file: string, destination: string, openDocuments: RenameFileRequest["openDocuments"], access: FileAccess) {
+  const documents: { loaded: ReturnType<typeof loadDocumentFile>; sources: Set<string> }[] = [];
+  const references = new Set<string>(), skipped: string[] = [];
   const image = fs.statSync(file);
   const inspect = (documentPath: string, document: ReturnType<typeof readModel>["document"]) => {
-    if (!inside(root, documentPath)) return;
+    const sources = new Set<string>();
+    if (!inside(root, documentPath)) return sources;
     for (const block of document.blocks) {
       if (block.block !== "figure" || !block.imageUrl) continue;
       try {
         // Match the existing segment-encoded media request, including literal percent signs.
         const target = resolveMediaPath(block.imageUrl.split("/").map(encodeURIComponent).join("/"), documentPath, access);
         const referenced = fs.statSync(target);
-        if (referenced.dev === image.dev && referenced.ino === image.ino) references.add(path.relative(root, documentPath));
+        if (referenced.dev === image.dev && referenced.ino === image.ino) sources.add(block.imageUrl);
       } catch { /* Remote, missing and out-of-scope media are not this local image. */ }
     }
+    return sources;
   };
   const scan = (folder: string) => {
     for (const entry of fs.readdirSync(accessPath(folder, access), { withFileTypes: true })) {
       const target = path.join(folder, entry.name);
       if (entry.isDirectory()) scan(target);
       else if (entry.isFile() && path.extname(entry.name).toLowerCase() === ".md") {
-        try { inspect(target, loadDocumentFile(target, access).document); }
-        catch { /* Unreadable and non-native files have no admitted Figure read model. */ }
+        let loaded: ReturnType<typeof loadDocumentFile>;
+        try { loaded = loadDocumentFile(target, access); }
+        catch { skipped.push(path.relative(root, target)); continue; }
+        const sources = inspect(target, loaded.document);
+        if (!sources.size) continue;
+        references.add(target);
+        documents.push({ loaded, sources });
       }
     }
   };
   scan(root);
+  const dirty = new Set<string>();
   for (const opened of openDocuments ?? []) {
-    if (!opened || typeof opened.path !== "string" || typeof opened.source !== "string") throw new Error("Invalid open document snapshot.");
+    if (!opened || typeof opened.path !== "string" || (opened.source !== undefined && typeof opened.source !== "string")) throw new Error("Invalid open document snapshot.");
     const documentPath = path.resolve(accessPath(opened.path, access));
-    if (inside(root, documentPath)) inspect(documentPath, readModel(opened.source).document);
+    if (!inside(root, documentPath)) continue;
+    if (references.has(documentPath) || (opened.source !== undefined && inspect(documentPath, readModel(opened.source).document).size)) dirty.add(path.relative(root, documentPath));
   }
-  return [...references];
+  if (dirty.size) throw new ReferencedImageError([...dirty]);
+  const changes = documents.map(({ loaded, sources }) => {
+    // A hard-link alias may be reachable where the newly named image is not. Preserve
+    // the existing media boundary: refuse the whole plan rather than write a broken URL.
+    const to = `./${path.relative(path.dirname(loaded.path), destination).split(path.sep).join("/")}`;
+    resolveMediaPath(to.split("/").map(encodeURIComponent).join("/"), loaded.path, access);
+    const markdown = serialize(updateMediaReferences(parse(loaded.source), [...sources].map(from => ({ from, to }))));
+    preflightFileCommit(loaded.path, markdown, loaded.revision);
+    return { path: loaded.path, source: loaded.source, revision: loaded.revision, markdown };
+  });
+  return { changes, skipped };
 }
 
-export function renameFile(request: RenameFileRequest, access: FileAccess = LOCAL_FILE_ACCESS): { path: string } {
+export function renameFile(request: RenameFileRequest, access: FileAccess = LOCAL_FILE_ACCESS): FileOperationResponse {
   const { root, file, owner } = scope(request, access);
   if (typeof request.name !== "string" || !validFileStem(request.name)) throw new Error("Enter a valid file name without an extension or directory path.");
   const extension = path.extname(file);
@@ -88,33 +113,49 @@ export function renameFile(request: RenameFileRequest, access: FileAccess = LOCA
   // Do not turn a no-extension or hidden entry into a different kind of tree item.
   if (path.extname(leaf) !== extension || leaf.startsWith(".")) throw new Error("The file extension must stay unchanged.");
   if (request.openDocuments !== undefined && !Array.isArray(request.openDocuments)) throw new Error("Invalid open document snapshots.");
-  if (MEDIA_TYPES[extension.toLowerCase()]) {
-    const references = imageReferences(root, file, request.openDocuments, access);
-    if (references.length) throw new ReferencedImageError(references);
-  }
+  const plan = MEDIA_TYPES[extension.toLowerCase()] ? imageReferences(root, file, destination, request.openDocuments, access) : { changes: [], skipped: [] };
   // Hard-link publication is exclusive on Windows and POSIX, unlike rename which can overwrite.
   // A failed publication leaves the original intact. Unsupported filesystems report the error.
   assertOwner(request, owner, access);
   // A case-only spelling resolves to this inode without being a distinct directory entry.
   // Enumerate exact spellings: Windows realpath preserves the caller's case. Existing hard
   // links have their own entry and still conflict, even when their inode is the same.
-  if (fs.existsSync(destination) && !fs.readdirSync(path.dirname(file)).includes(path.basename(destination))) {
+  const caseOnly = fs.existsSync(destination) && !fs.readdirSync(path.dirname(file)).includes(path.basename(destination));
+  if (caseOnly) {
     assertOwner({ root, path: destination }, owner, access);
     fs.renameSync(assertOwner(request, owner, access), destination);
-    return { path: destination };
-  }
-  try { fs.linkSync(file, accessPath(destination, access, true)); }
+  } else try { fs.linkSync(file, accessPath(destination, access, true)); }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code === "EEXIST") throw new Error("A file with this name already exists.");
     throw error;
   }
+  const committed: typeof plan.changes = [];
   try {
+    for (const change of plan.changes) {
+      // Recheck root/symlink policy immediately before each replacement as well as revision.
+      scope({ root, path: change.path }, access);
+      commitFile(change.path, change.markdown, change.revision);
+      committed.push(change);
+    }
     assertOwner({ root, path: destination }, owner, access);
-    fs.unlinkSync(assertOwner(request, owner, access));
+    if (!caseOnly) fs.unlinkSync(assertOwner(request, owner, access));
   } catch (error) {
-    // Remove only the link we published, never another process's replacement.
-    fs.unlinkSync(assertOwner({ root, path: destination }, owner, access));
-    throw error;
+    const remaining: string[] = [], failures: string[] = [];
+    for (const change of [...committed].reverse()) {
+      try {
+        scope({ root, path: change.path }, access);
+        commitFile(change.path, change.source, textRevision(change.markdown));
+      } catch (cause) { remaining.push(change.path); failures.push(`${change.path}: ${String(cause)}`); }
+    }
+    if (!remaining.length) {
+      try {
+        if (caseOnly) fs.renameSync(assertOwner({ root, path: destination }, owner, access), file);
+        else fs.unlinkSync(assertOwner({ root, path: destination }, owner, access));
+      } catch (cause) { failures.push(`${destination}: ${String(cause)}`); }
+    }
+    throw new ImageRenameError(`File rename failed: ${String(error)}. ${failures.length
+      ? `Rollback incomplete. Image paths: ${file} (${fs.existsSync(file) ? "present" : "absent"}), ${destination} (${fs.existsSync(destination) ? "present" : "absent"}). Documents requiring review: ${remaining.join(", ") || "none"}. ${failures.join("; ")}`
+      : "Image publication and committed document changes rolled back; external changes preserved."}`, remaining, plan.skipped);
   }
-  return { path: destination };
+  return { path: destination, updatedDocuments: plan.changes.map(change => change.path), skippedDocuments: plan.skipped };
 }
