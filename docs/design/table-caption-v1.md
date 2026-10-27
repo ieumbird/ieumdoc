@@ -143,6 +143,31 @@ Extend fail-first public Core and CLI regressions to inherited option names, YAM
 options and alternate table directives, with BOM/CRLF byte preservation and supported
 input controls. Verify Core/CLI, typecheck, docs and all PR CI checks.
 
+## Cell code and math preservation (#622)
+
+Keep `{table}` + GFM as decided in [#597](https://github.com/ieumbird/ieumdoc/issues/597).
+The canonical writer adds one backslash before every pipe in inline code and math
+inside grid cells, including inside marks and links. The pinned MyST/markdown-it
+table splitter removes exactly that one backslash before inline parsing, regardless
+of how many backslashes already precede the pipe. Authored code/LaTeX strings must
+therefore reload exactly, including existing backslashes; no `\vert` substitution
+is performed. Math dollar and role forms share this rule. Captions and content
+outside cells retain their existing serialization.
+
+Implementation/verification scope: fix only Core's write-only adaptation, retain
+the complete reparse/fingerprint guard, and replace the existing pipe refusal
+regression with insertion/edit/reopen/repeated-save preservation checks for exact
+strings and column alignment. Existing operations and CLI commands already use
+this writer; no Editor/CLI semantic operation is added. Run fail-first regressions,
+Core tests, workspace typecheck, docs/whitespace checks and required PR CI.
+
+Local verification (2026-10-27): all 24 code/math preservation cases failed before
+the writer fix and pass after it. Core 325/325, workspace typecheck, docs and
+whitespace checks pass. Prose/caption output remains byte-identical in its regression.
+The existing Host file-save regression also replaces its former pipe refusal with
+an actual file write, native reopen and byte-identical second save, retaining all
+malformed-input refusals. Editor 316/316, Editor typecheck and production build pass.
+
 ## All-table numbering verification (#584)
 
 Second review reproduced two remaining paths on `f76e027`: inherited option names

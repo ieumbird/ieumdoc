@@ -125,7 +125,7 @@ test("Host Save writes edited header and body cells and keeps everything else", 
   }
 });
 
-test("Host rejects malformed and unpreservable cell edits without writing", () => {
+test("Host preserves files on invalid cell edits and saves pipe content losslessly", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-table-save-"));
   const file = path.join(dir, "table.md");
   writeFileSync(file, mixed);
@@ -134,13 +134,22 @@ test("Host rejects malformed and unpreservable cell edits without writing", () =
     const rejected: [unknown, RegExp][] = [
       [{ path: [1, 1, 0], content: "x" }, /must be InlineContent/],
       [{ path: [1, 1], content: [{ kind: "text", text: "x" }] }, /not allowed/],
-      [{ path: [1, 1, 0], content: [{ kind: "code", value: "a|b" }] }, /table cell text cannot be preserved/],
       [{ path: [1, 1, 0], content: [{ kind: "text", text: "U " }] }, /whitespace/],
     ];
     for (const [cell, reason] of rejected) {
       assert.throws(() => saveDocumentFile(file, { revision, cells: [cell as never] }), reason);
       assert.equal(readFileSync(file, "utf8"), mixed);
     }
+    const content = [{ kind: "code", value: "a|b" }, { kind: "text", text: " " },
+      { kind: "math", value: "P(A|B)" }] as const;
+    const saved = saveDocumentFile(file, { revision, cells: [{ path: [1, 1, 0], content: [...content] }] });
+    const onDisk = readFileSync(file, "utf8");
+    assert.equal(onDisk, saved.markdown);
+    const table = loadEditableDocument(onDisk).blocks[0];
+    assert(table?.block === "table");
+    assert.deepEqual(table.rows[1].cells[0].content, content);
+    saveDocumentFile(file, { revision: documentRevision(onDisk) });
+    assert.equal(readFileSync(file, "utf8"), onDisk);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
