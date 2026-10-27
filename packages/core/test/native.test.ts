@@ -257,7 +257,6 @@ test("empty and whitespace-only structural elements insert, fill, clear and reop
     ...(["strong", "emphasis", "delete", "subscript", "superscript"] as const).map(kind =>
       [{ kind, children: [{ kind: "text" as const, text: " \t " }] }]),
     [{ kind: "strong", children: [{ kind: "emphasis", children: [{ kind: "break" }, { kind: "text", text: " " }] }] }],
-    [{ kind: "link", url: "https://example.com", children: [{ kind: "text", text: "   " }] }],
   ];
   for (const content of emptyContents) {
     for (const variant of core.ADMONITION_VARIANTS) {
@@ -294,6 +293,8 @@ test("structural whitespace normalization preserves visible text and semantic-on
   const original = core.serialize(document);
   const contents: core.InlineContent[][] = [
     [{ kind: "text", text: "Keep   spacing" }],
+    ...[" ", "\t", "\n"].map(text => [{ kind: "link" as const, url: "https://example.com/important", title: "Keep destination", children: [{ kind: "text" as const, text }] }]),
+    [{ kind: "link", url: "https://example.com/important", children: [{ kind: "break" }] }],
     [{ kind: "math", value: "x" }], [{ kind: "code", value: "x" }],
     [{ kind: "reference", role: "eq", label: "eq-pending" }], [{ kind: "footnote", label: "note" }],
     ...(["cite", "cite:t", "cite:p"] as const).map(role => [{ kind: "citation" as const, role, keys: ["Alpha"] }]),
@@ -315,6 +316,45 @@ test("structural whitespace normalization preserves visible text and semantic-on
       assertStableEmpty(next);
       assert.deepEqual(core.getEditableDocument(next).blocks[0], { block: "list", path: [1], ...list });
     }
+    assert.equal(core.serialize(document), original);
+  }
+});
+
+test("generic text replacements retain whitespace-label links and their destination data", () => {
+  const link = '[Body](https://example.com/important "Keep destination")';
+  for (const body of [`:::{note}\n${link}\n:::\n`, `> ${link}\n`, `3. Parent\n   * ${link}\n`]) {
+    const document = core.parse(native(body));
+    const original = core.serialize(document);
+    const expected = core.serialize(core.parse(native(body.replace("Body", " "))));
+    for (const run of [() => core.replaceText(document, "Body", " "),
+      () => core.updateNodeTextAtPath(document, [1], "Body", " ")]) {
+      assert.equal(assertStableEmpty(run()), expected);
+      assert.equal(core.serialize(document), original);
+    }
+  }
+});
+
+test("unrepresentable whitespace-label link formatting fails closed with corrective guidance", () => {
+  const content: core.InlineContent[] = [{ kind: "link", url: "https://example.com/important", title: "Keep destination",
+    children: [{ kind: "strong", children: [{ kind: "text", text: " " }] }] }];
+  const document = core.parse(native(':::{note}\n[**Body**](https://example.com/important "Keep destination")\n:::\n\n> [**Body**](https://example.com/important "Keep destination")\n\n* [**Body**](https://example.com/important "Keep destination")\n'));
+  const original = core.serialize(document);
+  for (const run of [
+    () => core.insertAdmonition(document, 4, "note", content),
+    () => core.updateAdmonitionInlineContent(document, [1], content),
+    () => core.insertQuote(document, 4, content),
+    () => core.updateQuoteInlineContent(document, [2], content),
+    () => core.insertList(document, 1, { ordered: false, items: [{ content }] }),
+    () => core.updateList(document, [3], { ordered: false, items: [{ content }] }),
+    () => core.replaceText(document, "Body", " "),
+    () => core.updateNodeTextAtPath(document, [2, 0, 0, 0, 0], "Body", " "),
+  ]) {
+    assert.throws(() => core.serialize(run()), error => {
+      const issue = core.writeIssueOf(error);
+      assert.match(issue.reason, /cannot.*(?:round-trip|preserved)/);
+      assert.match(issue.action, /simplify or replace/);
+      return true;
+    });
     assert.equal(core.serialize(document), original);
   }
 });

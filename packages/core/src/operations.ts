@@ -8,6 +8,7 @@ import {
   inlineContentLength,
   splitInlineContent,
   concatenateInlineContent,
+  structuralInlineContent,
   insertInlineBreak,
   inlineContentText,
   inlineContentToNodes,
@@ -33,7 +34,7 @@ import { isAdmonitionVariant, supportedAdmonitionContent, type AdmonitionVariant
 import type { ListContent } from "./list.ts";
 import type { CodeBlockContent } from "./code.ts";
 import { createCodeNode, supportedCodeBlock } from "./myst/code.ts";
-import { createListNode, hasVisibleContent, supportedListContent } from "./myst/list.ts";
+import { createListNode, supportedListContent } from "./myst/list.ts";
 import { createQuoteNode, supportedQuoteContent } from "./myst/quote.ts";
 import {
   bodyIndex, completeFootnotes, createFootnoteDefinition, endnoteBlocks, endnotePlacement, footnoteLabels, footnoteReferences,
@@ -316,12 +317,6 @@ export function updateQuoteInlineContent(document: MystDocument, path: NodePath,
   next.children[path[0]] = createQuoteNode(normalized);
   assertQuoteRoundTrip(next, path[0], normalized);
   return next;
-}
-
-/** The shared authoring rule for admonition/quote bodies and list item paragraphs. */
-function structuralInlineContent(content: InlineContent[]): InlineContent[] {
-  assertInlineContent(content);
-  return hasVisibleContent(content) ? concatenateInlineContent(content) : [];
 }
 
 function assertQuoteRoundTrip(document: MystDocument, index: number, content: InlineContent[]): void {

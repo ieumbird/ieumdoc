@@ -68,13 +68,20 @@ Core removes an emptied paragraph from its supported structural owner. A nested 
 survives when its parent item's paragraph becomes empty. All these paths share one inline
 normalization function; unsupported structures are never normalized away. The existing visibility
 predicate treats spaces, tabs, newlines and other JavaScript `trim()` whitespace, including
-whitespace inside inline marks or links and break-only content, as empty. Citations,
-semantic references, footnote references, inline math and inline code remain meaningful
-even without a plain-text node and are not removed. If any visible content remains, the
+whitespace inside formatting-only marks and break-only content, as empty. Links retain
+their URL and optional title even when the label contains only whitespace. Citations,
+semantic references, footnote references, inline math and inline code also remain meaningful
+without a plain-text node and are not removed. The shared `structuralInlineContent` rule
+in Core's inline boundary also checks native admission, so a saved whitespace-label link
+can reopen without a separate parser policy. No parsed content is removed or normalized.
+The pinned writer round-trips space/tab/newline/break link labels with destination data.
+If link formatting cannot round-trip (for example a bold whitespace-only label becomes
+literal `** **`), the existing lossless-write guard refuses with a reason and corrective
+action; file writes leave the original unchanged. If any meaningful content remains, the
 existing content normalization and lossless-write rules apply unchanged, including leading
 and trailing whitespace handling. Editor and CLI share these operations; neither applies
 its own whitespace rule. Heading, footnote and endnote empty-content restrictions are
-unchanged. Native admission and the full canonical round-trip guard are unchanged.
+unchanged. Native structural shape rules and the full canonical round-trip guard are unchanged.
 
 | Element | Canonical empty form | Filled form |
 | --- | --- | --- |

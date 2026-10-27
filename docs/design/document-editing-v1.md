@@ -26,7 +26,9 @@
 New and existing empty admonitions, quotes, list items and display equations are authored
 structure and save by the same [Core rules](document-support-v1.md#empty-structural-elements-574).
 Space-only input in an admonition, quote or list item also saves: Core normalizes it to
-empty content (#624), including whitespace inside inline marks and break-only content.
+empty content (#624), including whitespace inside formatting-only marks and break-only content.
+Links retain their URL/title even with a whitespace-only label; formatting that cannot
+round-trip is refused with guidance while the original file remains unchanged.
 Save acknowledges the current Editor state without replacing it; reopening shows the
 empty structure and its guidance. Meaningful inline nodes and content with visible text
 keep the existing save rules. Editor does not implement a separate whitespace predicate.

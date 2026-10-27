@@ -101,6 +101,17 @@ export function inlineContentText(content: InlineContent[]): string {
     .join("");
 }
 
+/** Shared structural-body normalization and admission rule. Links retain destination data
+ * even when their label is whitespace; other data-bearing atoms have readable syntax. */
+export function structuralInlineContent(content: InlineContent[]): InlineContent[] {
+  assertInlineContent(content);
+  return hasVisibleContent(content) || containsLink(content) ? concatenateInlineContent(content) : [];
+}
+
+function hasVisibleContent(content: InlineContent[]): boolean {
+  return inlineContentText(content).trim().length > 0;
+}
+
 function projectNodes(nodes: MystNode[]): InlineContent[] | undefined {
   const content: InlineContent[] = [];
   for (const node of nodes) {

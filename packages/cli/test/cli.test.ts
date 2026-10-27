@@ -2627,3 +2627,42 @@ test("CLI generic text replacement writes normalized structural bodies in single
   assert.equal(refused.status, 1);
   assert.equal(readFileSync(file, "utf8"), saved);
 });
+
+test("CLI retains whitespace-label link data and refuses unrepresentable formatting without writing", () => {
+  const file = path.join(fixtures, "whitespace-links.md");
+  const link = { kind: "link", url: "https://example.com/important", title: "Keep destination", children: [{ kind: "text", text: " " }] };
+  writeFileSync(file, nativeSource(':::{note}\n[Body](https://example.com/important "Keep destination")\n:::\n\n> [Body](https://example.com/important "Keep destination")\n\n* [Body](https://example.com/important "Keep destination")\n'));
+  for (const args of [
+    ["replace-text", file, "--from", "Body", "--to", " "],
+    ["update-node-text", file, "--path", "2,0,0,0", "--from", "Body", "--to", " "],
+    ["update-list", file, "--path", "3", "--list", JSON.stringify({ ordered: false, items: [{ content: [link] }] })],
+  ]) {
+    const result = run(args);
+    assert.equal(result.status, 0, result.stderr);
+  }
+  const saved = readFileSync(file, "utf8");
+  assert.deepEqual(getEditableDocument(parse(saved)).blocks.map(block => block.block === "list" ? block.items[0].content : "content" in block ? block.content : undefined), [[link], [link], [link]]);
+  assert.equal(run(["check", file]).status, 0);
+  const marked = { ...link, children: [{ kind: "strong", children: link.children }] };
+  for (const args of [
+    ["insert-quote", file, "--at", "end", "--content", JSON.stringify([marked])],
+    ["update-quote", file, "--path", "2", "--content", JSON.stringify([marked])],
+    ["update-list", file, "--path", "3", "--list", JSON.stringify({ ordered: false, items: [{ content: [marked] }] })],
+  ]) {
+    const failure = run(args);
+    assert.equal(failure.status, 1);
+    assert.match(failure.stderr, /cannot.*(?:round-trip|preserved)/);
+    assert.equal(readFileSync(file, "utf8"), saved);
+  }
+  const markedSource = nativeSource('> [**Body**](https://example.com/important "Keep destination")\n');
+  writeFileSync(file, markedSource);
+  for (const args of [
+    ["replace-text", file, "--from", "Body", "--to", " "],
+    ["update-node-text", file, "--path", "1,0,0,0,0", "--from", "Body", "--to", " "],
+  ]) {
+    const failure = run(args);
+    assert.equal(failure.status, 1);
+    assert.match(failure.stderr, /cannot.*(?:round-trip|preserved)/);
+    assert.equal(readFileSync(file, "utf8"), markedSource);
+  }
+});
