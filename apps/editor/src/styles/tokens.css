@@ -167,7 +167,13 @@
   /* Adjustable accent values: Blue is the default. The preset scopes below override only
    * these four values. Actions, focus, selection, links and generated numbers share them;
    * informational states stay neutral; danger and warning keep their separate meanings. */
-  --id-color-interaction: #315fd4;
+  --id-color-accent-blue: #315fd4;
+  --id-color-accent-violet: #7041bd;
+  --id-color-accent-plum: #8a3f85;
+  --id-color-accent-teal: #076f65;
+  --id-color-accent-green: #346d38;
+  --id-color-accent-graphite: #52616b;
+  --id-color-interaction: var(--id-color-accent-blue);
   --id-color-accent: var(--id-color-interaction);
   --id-color-accent-hover: #2449a6;
   --id-color-interaction-soft: var(--id-color-surface-selected);
@@ -243,35 +249,35 @@
 /* Adjustable values: validated accent presets. Keep all palette numbers here, never in
  * consumers or preference scripts. Text/number/focus/primary adapters above stay shared. */
 :root[data-accent="violet"] {
-  --id-color-interaction: #7041bd;
+  --id-color-interaction: var(--id-color-accent-violet);
   --id-color-accent-hover: #552c98;
   --id-color-surface-selected: #f0eafa;
   --id-color-surface-selected-hover: #ebe3f7;
 }
 
 :root[data-accent="plum"] {
-  --id-color-interaction: #8a3f85;
+  --id-color-interaction: var(--id-color-accent-plum);
   --id-color-accent-hover: #6d2c69;
   --id-color-surface-selected: #f6eaf5;
   --id-color-surface-selected-hover: #f0e2ee;
 }
 
 :root[data-accent="teal"] {
-  --id-color-interaction: #076f65;
+  --id-color-interaction: var(--id-color-accent-teal);
   --id-color-accent-hover: #075b53;
   --id-color-surface-selected: #e4f3f0;
   --id-color-surface-selected-hover: #d5ebe7;
 }
 
 :root[data-accent="green"] {
-  --id-color-interaction: #346d38;
+  --id-color-interaction: var(--id-color-accent-green);
   --id-color-accent-hover: #27542b;
   --id-color-surface-selected: #e9f2e7;
   --id-color-surface-selected-hover: #dfeadb;
 }
 
 :root[data-accent="graphite"] {
-  --id-color-interaction: #52616b;
+  --id-color-interaction: var(--id-color-accent-graphite);
   --id-color-accent-hover: #3d4a53;
   --id-color-surface-selected: #eaf0f3;
   --id-color-surface-selected-hover: #dfe8ed;
@@ -299,7 +305,13 @@
   --id-image-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23c3cad5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   --id-color-text-subtle: #b7c0ce;
   --id-color-text-on-accent: #14171c;
-  --id-color-interaction: #9abbff;
+  --id-color-accent-blue: #9abbff;
+  --id-color-accent-violet: #c4a8ff;
+  --id-color-accent-plum: #dda3d5;
+  --id-color-accent-teal: #6dd6c7;
+  --id-color-accent-green: #9bce91;
+  --id-color-accent-graphite: #b5c6d1;
+  --id-color-interaction: var(--id-color-accent-blue);
   --id-color-accent-hover: #bdd2ff;
   --id-color-border: #737f90;
   --id-color-border-subtle: #363e4a;
@@ -313,35 +325,35 @@
 }
 
 :root[data-theme="dark"][data-accent="violet"] {
-  --id-color-interaction: #c4a8ff;
+  --id-color-interaction: var(--id-color-accent-violet);
   --id-color-accent-hover: #dac8ff;
   --id-color-surface-selected: #38304e;
   --id-color-surface-selected-hover: #44395e;
 }
 
 :root[data-theme="dark"][data-accent="plum"] {
-  --id-color-interaction: #dda3d5;
+  --id-color-interaction: var(--id-color-accent-plum);
   --id-color-accent-hover: #efc3e9;
   --id-color-surface-selected: #432e40;
   --id-color-surface-selected-hover: #50384c;
 }
 
 :root[data-theme="dark"][data-accent="teal"] {
-  --id-color-interaction: #6dd6c7;
+  --id-color-interaction: var(--id-color-accent-teal);
   --id-color-accent-hover: #a0e9de;
   --id-color-surface-selected: #203d3b;
   --id-color-surface-selected-hover: #284946;
 }
 
 :root[data-theme="dark"][data-accent="green"] {
-  --id-color-interaction: #9bce91;
+  --id-color-interaction: var(--id-color-accent-green);
   --id-color-accent-hover: #c2e5ba;
   --id-color-surface-selected: #2d3d2c;
   --id-color-surface-selected-hover: #374a35;
 }
 
 :root[data-theme="dark"][data-accent="graphite"] {
-  --id-color-interaction: #b5c6d1;
+  --id-color-interaction: var(--id-color-accent-graphite);
   --id-color-accent-hover: #d4e0e8;
   --id-color-surface-selected: #303b43;
   --id-color-surface-selected-hover: #3a4751;

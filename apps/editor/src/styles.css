@@ -860,6 +860,25 @@ button {
 }
 .settings-section > [role="alert"] { grid-column: 1 / -1; }
 .settings-section > progress { grid-column: 1 / -1; }
+.settings-accents { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.settings-accent { position: relative; min-width: 0; }
+.settings-accent input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.settings-accent-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-1);
+  border: var(--border-width) solid var(--id-color-border-control);
+  border-radius: var(--id-radius-md);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-meta);
+}
+.settings-accent input:hover + .settings-accent-face { background: var(--id-color-surface-hover); }
+.settings-accent input:checked + .settings-accent-face { border-color: var(--id-color-interaction); background: var(--id-color-surface-selected); }
+.settings-accent input:focus-visible + .settings-accent-face { box-shadow: var(--focus-ring); }
+.settings-accent-swatch { display: grid; place-items: center; width: var(--size-control-compact); height: var(--size-control-compact); border-radius: 50%; color: var(--id-color-text-on-accent); }
+.settings-accent-swatch svg { width: var(--size-icon-slot); height: var(--size-icon-slot); }
 .settings-section--stacked { grid-template-columns: minmax(0, 1fr); }
 .settings-section--stacked > button { justify-self: start; }
 .settings-label p { margin: var(--space-1) 0 0; font-size: var(--font-size-xs); color: var(--id-color-text-muted); }
