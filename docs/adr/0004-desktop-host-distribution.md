@@ -1,7 +1,7 @@
 # ADR-0004: Desktop Host & Distribution
 
 - Status: Accepted
-- Last verified: 2026-10-12 (unsigned v0.0.1-beta.2 publicly released; actual GitHub beta.1→beta.2 update verified; Stable unpublished).
+- Last verified: 2026-10-28 (unsigned v0.1.0-beta.2 publication and public asset hashes verified; owner removed the separate environment approval for future releases; actual GitHub beta.1→beta.2 update remains unverified by explicit exception; Stable unpublished).
 - Authority: architectural decision under [AGENTS.md](../../AGENTS.md). Related: [ADR-0002](0002-document-persistence-semantic-ownership.md) · [Filesystem Host boundary](../design/filesystem-host-boundary-v1.md) · [Desktop distribution](../design/desktop-distribution-v1.md) · historical evidence [Desktop shell spike](../reviews/desktop-shell-spike-v1.md)
 - Decision date: 2026-10-12
 
@@ -22,7 +22,7 @@ IeumDoc은 다음을 채택한다.
 - **배포**: electron-builder의 per-user NSIS installer(x64)를 기본 배포 형식으로 한다. Portable exe는 공식 배포하지 않는다. App ID `io.github.ieumbird.ieumdoc`, product name `IeumDoc`, 사용자 데이터 `%APPDATA%\IeumDoc`은 첫 공개 후 바꾸지 않는다.
 - **업데이트**: electron-updater의 GitHub provider와 GitHub Releases를 쓴다. 채널은 Stable과 Beta 둘이며 같은 앱의 사용자 설정이다. 최초 실행 기본값은 설치 버전에 따라 Stable 또는 Beta이며, 저장된 유효한 사용자 선택을 우선한다. Stable은 GitHub의 정식 최신 Release만, Beta는 Beta와 Stable을 함께 받는다. 설치된 버전보다 낮은 버전으로는 채널을 바꿔도 내려가지 않는다.
 - **설치 승인**: 업데이트 확인은 자동이지만 다운로드와 설치는 사용자가 각각 승인한다. 일반 종료는 설치 승인이 아니다. 설치를 위한 재시작은 Editor가 미저장 작업이 없다고 답하고 창이 정상적으로 닫힌 뒤에만 시작한다.
-- **릴리즈**: GitHub Actions가 Windows에서 빌드·검증한다. Beta는 검증된 unsigned installer를 신뢰할 수 있는 master 이력의 기존 `vX.Y.Z-beta.N` tag에 GitHub Prerelease로 수동 승인하여 게시할 수 있다. 서명되지 않았고 Windows 경고가 나타날 수 있음을 알린다. Stable 공개와 Signed 모드는 Authenticode 서명을 요구한다. 게시 권한과 실제 환경 보호 규칙은 [Desktop contract](../design/desktop-distribution-v1.md)를 따른다.
+- **릴리즈**: GitHub Actions가 Windows에서 빌드·검증한다. Beta는 검증된 unsigned installer를 신뢰할 수 있는 master 이력의 기존 `vX.Y.Z-beta.N` tag에 GitHub Prerelease로 게시할 수 있다. 소유자가 승인한 릴리스는 master에서 workflow를 수동 실행하며, 검증 성공 후 별도 environment 승인 없이 게시한다(2026-10-28 소유자 결정; 종전 required reviewer 승인 단계를 대체). `master` 배포 제한은 유지한다. 서명되지 않았고 Windows 경고가 나타날 수 있음을 알린다. Stable 공개와 Signed 모드는 Authenticode 서명을 요구한다. 게시 권한과 실제 환경 보호 규칙은 [Desktop contract](../design/desktop-distribution-v1.md)를 따른다.
 
 ## Rationale
 
