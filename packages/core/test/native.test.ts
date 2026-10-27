@@ -318,6 +318,51 @@ test("structural whitespace normalization preserves visible text and semantic-on
     assert.equal(core.serialize(document), original);
   }
 });
+
+test("generic text replacements normalize only supported structural bodies, including nested list items", () => {
+  const cases = [
+    { body: ":::{note}\n**Body**\n:::\n", empty: ":::{note}\n:::\n", paths: [[1], [1, 0], [1, 0, 0, 0]] },
+    { body: "> Body\n", empty: ">\n", paths: [[1], [1, 0], [1, 0, 0]] },
+    { body: "3. Body\n   * Keep\n   * Body\n4. {cite}`Alpha`\n", empty: "3.\n   * Keep\n   *\n4. {cite}`Alpha`\n", paths: [[1]] },
+  ];
+  for (const { body, empty, paths } of cases) {
+    const document = core.parse(native(body));
+    const original = core.serialize(document);
+    const expected = core.serialize(core.parse(native(empty)));
+    for (const whitespace of ["", " ", "\t\n", "\u00a0"]) {
+      for (const path of paths) {
+        const edited = core.updateNodeTextAtPath(document, path, "Body", whitespace);
+        assert.equal(assertStableEmpty(edited), expected);
+      }
+      let edited = document;
+      // replaceText changes the first matching paragraph; update-node-text can address a whole list.
+      for (let index = 0; index < (body.startsWith("3.") ? 2 : 1); index++) {
+        edited = core.replaceText(edited, "Body", whitespace);
+      }
+      assert.equal(assertStableEmpty(edited), expected);
+      assert.equal(core.serialize(document), original);
+    }
+  }
+  for (const body of ["## Body\n", "A[^note].\n\n[^note]: Body\n"]) {
+    const document = core.parse(native(body));
+    const original = core.serialize(document);
+    const path = body.startsWith("##") ? [1] : [2];
+    for (const whitespace of ["", " "]) {
+      for (const run of [() => core.replaceText(document, "Body", whitespace),
+        () => core.updateNodeTextAtPath(document, path, "Body", whitespace)]) {
+        if (whitespace === "") assert.throws(() => core.serialize(run()));
+        else {
+          const edited = run();
+          assertStableEmpty(edited);
+          const block = core.getEditableDocument(edited).blocks.find(block => block.path[0] === path[0]);
+          assert(block && "content" in block);
+          assert.deepEqual(block.content, [{ kind: "text", text: " " }]);
+        }
+        assert.equal(core.serialize(document), original);
+      }
+    }
+  }
+});
 test("empty labeled equations retain identity and numbering through notation changes", () => {
   for (const label of ["", "eq-empty", "식-A"]) {
     let empty = core.insertEquation(core.createDocument(), 1, "");

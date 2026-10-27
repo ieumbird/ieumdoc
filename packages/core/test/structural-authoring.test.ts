@@ -14,6 +14,8 @@ import {
   updateHeadingInlineContent,
   insertHeading,
   convertBlock,
+  replaceText,
+  updateNodeTextAtPath,
   type InlineContent,
 } from "./core-internal.ts";
 
@@ -56,6 +58,20 @@ test("public Core rejects invalid admonition inserts without mutating the source
   for (const operation of invalid) {
     assert.throws(operation);
     assert.equal(serialize(document), before);
+  }
+});
+
+test("generic whitespace edits retain unsupported structural fields instead of dropping their paragraph", () => {
+  for (const source of [":::{note}\nBody\n:::\n", "> Body\n", "- Body\n"]) {
+    const document = parse(source);
+    document.children[0].unsupported = "retain";
+    const original = structuredClone(document);
+    for (const next of [replaceText(document, "Body", " "), updateNodeTextAtPath(document, [0], "Body", " ")]) {
+      assert.equal(next.children[0].unsupported, "retain");
+      assert.match(JSON.stringify(next), /"type":"paragraph"/);
+      assert.match(JSON.stringify(next), /"value":" "/);
+      assert.deepEqual(document, original);
+    }
   }
 });
 

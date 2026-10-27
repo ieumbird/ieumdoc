@@ -61,8 +61,12 @@ structure. MyST's empty body has no paragraph child; Core creates that exact sha
 empty admonitions, quotes and list items, keeping the complete fingerprint guard intact.
 No parse-time content removal or synthetic placeholder text is used.
 
-For admonitions, quotes and list items at every nesting level, Core insert/update operations
-normalize content with no visible inline content to `[]` (#624). The existing visibility
+For admonitions, quotes and list items at every nesting level, Core semantic operations
+normalize content with no visible inline content to `[]` (#624). This includes generic
+`replaceText` and `updateNodeTextAtPath` edits of the body, its paragraph or a text leaf:
+Core removes an emptied paragraph from its supported structural owner. A nested list
+survives when its parent item's paragraph becomes empty. All these paths share one inline
+normalization function; unsupported structures are never normalized away. The existing visibility
 predicate treats spaces, tabs, newlines and other JavaScript `trim()` whitespace, including
 whitespace inside inline marks or links and break-only content, as empty. Citations,
 semantic references, footnote references, inline math and inline code remain meaningful
