@@ -58,7 +58,10 @@ test("interactive and silent NSIS removal survive CLI ownership, helper and envi
       const uninstaller = path.join(work, `${label}.exe`);
       copyFileSync(path.join(install, "Uninstall IeumDoc.exe"), uninstaller);
       const args = [...(silent ? ["/S"] : []), "/currentuser", `_?=${install}`];
-      const env = { ...process.env, ...(fault === "environment" ? { SystemRoot: path.join(work, "missing-windows") } : {}) };
+      const temporary = path.join(work, `${label}-temporary`);
+      mkdirSync(temporary, { recursive: true });
+      const env = { ...process.env, TEMP: temporary, TMP: temporary,
+        ...(fault === "environment" ? { SystemRoot: path.join(work, "missing-windows") } : {}) };
       let status: number | null;
       if (silent) {
         const result = spawnSync(uninstaller, args, { env, encoding: "utf8", timeout: 60_000 });

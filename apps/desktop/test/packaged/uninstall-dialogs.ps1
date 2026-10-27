@@ -20,7 +20,21 @@ public static class Dialogs {
 $deadline = [DateTime]::UtcNow.AddSeconds(45)
 $seen = [Collections.Generic.HashSet[string]]::new()
 while (Get-Process -Id $UninstallerPid -ErrorAction SilentlyContinue) {
-  if ([DateTime]::UtcNow -gt $deadline) { throw 'Owned uninstaller did not complete.' }
+  if ([DateTime]::UtcNow -gt $deadline) {
+    $processes = @(Get-CimInstance Win32_Process)
+    $owned = [Collections.Generic.HashSet[int]]::new()
+    [void]$owned.Add($UninstallerPid)
+    do {
+      $added = $false
+      foreach ($candidate in $processes) {
+        if ($owned.Contains([int]$candidate.ParentProcessId) -and $owned.Add([int]$candidate.ProcessId)) { $added = $true }
+      }
+    } while ($added)
+    $processes | Where-Object { $owned.Contains([int]$_.ProcessId) } |
+      Select-Object ProcessId, ParentProcessId, Name, CommandLine |
+      ConvertTo-Json -Depth 3 | Write-Host
+    throw 'Owned uninstaller did not complete.'
+  }
   [Dialogs]::EnumWindows({ param($window, $unused)
     [uint32]$ownerPid = 0
     [void][Dialogs]::GetWindowThreadProcessId($window, [ref]$ownerPid)
@@ -30,9 +44,9 @@ while (Get-Process -Id $UninstallerPid -ErrorAction SilentlyContinue) {
         $script:dialogText += "`n" + [Dialogs]::Text($control)
         return $true
       }, [IntPtr]::Zero)
+      if ($seen.Add($script:dialogText)) { Write-Host $script:dialogText }
       $ok = [Dialogs]::GetDlgItem($window, 1)
       if ($ok -ne [IntPtr]::Zero -and [Dialogs]::Text($ok) -match '^&?OK$') {
-        if ($seen.Add($script:dialogText)) { Write-Host $script:dialogText }
         # Send the enabled button's standard BN_CLICKED notification to its own dialog.
         # BM_CLICK requires activation; this NSIS MessageBox exposes no UIA InvokePattern.
         if ([Dialogs]::IsWindowEnabled($ok) -and [Dialogs]::IsWindowVisible($ok)) {
