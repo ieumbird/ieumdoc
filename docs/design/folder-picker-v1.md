@@ -192,11 +192,7 @@ Only that entry loads, through the existing read-only `/api/file-preview` Host c
 using the listed folder as root. No thumbnails, new Host endpoint, persistence or document
 semantic operation is added; this interface-only preview needs no Core/CLI operation.
 
-The preview sits below the list with a bounded height and aspect ratio preserved. Below the
-existing phone breakpoint (`width < 40rem`, 640px), its region is collapsed so it consumes no
-list or footer space. Phone path/breadcrumb/place/footer wrapping varies with content; this
-conservative width boundary reuses the shell's phone layout instead of adding a new height
-threshold or measurement logic. At 1366×768 and 1440px the preview remains available.
+The preview sits below the list with a bounded height and aspect ratio preserved at every supported viewport width (640px and above), following [ADR-0010](../adr/0010-supported-viewport-and-input.md). The dialog remains scrollable when its content exceeds the available height.
 It has the accessible label `Read-only image preview` and no focusable
 controls. A folder or no active image shows no preview. Loading and failure use quiet text;
 unavailable, damaged or unsupported images do not block choosing a path. Changing the active

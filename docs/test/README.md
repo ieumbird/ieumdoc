@@ -34,7 +34,7 @@ pnpm browser:test --shard=1/4         # CI의 4개 shard 중 하나
 
 CI의 4개 shard는 stable 목록을 순환 분배하며 각 시나리오는 전체 shard에서 정확히 한 번 실행된다. `pnpm --filter @ieumdoc/editor exec tsx --test test/browser-fixtures.test.ts`가 누락·중복·빈 shard 없이 분할되는지 검사한다. CI 로그에는 각 shard의 시나리오 배정이 출력되고 실패 artifact는 `editor-browser-ci-logs-1`부터 `editor-browser-ci-logs-4`까지 구분된다. 로컬에서 전체를 분할 실행하려면 `1/4`부터 `4/4`까지 순서대로 실행한다.
 
-runner는 원본 fixture의 scratch 사본을 준비한다. 테스트 실행을 위해 `apps/editor/document/`나 `apps/editor/test/browser/fixtures/`의 원본을 직접 수정하지 않는다. fixture 자체를 바꾸는 작업이라면 의도한 변경으로 검토하고 관련 regression을 실행한다. Windows에서는 [persistent profile과 session 규칙](../contributing/windows-browser-automation.md)을 따른다. 작업 후 직접 시작한 서버와 세션을 종료한다.
+runner는 원본 fixture의 scratch 사본을 준비한다. `file-actions`의 실제 파일 삭제·이름 변경은 저장소 밖 OS 임시 폴더의 checkout별 사본에서만 실행하며, runner의 `/api/file` guard가 저장소 내부 경로를 거부하는지도 확인한다. 테스트 실행을 위해 `apps/editor/document/`나 `apps/editor/test/browser/fixtures/`의 원본을 직접 수정하지 않는다. fixture 자체를 바꾸는 작업이라면 의도한 변경으로 검토하고 관련 regression을 실행한다. Windows에서는 [persistent profile과 session 규칙](../contributing/windows-browser-automation.md)을 따른다. 작업 후 직접 시작한 서버와 세션을 종료한다.
 
 ### Browser timeout policy
 
@@ -110,7 +110,7 @@ this same assertion; releasing focus before Undo alone does not prove that the h
 `layout-rules` waits for Settings' language select to receive actual focus before changing the
 language and pressing Escape, then for the dialog to detach and its Settings opener to regain
 focus (#541). It uses Playwright's shared `expect(locator).toBeFocused()`; `waitForEditorFocus`
-checks an EditorView, not a shell control. The phone-width regression holds the real initial
+checks an EditorView, not a shell control. The 640px regression holds the real initial
 focus call and verifies that readiness remains pending before releasing it. It neither focuses
 the select early nor reopens a sidebar accidentally dismissed by Escape.
 

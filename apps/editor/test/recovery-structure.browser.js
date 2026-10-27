@@ -78,7 +78,7 @@ async (page, { openDocument, reloadDocument, screenshots }) => {
     const {recoveryStorage:store}=await import('/src/recovery-storage.ts');
     record.id='invalid-path';
     record.snapshot.editor.editorDocument.attrs.deletedPaths=['999'];
-    await store.write(record.id,await store.ticket(record.id),()=>record);
+    await store.write(record.id,await store.ticket(record.id, record.path),()=>record);
   },record);
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});

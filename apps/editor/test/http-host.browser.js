@@ -57,9 +57,9 @@ async (page, { openPath, waitForActivePath, reloadDocument, bibliographyFixture,
   await picker.getByRole('option', {name:'fixture', exact:true}).waitFor();
   await page.setViewportSize({width:1440, height:900});
   if (screenshots) await page.screenshot({path:'tmp/http-host-capture/roots-wide.png'});
-  await page.setViewportSize({width:375, height:812});
+  await page.setViewportSize({width:640, height:812});
   const box = await picker.boundingBox();
-  check(box.x >= 0 && box.x + box.width <= 375 && box.y >= 0 && box.y + box.height <= 812, 'Restricted picker fits a narrow viewport');
+  check(box.x >= 0 && box.x + box.width <= 640 && box.y >= 0 && box.y + box.height <= 812, 'Restricted picker fits a narrow viewport');
   if (screenshots) await page.screenshot({path:'tmp/http-host-capture/roots-narrow.png'});
   await page.setViewportSize({width:1280, height:720});
   // A typed outside path reaches the real Host and leaves the current selection intact.

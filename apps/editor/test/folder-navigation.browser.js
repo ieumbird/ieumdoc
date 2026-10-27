@@ -46,12 +46,9 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   const headerPositions = new Map();
   const captureMetadata = [];
   const checkSidebarEntry = async state => {
-    for (const width of [1440, 1024, 375]) {
+    for (const width of [1440, 1024, 640]) {
       await page.setViewportSize({width, height:812});
       const expand = page.getByRole('button', {name:'Expand sidebar', exact:true});
-      // Crossing to phone width asynchronously starts collapsed. Wait for that observable
-      // transition before expanding; then inspect the header directly after expansion completes.
-      if (width === 375) await expand.waitFor({state:'visible'});
       if (await expand.isVisible()) await expand.click();
       await sidebar.getByRole('button', {name:'Collapse sidebar', exact:true}).waitFor();
       assert(await openFolder.count() === 1 && await openFolder.isVisible() &&
@@ -99,7 +96,7 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
       await openFolder.focus();
       await page.keyboard.press('Enter');
       await field.waitFor();
-      if (state === 'one' && width === 375) {
+      if (state === 'one' && width === 640) {
         await field.fill(folder);
         await open.click();
       } else if (width === 1024) {
@@ -254,9 +251,8 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
     'Reload must restore the remembered section collapse');
   assert(JSON.stringify(await roots()) === JSON.stringify([folder, guides]), 'Reload lists the opened folders again in order');
   if (screenshots) {
-    for (const width of [1440, 375]) {
+    for (const width of [1440, 640]) {
       await page.setViewportSize({width, height:812});
-      if (width === 375) await page.getByRole('button', {name:'Expand sidebar', exact:true}).click();
       await sidebar.getByRole('button', {name:'Collapse sidebar', exact:true}).waitFor();
       const environment = await page.evaluate(async () => {
         await document.fonts.ready; document.activeElement?.blur(); window.scrollTo(0, 0);
@@ -326,11 +322,11 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   // The dialog remains inside both desktop and narrow viewports; Open/Cancel stay reachable.
   await page.setViewportSize({width:1440, height:1000});
   if (screenshots) await page.screenshot({path: 'tmp/picker-capture/04-final.png'});
-  await page.setViewportSize({width:375, height:812});
+  await page.setViewportSize({width:640, height:812});
   await field.fill(folder + sep + 'long-folder-name-'.repeat(12));
   const bounds = await dialog.boundingBox();
   const buttonBounds = await open.boundingBox();
-  assert(bounds.x >= 0 && bounds.x + bounds.width <= 375 && bounds.y >= 0 && bounds.y + bounds.height <= 812, 'Dialog fits the viewport');
+  assert(bounds.x >= 0 && bounds.x + bounds.width <= 640 && bounds.y >= 0 && bounds.y + bounds.height <= 812, 'Dialog fits the viewport');
   assert(buttonBounds.x >= bounds.x && buttonBounds.x + buttonBounds.width <= bounds.x + bounds.width, 'Long Open label fits the dialog');
   assert(await dialog.getByRole('button', {name:'Cancel', exact:true}).isVisible(), 'Cancel remains reachable');
   if (screenshots) await page.screenshot({path: 'tmp/picker-capture/05-narrow.png'});
@@ -533,9 +529,7 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   await row('index.md').click();
   await page.waitForFunction(() => document.querySelector('[data-testid="current-file"]')?.title.endsWith('index.md'));
   await ready();
-  await page.setViewportSize({width:375, height:812});
-  // Phone widths start with the sidebar collapsed; opened, it overlays the document.
-  await page.getByRole('button', {name:'Expand sidebar', exact:true}).click();
+  await page.setViewportSize({width:640, height:812});
   await toggle.click();
   await item('New file in folder').click();
   const filename = page.getByTestId('new-file-name');
@@ -563,13 +557,12 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   await dialog.evaluate(element => Promise.all(element.getAnimations().map(animation => animation.finished)));
   const newBounds = await dialog.boundingBox();
   const createBounds = await dialog.getByRole('button', {name:'Create', exact:true}).boundingBox();
-  assert(newBounds.x >= 0 && newBounds.x + newBounds.width <= 375 && newBounds.y >= 0 && newBounds.y + newBounds.height <= 812, 'New dialog fits the narrow viewport');
+  assert(newBounds.x >= 0 && newBounds.x + newBounds.width <= 640 && newBounds.y >= 0 && newBounds.y + newBounds.height <= 812, 'New dialog fits the narrow viewport');
   assert(createBounds.x >= newBounds.x && createBounds.x + createBounds.width <= newBounds.x + newBounds.width, 'Create remains reachable');
   if (screenshots) await page.screenshot({path:'tmp/picker-capture/06-new-file.png'});
   await filename.press('Enter');
   await dialog.waitFor({state:'detached'});
-  // The full-screen phone sidebar steps aside for the new document; reopening it shows the listed file.
-  await page.getByRole('button', {name:'Expand sidebar', exact:true}).click();
+  // Creating a document keeps its folder and newly listed file visible.
   await row('added.md').waitFor();
   result.listsCreated = await row('added.md').getAttribute('aria-current') === 'page';
   assert(await page.getByTestId('current-file').getAttribute('title') === [folder, 'added.md'].join(sep), 'Omitted extension creates a Markdown file in the chosen folder');
@@ -696,9 +689,8 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
     await open.click();
     await dialog.waitFor({state:'detached'});
     await section.getByTitle([folder, name].join(sep), {exact:true}).waitFor();
-    for (const width of [1440, 1024, 375]) {
+    for (const width of [1440, 1024, 640]) {
       await page.setViewportSize({width, height:812});
-      if (width === 375) await page.getByRole('button', {name:'Expand sidebar', exact:true}).click();
       await page.mouse.move(width - 2, 2);
       const geometry = await section.evaluate(async (element, name) => {
         await document.fonts.ready;
@@ -771,7 +763,7 @@ async (page, { waitForActivePath, screenshots = false } = {}) => {
   await field.fill(folder + sep);
   await option(browseEntries[0].name).waitFor();
   await dialog.getByTitle(folder, {exact:true}).first().waitFor();
-  for (const width of [1440, 375]) {
+  for (const width of [1440, 640]) {
     await page.setViewportSize({width, height:667});
     // A same-value fill does not dispatch a user edit, so explicitly reset the active entry.
     await field.fill('');

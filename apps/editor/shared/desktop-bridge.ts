@@ -49,6 +49,8 @@ export type DesktopInfo = {
 export type RestartCheck = { ok: true } | { ok: false; reason: string };
 
 export type DesktopBridge = {
+  /** The shared Host deletes through the operating system trash. */
+  readonly fileDeletion: "trash";
   /** In-memory native appearance only; preference persistence stays in renderer localStorage. */
   setTheme(theme: "system" | "light" | "dark"): Promise<boolean>;
   /** Resolved CSS role value; also marks the initial window appearance ready to show. */

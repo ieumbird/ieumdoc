@@ -44,9 +44,8 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
     const reviewLayout = name === 'prompt' || name === 'incompatible';
     if (!screenshots && !reviewLayout) return;
     const layoutFailures = [];
-    for (const width of [1440,375]) {
+    for (const width of [1440,640]) {
       await page.setViewportSize({width,height:900});
-      await page.waitForFunction(narrow => document.querySelector(".app-shell").classList.contains("app-shell--sidebar-overlay") === narrow, width < 640);
       await page.evaluate(async () => { await document.fonts.ready; window.scrollTo(0,0); });
       if (screenshots) await page.screenshot({path:`tmp/296/${name}-${width}.png`});
       const prompt = page.getByTestId('recovery-prompt');
@@ -73,7 +72,6 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
     }
     check(!layoutFailures.length, layoutFailures.join("\n"));
     await page.setViewportSize({width:1440,height:900});
-    await page.waitForFunction(() => !document.querySelector(".app-shell").classList.contains("app-shell--sidebar-overlay"));
   };
   // Opening/restoring must also work where the secure-context-only UUID API is absent.
   await page.addInitScript(() => Object.defineProperty(Crypto.prototype,'randomUUID',{value:undefined}));
@@ -331,7 +329,7 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
   // Unsupported/malformed format still exposes independently stored plaintext and explicit delete.
   await page.evaluate(async record => {
     const {recoveryStorage: store} = await import('/src/recovery-storage.ts');
-    const id = 'incompatible'; const ticket = await store.ticket(id);
+    const id = 'incompatible'; const ticket = await store.ticket(id, record.path);
     await store.write(id,ticket,() => ({...record,id,path:'C:\\Users\\한글 사용자\\' + 'very-long-unbroken-folder-name'.repeat(12) + '\\document.md',version:99,recordedAt:Date.now(),snapshot:null,recoveryText:'Plaintext survives incompatible schema.'}));
   },unsaveable);
   await page.reload(); await ready(page);
@@ -350,7 +348,7 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
   await page.evaluate(async record => {
     const {recoveryStorage: store} = await import('/src/recovery-storage.ts');
     const id = 'malformed';
-    await store.write(id,await store.ticket(id),() => ({...record,id,version:1,path:{broken:true},snapshot:null,recordedAt:Date.now(),recoveryText:'Malformed record text is still accessible.'}));
+    await store.write(id,await store.ticket(id, record.path),() => ({...record,id,version:1,path:{broken:true},snapshot:null,recordedAt:Date.now(),recoveryText:'Malformed record text is still accessible.'}));
   },unsaveable);
   await page.reload(); await ready(page);
   await page.getByRole('button',{name:'Review recovery'}).click();

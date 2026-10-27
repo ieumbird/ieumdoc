@@ -36,7 +36,9 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
   const editorRef = useRef<DocumentEditorHandle>(null);
   const [recoveryError, setRecoveryError] = useMessageState("");
   const captureRef = useRef<() => DocumentSessionSnapshot | null>(() => null);
-  const [recorder] = useState(() => recoveryId ? createRecoveryRecorder(recoveryId, () => captureRef.current(),
+  const [openedPath, setOpenedPath] = useState(initial.path);
+  const openedPathRef = useRef(openedPath);
+  const [recorder] = useState(() => recoveryId ? createRecoveryRecorder(recoveryId, () => openedPathRef.current, () => captureRef.current(),
     cause => setRecoveryError({ key: "Local recovery is unavailable: {{reason}}. Keep this window open and save or copy your work. Changes after the last record may be lost.", values: { reason: messageOf(cause) } }),
     () => setRecoveryError("")) : undefined);
   const [document, setDocument] = useState<EditableDocument>(initial.document);
@@ -47,7 +49,6 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
     source: initial.source, ...(restored?.savedEdits ? { savedEdits: structuredClone(restored.savedEdits) } : {}),
   }));
   const sessionBase = useRef(initialBase);
-  const [openedPath, setOpenedPath] = useState(initial.path);
   const [headingNumbering, setHeadingNumbering] = useState(false);
   const [referenceTemplates, setReferenceTemplates] = useState<import("@ieumdoc/core").ReferenceTemplates | null>(null);
   const [reloadDialog, setReloadDialog] = useState(false);
@@ -112,7 +113,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
       onNotice: (message: UiMessage, action?: () => void) => { if (isCurrent()) setNotice(message, action); },
       onDraftChange: (active: boolean) => { if (isCurrent()) setDraftActive(active); },
       onAssetPendingChange: (active: boolean) => { if (isCurrent()) setAssetPending(active); },
-      onAssetChange: (path: string) => assetChangeRef.current?.(openedPath, path),
+      onAssetChange: (path: string) => assetChangeRef.current?.(openedPathRef.current, path),
       onAssetError: (reason: string) => { if (isCurrent()) setError(reason); },
       onAppliedEdit: (dirty: boolean) => { if (isCurrent()) recorder?.edit(dirty); },
       onDirtyChange: (dirty: boolean) => { if (isCurrent()) setDocumentDirty(dirty); },
@@ -146,6 +147,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
     setEndnotesMove(!next.endnotesInPlace);
     sourceRevision.current = next.revision;
     setOpenedPath(next.path);
+    openedPathRef.current = next.path;
     setDraftActive(false);
     setAssetPending(false);
     setDocumentDirty(false);
@@ -316,7 +318,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
   function getSnapshot(): DocumentSessionSnapshot {
     if (!isCurrent() || !editorRef.current) throw new Error("Editor is not ready");
     return structuredClone({
-      file: { bibliographyRoot, ...(bibliography ? { bibliography: { declarations: bibliography.declarations } } : {}), path: openedPath, document, source: sessionBase.current.source, revision: sourceRevision.current, endnotesInPlace: sessionBase.current.savedEdits !== undefined || !endnotesMove },
+      file: { bibliographyRoot, ...(bibliography ? { bibliography: { declarations: bibliography.declarations } } : {}), path: openedPathRef.current, document, source: sessionBase.current.source, revision: sourceRevision.current, endnotesInPlace: sessionBase.current.savedEdits !== undefined || !endnotesMove },
       editor: editorRef.current.getSnapshot(),
       ...(sessionBase.current.savedEdits ? { savedEdits: sessionBase.current.savedEdits } : {}),
     });
@@ -326,6 +328,18 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
 
   return {
     recoveryError, discardRecovery: () => recorder?.discard(),
+    suspendRecovery: () => recorder?.cancel(),
+    resumeRecovery: () => { if (editorRef.current?.hasDocumentChanges()) recorder?.edit(); },
+    relocate(next: string) {
+      openedPathRef.current = next;
+      setOpenedPath(next);
+      if (editorRef.current?.hasDocumentChanges()) recorder?.edit();
+    },
+    async appliedSource(): Promise<string> {
+      if (!editorRef.current) throw new Error("Editor is not ready");
+      return requestSource({ path: openedPathRef.current, revision: sourceRevision.current, base: sessionBase.current,
+        ...collectSupportedEdits(document, editorRef.current.getSnapshot().editorDocument) });
+    },
     getSnapshot, initialEditorSnapshot, editorRef, document, bibliography, openedPath, headingNumbering, referenceTemplates, outlineStore, editorGeneration, isCurrent,
     view, setView, sourceMarkdown, status, setStatus, error, setError, notice, setNotice, noticeAction,
     draftActive, assetPending, documentDirty, busy, switching, busyRef, draftNotice,

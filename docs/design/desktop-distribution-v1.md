@@ -1,6 +1,7 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
+- File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
 - Documentation verification: 2026-10-26 (Host startup response versus Editor tab restoration compared with first-document.ts, host-protocol.ts, App.tsx and the session contract; no new Desktop execution).
 - Last verified: 2026-10-26 (public 0.1.0-beta.1, release CI, anonymous assets, real GitHub 0.0.1-beta.4→0.1.0-beta.1 update and Korean Windows packaged regression with #450; see the release record).
 - Previous verification: 2026-10-16 (#296 PR3: actual packaged Windows process crash/normal close, same-profile recovery, pending Figure, Save/Reload and external conflict. Native close answer is stubbed; no install/update/release performed).
@@ -10,6 +11,23 @@
 - Authority: [ADR-0004](../adr/0004-desktop-host-distribution.md); document semantics and Save remain owned by [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md), [Filesystem Host](filesystem-host-boundary-v1.md) and [Editing session](editing-session-save-v1.md).
 - Start-up/CLI path verification: 2026-10-15 (#287 unit tests for refusal before path I/O and valid Unicode names; Desktop tested without Electron).
 - Scope: Windows x64 per-user Electron/NSIS app, Stable/Beta updates and local/CI packaging. Public publication requires a separate explicit approval.
+
+## File context actions (#505 / #504 PR A)
+
+Desktop uses the same web context menu and dialogs as Vite/HTTP; Electron `Menu.popup` is not
+used. The preload bridge adds only the literal `fileDeletion: "trash"` capability. Paths and file
+content continue through the shared Host transport, not a second IPC filesystem API. The custom
+protocol routes `/api/file` to the existing shared handler and injects `shell.trashItem` as its delete
+adapter after the same root/symlink/regular-file checks. An unavailable or failed trash adapter
+returns an error and keeps the file; it never falls back to permanent deletion. Rename reuses the
+same exclusive Host operation. Folder operations and reference rewriting remain out of scope.
+See [filesystem operations](filesystem-host-boundary-v1.md#file-deletion-and-rename-505--504-pr-a)
+and [session/focus behavior](editor-ux-shell-v1.md#file-context-menu-505--504-pr-a).
+
+Local protocol tests cover injected trash success/failure and shared path validation. Packaged
+Windows behavior remains a required CI check; no local package/install/update run is required
+because packaging and update boundaries are unchanged.
+
 
 ## Native sample
 
@@ -24,6 +42,8 @@ The default bundled sample is copied once to `sample-native-v1` under the user d
 The Desktop Host lives in `apps/desktop`. It ships the existing Editor production build and directly imports the existing document/asset Host handlers. `ieumdoc://app` serves files and Host requests inside Electron; it starts neither Vite nor a TCP server. Core, File commit and CLI document operations do not change. There is no portable release, remote service, original-file autosave, cloud account or second editor state.
 
 Completion requires the Windows installer, channel/state tests, packaged app and actual install/update regressions, the existing Core/CLI/Editor/browser checks, CI configuration and this documentation. Unsigned publication is restricted to exact `vX.Y.Z-beta.N` releases after these checks, with its signature status and possible Windows warnings disclosed. Authenticode credentials are prerequisites for signed releases and Stable publication. All publication requires explicit approval and actual environment protection configured in GitHub. Real GitHub update delivery is distinct from the local feed checks.
+
+The native window enforces a minimum width of **640px** (minimum height 480px), following [ADR-0010](../adr/0010-supported-viewport-and-input.md). Keyboard and pointer input are the supported interaction model. The packaged regression checks the native minimum size.
 
 ## App and Host
 

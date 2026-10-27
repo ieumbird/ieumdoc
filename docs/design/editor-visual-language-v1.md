@@ -1,6 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
+- File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
 - Theme verification: 2026-10-27 (#595: System/Light/Dark, six dark accents, independent paper roles, live preferences and native appearance bridge; [values, contrast and captures](#system-light-and-dark-595)).
 - Document tab verification: 2026-10-27 (#581: flat bottom accent marker and adjustable 32px height; [comparison and measurements](#slim-document-tabs-581)).
 - Document settings verification: 2026-10-27 (#554: existing document operations and device width preference; [integration, checks and captures](editor-ux-shell-v1.md#document-settings-placement-554)).
@@ -38,6 +39,21 @@
 - Current contract: v4.8, with the #226 paper-surface refinement and #225 pointer-hover block extent. Historical filename retained for link stability.
 - History: v1 implemented 2026-09-25; v2 (chrome recedes) implemented 2026-10-06; v3 (distinct states) 2026-10-08; v4 (TopBar tabs, toggles and Save states) 2026-10-10; v4.1 (TopBar state axes) 2026-10-10; v4.2 (one blue action role, light theme only, #172) 2026-10-12; v4.3 (start without a document, #174) 2026-10-12; v4.4 (in-place footnote regions, #185) 2026-10-12. v4.5 (one trailing endnotes region, #194) 2026-10-12. v4.6 (Files/Display tools and File actions, #176) 2026-10-13. v4.7 (UX review: one meaning for the blue marker, location identity, unreserved metadata, overflow cues) 2026-10-17. v4.8 (owner A1: raised tab groups, background-only list current, existing single block outline, #515) 2026-10-26. Visual approval remains with the user.
 - Scope: existing Editor presentation and interaction overlays. Core, CLI, source format, save API and the single Tiptap state are unchanged.
+
+## File context actions (#505 / #504 PR A)
+
+File tree context menus share the dropdown popup and row class constants, including compact
+height, icon slot, gap, neutral highlight and keyboard focus ring. Base UI owns menu focus and positioning. Delete rows use the existing danger text/icon and highlighted
+surface-danger roles. Target-specific action data supplies content, not a new menu engine.
+
+The shared danger confirmation names the file, starts focus on Cancel, uses the destructive Button
+and returns focus to the surviving row/adjacent tree target. Busy confirmation blocks dismissal;
+errors retain the dialog. Rename reuses the compact shared Dialog/Input/footer geometry and
+shows the fixed extension beside the selected stem. Long descriptions/errors wrap within the
+popup. At the supported 640px minimum and at desktop widths, the existing footer retains horizontal actions.
+The [shell capture record](editor-ux-shell-v1.md#file-action-verification-and-captures) records both
+sizes and light/dark OS preferences, using the current System theme and shared #595 roles.
+
 
 ## Direction
 
@@ -126,7 +142,7 @@ Inline code and math keep their prior context: `keep-all` within headings, `norm
 the other document surfaces. Their computed `overflow-wrap` remains `break-word`.
 This is presentation only, with no preference, source-format, Core or CLI change.
 
-The shared Settings language selector follows the existing 32px input/control size and typography. Korean and English use the same font stack and tokens. The [dedicated Settings screen](editor-ux-shell-v1.md#dedicated-settings-screen-594) is an opaque themed `surface` viewport, without popup corners, shadow or a floating close control. Back, filename and an accessible unsaved dot occupy its header. Named categories use shared ghost Buttons; the current one takes selected background/text and 600 semibold without a left marker, following Sidebar navigation. Titles use the existing 24px start-title token, labels 14/20px and descriptions 12/16px. Thin subtle row separators and the common control axis keep the bounded content readable. The document-scope note remains at the navigation foot on wide screens and follows its categories on phones. Geometry follows [Layout Rules](editor-layout-rules-v1.md#controls-and-spacing). Long translations wrap and the Settings body scrolls within the viewport. The UI language policy and document-text boundary are defined in [UX Shell](editor-ux-shell-v1.md#ui-display-language-256).
+The shared Settings language selector follows the existing 32px input/control size and typography. Korean and English use the same font stack and tokens. The [dedicated Settings screen](editor-ux-shell-v1.md#dedicated-settings-screen-594) is an opaque themed `surface` viewport, without popup corners, shadow or a floating close control. Back, filename and an accessible unsaved dot occupy its header. Named categories use shared ghost Buttons; the current one takes selected background/text and 600 semibold without a left marker, following Sidebar navigation. Titles use the existing 24px start-title token, labels 14/20px and descriptions 12/16px. Thin subtle row separators and the common control axis keep the bounded content readable. The document-scope note remains at the navigation foot on wide screens and follows its categories below 768px. Geometry follows [Layout Rules](editor-layout-rules-v1.md#controls-and-spacing). Long translations wrap and the Settings body scrolls within the viewport. The UI language policy and document-text boundary are defined in [UX Shell](editor-ux-shell-v1.md#ui-display-language-256).
 
 The following base values describe Light; [Dark overrides](#system-light-and-dark-595) preserve the same geometry and role relationships.
 
@@ -355,7 +371,7 @@ The paper's bottom padding is the end space, 35% of the viewport height, so the 
 
 ## Filename and status
 
-The centered TopBar command-center button leads with a search icon and Find documents and commands / 문서·명령 찾기 (#556). Its current folders and filename are optional secondary information in muted regular text; the full path stays in their title. The secondary location yields first, then the shortcut, then the action label ellipsizes. The status sits in its own left cell; narrow headers give the command center a separate centered row and phone widths give nonempty status its own row (#363). Open/New still receive the original address. A loaded clean document has no idle text. Unsaved document changes or unapplied drafts show `Unsaved changes`; the display reads the existing baseline comparison and draft signals. `Saved` appears only after a successful save while no edits remain (including undo back to that saved baseline). Saving, load/save errors and conflict retain their existing operation text/UI. The status does not imply autosave.
+The centered TopBar command-center button leads with a search icon and Find documents and commands / 문서·명령 찾기 (#556). Its current folders and filename are optional secondary information in muted regular text; the full path stays in their title. The secondary location yields first, then the shortcut, then the action label ellipsizes. The status sits in its own left cell; narrow headers give the command center a separate centered row and header containers below 35rem give nonempty status its own row (#363). Open/New still receive the original address. A loaded clean document has no idle text. Unsaved document changes or unapplied drafts show `Unsaved changes`; the display reads the existing baseline comparison and draft signals. `Saved` appears only after a successful save while no edits remain (including undo back to that saved baseline). Saving, load/save errors and conflict retain their existing operation text/UI. The status does not imply autosave.
 
 ## Shell and control rules — v3 (2026-10-08), v4 and v4.1 (2026-10-10)
 
@@ -646,8 +662,7 @@ verification reruns the Editor tests, typecheck/build/docs and the six targeted 
   See [same-state comparison](#document-presentation-token-verification-497).
 
 - Image picker (#480): `--layout-folder-picker-preview-height` (10rem / 160px) bounds the
-  active image below the list at desktop widths. Below the existing `40rem` phone boundary the
-  preview collapses, preserving the list and action space. Its structural border, subtle surface,
+  active image below the list at every supported width (640px and above). Its structural border, subtle surface,
   radius, 12px helper inset and muted text reuse existing product tokens. It adds no control;
   the image keeps its aspect ratio and the dialog retains its viewport scrolling.
 
@@ -692,7 +707,7 @@ does not promise that a US physical key position works on every layout.
 
 ## Responsibility boundaries
 
-Recovery uses the existing start-screen section/label/text roles and compact secondary Review action, with wrapping names/paths and dates. The empty state is plain explanatory text. Restore/incompatible prompts use the shared Dialog, primary Restore, destructive Delete and secondary Not now (initial focus), a selectable plaintext disclosure, and existing stacked narrow-screen footer. Review paths use `overflow-wrap: anywhere`, like deletion confirmations, so long unbroken Windows paths contribute wrapping opportunities to intrinsic grid sizing; the path and all footer actions remain inside the popup at phone widths. Shared spacing, compact control sizes and desktop footer direction are unchanged (#395). Settings uses its existing section rhythm; Clear all uses the shared deletion confirmation Dialog. Failures use a standing MessageArea warning, not an expiring notice. There is no start-screen redesign or new theme.
+Recovery uses the existing start-screen section/label/text roles and compact secondary Review action, with wrapping names/paths and dates. The empty state is plain explanatory text. Restore/incompatible prompts use the shared Dialog, primary Restore, destructive Delete and secondary Not now (initial focus), a selectable plaintext disclosure, and existing stacked narrow-screen footer. Review paths use `overflow-wrap: anywhere`, like deletion confirmations, so long unbroken Windows paths contribute wrapping opportunities to intrinsic grid sizing; the path and all footer actions remain inside the popup at supported narrow widths. Shared spacing, compact control sizes and desktop footer direction are unchanged (#395). Settings uses its existing section rhythm; Clear all uses the shared deletion confirmation Dialog. Failures use a standing MessageArea warning, not an expiring notice. There is no start-screen redesign or new theme.
 
 Shared Settings/Local recovery and Desktop About reuse the existing dialog, Button and Notice components and product spacing/type/surface tokens. The Sidebar footer uses the existing compact ghost target; the native channel radios and progress use the interaction color. Status is plain text and actions wrap within the dialog. Update notices use the existing information surface with View/Restart and Later actions. No new visual theme or document state is introduced. [Desktop contract](desktop-distribution-v1.md) owns the behavior.
 
@@ -717,7 +732,7 @@ Shared Settings/Local recovery and Desktop About reuse the existing dialog, Butt
 | Command center | Shared Dialog near the top center, max 36rem wide and bounded by the viewport. Base UI Combobox owns highlighting, arrows, Enter and IME; Escape/outside dismissal returns to the opener without editing. A command opening another modal hands off focus after close. The search and results use existing input/control/type/surface tokens; results scroll within the popup. |
 | File actions `⋯` / Reload, Copy path | Base UI Menu owns navigation/dismissal. Copy path writes the document's full path to the clipboard and confirms with a temporary notice; where the browser offers no Clipboard API (a non-HTTPS remote page), it shows an error that explains this instead. Reload opens the existing work-loss confirmation when needed; cancel, Escape or successful loading returns to the File actions trigger. |
 | Unsaved changes confirmation | Shared Dialog surface, 16px padding, 12px paragraph gap and compact 28px Button actions. Save uses the primary role; Don't save uses `destructive`; Cancel uses `secondary` and receives initial focus. Actions stack on narrow screens using the existing footer. Cancel/Escape/outside dismissal restores the invoking control; pending close-Save disables actions and dismissal. Successful tab close focuses the active neighbour (or the start action after the last tab); New and unsupported-Open alerts retain their existing dialog focus. Draft-loss guidance is ordinary description text, not another warning bar. The description uses `overflow-wrap: anywhere` to keep long unbroken filenames and footer actions inside the popup. |
-| Recovery deletion confirmation | The same shared Dialog header/description/footer, secondary Cancel with initial focus and compact destructive Delete action. Identify one record by full path, or all local records, and explicitly state that deletion cannot be undone. Long paths wrap within the popup at phone widths. Cancel/Escape/outside dismissal returns focus to the invoking delete/clear button; pending deletion disables actions and dismissal. |
+| Recovery deletion confirmation | The same shared Dialog header/description/footer, secondary Cancel with initial focus and compact destructive Delete action. Identify one record by full path, or all local records, and explicitly state that deletion cannot be undone. Long paths wrap within the popup at supported narrow widths. Cancel/Escape/outside dismissal returns focus to the invoking delete/clear button; pending deletion disables actions and dismissal. |
 | Folder `⋯` menu | Base UI Menu: Enter/Space or click opens it, arrows move between items, Escape or an outside click closes and returns focus to `⋯`. An item that opens a dialog hands focus to the dialog, whose closing returns it to `⋯`. |
 
 ## Evidence and verification
@@ -897,7 +912,7 @@ The Sidebar keeps its existing row geometry and 16px icon slot: Image for suppor
 other files, and existing native/foreign document icons. A shared modal uses the existing Dialog
 surface, title, description, compact Close button and spacing tokens. Name/path use `overflow-wrap: anywhere` so long unbroken text stays inside the intrinsic grid width; the image
 contains within the available width and 60dvh, and the dialog stays within the viewport at wide and
-phone widths. Loading and failure use ordinary status/alert text. Close/Escape returns to the invoking
+supported narrow widths. Loading and failure use ordinary status/alert text. Close/Escape returns to the invoking
 row while document selection and property drafts remain. File information has no edit/open/execute action.
 
 #### #217 verification and captures

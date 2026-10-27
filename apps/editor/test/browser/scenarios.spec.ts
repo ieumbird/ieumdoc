@@ -7,7 +7,7 @@ import path from "node:path";
 import { runInNewContext } from "node:vm";
 import { classifyConsoleErrors } from "./console-errors.ts";
 import { finishScenarioDiagnostics, savedSourceAssertion } from "./diagnostics.ts";
-import { prepareBrowserFixtures, REPOSITORY_ROOT, SOURCE_DIRS } from "./fixtures.ts";
+import { FILE_ACTIONS_ROOT, prepareBrowserFixtures, REPOSITORY_ROOT, SOURCE_DIRS } from "./fixtures.ts";
 import { STABLE_SCENARIOS } from "./scenarios.ts";
 import { activeDocument, openDocument, openPath, reloadDocument, waitForActivePath, waitForEditorFocus } from "./navigation.ts";
 import { withBlockHover } from "./hover.ts";
@@ -47,11 +47,21 @@ const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
       context.setDefaultTimeout(workerInfo.project.use.actionTimeout!);
       context.setDefaultNavigationTimeout(workerInfo.project.use.navigationTimeout!);
       await context.clearCookies();
-      const scratch = path.join(REPOSITORY_ROOT, "tmp").replaceAll("\\", "/") + "/";
+      const scratchRoots = [path.join(REPOSITORY_ROOT, "tmp"), FILE_ACTIONS_ROOT].map(root => root.replaceAll("\\", "/"));
+      const withinScratch = (file: string, root: string) => !file.split("/").includes("..") && (file === root || file.startsWith(root + "/"));
+      const writableScratch = (file: string) => scratchRoots.some(root => withinScratch(file, root));
+      await context.route("**/api/file", route => {
+        const body = route.request().postDataJSON();
+        const paths = [body?.root, body?.path].map(value => String(value ?? "").replaceAll("\\", "/"));
+        if (paths.some(file => !withinScratch(file, scratchRoots[1]!))) {
+          return route.fulfill({ status: 403, json: { error: "Browser tests may mutate scratch files only." } });
+        }
+        return route.continue();
+      });
       await context.route("**/api/document**", route => {
         if (route.request().method() === "GET") return route.continue();
         const file = String(route.request().postDataJSON()?.path ?? "").replaceAll("\\", "/");
-        if (!file.startsWith(scratch) || file.split("/").includes("..")) {
+        if (!writableScratch(file)) {
           return route.fulfill({ status: 403, json: { error: "Browser tests may write scratch files only." } });
         }
         return route.continue();
@@ -65,6 +75,11 @@ const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
         return response.status;
       }, path.join(REPOSITORY_ROOT, "apps/editor/document/technical-document.md"));
       expect(rejected).toBe(403);
+      const fileRejected = await initial.evaluate(async root => {
+        const response = await fetch("/api/file", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ root, path: root + "/forbidden.md" }) });
+        return response.status;
+      }, path.join(REPOSITORY_ROOT, "tmp"));
+      expect(fileRejected, "File mutations inside the repository must never reach the Host").toBe(403);
       await initial.close();
       await use(context);
     } finally {
@@ -141,7 +156,7 @@ const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
 for (const name of scenarios) {
   test(name, async ({ page }) => {
     const source = readFileSync(path.join(REPOSITORY_ROOT, "apps/editor/test", `${name}.browser.js`), "utf8");
-    const scenario = runInNewContext(`(${source})`) as (page: Page, options: { assertSavedSource: ReturnType<typeof savedSourceAssertion>; screenshots: boolean; expect: typeof expect; recoveryRecords: typeof recoveryRecords; openDocument: typeof openDocument; openPath: typeof openPath; waitForActivePath: typeof waitForActivePath; reloadDocument: typeof reloadDocument; waitForEditorFocus: typeof waitForEditorFocus; activeDocument: typeof activeDocument; withBlockHover: typeof withBlockHover; removeTabFixture: () => void; bibliographyFixture: unknown }) => Promise<unknown>;
+    const scenario = runInNewContext(`(${source})`) as (page: Page, options: { assertSavedSource: ReturnType<typeof savedSourceAssertion>; screenshots: boolean; fileActionsRoot: string; expect: typeof expect; recoveryRecords: typeof recoveryRecords; openDocument: typeof openDocument; openPath: typeof openPath; waitForActivePath: typeof waitForActivePath; reloadDocument: typeof reloadDocument; waitForEditorFocus: typeof waitForEditorFocus; activeDocument: typeof activeDocument; withBlockHover: typeof withBlockHover; removeTabFixture: () => void; bibliographyFixture: unknown }) => Promise<unknown>;
     const bibliographyPath = path.join(REPOSITORY_ROOT, "tmp", name === "http-host" ? "http-host-a" : "bibliography", "refs.bib");
     const initialBibliography = ["bibliography", "http-host"].includes(name) ? readFileSync(bibliographyPath, "utf8") : "";
     const bibliographyFixture = {
@@ -151,7 +166,7 @@ for (const name of scenarios) {
         mode === "updated" ? initialBibliography.replace("Control Study", "Updated Study") : mode === "invalid" ? "@article{broken" : initialBibliography),
       report: (markdown: string, text: string) => citationReport(parse(markdown), [{ source: "../refs.bib", status: "ok", text }]),
     };
-    const result = await scenario(page, { assertSavedSource: savedSourceAssertion(test.info()), screenshots, expect, recoveryRecords, openDocument, openPath, waitForActivePath, reloadDocument, waitForEditorFocus, activeDocument, withBlockHover, bibliographyFixture,
+    const result = await scenario(page, { assertSavedSource: savedSourceAssertion(test.info()), screenshots, fileActionsRoot: FILE_ACTIONS_ROOT, expect, recoveryRecords, openDocument, openPath, waitForActivePath, reloadDocument, waitForEditorFocus, activeDocument, withBlockHover, bibliographyFixture,
       // Simulate an external deletion of this one disposable file. The fixture resets it afterward.
       removeTabFixture: () => unlinkSync(path.join(REPOSITORY_ROOT, "tmp/document-tabs/technical-1.md")),
     });

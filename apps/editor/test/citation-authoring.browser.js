@@ -67,15 +67,15 @@ async (page, { openPath, waitForActivePath, reloadDocument, waitForEditorFocus, 
   assert(await keyInput.getAttribute('role') === 'combobox' && await keyInput.getAttribute('aria-expanded') === 'true', 'Key search exposes an expanded combobox');
   assert(await keyInput.getAttribute('aria-controls') === await choices.getAttribute('id'), 'Combobox controls the bibliography list');
   assert(await choices.getByRole('option', { name: /article.*W\. Zhang.*Control Study/ }).count() === 1, 'Candidates show their key, author and title');
-  await page.setViewportSize({ width: 375, height: 812 });
-  const phone = await form.evaluate(element => {
+  await page.setViewportSize({ width: 640, height: 812 });
+  const narrow = await form.evaluate(element => {
     const list = element.querySelector('[role="listbox"]');
     const rect = element.getBoundingClientRect();
     return { left: rect.left, right: rect.right, width: element.clientWidth, scroll: element.scrollWidth,
       listWidth: list.clientWidth, listScroll: list.scrollWidth, pageWidth: document.documentElement.scrollWidth };
   });
-  assert(phone.left >= 0 && phone.right <= 375 && phone.scroll <= phone.width && phone.listScroll <= phone.listWidth && phone.pageWidth <= 375,
-    'Phone candidate list stays within its form and viewport: ' + JSON.stringify(phone));
+  assert(narrow.left >= 0 && narrow.right <= 640 && narrow.scroll <= narrow.width && narrow.listScroll <= narrow.listWidth && narrow.pageWidth <= 640,
+    'Narrow candidate list stays within its form and viewport: ' + JSON.stringify(narrow));
   await page.setViewportSize({ width: 1280, height: 720 });
   await keyInput.fill('feedb');
   assert(await choices.getByRole('option').count() === 1, 'Title filters the loaded entries');

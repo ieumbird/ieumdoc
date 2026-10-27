@@ -129,7 +129,7 @@ async (page, { openPath, reloadDocument, screenshots, assertSavedSource }) => {
     assert(await semantic() === moved, 'Language changes must not change citations');
 
     if (screenshots) {
-      for (const width of [1440, 375]) {
+      for (const width of [1440, 640]) {
         await page.setViewportSize({ width, height: 1000 });
         await page.evaluate(async () => { await document.fonts.ready; window.scrollTo(0, 0); document.activeElement?.blur(); });
         await page.mouse.move(0, 0);

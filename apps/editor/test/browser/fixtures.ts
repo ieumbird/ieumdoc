@@ -1,4 +1,6 @@
 import { nativeSource } from "../helpers/document.ts";
+import { createHash } from "node:crypto";
+import { tmpdir } from "node:os";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -6,11 +8,12 @@ import { parse, serialize } from "@ieumdoc/core";
 
 /**
  * Scratch fixtures for the Editor browser regressions (`apps/editor/test/*.browser.js`).
- * Each scenario opens files under the repository's ignored `tmp/<dir>/`; preparing deletes
- * those directories and recreates them from committed sources, so every run starts from the
+ * Scenarios use ignored `tmp/<dir>/`, except destructive file-actions use FILE_ACTIONS_ROOT
+ * in the OS temporary directory. Preparing recreates these copies from committed sources, so every run starts from the
  * same state. Source files are only read.
  */
 export const REPOSITORY_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
+export const FILE_ACTIONS_ROOT = path.join(tmpdir(), "ieumdoc-file-actions-" + createHash("sha256").update(REPOSITORY_ROOT).digest("hex").slice(0, 16));
 const DOCUMENT_DIR = path.join(REPOSITORY_ROOT, "apps", "editor", "document");
 const FIXTURE_DIR = fileURLToPath(new URL("./fixtures/", import.meta.url));
 
@@ -28,6 +31,18 @@ const technical = [document("technical-document.md"), document("diagram.svg")];
 
 /** Scratch directory under `tmp/` → the files a fresh copy holds, and the scenarios using it. */
 export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: string[] }> = {
+  "file-actions": { files: [
+    { name: "a.md", create: () => nativeSource("# File actions\n\nAlpha.\n") },
+    { name: "b.md", create: () => nativeSource("# Second\n\nBeta.\n") },
+    { name: "race-delete.md", create: () => nativeSource("# Delete race\n\nPending.\n") },
+    { name: "race-rename.md", create: () => nativeSource("# Rename race\n\nPending.\n") },
+    { name: "notes.txt", create: () => "plain text" },
+    { name: "README", create: () => "extensionless" },
+    document("diagram.svg"),
+    { name: "unused.svg", create: () => document("diagram.svg").create() },
+    { name: "nested/ref.md", create: () => nativeSource("# Reference\n\n:::{figure} ../diagram.svg\n:alt: Figure\n\nCaption.\n:::\n") },
+    { name: "ref.md", create: () => nativeSource("# Reference\n\n:::{figure} ./diagram.svg\n:alt: Figure\n\nCaption.\n:::\n") },
+  ], scenarios: ["file-actions"] },
   "table-caption": { files: [{ name: "caption.md", create: () => nativeSource(
     "# Table captions\n\nBefore.\n\n:::{figure}\n:name: fig-a\n:::\n\n" +
     ":::{table} **Results** with {numref}`fig-a`, {cite:p}`alpha` and $x^2$\n:name: tbl-a\n\n| Header |\n| --- |\n| Cell |\n:::\n\nAfter.\n") }], scenarios: ["table-caption"] },
@@ -244,7 +259,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
 /** Recreate every scratch directory under `tmpRoot` from its sources. Returns the directories. */
 export function prepareBrowserFixtures(tmpRoot = path.join(REPOSITORY_ROOT, "tmp")): string[] {
   return Object.entries(SCRATCH_DIRS).map(([name, { files }]) => {
-    const dir = path.join(tmpRoot, name);
+    const dir = name === "file-actions" && tmpRoot === path.join(REPOSITORY_ROOT, "tmp") ? FILE_ACTIONS_ROOT : path.join(tmpRoot, name);
     rmSync(dir, { recursive: true, force: true });
     mkdirSync(dir, { recursive: true });
     for (const file of files) {
