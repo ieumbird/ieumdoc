@@ -1,5 +1,5 @@
 // Unique UI contract: per-tab expansion, external-content isolation, keyboard controls and notation previews.
-async (page, { openPath, screenshots }) => {
+async (page, { openPath, screenshots, withBlockHover }) => {
   const assert = (ok, reason) => { if (!ok) throw Error(reason); };
   const active = () => page.locator('[data-document-tab][data-active=true]');
   const editor = () => active().locator('.document-editor');
@@ -9,6 +9,60 @@ async (page, { openPath, screenshots }) => {
   await ready();
   const defaultPath = (await (await page.request.get(page.url().split('/').slice(0,3).join('/')+'/api/document')).json()).path;
   const separator = defaultPath.includes('\\')?'\\':'/';
+  // A minimum-height paper and unchanged editor size must not hide position-only layout changes.
+  await page.setViewportSize({width:1440,height:1200});
+  const short=[...defaultPath.split(separator).slice(0,-4), 'tmp', 'inline-document-settings', 'short.md'].join(separator);
+  await openPath(page,short);
+  await page.evaluate(async () => { await document.fonts.ready; });
+  const twoFrames = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await twoFrames();
+  await editor().evaluate(n => {
+    window.settingsLayoutTransactions = 0;
+    n.editor.on('transaction', () => { window.settingsLayoutTransactions++; });
+  });
+  const alignment = state => active().evaluate((tab, state) => {
+    const host=tab.querySelector('article.document'), content=tab.querySelector('.document-editor');
+    const paragraph=content.querySelector('.paragraph');
+    let index;
+    content.editor.state.doc.forEach((node,pos,i) => { if(content.editor.view.nodeDOM(pos)===paragraph) index=i; });
+    const rect=n=>{const r=n.getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height};};
+    const block=rect(paragraph), control=rect(host.querySelectorAll('.block-controls')[index]);
+    const outline=host.querySelector('[data-testid="block-hover-outline"]');
+    const hover=outline ? rect(outline) : null;
+    const headings=[...content.querySelectorAll('.heading')];
+    const expectedHeading=headings.filter(n=>n.getBoundingClientRect().top<=innerHeight*0.3).at(-1) ?? headings[0];
+    const table=content.querySelector('table');
+    const rows=[...table.rows].map((row,i)=>({row:rect(row),control:rect(content.querySelectorAll('.table-row-handle')[i])}));
+    const columns=[...table.rows[0].cells].map((cell,i)=>({cell:rect(cell),control:rect(content.querySelectorAll('.table-column-handle')[i])}));
+    return {state,block,control,hover,paper:rect(host),content:rect(content),rows,columns,
+      expectedHeading:expectedHeading.textContent,currentHeading:document.querySelector('[data-testid="outline"] [aria-current="location"]')?.textContent,
+      transactions:window.settingsLayoutTransactions};
+  },state);
+  const layout=[];
+  await withBlockHover(page,async()=>{
+    for(const state of ['collapsed','expanded','collapsed-again']) {
+      if(state!=='collapsed') await disclosure().click();
+      await editor().locator('.paragraph').first().hover();
+      await twoFrames();
+      layout.push(await alignment(state));
+      if(screenshots) await page.screenshot({path:`tmp/inline-settings-580/short-${state}.png`});
+    }
+  });
+  const errors=[];
+  for(const geometry of layout) {
+    const {block,control,hover}=geometry;
+    if(Math.abs(control.top-block.top)>0.5 || !hover || hover.height<=block.height ||
+      Math.abs((hover.top+hover.bottom)/2-(block.top+block.bottom)/2)>0.5) errors.push('Gutter/hover alignment: '+JSON.stringify(geometry));
+    if(geometry.currentHeading!==geometry.expectedHeading) errors.push('Reading outline: '+JSON.stringify(geometry));
+    if(geometry.rows.some(({row,control})=>Math.abs((row.top+row.bottom)/2-(control.top+control.bottom)/2)>0.5) ||
+      geometry.columns.some(({cell,control})=>Math.abs(cell.left-control.left)>0.5 || Math.abs(cell.right-control.right)>0.5)) errors.push('Table tools alignment: '+JSON.stringify(geometry));
+    if(Math.abs(geometry.paper.height-layout[0].paper.height)>0.5 || Math.abs(geometry.content.height-layout[0].content.height)>0.5 || geometry.transactions!==0) errors.push('Position-only fixture changed size or dispatched a transaction: '+JSON.stringify(geometry));
+  }
+  assert(layout[0].expectedHeading!==layout[1].expectedHeading,'The short fixture crosses the reading line on expansion');
+  assert(errors.length===0,errors.join('\n'));
+  await page.getByRole('button',{name:'Close short.md',exact:true}).click();
+  await page.getByTestId('sidebar').getByRole('button',{name:'More actions',exact:true}).click();
+  await page.getByRole('menuitem',{name:'Close folder',exact:true}).click();
   const file=[...defaultPath.split(separator).slice(0,-4),'tmp','document-tabs','technical-1.md'].join(separator);
   await openPath(page,file);
   const state = () => editor().evaluate(n => JSON.stringify({doc:n.editor.getJSON(),selection:n.editor.state.selection.toJSON(),undo:n.editor.can().undo(),redo:n.editor.can().redo()}));
@@ -96,4 +150,5 @@ async (page, { openPath, screenshots }) => {
     await page.getByTestId('ui-language').selectOption(preferences.language);
     await page.keyboard.press('Escape'); await page.getByTestId('settings-dialog').waitFor({state:'detached'});
   }
+  return {shortDocumentLayout:layout};
 }

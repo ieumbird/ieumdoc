@@ -450,7 +450,12 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     editor.on("update", edited);
     window.addEventListener("scroll", schedule, { passive: true });
     window.addEventListener("resize", schedule);
+    // A settings disclosure can move headings across the reading line without a scroll/edit.
+    const settings = host.current?.querySelector(".document-settings");
+    const resize = new ResizeObserver(schedule);
+    if (settings) resize.observe(settings);
     return () => {
+      resize.disconnect();
       if (frame) cancelAnimationFrame(frame);
       editor.off("update", edited);
       window.removeEventListener("scroll", schedule);

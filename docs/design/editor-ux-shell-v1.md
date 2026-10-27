@@ -130,7 +130,30 @@ focus-caret, file-actions, editor-shell, command-center, inline-document-setting
 layout-rules, desktop-updates, ui-language and document-tabs passed. The caret
 scenario follows the new disclosure Tab stop without changing its restoration
 assertions; file-actions selects ProseMirror paragraphs rather than settings hints.
-The visual matrix restores its incoming display preferences in finally. The dedicated
+The visual matrix restores its incoming display preferences in finally.
+
+Review follow-up (2026-10-27, PR #607 P2): a settings disclosure can move document
+content while a short paper and its editor keep the same sizes. The existing gutter
+ResizeObserver now also observes the settings block and uses its unchanged measurement
+path for controls and hover extent. The reading Outline likewise reschedules its
+existing reporter when that block resizes. Table tools remain relative to their own
+table canvas; heading scroll margin still follows the measured sticky header. Inline
+text menus dismiss on outside interaction, while property popovers keep their DOM
+anchors. No document transaction, new measurement framework or Core/CLI change.
+The inline-document-settings regression measures expand→hover and collapse→hover after
+two animation frames, with no body click/input, transaction or resize. A minimum-height
+1440×1200 fixture verifies unchanged paper/editor sizes, actual block/control/hover
+alignment, reading-line changes and table row/column alignment. The original 1440/640px
+language/theme/background matrix remains in the same scenario.
+Short-paper comparison: [Before](assets/inline-settings-580/review-before-expanded.png),
+[After](assets/inline-settings-580/review-after-expanded.png). Before highlights the
+old paragraph position above the actual block; After follows the actual paragraph.
+Follow-up verification: Editor **302/302**, workspace typecheck, production build,
+docs/whitespace and **8/8** browser scenarios passed: inline-document-settings,
+outline, quiet-document, layout-rules, table-authoring, focus-caret, editor-shell
+and block-move. The passing browser result records the actual geometry for all
+three short-document states; full generated results remain in ignored tmp.
+ The dedicated
 `inline-document-settings` scenario adds unique per-tab/new-open/reload expansion,
 read-only summary, content/selection/history isolation, keyboard/menu Escape and
 notation-preview coverage. Its geometry matrix covers English/Korean, Light/Dark,
