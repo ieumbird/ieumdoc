@@ -145,7 +145,7 @@ test("replaced junctions and command files are not deleted, including by uninsta
 });
 
 test("the exact shim preserves quoted Unicode arguments, binary stdin/stdout and nonzero exit status", { skip: process.platform !== "win32" }, async () => {
-  await fixture(async ({ integration, exe, app }) => {
+  await fixture(async ({ integration, exe, app, root }) => {
     // A disposable Node executable stands in for RunAsNode; no Electron/profile or real PATH.
     await copyFile(process.execPath, exe);
     await writeFile(path.join(app, "resources", "cli", "cli.mjs"),
@@ -154,11 +154,13 @@ test("the exact shim preserves quoted Unicode arguments, binary stdin/stdout and
     const args = ["한글 문서 😀.md", 'a "quoted" value', "C:\\space ! & (x)\\", ""];
     const input = Buffer.from([0, 255, 13, 10, 65, 0, 66]);
     const env = { ...process.env };
-    for (const key of Object.keys(env)) if (key.toLowerCase() === "path") delete env[key];
+    for (const key of Object.keys(env)) if (["path", "nodefaultcurrentdirectoryinexepath"].includes(key.toLowerCase())) delete env[key];
     env.Path = `${integration.bin};${process.env.PATH ?? ""}`;
     for (const command of [integration.shim, "ieumdoc"]) {
       const result = spawnSync(process.env.ComSpec ?? "cmd.exe", windowsCommand(command, args), {
-        cwd: app, env, windowsVerbatimArguments: true, windowsHide: true, input, timeout: 15_000,
+        // The terminal's document folder must not contain the stand-in IeumDoc.exe: cmd
+        // legitimately searches cwd before PATH on Windows, which would bypass any shim.
+        cwd: root, env, windowsVerbatimArguments: true, windowsHide: true, input, timeout: 15_000,
       });
       assert.equal(result.status, 37, `${command}: ${result.stderr?.toString()}`);
       assert.deepEqual(result.stdout, Buffer.concat([input, Buffer.from(`\n${JSON.stringify(args)}`)]));
