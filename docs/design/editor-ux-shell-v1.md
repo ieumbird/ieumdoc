@@ -1,6 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Image rename verification: 2026-10-27 (#504: targeted file-actions browser flow; [1440px/640px save-first guidance comparison](#image-rename-guidance-504)).
 - File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
 - Property Apply verification: 2026-10-27 (#576: shared Ctrl/Cmd+Enter submission, validation/busy guards, IME/modifier exclusions and prose hard-break isolation; Editor tests and targeted Windows Chrome browser regressions, with Apple platform emulation rather than native macOS).
 - Property-entry update: 2026-10-27 (#557: shared selection/Enter/double-click and explicit property drafts; see [Continuous editing](document-editing-v1.md#continuous-editing)).
@@ -38,9 +39,12 @@ restores the target row. Choosing an action hands focus to its shared dialog.
 
 Rename uses a small dialog with the selected stem and a separate immutable extension, matching
 New file shell controls. Cancel/Escape/outside dismissal restores the row. Invalid names and
-collisions retain input and show the reason. Referenced images are refused with the referring
-native document names; [Host checking](filesystem-host-boundary-v1.md#file-deletion-and-rename-505--504-pr-a)
-includes saved and applied unsaved work. No references are rewritten in PR A.
+collisions retain input and show the reason. Image rename updates saved native Figure references
+under the opened folder. Dirty referring tabs in this window refuse with document names and
+save-first guidance; clean affected tabs reload before the dialog closes. Skipped unreadable or
+non-native Markdown files are named in a notice. [Host checking and rollback](filesystem-host-boundary-v1.md#referenced-image-rename-504-pr-b)
+include saved and applied unsaved work; [session behavior](editing-session-save-v1.md#referenced-image-rename-504)
+defines the same-window boundary and other-window Save conflicts.
 
 Deletion names the file and distinguishes permanent deletion in Vite/HTTP from OS Trash on
 Desktop. An open dirty document additionally says its unsaved changes will be discarded and
@@ -81,6 +85,33 @@ ignored `tmp/file-actions-evidence`; only the selected small captures are retain
 | Delete confirmation | [After](assets/file-actions-505/after-delete-1440.png) | [After](assets/file-actions-505/after-delete-640.png) |
 | Rename input | [After](assets/file-actions-505/after-rename-1440.png) | [After](assets/file-actions-505/after-rename-640.png) |
 
+
+### Image rename guidance (#504)
+
+The existing rename dialog and danger text now ask the user to save the named referring tabs.
+No control geometry, toolbar placement or style tokens change. `file-actions` checks refusal
+for an inactive dirty tab and a property-only draft, preserving that work. After Save/Cancel it
+checks clean active/inactive reference tabs immediately after completion (without polling or a
+manual reload), Source-to-Visual refresh, a subsequent real Save, skipped-file notice, and a
+second window's 409 Save conflict with its local edits retained. Host unit tests inject failures
+at preflight, publication, document commit, image unlink and rollback, including case-only names
+and an external revision change. All actual file mutations use OS temporary directories.
+
+| Dirty-reference guidance, same state | Before | After |
+| --- | --- | --- |
+| 1440×900 | [Before](assets/image-rename-504/before-1440.png) | [After](assets/image-rename-504/after-1440.png) |
+| 640×900 | [Before](assets/image-rename-504/before-640.png) | [After](assets/image-rename-504/after-640.png) |
+
+Captured on Windows Chrome with the checkout-owned persistent profile, Vite at
+`http://127.0.0.1:5173`, English UI, light OS/System theme, DPR 1, 100% zoom and bundled
+Pretendard after `document.fonts.ready`. `ref.md` has an applied unsaved caption edit, `b.md`
+is active, and the rename dialog has attempted `diagram.svg → updated.svg`. Both widths
+keep text/actions inside the dialog. The longer save-first guidance wraps without clipping.
+Actual HEAD was `d04c0e2302818b2123f2bcdf4356715fb68aa31a` with this PR's working changes.
+For Before only App/locales were temporarily restored from that HEAD; the new Host remained
+and refused the same dirty reference. These are controlled UI comparisons, not a full old-Host
+behavior comparison. After restores this PR's App/locales. Only these four small images are
+committed; regenerable traces/logs/full screenshot sets remain ignored.
 
 ## Document settings placement (#554)
 
@@ -158,6 +189,10 @@ and 640px minimum, removes both obsolete TopBar openers, and keeps the inline
 settings handoff and position-change observers. Editor **302/302**, workspace
 typecheck/build, docs/whitespace, quiet-document with screenshots and **13/13**
 conflict-related browser scenarios passed. Supported-width captures remain 1440/640px.
+A subsequent integration of master `b7a6444` (#609 image-reference rename) keeps both
+sets of current translations and removes its retired refusal key. Editor **314/314**,
+workspace typecheck/build/docs and file-actions, inline-document-settings, editor-shell,
+command-center, desktop-updates, ui-language and layout-rules (**7/7**) passed.
 
  The dedicated
 `inline-document-settings` scenario adds unique per-tab/new-open/reload expansion,

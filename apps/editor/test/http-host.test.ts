@@ -12,7 +12,7 @@ import { RootAccess } from "../server/file-access.ts";
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
 
 test("HTTP file mutations reuse shared validation, strict bodies and allowlisted roots", async t => {
-  const { a, outside, send } = await fixture(t);
+  const { a, b, outside, send } = await fixture(t);
   const file = path.join(a, "document.md");
   const original = fs.readFileSync(file);
   assert.equal((await send("/api/file", "GET")).status, 405);
@@ -23,6 +23,19 @@ test("HTTP file mutations reuse shared validation, strict bodies and allowlisted
   assert.deepEqual(fs.readFileSync(renamed), original);
   assert.equal((await send("/api/file", "DELETE", {root:a, path:renamed})).status, 200);
   assert.equal(fs.existsSync(renamed), false);
+  const source = nativeSource(":::{figure} ./image.png\n\nCaption.\n:::\n");
+  fs.writeFileSync(file, source); fs.writeFileSync(path.join(b, "document.md"), source);
+  fs.unlinkSync(path.join(b, "image.png")); fs.linkSync(path.join(a, "image.png"), path.join(b, "image.png"));
+  fs.writeFileSync(path.join(a, "foreign.md"), "Ordinary Markdown");
+  const request = { root:a, path:path.join(a, "image.png"), name:"changed" };
+  const dirty = await send("/api/file", "PATCH", { ...request, openDocuments:[{path:file}] });
+  assert.equal(dirty.status, 400);
+  assert.deepEqual((await dirty.json()).references, ["document.md"]);
+  const changed = await send("/api/file", "PATCH", request);
+  assert.equal(changed.status, 200);
+  assert.deepEqual(await changed.json(), { path:path.join(a, "changed.png"), updatedDocuments:[file], skippedDocuments:["foreign.md"] });
+  assert.match(fs.readFileSync(file, "utf8"), /\.\/changed.png/);
+  assert.equal(fs.readFileSync(path.join(b, "document.md"), "utf8"), source, "another allowed root is outside the chosen opened folder");
 });
 
 test("folder image preview is read-only, root bounded and isolated for GET, HEAD and direct SVG URLs", async t => {

@@ -5,7 +5,9 @@ export const en = {
   "{{style}} references": "{{style}} references",
   "Unnumbered headings": "Unnumbered headings",
   "Numbered headings": "Numbered headings",
-  "This image is referenced by: {{documents}}": "This image is referenced by: {{documents}}",
+  "Save these documents before renaming the image: {{documents}}": "Save these documents before renaming the image: {{documents}}",
+  "Skipped unreadable or non-IeumDoc documents: {{documents}}": "Skipped unreadable or non-IeumDoc documents: {{documents}}",
+  "The files changed, but these tabs could not be reloaded: {{documents}}": "The files changed, but these tabs could not be reloaded: {{documents}}",
   "Rename…": "Rename…",
   "Delete file…": "Delete file…",
   "Rename file": "Rename file",
@@ -556,7 +558,9 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
-  "This image is referenced by: {{documents}}": "이 이미지를 참조하는 문서: {{documents}}",
+  "Save these documents before renaming the image: {{documents}}": "이미지 이름을 변경하려면 먼저 저장하세요: {{documents}}",
+  "Skipped unreadable or non-IeumDoc documents: {{documents}}": "읽을 수 없거나 이음독 문서가 아니어서 건너뛴 파일: {{documents}}",
+  "The files changed, but these tabs could not be reloaded: {{documents}}": "파일은 변경되었지만 다음 탭을 다시 불러오지 못했습니다: {{documents}}",
   "Rename…": "이름 변경…",
   "Delete file…": "파일 삭제…",
   "Rename file": "파일 이름 변경",

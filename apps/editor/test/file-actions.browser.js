@@ -70,10 +70,77 @@ async (page, { screenshots = false, fileActionsRoot, expect, recoveryRecords, ac
   await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({state:'attached'});
   const saved = await (await page.request.get(origin+'/api/document?path='+encodeURIComponent(file('renamed.md')))).json();
   expect(saved.source).toContain('Changed.');
+  // An inactive tab's dirty Figure caption blocks all writes, even though the image
+  // path itself has not changed. The same dialog shows actionable save-first guidance.
+  await row('ref.md').click(); await expect(page.getByTestId('current-file')).toHaveText('ref.md');
+  const caption = () => activeDocument(page).getByTestId('figure-caption-content').first();
+  await caption().click(); await page.keyboard.press('End'); await page.keyboard.type(' Applied edit.');
+  await expect(page.getByRole('tab',{name:'ref.md, Unsaved changes',exact:true})).toBeVisible();
+  await row('b.md').click(); await expect(page.getByTestId('current-file')).toHaveText('b.md');
   await context('diagram.svg','Rename…');
-  await dialog.getByRole('textbox',{name:'File name',exact:true}).fill('blocked');
+  await dialog.getByRole('textbox',{name:'File name',exact:true}).fill('updated');
   await dialog.getByRole('button',{name:'Rename',exact:true}).click();
-  await expect(dialog.getByRole('alert')).toContainText('ref.md'); await cancel();
+  await expect(dialog.getByRole('alert')).toContainText('ref.md');
+  for (const width of [1440, 640]) {
+    await page.setViewportSize({width,height:900}); await page.evaluate(() => document.fonts.ready);
+    if (screenshots) await page.screenshot({path:`tmp/file-actions-evidence/media-dirty-${width}.png`});
+    expect(await dialog.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
+  }
+  await expect(dialog.getByRole('alert')).toContainText('Save these documents before renaming');
+  await cancel(); await page.setViewportSize({width:1440,height:900});
+  expect((await (await page.request.get(origin+'/api/document?path='+encodeURIComponent(file('ref.md')))).json()).source).not.toContain('Applied edit.');
+  await row('ref.md').click(); await expect(caption()).toContainText('Applied edit.');
+  await page.getByTestId('save').click(); await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({state:'attached'});
+  const editFigure = activeDocument(page).getByRole('button',{name:'Edit figure',exact:true});
+  await editFigure.locator('..').hover({position:{x:4,y:4}}); await editFigure.click();
+  await page.getByRole('textbox',{name:'Alt text',exact:true}).fill('Unapplied alt');
+  await row('b.md').click(); await expect(page.getByTestId('current-file')).toHaveText('b.md');
+  await context('diagram.svg','Rename…');
+  await dialog.getByRole('textbox',{name:'File name',exact:true}).fill('updated');
+  await dialog.getByRole('button',{name:'Rename',exact:true}).click();
+  await expect(dialog.getByRole('alert')).toContainText('Save these documents before renaming the image: ref.md');
+  await cancel(); await row('ref.md').click();
+  await expect(page.getByRole('textbox',{name:'Alt text',exact:true})).toHaveValue('Unapplied alt');
+  await page.getByRole('dialog',{name:'Figure 1 properties'}).getByRole('button',{name:'Cancel',exact:true}).click();
+  await row('second-ref.md').click(); await expect(page.getByTestId('current-file')).toHaveText('second-ref.md');
+  await page.getByRole('button',{name:'Source',exact:true}).click();
+  await expect(activeDocument(page).getByTestId('source-view')).toBeVisible();
+  const other = await page.context().newPage();
+  try {
+    await other.goto(origin+'/?path='+encodeURIComponent(file('ref.md')));
+    await expect(other.getByTestId('current-file')).toHaveText('ref.md');
+    await activeDocument(other).getByTestId('figure-caption-content').first().click();
+    await other.keyboard.press('End'); await other.keyboard.type(' Other window.');
+    await context('diagram.svg','Rename…');
+    await dialog.getByRole('textbox',{name:'File name',exact:true}).fill('updated');
+    await dialog.getByRole('button',{name:'Rename',exact:true}).click();
+    await dialog.waitFor({state:'hidden'});
+    expect(await activeDocument(page).getByTestId('source-view').count()).toBe(0);
+    // Direct state after the operation: no polling/reload may mask a stale open tab.
+    for (const name of ['ref.md','second-ref.md']) {
+      const panel = await page.getByRole('tab',{name,exact:true}).getAttribute('aria-controls');
+      const source = await page.locator('#'+panel).getByTestId('figure-image').getAttribute('src');
+      expect(source).toContain('/updated.svg');
+    }
+    expect(await page.getByRole('tab',{name:/Unsaved changes/}).count()).toBe(0);
+    await expect(page.getByTestId('notice')).toContainText('foreign.md');
+    for (const name of ['ref.md','second-ref.md']) {
+      const disk = await (await page.request.get(origin+'/api/document?path='+encodeURIComponent(file(name)))).json();
+      expect(disk.source).toContain('./updated.svg');
+      expect(disk.source).not.toContain('Other window.');
+    }
+    const conflict = other.waitForResponse(response => response.url().includes('/api/document') && response.request().method()==='POST');
+    await other.getByTestId('save').click(); expect((await conflict).status()).toBe(409);
+    await expect(other.getByText('Save conflict',{exact:true}).filter({visible:true})).toBeVisible();
+    await expect(activeDocument(other)).toContainText('Other window.');
+  } finally { await other.close(); }
+  // Saving a newly edited, reloaded tab uses its new revision and cannot revert the image path.
+  await row('ref.md').click(); await expect(caption()).toContainText('Applied edit.');
+  await caption().click(); await page.keyboard.press('End'); await page.keyboard.type(' After rename.');
+  await page.getByTestId('save').click(); await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({state:'attached'});
+  const rewritten = await (await page.request.get(origin+'/api/document?path='+encodeURIComponent(file('ref.md')))).json();
+  expect(rewritten.source).toContain('./updated.svg'); expect(rewritten.source).toContain('After rename.');
+  await row('renamed.md').click(); await expect(page.getByTestId('current-file')).toHaveText('renamed.md');
   await context('unused.svg','Rename…');
   await dialog.getByRole('textbox',{name:'File name',exact:true}).fill('free');
   await dialog.getByRole('button',{name:'Rename',exact:true}).click(); await dialog.waitFor({state:'hidden'});
@@ -145,5 +212,6 @@ async (page, { screenshots = false, fileActionsRoot, expect, recoveryRecords, ac
       expect((await recoveryRecords(other)).filter(record => record.path === file(name))).toHaveLength(0);
     } finally { await other.close(); }
   }
-  return {metadata,root,renamedWithoutRead:true,undoPreserved:true,recoveryMovedAndDeleted:true,otherWindowFirstWriteRevoked:true};
+  return {metadata,root,renamedWithoutRead:true,undoPreserved:true,recoveryMovedAndDeleted:true,otherWindowFirstWriteRevoked:true,
+    dirtyReferenceRefused:true,draftReferenceRefused:true,cleanReferenceTabsReloaded:true,otherWindowSaveConflict:true};
 }

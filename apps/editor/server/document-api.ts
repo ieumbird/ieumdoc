@@ -10,7 +10,7 @@ import { assertUnicode, commitFile, decodeUtf8, FileChangedError, textRevision }
 import { accessPath, FileAccessError, fileErrorMessage, fileErrorStatus, LOCAL_FILE_ACCESS, type FileAccess } from "./file-access.ts";
 import { readRequestBody, RequestBodyError } from "./request-body.ts";
 import { requestQuery } from "./request-query.ts";
-import { deleteFile, renameFile, ReferencedImageError } from "./file-operations.ts";
+import { deleteFile, renameFile, ReferencedImageError, ImageRenameError } from "./file-operations.ts";
 import type { FileOperationRequest, RenameFileRequest } from "../shared/file-operations.ts";
 import { resolveDocumentPath, resolveMediaPath } from "./document-path.ts";
 export { DOCUMENT_DIR, resolveDocumentPath, resolveMediaPath } from "./document-path.ts";
@@ -219,6 +219,7 @@ export async function handleDocumentRequest(
       sendJson(res, 200, req.method === "DELETE" ? await deleteFile(request as FileOperationRequest, access, removeFile) : renameFile(request as RenameFileRequest, access));
     } catch (error) {
       if (error instanceof ReferencedImageError) sendJson(res, 400, { error: error.message, references: error.references });
+      else if (error instanceof ImageRenameError) sendJson(res, 400, { error: error.message, updatedDocuments: error.updatedDocuments, skippedDocuments: error.skippedDocuments });
       else failure(error);
     }
     return;
