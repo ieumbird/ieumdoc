@@ -93,7 +93,7 @@ test("Core inserts equations with a canonical semantic round-trip", () => {
     label: "",
   });
   assert.equal(serialize(parse(serialize(changed))), serialize(changed));
-  assert.throws(() => insertEquation(parse("Intro"), 1, ""), /empty equation LaTeX/);
+  assert.match(serialize(insertEquation(parse("Intro"), 1, "")), /\$\$\n\$\$/);
 });
 
 test("Core can remove a top-level block", () => {

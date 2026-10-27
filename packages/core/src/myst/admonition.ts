@@ -20,6 +20,7 @@ export function supportedAdmonitionContent(node: MystNode): InlineContent[] | un
   if (node.type !== "admonition" || typeof node.kind !== "string" || !SIMPLE_VARIANTS.has(node.kind) ||
       !Object.keys(node).every((key) => ADMONITION_FIELDS.has(key))) return undefined;
   const children = node.children ?? [];
+  if (children.length === 0) return [];
   if (children.length !== 1) return undefined;
   const paragraph = children[0];
   if (paragraph.type !== "paragraph" || !Object.keys(paragraph).every((key) => PARAGRAPH_FIELDS.has(key))) {

@@ -159,7 +159,7 @@ const FIGURE_NOTE = [
 const LIST_NOTE = [
   "--list is Core ListContent JSON: {\"ordered\": boolean, \"start\"?: number, \"items\": [...]}.",
   "Each item is {\"content\": InlineContent[], \"list\"?: ListContent}; the optional list nests below the item.",
-  "Numbered lists start at \"start\" (default 1); bullet lists have no start. Every item needs non-empty text.",
+  "Numbered lists start at \"start\" (default 1); bullet lists have no start. Empty items are saved as list markers.",
   "Example: --list '{\"ordered\":false,\"items\":[{\"content\":[{\"kind\":\"text\",\"text\":\"First\"}]}]}'",
 ];
 const CODE_NOTE = [
@@ -376,7 +376,7 @@ const COMMANDS: CommandSpec[] = [
     details: [
       "Insert a top-level admonition through Core.",
       ADMONITION_KIND_NOTE,
-      "The body must contain non-empty text.",
+      "An empty body is a supported authoring state.",
     ],
   },
   {
@@ -397,7 +397,7 @@ const COMMANDS: CommandSpec[] = [
     usage: "ieumdoc insert-quote <file> --at <index|end> (--text <text> | --content <json>)",
     details: [
       "Insert a top-level block quote holding one paragraph.",
-      "Use --text for plain text or --content for Core InlineContent JSON. The quote must contain non-empty text.",
+      "Use --text for plain text or --content for Core InlineContent JSON. An empty quote is a supported authoring state.",
     ],
   },
   {
@@ -476,7 +476,7 @@ const COMMANDS: CommandSpec[] = [
     usage: "ieumdoc insert-equation <file> --at <index|end> --latex <latex> [--label <label>]",
     details: [
       "Insert an Equation block at a top-level index.",
-      "The Equation LaTeX source must be non-empty.",
+      "An empty Equation is saved with dollar fences.",
       "--label sets the label in the same write, under update-label's validation and duplicate rules.",
     ],
   },
@@ -983,9 +983,7 @@ function changeFor(command: string, flags: string[]): Change {
       return (document) => updateHeadingInlineContent(document, pathFlag(flags), textOrContent(flags));
     }
     case "insert-admonition": {
-      return (document) => insertAdmonition(document, insertionIndex(document, flags), variantFlag(flags), [
-        { kind: "text", text: flag(flags, "--text") },
-      ]);
+      return (document) => insertAdmonition(document, insertionIndex(document, flags), variantFlag(flags), textOrContent(flags));
     }
     case "insert-quote": {
       return (document) => insertQuote(document, insertionIndex(document, flags), textOrContent(flags));
@@ -1696,7 +1694,7 @@ function textOrContent(args: string[]): InlineContent[] {
   const text = optionalFlag(args, "--text");
   const content = optionalFlag(args, "--content");
   if ((text === undefined) === (content === undefined)) throw new Error("exactly one of --text or --content is required");
-  return text !== undefined ? [{ kind: "text", text }] : jsonFlag<InlineContent[]>(args, "--content");
+  return text !== undefined ? (text ? [{ kind: "text", text }] : []) : jsonFlag<InlineContent[]>(args, "--content");
 }
 
 function variantFlag(args: string[]): AdmonitionVariant {

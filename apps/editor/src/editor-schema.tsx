@@ -28,7 +28,7 @@ import { labelError, labelKey, targetLabelError } from "@ieumdoc/core/label";
 import { Input } from "@/components/ui/input.tsx";
 import { CodeLanguageInput } from "./code-language-input.tsx";
 import { BlockProperties } from "./block-properties.tsx";
-import { ADMONITION_LABELS, admonitionTone, BLOCK_COMMAND_META, updateFigure } from "./block-commands.ts";
+import { ADMONITION_LABELS, admonitionTone, updateFigure } from "./block-commands.ts";
 import { CrossReference, captionPrefixText, useBlockNumber, useCaptionNumberText } from "./cross-reference.tsx";
 import { Endnotes, canEditEndnoteAt, endnoteAt, endnoteEditingKey, endnoteEditorToken, revealReference, useEndnoteNumber } from "./endnotes.ts";
 import { DocumentTitle, TITLE_FIXED, titleKept } from "./document-title.ts";
@@ -41,7 +41,6 @@ import {
   figureContent,
   isNewBlockPath,
   isSupportedDocumentChange,
-  NEW_BLOCK_PREFIX,
   normalizeEngineDocument,
   TABLE_CELL_SOURCE_ATTR,
   toTiptapBlockNode,
@@ -90,9 +89,9 @@ export type ImageChoice = { path: string; discard?(): void };
 /** Lets the user choose an image on the Host for this document; undefined when cancelled. */
 export type ImageChooser = (documentPath: string, returnFocus: RefObject<HTMLElement | null>) => Promise<ImageChoice | undefined>;
 
-/** An open Equation form is unsaved when changed, or when its placeholder was never applied. */
-export function isUnappliedEquationDraft(editing: boolean, draft: string, latex: string, sourcePath = ""): boolean {
-  return editing && (draft !== latex || (isNewBlockPath(sourcePath) && draft.length === 0));
+/** An open Equation form is unsaved only when its source changed. */
+export function isUnappliedEquationDraft(editing: boolean, draft: string, latex: string): boolean {
+  return editing && draft !== latex;
 }
 
 /** An open Figure form is unsaved when changed. */
@@ -209,6 +208,32 @@ const SourcedOrderedList = OrderedList.extend({
 
 const SimpleListItem = ListItem.extend({
   content: "paragraph (bulletList | orderedList)?",
+});
+
+// Decorations are view-only: guidance cannot enter copied or saved document content.
+const EmptyElementGuidance = Extension.create({
+  name: "emptyElementGuidance",
+  addProseMirrorPlugins() {
+    return [new Plugin({
+      props: {
+        decorations(state) {
+          const decorations: Decoration[] = [];
+          state.doc.descendants((node, pos, parent) => {
+            if (node.content.size !== 0) return;
+            const prompt = node.type.name === "quote" ? i18n.t("Enter a quote")
+              : node.type.name === "paragraph" && parent?.type.name === "listItem" ? i18n.t("Enter a list item") : undefined;
+            if (prompt) decorations.push(Decoration.node(pos, pos + node.nodeSize, { "data-empty-prompt": prompt }));
+          });
+          return DecorationSet.create(state.doc, decorations);
+        },
+      },
+      view(view) {
+        const refresh = () => view.dispatch(view.state.tr.setMeta("addToHistory", false));
+        i18n.on("languageChanged", refresh);
+        return { destroy() { i18n.off("languageChanged", refresh); } };
+      },
+    })];
+  },
 });
 
 // Code block v1: a language and literal code. Enter and Tab insert text; three Enters or
@@ -870,6 +895,7 @@ export function editorExtensions(
     FootnoteReference,
     Citation,
     MarkdownInputRules,
+    EmptyElementGuidance,
   ];
 }
 
@@ -984,7 +1010,7 @@ function AdmonitionView({ node, editor, getPos }: ReactNodeViewProps) {
       data-source-path={String(node.attrs.sourcePath ?? "")}
     >
       <p className="admonition-label" contentEditable={false}>{label}</p>
-      <NodeViewContent className="admonition-body" data-testid="admonition-body" />
+      <NodeViewContent className="admonition-body" data-testid="admonition-body" data-empty-prompt={node.content.size === 0 ? i18n.t("Enter admonition text") : undefined} />
     </NodeViewWrapper>
   );
 }
@@ -1250,36 +1276,6 @@ function focusBlock(view: ReactNodeViewProps["view"], getPos: ReactNodeViewProps
   view.focus();
 }
 
-/** Remove a transient block that never held a persistent value, keeping one editor block. */
-function removeUnappliedBlock(
-  view: ReactNodeViewProps["view"],
-  getPos: ReactNodeViewProps["getPos"],
-  node: ProseMirrorNode,
-  deleteNode: () => void,
-): void {
-  const position = getPos();
-  if (view.state.doc.childCount === 1) {
-    if (typeof position === "number") {
-      const tr = view.state.tr
-        .setNodeMarkup(position, view.state.schema.nodes.paragraph, {
-          sourcePath: `${NEW_BLOCK_PREFIX}empty`,
-        })
-        .setMeta(BLOCK_COMMAND_META, true);
-      view.dispatch(tr.setSelection(TextSelection.create(tr.doc, position + 1)));
-    }
-  } else if (typeof position === "number") {
-    const tr = view.state.tr
-      .delete(position, position + node.nodeSize)
-      .setMeta(BLOCK_COMMAND_META, true);
-    // The caret returns to the text before the removed block, never selecting the next block.
-    const $position = tr.doc.resolve(position);
-    const caret = TextSelection.findFrom($position, -1, true) ?? TextSelection.findFrom($position, 1, true);
-    view.dispatch((caret ? tr.setSelection(caret) : tr).scrollIntoView());
-  } else {
-    deleteNode();
-  }
-}
-
 export function resolveFigureSource(imageUrl: string, documentPath?: string | (() => string)): string {
   const locator = typeof documentPath === "function" ? documentPath() : documentPath;
   const encodedPath = figureMediaPath(imageUrl);
@@ -1288,7 +1284,7 @@ export function resolveFigureSource(imageUrl: string, documentPath?: string | ((
   return `${import.meta.env?.BASE_URL ?? "/"}document/${encodedPath}${query}`;
 }
 
-function EquationView({ node, editor, selected, deleteNode, getPos, view, onDraftChange }: ReactNodeViewProps & { onDraftChange?: DraftListener }) {
+function EquationView({ node, editor, selected, getPos, view, onDraftChange }: ReactNodeViewProps & { onDraftChange?: DraftListener }) {
   useTranslation();
   const label = String(node.attrs.label ?? "");
   const number = useBlockNumber(editor, getPos, "equation");
@@ -1315,14 +1311,14 @@ function EquationView({ node, editor, selected, deleteNode, getPos, view, onDraf
     }
   }, [editing, latex, label]);
 
-  const emptyNewEquation = view.editable && isNewBlockPath(String(node.attrs.sourcePath)) && latex.length === 0;
+  const [openOnInsert] = useState(() => view.editable && isNewBlockPath(String(node.attrs.sourcePath)) && latex.length === 0);
   useEffect(() => {
-    // Insertion and Undo restore an empty new Equation; existing content needs Edit.
-    if (emptyNewEquation) beginEdit();
-  }, [emptyNewEquation]);
+    // Open an inserted/remounted empty equation once; clearing an applied value must not reopen Apply.
+    if (openOnInsert) beginEdit();
+  }, [openOnInsert]);
 
   const sourcePath = String(node.attrs.sourcePath ?? "");
-  const hasUnappliedDraft = isUnappliedEquationDraft(editing, draft, latex, sourcePath) ||
+  const hasUnappliedDraft = isUnappliedEquationDraft(editing, draft, latex) ||
     (editing && labelDraft !== label);
   useEffect(() => {
     onDraftChange?.("Equation", sourcePath, hasUnappliedDraft);
@@ -1346,21 +1342,14 @@ function EquationView({ node, editor, selected, deleteNode, getPos, view, onDraf
   usePropertyEntry(anchor, beginEdit);
   const cancel = () => {
     cancelFocus();
-    const isUnappliedNewEquation = isNewBlockPath(sourcePath) && latex.length === 0;
-    if (isUnappliedNewEquation) removeUnappliedBlock(view, getPos, node, deleteNode);
     setDraft(latex);
     setLabelDraft(label);
     setError("");
     setEditing(false);
-    if (isUnappliedNewEquation) view.focus();
-    else focusBlock(view, getPos);
+    focusBlock(view, getPos);
   };
   // Core checks the live target/reference context before committing a label rename.
   const apply = () => {
-    if (draft.length === 0) {
-      setError({ key: "Equation LaTeX cannot be empty." });
-      return;
-    }
     const invalidLabel = labelError(labelDraft);
     if (invalidLabel) {
       setError(invalidLabel);
@@ -1391,7 +1380,7 @@ function EquationView({ node, editor, selected, deleteNode, getPos, view, onDraf
       ) : null}
       {/* The computed number sits right of the formula, as MyST renders it; it is never saved. */}
       <div className="equation-row">
-        <EquationFormula className="equation-math" latex={latex} testId="equation-preview" onDoubleClick={beginEdit} />
+        {latex.length === 0 ? <div className="equation-math empty-equation" data-testid="equation-empty" onDoubleClick={beginEdit}>{i18n.t("Enter an equation")}</div> : <EquationFormula className="equation-math" latex={latex} testId="equation-preview" onDoubleClick={beginEdit} />}
         {number === undefined ? null : <span className="equation-number" data-testid="equation-number">({number})</span>}
       </div>
       {view.editable && !editing ? (

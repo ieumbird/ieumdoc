@@ -83,15 +83,18 @@ test("list item split, indent, outdent and kind change save as the edited list a
   }
 });
 
-test("a new list saves once written; an unwritten one is session space and an empty item blocks Save", () => {
+test("new lists and empty items save from insertion", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-new-list-"));
   const markdown = nativeSource("Intro.\n");
   try {
     const { editable, state } = editorState(markdown);
     const inserted = state.apply(insertListAfter(state, 0, true));
     assert.deepEqual(inserted.doc.content.content.map((node) => node.type.name), ["paragraph", "orderedList"]);
-    assert.deepEqual(appliedDocument(editorDocumentJSON(inserted)), appliedDocument(editorDocumentJSON(state)));
-    assert.equal(collectSupportedEdits(editable, editorDocumentJSON(inserted)).inserts, undefined);
+    assert.notDeepEqual(appliedDocument(editorDocumentJSON(inserted)), appliedDocument(editorDocumentJSON(state)));
+    assert.deepEqual(collectSupportedEdits(editable, editorDocumentJSON(inserted)).inserts, [
+      { block: "list", list: { ordered: true, start: 1, items: [{ content: [] }] } },
+    ]);
+    assert.equal(saveFile(dir, markdown, inserted, editable), nativeSource("Intro.\n\n1.\n"));
 
     const written = inserted.apply(inserted.tr.insertText("First"));
     assert.deepEqual(collectSupportedEdits(editable, editorDocumentJSON(written)).inserts, [
@@ -100,7 +103,7 @@ test("a new list saves once written; an unwritten one is session space and an em
     assert.equal(saveFile(dir, markdown, written, editable), nativeSource("Intro.\n\n1.  First\n"));
 
     const withEmptyItem = run(written, splitListItem(written.schema.nodes.listItem));
-    assert.throws(() => collectSupportedEdits(editable, editorDocumentJSON(withEmptyItem)), /Block 2 \(orderedList\): empty list item/);
+    assert.equal(saveFile(dir, markdown, withEmptyItem, editable), nativeSource("Intro.\n\n1.  First\n2.\n"));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

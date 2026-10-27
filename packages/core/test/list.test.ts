@@ -147,7 +147,7 @@ test("public Core rejects invalid list edits without mutating the source", () =>
   ];
 
   const emptyItems: InlineContent[][] = [
-    [], text(" \t "), [{ kind: "break" }],
+    text(" \t "), [{ kind: "break" }],
     [{ kind: "emphasis", children: text("   ") }],
     [{ kind: "strong", children: [{ kind: "delete", children: text(" \t ") }] }],
     [{ kind: "link", url: "https://example.com", children: text("   ") }],

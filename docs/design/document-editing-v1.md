@@ -21,6 +21,64 @@
 - Property-entry verification: 2026-10-27 (#557: selected-node Enter regression fails on unchanged master `c3f7153`; Figure/Table/math share explicit property entry and draft lifecycle. [Same-state form comparison](editor-visual-language-v1.md#property-form-comparison)).
 - Scope: Supported continuous editing and Core-backed persistence; [ADR-0001](../adr/0001-single-document-editor-architecture.md).
 
+## Empty structural elements (#574)
+
+New and existing empty admonitions, quotes, list items and display equations are authored
+structure and save by the same [Core rules](document-support-v1.md#empty-structural-elements-574).
+Empty equations retain their official numbers. Apply may clear an equation; Cancel/Escape
+restores its applied value (including empty) and never deletes the block. New equations still
+auto-open their form. Changed property drafts remain excluded from Save until Apply.
+
+Empty elements show localized guidance: “Enter admonition text”, “Enter a quote”,
+“Enter a list item” and “Enter an equation”. Text surfaces use view-only decorations/NodeView
+attributes and CSS generated text; the atomic equation uses a noneditable NodeView surface.
+These prompts use the Figure empty-state subtle text and small sans-serif type tokens,
+never enter Core content/clipboard serialization, and disappear as content is entered.
+Language switching refreshes guidance without changing document state or history.
+
+### Empty-element verification and visual comparison
+
+Before changes, the pinned MyST probe parsed empty admonitions, `>`, bullet/ordered
+markers and dollar math, while native admission refused the first three and the
+canonical equation writer produced `mystDirectiveError`. The implementation keeps
+MyST's own empty node shapes and full semantic/re-serialization checks.
+
+Core tests cover all supported admonition kinds, nested empty list items, empty/filled
+transitions, equation numbering, label rename, and located refusal without mutation
+for labels that dollar math cannot preserve. CLI tests exercise existing command inputs
+and real file preservation. Editor tests exercise insertion, dirty-state collection and
+Host replay. `empty-elements` checks actual disk Save/Reload, unchanged Editor state,
+localized display-only prompts and typing/Undo. `equation-insertion` also checks empty
+Apply, Cancel preserving the structure, and clearing an already applied new equation.
+The latter first reproduced an automatic form reopen; automatic entry is now limited to
+insertion/remount, not every transition to empty. No retry or timeout change was used.
+
+Local checks: Core, CLI and Editor package tests, workspace typecheck, Editor production
+build, docs/whitespace, and `empty-elements`, `equation-insertion`,
+`equation-save-during-edit`, `list-authoring`, `admonition-authoring`, `layout-rules` and
+`quiet-document` passed. Edge and packaged Desktop checks are left to CI.
+
+The first CI artifacts exposed two test assumptions: `empty-elements` left Korean
+as the shared profile preference, and `ui-language` expected a now-valid empty block
+equation to fail. The former restores its preference in `finally`; the latter uses
+the existing empty inline-math refusal to retain live error-translation coverage,
+including unchanged document and draft checks. `ui-language`, `empty-elements` and
+`quote-save-reload` also pass in one sequential local run. No retry or timeout increase
+was used to address either failure.
+
+Capture-only `pnpm browser:test empty-elements --screenshots` uses identical scratch
+content, insertion commands, scroll, fonts and 1440/640×900 viewports. Before is the
+base product at `1304a90e650d8cd54a7c0a0c5368a4d854dfa93e`; after is #574. Four small
+review PNGs are retained; traces and generated logs remain under ignored `tmp/`.
+Windows Chrome reused this checkout's persistent profile. BadPasswordAttempts was 0
+before its first launch and 1 thereafter; each launch checked below the owner threshold.
+Runner-owned servers and browser contexts are closed after each execution.
+
+| Viewport | Before | After |
+| --- | --- | --- |
+| 1440px | [PNG](assets/empty-elements-574/before-1440.png) | [PNG](assets/empty-elements-574/after-1440.png) |
+| 640px | [PNG](assets/empty-elements-574/before-640.png) | [PNG](assets/empty-elements-574/after-640.png) |
+
 ## Code highlighting
 
 Highlighting is display-only and keeps the existing lowlight common language set. Its grammars load when a code block first exists, without changing document, selection or history. Empty/unregistered languages or a grammar load failure keep literal editable code and its language; language edits still use the existing Core code operation and canonical fence. The deferred chunk reduces the initial entry, not total deployment size.

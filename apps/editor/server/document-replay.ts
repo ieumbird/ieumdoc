@@ -373,15 +373,9 @@ export function saveEdits(
       }
       if (insert.block === "admonition") {
         if (!isAdmonitionVariant(insert.variant)) throw new Error("inserted admonition must be of a standard MyST kind");
-        if (!Array.isArray(insert.content) || inlineText(insert.content).trim().length === 0) {
-          throw new SaveContentError("admonition body cannot be empty", undefined, { action: "Enter text in the admonition or delete this block." });
-        }
         return;
       }
       if (insert.block === "equation") {
-        if (insert.latex.length === 0) {
-          throw new SaveContentError("empty equation LaTeX cannot be saved", undefined, { action: "Enter LaTeX or delete this equation." });
-        }
         return;
       }
       if (insert.block === "figure") {
@@ -393,9 +387,6 @@ export function saveEdits(
         return;
       }
       if (insert.block === "quote") {
-        if (!Array.isArray(insert.content) || inlineText(insert.content).trim().length === 0) {
-          throw new SaveContentError("quote cannot be empty", undefined, { action: "Enter text or delete this quote." });
-        }
         return;
       }
       // Core validates the label and the content when it inserts the definition.

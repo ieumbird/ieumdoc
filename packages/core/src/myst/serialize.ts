@@ -141,6 +141,26 @@ function prepareWriter(tree: MystDocument, blockPaths: number[][]): string {
     }
     node.children?.forEach((child, childIndex) => visit(child, childIndex, node,
       node === tree ? blockPaths[childIndex] : [...path, childIndex], inLink));
+    // MyST requires a body in {math}; dollar fences also preserve an empty equation
+    // and its optional closing-line label. The full fingerprint still guards the label.
+    if (node.type === "math" && node.value === "") {
+      const source = `$$\n$$${node.label ? ` (${node.label})` : ""}`;
+      if (node.label) {
+        const reloaded = parse(`${source}\n`).children[0];
+        if (reloaded?.type !== "math" || reloaded.value !== "" || reloaded.label !== node.label || reloaded.identifier !== node.identifier) {
+          throw new DocumentWriteError("This empty equation's label cannot be preserved in MyST dollar math.", {
+            path, action: "Enter equation content, remove the label, or use a label without spaces, closing parentheses or dollar signs.",
+          });
+        }
+      }
+      node.type = "html";
+      node.value = source;
+    }
+    if (node.type === "admonition" && node.children?.length === 0) {
+      node.type = "html";
+      node.value = `:::{${node.kind}}\n:::`;
+      delete node.children;
+    }
     // Write every supported table directive with a GFM grid. The upstream list-table writer
     // wraps cells in paragraphs and drops column alignment. The full guard still applies.
     if (isTableDirective(node)) {

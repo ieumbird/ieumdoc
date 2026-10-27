@@ -1,4 +1,5 @@
 import { isMap, isScalar, parseDocument } from "yaml";
+import { createHtmlId } from "myst-common";
 import { inlineContentText, projectInlineContent, type InlineContent } from "../inline.ts";
 import { DocumentWriteError, writeIssueOf, type WriteIssue } from "../write-error.ts";
 import { validateStructure } from "../validation.ts";
@@ -87,7 +88,8 @@ function supportedBlock(node: MystNode): boolean {
   if (node.type === "admonition") return supportedAdmonitionContent(node) !== undefined;
   if (node.type === "blockquote") return supportedQuoteContent(node) !== undefined;
   if (node.type === "footnoteDefinition") return supportedFootnoteContent(node) !== undefined;
-  if (node.type === "math") return fields(node, ["value", "label", "identifier"]) && typeof node.value === "string";
+  if (node.type === "math") return fields(node, ["value", "label", "identifier", "html_id"]) && typeof node.value === "string" &&
+    (node.html_id === undefined || (typeof node.identifier === "string" && node.html_id === createHtmlId(node.identifier)));
   if (node.type === "container" && node.kind === "figure") {
     return fields(node, ["kind", "children", "label", "identifier"]) && supportedFigureContent(node) !== undefined &&
       (node.children ?? []).every(child => child.type === "image"

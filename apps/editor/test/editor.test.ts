@@ -218,8 +218,8 @@ test("an open Equation form reports unapplied changes against its applied LaTeX"
   assert.equal(isUnappliedEquationDraft(true, "x", "x"), false);
   assert.equal(isUnappliedEquationDraft(true, "x + 1", "x"), true);
   assert.equal(isUnappliedEquationDraft(true, "", "x"), true);
-  assert.equal(isUnappliedEquationDraft(true, "", "", "new:equation"), true);
-  assert.equal(isUnappliedEquationDraft(false, "", "", "new:equation"), false);
+  assert.equal(isUnappliedEquationDraft(true, "", ""), false);
+  assert.equal(isUnappliedEquationDraft(false, "", ""), false);
 });
 
 test("Core InlineContent converts to and from Tiptap content", () => {
@@ -711,14 +711,9 @@ test("new Equation inserts save and reload through Core semantics", () => {
 
   const empty = toTiptapDocument(editable);
   empty.content!.push({ type: "equation", attrs: { sourcePath: "new:empty-equation", latex: "", label: "" } });
-  assert.deepEqual(collectSupportedEdits(editable, empty), collectSupportedEdits(editable, toTiptapDocument(editable)));
-  assert.throws(
-    () => saveEdits(nativeSource("Intro\n"), {
-      inserts: [{ block: "equation", latex: "" }],
-      order: [{ path: [1], part: 0 }, { insert: 0 }],
-    }),
-    /empty equation LaTeX/,
-  );
+  const emptyEdits = collectSupportedEdits(editable, empty);
+  assert.deepEqual(emptyEdits.inserts, [{ block: "equation", latex: "" }]);
+  assert.match(saveEdits(nativeSource("Intro\n"), emptyEdits).markdown, /\$\$\n\$\$/);
 
   const conversion = clone(toTiptapDocument(editable));
   conversion.content![0] = {
@@ -1477,15 +1472,13 @@ test("Equation edit survives Apply projection, reorder, Save and reload", () => 
   assert.equal(serialize(parse(saved.markdown)), saved.markdown);
 
   let written = false;
-  assert.throws(
-    () => commitDocumentSave(
-      () => source,
-      () => { written = true; },
-      { revision: documentRevision(source), equations: [{ path: [10], from: original, to: "" }] },
-    ),
-    /empty equation LaTeX/,
+  const cleared = commitDocumentSave(
+    () => source,
+    () => { written = true; },
+    { revision: documentRevision(source), equations: [{ path: [10], from: original, to: "" }] },
   );
-  assert.equal(written, false);
+  assert.match(cleared.markdown, /\$\$\n\$\$/);
+  assert.equal(written, true);
 });
 
 test("empty paragraph and empty heading saves are rejected", () => {
