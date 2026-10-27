@@ -1507,6 +1507,24 @@ ol.list { list-style: decimal; }
   line-height: var(--line-height-label);
 }
 
+.empty-equation,
+.admonition-body[data-empty-prompt]::before,
+.quote[data-empty-prompt]::before,
+.document-editor li > p[data-empty-prompt]::before {
+  color: var(--id-color-text-subtle);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+}
+
+.admonition-body[data-empty-prompt]::before,
+.quote[data-empty-prompt]::before,
+.document-editor li > p[data-empty-prompt]::before {
+  content: attr(data-empty-prompt);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
 .caption {
   display: block;
   margin-top: var(--space-document-caption);

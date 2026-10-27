@@ -127,22 +127,10 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
           if (insert.block === "heading" && inlineText(insert.content).length === 0) {
             throw saveError(node, "empty heading cannot be saved.", "Enter text or delete this block.");
           }
-          if (insert.block === "admonition" && inlineText(insert.content).trim().length === 0) {
-            throw saveError(node, "admonition body cannot be empty");
-          }
-          if (insert.block === "quote" && inlineText(insert.content).trim().length === 0) {
-            throw saveError(node, "quote cannot be empty");
-          }
           if (insert.block === "footnote" && inlineText(insert.content).trim().length === 0) {
             throw saveError(node, EMPTY_FOOTNOTE, "Enter its text or delete the footnote.");
           }
-          if (insert.block === "equation" && insert.latex.length === 0) {
-            throw saveError(node, "empty equation LaTeX cannot be saved");
-          }
           if (insert.block === "figure") assertFigureContent(insert);
-          if (insert.block === "list" && hasEmptyListItem(insert.list)) {
-            throw saveError(node, EMPTY_LIST_ITEM, "Enter text or remove the item.");
-          }
           insertOf.set(node, inserts.length);
           inserts.push(insert);
         });
@@ -191,14 +179,12 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
         const edit: AdmonitionEdit = { path: block.path };
         if (variant !== block.variant && isAdmonitionVariant(variant)) edit.variant = variant;
         if (!sameInline(content, block.content)) {
-          if (inlineText(content).trim().length === 0) throw saveError(node, "admonition body cannot be empty");
           edit.content = content;
         }
         if (edit.variant || edit.content) admonitions.push(edit);
       } else if (block.block === "quote" && block.editable) {
         const content = paragraphInline(node);
         if (sameInline(content, block.content)) return;
-        if (inlineText(content).trim().length === 0) throw saveError(node, "quote cannot be empty");
         quotes.push({ path: block.path, content });
       } else if (block.block === "footnote" && block.editable) {
         const content = paragraphInline(node);
@@ -214,7 +200,6 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
       } else if (block.block === "list") {
         const list = listContent(node);
         if (sameList(list, block)) return;
-        if (hasEmptyListItem(list)) throw saveError(node, EMPTY_LIST_ITEM, "Enter text or remove the item.");
         lists.push({ path: block.path, list });
       } else if (block.block === "table") {
         const label = blockLabel(node);
@@ -285,18 +270,12 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
   };
 }
 
-/** Editor-only space and never-applied atoms have no persistent document meaning.
+/** Editor-only prose/code space has no persistent document meaning.
  * Existing content emptied by the user is deliberately not a placeholder. */
 export function isSessionPlaceholder(node: TiptapJSON): boolean {
   if (!isNewBlockPath(sourcePathOf(node))) return false;
   if (node.type === "paragraph") return (node.content ?? []).length === 0;
-  if (node.type === "equation") return node.attrs?.latex === "";
   if (node.type === "codeBlock") return (node.content ?? []).length === 0 && !node.attrs?.language;
-  // A new list whose only item was never written.
-  if (LIST_BLOCKS.has(node.type ?? "")) {
-    const items = node.content ?? [];
-    return items.length === 1 && (items[0].content ?? []).length === 1 && (items[0].content?.[0]?.content ?? []).length === 0;
-  }
   return false;
 }
 
@@ -390,7 +369,7 @@ export function assertSupportedDocumentChange(baseline: TiptapJSON, next: Tiptap
 }
 
 /** List v1 content of an editor list: each item holds one paragraph and at most one nested list.
- * Empty items are representable while editing; Save rejects them. */
+ * Empty items persist as Markdown list markers. */
 function listContent(node: TiptapJSON): ListContent {
   if (!LIST_BLOCKS.has(node.type ?? "")) throw new Error(`unsupported Tiptap node ${describeType(node)} as a list`);
   const items = (node.content ?? []).map((item) => {
@@ -431,11 +410,6 @@ function footnoteLabel(node: TiptapJSON): string {
   return label;
 }
 
-const EMPTY_LIST_ITEM = "empty list item cannot be saved.";
-
-function hasEmptyListItem(list: ListContent): boolean {
-  return list.items.some(item => inlineText(item.content).trim().length === 0 || (item.list !== undefined && hasEmptyListItem(item.list)));
-}
 
 function sameList(left: ListContent, right: ListContent): boolean {
   return left.ordered === right.ordered && (left.start ?? 1) === (right.start ?? 1) && left.items.length === right.items.length &&
@@ -601,7 +575,6 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
     // An editable admonition may change to another standard kind.
     if (!isAdmonitionVariant(String(afterAttrs.variant ?? ""))) throw new Error("admonition kind is not a standard MyST kind");
     const content = paragraphInline(after);
-    if (inlineText(content).trim().length === 0) throw new SaveContentError("admonition body cannot be empty", undefined, { phase: "collect", action: "Enter text in the admonition or delete this block." });
     return;
   }
   if (beforeType === "quote") {

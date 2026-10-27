@@ -5,12 +5,13 @@ const QUOTE_FIELDS = new Set(["type", "children", "position"]);
 const PARAGRAPH_FIELDS = new Set(["type", "children", "position"]);
 
 /**
- * Quote v1: a block quote holding one paragraph of supported inline content. Quotes with
+ * Quote v1: an empty block quote or one paragraph of supported inline content. Quotes with
  * several paragraphs or other blocks inside are rejected by native admission.
  */
 export function supportedQuoteContent(node: MystNode): InlineContent[] | undefined {
   if (node.type !== "blockquote" || !Object.keys(node).every((key) => QUOTE_FIELDS.has(key))) return undefined;
   const children = node.children ?? [];
+  if (children.length === 0) return [];
   if (children.length !== 1) return undefined;
   const paragraph = children[0];
   if (paragraph.type !== "paragraph" || !Object.keys(paragraph).every((key) => PARAGRAPH_FIELDS.has(key))) {
@@ -22,7 +23,7 @@ export function supportedQuoteContent(node: MystNode): InlineContent[] | undefin
 }
 
 export function createQuoteNode(content: InlineContent[]): MystNode {
-  return { type: "blockquote", children: [{ type: "paragraph", children: inlineContentToNodes(content) }] };
+  return { type: "blockquote", children: content.length ? [{ type: "paragraph", children: inlineContentToNodes(content) }] : [] };
 }
 
 /** A divider is a plain Markdown thematic break (`---`). */

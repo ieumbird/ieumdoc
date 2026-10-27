@@ -130,7 +130,7 @@ test("equation LaTeX changes preserve label and canonical round-trip", () => {
   assert.equal(updated.value, "i^{\\ast} = \\frac{P^{\\ast}}{V_{\\mathrm{rms}}} + 1");
   assert.equal(updated.label ?? updated.identifier, "eq-current");
   assert.equal(serialize(reparsed), serialize(changed));
-  assert.throws(() => updateEquationLatex(document, [9], latex, ""), /empty equation LaTeX/);
+  assert.match(serialize(updateEquationLatex(document, [9], latex, "")), /\$\$\n\$\$/);
   assert.throws(() => updateEquationLatex(document, [9], "stale", latex), /does not match/);
 });
 

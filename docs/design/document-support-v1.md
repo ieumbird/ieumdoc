@@ -1,6 +1,7 @@
 # Native document support v1
 
 - Status: Implemented
+- Empty structural elements: 2026-10-27 (#574; canonical forms and verification below).
 - Documentation verification: 2026-10-26 (Open protection and implemented Editor label rename compared with the session/reference contracts and current code; no new browser execution).
 - CLI insertion verification: 2026-10-15 (#280 Core body-end and CLI single/batch insertion tests; one-write and unchanged-file refusal).
 - Last verified: 2026-10-24 (#366 citation-only and footnote-only list admission, update and canonical reopen; Core list regressions).
@@ -31,7 +32,7 @@ ieumdoc: 1
 Body text.
 ```
 
-`createDocument()` returns the minimal native document with no body blocks. An empty document, an empty Figure and an unresolved cross-reference are permitted authoring states. Footnotes retain their existing completeness and write rules; see [Endnotes](footnotes-v1.md). A marker alone does not certify that the body is supported.
+`createDocument()` returns the minimal native document with no body blocks. An empty document, an empty Figure/table/admonition/quote/list item/equation and an unresolved cross-reference are permitted authoring states. Footnotes retain their existing completeness and write rules; see [Endnotes](footnotes-v1.md). A marker alone does not certify that the body is supported.
 
 ## Supported meaning
 
@@ -41,22 +42,52 @@ Support is decided from Core semantic structure and existing authoring helpers, 
 | --- | --- |
 | Headings | H1–H6, non-empty supported inline content, no line breaks or additional attributes. |
 | Paragraphs and inline content | Text, strong/emphasis/delete/code, ordinary links with non-empty content, inline math, supported subscript/superscript, footnote references, `{eq}`, `{numref}`, `{ref}` without custom display text, and explicit `{cite}`, `{cite:t}`, `{cite:p}` keys/groups. Existing inline nesting/round-trip restrictions apply. Distinct adjacent links with identical targets are unsupported. |
-| Equation | Display math value and optional label; no enumeration overrides or arbitrary attributes. |
+| Equation | Display math value (including empty) and optional label; empty equations use dollar fences, filled equations use `{math}`. A label must preserve its identity in the chosen notation. No enumeration overrides or arbitrary attributes. |
 | Figure | Empty/pending or one image, optional alt text, label and one supported inline caption. Alt text requires an image. No legends, subfigures, Mermaid or extra directive/image attributes. |
 | Table | Rectangular GFM grid with a header row, supported inline cells without line breaks, column alignment; optional supported table caption and label. Only plain GFM and the exact `{table}` directive are accepted. Its options may contain only `name` / `label`, and any MyST VFile diagnostic within the directive's source range causes refusal, including duplicate/unknown options in colon-line or YAML syntax. `{csv-table}`, `{list-table}` and other table directives are refused with or without caption/Label. Every table is numbered and canonically saved as `{table}`, including without caption or label. No merged cells, legends or extra directive attributes. |
-| List | Ordered or unordered lists with supported paragraph content and supported nested lists; existing start and nesting rules. Each item must contain non-whitespace text or supported inline content such as a citation, footnote reference, math, code or semantic reference, including within marks. This applies to admission and writes at every nesting level. Items containing only whitespace or line breaks, including marks wrapping only whitespace, are refused. No tasks or arbitrary nested blocks. |
+| List | Ordered or unordered lists with supported paragraph content and supported nested lists; existing start and nesting rules. A list retains at least one item. Each item may be empty, including a parent with only a nested list, or contain supported inline content such as text, a citation, footnote reference, math, code or semantic reference. This applies at every nesting level. Whitespace/line-break-only or whitespace-only marked content that cannot round-trip is still refused. No tasks or arbitrary nested blocks. |
 | Code | Plain fenced code with the existing language contract; no captioned/directive variants. |
-| Quote, divider, admonition | One supported paragraph in a quote; thematic break; standard admonition kinds with one supported paragraph. No custom titles/options or additional nested blocks. |
+| Quote, divider, admonition | An empty quote or one supported paragraph; thematic break; all standard admonition kinds with an empty body or one supported paragraph. No custom titles/options or additional nested blocks. |
 | Footnote and target | One non-empty supported paragraph per definition, no footnote references inside definitions; citations and document references are supported. Label targets and semantic references follow their existing contracts. |
 
 Ordinary Markdown images, task lists, unsupported roles/directives, attributes or nesting reject the entire file. Alternative supported Markdown/MyST spellings may be accepted and normalized. No generic Markdown Import, automatic marker insertion, Migration, unsupported read-only opening or block source replacement is provided.
 
 Bare `@name` (including `@kim` and `@param`) is literal text, as is already escaped `\@name`. Core disables MyST's shorthand citation extension at the parse boundary while keeping explicit roles parsed. In accordance with [ADR-0008 decision 3](../adr/0008-citations-and-bibliography.md#3-지원할-인용-형태), unescaped citation-like brackets such as `[@key]`, `[@a; @b]` and `[@key, p. 3]` are refused with `native-content` and guidance to use an explicit citation role or escape the opening bracket or the `@` for literal text. This applies to supported text surfaces including endnote definitions; actual links, code and math retain their syntax. Code or math inside such brackets, as in ``[`@param`]`` or `[$@key$]`, is still refused because default MyST reads the bracket as a citation; `\[` keeps it literal. Explicit `{cite}`, `{cite:t}` and `{cite:p}` roles follow [Citations](citations-v1.md), preserving exact keys, group order and narrative/parenthetical meaning. Prefix/suffix/partial and other unsupported attributes are refused.
 
+## Empty structural elements (#574)
+
+Core admission and existing insert/update operations accept an empty body as an authored
+structure. MyST's empty body has no paragraph child; Core creates that exact shape for
+empty admonitions, quotes and list items, keeping the complete fingerprint guard intact.
+No parse-time content removal or synthetic placeholder text is used.
+
+| Element | Canonical empty form | Filled form |
+| --- | --- | --- |
+| Standard admonition | `:::{note}\n:::` (its selected kind) | Existing standard directive with one paragraph |
+| Quote | `>` | Existing Markdown quote |
+| Bullet list item | `*` | Existing Markdown list; empty/nested items retain structure |
+| Ordered list item | `3.` (its start) | Existing numbered list |
+| Equation | `$$\n$$` | Existing fenced `{math}` directive |
+| Labeled equation | `$$\n$$ (eq-empty)` | Existing `{math}` with label option |
+
+The pinned MyST parser reads an empty `{math}` directive as `mystDirectiveError`.
+Dollar math retains an empty value and an optional label (including Korean). MyST's
+derived `html_id` is admitted only when it equals the identifier-derived value; the
+existing fingerprint rule ignores only that derived value. Other fields still fail closed.
+Some directive labels cannot retain identity in empty dollar math: `A B` changes its
+identifier from `a b` to `a-b`, and `a)b` / `a$b` do not parse as that equation.
+These writes fail with a located write error instructing the user to enter content,
+remove the label, or choose a compatible label. The original file remains unchanged.
+All equations retain the existing official number, including when empty.
+
+Existing CLI input paths share Core's rules, including empty `--text`, `--latex` and
+list content arrays. No new empty-element commands are added: the existing operations
+already express these states. Migration and stored-data compatibility are out of scope.
+
 ## Interfaces and errors
 
 - Label rename (#216): `update-label --update-references true` calls Core `updateLabel` with `{ updateReferences: true }` for an existing Equation/Figure/Table/section label. It atomically updates only references previously resolved to that target, preserving display content and refusing conflicts or meaning changes; omission/`false` keeps references untouched. Single edits and `apply-batch` share this option. [Section references](section-references-v1.md#opt-in-label-rename-with-references-216) defines resolution, implicit heading IDs and refusals. The implemented [Editor entry point](section-references-v1.md#editor) uses this Core opt-in for non-empty label renames. Native admission is unchanged.
-- Equation authoring: `insert-equation <file> --at <index|end> --latex <latex> [--label <label>]` composes Core `insertEquation` and `updateLabel` in one edit and one file replacement. Non-empty LaTeX and the shared [label collision rules](section-references-v1.md#core), including implicit heading IDs, apply; failures preserve the original. Single commands and `apply-batch` share this contract (#280).
+- Equation authoring: `insert-equation <file> --at <index|end> --latex <latex> [--label <label>]` composes Core `insertEquation` and `updateLabel` in one edit and one file replacement. Empty LaTeX is supported; the shared [label collision rules](section-references-v1.md#core), including implicit heading IDs, apply; failures preserve the original. Single commands and `apply-batch` share this contract (#280).
 - Top-level body insertions accept CLI `--at end`, resolved by Core `bodyEndIndex(document)` before trailing endnote definitions. Without endnotes it is after the last body block; a new empty native document returns 1. Numeric positions, including the metadata refusal below, retain their existing rules. The command scope and batch behavior are in [CLI batch application](filesystem-host-boundary-v1.md#cli-batch-application-215).
 - The [document title](document-editing-v1.md#document-title-255) is the leading level-1 heading, kept first by Core moves and insertions; admission and the Markdown form are unchanged.
 - Body operations reject top-level index `0` and paths starting with `0` at Core operation time: `block 0 is the document metadata; body blocks start at 1`. This includes insertion, movement, removal and section operations. Metadata stays at snapshot index `0`; body indices and paths are not renumbered for interfaces. Single CLI edits and Editor receive the same Core guidance; `apply-batch` wraps it as `operation N (command): <reason>; nothing was written`. Refusal preserves original file bytes and never falls through to marker or round-trip errors.

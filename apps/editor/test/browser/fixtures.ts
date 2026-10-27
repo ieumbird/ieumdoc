@@ -31,6 +31,7 @@ const technical = [document("technical-document.md"), document("diagram.svg")];
 
 /** Scratch directory under `tmp/` → the files a fresh copy holds, and the scenarios using it. */
 export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: string[] }> = {
+  "empty-elements": { files: [{ name: "empty.md", create: () => nativeSource("# Empty elements\n\n```{math}\nx\n```\n\nWrite here.\n") }], scenarios: ["empty-elements"] },
   "inline-document-settings": { files: [{ name: "short.md", create: () => nativeSource(
     "# Short settings\n\n## Section\n\nFirst paragraph.\n\n| Name | Value |\n| --- | --- |\n| A | 1 |\n") }], scenarios: ["inline-document-settings"] },
   "file-actions": { files: [

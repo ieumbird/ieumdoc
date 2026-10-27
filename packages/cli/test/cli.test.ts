@@ -910,8 +910,8 @@ test("CLI insert-equation persists a Core equation", () => {
       label: "",
     });
     assert.equal(saved, serialize(parse(saved)));
-    assert.equal(run(["insert-equation", file, "--at", "1", "--latex", ""]).status, 1);
-    assert.equal(readFileSync(file, "utf8"), saved);
+    assert.equal(run(["insert-equation", file, "--at", "1", "--latex", ""]).status, 0);
+    assert.equal(readFileSync(file, "utf8"), nativeSource("$$\n$$\n\nIntro\n\n```{math}\nx^2 + 1\n```\n"));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -2584,4 +2584,25 @@ test("CLI reference templates set partial values, inspect computed text, and res
     display(["(1)", "Figure\u00a01", "Table\u00a01"], ["Figure 1", "Table 1"]);
     assert.doesNotMatch(readFileSync(file, "utf8"), /numbering:/);
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("existing CLI inputs persist empty structures and refuse unrepresentable empty equation labels without writing", () => {
+  const file = path.join(fixtures, "empty-structures.md");
+  writeFileSync(file, nativeSource("Intro.\n"));
+  for (const args of [
+    ["insert-admonition", file, "--at", "end", "--variant", "note", "--text", ""],
+    ["insert-quote", file, "--at", "end", "--text", ""],
+    ["insert-list", file, "--at", "end", "--list", JSON.stringify({ordered: false, items: [{content: []}]})],
+    ["insert-equation", file, "--at", "end", "--latex", "", "--label", "eq-empty"],
+    ["format", file],
+  ]) {
+    const result = run(args);
+    assert.equal(result.status, 0, result.stderr);
+  }
+  const before = readFileSync(file, "utf8");
+  assert.deepEqual(getEditableDocument(parse(before)).blocks.map(block => block.block), ["paragraph", "admonition", "quote", "list", "equation"]);
+  const failure = run(["update-label", file, "--path", "5", "--label", "A B"]);
+  assert.equal(failure.status, 1);
+  assert.match(failure.stderr, /empty equation.*label/);
+  assert.equal(readFileSync(file, "utf8"), before);
 });

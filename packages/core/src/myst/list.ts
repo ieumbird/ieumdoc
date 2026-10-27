@@ -9,8 +9,8 @@ const PARAGRAPH_FIELDS = new Set(["type", "children", "position"]);
 const hasOnly = (node: MystNode, fields: Set<string>) => Object.keys(node).every((key) => fields.has(key));
 
 /**
- * List v1 authoring supports bullet and numbered lists whose items hold one paragraph of
- * supported inline content, optionally followed by one nested list. Task items, items with
+ * List v1 authoring supports bullet and numbered lists whose items hold zero or one paragraph
+ * of supported inline content, optionally followed by one nested list. Task items, items with
  * several paragraphs or other blocks are rejected by native admission.
  * `spread` is recorded as myst-parser produces it for every Markdown list.
  */
@@ -24,10 +24,12 @@ export function supportedListContent(node: MystNode): ListContent | undefined {
   const items: ListItemContent[] = [];
   for (const item of children) {
     if (item.type !== "listItem" || item.spread !== true || !hasOnly(item, ITEM_FIELDS)) return undefined;
-    const [paragraph, nested, ...rest] = item.children ?? [];
-    if (paragraph?.type !== "paragraph" || !hasOnly(paragraph, PARAGRAPH_FIELDS) || rest.length > 0) return undefined;
-    const content = projectInlineContent(paragraph);
-    if (!content || !hasVisibleContent(content)) return undefined;
+    const children = [...(item.children ?? [])];
+    const paragraph = children[0]?.type === "paragraph" ? children.shift() : undefined;
+    const [nested, ...rest] = children;
+    if ((paragraph && !hasOnly(paragraph, PARAGRAPH_FIELDS)) || rest.length > 0) return undefined;
+    const content = paragraph ? projectInlineContent(paragraph) : [];
+    if (!content || (paragraph && !hasVisibleContent(content))) return undefined;
     const list = nested === undefined ? undefined : supportedListContent(nested);
     if (nested !== undefined && !list) return undefined;
     items.push(list ? { content, list } : { content });
@@ -35,7 +37,7 @@ export function supportedListContent(node: MystNode): ListContent | undefined {
   return node.ordered ? { ordered: true, start: node.start, items } : { ordered: false, items };
 }
 
-/** An item needs visible content: whitespace alone does not persist as a Markdown list item. */
+/** Nonempty inline content must be visible; whitespace alone cannot persist as written. */
 export function hasVisibleContent(content: InlineContent[]): boolean {
   return inlineContentText(content).trim().length > 0;
 }
@@ -51,7 +53,7 @@ export function createListNode(list: ListContent): MystNode {
       type: "listItem",
       spread: true,
       children: [
-        { type: "paragraph", children: inlineContentToNodes(item.content) },
+        ...(item.content.length ? [{ type: "paragraph", children: inlineContentToNodes(item.content) }] : []),
         ...(item.list ? [createListNode(item.list)] : []),
       ],
     })),

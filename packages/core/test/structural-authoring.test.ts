@@ -48,7 +48,7 @@ test("public Core rejects invalid admonition inserts without mutating the source
   const document = parse("Intro paragraph.\n");
   const before = serialize(document);
   const invalid = [
-    () => insertAdmonition(document, 1, "note", []),
+    () => insertAdmonition(document, 1, "note", [{ kind: "text", text: "   " }]),
     () => insertAdmonition(document, 1, "admonition" as never, [{ kind: "text", text: "Body." }]),
     () => insertAdmonition(document, -1, "warning", [{ kind: "text", text: "Body." }]),
     () => insertAdmonition(document, 3, "warning", [{ kind: "text", text: "Body." }]),

@@ -123,13 +123,18 @@ async (page, { expect }) => {
     await page.getByTestId('equation-latex').fill('Unapplied');
     await page.getByTestId('save').click();
     await page.locator('[data-testid="status"][data-operation^="saved"]').waitFor({state:'attached'});
-    const placeholderSaveKeepsDraft = !requests.at(-1)?.inserts?.some(item => item.block === 'equation') &&
+    const emptySaveKeepsDraft = requests.at(-1)?.inserts?.some(item => item.block === 'equation' && item.latex === '') &&
       await page.getByTestId('equation-latex').inputValue() === 'Unapplied' &&
       await page.getByTestId('status').innerText() === 'Unsaved changes';
     await page.getByTestId('equation-cancel').click();
-    const cancelRemoved = await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').count() === baselineEquationCount;
-    // A caret where the Equation was, never a selection of the next block.
+    const cancelKeepsEmpty = await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').count() === baselineEquationCount + 1;
+    // Cancel keeps the saved empty structure and returns a caret after it.
     const cancelReturnsCaret = (await editorFocus()).caret === true;
+    // Reset this mocked server fixture for the independent Apply/keyboard checks.
+    saved.document.blocks = clone(loaded.document.blocks);
+    saved.revision = loaded.revision;
+    await page.reload();
+    await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
 
     await page.locator('[data-document-tab][data-active=true] .document-editor > .heading').first().hover();
     await insertButton.hover();
@@ -138,7 +143,11 @@ async (page, { expect }) => {
     const latex = page.getByTestId('equation-latex');
     await latex.fill('');
     await latex.press('Control+Enter');
-    expect(await page.getByTestId('equation-editor').innerText()).toContain('Equation LaTeX cannot be empty.');
+    await page.getByTestId('equation-editor').waitFor({state:'detached'});
+    const emptyEquation = page.locator('[data-document-tab][data-active=true] [data-block="equation"][data-source-path^="new:"]');
+    expect(await emptyEquation.getByTestId('equation-empty').innerText()).toBe('Enter an equation');
+    await emptyEquation.hover();
+    await emptyEquation.getByRole('button',{name:'Edit',exact:true}).click();
     await latex.fill('x');
     for (const key of ['Enter', 'Control+Shift+Enter', 'Control+Alt+Enter']) {
       await latex.press(key);
@@ -153,6 +162,17 @@ async (page, { expect }) => {
     const newEquation = page.locator('[data-document-tab][data-active=true] [data-block="equation"][data-source-path^="new:"]');
     const newPath = await newEquation.getAttribute('data-source-path');
     const applyReturnsFocus = await page.evaluate(caretAfterEquation, newPath);
+    // Clearing an applied new equation must close Apply and keep the empty block.
+    await newEquation.hover();
+    await newEquation.getByRole('button',{name:'Edit',exact:true}).click();
+    await page.getByTestId('equation-latex').fill('');
+    await page.getByTestId('equation-apply').click();
+    await page.getByTestId('equation-editor').waitFor({state:'detached'});
+    expect(await newEquation.getByTestId('equation-empty').innerText()).toBe('Enter an equation');
+    await newEquation.hover();
+    await newEquation.getByRole('button',{name:'Edit',exact:true}).click();
+    await page.getByTestId('equation-latex').fill('x');
+    await page.getByTestId('equation-apply').click();
     await newEquation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
     await newEquation.getByRole('button', {name:'Edit', exact:true}).click();
     await page.getByTestId('equation-latex').fill('x + 1');
@@ -183,8 +203,8 @@ async (page, { expect }) => {
       menuHasEquation: true,
       enteredEditor: afterCancel === baselineEquationCount + 1,
       noEmptyParagraphAfterSlash,
-      placeholderSaveKeepsDraft,
-      cancelRemoved,
+      emptySaveKeepsDraft,
+      cancelKeepsEmpty,
       cancelReturnsCaret,
       applyReturnsFocus,
       escapeReturnsFocus,

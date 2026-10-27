@@ -1,3 +1,6 @@
+import * as core from "@ieumdoc/core";
+import type { MystDocument } from "../src/myst/tree.ts";
+import { semanticFingerprint } from "../src/myst/fingerprint.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mystParse } from "myst-parser";
@@ -236,4 +239,63 @@ test("body operations reject metadata indices and paths before mutation or round
   ]) assert.throws(operation, { message });
   assert.throws(() => mergeParagraphWithPrevious(parse(native("Body.\n")), [1]), /merge requires a previous paragraph/);
   assert.equal(serialize(document), native("# Title\n\nBody.\n"));
+});
+
+const filledText = [{ kind: "text" as const, text: "Filled" }];
+function assertStableEmpty(document: ReturnType<typeof core.createDocument>) {
+  const source = core.serialize(document);
+  const reopened = core.parse(source);
+  assert.deepEqual(semanticFingerprint(reopened as unknown as MystDocument), semanticFingerprint(document as unknown as MystDocument));
+  assert.deepEqual(core.getEditableDocument(reopened), core.getEditableDocument(document));
+  assert.equal(core.serialize(reopened), source);
+  return source;
+}
+test("empty structural elements insert, fill, clear and reopen without losing structure", () => {
+  for (const variant of core.ADMONITION_VARIANTS) {
+    const empty = core.insertAdmonition(core.createDocument(), 1, variant, []);
+    assert.match(assertStableEmpty(empty), new RegExp(":::\\{" + variant + "\\}\\n:::"));
+    const filled = core.updateAdmonitionInlineContent(empty, [1], filledText);
+    assertStableEmpty(filled);
+    assert.equal(assertStableEmpty(core.updateAdmonitionInlineContent(filled, [1], [])), assertStableEmpty(empty));
+  }
+  const quote = core.insertQuote(core.createDocument(), 1, []);
+  assert.match(assertStableEmpty(quote), />\n$/);
+  assert.equal(assertStableEmpty(core.updateQuoteInlineContent(core.updateQuoteInlineContent(quote, [1], filledText), [1], [])), assertStableEmpty(quote));
+  for (const ordered of [false, true]) {
+    const list = { ordered, ...(ordered ? { start: 3 } : {}), items: [
+      { content: [] }, { content: [], list: { ordered: false, items: [{ content: [] }] } },
+    ] };
+    const empty = core.insertList(core.createDocument(), 1, list);
+    assertStableEmpty(empty);
+    const filled = core.updateList(empty, [1], { ...list, items: [{ content: filledText }] });
+    assertStableEmpty(filled);
+    assert.equal(assertStableEmpty(core.updateList(filled, [1], list)), assertStableEmpty(empty));
+  }
+});
+test("empty labeled equations retain identity and numbering through notation changes", () => {
+  for (const label of ["", "eq-empty", "식-A"]) {
+    let empty = core.insertEquation(core.createDocument(), 1, "");
+    if (label) empty = core.updateLabel(empty, [1], label);
+    assert.match(assertStableEmpty(empty), /\$\$\n\$\$/);
+    assert.deepEqual(core.targetNumbers(core.getEditableDocument(core.insertEquation(empty, 2, "y")).blocks.map(core.blockTargets)), [{ equation: 1 }, { equation: 2 }]);
+    if (label) assertStableEmpty(core.updateLabel(core.parse(assertStableEmpty(empty)), [1], "renamed"));
+    const filled = core.updateEquationLatex(core.parse(assertStableEmpty(empty)), [1], "", "x^2");
+    assert.match(assertStableEmpty(filled), /```\{math\}/);
+    assert.equal(assertStableEmpty(core.updateEquationLatex(filled, [1], "x^2", "")), assertStableEmpty(empty));
+  }
+});
+
+test("unrepresentable empty equation labels fail with an action and preserve the original", () => {
+  for (const label of ["A B", "a)b", "a$b"]) {
+    const original = core.updateLabel(core.insertEquation(core.createDocument(), 1, "x"), [1], label);
+    const before = core.serialize(original);
+    assert.throws(() => core.updateEquationLatex(original, [1], "x", ""), error => {
+      const issue = core.writeIssueOf(error);
+      assert.match(issue.reason, /empty equation.*label/);
+      assert.match(issue.action, /Enter equation content, remove the label/);
+      assert.deepEqual(issue.path, [1]);
+      return true;
+    });
+    assert.equal(core.serialize(original), before);
+  }
 });

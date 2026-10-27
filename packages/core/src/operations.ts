@@ -274,14 +274,14 @@ export function insertAdmonition(
 ): MystDocument {
   if (!isAdmonitionVariant(variant)) throw new Error(`unsupported admonition variant: ${variant}`);
   assertInlineContent(content);
-  if (inlineContentText(content).trim().length === 0) {
+  if (content.length > 0 && inlineContentText(content).trim().length === 0) {
     throw new DocumentWriteError("admonition body must contain non-empty text", { action: "Enter text in the admonition or delete this block." });
   }
   const normalizedContent = concatenateInlineContent(content);
   const admonition: MystNode = {
     type: "admonition",
     kind: variant,
-    children: [{ type: "paragraph", children: inlineContentToNodes(normalizedContent) }],
+    children: normalizedContent.length ? [{ type: "paragraph", children: inlineContentToNodes(normalizedContent) }] : [],
   };
   const next = insertBlock(document, index, admonition);
   const markdown = serializeFor(next, ADMONITION_INSERTION_FAILURE);
@@ -325,7 +325,7 @@ export function updateQuoteInlineContent(document: MystDocument, path: NodePath,
 
 function quoteContent(content: InlineContent[]): InlineContent[] {
   assertInlineContent(content);
-  if (inlineContentText(content).trim().length === 0) throw new DocumentWriteError("quote must contain non-empty text", { action: "Enter text or delete this quote." });
+  if (content.length > 0 && inlineContentText(content).trim().length === 0) throw new DocumentWriteError("quote must contain non-empty text", { action: "Enter text or delete this quote." });
   return concatenateInlineContent(content);
 }
 
@@ -523,7 +523,7 @@ function normalizeList(list: ListContent): ListContent {
   const items = list.items.map((item) => {
     if (!item || typeof item !== "object") throw new Error("list item must be an object");
     assertInlineContent(item.content);
-    if (!hasVisibleContent(item.content)) throw new DocumentWriteError("list item must contain non-empty text", { action: "Enter text in the empty list item or remove it." });
+    if (item.content.length > 0 && !hasVisibleContent(item.content)) throw new DocumentWriteError("list item must contain non-empty text", { action: "Enter text in the empty list item or remove it." });
     const content = concatenateInlineContent(item.content);
     return item.list === undefined ? { content } : { content, list: normalizeList(item.list) };
   });
@@ -607,9 +607,6 @@ function assertCodeBlockRoundTrip(document: MystDocument, index: number, content
 
 /** Insert a persistent top-level equation while keeping its MyST details inside Core. */
 export function insertEquation(document: MystDocument, index: number, latex: string): MystDocument {
-  if (latex.length === 0) {
-    throw new DocumentWriteError("empty equation LaTeX cannot be saved", { action: "Enter LaTeX or delete this equation." });
-  }
   const equation: MystNode = {
     type: "math",
     value: latex,
@@ -1124,9 +1121,6 @@ export function updateEquationLatex(
   if (typeof current.value !== "string" || current.value !== from) {
     throw new Error(`equation LaTeX does not match at [${path.join(",")}]`);
   }
-  if (to.length === 0) {
-    throw new DocumentWriteError("empty equation LaTeX cannot be saved", { action: "Enter LaTeX or delete this equation." });
-  }
 
   const next = cloneDocument(document);
   getNode(next, path).value = to;
@@ -1186,7 +1180,7 @@ export function updateAdmonitionInlineContent(
 ): MystDocument {
   assertInlineContent(content);
   if (path.length !== 1) throw new Error("admonition edits require a top-level path");
-  if (inlineContentText(content).trim().length === 0) {
+  if (content.length > 0 && inlineContentText(content).trim().length === 0) {
     throw new DocumentWriteError("admonition body must contain non-empty text", { action: "Enter text in the admonition or delete this block." });
   }
   const next = cloneDocument(document);
@@ -1194,8 +1188,8 @@ export function updateAdmonitionInlineContent(
   if (!supportedAdmonitionContent(node)) {
     throw new Error(`admonition edit is not supported at [${path.join(",")}]`);
   }
-  const paragraph = node.children![0];
-  paragraph.children = inlineContentToNodes(concatenateInlineContent(content));
+  const normalized = concatenateInlineContent(content);
+  node.children = normalized.length ? [{ type: "paragraph", children: inlineContentToNodes(normalized) }] : [];
 
   const failure = "admonition body edit cannot round-trip losslessly through canonical Markdown";
   const markdown = serializeFor({ type: "root", children: [node] }, failure);
