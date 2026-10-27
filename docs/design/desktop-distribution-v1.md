@@ -1,11 +1,11 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
-- Separator verification: 2026-10-28 (#635: persistent Windows Chrome, light/dark, 1440/1424/1423/640px, Outline/sidebar open and closed, representative 138px/zero caption reservations; four 1440/640px before/after PNG pairs differ only in the missing 138×1px line. Actual native geometry remains Windows packaged CI; native visual acceptance is separate).
 - Version correction preparation: 2026-10-28 (#632: source candidate `0.0.2-beta.1` is unpublished; publication, public asset verification, actual GitHub update and old Release/tag withdrawal remain pending; [plan](../releases/v0.0.2-beta.1.md)).
 - CLI directory cleanup verification: 2026-10-28 (#629: isolated disable/uninstall ownership tests, Desktop typecheck and CI channel-order tests; actual Stable→Beta and NSIS checks run only in disposable Windows CI).
 - CLI integration verification: 2026-10-27 (#604: isolated environment/shim tests, CLI tests/offline package, Editor tests/typecheck/build, persistent-Chrome Settings and layout checks; packaged runtime and real registry/install/update/uninstall checks are required Windows CI, not local execution).
 - Title-bar verification: 2026-10-27 (#605: Desktop 48 tests, typecheck, browser bridge/theme/geometry checks; actual native overlay and packaged checks run in CI, manual Windows items remain explicit below).
+- Separator verification: 2026-10-28 (#635: persistent Windows Chrome, light/dark, 1440/1424/1423/640px, Outline/sidebar open and closed, representative 138px/zero caption reservations; four 1440/640px before/after PNG pairs differ only in the missing 138×1px line. Actual native geometry remains Windows packaged CI; native visual acceptance is separate).
 - File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
 - Documentation verification: 2026-10-26 (Host startup response versus Editor tab restoration compared with first-document.ts, host-protocol.ts, App.tsx and the session contract; no new Desktop execution).
 - Last verified: 2026-10-28 (public 0.1.0-beta.2, release CI, anonymous asset sizes/SHA-256 and installer SHA-512 verified; environment reviewer requirement removed at owner's request, master-only deployment policy preserved; actual GitHub beta.1→beta.2 update explicitly unverified).
