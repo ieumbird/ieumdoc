@@ -258,14 +258,14 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
     }
     return null;
   }
-  /** Outline navigation always lands in the Visual view, where the heading is. */
-  function revealHeading(item: OutlineItem): void {
+  /** Document navigation always lands in the Visual view. */
+  function revealItem(item: OutlineItem): void {
     if (view === "visual") {
-      editorRef.current?.revealHeading(item);
+      editorRef.current?.revealItem(item);
       return;
     }
     setView("visual");
-    requestAnimationFrame(() => { if (isCurrent()) editorRef.current?.revealHeading(item); });
+    requestAnimationFrame(() => { if (isCurrent()) editorRef.current?.revealItem(item); });
   }
 
   async function reload(): Promise<void> {
@@ -345,7 +345,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
     draftActive, assetPending, documentDirty, busy, switching, busyRef, draftNotice,
     documentNotice: endnotesMove ? i18n.t(ENDNOTES_MOVE_NOTICE) : "",
     load, save, showSource, reload, reloadFromDisk, reloadDialog, setReloadDialog,
-    pendingWork, revealHeading,
+    pendingWork, revealItem,
     imageChoice, imageReturnFocus, selectImage, closeImageChoice,
     editorCallbacks,
   };

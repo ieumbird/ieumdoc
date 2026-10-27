@@ -203,7 +203,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "structural-block-authoring": { files: [fixture("structural-block-authoring.md")], scenarios: ["structural-block-authoring"] },
   "markdown-input": { files: [fixture("markdown-input.md")], scenarios: ["markdown-input"] },
   "basic-blocks": { files: [fixture("basic-blocks.md")], scenarios: ["basic-blocks"] },
-  "outline": { files: [fixture("outline.md")], scenarios: ["outline"] },
+  "outline": { files: [fixture("outline.md"), fixture("panel-lists.md"), document("diagram.svg")], scenarios: ["outline", "panel-lists"] },
   "source-view": {
     files: [
       ...technical,

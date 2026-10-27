@@ -894,7 +894,7 @@ export function App() {
         <DocumentPanel
           overlay={panelOverlay}
           outline={document ? outlineStore : undefined}
-          onSelectHeading={item => session?.revealHeading(item)}
+          onSelectItem={item => session?.revealItem(item)}
           onClose={() => {
             choosePanelOpen(false);
             // Escape dismisses the overlay; its toggle keeps the focus.
