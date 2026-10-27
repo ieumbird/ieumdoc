@@ -242,7 +242,7 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
             throw Error('Document/UI font must follow its own token');
           const shellOverflow=['.app-shell','.sidebar','.app-main','.top-bar','.document-column','[data-document-tab][data-active=true] .document','[data-document-tab][data-active=true] .document-editor','.figure','.equation','.table-block'].filter(s=>{const r=rect(s);return r.left<0||r.right>innerWidth+1;});
           const center=rect('.command-center-trigger'), actions=rect('.top-bar-actions');
-          return {width,collapsed,header:rect('.top-bar').height,headerWidth:main.width,commandCenterDelta:Math.abs(center.left+center.width/2-(main.left+main.width/2)),centerBottom:center.bottom,actionsTop:actions.top,sidebarHeader:rect('.sidebar-header').height,centerDelta:Math.abs(main.left+main.width/2-column.left-column.width/2),blockDelta:Math.max(...starts)-Math.min(...starts),gutterGap:doc.left-controls.right,standard,compact,icons:icons?.map(r=>({x:r.x,w:r.width,h:r.height}))??null,rowIcons,labels,sidebarWidth,expectedSidebar,panelWidth,expectedPanel,body,headings,caption,table,expectedTypeValues,shellOverflow};
+          return {width,collapsed,header:rect('.top-bar-container').height,headerWidth:main.width,commandCenterDelta:Math.abs(center.left+center.width/2-(main.left+main.width/2)),centerBottom:center.bottom,actionsTop:actions.top,sidebarHeader:rect('.sidebar-header').height,centerDelta:Math.abs(main.left+main.width/2-column.left-column.width/2),blockDelta:Math.max(...starts)-Math.min(...starts),gutterGap:doc.left-controls.right,standard,compact,icons:icons?.map(r=>({x:r.x,w:r.width,h:r.height}))??null,rowIcons,labels,sidebarWidth,expectedSidebar,panelWidth,expectedPanel,body,headings,caption,table,expectedTypeValues,shellOverflow};
         },{collapsed,width});
         const matchesType=(actual,expected)=>Math.abs(actual.size-expected.size)<0.1&&Math.abs(actual.line-expected.line)<0.1;
         const expected=result.expectedTypeValues;
@@ -483,7 +483,7 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
             const name=center.querySelector('.command-center-action'),shortcut=center.querySelector('kbd');
             const locationShown=getComputedStyle(center.querySelector('.document-path')).display!=='none';
             const shortcutShown=getComputedStyle(shortcut).display!=='none'&&getComputedStyle(shortcut).visibility!=='hidden';
-            return {height:box.height,width:box.width,centerWidth:r.width,centerDelta:Math.abs(r.left+r.width/2-box.left-box.width/2),overlap,
+            return {height:header.closest('.top-bar-container').getBoundingClientRect().height,width:box.width,centerWidth:r.width,centerDelta:Math.abs(r.left+r.width/2-box.left-box.width/2),overlap,
               outside:controls.filter(({r})=>r.left<box.left||r.right>box.right||r.top<box.top||r.bottom>box.bottom).map(({name})=>name),
               locationShown,shortcutShown,actionClipped:name.scrollWidth>name.clientWidth+1,
               wideVisible:[...header.querySelectorAll('.top-bar-toggle')].every(n=>n.getBoundingClientRect().width===28)};

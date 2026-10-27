@@ -507,9 +507,11 @@ button {
 }
 
 /* When docked, Outline's header carries the native buttons. Otherwise the TopBar reserves
- * their width. Reserve in the container so its existing wrapping sees the usable width. */
+ * their width. Container padding preserves the usable query width while its border spans
+ * the caption reservation too. The border replaces the TopBar's former inner border. */
 .top-bar-container {
-  margin-right: max(0px, calc(var(--window-controls-width) - var(--shell-panel)));
+  padding-right: max(0px, calc(var(--window-controls-width) - var(--shell-panel)));
+  border-bottom: var(--border-width) solid var(--id-color-border);
   container-type: inline-size;
 }
 .document-panel:not(.document-panel--overlay) .document-panel-header {
@@ -586,9 +588,8 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  min-height: var(--layout-header-row);
+  min-height: calc(var(--layout-header-row) - var(--border-width));
   padding: 0 var(--layout-ui-inset);
-  border-bottom: var(--border-width) solid var(--id-color-border);
   background: var(--id-color-surface-subtle);
 }
 
