@@ -5,6 +5,7 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { AllSelection, NodeSelection, Plugin, PluginKey, Selection, TextSelection, type EditorState } from "@tiptap/pm/state";
 import { useEditorState } from "@tiptap/react";
 import { endnoteOrder, footnoteNumbers, nextFootnoteLabel, orphanedEndnotes, type EndnoteBlock } from "@ieumdoc/core/numbering";
+import { LABEL_PROPERTIES_META } from "./label-rename.ts";
 
 /**
  * The Editor's endnotes. MyST footnotes keep their syntax and node names (`footnoteReference`,
@@ -127,7 +128,7 @@ export function setEndnoteEditing(editor: Editor, label: string | null): void {
 
 /** Protect native input crossing a read-only definition while retaining engine history and
  * explicit whole-block deletion. Other semantic operations may update references elsewhere. */
-function endnoteEditingPlugin(): Plugin<string | null> {
+export function endnoteEditingPlugin(): Plugin<string | null> {
   return new Plugin<string | null>({
     key: endnoteEditingKey,
     state: {
@@ -141,15 +142,18 @@ function endnoteEditingPlugin(): Plugin<string | null> {
       },
     },
     filterTransaction(tr, state) {
-      if (!tr.docChanged || isHistoryTransaction(tr) || tr.getMeta(ORDER_META) || tr.getMeta("blockCommand") || state.selection instanceof AllSelection) return true;
+      if (!tr.docChanged || isHistoryTransaction(tr) || tr.getMeta(ORDER_META) || tr.getMeta("blockCommand") ||
+          tr.getMeta(LABEL_PROPERTIES_META) || state.selection instanceof AllSelection) return true;
       const active = endnoteEditingKey.getState(state);
-      const { from, to } = state.selection;
+      // Compare the actual immutable nodes, not the previous selection: a drop can target a
+      // different block, and mark/attribute steps may have an empty positional step map.
+      const after = new Map<string, ProseMirrorNode>();
+      tr.doc.forEach(node => { const label = endnoteLabel(node); if (label !== undefined) after.set(label, node); });
       let allowed = true;
-      state.doc.forEach((node, pos) => {
+      state.doc.forEach(node => {
         const label = endnoteLabel(node);
-        if (label === undefined || label === active || to < pos || from > pos + node.nodeSize) return;
-        let replacement: ProseMirrorNode | undefined;
-        tr.doc.forEach(candidate => { if (endnoteLabel(candidate) === label) replacement = candidate; });
+        if (label === undefined || label === active) return;
+        const replacement = after.get(label);
         if (!replacement || !replacement.content.eq(node.content)) allowed = false;
       });
       return allowed;

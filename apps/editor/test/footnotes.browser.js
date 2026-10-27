@@ -143,6 +143,83 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   assert(JSON.stringify(await texts(chips)) === '["1","2"]' && await notice.count() === 0, 'Reloaded chips or notice');
   result.firstSavePlacesEndnotes = true;
 
+  // Drag real selected body text onto a read-only definition. A drop's destination is not
+  // the editor's prior selection, so a selection-only guard cannot protect this path.
+  const bodyForDrop = editor.locator('p.paragraph', {hasText: 'Middle paragraph.'});
+  const noteForDrop = editor.locator('[data-testid="footnote-definition"][data-label="b"] p');
+  await bodyForDrop.scrollIntoViewIfNeeded();
+  const textPoint = (locator, offset, side) => locator.evaluate((element, {offset, side}) => {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    let node; let left = offset;
+    while ((node = walker.nextNode())) {
+      if (left < node.textContent.length) {
+        const range = document.createRange();
+        range.setStart(node, left); range.setEnd(node, left + 1);
+        const box = range.getBoundingClientRect();
+        return {x: side === 'right' ? box.right - 1 : box.left + 1, y: box.top + box.height / 2};
+      }
+      left -= node.textContent.length;
+    }
+    throw Error('Missing text position');
+  }, {offset, side});
+  await page.evaluate(() => {
+    window.__endnoteDragEvents = [];
+    for (const type of ['dragstart', 'drop', 'dragend']) document.addEventListener(type, event => {
+      window.__endnoteDragEvents.push({type: event.type, trusted: event.isTrusted});
+    }, true);
+  });
+  const start = await textPoint(bodyForDrop, 0, 'left');
+  const end = await textPoint(bodyForDrop, 5, 'right');
+  await page.mouse.move(start.x, start.y); await page.mouse.down();
+  await page.mouse.move(end.x, end.y, {steps: 8}); await page.mouse.up();
+  await page.waitForFunction(() => {
+    const {state} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+    return state.doc.textBetween(state.selection.from, state.selection.to) === 'Middle';
+  });
+  const source = await textPoint(bodyForDrop, 2, 'left');
+  const destination = await textPoint(noteForDrop, 5, 'left');
+  const beforeDrop = await editor.evaluate(element => JSON.stringify(element.editor.getJSON()));
+  await page.mouse.move(source.x, source.y); await page.mouse.down();
+  await page.mouse.move(destination.x, destination.y, {steps: 15}); await page.mouse.up();
+  const dragEvents = await page.evaluate(() => window.__endnoteDragEvents);
+  assert(dragEvents.some(event => event.type === 'dragstart' && event.trusted) && dragEvents.some(event => event.type === 'drop' && event.trusted), 'Expected an actual trusted text drag and drop: ' + JSON.stringify(dragEvents));
+  assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === beforeDrop, 'Body text drop changed a read-only definition or its source');
+
+  // An external draggable element supplies plain text through a native dragstart.
+  await page.evaluate(() => {
+    const source = document.createElement('div');
+    source.id = 'external-endnote-drop-probe'; source.draggable = true; source.textContent = 'External drag';
+    source.style.cssText = 'position:fixed;top:70px;left:10px;width:100px;height:28px;z-index:99999;background:white';
+    source.addEventListener('dragstart', event => { event.dataTransfer.setData('text/plain', 'EXTERNAL'); event.dataTransfer.effectAllowed = 'copy'; });
+    document.body.append(source);
+    window.__endnoteDragEvents = [];
+  });
+  const external = await page.locator('#external-endnote-drop-probe').boundingBox();
+  const externalDestination = await textPoint(noteForDrop, 5, 'left');
+  await page.mouse.move(external.x + 20, external.y + 12); await page.mouse.down();
+  await page.mouse.move(externalDestination.x, externalDestination.y, {steps: 15}); await page.mouse.up();
+  const externalEvents = await page.evaluate(() => { document.querySelector('#external-endnote-drop-probe').remove(); return window.__endnoteDragEvents; });
+  assert(externalEvents.some(event => event.type === 'dragstart' && event.trusted) && externalEvents.some(event => event.type === 'drop' && event.trusted), 'Expected an actual external text drop: ' + JSON.stringify(externalEvents));
+  assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === beforeDrop, 'External text drop changed a read-only definition');
+
+  // A paste transaction aimed inside the definition is also protected when selection is elsewhere.
+  await editor.evaluate(element => {
+    const instance = element.editor;
+    let inside; let body;
+    instance.state.doc.forEach((node, pos) => {
+      if (node.type.name === 'footnoteDefinition' && node.attrs.label === 'b') inside = pos + 4;
+      if (node.type.name === 'paragraph' && node.textContent === 'Middle paragraph.') body = pos + 2;
+    });
+    instance.commands.setTextSelection(body); instance.view.focus();
+    instance.view.dispatch(instance.state.tr.insertText('PASTE', inside).setMeta('uiEvent', 'paste'));
+  });
+  assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === beforeDrop, 'Paste aimed at a read-only definition changed the document');
+  await save.click(); await saved();
+  assert(await read() === edited, 'Save after blocked drops changed the file');
+  await reloadDocument(page); await ready();
+  assert(await read() === edited && (await noteForDrop.innerText()) === 'Defined first.', 'Reload after blocked drops changed the definition');
+  result.readonlyDropAndPaste = true;
+
   // A chip selects its read-only definition; Enter explicitly begins editing.
   const caretIn = label => page.waitForFunction(label => {
     const {selection} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state;

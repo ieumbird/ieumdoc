@@ -4,6 +4,9 @@ import type { Fragment } from "@tiptap/pm/model";
 import type { EditorState, Transaction } from "@tiptap/pm/state";
 import { fromTiptapContent } from "./tiptap-inline.ts";
 
+/** Editor transaction carrying Core's plan for updating references to a renamed label. */
+export const LABEL_PROPERTIES_META = "labelProperties";
+
 /** Apply properties and Core's reference plan in one engine transaction. Body text may still
  * be unfinished; only target context and reference attributes cross the Core boundary here. */
 export function updateLabelProperties(state: EditorState, position: number, attributes: Record<string, unknown>, caption?: Fragment): Transaction {
@@ -41,5 +44,5 @@ export function updateLabelProperties(state: EditorState, position: number, attr
     const plan = planLabelRename(blocks, tr.doc.resolve(position).index(0), String(label), references);
     for (const edit of plan) apply[edit.index](edit.reference);
   }
-  return tr.setNodeMarkup(position, undefined, { ...tr.doc.nodeAt(position)!.attrs, label });
+  return tr.setNodeMarkup(position, undefined, { ...tr.doc.nodeAt(position)!.attrs, label }).setMeta(LABEL_PROPERTIES_META, true);
 }

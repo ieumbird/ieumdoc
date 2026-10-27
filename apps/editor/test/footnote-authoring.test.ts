@@ -8,7 +8,7 @@ import { EditorState, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { parse, serialize } from "@ieumdoc/core";
 import { BLOCK_COMMANDS } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
-import { endnoteLabel, endnoteNumber, endnotesPlugin } from "../src/endnotes.ts";
+import { endnoteEditingKey, endnoteEditingPlugin, endnoteLabel, endnoteNumber, endnotesPlugin } from "../src/endnotes.ts";
 import { assertSupportedDocumentChange, collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
@@ -42,6 +42,29 @@ const run = (state: EditorState, command: (state: EditorState, dispatch: (tr: Tr
   assert.ok(command(state, tr => { next = state.apply(tr); }));
   return next;
 };
+
+test("read-only definitions reject destination changes, including mark steps, while editing and block deletion remain undoable", () => {
+  const projection = toTiptapDocument(loadEditableDocument(source));
+  let state = EditorState.create({ schema, doc: schema.nodeFromJSON(projection), plugins: [history(), endnoteEditingPlugin(), endnotesPlugin()] });
+  const body = blockPos(state.doc, 1) + 2;
+  const note = blockPos(state.doc, 2) + 1;
+  state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, body)));
+  const pasted = state.apply(state.tr.insertText("external", note + 2).setMeta("uiEvent", "paste"));
+  assert.ok(pasted.doc.eq(state.doc), "a transaction aimed at a different read-only block must be refused");
+  const formatted = state.apply(state.tr.addMark(note, note + 2, schema.marks.bold.create()));
+  assert.ok(formatted.doc.eq(state.doc), "a mark step with no positional map must be refused");
+
+  const active = state.apply(state.tr.setSelection(TextSelection.create(state.doc, note)).setMeta(endnoteEditingKey, "a"));
+  const edited = active.apply(active.tr.insertText("Edit ", note));
+  assert.equal(edited.doc.child(2).textContent, "Edit Short note.");
+  assert.ok(run(edited, undo).doc.eq(state.doc), "Undo keeps its normal behavior");
+  assert.ok(run(run(edited, undo), redo).doc.eq(edited.doc), "Redo restores the definition edit");
+
+  const deletion = BLOCK_COMMANDS.find(command => command.id === "delete")!;
+  const deleted = state.apply(deletion.run(state, 2));
+  assert.deepEqual(labels(deleted.doc), ["heading", "paragraph", "b"]);
+  assert.ok(run(deleted, undo).doc.eq(state.doc), "explicit block deletion remains undoable");
+});
 
 test("an opened document shows Core's order; unchanged Save writes the canonical Markdown Core and the CLI write", () => {
   const scattered = nativeSource("# Notes\n\nClaim[^b] and second[^a].\n\n[^a]: Short note.\n\nBody resumes.\n\n[^b]: First paragraph.\n\nTail.\n");
