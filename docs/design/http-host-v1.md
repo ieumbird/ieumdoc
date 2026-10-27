@@ -35,6 +35,8 @@ pnpm --filter @ieumdoc/cli package
 
 An extracted package can instead run with `node cli.mjs serve --root <folder>`. For local development after `pnpm --filter @ieumdoc/cli build`, use `node packages/cli/dist/cli.mjs serve --root <folder>`. Runtime requires Node.js `>=24.21.0 <25`; no pnpm, tsx, source checkout, Vite server or Electron is needed. Initial platforms are Windows x64 and Linux x64. macOS and individual NAS/filesystem combinations are not verified. The archive is a CI/local build artifact, not a published npm package or an automatic updater.
 
+`ieumdoc --version` alone prints `ieumdoc <CLI package version> (<build commit>)` and exits 0. The build injects the version and 12-character Git commit; a Git-free build reports `unknown`. Combining `--version` with any other argument is an argument error. This reads no manifest at runtime. Desktop-specific identity is documented in the [Desktop contract](desktop-distribution-v1.md#optional-command-line-tools-604).
+
 | Option | Contract |
 | --- | --- |
 | `--root <directory>` | Required, repeatable; relative paths use launch cwd. All must exist and be directories. The same real directory (filesystem identity) given twice is deduplicated. Nested roots are allowed. |

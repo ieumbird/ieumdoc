@@ -14,7 +14,7 @@
     "package": "tsx scripts/package.ts",
     "test": "tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test:packaged": "tsx --test --test-concurrency=1 test/packaged/packaged.e2e.ts",
+    "test:packaged": "tsx --test --test-concurrency=1 test/packaged/packaged.e2e.ts test/packaged/cli.e2e.ts",
     "test:update": "tsx --test test/packaged/update.e2e.ts",
     "test:update:github": "tsx test/packaged/update.e2e.ts --github"
   },

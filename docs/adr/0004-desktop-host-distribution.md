@@ -40,6 +40,34 @@ electron-updater의 GitHub provider는 Stable에서 GitHub의 `releases/latest`�
 - Desktop 전용 UI(Settings → About, 업데이트 알림)는 Desktop bridge가 있을 때만 나타나며, 브라우저 Editor의 화면과 동작은 바뀌지 않는다.
 - 첫 문서는 명령줄의 `.md` 인자가 있을 때만 바로 연다. 인자가 없으면 문서 없이 시작하며, 폴더를 선택하고 Sidebar에서 파일을 고르거나 사용자 요청으로 sample 사본을 연다([시작 계약](../design/editor-ux-shell-v1.md#start-without-a-document-174), #174/#190). sample 자동 열기 설명은 #174 이전 동작이 남은 문서 drift이므로 현행 계약에 맞춘다. Workspace, recent document, 파일 연결(file association)은 이 결정에 포함하지 않는다.
 
+## Amendment: optional Windows CLI integration (#604, 2026-10-27)
+
+The owner approved shipping the existing `packages/cli` build with Desktop. Settings offers an
+explicit, initially disabled command-line integration. Its per-user `ieumdoc.cmd` runs the installed
+`IeumDoc.exe` with `ELECTRON_RUN_AS_NODE=1`; commands, arguments, JSON output, exit codes and `serve`
+remain the existing CLI's responsibility. The independent Node.js CLI/HTTP distribution remains.
+
+The CLI build's Editor assets are the single packaged copy used by both Desktop and `serve`.
+The shim lives in `%LOCALAPPDATA%\IeumDoc\bin`, outside the installation tree replaced by updates.
+An owned directory junction references the fixed application installation folder, avoiding literal
+Unicode installation paths in batch source and any console-code-page change. No version-specific
+path is embedded. Enabling adds only this bin directory to the user's PATH; disabling and actual
+uninstall remove it. Installation and update never opt the user in. Existing foreign commands and
+files are not overwritten; broken registrations can be repaired or disabled.
+
+Electron's RunAsNode fuse stays enabled (its current default). This explicitly accepts the cost
+that the installed, potentially signed executable can execute arbitrary JavaScript under the
+user's authority, as with VS Code `code` and Paseo. It is not a trust boundary for scripts. No other
+fuse setting changes. See [Electron fuses](https://www.electronjs.org/docs/latest/tutorial/fuses).
+
+Completion requires the [Desktop integration contract](../design/desktop-distribution-v1.md#optional-command-line-tools-604),
+isolated PATH/ownership tests, Settings browser coverage and Windows CI package/install/update/
+uninstall checks. CI measures the packaged runtime's Node version against the bundled CLI engines
+range and compares existing CLI commands through the shim with standalone Node execution.
+The owner's additional decision adds a common `--version` option: build-injected product/package
+version and commit identify the executable distribution without runtime manifest reads. Real-user
+Windows acceptance remains explicitly separate from CI.
+
 ## Non-decisions
 
 - macOS/Linux installer, Microsoft Store, portable 공식 배포

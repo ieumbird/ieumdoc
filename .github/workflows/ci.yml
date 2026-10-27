@@ -49,6 +49,7 @@ jobs:
               - 'packages/file-commit/**'
             desktop:
               - 'apps/desktop/**'
+              - 'packages/cli/**'
               - 'apps/editor/**'
               - 'packages/core/**'
               - 'packages/file-commit/**'

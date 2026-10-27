@@ -25,6 +25,7 @@ import {
 } from "@ieumdoc/core";
 import { textRevision } from "@ieumdoc/file-commit";
 import { runCli } from "../src/cli.ts";
+import { versionText } from "../src/version.ts";
 
 const cliRoot = fileURLToPath(new URL("..", import.meta.url));
 const nativeSource = (body: string): string => `---\nieumdoc: 1\n---\n\n${body}`;
@@ -463,6 +464,23 @@ test("CLI can check and modify a real file through Core", () => {
     assert.equal(saved.includes("phase current"), false);
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("--version prints one build identity line and rejects every combination before document I/O", () => {
+  assert.equal(versionText({ version: "0.0.0", desktop: false, commit: "123456abcdef" }), "ieumdoc 0.0.0 (123456abcdef)\n");
+  assert.equal(versionText({ version: "0.1.0-beta.1", desktop: true, commit: "123456abcdef" }), "ieumdoc 0.1.0-beta.1 (desktop, 123456abcdef)\n");
+  assert.equal(versionText({ version: "0.0.0", desktop: false, commit: "unknown" }), "ieumdoc 0.0.0 (unknown)\n");
+  const version = run(["--version"]);
+  assert.equal(version.status, 0);
+  assert.equal(version.stdout, "ieumdoc development (unknown)\n");
+  assert.equal(version.stderr, "");
+  for (const args of [["--version", "check"], ["--version", "--help"], ["--help", "--version"],
+    ["help", "--version"], ["--version", "--version"], ["check", "missing.md", "--version"], ["serve", "--version"]]) {
+    const result = runProcess(args);
+    assert.equal(result.status, 1, args.join(" "));
+    assert.equal(result.stdout, "");
+    assert.match(result.stderr, /--version must be used alone/);
   }
 });
 

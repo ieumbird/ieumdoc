@@ -96,12 +96,15 @@ pnpm editor
 
 ```bash
 pnpm ieumdoc help
+pnpm ieumdoc --version
 pnpm ieumdoc check apps/editor/document/technical-document.md
 pnpm ieumdoc inspect apps/editor/document/technical-document.md
 pnpm ieumdoc help apply-batch
 ```
 
 단건 수정은 `pnpm ieumdoc help <command>`, 여러 수정은 `apply-batch`를 사용합니다. 편집 전 `inspect --format json`으로 현재 경로와 revision을 확인하고, `--if-revision`으로 변경을 보호하며 `--dry-run`으로 미리 확인할 수 있습니다. 옵션·출력·오류의 상세는 CLI help와 [revision 계약](docs/design/filesystem-host-boundary-v1.md#cli-revision-precondition-214), [배치 계약](docs/design/filesystem-host-boundary-v1.md#cli-batch-application-215), [미리보기 계약](docs/design/filesystem-host-boundary-v1.md#cli-dry-run-292)을 참고하세요.
+
+`--version`은 단독으로 사용하며 빌드된 CLI는 `ieumdoc <패키지 버전> (<빌드 커밋>)`, Desktop 내장 CLI는 `ieumdoc <Desktop 버전> (desktop, <빌드 커밋>)` 한 줄을 출력합니다. Git을 사용할 수 없는 빌드는 커밋을 `unknown`으로 표시합니다. 소스 checkout의 `pnpm ieumdoc --version`은 `ieumdoc development (unknown)`입니다.
 
 여러 변경은 `apply-batch`로 한 번에 적용합니다. 아래 예제는 저장소 밖의 기존 임시 폴더에 아직 없는 `document.md`를 만들고, H1 제목만 추가한 상태에서 시작합니다. 명령은 저장소 루트에서 실행하며, `<임시 폴더>`는 실제 절대 경로로 바꿉니다.
 
