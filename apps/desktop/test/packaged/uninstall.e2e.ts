@@ -74,6 +74,8 @@ test("interactive and silent NSIS removal survive CLI ownership, helper and envi
           assert.match(output, /CLI cleanup incomplete/, "interactive uninstall displays the cleanup warning");
           status = await completed;
         } catch (error) {
+          const failure = error as Error & { stdout?: string; stderr?: string };
+          writeFileSync(path.join(work, `${label}-dialogs.txt`), `${failure.stdout ?? ""}\n${failure.stderr ?? failure.message}`);
           spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" });
           await completed;
           throw error;
