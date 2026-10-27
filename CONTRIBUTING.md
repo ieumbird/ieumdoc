@@ -142,11 +142,11 @@ Windows에서 아래 명령으로 로컬 개발용 installer를 만든다. 패�
 
 ```bash
 pnpm --filter @ieumdoc/desktop package
-pnpm --filter @ieumdoc/desktop exec tsx scripts/verify-release.ts --tag v0.1.0-beta.2
+pnpm --filter @ieumdoc/desktop exec tsx scripts/verify-release.ts --tag v0.0.2-beta.1
 pnpm --filter @ieumdoc/desktop test:packaged
 ```
 
-`--tag`에는 `apps/desktop/package.json`의 실제 버전을 사용한다. `pnpm --filter @ieumdoc/desktop start`는 먼저 `build`한 staging app을 실행한다. 설치·업데이트 E2E는 [검증 안내](docs/test/README.md#windows-desktop-regression)의 사용 조건을 먼저 확인한다.
+`--tag`에는 `apps/desktop/package.json`의 실제 버전을 사용한다. 현재 소스 후보는 `0.0.2-beta.1`이며 아직 공개되지 않았다([#632 준비 계획](docs/releases/v0.0.2-beta.1.md)). 기존 사용자가 없다는 소유자 확인에 따라 버전만 정정하며 다운그레이드 허용·migration은 추가하지 않는다. 새 공개 확인 후 기존 `v0.1.0-beta.1`·`v0.1.0-beta.2` Release·자산·tag를 철회하고 공개 안내를 후속 갱신한다. `pnpm --filter @ieumdoc/desktop start`는 먼저 `build`한 staging app을 실행한다. 설치·업데이트 E2E는 [검증 안내](docs/test/README.md#windows-desktop-regression)의 사용 조건을 먼저 확인한다.
 
 공개 버전은 `0.1.0-beta.2`이며 Stable 공개는 보류한다. Beta 설치본의 최초 실행 기본 채널은 Beta, Stable 설치본은 Stable이다. 유효하게 저장된 사용자 선택은 버전이 바뀌어도 유지한다. Beta는 제한된 unsigned 게시 모드를 사용할 수 있으며 Stable은 서명된 릴리즈 절차만 허용한다.
 
