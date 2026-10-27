@@ -136,10 +136,11 @@ async (page, { openPath, expect, reloadDocument, screenshots }) => {
   await table.getByRole('button',{name:'Edit table',exact:true}).click();
   await page.getByTestId('table-label').fill('');
   await page.getByTestId('table-apply').click();
-  expect(await table.locator('.block-kind').textContent()).toBe('Table');
-  expect(await save()).not.toContain(':::{table}');
+  expect(await table.locator('.block-kind').textContent()).toBe('Table 1');
+  expect(await caption.getAttribute('data-number'), 'Clearing the label keeps the official number immediately').toBe('Table 1');
+  expect(await save()).toContain(':::{table}\n\n');
   await reloadDocument(page);
-  expect(await caption.getAttribute('data-number'), 'Unnumbered tables have no prospective number').toBe(null);
+  expect(await caption.getAttribute('data-number'), 'Every table keeps its official number after Reload').toBe('Table 1');
   expect(await table.getByRole('button',{name:'Add caption',exact:true}).count()).toBe(0);
   const empty = await tableJSON();
   expect(await editor.evaluate(element => element.editor.can().undo()), 'Opening an empty caption creates no history').toBe(false);
@@ -166,7 +167,7 @@ async (page, { openPath, expect, reloadDocument, screenshots }) => {
   const restored = await tableJSON();
   await page.keyboard.press('ControlOrMeta+z');
   expect(await tableJSON(), 'One Undo returns to the original empty surface').toEqual(empty);
-  expect(await caption.getAttribute('data-number')).toBe(null);
+  expect(await caption.getAttribute('data-number'), 'Undoing caption entry does not remove the number').toBe('Table 1');
   await page.keyboard.press('ControlOrMeta+Shift+z');
   expect(await tableJSON()).toEqual(restored);
   expect(await save()).toContain(':::{table} Restored caption');

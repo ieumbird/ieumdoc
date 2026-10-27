@@ -12,7 +12,7 @@ import { FRONT_MATTER_FIELD, parse as parseTree } from "./parse.ts";
 import { isDivider, supportedQuoteContent } from "./quote.ts";
 import { supportedTargetLabel } from "./reference.ts";
 import { serialize as serializeTree } from "./serialize.ts";
-import { tableCellContent, tableOf, tableCaptionParagraph } from "./table.ts";
+import { tableCellContent, tableOf, tableCaptionParagraph, isNativeTableSource } from "./table.ts";
 import type { MystDocument, MystNode } from "./tree.ts";
 import { NUMBERED_KINDS, referenceTemplatesError, type NumberedKind } from "../numbering.ts";
 import { referenceTemplateValue } from "./reference-templates.ts";
@@ -81,6 +81,7 @@ function metadata(document: MystDocument): void {
 }
 
 function supportedBlock(node: MystNode): boolean {
+  if (!isNativeTableSource(node)) return false;
   if (node.type === "heading") return supportedHeadingContent(node) !== undefined;
   if (node.type === "paragraph") return fields(node, ["children"]) && projectInlineContent(node) !== undefined;
   if (node.type === "admonition") return supportedAdmonitionContent(node) !== undefined;

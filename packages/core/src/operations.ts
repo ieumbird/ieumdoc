@@ -163,7 +163,8 @@ function assertCanonicalBlockBoundaries(document: MystDocument): void {
   const reloadedBlocks = parse(serializeFor(document, BOUNDARY_FAILURE)).children;
   if (
     reloadedBlocks.length !== expectedBlocks.length ||
-    reloadedBlocks.some((block, index) => block.type !== expectedBlocks[index].type || block.kind !== expectedBlocks[index].kind)
+    reloadedBlocks.some((block, index) => !(tableOf(block) && tableOf(expectedBlocks[index])) &&
+      (block.type !== expectedBlocks[index].type || block.kind !== expectedBlocks[index].kind))
   ) {
     throw new Error(BOUNDARY_FAILURE);
   }
@@ -666,7 +667,7 @@ const TABLE_CAPTION_FAILURE = "table caption cannot be preserved through canonic
 
 /**
  * Set, change or remove (empty) the caption of a top-level table: supported inline content without
- * line breaks. A caption or a label makes the table a `{table}` directive, which MyST numbers.
+ * line breaks. Every table stays a numbered `{table}` directive, including an empty caption.
  */
 export function updateTableCaption(document: MystDocument, path: NodePath, caption: TableCellInput): MystDocument {
   if (!Array.isArray(path) || path.length !== 1) {
@@ -716,7 +717,7 @@ function assertStableTable(document: MystDocument, index: number, failure: strin
   const after = cells(reloaded);
   const caption = (block: MystNode) => tableCaptionContent(block);
   if (serialize(reparsed) !== markdown || !tableOf(reloaded) ||
-      reloaded.type !== document.children[index].type ||
+      // The full semantic guard above admits the GFM-to-directive canonical wrapper change.
       !sameInlineContent(caption(document.children[index]), caption(reloaded)) || after.length !== before.length ||
       before.some((row, rowIndex) => row.length !== after[rowIndex].length || row.some((content, column) => {
         const reloaded = after[rowIndex][column];
@@ -741,7 +742,7 @@ export function insertTable(document: MystDocument, index: number, rows: TableCe
     throw new Error("table alignment must contain left, center, right or null for each column");
   }
   const content = rows.map((row) => row.map(tableCellInput));
-  const next = insertBlock(document, index, createTableNode(content, align));
+  const next = insertBlock(document, index, tableBlockNode(createTableNode(content, align), [], ""));
   assertStableTable(next, index, TABLE_FAILURE);
   return next;
 }

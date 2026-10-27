@@ -55,7 +55,7 @@ async (page, { openPath, reloadDocument }) => {
   // target B while the caret remains in A; its portal must not be clipped by local scroll.
   const initial = tables.first();
   result.emptyCaptionAvailable = await initial.getByTestId('table-caption').isVisible() &&
-    await initial.getByTestId('table-caption').getAttribute('data-number') === null &&
+    await initial.getByTestId('table-caption').getAttribute('data-number') === 'Table 1' &&
     await initial.getByRole('button', {name:'Add caption',exact:true}).count() === 0;
   result.openingKeepsCleanHistory = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n => !n.editor.can().undo()) &&
     !(await page.getByRole('tab', {selected:true}).getAttribute('aria-label')).includes('Unsaved changes');
@@ -314,11 +314,14 @@ async (page, { openPath, reloadDocument }) => {
     JSON.stringify(await grid(created)) === JSON.stringify([['#', '#', '#'], ['', '', ''], ['', '', '']]);
   if (!await save()) throw new Error('A newly inserted empty table must save');
   const emptySaved = await read();
+  result.emptyTableDirective = emptySaved.includes(':::{table}\n\n') && emptySaved.match(/:::\{table\}/g)?.length === 2;
   await reloadDocument(page);
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   result.emptyTableReload = await tables.count() === 2 &&
     JSON.stringify(await grid(created)) === JSON.stringify([['#', '#', '#'], ['', '', ''], ['', '', '']]);
   if (!result.emptyTableReload) throw new Error('Save/Reload must retain the empty table structure');
+  result.emptyTableNumberReload = await created.getByTestId('table-caption').getAttribute('data-number') === 'Table 1' &&
+    await tables.last().getByTestId('table-caption').getAttribute('data-number') === 'Table 2';
   if (!await save() || await read() !== emptySaved) throw new Error('An existing empty table must save identically');
   await created.locator('th').first().click();
   await page.keyboard.type('Port');
@@ -340,15 +343,15 @@ async (page, { openPath, reloadDocument }) => {
     JSON.stringify([['#Name', '#', '#Value'], ['U', '', 'AC'], ['P', 'W', '']]);
   result.firstSave = await save();
   result.firstFile = await read() === '---\nieumdoc: 1\n---\n\n# Tables\n\nIntro paragraph.\n\n' +
-    '| Port |   |   |\n| ---- | - | - |\n| U    |   |   |\n|      |   |   |\n\n' +
-    '| Name |   | Value |\n| ---- | - | ----- |\n| U    |   | AC    |\n| P    | W |       |\n';
+    ':::{table}\n\n| Port |   |   |\n| ---- | - | - |\n| U    |   |   |\n|      |   |   |\n:::\n\n' +
+    ':::{table}\n\n| Name |   | Value |\n| ---- | - | ----- |\n| U    |   | AC    |\n| P    | W |       |\n:::\n';
 
   // 3. Rows added after a save are new again: the saved cells are no longer "added".
   await existing.locator('td', {hasText:/^AC$/}).click();
   await blockMenu(4, 'Add row below');
   await page.keyboard.type('Q');
   result.secondSave = await save();
-  result.secondFile = (await read()).endsWith('| Name |   | Value |\n| ---- | - | ----- |\n| U    |   | AC    |\n|      |   | Q     |\n| P    | W |       |\n');
+  result.secondFile = (await read()).endsWith(':::{table}\n\n| Name |   | Value |\n| ---- | - | ----- |\n| U    |   | AC    |\n|      |   | Q     |\n| P    | W |       |\n:::\n');
 
   // 4. Reopening shows the saved tables with editable new cells.
   await reloadDocument(page);
@@ -379,12 +382,12 @@ async (page, { openPath, reloadDocument }) => {
   await page.keyboard.press('Control+Shift+z');
   result.redoRemovesRow = JSON.stringify(await grid(reopened)) === JSON.stringify(reshaped);
   result.thirdSave = await save();
-  result.thirdFile = (await read()).endsWith('| Name | Value |     |\n| ---- | ----- | :-: |\n| U    | AC    |     |\n| P    |       |  W  |\n');
+  result.thirdFile = (await read()).endsWith(':::{table}\n\n| Name | Value |     |\n| ---- | ----- | :-: |\n| U    | AC    |     |\n| P    |       |  W  |\n:::\n');
   // A later Save in the same session replays these changes against the opening snapshot.
   await reopened.locator('td', {hasText:/^W$/}).click();
   await blockMenu(4, 'Clear column alignment');
   result.fourthSave = await save();
-  result.fourthFile = (await read()).endsWith('| Name | Value |   |\n| ---- | ----- | - |\n| U    | AC    |   |\n| P    |       | W |\n');
+  result.fourthFile = (await read()).endsWith(':::{table}\n\n| Name | Value |   |\n| ---- | ----- | - |\n| U    | AC    |   |\n| P    |       | W |\n:::\n');
   await reloadDocument(page);
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await page.getByRole('dialog').waitFor({state:'detached'});
@@ -413,7 +416,7 @@ async (page, { openPath, reloadDocument }) => {
   await page.getByTestId('table-apply').click();
   await page.getByTestId('table-editor').waitFor({state:'detached'});
   result.captionApplied = await table.getByTestId('table-caption').innerText() === 'Port values' &&
-    await table.getByTestId('table-caption').getAttribute('data-number') === 'Table 1';
+    await table.getByTestId('table-caption').getAttribute('data-number') === 'Table 2';
   result.captionSave = await save();
   result.captionWritten = (await read()).includes(':::{table} Port values\n:name: tbl-ports');
   await reloadDocument(page);
@@ -429,8 +432,8 @@ async (page, { openPath, reloadDocument }) => {
   await page.getByText('Intro paragraph.', {exact:true}).filter({visible:true}).click();
   await page.keyboard.press('End');
   await page.keyboard.type(' /tbl');
-  await page.getByRole('menuitem', {name:'Table 1 · Port values', exact:true}).click();
-  const ref = page.locator('[data-document-tab][data-active=true]').getByTestId('cross-reference').filter({hasText:'Table 1'});
+  await page.getByRole('menuitem', {name:'Table 2 · Port values', exact:true}).click();
+  const ref = page.locator('[data-document-tab][data-active=true]').getByTestId('cross-reference').filter({hasText:'Table 2'});
   result.tableReferenceShown = await ref.count() === 1;
   await ref.locator('.cross-reference-chip').click();
   result.tableReferenceNavigates = await tables.last().getAttribute('data-selected') === 'true';
@@ -439,7 +442,24 @@ async (page, { openPath, reloadDocument }) => {
   await reloadDocument(page);
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await page.getByRole('dialog').waitFor({state:'detached'});
-  result.tableReferenceReloaded = await page.locator('[data-document-tab][data-active=true]').getByTestId('cross-reference').filter({hasText:'Table 1'}).count() === 1;
+  result.tableReferenceReloaded = await page.locator('[data-document-tab][data-active=true]').getByTestId('cross-reference').filter({hasText:'Table 2'}).count() === 1;
+
+  // Caption content is independent of official numbering, including before Save.
+  await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => {
+    const editor = element.editor;
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'tableCaption' && node.textContent === 'Port values') {
+        editor.commands.setTextSelection({from:pos+1,to:pos+node.nodeSize-1});
+      }
+    });
+    editor.view.focus();
+  });
+  await page.keyboard.press('Backspace');
+  result.clearingCaptionKeepsNumber = await tables.last().getByTestId('table-caption').getAttribute('data-number') === 'Table 2' &&
+    await ref.getAttribute('data-resolved') === 'true' && (await ref.innerText()).replaceAll('\u00a0',' ') === 'Table 2';
+  await page.keyboard.press('ControlOrMeta+z');
+  result.captionUndoKeepsNumber = await tables.last().getByTestId('table-caption').innerText() === 'Port values' &&
+    await tables.last().getByTestId('table-caption').getAttribute('data-number') === 'Table 2';
 
   await tables.last().hover({position:{x:4,y:4}});
   await tables.last().getByRole('button', {name:'Edit table', exact:true}).click();

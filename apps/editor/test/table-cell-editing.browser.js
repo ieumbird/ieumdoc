@@ -88,7 +88,7 @@ async (page, { openPath }) => {
   const saved = await markdown(technical, 'technical-document.md');
   result.savedAndReloaded = await cell('Port name').count() === 1 &&
     await cell('AC-side').locator('strong').count() === 1 && await cell('DC DC-link voltage').locator('strong').count() === 1;
-  result.canonicalMarkdown = /\| Port name \| Type +\|\n\| -+ \| -+ \|\n\| U +\| \*\*AC-side\*\* +\|\n\| P +\| DC \*\*DC-link voltage\*\* \|\n\nAfter table\.\n$/.test(saved);
+  result.canonicalMarkdown = /:::\{table\}\n\n\| Port name \| Type +\|\n\| -+ \| -+ \|\n\| U +\| \*\*AC-side\*\* +\|\n\| P +\| DC \*\*DC-link voltage\*\* \|\n:::\n\nAfter table\.\n$/.test(saved);
   result.otherSemanticsKept = saved.includes('See [Figure](#fig-control) and {eq}`eq-current`.') &&
     saved.includes(':label: eq-current') && saved.includes(':name: fig-control');
   result.headerCellsStayHeaders = await table.locator('th[data-table-cell]').count() === 2;

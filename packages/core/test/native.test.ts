@@ -135,6 +135,50 @@ test("native admission rejects unsupported structure instead of projecting parti
   }
 });
 
+test("native table directives reject source options before the parser can discard them", async (t) => {
+  for (const caption of ["", " Values"]) {
+    for (const options of [":align: left", ":widths: 1 2", ":unknown: value", "---\nalign: left\n---",
+      ...["constructor", "__proto__", "toString", "hasOwnProperty"].flatMap(name => [
+        `:${name}: value`, `---\n${name}: value\n---`,
+      ])]) {
+      await t.test(`${caption || "no caption"}: ${options}`, () => {
+        const source = native(`:::{table}${caption}\n${options}\n\n| A | B |\n|---|---|\n| x | y |\n:::\n`);
+        assert.throws(() => parse(source), (error) => {
+          assert(error instanceof NativeDocumentError);
+          assert.equal(error.code, "native-content");
+          return true;
+        });
+      });
+    }
+    for (const name of ["name", "label"]) {
+      const source = native(`:::{table}${caption}\n:${name}: values\n\n| A | B |\n|:---|---:|\n| x | y |\n:::\n`);
+      const document = parse(source);
+      const saved = serialize(document);
+      assert.match(saved, /:name: values/);
+      assert.deepEqual(getEditableDocument(parse(saved)), getEditableDocument(document));
+      assert.equal(serialize(parse(saved)), saved);
+    }
+  }
+});
+
+test("native tables admit only GFM and the table directive", async (t) => {
+  for (const caption of ["", " Values"]) {
+    for (const unknown of ["", ":unknown: value\n"]) {
+      for (const body of [
+        `:::{csv-table}${caption}\n:header: A, B\n${unknown}\n1,2\n:::\n`,
+        `:::{list-table}${caption}\n:header-rows: 1\n${unknown}\n* -\n  -\n:::\n`,
+      ]) await t.test(body, () => assert.throws(() => parse(native(body)), NativeDocumentError));
+    }
+    const grid = "| A | B |\n|:---|---:|\n| x | y |\n";
+    for (const body of [grid, `:::{table}${caption}\n\n${grid}:::\n`]) {
+      const document = parse(native(body));
+      const saved = serialize(document);
+      assert.deepEqual(getEditableDocument(parse(saved)), getEditableDocument(document));
+      assert.equal(serialize(parse(saved)), saved);
+    }
+  }
+});
+
 test("native supported semantics accept alternative spellings and preserve snapshot paths", () => {
   const body = "Title\n=====\n\nA **bold** [link](./x) and $y$.\n\n- item\n  - nested\n\n> Quote.\n\n---\n\n:::{note}\nNote.\n:::\n\n```ts\nconst n = 1;\n```\n\n| A | B |\n|:--|--:|\n| x | y |\n\nSee[^a] and {ref}`later`.\n\n[^a]: A note.\n";
   const document = parse(native(body));

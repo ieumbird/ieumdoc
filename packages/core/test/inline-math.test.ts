@@ -81,7 +81,7 @@ test("literal dollar signs in text are written escaped and reload as text, not i
   assert.equal(write(source, [{ kind: "strong", children: [text("$a$")] }, math("x"), text("$ end")]),
     "**\\$a\\$**$x$\\$ end\n");
   // Every block that holds text: escaped dollars in headings, titles, cells and link text reload as written.
-  const blocks = "# Price \\$5 and \\$6\n\n:::{note} Cost \\$5 and \\$6\nBody\n:::\n\n| \\$a\\$ |\n| ----- |\n| x     |\n\n[\\$a\\$](https://x.example)\n";
+  const blocks = "# Price \\$5 and \\$6\n\n:::{note} Cost \\$5 and \\$6\nBody\n:::\n\n:::{table}\n\n| \\$a\\$ |\n| ----- |\n| x     |\n:::\n\n[\\$a\\$](https://x.example)\n";
   assert.equal(serialize(parse(blocks)), blocks);
   assert.match(serialize(updateTableCell(parse("| A |\n| - |\n| b |\n"), [0, 1, 0], "cost $x$")), /\| cost \\\$x\\\$ \|/);
 });

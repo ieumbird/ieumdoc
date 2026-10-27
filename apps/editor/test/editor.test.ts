@@ -1778,7 +1778,7 @@ test("typed straight quotes save through the Editor adapter and Host and reload 
   const saved = commitDocumentSave(() => input, (markdown) => { written = markdown; },
     { revision: documentRevision(input), ...collectSupportedEdits(editable, projected) });
   assert.equal(written, saved.markdown);
-  assert.equal(written, nativeSource("# User's guide\n\nDon't panic. The state is **\"READY\"**.\n\n| Key   | Value     |\n| ----- | --------- |\n| state | it's \"on\" |\n"));
+  assert.equal(written, nativeSource("# User's guide\n\nDon't panic. The state is **\"READY\"**.\n\n:::{table}\n\n| Key   | Value     |\n| ----- | --------- |\n| state | it's \"on\" |\n:::\n"));
   const reloaded = loadEditableDocument(written);
   assert.equal(serialize(parse(saved.markdown)), saved.markdown);
   assert.deepEqual(normalizedDocument(toTiptapDocument(reloaded)), projected);

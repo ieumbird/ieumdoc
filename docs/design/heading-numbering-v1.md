@@ -130,11 +130,18 @@ or `Table N` with U+0020, rather than the reference default's U+00A0. An explici
 template retains its actual spaces, including U+00A0. The existing caption separator `. `
 still follows the computed text, even if a custom template contains its own punctuation.
 Korean captions therefore start `그림 1. ` / `표 1. `; Table captions remain below the grid.
+Every table now receives an official Core number (#584), including a table with no
+caption or Label. Its empty caption surface displays that number; adding/removing
+caption or Label does not renumber this table or later tables. The [table format
+contract](table-caption-v1.md) defines GFM input normalization to numbered directives.
 
 This intentionally differs from MyST: installed `myst-transforms` 1.3.51 `getCaptionLabel`
 uses `getDefaultNumberedReferenceTemplate(kind)` (for example `Figure %s:`), ignoring the
 document's reference template. IeumDoc follows the document template and retains its own
 existing separator. Equation right-side numbers remain `(N)`.
+MyST assigns an enumerator to an empty-caption `{table}` container but only inserts a
+visible caption-number node when caption content exists. IeumDoc's always available
+caption surface displays the official number in either state, as for empty Figures.
 
 Implementation scope: Editor caption prefixes, block metadata and numbered properties
 accessible names project this Core text. CLI `inspect --format json` exposes the same

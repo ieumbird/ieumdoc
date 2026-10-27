@@ -160,7 +160,8 @@ test("serialized document reparses", () => {
   assert.ok(figure.children?.some((node) => node.type === "caption"));
   assert.equal(toText(getNode(reparsed, CAPTION_PATH)), CAPTION_TO);
   assert.equal(findNode(reparsed, "math")?.label ?? findNode(reparsed, "math")?.identifier, "eq-current");
-  assert.equal(toText(getNode(reparsed, CELL_PATH)), CELL_TO);
+  // Canonical tables have a directive wrapper; the grid content is unchanged.
+  assert.equal(toText(getNode(reparsed, [CELL_PATH[0], 0, ...CELL_PATH.slice(1)])), CELL_TO);
   assert.ok(hasReference(reparsed, "fig-control"));
   assert.ok(hasReference(reparsed, "eq-current"));
 });

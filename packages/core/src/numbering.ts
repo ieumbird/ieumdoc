@@ -1,6 +1,6 @@
 /**
  * Numbered reference targets are computed from a document's top-level blocks, like sections:
- * MyST numbers display equations, figures and captioned tables in document order, and the
+ * MyST numbers display equations, figures and table directives in document order, and the
  * numbers are never written to the document (ADR-0002) nor used as identity (ADR-0003). This
  * rule is the one Core's read model, the CLI and the Editor share. It has no MyST dependency.
  */
@@ -46,15 +46,14 @@ export function headingNumbers(blocks: { block: string; level?: number }[], sett
 }
 
 /**
- * The numbered targets a read-model block (Core's EditableBlock, or an editor block of the same
- * shape) holds. Core sets `numbered` only where a block differs from its kind's default: one
- * equation per equation block, one figure per figure block, none otherwise. Blocks an interface
- * adds through Core's insert operations have that default.
+ * Each equation, figure or table read-model block holds one numbered target of its kind.
+ * Core and interfaces use this rule for both parsed and newly inserted blocks, independently
+ * of caption or label content.
  */
 export function blockTargets(block: { block: string; label?: string; caption?: unknown }): NumberedTargets {
   if (block.block === "equation") return { equation: 1 };
   if (block.block === "figure") return { figure: 1 };
-  if (block.block === "table" && (block.label || (Array.isArray(block.caption) && block.caption.length > 0))) return { table: 1 };
+  if (block.block === "table") return { table: 1 };
   return {};
 }
 

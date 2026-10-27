@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { enumerateTargetsTransform, ReferenceState } from "myst-transforms";
+import { containerChildrenTransform, enumerateTargetsTransform, liftMystDirectivesAndRolesTransform, ReferenceState } from "myst-transforms";
+import { mystParse } from "myst-parser";
 import { VFile } from "vfile";
 import { parseDocument } from "yaml";
 import { validateNumbering } from "myst-frontmatter";
@@ -9,6 +10,38 @@ import { updateHeadingNumbering, getHeadingNumbering } from "../src/myst/heading
 import { getEditableDocument, insertEquation, moveBlock, parse, removeBlock, serialize, type MystDocument, type MystNode } from "./core-internal.ts";
 
 const numbers = (document: MystDocument) => targetNumbers(getEditableDocument(document).blocks.map(blockTargets));
+
+test("all tables keep official numbers through canonical directives and caption/label edits", async () => {
+  const core = await import("../src/index.ts");
+  const grids = ["|  |  |\n| --- | --- |\n|  |  |", "| Header | Only |\n| --- | --- |",
+    "| Left | Center | Right |\n| :--- | :---: | ---: |\n| **a** | b | $x$ |"];
+  const source = `---\nieumdoc: 1\n---\n\n${grids[0]}\n\n:::{table}\n\n${grids[1]}\n:::\n\n${grids[2]}\n\n:::{table} Last\n:name: last\n\n${grids[1]}\n:::\n\nSee {numref}\`last\`.\n`;
+  let document = core.parse(source);
+  const expected = [{ table: 1 }, { table: 2 }, { table: 3 }, { table: 4 }, {}];
+  const read = () => core.getEditableDocument(document);
+  assert.deepEqual(targetNumbers(read().blocks.map(blockTargets)), expected);
+  const original = read().blocks;
+  const saved = core.serialize(document);
+  assert.equal(saved.match(/:::?\{table\}/g)?.length, 4);
+  assert.equal(core.serialize(core.parse(saved)), saved);
+  assert.deepEqual(core.getEditableDocument(core.parse(saved)).blocks, original);
+  const file = new VFile();
+  const tree = mystParse(saved, { vfile: file });
+  liftMystDirectivesAndRolesTransform(tree);
+  containerChildrenTransform(tree, file);
+  enumerateTargetsTransform(tree as never, { state: new ReferenceState("tables.md", { vfile: file }) });
+  assert.deepEqual(file.messages, []);
+  assert.deepEqual(tree.children.filter(node => node.kind === "table").map(node => node.enumerator), ["1", "2", "3", "4"]);
+  for (const caption of ["Filled", ""]) {
+    document = core.updateTableCaption(document, [2], caption);
+    assert.deepEqual(targetNumbers(read().blocks.map(blockTargets)), expected);
+  }
+  document = core.updateLabel(document, [2], "temporary");
+  document = core.updateLabel(document, [2], "");
+  assert.deepEqual(targetNumbers(read().blocks.map(blockTargets)), expected);
+  assert.deepEqual(read().blocks, original);
+  assert.equal(core.serialize(document), saved);
+});
 
 test("caption numbers preserve legacy defaults and share authored reference templates", () => {
   for (const kind of ["figure", "table"] as const) {

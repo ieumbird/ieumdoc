@@ -5,6 +5,7 @@ import {
 } from "myst-transforms";
 import { VFile } from "vfile";
 import { locateFootnotes } from "./footnote.ts";
+import { retainTableSource } from "./table.ts";
 import { type MystDocument } from "./tree.ts";
 import { assertUnicode } from "./unicode.ts";
 
@@ -16,6 +17,7 @@ import { assertUnicode } from "./unicode.ts";
  *   so it is off, and a typed straight quote reloads exactly as written;
  * - a leading UTF-8 byte order mark is an encoding signature, not content;
  * - front matter is marked so canonical write preserves its metadata role;
+ * - table directive kinds, options and parser diagnostics survive lifting for native admission;
  * - footnote definitions get their own source lines and follow the body in endnote order, as
  *   canonical write puts them; those the parse dropped are recorded.
  */
@@ -35,8 +37,10 @@ export const FRONT_MATTER_FIELD = "(front matter)";
 export function parse(source: string): MystDocument {
   assertUnicode(source);
   const text = source.startsWith("\uFEFF") ? source.slice(1) : source;
-  const document = mystParse(text, OPTIONS) as MystDocument;
+  const file = new VFile();
+  const document = mystParse(text, { ...OPTIONS, vfile: file }) as MystDocument;
   markFrontMatter(document, text);
+  retainTableSource(document, file);
   liftMystDirectivesAndRolesTransform(document);
   containerChildrenTransform(document, new VFile());
   locateFootnotes(document, text, OPTIONS);
