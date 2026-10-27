@@ -219,13 +219,13 @@ button {
   list-style: none;
 }
 
-/* Chevron, icon and name. One 12px step per level, at most five, so deep names keep some width;
+/* Folder chevron or file icon, then name. One 12px step per level, at most five, so deep names keep some width;
  * a name that still does not fit ellipsizes and the full path stays in `title`. */
 .sidebar-folder-name,
 .sidebar-tree-item {
   position: relative;
   display: grid;
-  grid-template-columns: var(--size-icon-slot) var(--size-icon-slot) minmax(0, 1fr);
+  grid-template-columns: var(--size-icon-slot) minmax(0, 1fr);
   align-items: center;
   column-gap: var(--space-1);
   padding: var(--space-1) var(--space-3);
@@ -796,6 +796,12 @@ button {
  * inside positioners; Settings restores drag only on its own header below. */
 .ui-portal > *,
 .ui-portal [data-slot$="-content"] {
+  app-region: no-drag;
+}
+
+/* Menus allow a single click/right-click to reach another trigger. While open, disable
+ * underlying header drag directly instead of intercepting that input with a full-screen backdrop. */
+body:has(.ui-portal [role="menu"]) :is(.sidebar-header, .top-bar, .document-panel-header, .settings-topbar) {
   app-region: no-drag;
 }
 

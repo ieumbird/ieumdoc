@@ -390,7 +390,8 @@ async (page, { openFolderPicker, openPath, waitForActivePath }) => {
     await seed(saved);
     await waitRoots(saved);
     for (const kind of ['file', 'folder']) {
-      await section(a).getByRole('button', {name:kind === 'file' ? 'New document…' : 'New folder', exact:true}).click();
+      await section(a).getByRole('button', {name:kind === 'file' ? 'New document…' : 'More actions', exact:true}).click();
+      if (kind === 'folder') await page.getByRole('menuitem', {name:'New folder…', exact:true}).click();
       const select = page.getByTestId(`new-${kind}-directory`);
       const options = await select.locator('option').evaluateAll(nodes => nodes.map(node => ({path:node.value, label:node.textContent})));
       check(new Set(options.map(option => option.path)).size === options.length, `New ${kind} has duplicate destinations: ${JSON.stringify(options)}`);

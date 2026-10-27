@@ -81,7 +81,8 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
           await document.fonts.ready; window.scrollTo(0, 0); document.activeElement?.blur();
           return {viewport:[innerWidth, innerHeight], dpr:devicePixelRatio, zoom:visualViewport.scale,
             cssZoom:getComputedStyle(document.documentElement).zoom, font:getComputedStyle(document.querySelector('.product')).fontFamily,
-            scroll:[scrollX, scrollY], language:document.documentElement.lang};
+            scroll:[scrollX, scrollY], language:document.documentElement.lang,
+            rootNameWidth:document.querySelector('.sidebar-folder-name .sidebar-tree-name')?.getBoundingClientRect().width};
         });
         await page.mouse.move(width - 2, 2);
         await page.screenshot({path:`tmp/picker-capture/sidebar-after-${state}-${width}.png`});
@@ -113,9 +114,10 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
             sameTypography:['fontSize', 'fontWeight', 'lineHeight', 'color'].every(key => rootStyle[key] === childStyle[key]),
             sameHeight:root.getBoundingClientRect().height === child.getBoundingClientRect().height,
             childIndent:child.querySelector('.sidebar-tree-chevron').getBoundingClientRect().left - root.querySelector('.sidebar-tree-chevron').getBoundingClientRect().left === indent,
-            sameIconSize:root.querySelector('.sidebar-tree-icon').getBoundingClientRect().width === child.querySelector('.sidebar-tree-icon').getBoundingClientRect().width};
+            folderIconsAbsent:!root.querySelector('.sidebar-tree-icon') && sections.every(section => !section.querySelector('.sidebar-tree-item[aria-expanded] .sidebar-tree-icon')),
+            sameIconSize:root.querySelector('.sidebar-tree-chevron svg').getBoundingClientRect().width === child.querySelector('.sidebar-tree-chevron svg').getBoundingClientRect().width};
         }));
-        assert(headings.every(heading => heading.sameRow && heading.rightAligned && heading.noHeadingGap && heading.noSectionGap && heading.sameTypography && heading.sameHeight && heading.childIndent && heading.sameIconSize),
+        assert(headings.every(heading => heading.sameRow && heading.rightAligned && heading.noHeadingGap && heading.noSectionGap && heading.sameTypography && heading.sameHeight && heading.childIndent && heading.folderIconsAbsent && heading.sameIconSize),
           `Folder identity and actions must share the first row: ${state}/${width}px ${JSON.stringify(headings)}`);
         if (collapsedForComparison) await disclosure.click();
         assert(await openFolder.count() === 0, 'Opened folders use their menu instead of a second Open entry');
@@ -145,11 +147,32 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
       await more.click();
       await page.getByRole('menuitem', {name:'Close folder', exact:true}).waitFor();
       if (screenshots && state === 'one') await page.screenshot({path:'tmp/picker-capture/folder-refresh-menu.png'});
-      assert(JSON.stringify(await page.getByRole('menuitem').allInnerTexts()) === JSON.stringify(['Open folder…', 'Refresh', 'Close folder']), 'Folder menu must collect Open, Refresh and Close');
+      assert(JSON.stringify(await page.getByRole('menuitem').allInnerTexts()) === JSON.stringify(['New folder…', 'Open folder…', 'Refresh', 'Close folder']), 'Folder menu must order creation before folder management');
       await page.keyboard.press('Escape');
       await page.getByRole('menu').waitFor({state:'detached'});
       assert(await more.evaluate(node => node === document.activeElement), 'Folder menu Escape must restore focus');
     }
+    if (state === 'several') for (const width of [1440, 640]) {
+      await page.setViewportSize({width, height:720});
+      // One physical click must switch open menus; an overlay must not consume it.
+      const first = section.first().getByRole('button', {name:'More actions', exact:true, includeHidden:true});
+      const second = section.nth(1).getByRole('button', {name:'More actions', exact:true, includeHidden:true});
+      const fileMenu = page.getByRole('button', {name:'File actions', exact:true, includeHidden:true});
+      const fileTarget = await fileMenu.boundingBox(), secondTarget = await second.boundingBox();
+      await first.click(); await page.getByRole('menuitem', {name:'New folder…', exact:true}).waitFor();
+      // These targets remain visibly outside the preceding popup, not underneath its menu items.
+      await page.mouse.click(fileTarget.x + fileTarget.width / 2, fileTarget.y + fileTarget.height / 2);
+      await page.getByRole('menuitem', {name:'Reload', exact:true}).waitFor();
+      assert(await fileMenu.getAttribute('aria-expanded') === 'true' && await first.getAttribute('aria-expanded') === 'false',
+        'A single click switches from a folder menu to File actions');
+      await page.mouse.click(secondTarget.x + secondTarget.width / 2, secondTarget.y + secondTarget.height / 2);
+      await page.getByRole('menuitem', {name:'New folder…', exact:true}).waitFor();
+      assert(await second.getAttribute('aria-expanded') === 'true' && await fileMenu.getAttribute('aria-expanded') === 'false',
+        'A single click switches from File actions to the other folder menu');
+      assert(await page.getByRole('menu').count() === 1, 'Menu switching leaves exactly the requested menu open');
+      await page.keyboard.press('Escape'); await page.getByRole('menu').waitFor({state:'hidden'});
+    }
+    await page.setViewportSize({width:1280, height:720});
   };
   await checkSidebarEntry('empty');
 
@@ -290,7 +313,8 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
         await document.fonts.ready; document.activeElement?.blur(); window.scrollTo(0, 0);
         return {viewport:[innerWidth, innerHeight], dpr:devicePixelRatio, zoom:visualViewport.scale,
           cssZoom:getComputedStyle(document.documentElement).zoom, font:getComputedStyle(document.querySelector('.product')).fontFamily,
-          scroll:[scrollX, scrollY], language:document.documentElement.lang};
+          scroll:[scrollX, scrollY], language:document.documentElement.lang,
+            rootNameWidth:document.querySelector('.sidebar-folder-name .sidebar-tree-name')?.getBoundingClientRect().width};
       });
       await page.mouse.move(width - 2, 2);
       await page.screenshot({path:`tmp/picker-capture/sidebar-restored-collapsed-${width}.png`});
@@ -428,7 +452,7 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
   assert(await row('guides').getAttribute('aria-expanded') === 'true' && await row('install.md').getAttribute('aria-current') === 'page' &&
     JSON.stringify(await treeState()) === JSON.stringify(retained) && folderRequests.length === requestsBeforeSwitch,
     'Expanding section must retain child expansion, current marker, scroll and keyboard stop without relisting');
-  for (const action of ['New document…', 'New folder', 'More actions']) {
+  for (const action of ['New document…', 'More actions']) {
     await page.keyboard.press('Tab');
     assert(await item(action).evaluate(node => node === document.activeElement), `Tab reaches ${action} in visual order`);
   }
@@ -648,7 +672,12 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
   // to show the folder, which can take a new file at once. The open document stays.
   if (await row('guides').getAttribute('aria-expanded') === 'true') await row('guides').click();
   await toggle.click();
-  await item('New folder').click();
+  await folderMenu('New folder…');
+  await dialog.getByRole('button', {name:'Cancel', exact:true}).click();
+  await dialog.waitFor({state:'detached'});
+  assert(await item('More actions').evaluate(node => node === document.activeElement) && await toggle.getAttribute('aria-expanded') === 'false',
+    'Cancelling menu New folder returns to More actions and keeps section collapse');
+  await folderMenu('New folder…');
   const folderDestination = page.getByTestId('new-folder-directory');
   assert(await folderDestination.inputValue() === subFolder, "New folder starts in the open document's folder");
   await folderDestination.selectOption(guidesPath);
@@ -657,7 +686,7 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
   await dialog.waitFor({state:'detached'});
   await row('chapter').waitFor();
   assert(await row('guides').getAttribute('aria-expanded') === 'true' && await row('chapter').getAttribute('aria-level') === '2' &&
-    await current() === '추가.md' && await item('New folder').evaluate(node => node === document.activeElement), 'Sidebar New folder shows the created folder');
+    await current() === '추가.md' && await item('More actions').evaluate(node => node === document.activeElement), 'Sidebar New folder shows the created folder');
   if (screenshots) await page.screenshot({path:'tmp/picker-capture/08-sidebar-new-folder.png'});
   await item('New document…').click();
   const chapterPath = [guidesPath, 'chapter'].join(sep);
@@ -739,7 +768,7 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
         const heading = required('.sidebar-folder-name');
         const label = heading.querySelector('.sidebar-tree-name');
         const bounds = header.getBoundingClientRect();
-        const icon = heading.querySelector('.sidebar-tree-icon').getBoundingClientRect();
+        const icon = heading.querySelector('.sidebar-tree-chevron svg').getBoundingClientRect();
         const actions = required('.sidebar-folder-actions').getBoundingClientRect();
         const labelBounds = label.getBoundingClientRect();
         const toggle = required('.sidebar-folder-toggle');

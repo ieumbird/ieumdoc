@@ -60,7 +60,8 @@ The native window enforces a minimum width of **640px** (minimum height 480px), 
 minimize/maximize/close controls. Editor CSS reserves their actual Window Controls Overlay
 geometry without a fixed button width; browser Hosts have no reservation. Header empty areas
 use `app-region: drag`, interactive controls and shared portal popup/positioner/backdrop
-boundaries `no-drag`. Full-screen Settings leaves only its 40px header draggable and retains
+boundaries `no-drag`. Menus preserve pointer input to other triggers; while
+a menu is open, underlying shell headers temporarily use no-drag for outside dismissal. Full-screen Settings leaves only its 40px header draggable and retains
 caption reservation at 640px. Native move/double-click maximize and
 maximized inset behavior require Windows manual checks. Document tabs remain below TopBar.
 The renderer title is the active filename followed by ` — IeumDoc`, or `IeumDoc` without a

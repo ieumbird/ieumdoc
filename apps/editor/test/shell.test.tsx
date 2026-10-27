@@ -477,8 +477,8 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
   assert.doesNotMatch(html, /Up to/);
   // New names no folder here: its dialog shows and chooses the destination.
   assert.match(html, /<button\b(?=[^>]*aria-label="New document…")(?=[^>]*title="New document…")[^>]*>/);
-  assert.match(html, /<button\b(?=[^>]*aria-label="New folder")(?=[^>]*title="New folder…")[^>]*>/);
-  // More actions collects folder opening/refresh/close; no duplicate Open button is shown.
+  assert.doesNotMatch(html, /<button\b[^>]*aria-label="New folder"/, "New folder belongs in the menu, leaving more root-name space");
+  // More actions collects folder creation/opening/refresh/close; no duplicate Open button is shown.
   assert.match(html, /<button\b(?=[^>]*aria-label="More actions")(?=[^>]*aria-haspopup="menu")[^>]*>/);
   assert.doesNotMatch(html, /data-testid="sidebar-empty"|>Open file…<|>Close folder</);
   const empty = listing(String.raw`C:\docs`, []);

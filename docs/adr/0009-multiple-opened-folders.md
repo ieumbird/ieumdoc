@@ -112,11 +112,13 @@ Entry placement is superseded by the [2026-10-27 explorer amendment](#amendment-
 ## Amendment 2026-10-27: Explorer sidebar (#582)
 
 - Status: Accepted. The owner selected proposal A in [#582](https://github.com/ieumbird/ieumdoc/issues/582).
-- Sidebar header contains Files and Collapse only. Each opened folder collects New document…,
-  New folder and More actions (Open folder…, Refresh, Close folder). Remove the separate New
+- Sidebar header contains Files and Collapse only. Each opened folder shows New document…
+  and More actions (New folder…, Open folder…, Refresh, Close folder, in that order). Remove the separate New
   document row when folders are open; use one New document… / 새 문서… action name.
-- Owner refinement: present each root as a depth-zero folder row matching child-folder icons,
-  typography and height, with root-only actions on the right of that row. Long names ellipsize;
+- Owner refinement: present each root as a depth-zero folder row matching child-folder chevrons,
+  typography and height, with root-only actions always visible on the right of that row. Folder
+  rows have no folder icon; file type icons remain. New folder is in More actions, and creation
+  or cancellation returns focus to that menu trigger. Long names ellipsize;
   full path/name remain available. Preserve section/tree roles, keyboard navigation and #425
   collapse memory; only the visual indentation of children gains the root step.
 - Empty Files retains Open folder… and New document…; New first chooses a folder through the

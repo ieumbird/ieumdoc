@@ -6,7 +6,7 @@ export const MENU_POPUP_CLASS = "z-50 max-h-(--available-height) min-w-40 max-w-
 export const MENU_ITEM_CLASS = "flex min-h-[var(--size-control-compact)] cursor-default items-center gap-[var(--space-2)] rounded-md px-[var(--space-3)] py-[var(--space-1)] text-sm leading-[var(--line-height-label)] outline-none select-none data-highlighted:bg-accent data-highlighted:text-foreground focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[var(--size-icon-slot)]";
 
 function DropdownMenu({ ...props }: MenuPrimitive.Root.Props) {
-  return <MenuPrimitive.Root data-slot="dropdown-menu" {...props} />
+  return <MenuPrimitive.Root data-slot="dropdown-menu" modal={false} {...props} />
 }
 
 function DropdownMenuTrigger({ ...props }: MenuPrimitive.Trigger.Props) {
@@ -27,7 +27,6 @@ function DropdownMenuContent({
   >) {
   return (
     <MenuPrimitive.Portal className="ui-portal">
-      <MenuPrimitive.Backdrop className="fixed inset-0 z-50" />
       <MenuPrimitive.Positioner
         align={align}
         alignOffset={alignOffset}

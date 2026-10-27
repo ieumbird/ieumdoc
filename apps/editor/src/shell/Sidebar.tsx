@@ -189,21 +189,19 @@ function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, docu
               aria-label={toggleName} title={toggleName} aria-expanded={tree.sectionExpanded} aria-controls={treeId}
               onClick={onToggleSection}><ChevronRight aria-hidden="true" /></Button>
           </span>
-          {tree.sectionExpanded ? <FolderOpen className="sidebar-tree-icon" aria-hidden="true" /> : <Folder className="sidebar-tree-icon" aria-hidden="true" />}
           <span className="sidebar-tree-name">{folderName}</span>
         </p>
         <div className="sidebar-folder-actions">
           <Button variant="ghost" size="icon-xs" aria-label={i18n.t("New document…")} title={i18n.t("New document…")} onClick={event => onNew(event.currentTarget)}>
             <Plus />
           </Button>
-          <Button variant="ghost" size="icon-xs" aria-label={i18n.t("New folder")} title={i18n.t("New folder…")} onClick={event => onNewFolder(event.currentTarget)}>
-            <FolderPlus />
-          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger ref={moreActions} render={<Button variant="ghost" size="icon-xs" aria-label={i18n.t("More actions")} />}>
               <Ellipsis />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => { if (moreActions.current) onNewFolder(moreActions.current); }}>
+                <FolderPlus aria-hidden="true" />{i18n.t("New folder…")}</DropdownMenuItem>
               <DropdownMenuItem onClick={() => onOpenFolder(moreActions.current)}>
                 <FolderOpen aria-hidden="true" />{i18n.t("Open folder…")}</DropdownMenuItem>
               <DropdownMenuItem onClick={onRefresh}>
@@ -222,7 +220,7 @@ function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, docu
           // A file without the native marker still opens, to explain why IeumDoc refuses it.
           const foreign = entry.kind === "document" && entry.native === false;
           const description = foreign ? i18n.t("Not an IeumDoc document") : entry.kind === "image" ? i18n.t("Read-only image preview") : entry.kind === "file" ? i18n.t("This file cannot be edited in IeumDoc.") : undefined;
-          const Icon = foreign ? FileX : entry.kind === "image" ? ImageIcon : entry.kind === "file" ? File : !folder ? FileText : expanded ? FolderOpen : Folder;
+          const Icon = foreign ? FileX : entry.kind === "image" ? ImageIcon : entry.kind === "file" ? File : FileText;
           const row = (
             <li
               key={entry.path}
@@ -242,8 +240,8 @@ function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, docu
               onFocus={() => setFocused(entry.path)}
               onClick={() => activate(item)}
             >
-              <span className="sidebar-tree-chevron" aria-hidden="true">{folder ? <ChevronRight /> : null}</span>
-              <Icon className="sidebar-tree-icon" aria-hidden="true" />
+              {folder ? <span className="sidebar-tree-chevron" aria-hidden="true"><ChevronRight /></span>
+                : <Icon className="sidebar-tree-icon" aria-hidden="true" />}
               <span className="sidebar-tree-name">{entry.name}</span>
             </li>
           );

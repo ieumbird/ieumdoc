@@ -74,19 +74,21 @@ async (page, { screenshots = false, openPath }) => {
   await openPath(page, [...root, 'tmp', 'open-files', longName].join(sep));
   await page.getByRole('dialog').waitFor({state:'detached'});
   const captionFailures = [];
-  // Inspect rendered portal boundaries, including Base UI's actual outside-click backdrop.
+  // Inspect modal backdrop boundaries and the direct header exclusion used by non-modal menus.
   const inspectOverlay = async (popup, label) => {
     await popup.waitFor();
     const regions = await popup.evaluate(node => {
       const portal = node.closest('[data-base-ui-portal]');
-      const backdrop = document.elementFromPoint(250, 8);
+      const header = document.querySelector('.top-bar').getBoundingClientRect();
+      const backdrop = document.elementFromPoint(header.left + 2, header.top + 2);
       return {popup:getComputedStyle(node).getPropertyValue('app-region'),
         positioner:getComputedStyle(node.parentElement).getPropertyValue('app-region'),
         backdrop:getComputedStyle(backdrop).getPropertyValue('app-region'),
-        outsideHeader:!node.closest('.top-bar'), backdropCoversHeader:!!portal?.contains(backdrop)};
+        outsideHeader:!node.closest('.top-bar'), backdropCoversHeader:!!portal?.contains(backdrop),
+        headersExcluded:[...document.querySelectorAll('.sidebar-header, .top-bar, .document-panel-header')].every(header => getComputedStyle(header).getPropertyValue('app-region') === 'no-drag')};
     });
-    if (regions.popup !== 'no-drag' || regions.backdrop !== 'no-drag' || !regions.outsideHeader || !regions.backdropCoversHeader ||
-        (label === 'menu' && regions.positioner !== 'no-drag')) captionFailures.push({label, ...regions});
+    if (regions.popup !== 'no-drag' || regions.backdrop !== 'no-drag' || !regions.outsideHeader ||
+        (label === 'menu' ? regions.positioner !== 'no-drag' || !regions.headersExcluded : !regions.backdropCoversHeader)) captionFailures.push({label, ...regions});
   };
   for (const width of [1440, 640]) {
     await page.setViewportSize({width, height:900});
@@ -131,12 +133,15 @@ async (page, { screenshots = false, openPath }) => {
     }
     await search.click(); await search.fill('> settings');
     check(await search.inputValue() === '> settings', 'Portal search did not accept pointer focus and typing');
-    await page.mouse.click(250, 8);
+    const headerCorner = await page.locator('.top-bar').boundingBox();
+    await page.mouse.click(headerCorner.x + 2, headerCorner.y + 2);
     await center.waitFor({state:'detached'});
     await page.getByRole('button', {name:'File actions', exact:true}).click();
     await inspectOverlay(page.getByRole('menu'), 'menu');
-    await page.mouse.click(250, 8);
+    await page.mouse.click(headerCorner.x + 2, headerCorner.y + 2);
     await page.getByRole('menu').waitFor({state:'hidden'});
+    check(await page.locator('.top-bar').evaluate(node => getComputedStyle(node).getPropertyValue('app-region')) === 'drag',
+      'Closing the menu must restore the header drag region');
   }
   check(captionFailures.length === 0, `Native caption/portal boundaries: ${JSON.stringify(captionFailures)}`);
   await page.getByRole('button', {name:`Close ${longName}`, exact:true}).click();

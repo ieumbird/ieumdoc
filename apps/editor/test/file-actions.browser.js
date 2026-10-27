@@ -30,6 +30,14 @@ async (page, { openFolderPicker, screenshots = false, fileActionsRoot, expect, r
     if (await expand.isVisible()) await expand.click();
     await page.emulateMedia({colorScheme:width === 640 ? 'dark' : 'light'});
     await expect(page.locator('html')).toHaveAttribute('data-theme',width === 640 ? 'dark' : 'light');
+    const target = await row('a.md').boundingBox();
+    await row('b.md').click({button:'right'}); await rename().waitFor();
+    // Real secondary-pointer input over another row while the first menu/backdrop is open.
+    await page.mouse.click(target.x + 8, target.y + target.height / 2, {button:'right'});
+    expect(await menu.count()).toBe(1);
+    await rename().click(); await dialog.waitFor();
+    expect(await dialog.getByRole('textbox', {name:'File name', exact:true}).inputValue()).toBe('a');
+    await cancel();
     await row('a.md').click({button:'right'}); await rename().waitFor();
     if (screenshots) await page.screenshot({path:`tmp/file-actions-evidence/after-menu-${width}.png`});
     await rename().click(); await dialog.waitFor();
