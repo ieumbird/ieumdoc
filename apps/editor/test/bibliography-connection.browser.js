@@ -116,14 +116,12 @@ async (page, { openPath, reloadDocument, waitForEditorFocus, bibliographyFixture
   await page.getByTestId('settings-dialog').waitFor({ state: 'detached' });
   await tab.getByText('연결한 참고문헌 파일을 불러오려면 문서를 저장하세요.', { exact: true }).waitFor();
   assert(await tab.getByText('다른 앱에서 .bib 파일을 수정했다면 문서를 저장한 뒤 다시 불러오기를 선택해 참고문헌을 갱신하세요.', { exact: true }).count() === 1, 'Korean notices explain both Save and external changes');
-  await page.setViewportSize({ width: 375, height: 812 });
-  // As in layout-rules, wait for React's matchMedia update to commit the closed phone sidebar.
-  await page.getByRole('button', { name: '사이드바 펼치기', exact: true }).waitFor();
+  await page.setViewportSize({ width: 640, height: 812 });
   await tab.getByRole('button', { name: '참고문헌 파일 연결…', exact: true }).scrollIntoViewIfNeeded();
-  assert(await page.locator('html').evaluate(el => el.scrollWidth <= innerWidth), 'Bibliography actions fit phone width');
+  assert(await page.locator('html').evaluate(el => el.scrollWidth <= innerWidth), 'Bibliography actions fit narrow width');
   assert(await tab.getByRole('button', { name: 'refs.bib 연결 해제', exact: true }).isVisible(), 'Korean disconnect stays actionable');
   await page.evaluate(() => document.activeElement?.blur()); await page.mouse.move(0, 0);
-  if (screenshots) await page.screenshot({ path: 'tmp/visual-refinement/bibliography-connection-ko-375.png', fullPage: true });
+  if (screenshots) await page.screenshot({ path: 'tmp/visual-refinement/bibliography-connection-ko-640.png', fullPage: true });
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.getByRole('button', { name: '설정', exact: true }).click();
   await page.getByTestId('ui-language').selectOption('en'); await page.keyboard.press('Escape');
@@ -202,7 +200,7 @@ async (page, { openPath, reloadDocument, waitForEditorFocus, bibliographyFixture
   const longName = 'References-' + 'unbroken'.repeat(18) + '.bib';
   const longCandidate = choices.getByRole('button', { name: `Connect ${longName}`, exact: true });
   await longCandidate.waitFor();
-  await page.setViewportSize({ width: 375, height: 812 });
+  await page.setViewportSize({ width: 640, height: 812 });
   // The shared modal now owns accessibility/focus; measure its candidates directly.
   await choices.scrollIntoViewIfNeeded();
   const geometry = await choices.evaluate(el => {
@@ -217,10 +215,10 @@ async (page, { openPath, reloadDocument, waitForEditorFocus, bibliographyFixture
       return { left: bounds.left, right: bounds.right, inside: bounds.left >= panel.left && bounds.right <= panel.right };
     }) };
   });
-  if (geometry.scrollWidth > geometry.width || geometry.dialogScrollWidth > geometry.dialogWidth || !geometry.panelInsideDialog || geometry.buttons.some(button => !button.inside)) failures.push(`P2: candidate list overflows at 375px: ${JSON.stringify(geometry)}`);
+  if (geometry.scrollWidth > geometry.width || geometry.dialogScrollWidth > geometry.dialogWidth || !geometry.panelInsideDialog || geometry.buttons.some(button => !button.inside)) failures.push(`P2: candidate list overflows at 640px: ${JSON.stringify(geometry)}`);
   if (screenshots) {
     await page.evaluate(async () => { await document.fonts.ready; document.activeElement?.blur(); }); await page.mouse.move(0, 0);
-    await page.screenshot({ path: 'tmp/visual-refinement/bibliography-candidates-375.png', fullPage: true });
+    await page.screenshot({ path: 'tmp/visual-refinement/bibliography-candidates-640.png', fullPage: true });
   }
   assert(failures.length === 0, failures.join('\n'));
   assert(await longCandidate.getAttribute('title') === longName, 'Ellipsized candidate keeps its full filename in title and accessible name');

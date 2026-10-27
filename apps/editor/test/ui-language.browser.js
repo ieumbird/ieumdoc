@@ -211,9 +211,9 @@ async (page, { openPath, screenshots }) => {
       await page.getByRole('option',{name:'시스템',exact:true}).count() === 1, 'Korean theme labels are missing');
     check(await page.getByRole('combobox',{name:'페이지 배경',exact:true}).inputValue() === 'flat' && await page.getByRole('option',{name:'종이 보기',exact:true}).count() === 1 && await page.getByRole('option',{name:'흰 화면',exact:true}).count() === 1, 'Korean page labels are missing');
     if (screenshots) {
-      await page.setViewportSize({ width: 375, height: 812 });
-      await page.screenshot({ path: 'tmp/256/settings-ko-375.png' });
-      check(await page.locator('html').evaluate(node => node.scrollWidth <= innerWidth), 'Korean settings overflow at phone width');
+      await page.setViewportSize({ width: 640, height: 812 });
+      await page.screenshot({ path: 'tmp/256/settings-ko-640.png' });
+      check(await page.locator('html').evaluate(node => node.scrollWidth <= innerWidth), 'Korean settings overflow at narrow width');
     }
     await page.getByTestId('ui-language').selectOption('en');
     await closeSettings();

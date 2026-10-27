@@ -110,7 +110,7 @@ this same assertion; releasing focus before Undo alone does not prove that the h
 `layout-rules` waits for Settings' language select to receive actual focus before changing the
 language and pressing Escape, then for the dialog to detach and its Settings opener to regain
 focus (#541). It uses Playwright's shared `expect(locator).toBeFocused()`; `waitForEditorFocus`
-checks an EditorView, not a shell control. The phone-width regression holds the real initial
+checks an EditorView, not a shell control. The 640px regression holds the real initial
 focus call and verifies that readiness remains pending before releasing it. It neither focuses
 the select early nor reopens a sidebar accidentally dismissed by Escape.
 

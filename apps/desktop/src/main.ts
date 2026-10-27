@@ -182,7 +182,7 @@ function createWindow(): void {
   readyToShow = false;
   appearanceReady = false;
   const created = new BrowserWindow({
-    width: 1400, height: 900, minWidth: 360, minHeight: 480, title: "IeumDoc", show: false,
+    width: 1400, height: 900, minWidth: 640, minHeight: 480, title: "IeumDoc", show: false,
     icon: path.join(appRoot, "icon.ico"),
     webPreferences: {
       preload: path.join(appRoot, "preload.cjs"),

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { operationText, type Operation } from "../operation.ts";
 import { useLayoutEffect, useRef, useState, type Ref } from "react";
-import { Copy, Ellipsis, LoaderCircle, PanelLeftOpen, PanelRight, RotateCcw, Search, SlidersHorizontal, StretchHorizontal } from "lucide-react";
+import { Copy, Ellipsis, LoaderCircle, PanelRight, RotateCcw, Search, SlidersHorizontal, StretchHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -11,9 +11,6 @@ import { splitDocumentPath } from "./document-path.ts";
 export type DocumentView = "visual" | "source";
 
 type TopBarProps = {
-  /** At phone widths the closed sidebar has no rail; the TopBar opens it. */
-  onOpenSidebar?(): void;
-  openSidebarRef?: Ref<HTMLButtonElement>;
   onOpenCommandCenter?(): void;
   documentPath: string;
   onDocumentSettings?(): void;
@@ -52,7 +49,7 @@ type TopBarProps = {
  * are pressed toggles.
  */
 export function TopBar({
-  onOpenSidebar, openSidebarRef, onOpenCommandCenter, documentPath, onDocumentSettings, documentSettingsRef, documentSettingsDisabled, documentSettingsHint, wide, onToggleWide,
+  onOpenCommandCenter, documentPath, onDocumentSettings, documentSettingsRef, documentSettingsDisabled, documentSettingsHint, wide, onToggleWide,
   location = [], status, unsaved = false, view, viewDisabled, onViewChange, saveDisabled,
   onSave, onReload, reloadDisabled, onCopyPath, fileActionsRef,
   outline, onToggleOutline, outlineToggleRef,
@@ -109,12 +106,6 @@ export function TopBar({
   return (
     <header className="top-bar">
       <div className="top-bar-identity">
-        {onOpenSidebar ? (
-          <Button ref={openSidebarRef} type="button" size="icon-sm" variant="ghost" className="top-bar-sidebar"
-            aria-label={i18n.t("Expand sidebar")} title={i18n.t("Show sidebar")} aria-expanded={false} onClick={onOpenSidebar}>
-            <PanelLeftOpen aria-hidden="true" />
-          </Button>
-        ) : null}
         {onDocumentSettings ? <Button ref={documentSettingsRef} type="button" variant="ghost" size="sm" className="top-bar-document-settings"
           aria-haspopup="dialog" disabled={documentSettingsDisabled} title={documentSettingsHint}
           onClick={onDocumentSettings}><SlidersHorizontal aria-hidden="true" />{i18n.t("Document settings")}</Button> : null}

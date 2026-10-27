@@ -107,6 +107,7 @@ test("started without a document, it opens none; the sample opens with its figur
   const { app, page, requests } = await launch(userData);
   try {
     assert.equal(page.url(), "ieumdoc://app/index.html");
+    assert.deepEqual(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getMinimumSize()), [640, 480], "native minimum size follows ADR-0010");
     const expectedVersion = process.env.IEUMDOC_TEST_VERSION ?? JSON.parse(readFileSync(path.join(desktop, "package.json"), "utf8")).version;
     assert.equal(await page.evaluate(async () => (await window.ieumdocDesktop!.info()).version), expectedVersion, "the packaged version matches its source");
     await page.getByTestId("document-start").waitFor();

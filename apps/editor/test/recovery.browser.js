@@ -44,9 +44,8 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
     const reviewLayout = name === 'prompt' || name === 'incompatible';
     if (!screenshots && !reviewLayout) return;
     const layoutFailures = [];
-    for (const width of [1440,375]) {
+    for (const width of [1440,640]) {
       await page.setViewportSize({width,height:900});
-      await page.waitForFunction(narrow => document.querySelector(".app-shell").classList.contains("app-shell--sidebar-overlay") === narrow, width < 640);
       await page.evaluate(async () => { await document.fonts.ready; window.scrollTo(0,0); });
       if (screenshots) await page.screenshot({path:`tmp/296/${name}-${width}.png`});
       const prompt = page.getByTestId('recovery-prompt');
@@ -73,7 +72,6 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
     }
     check(!layoutFailures.length, layoutFailures.join("\n"));
     await page.setViewportSize({width:1440,height:900});
-    await page.waitForFunction(() => !document.querySelector(".app-shell").classList.contains("app-shell--sidebar-overlay"));
   };
   // Opening/restoring must also work where the secure-context-only UUID API is absent.
   await page.addInitScript(() => Object.defineProperty(Crypto.prototype,'randomUUID',{value:undefined}));

@@ -344,16 +344,15 @@ async (page, { withBlockHover, reloadDocument, recoveryRecords, expect }) => {
       `Semibold must retain ${kind} row height/bounds ${JSON.stringify(measured)}`);
     return measured;
   };
-  for (const width of [1440,390]) {
+  for (const width of [1440,640]) {
     await page.setViewportSize({width,height:1000});
-    if(width===390)await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
     const files = await rows('.sidebar-tree-item', 'files');
-    if(width===390) {
+    if(width===640) {
       await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
       await page.getByRole('button',{name:'Outline',exact:true}).click();
     }
     const outline = await rows('.document-outline-item','outline');
-    if(width===390)await page.getByRole('button',{name:'Outline',exact:true}).click();
+    if(width===640)await page.getByRole('button',{name:'Outline',exact:true}).click();
     await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n=>{n.editor.commands.setTextSelection(n.editor.state.doc.firstChild.nodeSize+1);n.editor.view.focus();});
     await page.keyboard.type('/'); await page.locator('.command-menu-item.active').waitFor();
     const menu = await rows('.command-menu-item','menu');

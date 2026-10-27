@@ -28,10 +28,7 @@ async (page, { screenshots = false, openDocument, openPath, withBlockHover }) =>
   const closeSettings = async () => {
     await page.keyboard.press('Escape');
     await page.getByTestId('settings-dialog').waitFor({state:'detached'});
-    if ((await page.viewportSize()).width < 640) {
-      const collapse = page.getByRole('button',{name:'Collapse sidebar',exact:true});
-      if (await collapse.isVisible()) await collapse.click();
-    }
+
   };
   for (const theme of available ? ['light','dark'] : ['before']) {
     for (const accent of ['blue']) {
@@ -42,7 +39,7 @@ async (page, { screenshots = false, openDocument, openPath, withBlockHover }) =>
       await page.getByTestId('accent-color').selectOption(accent);
       await page.getByTestId('page-background').selectOption(background);
       await closeSettings();
-      for (const width of [1440,390]) {
+      for (const width of [1440,640]) {
         await page.setViewportSize({width,height:1000});
         await page.evaluate(() => { window.scrollTo(0,0); document.activeElement?.blur(); });
         await page.mouse.move(0,0);
@@ -70,7 +67,7 @@ async (page, { screenshots = false, openDocument, openPath, withBlockHover }) =>
       const codeFile = [...loaded.path.split(sep).slice(0,-4), 'tmp', 'code-highlighting', 'code.md'].join(sep);
       await open(codeFile);
       await page.locator('[data-document-tab][data-active=true] .hljs-keyword').waitFor();
-      for (const width of [1440,390]) {
+      for (const width of [1440,640]) {
         await page.setViewportSize({width,height:1000});
         await page.evaluate(() => { window.scrollTo(0,0); document.activeElement?.blur(); });
         await page.mouse.move(0,0);
@@ -227,7 +224,7 @@ async (page, { screenshots = false, openDocument, openPath, withBlockHover }) =>
   const wrapResults = [];
   const prose = page.locator('[data-document-tab][data-active=true] .document-editor > .paragraph').first();
   const wrapDocument = await json();
-  for (const width of [1440,375]) {
+  for (const width of [1440,640]) {
     await page.setViewportSize({width,height:1000});
     await rest();
     await page.evaluate(async () => { await document.fonts.ready; });
@@ -617,7 +614,7 @@ async (page, { screenshots = false, openDocument, openPath, withBlockHover }) =>
         await shot(`1440-${kind}-selected-hover`);
       });
     }
-    for(const width of [1440,1424,1423,1280,1279,1024,768,705,704,414,375]) {
+    for(const width of [1440,1424,1423,1280,1279,1024,768,705,704,640]) {
       await page.setViewportSize({width,height:1000});
       await rest();
       await shot(`${width}-rest`);
@@ -625,25 +622,23 @@ async (page, { screenshots = false, openDocument, openPath, withBlockHover }) =>
         await page.locator('[data-document-tab][data-active=true] .paragraph').first().hover();
         await shot(`${width}-paragraph-hover`);
       });
-      // Phone widths start with the rail; there the opened sidebar overlays the document.
+      // Capture both explicit Sidebar states.
       if(await page.getByRole('button',{name:'Expand sidebar',exact:true}).count()) {
         await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
         await rest();
-        await shot(`${width}-sidebar-overlay`);
+        await shot(`${width}-sidebar-expanded`);
       } else {
         await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
         await rest();
         await shot(`${width}-collapsed`);
         await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
       }
-      if(width<640) await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
       await page.getByRole('button',{name:'Document settings',exact:true}).click();
       await rest();
       await shot(`${width}-display`);
       await page.keyboard.press('Escape');
       await page.getByRole('dialog', {name:'Document settings', exact:true}).waitFor({state:'detached'});
-      // A phone sidebar covers the document. Leave it closed before the next phone width's
-      // rest/hover captures; crossing 414 → 375 does not cross the responsive breakpoint.
+
 
     }
   }
@@ -849,7 +844,7 @@ async (page, { screenshots = false, openDocument, openPath, withBlockHover }) =>
 
   // Long content stays scrollable inside its block; the whole document never clips it.
   await open('아주-긴-파일명-very-long-technical-document-name-for-visual-review.md');
-  for(const width of [1440,1024,768,375]) {
+  for(const width of [1440,1024,768,640]) {
     await page.setViewportSize({width,height:1000});
     await rest();
     const local=await page.evaluate(()=>{
