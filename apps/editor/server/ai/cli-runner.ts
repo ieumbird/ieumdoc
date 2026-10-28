@@ -12,7 +12,7 @@ let file, revision;
 let exitCode = 1;
 (async () => {
 try {
-  const help = args.includes('--help') || args.includes('-h') || command === 'help' || args.length === 0;
+  const help = args.includes('--help') || args.includes('-h') || command === 'help' || command === '--version' || args.length === 0;
   if (!help) {
     if (!['create', 'apply-batch', 'check', 'inspect'].includes(command)) throw Error('Use create, apply-batch, check, inspect only.');
     file = path.resolve(args[1] || '');

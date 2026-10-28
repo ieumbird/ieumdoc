@@ -119,6 +119,8 @@ export class AiHost {
           ...(process.platform === "win32" ? ["For exec_command use shell='C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe' and login=false. The default Microsoft Store pwsh cannot start in this sandbox. Do not change machine configuration or sandbox permissions."] : []),
           "Use apply-batch to group edits; use --dry-run for validation and --if-revision for writes. Recover from CLI errors using the CLI, never bypass them.",
           "Use Core InlineContent JSON for references. Include a labelled numeric table, one relevant equation, one Mermaid figure, captions and references in the body when requested.",
+          'InlineContent uses kind (not type). A reference is {"kind":"reference","role":"eq" or "numref","target":"label"}; plain text is {"kind":"text","text":"..."}.',
+          "Operations JSON must be UTF-8 without BOM. Windows PowerShell Set-Content -Encoding UTF8 adds a BOM; use a BOM-free writer such as Node fs.writeFileSync for operations JSON only.",
           "If a feature is unavailable, state the CLI gap explicitly. Do not use other tools to emulate missing semantics. Finish with check; Host independently verifies the final write revision and check.",
         ].join("\n"),
       });

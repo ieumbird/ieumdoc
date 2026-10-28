@@ -3,11 +3,11 @@ import { spawn, execFile, execFileSync, type ChildProcessWithoutNullStreams } fr
 import { EventEmitter } from "node:events";
 import { StringDecoder } from "node:string_decoder";
 
-/** Owner-requested model only. Resolve its exact id from the catalog; never guess or fall back. */
-export const AI_MODEL_LABEL = "GPT-6.1-Luna";
+/** Owner-confirmed catalog identifier. Explicit on every thread and turn, without fallback. */
+export const AI_MODEL = "gpt-6-luna";
+export const AI_MODEL_LABEL = "GPT-6-Luna";
 export function requiredModel(models: { id: string; model: string; displayName: string }[]): string | null {
-  const matches = models.filter(model => model.displayName === AI_MODEL_LABEL);
-  return matches.length === 1 ? matches[0]!.model : null;
+  return models.some(model => model.model === AI_MODEL) ? AI_MODEL : null;
 }
 
 export type RpcMessage = { id?: number | string; method?: string; params?: any; result?: any; error?: { code?: number; message: string } };

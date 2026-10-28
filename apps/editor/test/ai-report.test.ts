@@ -14,10 +14,10 @@ import { CLI_RUNNER } from "../server/ai/cli-runner.ts";
 import { CodexAppServer, LineDecoder, encodeMessage, requiredModel, type RpcMessage, type Transport } from "../server/ai/codex-app-server.ts";
 
 test("the exact requested catalog model is required; other Luna versions and Sol are never fallbacks", () => {
-  const models = [{ id: "gpt-6-luna", model: "gpt-6-luna", displayName: "GPT-6-Luna" },
+  const models = [{ id: "gpt-5.6-luna", model: "gpt-5.6-luna", displayName: "GPT-5.6-Luna" },
     { id: "gpt-6.1-sol", model: "gpt-6.1-sol", displayName: "GPT-6.1-Sol" }];
   assert.equal(requiredModel(models), null);
-  assert.equal(requiredModel([...models, { id: "catalog-id", model: "catalog-model", displayName: "GPT-6.1-Luna" }]), "catalog-model");
+  assert.equal(requiredModel([...models, { id: "gpt-6-luna", model: "gpt-6-luna", displayName: "GPT-6-Luna" }]), "gpt-6-luna");
 });
 
 test("Codex stdio frames split UTF-8, correlates requests, declines tool approvals and closes pending calls", async () => {
@@ -79,6 +79,7 @@ test("CLI shim delegates to the real CLI and refuses source edits and overwritte
   const creation = run("create", target);
   assert.equal(creation.status, 0, creation.stderr);
   assert.equal(run("help", "insert-block").status, 0);
+  assert.equal(run("--version").status, 0);
   const created = fs.readFileSync(target, "utf8");
   assert.equal(run("create", target).status, 1);
   assert.equal(fs.readFileSync(target, "utf8"), created);
