@@ -19,7 +19,7 @@ import { imageAssets } from "./image-assets.ts";
 import { figureMediaPath } from "../shared/figure-media-path.ts";
 import { MarkdownInputRules } from "./markdown-input-rules.ts";
 import StarterKit from "@tiptap/starter-kit";
-import { createContext, useContext, useEffect, useId, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
+import { createContext, useContext, useEffect, useId, useRef, useState, type DragEvent as ReactDragEvent, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
 import { isAdmonitionVariant, type EditableBlock, type FigureContent, type InlineContent } from "@ieumdoc/core";
 import { figureContentError } from "@ieumdoc/core/figure";
 import { headingNumbers, type HeadingNumbering } from "@ieumdoc/core/numbering";
@@ -1371,6 +1371,11 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
     focusBlock(view, getPos);
   };
 
+  // Keep native text dragging inside the form controls; ProseMirror otherwise handles their drop.
+  const isolateInputDrag = (event: ReactDragEvent<HTMLDivElement>) => {
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) event.stopPropagation();
+  };
+
   return (
     <NodeViewWrapper
       className="equation"
@@ -1394,7 +1399,8 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
           {view.editable ? <Button className="equation-edit" size="sm" variant="outline" onClick={beginEdit}>{i18n.t("Edit")}</Button> : null}
         </>
       ) : visible ? (
-        <div data-testid="equation-properties">
+        <div data-testid="equation-properties" onDragStart={isolateInputDrag} onDragEnter={isolateInputDrag}
+          onDragOver={isolateInputDrag} onDragLeave={isolateInputDrag} onDrop={isolateInputDrag} onDragEnd={isolateInputDrag}>
           <PropertyForm kind={kind} testId="equation" error={error} onApply={apply} onCancel={cancel}>
             <label className="form-field">
               <span>LaTeX</span>
