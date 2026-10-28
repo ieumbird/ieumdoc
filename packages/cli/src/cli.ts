@@ -173,9 +173,11 @@ const COMMANDS: CommandSpec[] = [
     name: "apply-batch",
     group: "Edit — batch",
     summary: "Apply document edits in order with one atomic file commit",
-    usage: "ieumdoc apply-batch <file> --operations <json-file> [--if-revision <revision>] [--dry-run] [--format <text|json>]",
+    usage: "ieumdoc apply-batch <file> --operations <json-file|-> [--if-revision <revision>] [--dry-run] [--format <text|json>]",
     details: [
-      "--operations is a non-empty JSON array of { command, ...options }; stdin (-) is not supported.",
+      "--operations reads a non-empty JSON array of { command, ...options } from a UTF-8 file, or stdin with -.",
+      "Stdin accepts one leading UTF-8 BOM for Windows PowerShell pipes; file input rules are unchanged.",
+      "Example: cat operations.json | ieumdoc apply-batch document.md --operations -",
       "Use existing flag names without -- as keys. Scalar options accept string, number or boolean only.",
       "JSON options (content, caption-content, cells, list, keys, paths, and insert-table align) accept objects/arrays",
       "directly or existing JSON strings. Required, unknown and mutually exclusive options follow single edits.",
@@ -1262,8 +1264,10 @@ function batchChange(operation: unknown): Change {
 }
 
 function applyBatch(file: string, operationsFile: string, ifRevision: string | undefined) {
-  if (operationsFile === "-") throw new Error("--operations requires a JSON file; stdin is not supported");
-  const operations: unknown = JSON.parse(readFile(operationsFile));
+  const input = operationsFile === "-"
+    ? decodeUtf8(readFileSync(0)).replace(/^\uFEFF/, "")
+    : readFile(operationsFile);
+  const operations: unknown = JSON.parse(input);
   if (!Array.isArray(operations) || operations.length === 0) {
     throw new Error("--operations must be a non-empty JSON array");
   }
