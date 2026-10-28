@@ -17,10 +17,6 @@ IeumDoc은 Git의 plain-text 문서를 단일 진실 공급원(SSOT)으로 사�
 - **현재 master 개발 실행하기**: [Getting started](#getting-started)
 - **CLI로 문서 확인·수정하기**: [Core and CLI](#core-and-cli)
 
-![실제 IeumDoc Visual Editor에서 한영 기술문서의 Outline, heading 번호, 수식과 Figure를 표시한 화면](docs/design/assets/visual-v2-after-numbering.png)
-
-2026-10-06 Visual Language v2의 실제 Editor capture입니다. 이후 추가된 Open folder와 Wide document control은 이 이미지에 포함되지 않습니다.
-
 ## Windows Desktop
 
 일반 사용자용 공개 버전은 **v0.0.2-beta.1** Windows x64 Beta입니다. Stable은 아직 없습니다. 아래 개발 실행과 달리, 설치된 앱에는 별도 Node.js, pnpm, 브라우저나 Vite 서버가 필요 없습니다.
