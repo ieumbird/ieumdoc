@@ -1,5 +1,6 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Ask AI": "Ask AI",
   "Command-line tools (CLI)": "Command-line tools (CLI)",
   "CLI installed": "Installed",
   "CLI off": "Off",
@@ -577,6 +578,7 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Ask AI": "AI에게 요청",
   "Command-line tools (CLI)": "명령줄 도구(CLI)",
   "CLI installed": "설치됨",
   "CLI off": "꺼짐",

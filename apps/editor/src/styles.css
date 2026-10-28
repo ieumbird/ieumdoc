@@ -41,6 +41,25 @@ button {
   --shell-panel: 0px;
 }
 
+/* Spike: uses the existing right-panel geometry and surface tokens. */
+.ai-panel { display: flex; flex-direction: column; min-height: 0; }
+.ai-panel .document-panel-header > span { display: flex; align-items: center; gap: var(--space-2); }
+.ai-panel .document-panel-header svg { width: var(--size-icon); height: var(--size-icon); }
+.ai-scope, .ai-compose { padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
+.ai-scope { border-bottom: var(--border-width) solid var(--id-color-border); }
+.ai-scope label { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--font-size-xs); }
+.ai-panel :is(input, select, textarea) { width: 100%; min-width: 0; border: var(--border-width) solid var(--id-color-border-control); border-radius: var(--id-radius-sm); background: var(--id-color-surface); color: var(--id-color-text); padding: var(--space-2); font: inherit; }
+.ai-panel :is(input, select, textarea):focus-visible { outline: var(--focus-ring); }
+.ai-scope p, .ai-empty { font-size: var(--font-size-xs); color: var(--id-color-text-muted); margin: 0; }
+.ai-messages { flex: 1; overflow-y: auto; padding: var(--space-3); min-height: 0; }
+.ai-message { padding-block: var(--space-2); border-bottom: var(--border-width) solid var(--id-color-border); font-size: var(--font-size-sm); }
+.ai-message p, .ai-activity { white-space: pre-wrap; overflow-wrap: anywhere; margin-block: var(--space-1); }
+.ai-message--host { color: var(--id-color-text-muted); }
+.ai-activity { font-size: var(--font-size-xs); color: var(--id-color-text-muted); }
+.ai-compose { border-top: var(--border-width) solid var(--id-color-border); }
+.ai-compose textarea { min-height: 5rem; resize: vertical; font-size: var(--font-size-sm); }
+.ai-compose > div { display: flex; justify-content: flex-end; }
+
 .app-titlebar {
   grid-column: 1 / -1;
   grid-row: 1;

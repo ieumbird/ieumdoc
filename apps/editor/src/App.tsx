@@ -16,6 +16,8 @@ import { type DocumentSession, type DocumentSessionSnapshot } from "./useDocumen
 import { messageOf, NativeOpenError, requestDocument } from "./document-session.ts";
 import { readDocumentWidth, readOpenTabs, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, writeOpenTabs, type DocumentWidth } from "./preferences.ts";
 import { DocumentPanel } from "./shell/DocumentPanel.tsx";
+import { AiPanel } from "./shell/AiPanel.tsx";
+import { readAiStatus, useAiConversation, type AiStatus } from "./ai.ts";
 import { DocumentStart } from "./shell/DocumentStart.tsx";
 import productMark from "../../desktop/assets/icon.svg?url";
 import { MessageArea } from "./shell/MessageArea.tsx";
@@ -77,6 +79,12 @@ export function App() {
   const [panelOverlay, setPanelOverlay] = useState(() => globalThis.matchMedia?.(PANEL_OVERLAY_LAYOUT).matches ?? false);
   // Page state only: open when docked, closed (and overlaying when opened) below the docking width.
   const [panelOpen, setPanelOpen] = useState(!panelOverlay);
+  const [panelView, setPanelView] = useState<"outline" | "ai">("outline");
+  const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
+  const refreshAi = async () => setAiStatus(await readAiStatus());
+  useEffect(() => { if (!desktop) void refreshAi(); }, []);
+  const conversation = useAiConversation(async file => { await openFolderDocument(file); });
+  const aiToggle = useRef<HTMLButtonElement>(null);
   // Only explicit docked choices survive layout changes; overlays always start closed.
   const dockedPanelOpen = useRef<boolean | undefined>(undefined);
   const choosePanelOpen = (open: boolean) => {
@@ -877,9 +885,12 @@ export function App() {
             reloadDisabled={!document || busy}
             onCopyPath={() => void copyPath()}
             fileActionsRef={fileActionsToggle}
-            outline={panelOpen}
-            onToggleOutline={() => choosePanelOpen(!panelOpen)}
+            outline={panelOpen && panelView === "outline"}
+            onToggleOutline={() => { setPanelView("outline"); choosePanelOpen(!panelOpen || panelView !== "outline"); }}
             outlineToggleRef={outlineToggle}
+            ai={panelOpen && panelView === "ai"}
+            onToggleAi={aiStatus?.enabled ? () => { setPanelView("ai"); choosePanelOpen(!panelOpen || panelView !== "ai"); } : undefined}
+            aiToggleRef={aiToggle}
           />
         </div>
       </div>
@@ -926,7 +937,10 @@ export function App() {
           {tabs.map(tab => <DocumentTab settingsDisabled={busy} key={tab.id} id={tab.id} file={tab.file} restored={tab.restored} recoveryId={tab.recoveryId} active={tab.id === activeId} report={reportSession} onAssetChange={onAssetChange} renameImage={renameImage} />)}
         </main>
       </div>
-      {panelOpen ? (
+      {panelOpen && panelView === "ai" ? <AiPanel overlay={panelOverlay} status={aiStatus} conversation={conversation} roots={folders.roots}
+        onSettings={() => { setSettingsCategory("ai"); setSettingsOpen(true); }}
+        onClose={() => { choosePanelOpen(false); aiToggle.current?.focus(); }}
+        onOpen={file => void openFolderDocument(file)} /> : panelOpen ? (
         <DocumentPanel
           overlay={panelOverlay}
           outline={document ? outlineStore : undefined}
@@ -953,6 +967,8 @@ export function App() {
           onInstall={installUpdate}
           returnFocus={() => shellReturnFocus(settingsReturnFocus.current)}
           onClose={() => setSettingsOpen(false)}
+          aiStatus={aiStatus}
+          onRefreshAi={refreshAi}
         />
       <CommandCenter open={commandQuery !== null} initialQuery={commandQuery ?? ""} items={commandItems}
         returnFocus={commandReturnFocus} onClose={() => setCommandQuery(null)} />

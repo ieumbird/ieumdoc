@@ -8,7 +8,7 @@ import { runInNewContext } from "node:vm";
 import { classifyConsoleErrors } from "./console-errors.ts";
 import { finishScenarioDiagnostics, savedSourceAssertion } from "./diagnostics.ts";
 import { FILE_ACTIONS_ROOT, prepareBrowserFixtures, REPOSITORY_ROOT, SOURCE_DIRS } from "./fixtures.ts";
-import { STABLE_SCENARIOS } from "./scenarios.ts";
+import { MANUAL_SCENARIO_FILES, STABLE_SCENARIOS } from "./scenarios.ts";
 import { activeDocument, openFolderPicker, openDocument, openPath, reloadDocument, waitForActivePath, waitForEditorFocus } from "./navigation.ts";
 import { withBlockHover } from "./hover.ts";
 import { recoveryRecords } from "./recovery-records.ts";
@@ -159,8 +159,10 @@ const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
 
 for (const name of scenarios) {
   test(name, async ({ page }) => {
+    // This explicitly selected, non-stable spike measures three real model runs, not UI latency.
+    if (name === "ai-report") test.setTimeout(1_800_000);
     if (name === "desktop-updates") await verifyBuiltAppearance(page);
-    const source = readFileSync(path.join(REPOSITORY_ROOT, "apps/editor/test", `${name}.browser.js`), "utf8");
+    const source = readFileSync(path.join(REPOSITORY_ROOT, "apps/editor/test", MANUAL_SCENARIO_FILES[name] ?? `${name}.browser.js`), "utf8");
     const scenario = runInNewContext(`(${source})`) as (page: Page, options: { assertSavedSource: ReturnType<typeof savedSourceAssertion>; screenshots: boolean; fileActionsRoot: string; expect: typeof expect; recoveryRecords: typeof recoveryRecords; openFolderPicker: typeof openFolderPicker; openDocument: typeof openDocument; openPath: typeof openPath; waitForActivePath: typeof waitForActivePath; reloadDocument: typeof reloadDocument; waitForEditorFocus: typeof waitForEditorFocus; activeDocument: typeof activeDocument; withBlockHover: typeof withBlockHover; removeTabFixture: () => void; bibliographyFixture: unknown }) => Promise<unknown>;
     const bibliographyPath = path.join(REPOSITORY_ROOT, "tmp", name === "http-host" ? "http-host-a" : "bibliography", "refs.bib");
     const initialBibliography = ["bibliography", "http-host"].includes(name) ? readFileSync(bibliographyPath, "utf8") : "";

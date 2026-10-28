@@ -8,6 +8,7 @@ import { handleDocumentRequest } from "./document-api.ts";
 import { SECURITY_HEADERS, serveEditorFile } from "./editor-static.ts";
 import { RootAccess } from "./file-access.ts";
 import { requestQuery } from "./request-query.ts";
+import { AiHost, handleAiRequest } from "./ai/ai-api.ts";
 
 export const MAX_JSON_BYTES = 32 * 1024 * 1024;
 const DOCUMENT_ROUTES = new Set(["/api/file", "/api/bibliography", "/api/file-preview", "/api/document", "/api/folder", "/api/folder-browse", "/api/folder-places",
@@ -19,6 +20,9 @@ export type HttpHostOptions = {
   port?: number;
   host?: string;
   publicOrigin?: string;
+  ai?: boolean;
+  /** Opt-in spike measurement sink. No product persistence. */
+  aiObserver?: (event: Record<string, unknown>) => void;
 };
 
 const loopback = (host: string) => host === "::1" || /^127\./.test(host);
@@ -51,6 +55,7 @@ export async function startHttpHost(options: HttpHostOptions) {
   const editorDir = realpathSync(options.editorDir);
   if (!statSync(path.join(editorDir, "index.html")).isFile()) throw new Error("The production Editor build is missing.");
   const key = randomBytes(32);
+  const ai = options.ai ? new AiHost(access, undefined, options.aiObserver) : null;
   const origins = new Set<string>();
   const authorities = new Set<string>();
 
@@ -91,6 +96,7 @@ export async function startHttpHost(options: HttpHostOptions) {
       // User-controlled SVG/HTML must never execute with the application's origin authority.
       res.setHeader("Content-Security-Policy", "sandbox; default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'");
     }
+    if (url.pathname.startsWith("/api/ai/")) return handleAiRequest(req, res, url.pathname, ai);
     if (url.pathname === "/api/asset") return handleAssetRequest(req, res, key, access);
     if (DOCUMENT_ROUTES.has(url.pathname) || media) {
       return handleDocumentRequest(req, res, () => json(res, 404, "Not found."), access, MAX_JSON_BYTES);
@@ -131,6 +137,7 @@ export async function startHttpHost(options: HttpHostOptions) {
     roots: access.roots,
     url: external ?? `http://${authority(host, address.port)}`,
     async close(): Promise<void> {
+      ai?.close();
       if (!server.listening) return;
       const forced = setTimeout(() => server.closeAllConnections(), 5_000);
       forced.unref();

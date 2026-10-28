@@ -1,5 +1,10 @@
 # Editor UX Shell v1
 
+**Spike branch only:** `spike/ai-report-1028` adds a right AI report panel and Settings AI
+status when its HTTP/development Host enables AI. App-owned conversation and drafts survive
+document-tab changes and panel closure. This is not a master/release UI contract; see the
+[#657 scope and evidence](../reviews/ai-report-spike-2026-10-28.md).
+
 - Status: Implemented
 - Last verified: 2026-10-28 (#637: block Equation editing moves into the document; inline math retains its popover).
 - Settings entry update: 2026-10-28 (#669: remove the Settings-only document-settings entry; [contract and captures](#settings-document-entry-removal-669)).

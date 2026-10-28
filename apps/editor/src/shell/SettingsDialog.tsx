@@ -10,6 +10,7 @@ import { RecoveryDeleteDialog } from "./Recovery.tsx";
 import { Notice } from "../ui/primitives.tsx";
 import { PAGE_BACKGROUNDS, readPageBackground, writePageBackground, type PageBackground, ACCENT_COLORS, readAccentColor, writeAccentColor, writeUiLanguage, THEMES, writeTheme, type UiLanguage, type ThemePreference } from "../preferences.ts";
 import { applyPageBackground, applyTheme, currentTheme } from "../theme.ts";
+import type { AiStatus } from "../ai.ts";
 
 const ACCENT_LABELS = { blue: "Blue", violet: "Violet", plum: "Plum", teal: "Teal", green: "Green", graphite: "Graphite" } as const;
 const PAGE_LABELS = { paper: "Paper", flat: "Flat" } as const;
@@ -52,7 +53,23 @@ export function updateStatusText(info: DesktopInfo): string {
   }
 }
 
-export type SettingsCategory = "appearance" | "recovery" | "about";
+export type SettingsCategory = "appearance" | "recovery" | "about" | "ai";
+
+function AiSettings({ status, refresh }: { status: AiStatus | null; refresh(): Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  return <section className="settings-group" data-testid="ai-settings">
+    <h3>AI · Codex</h3>
+    <dl className="settings-facts settings-section">
+      <dt>Codex</dt><dd>{status?.version ?? "미확인"}</dd>
+      <dt>로그인</dt><dd>{status?.loggedIn ? status.authMethod : "로그인 필요 · codex login"}</dd>
+      <dt>모델</dt><dd>{status?.modelLabel} {status?.model ? `(${status.model})` : ""} · {status?.modelAvailable ? "사용 가능" : "미확인 또는 사용 불가"}</dd>
+      <dt>이음독 CLI</dt><dd>{status?.cliAvailable ? "준비됨" : "빌드 필요"}</dd>
+    </dl>
+    <p>사용자의 ChatGPT Codex 로그인을 사용합니다. 새 문서만 만들고 Host 검증 통과 후 엽니다.</p>
+    <p>{status?.readBoundary}</p>{status?.problem ? <Notice tone="error">{status.problem}</Notice> : null}
+    <Button variant="secondary" disabled={busy} onClick={() => { setBusy(true); void refresh().finally(() => setBusy(false)); }}>상태 새로 고침</Button>
+  </section>;
+}
 
 function CliSettings({ desktop }: { desktop: DesktopBridge }) {
   const [state, setState] = useState<CliIntegrationState | null>(null);
@@ -96,6 +113,8 @@ function CliSettings({ desktop }: { desktop: DesktopBridge }) {
 }
 
 type SettingsDialogProps = {
+  aiStatus?: AiStatus | null;
+  onRefreshAi?(): Promise<void>;
   open: boolean;
   category: SettingsCategory;
   onCategoryChange(category: SettingsCategory): void;
@@ -115,7 +134,7 @@ type SettingsDialogProps = {
 };
 
 /** Shared local recovery settings; About and update controls require the Desktop bridge. */
-export function SettingsDialog({ open, category, onCategoryChange, documentName, unsaved, desktop, info, onInfo, onInstall, returnFocus, onClose, recoveryCount = 0, recoveryProblem: storageProblem, onClearRecovery }: SettingsDialogProps) {
+export function SettingsDialog({ open, category, onCategoryChange, documentName, unsaved, desktop, info, onInfo, onInstall, returnFocus, onClose, recoveryCount = 0, recoveryProblem: storageProblem, onClearRecovery, aiStatus, onRefreshAi }: SettingsDialogProps) {
   useTranslation();
   const backButton = useRef<HTMLButtonElement>(null);
   const [clearConfirm, setClearConfirm] = useState(false);
@@ -141,6 +160,7 @@ export function SettingsDialog({ open, category, onCategoryChange, documentName,
   const categories = [
     { id: "appearance", label: i18n.t("Appearance & language"), icon: Palette },
     { id: "recovery", label: i18n.t("Saving & recovery"), icon: History },
+    ...(aiStatus?.enabled ? [{ id: "ai" as const, label: "AI · Codex", icon: Info }] : []),
     ...(desktop ? [{ id: "about" as const, label: i18n.t("About & updates"), icon: Info }] : []),
   ] as const;
 
@@ -179,6 +199,7 @@ export function SettingsDialog({ open, category, onCategoryChange, documentName,
                   : category === "recovery" ? i18n.t("Local recovery keeps applied edits on this device.")
                   : i18n.t("Version and how IeumDoc Desktop receives updates.")}</p>
               </header>
+              {category === "ai" && onRefreshAi ? <AiSettings status={aiStatus ?? null} refresh={onRefreshAi} /> : null}
               {category === "appearance" ? <>
                 <section className="settings-section" aria-labelledby="settings-theme">
                   <div className="settings-label">

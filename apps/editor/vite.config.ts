@@ -1,6 +1,7 @@
 import { fileURLToPath, URL } from "node:url";
 import { randomBytes } from "node:crypto";
 import { LOCAL_FILE_ACCESS } from "./server/file-access.ts";
+import { AiHost, handleAiRequest } from "./server/ai/ai-api.ts";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type ViteDevServer } from "vite";
@@ -21,11 +22,21 @@ export default defineConfig({
       name: "ieumdoc-document",
       configureServer(server: ViteDevServer) {
         const assetSigningKey = randomBytes(32);
+        const ai = process.env.IEUMDOC_AI === "1" ? new AiHost(LOCAL_FILE_ACCESS) : null;
+        server.httpServer?.once("close", () => ai?.close());
         server.middlewares.use((req, res, next) => {
           const requestUrl = req.url ?? "";
           const base = server.config.base;
           const localUrl = requestUrl.startsWith(base) ? `/${requestUrl.slice(base.length)}` : requestUrl;
           const url = localUrl.split("?")[0];
+          if (url.startsWith("/api/ai/")) {
+            void handleAiRequest(req, res, url, ai).catch((error: unknown) => {
+              if (res.headersSent) return res.destroy();
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: String(error) }));
+            });
+            return;
+          }
           if (url === "/api/asset") {
             void server.ssrLoadModule("/server/asset-api.ts").then(mod => mod.handleAssetRequest(req, res, assetSigningKey, LOCAL_FILE_ACCESS)).catch((error: unknown) => {
               res.statusCode = 500;

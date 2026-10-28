@@ -8,6 +8,7 @@
 
 | Document | Status | Authority / description |
 | --- | --- | --- |
+| [CLI-only AI report spike #657](reviews/ai-report-spike-2026-10-28.md) | Historical | Unmerged report-generation experiment: Codex app-server, CLI-only writes, Host revision/check and measured sandbox limitations. |
 | [ADR-0001: Single-document editor](adr/0001-single-document-editor-architecture.md) | Accepted | 현재 architecture 규범. 하나의 Tiptap/ProseMirror state가 문서 편집 세션을 소유한다. |
 | [ADR-0002: Persistence and semantic ownership](adr/0002-document-persistence-semantic-ownership.md) | Accepted | 현재 architecture 규범. plain-text SSOT와 Core semantic/write ownership. |
 | [ADR-0003: Addressing and identity](adr/0003-document-addressing-identity-boundary.md) | Accepted | 현재 architecture 규범. snapshot locator와 persistent identity의 경계. |

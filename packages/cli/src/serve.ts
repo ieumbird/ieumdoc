@@ -3,7 +3,7 @@ import { startHttpHost } from "../../../apps/editor/server/http-host.ts";
 
 export async function serve(args: string[], editorDir: string): Promise<void> {
   const { values, tokens } = parseArgs({ args, strict: true, allowPositionals: false, tokens: true, options: {
-    root: { type: "string", multiple: true }, port: { type: "string" }, host: { type: "string" }, "public-origin": { type: "string" },
+    root: { type: "string", multiple: true }, port: { type: "string" }, host: { type: "string" }, "public-origin": { type: "string" }, ai: { type: "boolean" },
   } });
   const seen = new Set<string>();
   for (const token of tokens) {
@@ -15,7 +15,7 @@ export async function serve(args: string[], editorDir: string): Promise<void> {
   if ((values.port !== undefined && !/^\d+$/.test(values.port)) || !Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error("--port must be an integer from 1 to 65535.");
   }
-  const host = await startHttpHost({ roots: values.root ?? [], editorDir, port, host: values.host, publicOrigin: values["public-origin"] });
+  const host = await startHttpHost({ roots: values.root ?? [], editorDir, port, host: values.host, publicOrigin: values["public-origin"], ai: values.ai });
   process.stdout.write(`IeumDoc HTTP: ${host.url}\nAllowed folders:\n${host.roots.map(root => `  ${root}`).join("\n")}\n`);
   const stop = () => {
     process.off("SIGINT", stop);

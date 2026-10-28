@@ -14,6 +14,11 @@ union, limits and snapshot policy are specified in [Citations v1](citations-v1.m
 
 ## Build and run
 
+**Spike branch only:** `spike/ai-report-1028` adds opt-in `serve --ai` and `/api/ai/*`
+for one in-memory report conversation. It delegates all report writes to the CLI and opens
+only Host-verified results. Desktop is excluded. This is not a master/release contract;
+scope, sandbox limitations and measurements are in the [#657 spike record](../reviews/ai-report-spike-2026-10-28.md).
+
 Build from the selected checkout using the repository's Node.js and pnpm versions:
 
 ```bash

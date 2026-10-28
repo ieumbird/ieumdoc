@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { prepareBrowserFixtures, REPOSITORY_ROOT } from "./fixtures.ts";
-import { HTTP_SCENARIOS, selectBrowserScenarios, STABLE_SCENARIOS } from "./scenarios.ts";
+import { HTTP_SCENARIOS, MANUAL_SCENARIO_FILES, selectBrowserScenarios, STABLE_SCENARIOS } from "./scenarios.ts";
 
 try {
   const { scenarios, screenshots, shard } = selectBrowserScenarios(process.argv.slice(2));
@@ -14,7 +14,7 @@ try {
     process.env.IEUMDOC_BROWSER_HOST = "http";
     prepareBrowserFixtures();
   }
-  const unknown = scenarios.filter(name => !existsSync(path.join(REPOSITORY_ROOT, "apps/editor/test", `${name}.browser.js`)));
+  const unknown = scenarios.filter(name => !existsSync(path.join(REPOSITORY_ROOT, "apps/editor/test", MANUAL_SCENARIO_FILES[name] ?? `${name}.browser.js`)));
   if (unknown.length) throw new Error(`Unknown scenario: ${unknown.join(", ")}\nStable: ${STABLE_SCENARIOS.join(", ")}`);
   if (shard) console.log(`Browser shard ${shard}: ${scenarios.length} scenarios\n${scenarios.join(", ")}`);
   const require = createRequire(import.meta.url);
