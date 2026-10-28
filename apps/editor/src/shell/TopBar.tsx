@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { operationText, type Operation } from "../operation.ts";
 import { useLayoutEffect, useRef, useState, type Ref } from "react";
-import { Copy, Ellipsis, LoaderCircle, PanelRight, RotateCcw, Search, StretchHorizontal } from "lucide-react";
+import { Copy, Ellipsis, FileDiff, LoaderCircle, PanelRight, RotateCcw, Search, StretchHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -25,6 +25,8 @@ type TopBarProps = {
   onViewChange(view: DocumentView): void;
   saveDisabled: boolean;
   onSave(): void;
+  onCompare?(): void;
+  compareDisabled?: boolean;
   onReload?(): void;
   reloadDisabled?: boolean;
   /** Copies the document's full path, for use in other tools. */
@@ -47,7 +49,7 @@ type TopBarProps = {
 export function TopBar({
   onOpenCommandCenter, documentPath, wide, onToggleWide,
   location = [], status, unsaved = false, view, viewDisabled, onViewChange, saveDisabled,
-  onSave, onReload, reloadDisabled, onCopyPath, fileActionsRef,
+  onSave, onCompare, compareDisabled, onReload, reloadDisabled, onCopyPath, fileActionsRef,
   outline, onToggleOutline, outlineToggleRef,
 }: TopBarProps) {
   useTranslation();
@@ -164,6 +166,8 @@ export function TopBar({
                 <Ellipsis aria-hidden="true" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {onCompare ? <DropdownMenuItem onClick={onCompare} disabled={compareDisabled}>
+                  <FileDiff aria-hidden="true" />{i18n.t("Changes before saving")}</DropdownMenuItem> : null}
                 <DropdownMenuItem onClick={onReload} disabled={reloadDisabled}>
                   <RotateCcw aria-hidden="true" />{i18n.t("Reload")}</DropdownMenuItem>
                 {onCopyPath ? (

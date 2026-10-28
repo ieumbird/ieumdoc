@@ -353,6 +353,12 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
       return requestSource({ path: openedPathRef.current, revision: sourceRevision.current, base: sessionBase.current,
         ...collectSupportedEdits(document, editorRef.current.getSnapshot().editorDocument) });
     },
+    acknowledgedRevision: sourceRevision.current,
+    savePreviewRequest(): SaveRequest {
+      if (!isCurrent() || !editorRef.current || !document || busy) throw new Error("Editor is not ready");
+      return structuredClone({ path: openedPathRef.current, revision: sourceRevision.current, base: sessionBase.current,
+        ...collectSupportedEdits(document, editorRef.current.getDocument()) });
+    },
     getSnapshot, initialEditorSnapshot, editorRef, document, bibliography, openedPath, headingNumbering, referenceTemplates, outlineStore, editorGeneration, isCurrent,
     imageRenameRevision: () => sourceRevision.current,
     imageRenameSources: () => editorRef.current?.imageRenameSources() ?? [],

@@ -1478,3 +1478,15 @@ keyboard focus and unchanged display-preference/document behavior.
 | Light / 640px | [Before](assets/settings-617/before-light-640.png) | [After](assets/settings-617/after-light-640.png) |
 | Dark / 1440px | [Before](assets/settings-617/before-dark-1440.png) | [After](assets/settings-617/after-dark-1440.png) |
 | Dark / 640px | [Before](assets/settings-617/before-dark-640.png) | [After](assets/settings-617/after-dark-640.png) |
+
+## Pre-save comparison (#655)
+
+The existing File actions menu beside Save contains **Changes before saving / 저장 전 변경 내용 보기**.
+The same named Command center command is available for unsaved applied content or property drafts. There is no
+new permanent TopBar control. Review reuses the recovery comparison width/height tokens, shared
+Dialog, compact Buttons, monospace source, wrapping long lines and line/word difference colors.
+Both color and −/+ cues identify changes; Previous/Next moves keyboard focus to the change.
+At 640px the toolbar wraps inside the dialog. The existing overlay scroll keeps Close reachable.
+The content remains read-only, including failures and external-change warnings.
+
+Capture evidence will be recorded after the targeted persistent-browser verification.

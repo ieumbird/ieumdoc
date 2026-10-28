@@ -2420,6 +2420,8 @@ test("Recovery preview uses Save bytes without changing disk, acknowledgement, o
     const refused = await invalid.json() as typeof preview;
     assert.equal(invalid.status, 200);
     assert.ok(refused.error);
+    assert.equal(refused.failure?.phase, "replay");
+    assert.ok(refused.failure?.action);
     assert.equal(refused.markdown, undefined);
     assert.equal(refused.disk?.source, source + "\n");
     assert.equal((await post({path:file,save:{...request,revision:"bad"}})).status, 400);

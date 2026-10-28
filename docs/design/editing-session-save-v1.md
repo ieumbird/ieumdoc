@@ -634,6 +634,38 @@ tab; `recovery-structure` retains generated structured-record Restore/Save/Reloa
 These browser Desktop checks use the bridge/first-response contract; actual Electron restart and
 packaged-platform coverage remain the required Desktop CI boundary.
 
+## Changes before saving (#655, stage 2)
+
+With unsaved applied content or property drafts, **File actions → Changes before saving** and the same Command
+center command open a read-only source comparison. The existing TopBar keeps its geometry;
+no permanent button is added. Clean documents and pending document operations disable the command.
+
+The command captures the current applied Editor snapshot and acknowledged revision/checkpoint,
+using `collectSupportedEdits` exactly as Save does, without `beginSave`, history transactions or
+acknowledgement. The existing `document-source?recovery=1` request reads the current disk bytes
+and runs `previewSession → saveCurrentDocument → saveEdits` without a file commit. It includes
+canonical formatting, CRLF and final-newline changes. Unapplied property drafts are excluded,
+just as with Save; the dialog says so. A new Core operation or CLI surface is unnecessary because
+this is an Editor review interface to the existing dry run, with no semantic change.
+
+Recovery and pre-save review share `SourceCompare`: unified line diff, word highlights, −/+ cues,
+line numbers, change count and cyclic Previous/Next navigation with focus. Both use the same
+request-owned Worker, 500ms total/100ms optional word budget, input limits, 2-second watchdog,
+word-omission notice and cleanup on completion/failure/close/retry. Pre-save budget refusal asks
+the user to narrow the changes rather than pointing at a nonexistent recovery-copy control.
+
+The dialog compares the captured applied state with disk at request time. An external revision
+mismatch is explicitly reported; it never acknowledges the new disk version, and Save still
+conflicts. An absent file is reported and the preview is shown as additions. Preview refusal
+shows the original reason and existing Save location/guidance via `SaveDisplayError`; structured
+Host failure metadata is preserved by the existing preview response. No empty successful diff
+or alternate serialization is shown on refusal. The read-only dialog contains navigation,
+retry for read/calculation errors and Close, with no Save or revert action. Close/Escape restores
+the invoking focus target. Ctrl/Cmd+S is blocked while the dialog is open.
+
+Visual evidence and capture conditions are recorded in
+[Visual Language](editor-visual-language-v1.md#pre-save-comparison-655).
+
 ## Save shortcut and work-loss protection (#56)
 
 Ctrl/Cmd+S runs the same Save as the button, with the same status, error and conflict messages, and never the browser's page save. It keeps focus, selection and history in the editor. While Open, New, Reload or recovery dialogs or the dedicated Settings screen are open it does nothing, as the covered Save button would. The top bar's `Unsaved changes` status is the in-session indicator. The Save button shows the shortcut and declares it as `aria-keyshortcuts`.
