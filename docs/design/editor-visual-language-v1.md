@@ -1,6 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
+- Block outline verification: 2026-10-28 (#469 follow-up: 1440px/640px full outer-edge and inset-stroke comparison, stationary-pointer scroll suppression; [evidence](#typing-and-outline-verification-469)).
 - Last verified: 2026-10-28 (#637: full-column code-style source and draft preview; wider wrapping inline-math popover, with 1440/640px same-state comparison).
 - Segment verification: 2026-10-27 (#620: semibold/surface/shadow selection and quiet Command Center border; [checks and Before/After](#quiet-segments-and-command-center-620)).
 - File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
@@ -337,11 +338,11 @@ no Edge channel or packaged app was launched locally.
 | Axis | Expression |
 | --- | --- |
 | Rest | No paragraph input box, persistent Edit button or block extent outline. Gutter tools are hidden except the first `+` in an empty editable document; its drag handle stays hidden. No invisible pointer targets. Figure/Equation/Table authoring metadata is hidden, inert text positioned in the gap above its block, so it takes no space at rest and showing it moves nothing; node attrs are untouched. Captions, reference chips, errors and restrictions remain visible. |
-| Hover | Gutter, typed-block Edit and metadata appear without moving text. The path from content to buttons remains inside the hover area. A pointer in a top-level block's vertical range inside the document host, including its gutter `+`/handle, shows a thin neutral outline overlay based on the drag-source rectangle, expanded by the adjustable inline/block gaps. Nested list items and table cells indicate their entire top-level block. Expansion gives the text breathing room, preserves clearance from controls/neighbors, and does not enlarge the hover hit area. The overlay captures no input and adds no border/padding to content. Document text input (including IME composition) and document-changing keydown commands hide only this neutral outline until the next real pointer movement; selection, transactions, scrolling and resizing alone do not restore it. Gutter, typed-block Edit and metadata keep their independent rules. It also disappears outside the host, between blocks and during a block drag, where the existing tint/drop line take priority. |
+| Hover | Gutter, typed-block Edit and metadata appear without moving text. The path from content to buttons remains inside the hover area. A pointer in a top-level block's vertical range inside the document host, including its gutter `+`/handle, shows a thin neutral outline overlay based on the drag-source rectangle, expanded by the adjustable inline/block gaps. Nested list items and table cells indicate their entire top-level block. Expansion gives the text breathing room, preserves clearance from controls/neighbors, and does not enlarge the hover hit area. The overlay captures no input and adds no border/padding to content. Document text input (including IME composition) and document-changing keydown commands hide only this neutral outline until the next real pointer movement; selection, transactions, scrolling, mouseover and resizing alone do not restore it. Blocks passing under a stationary pointer during scroll keep suppression; when not suppressed, the hover extent follows the block now under that pointer. Mouseleave does not discard the last movement coordinates. Gutter, typed-block Edit and metadata keep their independent rules. It also disappears outside the host, between blocks and during a block drag, where the existing tint/drop line take priority. |
 | Keyboard focus | Native editor caret/selection, visible control focus; Tab reveals tools using `:focus-within`. The document editing surface shows focus with the caret only, never a frame around the document. |
 | Current tab group (#515, owner A1) | Visual/Source retains a `surface-pressed` track, a raised themed (`surface`) current segment with `--shadow-segment`, `text` and 600 semibold, and muted inactive text that takes normal text color on hover. No horizontal interaction marker. Document tabs instead use the flat marker and adjustable height described below (#581). The collapsed Sidebar rail has only the named Expand sidebar ghost button. Focus adds its independent 2px inset ring. |
 | Current list item (#515, owner A1) | Files current, Outline current and + / slash active choice use `surface-selected`, `text-selected` and 600 semibold as a non-color current cue; no left/inset marker. Command-center highlight keeps its Base UI behavior and selected colors. Ordinary hover uses `surface-hover`; current hover uses `surface-selected-hover`. Focus remains independent and never changes current/ARIA state. Current list glyph widths may change: 600 weight is intentional to distinguish current without color. Files keeps its one-line ellipsis; Outline reserves the semibold text extent with a hidden copy and retains its two-line clamp, so selection does not change row height. Command-center highlight and navigation remain owned by Base UI; existing disabled/foreign text exceptions retain their meaning; its row radius uses the existing control radius. |
-| Selected | A single chosen-accent block-selection outline for Figure/Equation/table and visible Edit access; no additional selection cue. Selection opens no properties panel and never supplies a hover extent. Figure/Equation selected/editing interaction outlines retain the chosen accent and existing offset alongside the optional expanded neutral hover outline. Their painted outer corner radius matches the inset hover outline outer edge: the element radius is the shared hover radius minus the existing outline offset and outline width. Typing hides no selection/editing outline. |
+| Selected | A single chosen-accent block-selection outline for Figure/Equation/table and visible Edit access; no additional selection cue. Selection opens no properties panel and never supplies a hover extent. Figure/Equation/table/endnote selected/editing outlines use the same expanded rectangle, inset stroke width and outer corner radius as the neutral hover overlay. The interaction-colored selection stroke paints above the neutral stroke when both coincide. These input-transparent overlays add no content border/padding. Typing hides no selection/editing outline. |
 | Editing | Form and editing outline persist independently of selection. |
 | Dirty / invalid | Draft notices distinguish applied Save content from unsaved form input; validation preserves entered values. These do not replace hover/focus/selection. |
 | Read-only | Source view stays read-only: monospace source lines soft-wrap within the available width, including unbroken URLs/words, without horizontal scrolling (#476). Each Markdown line has one subtle gutter number (generated content, never copied); unnumbered continuations align with its text. Wrapping inserts no source or copied characters/line breaks and never writes to the document. Unsupported documents are rejected at admission; in the Files tree a document without the native marker keeps its row in subtle text with a crossed-file icon and says so in its tooltip and accessible description. |
@@ -554,6 +555,30 @@ These captures are manual evidence, not screenshot assertions.
 failing heading-code comparison, final measured values and capture hashes.
 
 ### Typing and outline verification #469
+
+2026-10-28 follow-up: the earlier corner-only correction below did not align the rectangles.
+On base `5ecc9a9`, the strengthened `quiet-document` check failed at 1440px and 640px:
+Figure/Equation selection was 3px inside hover on each horizontal side and 1px outside
+on each vertical side (4px outline offset + 1px stroke versus 8px/4px hover expansion).
+Tables had the same rectangle mismatch. The selected/editing native outlines for
+Figure, Equation, table and endnote now use an absolute, input-transparent overlay
+with the hover expansion, radius and inset stroke tokens. Selection paints above hover;
+colors and content geometry are unchanged. Endnote's existing region label stays separate.
+The existing input/IME/keydown suppression is retained; last pointer coordinates survive
+mouseleave so scroll hit-test events at the same coordinates cannot restore hover.
+This is Editor-only interaction and presentation; no Core operation or CLI surface applies.
+
+The regression compares all outer edges and radius for Figure/Equation/table at both
+supported review widths, and checks scroll/mouseover during typing suppression alongside
+existing input, IME, navigation, resize, undo, metadata, Edit and drag checks. Optional
+`--screenshots` writes `overlap-{1440,640}-{figure,equation}.png` corner captures in
+`tmp/visual-refinement/`; compare the same selected and hovered state at DPR 1, 100% zoom,
+Windows persistent Chrome and bundled Pretendard. Captures are review evidence, not
+pixel assertions. The small [3x corner comparison](assets/block-outline-469/comparison.png)
+preserves all four Before/After pairs; large full-page captures and logs stay in `tmp/`.
+
+The paragraphs below preserve the earlier correction and its evidence; their deliberately
+different selection/hover rectangle offsets have been superseded by this follow-up.
 
 Only the neutral pointer-hover outline is suppressed on document `beforeinput`, IME
 composition start and document-changing keydown commands. Capture and bubble listeners on
