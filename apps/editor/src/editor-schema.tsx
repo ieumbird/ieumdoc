@@ -1320,12 +1320,11 @@ function useSourceInputFocus(input: RefObject<HTMLElement | null>, editing: bool
   useEffect(() => {
     if (!editing) return;
     cancel();
-    // Entry's pointerdown/Enter has already passed document capture. Only later trusted
-    // input outside this form cancels entry; the insertion command's programmatic focus does not.
+    // Entry's pointerdown/Enter has already passed document capture. Any later trusted
+    // input cancels entry; the insertion command's programmatic focus does not.
     interaction.current = new AbortController();
     const leave = (event: Event) => {
-      if (event.isTrusted && event.target instanceof globalThis.Node &&
-        !input.current?.closest("form")?.contains(event.target)) cancel();
+      if (event.isTrusted) cancel();
     };
     const options = { capture: true, signal: interaction.current.signal };
     document.addEventListener("pointerdown", leave, options);

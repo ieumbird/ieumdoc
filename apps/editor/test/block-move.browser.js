@@ -50,10 +50,10 @@ async (page, { openPath, withBlockHover }) => {
   });
   // Delay the opening frame, as a busy renderer can, while a user opens another surface.
   // Release the real callbacks only after the menu owns focus; inspect immediately afterwards.
-  for (const [folder, document, blockSelector, editName, fieldId, cancelId, draft, previewId] of [
-    ['block-move', 'draft-boundaries.md', '[data-block="equation"]', 'Edit', 'equation-latex', 'equation-cancel', 'x + DeferredFocusDraft', 'equation-preview'],
-    ['mermaid-authoring', 'diagram.md', '[data-block="figure"]', 'Edit figure', 'mermaid-source', 'mermaid-cancel', 'graph TD\n  Draft --> Preserved', 'mermaid-preview'],
-    ['block-move', 'technical-document.md', '[data-block="figure"]', 'Edit figure', 'figure-image-url', 'figure-cancel', 'draft-image.svg', 'figure-image'],
+  for (const [folder, document, blockSelector, editName, fieldId, cancelId, draft] of [
+    ['block-move', 'draft-boundaries.md', '[data-block="equation"]', 'Edit', 'equation-latex', 'equation-cancel', 'x + DeferredFocusDraft'],
+    ['mermaid-authoring', 'diagram.md', '[data-block="figure"]', 'Edit figure', 'mermaid-source', 'mermaid-cancel', 'graph TD\n  Draft --> Preserved'],
+    ['block-move', 'technical-document.md', '[data-block="figure"]', 'Edit figure', 'figure-image-url', 'figure-cancel', 'draft-image.svg'],
   ]) {
     await openPath(page, [root, 'tmp', folder, document].join(separator));
     await page.getByRole('dialog').waitFor({state:'detached'});
@@ -74,12 +74,19 @@ async (page, { openPath, withBlockHover }) => {
     } finally {
       await page.evaluate(() => window.releaseOpeningFrames?.());
     }
-    for (const movement of ['same-editor', 'round-trip', 'keyboard', 'programmatic-focus']) {
+    for (const movement of ['tab-out', 'tab-out-keyboard', 'composition', 'same-editor', 'round-trip', 'keyboard', 'programmatic-focus']) {
       const prose = page.locator('[data-document-tab][data-active=true] .document-editor > p.paragraph').first();
-      const enter = movement === 'same-editor' || movement === 'keyboard';
+      const enter = movement === 'same-editor' || movement === 'keyboard' || movement === 'composition';
       if (enter) {
-        if (previewId === 'mermaid-preview') await block.getByTestId(previewId).locator('img').waitFor();
-        await block.getByTestId(previewId).click();
+        // Prepare selected-node Enter without repeated setup clicks becoming an engine
+        // double/triple click. The entry key and subsequent user movement are real input.
+        await block.evaluate(node => {
+          const editor = node.closest('.document-editor').editor;
+          const path = node.getAttribute('data-source-path');
+          let position;
+          editor.state.doc.forEach((child, offset) => { if (child.attrs.sourcePath === path) position = offset; });
+          editor.commands.setNodeSelection(position); editor.view.focus();
+        });
       }
       else await block.hover();
       await holdOpeningFrames();
@@ -89,8 +96,32 @@ async (page, { openPath, withBlockHover }) => {
         const field = page.getByTestId(fieldId);
         await field.waitFor();
         const originalDraft = await field.inputValue();
-        const openingFocus = await page.evaluateHandle(() => document.activeElement);
-        if (movement === 'keyboard') await page.keyboard.press('ArrowDown');
+        let openingFocus = await page.evaluateHandle(() => document.activeElement);
+        if (movement === 'tab-out' || movement === 'tab-out-keyboard') {
+          if (movement === 'tab-out') await field.click();
+          else await field.focus();
+          await page.keyboard.press('Shift+Tab');
+          if (await field.evaluate(node => node.closest('form').contains(document.activeElement))) throw new Error(`${fieldId}: Shift+Tab did not leave the form`);
+          await openingFocus.dispose();
+          openingFocus = await page.evaluateHandle(() => document.activeElement);
+        }
+        else if (movement === 'composition') {
+          // Programmatic field focus leaves the opening frame pending. CDP then sends a
+          // trusted IME-start keydown and real composition updates, without an OS keyboard.
+          await field.focus();
+          await field.evaluate(node => node.setSelectionRange(node.value.length, node.value.length));
+          const cdp = await page.context().newCDPSession(page);
+          try {
+            await cdp.send('Input.dispatchKeyEvent', {type:'keyDown', key:'Process', code:'KeyA', windowsVirtualKeyCode:229});
+            await cdp.send('Input.imeSetComposition', {text:'한글', selectionStart:2, selectionEnd:2});
+            await cdp.send('Input.insertText', {text:'한글'});
+            await cdp.send('Input.dispatchKeyEvent', {type:'keyUp', key:'Process', code:'KeyA', windowsVirtualKeyCode:229});
+          } finally { await cdp.detach(); }
+          if (await field.inputValue() !== originalDraft + '한글') throw new Error(`${fieldId}: IME input was interrupted`);
+          await openingFocus.dispose();
+          openingFocus = await page.evaluateHandle(() => document.activeElement);
+        }
+        else if (movement === 'keyboard') await page.keyboard.press('ArrowDown');
         else if (movement === 'programmatic-focus') await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(node => node.editor.view.focus());
         else {
           await prose.click();
