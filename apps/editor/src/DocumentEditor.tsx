@@ -78,6 +78,7 @@ export type DocumentEditorHandle = {
   beginSave(): TiptapJSON;
   finishSave(succeeded?: boolean): void;
   renameImagePaths(replacements: MediaReplacement[]): void;
+  imageRenameSources(): string[];
   /** Live applied-content comparison with the acknowledged snapshot; excludes property drafts. */
   hasDocumentChanges(): boolean;
   hasUnsavedChanges(): boolean;
@@ -379,6 +380,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         return activeDrafts.current.size > 0 || hasDocumentChanges();
       },
       hasDocumentChanges,
+      imageRenameSources() {
+        return editor ? [...new Set([...imageRenameKey.getState(editor.state)!.seen.values()].flatMap(urls => [...urls]))] : [];
+      },
       renameImagePaths(replacements) {
         if (!editor || !saved.current) throw new Error("Editor is not ready");
         saved.current = renameSnapshot(saved.current, replacements);

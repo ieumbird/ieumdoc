@@ -390,6 +390,7 @@ export function App() {
         method: action === "delete" ? "DELETE" : "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ root, path: entry.path, ...(action === "rename" ? { name, openDocuments } : {}),
           ...(figure && formSession ? { figureDocument: { path: figure.documentPath, imageUrl: figure.imageUrl,
+            historicalSources: formSession.imageRenameSources(),
             revision: formSession.imageRenameRevision(), source: await formSession.appliedSource() } } : {}) }),
       }).catch(interrupted);
       const result = await response.json().catch(interrupted);

@@ -1,5 +1,5 @@
 // Native PNG clipboard, actual local Host assets, file drop and compensated insertion failure.
-async (page, { openFolderPicker, openPath, openDocument, screenshots }) => {
+async (page, { openFolderPicker, openPath, openDocument, screenshots, recoveryRecords, expect }) => {
   await page.unrouteAll();
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
@@ -370,7 +370,8 @@ async (page, { openFolderPicker, openPath, openDocument, screenshots }) => {
     assert(JSON.stringify(await documentJSON()) === JSON.stringify(filled), `Redo restores the filled Figure after ${gesture}`);
 
     const second = page.waitForResponse(response => response.url().includes('/api/asset?') && response.status() === 201);
-    await sendImage(); await second; await waitIdle();
+    await sendImage(); const secondUpload = await (await second).json(); await waitIdle();
+    if (gesture === 'drop') assert(/\/image(?:-\d+)?\.png$/.test(secondUpload.path), 'A dropped generic image.png retains its original stem');
     const inserted = (await documentJSON()).content;
     assert(inserted[index + 1]?.type === 'figure' && inserted[index + 1].attrs.imageUrl !== filled.content[index].attrs.imageUrl,
       `${gesture} on a completed Figure inserts a new image Figure after it`);
@@ -463,6 +464,96 @@ async (page, { openFolderPicker, openPath, openDocument, screenshots }) => {
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
   result.imageRenameHistoryAndCheckpoint = true;
+
+  // Review #654: a saved spelling change leaves an older attachment in history.
+  const saveCurrent = async () => {
+    await page.getByRole('button', {name:'Save', exact:true}).click();
+    await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
+  };
+  const firstImage = async () => (await documentJSON()).content.find(node => node.type === 'figure').attrs.imageUrl;
+  const spellingBefore = await firstImage();
+  await editFigure(0);
+  await imageField.fill(spellingBefore.replace(/^\.\//, ''));
+  await page.getByTestId('figure-apply').click();
+  await page.getByTestId('figure-editor').waitFor({state:'detached'});
+  await saveCurrent();
+  await editFigure(0); await filename.fill('history-spelling');
+  await page.getByTestId('figure-apply').click();
+  await page.getByTestId('figure-editor').waitFor({state:'detached'});
+  const spellingRenamed = await firstImage();
+  await historyKey('Control+z');
+  assert(await firstImage() === spellingRenamed, 'Undo of a saved equivalent spelling retains the renamed path immediately');
+  assert((await page.request.get(media(await firstImage()))).status() === 200, 'Historical spelling Undo points to an existing image');
+  await historyKey('Control+Shift+z');
+  assert(await firstImage() === spellingRenamed, 'Redo of a saved equivalent spelling retains the renamed path immediately');
+  await saveCurrent();
+  result.historicalSpellingAfterSave = true;
+
+  // Two independently open forms: rename follows untouched Image, preserving Alt/Label.
+  await editFigure(1); await imageField.fill(spellingRenamed);
+  await page.getByTestId('figure-apply').click();
+  await page.getByTestId('figure-editor').waitFor({state:'detached'});
+  await saveCurrent();
+  const forms = page.getByTestId('figure-editor');
+  await editFigure(1);
+  await forms.first().getByTestId('figure-alt').fill('Shared B draft');
+  await forms.first().getByTestId('figure-label').fill('shared-b-652');
+  await figures.first().getByTestId('figure-image').dblclick();
+  await expect(forms).toHaveCount(2);
+  await forms.last().getByTestId('figure-file-name').fill('shared-renamed');
+  await forms.last().getByTestId('figure-apply').click();
+  await expect(forms).toHaveCount(1);
+  assert(await forms.first().getByTestId('figure-image-url').inputValue() === './assets/shared-renamed.png', 'Other open form follows the renamed path');
+  assert(await forms.first().getByTestId('figure-alt').inputValue() === 'Shared B draft' &&
+    await forms.first().getByTestId('figure-label').inputValue() === 'shared-b-652', 'Other form retains Alt/Label drafts');
+  await forms.first().getByTestId('figure-apply').click();
+  await expect(forms).toHaveCount(0);
+  let currentFigures = (await documentJSON()).content.filter(node => node.type === 'figure');
+  assert(currentFigures.slice(0, 2).every(node => node.attrs.imageUrl === './assets/shared-renamed.png') &&
+    currentFigures[1].attrs.imageAlt === 'Shared B draft', 'Other form Apply never reintroduces the old path');
+  assert((await page.request.get(media(currentFigures[1].attrs.imageUrl))).status() === 200, 'Shared form Apply points at an existing image');
+  await saveCurrent();
+
+  // An explicitly edited Image is the user's independent draft and is not retargeted.
+  const explicitImage = currentFigures[2].attrs.imageUrl;
+  await editFigure(1);
+  await forms.first().getByTestId('figure-image-url').fill(explicitImage);
+  await forms.first().getByTestId('figure-alt').fill('Manual Image draft preserved');
+  await figures.first().getByTestId('figure-image').dblclick();
+  await expect(forms).toHaveCount(2);
+  await forms.last().getByTestId('figure-file-name').fill('shared-final');
+  await forms.last().getByTestId('figure-apply').click();
+  await expect(forms).toHaveCount(1);
+  assert(await forms.first().getByTestId('figure-image-url').inputValue() === explicitImage &&
+    await forms.first().getByTestId('figure-alt').inputValue() === 'Manual Image draft preserved', 'Explicit Image and Alt draft survive another form rename');
+  await forms.first().getByTestId('figure-apply').click();
+  await expect(forms).toHaveCount(0);
+  currentFigures = (await documentJSON()).content.filter(node => node.type === 'figure');
+  assert(currentFigures[0].attrs.imageUrl === './assets/shared-final.png' && currentFigures[1].attrs.imageUrl === explicitImage,
+    'Explicit Image Apply uses the typed path through existing Figure validation');
+  result.sharedOpenForms = true;
+
+  // Observe a real recovery write after rename, then reload and restore that actual record.
+  await expect.poll(async () => (await recoveryRecords(page)).find(record => record.path === file)?.recoveryText)
+    .toContain('Manual Image draft preserved');
+  const recovery = (await recoveryRecords(page)).find(record => record.path === file);
+  assert(recovery.recoveryText.includes('./assets/shared-final.png'), 'Recovery contains the renamed path');
+  const beforeRestore = semanticJSON(await documentJSON());
+  page.on('dialog', dialog => dialog.accept());
+  await page.reload();
+  await page.getByTestId('recovery-prompt').waitFor();
+  await page.getByRole('button', {name:'Restore work', exact:true}).click();
+  await page.getByTestId('recovery-prompt').waitFor({state:'detached'});
+  assert(semanticJSON(await documentJSON()) === beforeRestore, 'Rename recovery restores applied content and image paths');
+  for (const node of (await documentJSON()).content.filter(node => node.type === 'figure')) {
+    assert((await page.request.get(media(node.attrs.imageUrl))).status() === 200, 'Restored Figure points to an existing image');
+  }
+  await saveCurrent();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  assert(semanticJSON(await documentJSON()) === beforeRestore, 'Restored rename saves and reopens through the acknowledged checkpoint');
+  result.renameRecoveryRestoreSaveReload = true;
 
   // Real document-relative loading, failure feedback and unchanged saved paths (#211).
   const pathsFile = [root, 'tmp', 'image-assets', 'paths.md'].join(separator);

@@ -77,6 +77,9 @@ test("Host filenames sanitize hints, retain Korean, use MIME, skip sequence gaps
     assert.equal(create(name).path, `./assets/document-${number}.png`);
   }
   assert.equal(fs.readFileSync(path.join(assets, "document-8.jpg"), "utf8"), "existing");
+  assert.equal(createImageAsset(doc, "image/png", PNG, key, undefined, "image.png", "drop").path, "./assets/image.png");
+  assert.equal(createImageAsset(doc, "image/png", PNG, key, undefined, "image.png", "drop").path, "./assets/image-2.png");
+  assert.throws(() => createImageAsset(doc, "image/png", PNG, key, undefined, "image.png", "invalid"), /input source/);
   const long = create("한".repeat(150) + ".png");
   assert.ok(Buffer.byteLength(path.basename(long.path), "utf8") <= 255);
   const percent = create("100%.png");

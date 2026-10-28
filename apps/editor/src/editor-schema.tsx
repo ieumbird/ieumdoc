@@ -1044,6 +1044,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath: initia
   const editableFigure = view.editable;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(applied);
+  const previousImage = useRef(applied.imageUrl);
   const [labelDraft, setLabelDraft] = useState(label);
   const appliedStem = imageFileStem(applied.imageUrl);
   const [filename, setFilename] = useState(appliedStem ?? "");
@@ -1061,7 +1062,14 @@ function FigureView({ node, editor, selected, getPos, view, documentPath: initia
       setDraft(applied);
       setLabelDraft(label);
       setFilename(appliedStem ?? "");
+    } else if (previousImage.current !== applied.imageUrl) {
+      // A rename updates applied paths in every Figure. Follow only untouched Image
+      // and filename inputs; preserve the user's independent Image/Alt/Label drafts.
+      const before = previousImage.current;
+      setDraft(current => current.imageUrl === before ? { ...current, imageUrl: applied.imageUrl } : current);
+      setFilename(current => current === imageFileStem(before) ? appliedStem ?? "" : current);
     }
+    previousImage.current = applied.imageUrl;
   }, [editing, applied.imageUrl, applied.imageAlt, captionKey, label]);
 
   useEffect(() => {

@@ -1904,8 +1904,9 @@ shared Input, spacing, Apply/Cancel and inline error surface. It reuses the #504
 other-document protection and notices. Eligibility and failure behavior are specified in
 [Figure file name](document-editing-v1.md#figure-file-name-652); history and checkpoints in
 [Figure-form image rename](editing-session-save-v1.md#figure-form-image-rename-652).
-The Host chooses readable upload defaults without an extra paste dialog, and no CLI surface
-is added because no new semantic operation is introduced.
+The Host chooses readable upload defaults without an extra paste dialog: drop retains even
+`image.png`, while paste uses document numbering for unnamed/generic images and retains real
+descriptive file names. No CLI surface is added because no new semantic operation is introduced.
 
 
 ### Filename form verification (#652)
@@ -1930,3 +1931,17 @@ builds and docs checks passed. Persistent Chrome `image-assets`, `figure-authori
 crash recovery) passed. Packaged Desktop and Edge are left to CI. The packaged Desktop asset
 assertion now expects its supplied `paste.png` hint. A transient Vite ResizeObserver notification
 was logged on the last image-assets run; its console/behavior assertions passed.
+
+
+Review follow-up (#654): the existing image-assets scenario now saves an equivalent Image
+spelling before rename and checks immediate Undo/Redo paths plus actual Host 200 responses.
+It opens two Figure forms together, retains Alt/Label drafts while following untouched Image
+paths, and separately preserves an explicitly edited Image draft. Generic `image.png` drop
+keeps its stem while native clipboard paste keeps document numbering. Host tests cover source
+validation and inode-confirmed historical spellings, including remote/out-of-scope non-matches.
+The same browser scenario observes the actual post-rename recovery record, reloads, uses Restore
+work, checks all image paths against real files, and completes Save/Reload with the same applied
+content. The review's non-blocking record-disappearance observation was not reproduced in this
+flow; no separate recovery defect or cause is asserted. Existing recovery browser regressions
+also pass. Local follow-up: targeted unit tests 79, Editor unit tests 320, workspace typecheck,
+Editor/CLI build, docs checks and Vite image-assets/figure-authoring/file-actions/recovery pass.

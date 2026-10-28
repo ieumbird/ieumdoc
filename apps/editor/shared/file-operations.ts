@@ -6,7 +6,7 @@ export type RenameFileRequest = FileOperationRequest & {
    * path-only entries include unapplied property drafts. Other windows use Save conflicts. */
   openDocuments?: { path: string; source?: string }[];
   /** Figure form's own session: only its paths change; unsaved properties stay local. */
-  figureDocument?: { path: string; revision: string; source: string; imageUrl: string };
+  figureDocument?: { path: string; revision: string; source: string; imageUrl: string; historicalSources?: string[] };
 };
 export type MediaReplacement = { from: string; to: string };
 export type FileOperationResponse = { path: string; updatedDocuments?: string[]; skippedDocuments?: string[];

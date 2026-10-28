@@ -17,13 +17,15 @@ test("Figure-form rename verifies its checkpoint and reports live/saved paths wi
   fs.writeFileSync(document, nativeSource(":::{figure} old.svg\n:alt: Saved\n\nCaption\n:::\n"));
   const loaded = loadDocumentFile(document);
   const figureDocument = { path: document, revision: loaded.revision,
-    source: nativeSource(":::{figure} ./old.svg\n:alt: Local only\n\nCaption\n:::\n"), imageUrl: "./old.svg" };
+    source: nativeSource(":::{figure} ./old.svg\n:alt: Local only\n\nCaption\n:::\n"), imageUrl: "./old.svg",
+    historicalSources: ["././old.svg", "https://example.invalid/old.svg", "../outside.svg", "missing.svg"] };
   const request = { root, path: image, name: "회로도", figureDocument };
   assert.throws(() => renameFile({ ...request, figureDocument: { ...figureDocument, revision: "stale" } }), /changed/);
   assert.equal(fs.existsSync(image), true);
   const result = renameFile(request);
   assert.deepEqual(result.figureDocument?.replacements, [
     { from: "./old.svg", to: "./회로도.svg" }, { from: "old.svg", to: "./회로도.svg" },
+    { from: "././old.svg", to: "./회로도.svg" },
   ]);
   assert.equal(result.figureDocument?.revision, loadDocumentFile(document).revision);
   const saved = fs.readFileSync(document, "utf8");

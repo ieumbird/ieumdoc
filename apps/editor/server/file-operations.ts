@@ -53,17 +53,20 @@ function imageReferences(root: string, file: string, destination: string, openDo
   const documents: { loaded: ReturnType<typeof loadDocumentFile>; sources: Set<string> }[] = [];
   const references = new Set<string>(), skipped: string[] = [];
   const image = fs.statSync(file);
+  const matches = (documentPath: string, source: string) => {
+    try {
+      const encoded = figureMediaPath(source);
+      if (!encoded) return false;
+      const referenced = fs.statSync(resolveMediaPath(encoded, documentPath, access));
+      return referenced.dev === image.dev && referenced.ino === image.ino;
+    } catch { return false; } // Remote, missing and out-of-scope media are not this image.
+  };
   const inspect = (documentPath: string, document: ReturnType<typeof readModel>["document"]) => {
     const sources = new Set<string>();
     if (!inside(root, documentPath)) return sources;
     for (const block of document.blocks) {
       if (block.block !== "figure" || !block.imageUrl) continue;
-      try {
-        // Match the existing segment-encoded media request, including literal percent signs.
-        const target = resolveMediaPath(block.imageUrl.split("/").map(encodeURIComponent).join("/"), documentPath, access);
-        const referenced = fs.statSync(target);
-        if (referenced.dev === image.dev && referenced.ino === image.ino) sources.add(block.imageUrl);
-      } catch { /* Remote, missing and out-of-scope media are not this local image. */ }
+      if (matches(documentPath, block.imageUrl)) sources.add(block.imageUrl);
     }
     return sources;
   };
@@ -101,7 +104,8 @@ function imageReferences(root: string, file: string, destination: string, openDo
     return { path: loaded.path, source: loaded.source, revision: loaded.revision, markdown };
   });
   const replacements = figureDocument ? [...new Set([...inspect(figureDocument.path, readModel(figureDocument.source).document),
-    ...inspect(figureDocument.path, loadDocumentFile(figureDocument.path, access).document)])]
+    ...inspect(figureDocument.path, loadDocumentFile(figureDocument.path, access).document),
+    ...(figureDocument.historicalSources ?? []).filter(source => matches(figureDocument.path, source))])]
     .map(from => ({ from, to: `./${path.relative(path.dirname(figureDocument.path), destination).split(path.sep).join("/")}` })) : [];
   return { changes, skipped, replacements };
 }
@@ -111,6 +115,10 @@ export function renameFile(request: RenameFileRequest, access: FileAccess = LOCA
   if (current) {
     if (typeof current.path !== "string" || typeof current.revision !== "string" || typeof current.source !== "string" || typeof current.imageUrl !== "string") throw new Error("Invalid Figure document snapshot.");
     assertUnicode(current.path); assertUnicode(current.imageUrl);
+    if (current.historicalSources !== undefined) {
+      if (!Array.isArray(current.historicalSources) || !current.historicalSources.every(source => typeof source === "string")) throw new Error("Invalid historical image sources.");
+      current.historicalSources.forEach(assertUnicode);
+    }
     const loaded = loadDocumentFile(current.path, access);
     if (loaded.revision !== current.revision) throw new FileChangedError(current.path);
     // The shared media resolver decides eligibility, including real file and folder boundaries.

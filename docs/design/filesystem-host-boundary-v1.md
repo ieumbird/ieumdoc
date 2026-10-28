@@ -157,8 +157,9 @@ No Core Figure operation changes, CLI command, SVG policy, format conversion, pr
 or bulk rename is introduced. CLI is omitted because file naming reuses Host orchestration;
 Core's existing media-reference operation remains the semantic authority.
 
-Binary upload accepts an optional `name` query hint. The Host checks it with `assertUnicode`
-before asset directory creation. It removes the hint's extension and replaces separators,
+Binary upload accepts `name` and `source=paste|drop` query hints (omitted source defaults to paste).
+The Host rejects unknown source values before creating assets and checks the name with
+`assertUnicode` before asset directory creation. It removes the hint's extension and replaces separators,
 Windows-invalid/control characters, repeated dots and encoded-traversal percent prefixes with
 hyphens; trims leading dots and trailing dots/spaces; prefixes reserved Windows stems with `_`;
 and bounds the stem to 180 UTF-8 bytes without splitting code points. Korean names are retained.
@@ -166,13 +167,15 @@ The MIME determines the extension. A named image uses its sanitized stem, then `
 on exclusive hard-link EEXIST. For example `회로도.jpeg` with PNG MIME becomes `회로도.png`.
 Copied Host images use the same original-basename hint.
 
-An empty/empty-after-cleaning name or exact case-insensitive `image.png`, `image.jpg`,
-`image.jpeg`, `image.gif`, `image.webp` uses `<document-stem>-<number>.<mime-extension>`.
+Drops always retain the sanitized original name, including `image.png`; Host-selected real files
+also keep their names. For paste, an empty/empty-after-cleaning name or exact case-insensitive
+`image.png`, `image.jpg`, `image.jpeg`, `image.gif`, `image.webp` uses `<document-stem>-<number>.<mime-extension>`.
 Chromium supplies `image.png` for a native clipboard PNG (covered by the real clipboard browser
 scenario), so this deliberately narrow generic-name set covers the supported MIME family without
-mistaking descriptive `image-architecture.png` or `image1.png` for anonymous images. This rule
-also applies to a dropped generic name. The document basename excludes `.md` and uses the same
-sanitization (empty fallback `document`). The number is the largest existing same-prefix numbered
+mistaking descriptive `image-architecture.png` or `image1.png` for anonymous images. Thus a
+real file copied from Explorer with a descriptive name retains that name on paste. An unusable
+empty drop name falls back to document numbering. The document basename excludes `.md` and
+uses the same sanitization (empty fallback `document`). The number is the largest existing same-prefix numbered
 file in `assets/`, across extensions, plus one; gaps are not reused and directories are ignored.
 EEXIST advances the number, preserving the existing no-overwrite hard-link publication.
 
@@ -433,10 +436,17 @@ change can also prevent rollback; errors describe that remaining state. The exis
 race boundary and #372 path-alias policy remain unchanged.
 
 Sidebar rename keeps the #504 dirty-tab refusal and clean reload policy. Figure-form rename
-adds `figureDocument` (path, expected revision, applied canonical source and current image URL)
+adds `figureDocument` (path, expected revision, applied canonical source, current image URL
+and optional historical source spellings)
 to the same request. The Host resolves that URL with the existing media resolver, verifies the
 current disk revision before publication, and returns matched old/new sources and the resulting
-revision. The source is used only to identify live references, never to save unsaved properties.
+revision. Historical spellings come from the engine's observed attachment/history state and
+are untrusted hints: the Host resolves them with the same media boundary and includes only
+paths whose actual device/inode matches the image before rename. This covers history-only
+`./assets/a.png` / `assets/a.png` and other equivalent in-scope spellings after Save, without
+implementing filesystem equivalence in the Editor. Invalid Unicode/type hints refuse before
+publication; remote, missing or out-of-scope spellings do not match. The source is used only to
+identify live references, never to save unsaved properties.
 Only that initiating session is exempt from the dirty list; other referring dirty tabs still
 refuse and affected clean tabs reload. Without an opened folder the document directory is the
 scan root; otherwise the outermost opened folder containing the document is used.

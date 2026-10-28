@@ -74,7 +74,17 @@ retargets Figures restored from old undo/redo/deletion steps, including successi
 It keys aliases by Figure locator and an Editor-only attachment identity, renewed when the user
 attaches a different image. This prevents a fresh upload/choice reusing an old filename from
 being mistaken for the renamed image. Identity is not Markdown/Core semantics and is excluded
-from applied-content dirty comparison.
+from applied-content dirty comparison. Host-confirmed historical equivalent spellings are
+included even when they exist only in history after Save. Retired aliases remain scoped to
+their attachment so reusing an old filename for a different file does not retarget that history.
+
+Other open Figure forms follow applied path retargeting only when their Image draft still
+equals the previous applied URL. Their Alt/Label drafts remain intact. An unchanged filename
+input follows the new stem; a custom filename draft remains user input. A directly changed
+Image draft is retained and uses the existing Core Figure validation on Apply (including the
+existing missing-image display if a user explicitly chooses a missing path). It is not silently
+replaced: that draft can intentionally select a different file, so matching the old applied
+string is the boundary for automatic propagation.
 Alt/Label Apply remains a normal independent Undo event. Undo cannot rename the file or resurrect
 an obsolete path. Recovery snapshots contain the current/saved paths; recovery does not persist
 engine history. An incomplete Host rollback follows #504's explicit reload/error handling;

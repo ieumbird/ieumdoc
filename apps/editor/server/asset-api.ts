@@ -96,9 +96,10 @@ function readReceipt(token: string, key: Buffer): Receipt {
 }
 
 /** The signing key belongs to the Host process lifetime, never to an Editor session. */
-export function createImageAsset(locator: string, mime: string, bytes: Buffer, key: Buffer, access: FileAccess = LOCAL_FILE_ACCESS, originalName = ""): AssetResponse {
+export function createImageAsset(locator: string, mime: string, bytes: Buffer, key: Buffer, access: FileAccess = LOCAL_FILE_ACCESS, originalName = "", source = "paste"): AssetResponse {
   validateImage(mime, bytes); // Rejected input must not create even a directory/temp file.
   assertUnicode(originalName);
+  if (source !== "paste" && source !== "drop") throw new AssetError("Invalid image input source.");
   const scope = documentScope(locator, true, access);
   const cleanStem = (name: string) => {
     let stem = name.replace(/%(?=2e|2f|5c|00)/gi, "-").replace(/[<>:"/\\|?*\u0000-\u001f\u007f]/g, "-").replace(/\.{2,}/g, "-").trim().replace(/[. ]+$/, "").replace(/^\.+/, "");
@@ -114,7 +115,7 @@ export function createImageAsset(locator: string, mime: string, bytes: Buffer, k
   const originalStem = cleanStem(originalName.replace(/\.[^.]*$/, ""));
   // Chromium's clipboard File is named image.png; match exact MIME-family generic names,
   // not descriptive names such as image-architecture.png or image1.png.
-  const numbered = !originalStem || /^image\.(?:png|jpe?g|gif|webp)$/i.test(originalName);
+  const numbered = !originalStem || source === "paste" && /^image\.(?:png|jpe?g|gif|webp)$/i.test(originalName);
   const stem = numbered ? cleanStem(path.basename(scope.document, path.extname(scope.document))) || "document" : originalStem;
   const directory = assetDirectory(scope.root, true, access);
   let sequence = 1;
@@ -189,7 +190,7 @@ export function chooseImageAsset(request: ImageChoiceRequest, key: Buffer, acces
   }
   if (!isAssetMime(mime)) throw new AssetError(`Only ${ASSET_FORMATS} images can be copied into assets/. Move the SVG into the document's folder to use it.`);
   if (stat.size > MAX_ASSET_BYTES) throw new AssetError(`Image exceeds the ${MAX_ASSET_BYTES / 1024 / 1024} MiB limit.`, 413);
-  return createImageAsset(request.documentPath, mime, fs.readFileSync(file), key, access, path.basename(file));
+  return createImageAsset(request.documentPath, mime, fs.readFileSync(file), key, access, path.basename(file), "drop"); // A chosen real file keeps its name too.
 }
 
 /**
@@ -268,7 +269,7 @@ export async function handleAssetRequest(req: IncomingMessage, res: ServerRespon
       const locator = query.get("path");
       if (!locator) throw new AssetError("A document locator is required.");
       const bytes = await readRequestBody(req, MAX_ASSET_BYTES);
-      json(201, createImageAsset(locator, mime, bytes, key, access, query.get("name") ?? ""));
+      json(201, createImageAsset(locator, mime, bytes, key, access, query.get("name") ?? "", query.get("source") ?? "paste"));
     } else if (req.method === "DELETE") {
       const body = JSON.parse(decodeUtf8(await readRequestBody(req, 8192))) as AssetRollbackRequest;
       rollbackImageAsset(body, key, access);

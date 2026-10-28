@@ -602,7 +602,10 @@ actual regular-image existence, real document-folder containment and #504 root/s
 a syntactically local hint never grants access. Extension is preserved and Korean stems work.
 A collision, invalid name or Host refusal retains all input and shows the reason in the form.
 Alt/Label validate before rename and apply only after success. Filename and its reference paths
-are excluded from history; Alt/Label keep normal Undo/Redo. See [session integration](editing-session-save-v1.md#figure-form-image-rename-652).
+are excluded from history; Alt/Label keep normal Undo/Redo. Other open forms follow a renamed
+Image only if that Image input was unchanged, preserving Alt/Label and custom filename drafts.
+A directly edited Image stays as entered and is validated by the existing Figure Apply path;
+this preserves explicit user intent rather than silently selecting another file. See [session integration](editing-session-save-v1.md#figure-form-image-rename-652).
 
 ## History
 

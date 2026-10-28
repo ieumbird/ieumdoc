@@ -350,6 +350,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
     },
     getSnapshot, initialEditorSnapshot, editorRef, document, bibliography, openedPath, headingNumbering, referenceTemplates, outlineStore, editorGeneration, isCurrent,
     imageRenameRevision: () => sourceRevision.current,
+    imageRenameSources: () => editorRef.current?.imageRenameSources() ?? [],
     acceptImageRename(result: NonNullable<FileOperationResponse["figureDocument"]>) {
       const editor = editorRef.current;
       if (!editor) throw new Error("Editor is not ready");
