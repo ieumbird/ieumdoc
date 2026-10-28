@@ -101,9 +101,6 @@ type SettingsDialogProps = {
   onCategoryChange(category: SettingsCategory): void;
   documentName: string;
   unsaved: boolean;
-  documentSettingsDisabled: boolean;
-  documentSettingsHint: string;
-  onDocumentSettings(): void;
   desktop?: DesktopBridge;
   recoveryCount?: number;
   recoveryProblem?: string;
@@ -118,11 +115,9 @@ type SettingsDialogProps = {
 };
 
 /** Shared local recovery settings; About and update controls require the Desktop bridge. */
-export function SettingsDialog({ open, category, onCategoryChange, documentName, unsaved, documentSettingsDisabled, documentSettingsHint, onDocumentSettings, desktop, info, onInfo, onInstall, returnFocus, onClose, recoveryCount = 0, recoveryProblem: storageProblem, onClearRecovery }: SettingsDialogProps) {
+export function SettingsDialog({ open, category, onCategoryChange, documentName, unsaved, desktop, info, onInfo, onInstall, returnFocus, onClose, recoveryCount = 0, recoveryProblem: storageProblem, onClearRecovery }: SettingsDialogProps) {
   useTranslation();
   const backButton = useRef<HTMLButtonElement>(null);
-  const connectDocumentSettings = useRef(false);
-  useEffect(() => { if (open) connectDocumentSettings.current = false; }, [open]);
   const [clearConfirm, setClearConfirm] = useState(false);
   const clearButton = useRef<HTMLButtonElement>(null);
   const [clearing, setClearing] = useState(false);
@@ -150,14 +145,9 @@ export function SettingsDialog({ open, category, onCategoryChange, documentName,
   ] as const;
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!next) close(); }}
-      onOpenChangeComplete={next => {
-        if (!next && connectDocumentSettings.current) {
-          onDocumentSettings();
-        }
-      }}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) close(); }}>
       <DialogContent className="settings-screen" data-testid="settings-dialog" showCloseButton={false}
-        initialFocus={backButton} finalFocus={() => connectDocumentSettings.current ? false : returnFocus()}>
+        initialFocus={backButton} finalFocus={returnFocus}>
         <header className="settings-topbar">
           <Button ref={backButton} data-testid="settings-back" variant="ghost" size="sm" onClick={close}>
             <ArrowLeft aria-hidden="true" />{i18n.t(documentName ? "Back to document" : "Back to start")}
@@ -179,11 +169,6 @@ export function SettingsDialog({ open, category, onCategoryChange, documentName,
             </nav>
             <div className="settings-document-note">
               <p>{i18n.t("Heading numbers, reference style and bibliography are saved in each document.")}</p>
-              {documentName ? <Button variant="ghost" className="settings-document-link" disabled={documentSettingsDisabled}
-                title={documentSettingsHint || undefined} onClick={() => {
-                  connectDocumentSettings.current = true;
-                  close();
-                }}>{i18n.t("Open document settings")}</Button> : null}
             </div>
           </aside>
           <main className="settings-content" aria-labelledby={`settings-category-${category}`}>

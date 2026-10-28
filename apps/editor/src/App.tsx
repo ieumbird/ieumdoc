@@ -738,8 +738,6 @@ export function App() {
   const inlineInsertionDisabled = !document || busy || view !== "visual" ||
     !editorRef.current?.canInsertInline() || commandReturnFocus.current !== editorRef.current?.getFocusTarget();
   const historyDisabled = !document || busy || view !== "visual";
-  const documentSettingsHint = !document ? i18n.t("Open a document to change numbering.") : busy ? i18n.t("Wait for the current operation to finish.")
-    : view !== "visual" ? i18n.t("Switch to Visual to change heading numbering.") : undefined;
   const commandItems: CommandCenterItem[] = [
     ...tabs.map((tab, index) => ({
       id: `tab:${tab.id}`, kind: "document" as const, label: commandDocumentNames[index]!,
@@ -946,9 +944,6 @@ export function App() {
           onCategoryChange={setSettingsCategory}
           documentName={openedPath ? splitDocumentPath(openedPath).name : ""}
           unsaved={documentDirty || draftActive}
-          documentSettingsDisabled={historyDisabled}
-          documentSettingsHint={documentSettingsHint ?? ""}
-          onDocumentSettings={() => editorRef.current?.openDocumentSettings()}
           recoveryCount={recoveryRecords.length}
           recoveryProblem={recoveryProblem}
           onClearRecovery={() => deleteRecovery()}
