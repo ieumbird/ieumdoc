@@ -107,10 +107,12 @@ test('only a successful same-SHA merge_group run in this workflow permits master
 test('smartquotes runs for dependency, patch and parser configuration changes, outside default Core tests', () => {
   for (const file of ['package.json', 'packages/core/package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml',
     'patches/markdown-it@13.0.2.patch', 'patches/linkify-it@4.0.1.patch', 'packages/core/src/myst/parse.ts',
-    'packages/core/src/myst/serialize.ts', 'packages/core/src/myst/literal-syntax.ts', 'packages/core/test/smartquotes-patch.test.ts']) {
+    'packages/core/src/myst/serialize.ts', 'packages/core/src/myst/footnote.ts',
+    'packages/core/src/myst/literal-syntax.ts', 'packages/core/test/smartquotes-patch.test.ts']) {
     assert.equal(selectJobs('merge_group', [file]).smartquotes, true, file);
   }
   for (const file of ['docs/README.md', 'apps/editor/src/App.tsx', 'packages/core/src/index.ts',
+    'packages/core/src/myst/figure.ts', 'packages/core/src/myst/table.ts',
     'packages/core/test/myst-regression.test.ts', 'scripts/ci-quality-mode.test.mjs']) {
     assert.equal(selectJobs('merge_group', [file]).smartquotes, false, file);
   }

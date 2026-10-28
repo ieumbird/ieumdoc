@@ -89,7 +89,9 @@ The large smartquotes child-process probe remains unchanged (160,000 quotes and 
 10-second hang guard), in `packages/core/test/smartquotes-patch.test.ts`. It is outside
 the default Core suite and runs via `pnpm --filter @ieumdoc/core test:smartquotes`.
 CI selects it for root/Core package manifests, lockfile/workspace dependency configuration,
-`patches/**`, `packages/core/src/myst/**` and the probe itself. An unavailable event diff
+`patches/**`, the parser/tokenizer settings in `packages/core/src/myst/` (`parse.ts`,
+`serialize.ts`, `footnote.ts`, `literal-syntax.ts`) and the probe itself. New tokenizer
+configuration files must be added to that selection list. An unavailable event diff
 or unverified master-push reuse falls back to full CI including this probe. This retains
 #11's installed-dependency patch verification while public quote-preservation, URL and
 HTML security regressions remain in the default Core suite. The exact execution policy

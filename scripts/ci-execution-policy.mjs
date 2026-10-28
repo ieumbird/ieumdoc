@@ -12,6 +12,9 @@ const product = path => ['packages/cli', 'apps/editor', 'packages/core', 'packag
   .some(name => inPackage(path, name));
 const known = path => product(path) || shared(path) || path.startsWith('docs/') ||
   path.endsWith('.md') || path.startsWith('.github/ISSUE_TEMPLATE/');
+// These files create/configure the parser and diagnostic/footnote tokenizers.
+const parserSettings = ['parse.ts', 'serialize.ts', 'footnote.ts', 'literal-syntax.ts']
+  .map(name => `packages/core/src/myst/${name}`);
 
 export function selectJobs(eventName, paths) {
   if (!['pull_request', 'merge_group'].includes(eventName) || !paths?.length) return allJobs();
@@ -28,7 +31,7 @@ export function selectJobs(eventName, paths) {
     // covers transitive updates. Keep the installed patch probe separate from Core.
     smartquotes: paths.some(path => ['package.json', 'packages/core/package.json', 'pnpm-lock.yaml',
       'pnpm-workspace.yaml', 'packages/core/test/smartquotes-patch.test.ts'].includes(path) ||
-      path.startsWith('patches/') || path.startsWith('packages/core/src/myst/')),
+      path.startsWith('patches/') || parserSettings.includes(path)),
   };
 }
 
