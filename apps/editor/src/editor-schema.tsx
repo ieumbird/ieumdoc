@@ -1307,21 +1307,34 @@ function isolateInputDrag(event: ReactDragEvent<HTMLDivElement>) {
   if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) event.stopPropagation();
 }
 
-/** Insertion refocuses the engine first; deferred entry must yield to subsequent user focus. */
+/** Insertion refocuses the engine first; deferred entry must yield to subsequent user input. */
 function useSourceInputFocus(input: RefObject<HTMLElement | null>, editing: boolean) {
   const frame = useRef<number | null>(null);
+  const interaction = useRef<AbortController | null>(null);
   const cancel = () => {
+    interaction.current?.abort();
+    interaction.current = null;
     if (frame.current !== null) cancelAnimationFrame(frame.current);
     frame.current = null;
   };
   useEffect(() => {
     if (!editing) return;
     cancel();
-    const active = document.activeElement;
+    // Entry's pointerdown/Enter has already passed document capture. Only later trusted
+    // input outside this form cancels entry; the insertion command's programmatic focus does not.
+    interaction.current = new AbortController();
+    const leave = (event: Event) => {
+      if (event.isTrusted && event.target instanceof globalThis.Node &&
+        !input.current?.closest("form")?.contains(event.target)) cancel();
+    };
+    const options = { capture: true, signal: interaction.current.signal };
+    document.addEventListener("pointerdown", leave, options);
+    document.addEventListener("keydown", leave, options);
     frame.current = requestAnimationFrame(() => {
       frame.current = null;
+      cancel();
       const element = input.current;
-      if (document.activeElement === active && element?.getClientRects().length &&
+      if (element?.getClientRects().length &&
         !element.closest("form")?.contains(document.activeElement)) element.focus();
     });
     return cancel;

@@ -25,38 +25,41 @@ async (page, { openPath, withBlockHover }) => {
   const before = await read();
   if (!before.includes('```{math}') || !before.includes(':::{figure}')) throw new Error('Scratch document is not a fresh technical-document.md copy');
 
+  const holdOpeningFrames = () => page.evaluate(() => {
+    const native = window.requestAnimationFrame;
+    const cancel = window.cancelAnimationFrame;
+    const callbacks = new Map();
+    let scheduled = 0;
+    window.requestAnimationFrame = callback => {
+      scheduled++;
+      const id = native.call(window, () => {});
+      callbacks.set(id, callback);
+      return id;
+    };
+    window.cancelAnimationFrame = id => {
+      callbacks.delete(id);
+      cancel.call(window, id);
+    };
+    window.releaseOpeningFrames = () => {
+      window.requestAnimationFrame = native;
+      window.cancelAnimationFrame = cancel;
+      delete window.releaseOpeningFrames;
+      callbacks.forEach(callback => callback(performance.now()));
+      return scheduled;
+    };
+  });
   // Delay the opening frame, as a busy renderer can, while a user opens another surface.
   // Release the real callbacks only after the menu owns focus; inspect immediately afterwards.
-  for (const [folder, document, blockSelector, editName, fieldId, cancelId, draft] of [
-    ['block-move', 'draft-boundaries.md', '[data-block="equation"]', 'Edit', 'equation-latex', 'equation-cancel', 'x + DeferredFocusDraft'],
-    ['mermaid-authoring', 'diagram.md', '[data-block="figure"]', 'Edit figure', 'mermaid-source', 'mermaid-cancel', 'graph TD\n  Draft --> Preserved'],
-    ['block-move', 'technical-document.md', '[data-block="figure"]', 'Edit figure', 'figure-image-url', 'figure-cancel', 'draft-image.svg'],
+  for (const [folder, document, blockSelector, editName, fieldId, cancelId, draft, previewId] of [
+    ['block-move', 'draft-boundaries.md', '[data-block="equation"]', 'Edit', 'equation-latex', 'equation-cancel', 'x + DeferredFocusDraft', 'equation-preview'],
+    ['mermaid-authoring', 'diagram.md', '[data-block="figure"]', 'Edit figure', 'mermaid-source', 'mermaid-cancel', 'graph TD\n  Draft --> Preserved', 'mermaid-preview'],
+    ['block-move', 'technical-document.md', '[data-block="figure"]', 'Edit figure', 'figure-image-url', 'figure-cancel', 'draft-image.svg', 'figure-image'],
   ]) {
     await openPath(page, [root, 'tmp', folder, document].join(separator));
     await page.getByRole('dialog').waitFor({state:'detached'});
     const block = page.locator(`[data-document-tab][data-active=true] ${blockSelector}`).first();
     await block.hover();
-    await page.evaluate(() => {
-      const native = window.requestAnimationFrame;
-      const cancel = window.cancelAnimationFrame;
-      const callbacks = new Map();
-      window.requestAnimationFrame = callback => {
-        const id = native.call(window, () => {});
-        callbacks.set(id, callback);
-        return id;
-      };
-      window.cancelAnimationFrame = id => {
-        callbacks.delete(id);
-        cancel.call(window, id);
-      };
-      window.releaseOpeningFrames = () => {
-        window.requestAnimationFrame = native;
-        window.cancelAnimationFrame = cancel;
-        delete window.releaseOpeningFrames;
-        callbacks.forEach(callback => callback(performance.now()));
-        return callbacks.size;
-      };
-    });
+    await holdOpeningFrames();
     try {
       await block.getByRole('button', {name:editName, exact:true}).click();
       await page.getByTestId(fieldId).fill(draft);
@@ -70,6 +73,53 @@ async (page, { openPath, withBlockHover }) => {
       await page.getByTestId(cancelId).click();
     } finally {
       await page.evaluate(() => window.releaseOpeningFrames?.());
+    }
+    for (const movement of ['same-editor', 'round-trip', 'keyboard', 'programmatic-focus']) {
+      const prose = page.locator('[data-document-tab][data-active=true] .document-editor > p.paragraph').first();
+      const enter = movement === 'same-editor' || movement === 'keyboard';
+      if (enter) {
+        if (previewId === 'mermaid-preview') await block.getByTestId(previewId).locator('img').waitFor();
+        await block.getByTestId(previewId).click();
+      }
+      else await block.hover();
+      await holdOpeningFrames();
+      try {
+        if (enter) await page.keyboard.press('Enter');
+        else await block.getByRole('button', {name:editName, exact:true}).click();
+        const field = page.getByTestId(fieldId);
+        await field.waitFor();
+        const originalDraft = await field.inputValue();
+        const openingFocus = await page.evaluateHandle(() => document.activeElement);
+        if (movement === 'keyboard') await page.keyboard.press('ArrowDown');
+        else if (movement === 'programmatic-focus') await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(node => node.editor.view.focus());
+        else {
+          await prose.click();
+          // Establish both the native caret and engine selection before releasing the held
+          // frame; click-to-selection synchronization is separate from deferred form focus.
+          await page.waitForFunction(path => {
+            const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor');
+            const {selection} = editor.editor.state;
+            const paragraph = [...editor.querySelectorAll(':scope > p.paragraph')].find(node => node.getAttribute('data-source-path') === path);
+            return selection.empty && selection.$from.parent.attrs.sourcePath === path &&
+              paragraph?.contains(window.getSelection()?.anchorNode);
+          }, await prose.getAttribute('data-source-path'));
+        }
+        if (movement === 'round-trip') await page.locator('.app-header').click({position:{x:1,y:1}});
+        if (movement !== 'programmatic-focus' && !await page.evaluate(element => document.activeElement === element, openingFocus)) throw new Error(`${fieldId}: ${movement} did not reproduce identical activeElement`);
+        if (!await page.evaluate(() => window.releaseOpeningFrames())) throw new Error('Opening frame was not held');
+        if (movement === 'programmatic-focus') {
+          if (!await field.evaluate(node => node === document.activeElement)) throw new Error(`${fieldId} lost autofocus after programmatic editor focus`);
+        } else if (!await page.evaluate(element => document.activeElement === element, openingFocus)) throw new Error(`${fieldId} stole focus after ${movement}`);
+        await openingFocus.dispose();
+        if (movement === 'same-editor') {
+          await page.keyboard.type('FocusDestinationProbe');
+          if (!(await prose.innerText()).includes('FocusDestinationProbe') || await field.inputValue() !== originalDraft) throw new Error(`${fieldId} took subsequent prose typing`);
+          await page.keyboard.press('ControlOrMeta+z');
+        }
+        await page.getByTestId(cancelId).click();
+      } finally {
+        await page.evaluate(() => window.releaseOpeningFrames?.());
+      }
     }
   }
 
