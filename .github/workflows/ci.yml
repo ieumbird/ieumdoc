@@ -317,6 +317,14 @@ jobs:
           pnpm --filter @ieumdoc/desktop exec tsx scripts/verify-release.ts --tag "v$version"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - run: pnpm --filter @ieumdoc/desktop test:packaged
+      - name: Upload native caption screen pixels
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: desktop-caption-pixels
+          path: tmp/desktop-e2e/caption-pixels/
+          if-no-files-found: warn
+          retention-days: 7
       - run: pnpm --filter @ieumdoc/desktop test:uninstall
       - name: Upload development installer
         uses: actions/upload-artifact@v6

@@ -222,7 +222,9 @@ function createWindow(): void {
   startupPending = true;
   const created = new BrowserWindow({
     width: 1400, height: 900, minWidth: 640, minHeight: 480, title: "IeumDoc", show: false,
-    titleBarStyle: "hidden", titleBarOverlay: { height: 40 },
+    // --layout-header-row (40px) minus --border-width (1px): native opaque paint must
+    // stop before the web separator. Packaged tests check these tokens and OS pixels.
+    titleBarStyle: "hidden", titleBarOverlay: { height: 39 },
     icon: path.join(appRoot, "icon.ico"),
     webPreferences: {
       preload: path.join(appRoot, "preload.cjs"),
