@@ -7,11 +7,17 @@ import { CodexAppServer } from "../apps/editor/server/ai/codex-app-server.ts";
 import { sandboxPolicy } from "../apps/editor/server/ai/ai-api.ts";
 
 const base = path.resolve(process.env.IEUMDOC_AI_EVIDENCE ?? path.join(tmpdir(), "ieumdoc-ai-report-1028"));
-const root = path.join(base, "scratch"); const output = path.join(root, "reports");
+const round2 = process.argv[2] === "round2";
+// Round 2 uses exactly round 1's reference directory; retain its evidence and isolate output.
+const root = round2 ? path.resolve(base, "../luna/scratch") : path.join(base, "scratch");
+const output = path.join(root, round2 ? "round2-reports" : "reports");
+if (round2 && !fs.statSync(root).isDirectory()) throw new Error("The round-1 reference folder is required.");
 for (const dir of [root, output, path.join(base, "captures")]) fs.mkdirSync(dir, { recursive: true });
+if (!round2) {
 for (const file of ["technical-document.md", "diagram.svg"]) fs.copyFileSync(path.join("apps/editor/document", file), path.join(root, file));
 fs.writeFileSync(path.join(root, "converter-spec.md"), "---\nieumdoc: 1\n---\n\n# Converter specification (synthetic fixture)\n\nRated power is 6600 W. Grid RMS voltage is 220 V. DC link target is 400 V. Current command follows i = P / V. Control sequence: power command, current reference, PI current controller, PWM, converter plant.\n");
 fs.writeFileSync(path.join(root, "test-results.md"), "---\nieumdoc: 1\n---\n\n# Test results (synthetic fixture)\n\nAt 3300 W: measured efficiency 94.2 percent, THD 5.1 percent. At 6600 W: measured efficiency 95.4 percent, THD 4.8 percent. Acceptance THD limit is 4.5 percent. Both THD results exceed the target; do not claim compliance. Values are synthetic demonstration data, not real product measurements.\n");
+}
 
 if (process.argv[2] === "models") {
   const codex = new CodexAppServer();

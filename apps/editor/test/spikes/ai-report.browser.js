@@ -1,13 +1,13 @@
 // Manual live-model measurement, separate from the stable CI scenario inventory.
-async (page, { openFolderPicker, openPath, waitForActivePath }) => {
+async (page, { openFolderPicker, openPath, waitForActivePath, aiReportRound2 = false }) => {
   const check = (ok, text) => { if (!ok) throw new Error(text); };
   await page.setViewportSize({ width: 1440, height: 1000 });
   const origin = page.url().split('/').slice(0, 3).join('/');
   const start = await (await page.request.get(origin + '/api/document')).json();
   const root = start.allowedRoots[0];
   const sep = root.includes('\\') ? '\\' : '/';
-  const output = root + sep + 'reports';
-  const captures = root + sep + '..' + sep + 'captures' + sep;
+  const output = root + sep + (aiReportRound2 ? 'round2-reports' : 'reports');
+  const captures = root + sep + '..' + sep + (aiReportRound2 ? '..' + sep + 'round2' + sep : '') + 'captures' + sep;
   await openFolderPicker(page);
   const picker = page.getByRole('dialog', { name: 'Open folder', exact: true });
   await picker.getByRole('region', { name: 'Server shared folders', exact: true }).getByTitle(root, { exact: true }).click();
@@ -15,7 +15,7 @@ async (page, { openFolderPicker, openPath, waitForActivePath }) => {
   await picker.waitFor({ state: 'detached' });
   await page.getByTestId('sidebar').getByRole('treeitem', { name: 'technical-document.md', exact: true }).click();
   await waitForActivePath(page, root + sep + 'technical-document.md');
-  await page.screenshot({ path: captures + 'before-1440.png' });
+  if (!aiReportRound2) await page.screenshot({ path: captures + 'before-1440.png' });
   await page.getByTestId('ai-toggle').click();
   await page.getByRole('textbox', { name: '출력 폴더', exact: true }).fill(output);
   const requests = [
@@ -32,15 +32,22 @@ async (page, { openFolderPicker, openPath, waitForActivePath }) => {
     await page.getByRole('button', { name: '중지', exact: true }).waitFor({ state: 'detached', timeout: 600000 });
     const hasReport = await page.getByRole('button', { name: '검증된 보고서 열기', exact: true }).count() > beforeReports;
     const report = hasReport ? { path: await page.getByTestId('current-file').getAttribute('title') } : null;
+    const visualProblems = [];
     if (report) {
       await waitForActivePath(page, report.path);
       const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
-      check(await editor.locator('table').count() > 0, 'Report table rendered');
-      await editor.getByTestId('mermaid-preview').getByRole('img').waitFor();
-      check(await editor.getByTestId('mermaid-preview').getByRole('img').evaluate(image => image.complete && image.naturalWidth > 0), 'Mermaid image decoded');
+      try {
+        check(await editor.locator('table').count() > 0, 'Report table rendered');
+        await editor.getByTestId('mermaid-preview').getByRole('img').waitFor();
+        check(await editor.getByTestId('mermaid-preview').getByRole('img').evaluate(image => image.complete && image.naturalWidth > 0), 'Mermaid image decoded');
+      } catch (error) {
+        if (!aiReportRound2) throw error;
+        // A model content failure is a measurement finding; still execute exactly three requests.
+        visualProblems.push(String(error));
+      }
     }
     const logText = await page.getByTestId('ai-messages').innerText();
-    await page.screenshot({ path: captures + 'run-' + (index + 1) + '-1440.png', fullPage: true });
+    if (!aiReportRound2 || !report || visualProblems.length) await page.screenshot({ path: captures + 'run-' + (index + 1) + '-1440.png', fullPage: true });
     await page.getByTestId('sidebar').getByRole('treeitem', { name: 'converter-spec.md', exact: true }).click();
     await waitForActivePath(page, root + sep + 'converter-spec.md');
     check(await page.getByTestId('ai-messages').innerText() === logText, 'Conversation survives document tab changes');
@@ -49,13 +56,13 @@ async (page, { openFolderPicker, openPath, waitForActivePath }) => {
     check(await page.getByTestId('ai-messages').innerText() === logText, 'Conversation survives panel remount');
     check(await page.getByRole('textbox', { name: '출력 폴더', exact: true }).inputValue() === output, 'Output folder survives panel remount');
     if (report) { await page.getByRole('button', { name: '검증된 보고서 열기', exact: true }).last().click(); await waitForActivePath(page, report.path); }
-    runs.push({ request: requests[index], report, logText });
+    runs.push({ request: requests[index], report, logText, visualProblems });
   }
   await page.getByRole('button', { name: 'Codex 상태', exact: true }).click();
   await page.getByTestId('ai-settings').waitFor();
-  await page.screenshot({ path: captures + 'settings-1440.png' });
+  if (!aiReportRound2) await page.screenshot({ path: captures + 'settings-1440.png' });
   await page.getByTestId('settings-back').click();
-  await page.locator('[data-document-tab][data-active=true]').getByTestId('mermaid-preview').getByRole('img').waitFor();
+  if (!aiReportRound2) await page.locator('[data-document-tab][data-active=true]').getByTestId('mermaid-preview').getByRole('img').waitFor();
   await page.screenshot({ path: captures + 'report-and-chat-1440.png', fullPage: true });
   return { root, output, runs, captures };
 }

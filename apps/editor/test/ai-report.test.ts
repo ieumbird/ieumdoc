@@ -8,9 +8,11 @@ import { PassThrough } from "node:stream";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
 import { textRevision } from "@ieumdoc/file-commit";
+import { getEditableDocument, parse } from "@ieumdoc/core";
 import { RootAccess } from "../server/file-access.ts";
 import { sandboxPolicy, verifyReport } from "../server/ai/ai-api.ts";
 import { CLI_RUNNER } from "../server/ai/cli-runner.ts";
+import { REPORT_OPERATIONS_EXAMPLE } from "../server/ai/report-example.ts";
 import { CodexAppServer, LineDecoder, encodeMessage, requiredModel, type RpcMessage, type Transport } from "../server/ai/codex-app-server.ts";
 
 test("the exact requested catalog model is required; other Luna versions and Sol are never fallbacks", () => {
@@ -92,4 +94,23 @@ test("CLI shim delegates to the real CLI and refuses source edits and overwritte
   const receipt = JSON.parse(batch.stdout.split(/\r?\n/).find(line => line.startsWith("IEUMDOC_RECEIPT "))!.slice(16));
   assert.equal(receipt.revision, textRevision(fs.readFileSync(target, "utf8")));
   assert.equal(run("check", target, "--format", "json").status, 0);
+  // Verify exactly the generic example injected into the model, through the real shim/CLI.
+  const example = path.join(root, "example.md");
+  const invoke = (args: string[], input?: string) => spawnSync(process.execPath, [runner, ...args],
+    { env: { ...env, IEUMDOC_AI_TARGET: example }, input, encoding: "utf8", windowsHide: true });
+  assert.equal(invoke(["create", example]).status, 0);
+  const empty = fs.readFileSync(example, "utf8");
+  const exampleArgs = ["apply-batch", example, "--operations", "-", "--if-revision", textRevision(empty), "--format", "json"];
+  const preview = invoke([...exampleArgs, "--dry-run"], JSON.stringify(REPORT_OPERATIONS_EXAMPLE));
+  assert.equal(preview.status, 0, preview.stderr);
+  assert.equal(fs.readFileSync(example, "utf8"), empty);
+  const applied = invoke(exampleArgs, JSON.stringify(REPORT_OPERATIONS_EXAMPLE));
+  assert.equal(applied.status, 0, applied.stderr);
+  const checked = invoke(["check", example, "--format", "json"]);
+  assert.equal(checked.status, 0, checked.stderr);
+  assert.deepEqual(JSON.parse(checked.stdout.split(/\r?\n/)[0]!).references.unresolved, []);
+  const references = getEditableDocument(parse(fs.readFileSync(example, "utf8"))).blocks
+    .flatMap(block => "content" in block ? block.content : []).filter(item => item.kind === "reference");
+  assert.deepEqual(references.map(item => [item.role, item.label]),
+    [["numref", "example-table"], ["eq", "example-equation"], ["numref", "example-figure"]]);
 });

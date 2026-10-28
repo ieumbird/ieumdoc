@@ -2,7 +2,9 @@
  * Order feeds round-robin shards. Recovery/command-center positions balance four
  * shards using observed durations from CI run 40296330682 (#535).
  */
-export const MANUAL_SCENARIO_FILES: Record<string, string> = { "ai-report": "spikes/ai-report.browser.js" };
+export const MANUAL_SCENARIO_FILES: Record<string, string> = {
+  "ai-report": "spikes/ai-report.browser.js", "ai-report-round2": "spikes/ai-report.browser.js",
+};
 
 export const STABLE_SCENARIOS = [
   "continuous-editing",

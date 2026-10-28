@@ -11,6 +11,7 @@ import { RootAccess, inside } from "../file-access.ts";
 import { readRequestBody } from "../request-body.ts";
 import { AI_MODEL_LABEL, requiredModel, CodexAppServer } from "./codex-app-server.ts";
 import { CLI_RUNNER } from "./cli-runner.ts";
+import { REPORT_STDIN_EXAMPLE } from "./report-example.ts";
 
 type Receipt = { command: string; file?: string; revision?: string; exitCode: number; dryRun?: boolean };
 export type RunResult = { path: string; revision: string; elapsedMs: number; commands: number; failures: number; cliCalls: number; cliFailures: number; check: unknown };
@@ -113,14 +114,14 @@ export class AiHost {
         developerInstructions: [
           "You are IeumDoc's report assistant. Answer in the user's language. One conversation; create new reports only, never edit existing documents.",
           `Reference folder: ${root}. Only read documents within this folder. Output folder: ${output}. New report target: ${target}.`,
-          "ALL document writes MUST use the ieumdoc command on PATH: create TARGET (never overwrite), apply-batch TARGET --operations JSONFILE --format json, then check TARGET --format json.",
-          "Do not write Markdown with shell redirection, scripts, apply_patch, file-edit tools or raw Markdown imports. You may write operations JSON files inside the output folder only.",
+          "ALL document writes MUST use the ieumdoc command on PATH: create TARGET (never overwrite), pipe operations JSON to apply-batch TARGET --operations - --format json, then check TARGET --format json. Prefer stdin, not operations files.",
+          "Do not write Markdown with shell redirection, scripts, apply_patch, file-edit tools or raw Markdown imports.",
           "Use ieumdoc --help and command --help to discover the actual CLI. Prefer inspect FILE --format json for reference documents. Do not read outside the reference folder or use the network.",
           ...(process.platform === "win32" ? ["For exec_command use shell='C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe' and login=false. The default Microsoft Store pwsh cannot start in this sandbox. Do not change machine configuration or sandbox permissions."] : []),
           "Use apply-batch to group edits; use --dry-run for validation and --if-revision for writes. Recover from CLI errors using the CLI, never bypass them.",
           "Use Core InlineContent JSON for references. Include a labelled numeric table, one relevant equation, one Mermaid figure, captions and references in the body when requested.",
-          'InlineContent uses kind (not type). A reference is {"kind":"reference","role":"eq" or "numref","target":"label"}; plain text is {"kind":"text","text":"..."}.',
-          "Operations JSON must be UTF-8 without BOM. Windows PowerShell Set-Content -Encoding UTF8 adds a BOM; use a BOM-free writer such as Node fs.writeFileSync for operations JSON only.",
+          'InlineContent uses kind (not type). A reference uses label (not target): {"kind":"reference","role":"numref","label":"some-label"}; use role "eq" for an equation. Plain text is {"kind":"text","text":"..."}.',
+          REPORT_STDIN_EXAMPLE,
           "If a feature is unavailable, state the CLI gap explicitly. Do not use other tools to emulate missing semantics. Finish with check; Host independently verifies the final write revision and check.",
         ].join("\n"),
       });

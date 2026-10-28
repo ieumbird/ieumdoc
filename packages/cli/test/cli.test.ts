@@ -426,6 +426,43 @@ test("apply-batch preserves original bytes for step errors, invalid input and st
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test("apply-batch stdin matches file input, preserves dry-run bytes and refuses invalid or stale atomic edits", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-batch-stdin-"));
+  const file = path.join(dir, "stdin.md"), fromFile = path.join(dir, "file.md"), operationsFile = path.join(dir, "operations.json");
+  const original = nativeSource("# Report\r\n\r\nOriginal.\r\n");
+  const operations = [{ command: "insert-block", at: "end", text: "한글 ✓ from stdin" }];
+  const input = JSON.stringify(operations);
+  try {
+    writeFileSync(file, original); writeFileSync(fromFile, original); writeFileSync(operationsFile, input);
+    const args = ["apply-batch", file, "--operations", "-", "--if-revision", textRevision(original), "--format", "json"];
+    const preview = runProcess([...args, "--dry-run"], [], undefined, input);
+    assert.equal(preview.status, 0, preview.stderr);
+    assert.equal(readFileSync(file, "utf8"), original);
+    assert.equal(JSON.parse(preview.stdout).dryRun, true);
+    const bomPreview = runProcess([...args, "--dry-run"], [], undefined, "\uFEFF" + input);
+    assert.equal(bomPreview.status, 0, bomPreview.stderr);
+    assert.equal(bomPreview.stdout, preview.stdout);
+    assert.equal(readFileSync(file, "utf8"), original);
+    const applied = runProcess(args, [], undefined, input);
+    assert.equal(applied.status, 0, applied.stderr);
+    assert.equal(run(["apply-batch", fromFile, "--operations", operationsFile, "--format", "json"]).status, 0);
+    const written = readFileSync(file, "utf8");
+    assert.equal(written, readFileSync(fromFile, "utf8"));
+    assert.equal(written, JSON.parse(preview.stdout).markdown);
+    assert.equal(JSON.parse(applied.stdout).revision, textRevision(written));
+    assert.match(written, /한글 ✓ from stdin/);
+    for (const badInput of ["", "[{", "[]", Buffer.from([0xff]), JSON.stringify([...operations, { command: "update-heading", path: "999", text: "Invalid" }])]) {
+      const failed = runProcess(["apply-batch", file, "--operations", "-", "--format", "json"], [], undefined, badInput);
+      assert.equal(failed.status, 1, String(badInput));
+      assert.equal(readFileSync(file, "utf8"), written, "Failed stdin batch leaves the file unchanged");
+    }
+    const stale = runProcess(args, [], undefined, input);
+    assert.equal(stale.status, 1);
+    assert.match(stale.stderr, /revision mismatch/);
+    assert.equal(readFileSync(file, "utf8"), written);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test("CLI can check and modify a real file through Core", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-"));
   const file = path.join(dir, "document.md");
@@ -1811,12 +1848,13 @@ function run(args: string[]) {
 }
 
 // Keep process exit delivery, serve, and Node preload/env isolation on the executable path.
-function runProcess(args: string[], nodeArgs: string[] = [], env?: NodeJS.ProcessEnv) {
+function runProcess(args: string[], nodeArgs: string[] = [], env?: NodeJS.ProcessEnv, input?: string | Buffer) {
   const tsxCli = fileURLToPath(import.meta.resolve("tsx/cli"));
   const cli = path.join(cliRoot, "src", "cli.ts");
   return spawnSync(process.execPath, [tsxCli, ...nodeArgs, cli, ...args], {
     encoding: "utf8",
     env,
+    input,
   });
 }
 

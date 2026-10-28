@@ -91,7 +91,7 @@ captions and body references. `events.ndjson` retains raw command results; the b
 records visible conversation/tab continuity and 1440px captures. It is explicitly selected and
 excluded from the stable suite: live-model duration is not a normal browser latency assertion.
 
-## Measurements and conclusions
+## Round 1 measurements and conclusions
 
 The owner added the Luna-only instruction during the initial experiment. The active Sol request
 was immediately interrupted and the Host stopped. The catalog initially lacked the exact requested
@@ -165,6 +165,73 @@ Sol-only captures and transcripts remain under `captures/` and `sol-browser-resu
 labelled as such. Final Luna captures, command events and measurements are under `luna/`.
 The 1440px `luna/captures/report-and-chat-1440.png` shows the final actual report and conversation;
 `luna/captures/settings-1440.png` shows `gpt-6-luna`, ChatGPT login and Codex 0.164.0.
+
+## Round 2: stdin and a validated reference example
+
+Scope is limited to two changes: `apply-batch --operations -` reads UTF-8 operations from stdin,
+and the model receives a short generic operations example for labelled table/equation/Mermaid
+blocks and real inline references. The batch parser, Core operations, atomic commit, dry-run,
+revision checks, model, sandbox and inspect projection are unchanged. Stdin alone accepts an
+initial UTF-8 BOM; the existing operations-file path retains its previous behavior.
+
+The generic example uses `y = x`, an A/1 table and Input→Output diagram; it is not a prewritten
+answer to any measurement request. Its initial CLI test exposed a wrong field in round 1's
+guidance: reference nodes need **`label`**, not `target`. Round 2 corrects that instruction.
+The exact injected example passed actual CLI dry-run, apply and check, and Core confirmed the
+three references. A model-free `command/exec` preflight in the unchanged Windows sandbox also
+confirmed those operations and Korean stdin preservation. That preflight initially failed because
+Windows PowerShell's UTF-8 pipe prepended a BOM; the new stdin decoder handles it. Both preflight
+attempts are retained outside the repository; they involved no model thread or turn.
+
+Round 2 reuses the exact round-1 reference folder without rewriting it, uses a separate
+`round2-reports` output subfolder and starts a fresh in-memory conversation. The three request
+strings are shared with round 1. Only `gpt-6-luna` is allowed, exactly three requests. The manual
+measurement records model content/visual failures as findings so they do not prevent the remaining
+planned requests; normal stable browser assertions and timeouts are unchanged. Only the final
+1440px report/chat and necessary failure evidence are captured in round 2.
+
+Exactly three `gpt-6-luna` requests completed on Codex 0.164.0. The browser result confirms byte-identical
+request strings and the same reference root as round 1; all four reference-file hashes stayed unchanged.
+No operations JSON files were created in round 2's output folder; every actual batch used stdin.
+
+| Metric (requests 1 / 2 / 3) | Round 1 | Round 2 |
+| --- | --- | --- |
+| Host revision/check pass | 2/3 | 3/3 |
+| Table, equation, Mermaid, captions and actual reference coverage | 0/3 | 3/3 |
+| Core reference nodes | 0 / 0 / 0 | 3 / 3 / 3 |
+| Time (s), excluding final Host check | 64.517 / 51.048 / 53.869 | 42.605 / 51.212 / 40.472 |
+| Shell commands | 15 / 10 / 9 | 8 / 9 / 6 |
+| Shell failures | 6 / 2 / 1 | 0 / 1 / 1 |
+| CLI calls | 18 / 14 / 20 | 12 / 12 / 13 |
+| CLI failure receipts | 3 / 2 / 2 | 0 / 3 / 3 |
+| CLI retry calls | 2 / 2 / 1 | 0 / 1 / 0 |
+| Dry-run attempts / successes | 3/0 · 3/1 · 4/3 | 1/1 · 2/1 · 1/1 |
+| Successful batches / operation counts | 0/0 · 1/6 · 1/8 | 1/13 · 1/10 · 1/6 |
+
+The same timers/counters and retry definition as round 1 are used. Total turn time was 169.434→134.289s
+(mean 56.478→44.763s); this is descriptive evidence from three requests, not a general latency claim.
+The Windows operations-JSON transfer failure that stopped round-1 request 1 did not recur.
+Round-2 request 2 recovered after Core refused a paragraph containing heading/paragraph Markdown.
+Request 3 tried to inspect the SVG as a native document and received a read error.
+
+The raw CLI failure counts also include a pre-existing shim defect: `create --help` and
+`apply-batch --help` each show help but then incorrectly enter write-receipt handling (two failures
+in each of requests 2 and 3). These four failures remain in the table; they are not stdin or actual
+write failures. The defect is recorded without fixing it because round 2 authorizes only stdin and
+the reference example. No model benchmark is repeated to obtain better counts.
+
+Source fidelity: all reported source numbers and derived currents/THD differences were consistent
+with the fixtures. Request 1's diagram nevertheless adds an unprovided feedback path while calling
+the figure source-based. Requests 2 and 3 did not add unprovided structures; request 3 retains the
+source PWM step and explicitly labels its single-phase/unity-power-factor calculation assumption.
+Therefore structural/reference success 3/3 does not establish complete source fidelity.
+
+The only round-2 capture is the actual final report/chat at 1440px:
+[round-2 report and chat](../../spike-evidence/ai-report-1028/round2/report-and-chat-1440.png).
+No new Settings capture is needed. Model/email credentials are not displayed in the report capture.
+Raw model events, Core read-model counts, source hashes, unchanged requests and browser findings are
+retained in the external round-2 evidence directory. No Core, inspect projection, model, sandbox,
+machine PATH or registry changes were made.
 
 ## Validation boundary
 
