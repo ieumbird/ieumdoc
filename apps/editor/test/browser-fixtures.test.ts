@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, w
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { parse, serialize } from "@ieumdoc/core";
+import { parse, serialize, getEditableDocument, validateStructure, unresolvedReferences, citationReport, type InlineContent, type ListContent } from "@ieumdoc/core";
 import { prepareBrowserFixtures, REPOSITORY_ROOT, SCRATCH_DIRS, SOURCE_DIRS } from "./browser/fixtures.ts";
 import { HTTP_SCENARIOS, selectBrowserScenarios, STABLE_SCENARIOS } from "./browser/scenarios.ts";
 
@@ -134,3 +134,55 @@ test("preparing only reads the committed sources", () => withTmp((tmp) => {
   prepareBrowserFixtures(tmp);
   assert.deepEqual(SOURCE_DIRS.map(snapshot), before);
 }));
+
+test("localized sample folders retain the supported feature set and canonical Core model", () => {
+  const structures: string[][] = [];
+  for (const language of ["ko", "en"]) {
+    const dir = path.join(REPOSITORY_ROOT, "apps/editor/samples", language);
+    const source = readFileSync(path.join(dir, "converter-control.md"), "utf8");
+    const document = parse(source);
+    assert.doesNotThrow(() => validateStructure(document));
+    assert.deepEqual(unresolvedReferences(document), []);
+    assert.equal(serialize(document), source, "sample is already canonical");
+    const model = getEditableDocument(document);
+    assert.deepEqual(getEditableDocument(parse(serialize(document))), model);
+    assert.deepEqual(model.headingNumbering?.enabled, [false, true, true, true, true, true]);
+    assert.ok(model.referenceTemplates?.figure && model.referenceTemplates.table && model.referenceTemplates.equation);
+    structures.push(model.blocks.map(block => block.block));
+    const inline: InlineContent[] = [];
+    const visit = (content: InlineContent[]) => { for (const item of content) { inline.push(item); if ("children" in item) visit(item.children); } };
+    const lists: ListContent[] = [];
+    const visitList = (list: ListContent) => { lists.push(list); for (const item of list.items) { visit(item.content); if (item.list) visitList(item.list); } };
+    for (const block of model.blocks) {
+      if ("content" in block && Array.isArray(block.content)) visit(block.content);
+      if (block.block === "list") visitList(block);
+      if (block.block === "figure") visit(block.caption.content);
+      if (block.block === "table") { if (block.caption) visit(block.caption); for (const row of block.rows) for (const cell of row.cells) visit(cell.content); }
+    }
+    for (const kind of ["strong", "emphasis", "link", "code", "math", "footnote", "citation"]) assert.ok(inline.some(item => item.kind === kind), kind);
+    assert.ok(lists.some(list => list.ordered) && lists.some(list => !list.ordered));
+    assert.ok(lists.some(list => list.items.some(item => item.list)), "nested list");
+    for (const kind of ["code", "quote", "admonition", "footnote"]) assert.ok(model.blocks.some(block => block.block === kind), kind);
+    assert.ok(model.blocks.some(block => block.block === "target" && inline.some(item => item.kind === "reference" && item.role === "ref" && item.label === block.label)), "section reference");
+    for (const kind of ["table", "equation", "figure"] as const) {
+      const targets = model.blocks.filter(block => block.block === kind && "label" in block);
+      assert.ok(targets.length);
+      for (const block of targets) {
+        assert.ok("label" in block && block.label && inline.some(item => item.kind === "reference" && item.label === block.label), `labeled, referenced ${kind}`);
+        if (block.block === "table") assert.ok(block.caption?.length);
+        if (block.block === "figure") assert.ok(block.caption.content.length);
+      }
+    }
+    assert.ok(model.blocks.some(block => block.block === "figure" && block.contentKind === "mermaid" && block.mermaidSource));
+    const images = model.blocks.filter(block => block.block === "figure" && block.contentKind === "image");
+    assert.ok(images.length);
+    for (const block of images) if (block.block === "figure") {
+      assert.ok(block.imageUrl.startsWith("./assets/"));
+      assert.ok(existsSync(path.join(dir, block.imageUrl)));
+    }
+    const report = citationReport(document, [{ source: "./references.bib", status: "ok", text: readFileSync(path.join(dir, "references.bib"), "utf8") }]);
+    assert.equal(report.readiness.complete, true);
+    assert.ok(report.references?.length);
+  }
+  assert.deepEqual(structures[0], structures[1], "both languages offer the same document structure");
+});

@@ -1,2 +1,5 @@
 # Keep pnpm patches stable; unified-diff blank context lines need their space prefix.
 patches/*.patch text eol=lf -whitespace
+
+# Samples must already match Core canonical LF output on every checkout.
+apps/editor/samples/** text eol=lf

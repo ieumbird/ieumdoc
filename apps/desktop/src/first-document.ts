@@ -1,6 +1,7 @@
-import { copyFileSync, existsSync, mkdirSync, statSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { assertUnicode } from "@ieumdoc/file-commit";
+import { prepareSampleDocuments } from "../../editor/server/sample-documents.ts";
 import type { FirstDocument } from "./host-protocol.ts";
 
 /**
@@ -17,13 +18,6 @@ export function firstDocument(args: string[], userData: string, appRoot: string,
     }
     return existsSync(value) && statSync(value).isFile();
   });
-  if (argument) return { document: path.resolve(argument) };
-  const sampleDir = path.join(userData, "sample-native-v1");
-  const sample = path.join(sampleDir, "technical-document.md");
-  if (!existsSync(sample)) {
-    mkdirSync(sampleDir, { recursive: true });
-    for (const file of ["technical-document.md", "diagram.svg"]) copyFileSync(path.join(appRoot, "sample", file), path.join(sampleDir, file));
-  }
-  return { sample };
+  const sampleAvailability = prepareSampleDocuments(path.join(appRoot, "sample"), path.join(userData, "sample-native-v1"), onWarning);
+  return { ...(argument ? { document: path.resolve(argument) } : {}), ...sampleAvailability };
 }
-

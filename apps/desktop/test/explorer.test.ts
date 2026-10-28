@@ -18,7 +18,7 @@ test("Explorer only opens existing directories in currently opened, Host-listed 
     const calls: string[] = [];
     const open = async (folder: string) => { calls.push(folder); return ""; };
     assert.throws(() => folders.setOpened([root]), /Unknown/);
-    const handler = createProtocolHandler(temp, { sample: "" }, undefined, root => folders.listedRoot(root));
+    const handler = createProtocolHandler(temp, {}, undefined, root => folders.listedRoot(root));
     assert.equal((await handler(new Request(`${ORIGIN}/api/folder?root=${encodeURIComponent(root)}`))).status, 200);
     folders.listedRoot("//server/share");
     folders.setOpened([root, "//server/share"]);

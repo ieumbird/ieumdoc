@@ -36,7 +36,7 @@ async (page, { openDocument, openPath, screenshots = false }) => {
   await page.route('**/api/document**', async route => {
     const request = route.request();
     if (request.method() === 'GET') {
-      if (!queryPath(request.url()) && startNext) return route.fulfill({json:{start:true, sample:pathB}});
+      if (!queryPath(request.url()) && startNext) return route.fulfill({json:{start:true, samples:{ko:pathB,en:pathB}}});
       const requestedPath = queryPath(request.url()) || pathA;
       const response = files.get(requestedPath);
       if (!response) return route.fulfill({status:400,json:{error:'unknown test file'}});
@@ -122,7 +122,7 @@ async (page, { openDocument, openPath, screenshots = false }) => {
     await start.getByRole('button', {name:'Open sample document', exact:true}).click();
     await start.waitFor({state:'detached'});
     if (!(await page.getByTestId('current-file').getAttribute('title')).includes(pathB)) throw new Error('The sample did not open');
-    await page.getByText("This is the sample document, a copy in IeumDoc's app data.", {exact:true}).filter({visible:true}).waitFor();
+    await page.getByText("This is a writable sample copy. Changes are kept until the bundled sample version changes.", {exact:true}).filter({visible:true}).waitFor();
     await page.getByRole('button', {name:'Close ieumdoc-b.md',exact:true}).click();
     await start.waitFor();
     if (!await start.getByRole('button', {name:'Open sample document',exact:true}).isVisible()) throw new Error('Last close lost the Host sample information');

@@ -1,6 +1,8 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
+- Sample safety verification: 2026-10-28 (#686 review fixes; OS-temp ownership/junction/copy/rename unit regressions and Host/client failure propagation; no additional local browser or packaged execution).
+- Feature sample verification: 2026-10-28 (#528 localized folders, Core read-model coverage and canonical CLI check/format; Desktop replacement/preservation unit tests and development browser entry/captures; no local packaged Desktop run).
 - Window startup verification: 2026-10-28 (#643 / #644 review: production-minified renderer bridge matrix, Desktop main lifecycle/strict-IPC unit tests including absent first paint; saved light/flat packaged restart regression is CI-only).
 - Version correction verification: 2026-10-28 (#632: `0.0.2-beta.1` published; anonymous assets and withdrawal of both `0.1.0` Beta Releases/assets/remote tags verified; actual GitHub installation/update unverified; [record](../releases/v0.0.2-beta.1.md)).
 - CLI directory cleanup verification: 2026-10-28 (#629: isolated disable/uninstall ownership tests, Desktop typecheck and CI channel-order tests; actual Stable→Beta and NSIS checks run only in disposable Windows CI).
@@ -139,7 +141,51 @@ state and existing Settings layout; the mock does not establish native registry/
 
 ## Native sample
 
-The default bundled sample is copied once to `sample-native-v1` under the user data directory. Existing `sample` directories and modified copies are preserved. The sample follows [Native document support](document-support-v1.md).
+The bundled [converter control design notes](../../apps/editor/samples/en/converter-control.md)
+ship as Korean and English folders, each containing a canonical native `.md`, `assets/` and
+`references.bib`. The current UI language selects the sample when the user chooses **Open sample
+document** on the start screen or in Command center, including when an argument document is open.
+Changing UI language does not translate or replace an already open document.
+
+On startup, Desktop offers samples only after safe preparation succeeds. A new copy carries
+`.ieumdoc-sample` ownership text and `version`. Replacement requires a real directory (no
+junction/symlink in its ancestry or contents), the expected ownership marker and exact known
+file/directory set. Added files, extra empty directories, changed entry types or unconfirmed
+ownership cause a conflict: the existing folder is preserved and no sample paths are offered.
+
+The original v1 copy is recognized only by its exact two regular files, `technical-document.md`
+and `diagram.svg`, with no other entries. Their contents may have been edited; replacing those
+recognized sample edits remains authorized. A missing version alone never proves ownership.
+Unmarked copies of the unreleased bilingual layout are preserved as unconfirmed folders.
+
+A differing bundled `samples/version` replaces a confirmed copy once. The same version preserves
+edits. Copying finishes in a generated sibling directory, including version and ownership markers,
+before rename installs it. A confirmed old copy is moved aside only after staging succeeds; a
+failed installation rename restores it. Unknown or linked paths are never recursively removed.
+Sample preparation errors are logged and carried to the Editor as a standing sample-unavailable
+warning, while an argument document or empty startup remains usable. Both start screen and
+Command center omit unavailable sample paths. Version `2` replaces the recognized original
+sample; bump the bundled marker when sample contents change.
+Runtime copies use explicit `copyFileSync` reads for the document, bibliography and image in each
+language folder. Electron 44.7's ASAR wrapper extracts a file for `cpSync`, so it cannot copy the
+bundled language directories as directories. The first PR CI hit an installed-start timeout on that
+path; the correction keeps the existing archive-safe file-copy behavior. The unit test compares
+all bundled files against the copied folder, so a new sidecar also requires updating the copy list.
+The older unrelated `sample` directory is untouched. The development Editor uses the same copier
+with a worktree-local `tmp/sample-native-v1` destination; HTTP Host offers no sample.
+
+The samples use only [Native document support](document-support-v1.md). There is no new semantic
+operation or CLI command: CLI `check` and `format` use the existing Core contract. The original
+`apps/editor/document/technical-document.md` remains a regression fixture, not the distributed sample.
+Core read-model feature coverage and canonical round-trip live in the existing Editor browser-fixture
+tests. Desktop first-document unit tests use OS temporary folders outside the repository for legacy
+recognition, foreign-file preservation, destination/ancestor/nested junctions, same-version edits,
+copy failure and rename rollback; Host/client tests check that sample problems do not block startup.
+Existing browser Command center checks
+cover the UI entry and live language selection. See [sample capture evidence](editor-ux-shell-v1.md#localized-feature-samples-528).
+
+For #528, packaged Desktop, install/update/uninstall, Edge and fresh-profile probes are intentionally
+not run locally by owner decision. The packaged regression expectations are updated for CI.
 
 ## Start-up document path Unicode (#287)
 
@@ -157,7 +203,7 @@ The native window enforces a minimum width of **640px** (minimum height 480px), 
 
 - App/product name: `IeumDoc`; App ID: `io.github.ieumbird.ieumdoc`; updater cache: `%LOCALAPPDATA%\ieumdoc-updater`; preferences/sample/logs: `%APPDATA%\IeumDoc`. Keep these identities stable after first publication.
 - Windows EXE, NSIS installer/uninstaller, shortcuts and runtime window use the [IeumDoc wing/document icon](app-icon-v1.md). Its SVG source and generated ICO are tracked together; this does not replace previously published Beta assets.
-- The per-user one-click NSIS installer requires no separate Node.js/pnpm/browser installation. Uninstall keeps user data. The Host supplies the first valid existing `.md` command-line file, or start information with a writable sample copied into user data once. Without an accepted argument it supplies no default document; the Editor may still restore tabs. Startup priority and session protection follow [Editing session and Save](editing-session-save-v1.md#tab-navigation-memory-383); if no tabs open, the Editor shows its [start](editor-ux-shell-v1.md#start-without-a-document-174). The sample opens only when chosen, through the same Open path as any file. Opening another argument into an already running instance and OS file association are not implemented.
+- The per-user one-click NSIS installer requires no separate Node.js/pnpm/browser installation. Uninstall keeps user data. The Host supplies the first valid existing `.md` command-line file, or start information with writable samples copied into user data once per bundled sample version. Without an accepted argument it supplies no default document; the Editor may still restore tabs. Startup priority and session protection follow [Editing session and Save](editing-session-save-v1.md#tab-navigation-memory-383); if no tabs open, the Editor shows its [start](editor-ux-shell-v1.md#start-without-a-document-174). The sample opens only when chosen, through the same Open path as any file. Opening another argument into an already running instance and OS file association are not implemented.
 - Electron main owns window lifecycle, protocol, preferences and updater. The sandboxed, isolated renderer has no Node integration; its typed preload exposes only update/settings calls and a restart check. Host/Markdown/file writes never pass through this bridge.
 - IPC accepts only the app's main frame. External navigation/new windows are denied; http(s) links open in the system browser. Static paths are confined to the production build, including symlinks. CSP permits own scripts, own/inline styles needed by the editor/KaTeX, and local/data/blob images; no remote code or frames.
 

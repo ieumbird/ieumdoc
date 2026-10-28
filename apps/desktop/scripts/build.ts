@@ -72,10 +72,7 @@ export async function buildDesktop(): Promise<string> {
     bundle: true, platform: "node", format: "cjs", target: "node24", logLevel: "warning",
   });
 
-  mkdirSync(path.join(stage, "sample"));
-  for (const file of ["technical-document.md", "diagram.svg"]) {
-    cpSync(path.join(repo, "apps", "editor", "document", file), path.join(stage, "sample", file));
-  }
+  cpSync(path.join(repo, "apps", "editor", "samples"), path.join(stage, "sample"), { recursive: true });
   // The app's own package.json: its name decides the user data and updater cache folders. Keep it.
   writeFileSync(path.join(stage, "package.json"), `${JSON.stringify({
     name: "ieumdoc",

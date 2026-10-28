@@ -1,5 +1,10 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Sample documents are unavailable because the sample folder could not be replaced safely. The existing folder was kept.": "Sample documents are unavailable because the sample folder could not be replaced safely. The existing folder was kept.",
+  "Sample documents could not be prepared. You can still open your documents.": "Sample documents could not be prepared. You can still open your documents.",
+
+  "A converter control design note you can edit. Changes are kept until the bundled sample version changes.": "A converter control design note you can edit. Changes are kept until the bundled sample version changes.",
+  "This is a writable sample copy. Changes are kept until the bundled sample version changes.": "This is a writable sample copy. Changes are kept until the bundled sample version changes.",
   "Endnote text is empty → Enter text or remove its references and definition together.": "Endnote text is empty → Enter text or remove its references and definition together.",
   "Empty endnote → Enter text or remove references + definition": "Empty endnote → Enter text or remove references + definition",
 
@@ -320,7 +325,6 @@ export const en = {
   "Start an IeumDoc document": "Start an IeumDoc document",
   "Create a document, or open a folder to continue working on an IeumDoc document.": "Create a document, or open a folder to continue working on an IeumDoc document.",
   "Sample": "Sample",
-  "A technical document showing what IeumDoc edits. It is a copy in IeumDoc's app data, apart from your files.": "A technical document showing what IeumDoc edits. It is a copy in IeumDoc's app data, apart from your files.",
   "Open sample document": "Open sample document",
   "Documents": "Documents",
   "New document": "New document",
@@ -553,7 +557,6 @@ export const en = {
   "The editor is not ready.": "The editor is not ready.",
   "Copy path needs clipboard access, which this browser allows only on HTTPS or local pages. The full path is in the filename's tooltip.": "Copy path needs clipboard access, which this browser allows only on HTTPS or local pages. The full path is in the filename's tooltip.",
   "Copied the file path.": "Copied the file path.",
-  "This is the sample document, a copy in IeumDoc's app data.": "This is the sample document, a copy in IeumDoc's app data.",
   "Caption changed during validation. Apply again.": "Caption changed during validation. Apply again.",
   "Equation LaTeX cannot be empty.": "Equation LaTeX cannot be empty.",
   "Enter LaTeX, or use Remove.": "Enter LaTeX, or use Remove.",
@@ -658,6 +661,8 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Sample documents are unavailable because the sample folder could not be replaced safely. The existing folder was kept.": "샘플 폴더를 안전하게 교체할 수 없어 샘플 문서를 제공하지 않습니다. 기존 폴더는 보존했습니다.",
+  "Sample documents could not be prepared. You can still open your documents.": "샘플 문서를 준비하지 못했습니다. 다른 문서는 계속 열 수 있습니다.",
   "Endnote text is empty → Enter text or remove its references and definition together.": "미주 내용이 비어 있습니다 → 내용을 입력하거나 참조와 정의를 함께 제거하세요.",
   "Empty endnote → Enter text or remove references + definition": "빈 미주 → 내용 입력 또는 참조·정의 함께 제거",
 
@@ -976,8 +981,9 @@ export const ko: Record<keyof typeof en, string> = {
   "Start an IeumDoc document": "이음독 문서 시작하기",
   "Create a document, or open a folder to continue working on an IeumDoc document.": "새 문서를 만들거나 폴더를 열어 이음독 문서 작업을 이어가세요.",
   "Sample": "샘플",
-  "A technical document showing what IeumDoc edits. It is a copy in IeumDoc's app data, apart from your files.": "이음독에서 편집할 수 있는 내용을 보여 주는 기술문서입니다. 사용자 파일과 별도로 앱 데이터에 보관된 사본입니다.",
   "Open sample document": "샘플 문서 열기",
+  "A converter control design note you can edit. Changes are kept until the bundled sample version changes.": "직접 편집할 수 있는 전력 변환기 제어 설계 노트입니다. 수정 내용은 앱에 포함된 샘플 버전이 바뀔 때까지 유지됩니다.",
+  "This is a writable sample copy. Changes are kept until the bundled sample version changes.": "편집할 수 있는 샘플 사본입니다. 수정 내용은 앱에 포함된 샘플 버전이 바뀔 때까지 유지됩니다.",
   "Documents": "문서",
   "New document": "새 문서",
   "New document…": "새 문서…",
@@ -1211,7 +1217,6 @@ export const ko: Record<keyof typeof en, string> = {
   "The editor is not ready.": "편집기가 아직 준비되지 않았습니다.",
   "Copy path needs clipboard access, which this browser allows only on HTTPS or local pages. The full path is in the filename's tooltip.": "경로 복사에는 클립보드 접근이 필요하며, 이 브라우저에서는 HTTPS 또는 로컬 페이지에서만 허용됩니다. 전체 경로는 파일 이름의 툴팁에서 확인하세요.",
   "Copied the file path.": "파일 경로를 복사했습니다.",
-  "This is the sample document, a copy in IeumDoc's app data.": "이음독 앱 데이터에 보관된 샘플 문서 사본입니다.",
   "Caption changed during validation. Apply again.": "검증 중 캡션이 변경되었습니다. 다시 적용하세요.",
   "Equation LaTeX cannot be empty.": "수식 LaTeX는 비워 둘 수 없습니다.",
   "Enter LaTeX, or use Remove.": "LaTeX를 입력하거나 제거를 선택하세요.",
