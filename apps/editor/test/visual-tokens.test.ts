@@ -91,6 +91,24 @@ test("product tokens and Tailwind adapters have unique, acyclic definitions in e
   assert.doesNotMatch(tokens + adapters, /!important/);
 });
 
+test("accent presets leave resolved native appearance roles unchanged", () => {
+  const tokens = readFileSync(new URL("../src/styles/tokens.css", import.meta.url), "utf8");
+  const palettes = accentPalettes(tokens);
+  for (const theme of ["light", "dark"]) for (const page of ["", "-flat"]) {
+    const nativeColors = (accent: string) => {
+      const values = palettes.get(`${theme}-${accent}${page}`)!;
+      const resolve = (name: string): string => {
+        const value = values.get(name)!;
+        return value.replace(/var\((--[\w-]+)\)/g, (_, reference: string) => resolve(reference));
+      };
+      return ["canvas", "surface-subtle", "text"].map(role => resolve(`--id-color-${role}`));
+    };
+    for (const accent of ACCENT_COLORS) {
+      assert.deepEqual(nativeColors(accent), nativeColors("blue"), `${theme}/${accent}${page}: native colors depend on accent`);
+    }
+  }
+});
+
 test("every accent preset meets text, primary-action, focus and control contrast requirements", () => {
   const tokens = readFileSync(new URL("../src/styles/tokens.css", import.meta.url), "utf8");
   for (const [preset, values] of accentPalettes(tokens)) {
