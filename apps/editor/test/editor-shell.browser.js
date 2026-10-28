@@ -26,6 +26,11 @@ async page => {
     await page.getByRole('button',{name:'Expand sidebar'}).click();
     result.currentPath = (await page.getByTestId('current-file').getAttribute('title')).endsWith('technical-document.md');
 
+    // Brand is not a new tab stop: retain Files → TopBar → document navigation order.
+    await page.getByRole('button',{name:'Settings',exact:true}).focus();
+    await page.keyboard.press('Tab');
+    result.filesToTopBar = await page.getByRole('button',{name:'Find documents and commands',exact:true}).evaluate(n=>n===document.activeElement);
+
     // Folder entry is the only general Open action; Escape and Cancel return focus to it.
     const isFocused = locator => locator.evaluate(node => node === document.activeElement);
     const dialog = page.getByRole('dialog');

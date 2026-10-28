@@ -242,7 +242,7 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
             throw Error('Document/UI font must follow its own token');
           const shellOverflow=['.app-shell','.sidebar','.app-main','.top-bar','.document-column','[data-document-tab][data-active=true] .document','[data-document-tab][data-active=true] .document-editor','.figure','.equation','.table-block'].filter(s=>{const r=rect(s);return r.left<0||r.right>innerWidth+1;});
           const center=rect('.command-center-trigger'), actions=rect('.top-bar-actions');
-          return {width,collapsed,header:rect('.top-bar-container').height,headerWidth:main.width,commandCenterDelta:Math.abs(center.left+center.width/2-(main.left+main.width/2)),centerBottom:center.bottom,actionsTop:actions.top,sidebarHeader:rect('.sidebar-header').height,centerDelta:Math.abs(main.left+main.width/2-column.left-column.width/2),blockDelta:Math.max(...starts)-Math.min(...starts),gutterGap:doc.left-controls.right,standard,compact,icons:icons?.map(r=>({x:r.x,w:r.width,h:r.height}))??null,rowIcons,labels,sidebarWidth,expectedSidebar,panelWidth,expectedPanel,body,headings,caption,table,expectedTypeValues,shellOverflow};
+          return {width,collapsed,header:rect('.app-titlebar').height,headerWidth:rect('.top-bar-container').width,commandCenterDelta:Math.abs(center.left+center.width/2-(rect('.top-bar').left+rect('.top-bar').width/2)),centerBottom:center.bottom,actionsTop:actions.top,sidebarHeader:rect('.sidebar-header').height,centerDelta:Math.abs(main.left+main.width/2-column.left-column.width/2),blockDelta:Math.max(...starts)-Math.min(...starts),gutterGap:doc.left-controls.right,standard,compact,icons:icons?.map(r=>({x:r.x,w:r.width,h:r.height}))??null,rowIcons,labels,sidebarWidth,expectedSidebar,panelWidth,expectedPanel,body,headings,caption,table,expectedTypeValues,shellOverflow};
         },{collapsed,width});
         const matchesType=(actual,expected)=>Math.abs(actual.size-expected.size)<0.1&&Math.abs(actual.line-expected.line)<0.1;
         const expected=result.expectedTypeValues;
@@ -253,7 +253,7 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
         if(width>=1279&&Math.abs(await page.locator('.document-column').evaluate(n=>n.getBoundingClientRect().width)-928)>0.5)
           throw Error(`Docking reduced Standard column at ${width}px`);
         const stacked=result.headerWidth<896;
-        if(fail||result.sidebarHeader!==40||result.commandCenterDelta>1||(!stacked&&result.header!==40)||
+        if(fail||result.sidebarHeader!==33||result.commandCenterDelta>1||(!stacked&&result.header!==40)||
           (stacked&&(result.header<=40||result.actionsTop<result.centerBottom+7)))throw Error(JSON.stringify(result));
         results.push({...result,hoverShift:after-before});
         if(collapsed)await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
@@ -305,11 +305,11 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
   const shell=async()=>{
     // Viewport changes complete before the next ResizeObserver delivery. Wait for its
     // actual measurement, then assert heading/panel geometry without a retry or reload.
-    await page.waitForFunction(()=>parseFloat(getComputedStyle(document.querySelector('.app-shell')).getPropertyValue('--app-header-height'))===document.querySelector('.app-header').offsetHeight);
+    await page.waitForFunction(()=>parseFloat(getComputedStyle(document.querySelector('.app-shell')).getPropertyValue('--app-header-height'))===document.querySelector('.app-titlebar').offsetHeight+document.querySelector('.app-header').offsetHeight);
     return page.evaluate(()=>{
     const rect=s=>{const n=document.querySelector(s);if(!n)throw Error(`Missing required ${s}`);return n.getBoundingClientRect();};
     const measured=parseFloat(getComputedStyle(document.querySelector('.app-shell')).getPropertyValue('--app-header-height'));
-    const header=rect('.app-header').height;
+    const header=rect('.app-titlebar').height+rect('.app-header').height;
     const heading=document.querySelector('[data-document-tab][data-active=true] .heading');
     if(!heading)throw Error('Missing heading for measured-header scroll margin check');
     const gapProbe=document.createElement('span');document.body.append(gapProbe);gapProbe.style.height='var(--space-8)';
@@ -345,7 +345,7 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
   await page.getByTestId('outline').waitFor();
   const docked=await shell();
   const panelHeader=await page.locator('.document-panel-header').evaluate(header=>{
-    const row=header.getBoundingClientRect(), title=header.querySelector('h2').getBoundingClientRect();
+    const row=header.getBoundingClientRect(), title=header.querySelector('[role=tablist]').getBoundingClientRect();
     return {height:row.height,sidebarHeight:document.querySelector('.sidebar-header').getBoundingClientRect().height,titleCenterDelta:Math.abs(title.top+title.height/2-row.top-row.height/2)};
   });
   if(panelHeader.height!==panelHeader.sidebarHeight||panelHeader.titleCenterDelta>0.5)throw Error(`Outline header alignment: ${JSON.stringify(panelHeader)}`);
@@ -483,7 +483,7 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
             const name=center.querySelector('.command-center-action'),shortcut=center.querySelector('kbd');
             const locationShown=getComputedStyle(center.querySelector('.document-path')).display!=='none';
             const shortcutShown=getComputedStyle(shortcut).display!=='none'&&getComputedStyle(shortcut).visibility!=='hidden';
-            return {height:header.closest('.top-bar-container').getBoundingClientRect().height,width:box.width,centerWidth:r.width,centerDelta:Math.abs(r.left+r.width/2-box.left-box.width/2),overlap,
+            return {height:header.closest('.app-titlebar').getBoundingClientRect().height,width:box.width,centerWidth:r.width,centerDelta:Math.abs(r.left+r.width/2-box.left-box.width/2),overlap,
               outside:controls.filter(({r})=>r.left<box.left||r.right>box.right||r.top<box.top||r.bottom>box.bottom).map(({name})=>name),
               locationShown,shortcutShown,actionClipped:name.scrollWidth>name.clientWidth+1,
               wideVisible:[...header.querySelectorAll('.top-bar-toggle')].every(n=>n.getBoundingClientRect().width===28)};

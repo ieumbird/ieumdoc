@@ -143,13 +143,13 @@ async (page, { screenshots = false, openPath }) => {
             // Wait for the measured header height used by overlay placement, not a fixed delay.
             await page.waitForFunction(() => {
               const shell = document.querySelector('.app-shell');
-              return parseFloat(shell.style.getPropertyValue('--app-header-height')) === document.querySelector('.app-header').offsetHeight;
+              return parseFloat(shell.style.getPropertyValue('--app-header-height')) === document.querySelector('.app-titlebar').offsetHeight + document.querySelector('.app-header').offsetHeight;
             });
             const geometry = await page.evaluate(reserved => {
-              const header = document.querySelector('.app-header').getBoundingClientRect();
+              const header = document.querySelector('.app-titlebar').getBoundingClientRect();
               const bar = document.querySelector('.top-bar').getBoundingClientRect();
               const tabs = document.querySelector('.document-tabs').getBoundingClientRect();
-              const lines = [...document.querySelectorAll('.app-header *')].flatMap(node => {
+              const lines = [...document.querySelectorAll('.app-titlebar, .app-titlebar *')].flatMap(node => {
                 const r = node.getBoundingClientRect(), style = getComputedStyle(node), thickness = parseFloat(style.borderBottomWidth);
                 return thickness && style.borderBottomStyle === 'solid' && r.bottom >= bar.bottom && r.bottom <= tabs.top
                   ? [{left:r.left, right:r.right, bottom:r.bottom, thickness, color:style.borderBottomColor}] : [];
@@ -157,23 +157,28 @@ async (page, { screenshots = false, openPath }) => {
               const borderColor = getComputedStyle(document.querySelector('.document-tabs')).borderBottomColor;
               const continuous = Array.from({length:Math.ceil(header.width)}, (_, i) => header.left + i + 0.5)
                 .filter(x => x < header.right).every(x => lines.filter(line => line.left <= x && line.right > x && line.bottom === tabs.top && line.thickness === 1 && line.color === borderColor).length === 1);
-              const blocked = [...document.querySelectorAll('.top-bar button, .sidebar-header button, .document-panel-header button')].filter(node => {
+              const blocked = [...document.querySelectorAll('.app-titlebar button, .sidebar-header button, .document-panel-header button')].filter(node => {
                 const r = node.getBoundingClientRect();
                 return r.width && (r.right > innerWidth || (r.top < 40 && r.right > innerWidth - reserved) || getComputedStyle(node).getPropertyValue('app-region') !== 'no-drag');
               }).map(node => node.getAttribute('aria-label') || node.textContent);
               const panel = document.querySelector('.document-panel--overlay');
               const usableWidth = document.querySelector('.top-bar').getBoundingClientRect().width;
-              return {continuous, singleLine:lines.every(line => line.bottom === tabs.top && line.thickness === 1), lines, blocked,
-                rowHeight:tabs.top - bar.top, usableWidth, barBottom:bar.bottom, tabsTop:tabs.top, headerBottom:header.bottom,
+              const brand = document.querySelector('.app-brand');
+              const sidebar = document.querySelector('.sidebar-header').getBoundingClientRect();
+              const docked = document.querySelector('.document-panel:not(.document-panel--overlay) .document-panel-navigation')?.getBoundingClientRect();
+              const aligned = sidebar.top === tabs.top && sidebar.bottom === tabs.bottom && (!docked || docked.top === tabs.top && docked.bottom === tabs.bottom);
+              const branded = brand.querySelector('img').complete && !!brand.querySelector('span') === !document.querySelector('.sidebar--collapsed');
+              return {aligned, branded, continuous, singleLine:lines.every(line => line.bottom === tabs.top && line.thickness === 1), lines, blocked,
+                rowHeight:header.height, usableWidth, barBottom:bar.bottom, tabsTop:tabs.top, headerBottom:document.querySelector('.app-header').getBoundingClientRect().bottom,
                 overlayTop:panel?.getBoundingClientRect().top, drag:getComputedStyle(document.querySelector('.top-bar')).getPropertyValue('app-region')};
             }, reserved);
             separatorGeometry.push({width, theme, reserved, panelOpen, collapsed, ...geometry});
-            if (!geometry.continuous || !geometry.singleLine || geometry.blocked.length || geometry.tabsTop - geometry.barBottom > 1 || geometry.drag !== 'drag' ||
+            if (!geometry.aligned || !geometry.branded || !geometry.continuous || !geometry.singleLine || geometry.blocked.length || geometry.tabsTop - geometry.barBottom > 1 || geometry.drag !== 'drag' ||
                 (geometry.usableWidth >= 896 && geometry.rowHeight !== 40) ||
                 (geometry.overlayTop !== undefined && geometry.overlayTop !== geometry.headerBottom))
               captionFailures.push({width, theme, reserved, panelOpen, collapsed, ...geometry});
-            if (reserved && !collapsed && !panelOpen && [1440, 640].includes(width))
-              await capture(`titlebar-${theme}-${width}`);
+            if ([1440, 640].includes(width))
+              await capture(`titlebar-${theme}-${width}-${reserved}-${panelOpen}-${collapsed}`);
           }
           await page.getByRole('button', {name:'Expand sidebar', exact:true}).click();
         }
@@ -192,7 +197,7 @@ async (page, { screenshots = false, openPath }) => {
         positioner:getComputedStyle(node.parentElement).getPropertyValue('app-region'),
         backdrop:getComputedStyle(backdrop).getPropertyValue('app-region'),
         outsideHeader:!node.closest('.top-bar'), backdropCoversHeader:!!portal?.contains(backdrop),
-        headersExcluded:[...document.querySelectorAll('.sidebar-header, .top-bar, .document-panel-header')].every(header => getComputedStyle(header).getPropertyValue('app-region') === 'no-drag')};
+        headersExcluded:[...document.querySelectorAll('.app-titlebar, .top-bar')].every(header => getComputedStyle(header).getPropertyValue('app-region') === 'no-drag')};
     });
     if (regions.popup !== 'no-drag' || regions.backdrop !== 'no-drag' || !regions.outsideHeader ||
         (label === 'menu' ? regions.positioner !== 'no-drag' || !regions.headersExcluded : !regions.backdropCoversHeader)) captionFailures.push({label, ...regions});

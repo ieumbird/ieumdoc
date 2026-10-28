@@ -22,12 +22,13 @@ button {
   font-family: inherit;
 }
 
-/* Application shell: sidebar | top bar + messages + document column | document panel. */
+/* One title strip above file navigation | document | document navigation. */
 .app-shell {
   --shell-sidebar: var(--layout-sidebar-width);
   --shell-panel: var(--layout-document-panel-width);
   display: grid;
   grid-template-columns: var(--shell-sidebar) minmax(0, 1fr) var(--shell-panel);
+  grid-template-rows: auto 1fr;
   min-height: 100vh;
 }
 
@@ -40,13 +41,43 @@ button {
   --shell-panel: 0px;
 }
 
-.sidebar {
+.app-titlebar {
+  grid-column: 1 / -1;
+  grid-row: 1;
   position: sticky;
   top: 0;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: var(--shell-sidebar) minmax(0, 1fr);
+  padding-right: var(--window-controls-width);
+  border-bottom: var(--border-width) solid var(--id-color-border);
+  background: var(--id-color-surface-subtle);
+  app-region: drag;
+  user-select: none;
+}
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  align-self: start;
+  gap: var(--space-2);
+  height: calc(var(--layout-header-row) - var(--border-width));
+  padding-inline: var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+.app-brand img { width: var(--size-control-compact); height: var(--size-control-compact); }
+.app-shell--collapsed .app-brand { justify-content: center; padding-inline: 0; }
+
+.sidebar {
+  grid-column: 1;
+  grid-row: 2;
+  position: sticky;
+  top: var(--app-titlebar-height, var(--layout-header-row));
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  height: 100vh;
+  height: calc(100vh - var(--app-titlebar-height, var(--layout-header-row)));
   padding: 0 var(--space-3) var(--space-3);
   border-right: var(--border-width) solid var(--id-color-border);
   background: var(--id-color-surface-subtle);
@@ -58,14 +89,16 @@ button {
 }
 
 .sidebar-header {
-  app-region: drag;
   user-select: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  width: 100%;
-  min-height: var(--layout-header-row);
+  width: calc(100% + var(--space-3) * 2);
+  margin-inline: calc(-1 * var(--space-3));
+  padding-inline: var(--space-3);
+  min-height: calc(var(--layout-document-tab-height) + var(--border-width));
+  border-bottom: var(--border-width) solid var(--id-color-border);
 }
 
 .sidebar-header-actions {
@@ -75,6 +108,9 @@ button {
 
 .sidebar--collapsed .sidebar-header {
   justify-content: center;
+  width: calc(100% + var(--space-1) * 2);
+  margin-inline: calc(-1 * var(--space-1));
+  padding-inline: var(--space-1);
 }
 
 .sidebar-content {
@@ -345,12 +381,14 @@ button {
 
 /* The document panel mirrors the sidebar on the right: sticky and scrolling by itself. */
 .document-panel {
+  grid-column: 3;
+  grid-row: 2;
   position: sticky;
-  top: 0;
+  top: var(--app-titlebar-height, var(--layout-header-row));
   display: flex;
   flex-direction: column;
   gap: 0;
-  height: 100vh;
+  height: calc(100vh - var(--app-titlebar-height, var(--layout-header-row)));
   min-width: 0;
   padding: 0 var(--space-3) var(--space-3);
   border-left: var(--border-width) solid var(--id-color-border);
@@ -372,29 +410,22 @@ button {
 }
 
 .document-panel-header {
-  app-region: drag;
   user-select: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  width: 100%;
-  min-height: var(--layout-header-row);
-}
-
-.document-panel-title {
-  margin: 0;
-  padding-left: var(--space-3);
-  color: var(--id-color-text);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-label);
+  width: calc(100% + var(--space-3) * 2);
+  margin-inline: calc(-1 * var(--space-3));
+  padding-inline: var(--space-3);
+  min-height: calc(var(--layout-document-tab-height) + var(--border-width));
+  border-bottom: var(--border-width) solid var(--id-color-border);
 }
 
 .document-panel-navigation {
   display: flex;
   align-items: center;
-  flex: 0 0 var(--layout-document-tab-height);
+  flex: 0 0 calc(var(--layout-document-tab-height) + var(--border-width));
   min-width: 0;
 }
 .document-panel-navigation .view-toggle { width: 100%; }
@@ -497,28 +528,22 @@ button {
   display: flex;
   flex-direction: column;
   grid-column: 2;
+  grid-row: 2;
   min-width: 0;
 }
 
 .app-header {
   position: sticky;
-  top: 0;
+  top: var(--app-titlebar-height, var(--layout-header-row));
   z-index: 2;
 }
 
-/* When docked, Outline's header carries the native buttons. Otherwise the TopBar reserves
- * their width. Container padding preserves the usable query width while its border spans
- * the caption reservation too. The border replaces the TopBar's former inner border. */
+/* The title strip reserves native buttons once; its separator spans the reservation too. */
 .top-bar-container {
-  padding-right: max(0px, calc(var(--window-controls-width) - var(--shell-panel)));
-  border-bottom: var(--border-width) solid var(--id-color-border);
   container-type: inline-size;
 }
-.document-panel:not(.document-panel--overlay) .document-panel-header {
-  padding-right: var(--window-controls-width);
-}
 .app-header { background: var(--id-color-surface-subtle); }
-:is(.sidebar-header, .top-bar, .document-panel-header, .settings-topbar) :is(button, input, select, textarea, a, [role="menu"], [role="menuitem"]) {
+:is(.app-titlebar, .sidebar-header, .document-panel-header, .settings-topbar) :is(button, input, select, textarea, a, [role="menu"], [role="menuitem"]) {
   app-region: no-drag;
 }
 
@@ -814,7 +839,7 @@ button {
 
 /* Menus allow a single click/right-click to reach another trigger. While open, disable
  * underlying header drag directly instead of intercepting that input with a full-screen backdrop. */
-body:has(.ui-portal [role="menu"]) :is(.sidebar-header, .top-bar, .document-panel-header, .settings-topbar) {
+body:has(.ui-portal [role="menu"]) :is(.app-titlebar, .top-bar, .settings-topbar) {
   app-region: no-drag;
 }
 

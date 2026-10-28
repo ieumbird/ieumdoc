@@ -47,10 +47,8 @@ export function DocumentPanel({ overlay, outline: store = emptyOutline, onSelect
         onClose();
       }}
     >
-      <div className="document-panel-header">
-        <h2 className="document-panel-title" id="document-panel-title">{i18n.t("Outline")}</h2>
-      </div>
-      <div className="document-panel-navigation">
+      <div className="document-panel-header document-panel-navigation">
+        <h2 className="sr-only" id="document-panel-title">{i18n.t("Outline")}</h2>
         <div ref={tabs} className="view-toggle" role="tablist" aria-label={i18n.t("Document navigation")} onKeyDown={switchTab}>
           {kinds.map(value => <Button key={value} type="button" variant="ghost" size="sm" className="view-toggle-option"
             role="tab" id={`document-panel-tab-${value}`} aria-selected={kind === value} aria-controls={`document-panel-list-${value}`}
