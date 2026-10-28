@@ -114,7 +114,7 @@ The existing danger message surface contains a short localized summary, shared c
 navigation and native keyboard-accessible collapsed **Technical details**. The original English
 diagnostic is preserved there. The state lifetime and snapshot invalidation rules belong to the
 [Save contract](editing-session-save-v1.md#refused-block-highlighting-and-navigation-578-phase-1).
-This is Editor presentation/navigation; Core semantics and CLI behavior are unchanged.
+This is Editor presentation/navigation. Phase 2 adds Core diagnostic metadata and localized cause/action below; document semantics remain unchanged.
 
 `pnpm browser:test save-error --screenshots` captures actual refusals at 1440×900 and 640×900,
 light/dark, Windows persistent Chrome, DPR 1, 100% zoom and bundled Pretendard. The same-state
@@ -127,6 +127,24 @@ fixture/state, viewport, theme, fonts, DPR and verified worktree-owned final ser
 | --- | --- | --- |
 | Light | [Before](assets/save-error-578/before-1440-light.png) / [After](assets/save-error-578/after-1440-light.png) / [Cell](assets/save-error-578/cell-1440-light.png) | [Before](assets/save-error-578/before-640-light.png) / [After](assets/save-error-578/after-640-light.png) / [Cell](assets/save-error-578/cell-640-light.png) |
 | Dark | [Before](assets/save-error-578/before-1440-dark.png) / [After](assets/save-error-578/after-1440-dark.png) / [Cell](assets/save-error-578/cell-1440-dark.png) | [Before](assets/save-error-578/before-640-dark.png) / [After](assets/save-error-578/after-640-dark.png) / [Cell](assets/save-error-578/cell-640-dark.png) |
+
+### Diagnostic guidance captures (#578 phase 2)
+
+The existing danger message surface shows the localized cause/action; its compact badge uses
+the same code and sits immediately above the unchanged refusal stroke. It wraps within the
+block width and remains pointer-transparent. Original diagnostics stay in collapsed details.
+`pnpm browser:test save-error --screenshots` uses the same real refusal fixtures and includes
+cause/action, Host `failure.code`, unchanged-file, reveal and Save/Reload assertions. Language
+variants are checked in the same refusal state. Captures are manual review evidence, not pixel
+assertions. [Metadata and SHA-256 hashes](assets/save-error-578-phase2/capture-metadata.json).
+Phase 1 [captures above](#save-refusal-highlights-578) are the Before reference (same fixture).
+
+| State | 1440px Korean / English | 640px Korean / English |
+| --- | --- | --- |
+| Empty heading, light | [KO](assets/save-error-578-phase2/heading-1440-light-ko.png) / [EN](assets/save-error-578-phase2/heading-1440-light-en.png) | [KO](assets/save-error-578-phase2/heading-640-light-ko.png) / [EN](assets/save-error-578-phase2/heading-640-light-en.png) |
+| Empty heading, dark | [KO](assets/save-error-578-phase2/heading-1440-dark-ko.png) / [EN](assets/save-error-578-phase2/heading-1440-dark-en.png) | [KO](assets/save-error-578-phase2/heading-640-dark-ko.png) / [EN](assets/save-error-578-phase2/heading-640-dark-en.png) |
+| Table cell, light | [KO](assets/save-error-578-phase2/cell-1440-light-ko.png) / [EN](assets/save-error-578-phase2/cell-1440-light-en.png) | [KO](assets/save-error-578-phase2/cell-640-light-ko.png) / [EN](assets/save-error-578-phase2/cell-640-light-en.png) |
+| Table cell, dark | [KO](assets/save-error-578-phase2/cell-1440-dark-ko.png) / [EN](assets/save-error-578-phase2/cell-1440-dark-en.png) | [KO](assets/save-error-578-phase2/cell-640-dark-ko.png) / [EN](assets/save-error-578-phase2/cell-640-dark-en.png) |
 
 ## Direction
 

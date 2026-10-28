@@ -1,3 +1,4 @@
+import { DocumentDiagnosticError } from "../write-error.ts";
 import { figureCaptionContent, type FigureContent } from "../figure.ts";
 import { inlineContentToNodes, projectInlineContent, sameInlineContent, type InlineContent } from "../inline.ts";
 import { bodyIndex, completeFootnotes } from "./footnote.ts";
@@ -105,10 +106,10 @@ export function assertFigureRoundTrip(
     node.label !== label ||
     node.identifier !== identifier
   ) {
-    throw new Error(failure);
+    throw new DocumentDiagnosticError("round-trip-mismatch", failure);
   }
   if (serialize(reparsed) !== markdown) {
-    throw new Error("Figure is not canonical after round-trip");
+    throw new DocumentDiagnosticError("round-trip-mismatch", "Figure is not canonical after round-trip");
   }
 }
 

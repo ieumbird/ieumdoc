@@ -1,6 +1,7 @@
 # Native document support v1
 
 - Status: Implemented
+- Save diagnostics: 2026-10-28 (#578 phase 2; stable Core codes, CLI JSON pass-through and bilingual Editor guidance; [inventory](#save-diagnostic-codes-578-phase-2)).
 - Mermaid Figure update: 2026-10-28 (#651 PR 1; Core/CLI source/admission/canonical contract; [Figure authoring](figure-authoring-v1.md#mermaid-figures-651-core-and-cli)).
 - Empty structural elements: 2026-10-27 (#574; canonical forms and verification below).
 - Documentation verification: 2026-10-26 (Open protection and implemented Editor label rename compared with the session/reference contracts and current code; no new browser execution).
@@ -114,12 +115,67 @@ already express these states. Migration and stored-data compatibility are out of
 - Top-level body insertions accept CLI `--at end`, resolved by Core `bodyEndIndex(document)` before trailing endnote definitions. Without endnotes it is after the last body block; a new empty native document returns 1. Numeric positions, including the metadata refusal below, retain their existing rules. The command scope and batch behavior are in [CLI batch application](filesystem-host-boundary-v1.md#cli-batch-application-215).
 - The [document title](document-editing-v1.md#document-title-255) is the leading level-1 heading, kept first by Core moves and insertions; admission and the Markdown form are unchanged.
 - Body operations reject top-level index `0` and paths starting with `0` at Core operation time: `block 0 is the document metadata; body blocks start at 1`. This includes insertion, movement, removal and section operations. Metadata stays at snapshot index `0`; body indices and paths are not renumbered for interfaces. Single CLI edits and Editor receive the same Core guidance; `apply-batch` wraps it as `operation N (command): <reason>; nothing was written`. Refusal preserves original file bytes and never falls through to marker or round-trip errors.
-- Core native errors have stable codes `native-marker`, `native-metadata`, `native-content`, a reason, corrective action and a snapshot path/source line where identified. `canonicalWriteIssue` and `writeIssueOf` retain write diagnostics separately from native support failures.
+- Core native errors keep `native-marker`, `native-metadata`, `native-content`. All explicit write validation guards also carry a stable `WriteIssueCode` through `canonicalWriteIssue` / `writeIssueOf`, alongside the original English reason, action and snapshot path/source line where identified. Unknown exceptions have no code. The [diagnostic inventory](#save-diagnostic-codes-578-phase-2) defines the code families.
 - CLI `ieumdoc create <file>` exclusively creates a new `.md` file in an existing directory. It never overwrites or creates parent directories. `check` returns a failing exit code for rejected files; JSON failures contain `ok: false`, `validation.valid: false` and `error` diagnostics, without a document model. `inspect`, `format` and editing commands use the same admission and preserve rejected file bytes.
 - Shared Host Open/Reload/Save/Source and asset creation use Core admission. Vite, HTTP and Desktop do not implement separate syntax decisions. Failed Open/Reload retains the current document, selection, unsaved content and drafts; startup failure has no document installed. Filesystem permissions and revision conflicts remain independent checks.
 - Editor explicit Open (sidebar file selection and the start screen's sample action) shows a modal Alert for Host errors whose code is `native-*`. It names the rejected file, displays Core's reason and corrective action, and states that the current document has not changed (or that no document opened). One OK button or Escape closes it and returns focus to the opening control. The same refusal is not repeated in the top error message. Other Open failures, startup failures and Reload failures retain their existing error presentation. Open/New preserves existing unsaved sessions in tabs; operation guards and Close confirmation follow the [session protection contract](editing-session-save-v1.md#switching-and-recovery).
 - Choosing a folder (Open folder…) lists names without reading document contents and has no document-opening or admission Alert behavior. The sidebar folder listing reads only the start of each listed `.md` file and asks Core `hasNativeMarker(source)` whether its leading frontmatter carries `ieumdoc: 1`, so Files can set apart files IeumDoc will refuse. This is a display hint, not admission: a marked file is still validated when opened, and Hosts do not parse frontmatter themselves. The refusal Alert explains the marker in plain words before Core's reason and action.
 - Whole-document Source previews the applied native document through Core without writing. It retains visual editor state and unapplied property drafts. `replaceBlockSource`, CLI `replace-block-source`, Host source-apply/replay and Editor Edit source are removed.
+
+## Save diagnostic codes (#578 phase 2)
+
+Codes identify the failing check, independently of UI language, English wording, Editor types,
+transport and filesystem. `writeIssueOf` preserves the outer reason and the first structured
+Core diagnostic in its cause chain. `DocumentDiagnosticError` supplies a code to guards that
+previously threw plain errors; existing actionable `DocumentWriteError` checks retain their
+actions and locations. `NativeDocumentError.code` also appears in its `WriteIssue`. No predicate,
+support boundary, canonical guard or write order changes.
+
+The pre-implementation refusal inventory covers native admission/metadata, tree shape, operation
+input and snapshot guards, inline validation, empty required content, structural block validators,
+labels and reference rewriting, Unicode, endnote integrity, writer diagnostics/exceptions and
+both whole-document and operation-specific round-trip comparisons:
+
+| Stable code | Existing refusal checks |
+| --- | --- |
+| `native-marker` | Missing or invalid leading native marker. |
+| `native-metadata` | Invalid YAML, unsupported metadata, numbering or reference templates. |
+| `native-content` | Unsupported native blocks, attributes, inline nesting and citation shorthand. |
+| `invalid-structure` | Invalid root, missing node type, invalid children array. |
+| `invalid-operation` | Wrong operation argument/type, path/index/offset, stale value, illegal title/order or structural operation. |
+| `unsupported-content` | Unsupported inline kinds/formatting, block shapes, list/code/citation content and writer diagnostics. |
+| `empty-content` | Required paragraph/heading/endnote text is empty, or a split would create an empty persistent paragraph. |
+| `round-trip-mismatch` | Fingerprint loss, operation content/canonical instability, or changed block boundaries. |
+| `serialization-failed` | Writer throws without a specific serialization diagnostic. |
+| `invalid-unicode` | Unpaired UTF-16 surrogate, including an unrepresentable text split. |
+| `invalid-label` | Invalid/unreferenceable target or endnote label syntax, or an empty equation label that dollar math cannot preserve. |
+| `label-conflict` | Label collides with another target, including automatic heading IDs. |
+| `invalid-reference` | Unsupported reference/target notation, ambiguous rename or changed reference resolution. |
+| `invalid-footnote` | Missing, repeated or unused definition, nested endnote reference or invalid endnote relationships. |
+| `line-break` | A heading, table cell or caption contains forbidden line breaks. |
+| `table-cell-whitespace` | Leading/trailing cell whitespace. |
+| `table-shape` | Missing columns, ragged grid or invalid column alignment. |
+| `invalid-figure` | Invalid image/alt/Mermaid/caption property combination. |
+
+Read-model invariant exceptions in `editable.ts` and unexpected upstream/runtime errors remain
+uncoded; the existing generic guidance applies. Supported unresolved document references remain
+an authoring state, not a save error. File/revision/transport failures retain their own phases.
+
+CLI `check --format json` passes Core `WriteIssue.code` through the existing `error` object,
+including non-native serialization refusals; its JSON envelope and exit status are unchanged.
+No new command or semantic operation is introduced. Editor collection guards tag the same code
+families at their existing checks without inferring codes from prose. Host forwards the code
+as `failure.code`, retaining submitted block/cell/path and original diagnostics. The localized
+[Save guidance](editing-session-save-v1.md#diagnostic-guidance-578-phase-2) is presentation only.
+
+Multiple refusal collection is **not included**. Editor collection can fail before a replay
+payload exists; Host replay performs dependent label clearing/reassignment, merges/splits,
+insertions, cell reshaping and ordering. Core's native/serialization checks validate a complete
+snapshot and stop at the first failure. Running each edit against the opening snapshot would
+reject valid dependent edits and mislocate later blocks; continuing after failure would create
+secondary errors. A separate Core validation pass over the proposed final semantic document is
+required. No sequential replay continuation or duplicate Editor semantics is added. The existing
+list-shaped highlighting/navigation contract is unchanged.
 
 ## Canonical output and compatibility
 

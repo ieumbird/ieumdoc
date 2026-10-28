@@ -148,22 +148,22 @@ export function footnoteWriteError(document: MystDocument): string | undefined {
   return footnoteWriteIssue(document)?.reason;
 }
 
-export function footnoteWriteIssue(document: MystDocument): { reason: string; action: string; path?: number[] } | undefined {
+export function footnoteWriteIssue(document: MystDocument): { code: "invalid-footnote"; reason: string; action: string; path?: number[] } | undefined {
   const action = "Check the footnote reference and definition. Keep one definition per referenced label; add the missing definition or remove an unused reference/definition.";
-  if (typeof document[DROPPED_FOOTNOTE_FIELD] === "string") return { reason: document[DROPPED_FOOTNOTE_FIELD], action };
+  if (typeof document[DROPPED_FOOTNOTE_FIELD] === "string") return { code: "invalid-footnote", reason: document[DROPPED_FOOTNOTE_FIELD], action };
   const defined = new Set<string>();
   for (const [index, node] of document.children.entries()) {
     if (node.type !== "footnoteDefinition") continue;
     const label = String(node.label);
-    if (defined.has(label)) return { reason: REPEATED(label), action, path: [index] };
+    if (defined.has(label)) return { code: "invalid-footnote", reason: REPEATED(label), action, path: [index] };
     defined.add(label);
   }
   const referenced = new Set(footnoteReferences(document));
   const missing = [...referenced].find(label => !defined.has(label));
-  if (missing !== undefined) return { reason: `footnote reference [^${missing}] has no definition`, action,
+  if (missing !== undefined) return { code: "invalid-footnote", reason: `footnote reference [^${missing}] has no definition`, action,
     path: [document.children.findIndex(node => footnoteReferences(node).includes(missing))] };
   const unused = [...defined].find(label => !referenced.has(label));
-  if (unused !== undefined) return { reason: UNREFERENCED(unused), action,
+  if (unused !== undefined) return { code: "invalid-footnote", reason: UNREFERENCED(unused), action,
     path: [document.children.findIndex(node => node.type === "footnoteDefinition" && String(node.label) === unused)] };
   return undefined;
 }

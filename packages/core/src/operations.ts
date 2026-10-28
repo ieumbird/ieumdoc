@@ -44,7 +44,7 @@ import { nextFootnoteLabel, orphanedEndnotes } from "./numbering.ts";
 import { canonicalCitation, type CitationContent } from "./citation.ts";
 import { FRONT_MATTER_FIELD, parse } from "./myst/parse.ts";
 import { serialize, serializeFor } from "./myst/serialize.ts";
-import { DocumentWriteError } from "./write-error.ts";
+import { DocumentDiagnosticError, DocumentWriteError } from "./write-error.ts";
 import {
   createTableNode, insertTableColumnNode, insertTableRowNode, moveTableColumnNode, moveTableRowNode, removeTableColumnNode, removeTableRowNode,
   setTableCellContent, setTableColumnAlignNode, tableBlockNode, tableCaptionParagraph, tableCellContent, tableOf,
@@ -55,12 +55,12 @@ const TEXT_BLOCKS = new Set(["paragraph", "heading"]);
 
 export function replaceText(document: MystDocument, from: string, to: string): MystDocument {
   if (from.length === 0) {
-    throw new Error("replaceText requires a non-empty search string");
+    throw new DocumentDiagnosticError("invalid-operation", "replaceText requires a non-empty search string");
   }
   const next = cloneDocument(document);
   const block = findTextBlock(next, from);
   if (!block) {
-    throw new Error(`replaceText could not find paragraph or heading text: ${from}`);
+    throw new DocumentDiagnosticError("invalid-operation", `replaceText could not find paragraph or heading text: ${from}`);
   }
   if (!replaceInTextNodes(block, from, to) && toText(block) === from) {
     block.children = [{ type: "text", value: to }];
@@ -79,16 +79,16 @@ export function moveBlock(document: MystDocument, fromIndex: number, toIndex: nu
   const next = cloneDocument(document);
   const blocks = next.children;
   if (!Array.isArray(blocks) || blocks.length === 0) {
-    throw new Error("moveBlock requires a document with top-level blocks");
+    throw new DocumentDiagnosticError("invalid-operation", "moveBlock requires a document with top-level blocks");
   }
   if (!Number.isInteger(fromIndex) || fromIndex < 0 || fromIndex >= blocks.length) {
-    throw new Error(`moveBlock fromIndex out of range: ${fromIndex}`);
+    throw new DocumentDiagnosticError("invalid-operation", `moveBlock fromIndex out of range: ${fromIndex}`);
   }
   if (!Number.isInteger(toIndex) || toIndex < 0 || toIndex >= blocks.length) {
-    throw new Error(`moveBlock toIndex out of range: ${toIndex}`);
+    throw new DocumentDiagnosticError("invalid-operation", `moveBlock toIndex out of range: ${toIndex}`);
   }
   const title = checkTitle ? documentTitle(document) : undefined;
-  if (title !== undefined && fromIndex <= title && fromIndex !== toIndex) throw new Error(`block ${fromIndex} is the document title or its label: ${TITLE_FIXED}`);
+  if (title !== undefined && fromIndex <= title && fromIndex !== toIndex) throw new DocumentDiagnosticError("invalid-operation", `block ${fromIndex} is the document title or its label: ${TITLE_FIXED}`);
   if (title !== undefined && fromIndex !== toIndex) assertAfterTitle(document, toIndex, "move");
   const [block] = blocks.splice(fromIndex, 1);
   blocks.splice(toIndex, 0, block);
@@ -107,11 +107,11 @@ export function moveSection(document: MystDocument, heading: number, to: number)
   const markers = sectionMarkers(document);
   const { start, end } = sectionRange(markers, heading);
   if (!Number.isInteger(to) || !sectionBoundaries(markers).includes(to)) {
-    throw new Error(`a section moves to the start of a section or the end of the document: ${to}`);
+    throw new DocumentDiagnosticError("invalid-operation", `a section moves to the start of a section or the end of the document: ${to}`);
   }
-  if (to > start && to < end) throw new Error("a section cannot move into itself");
+  if (to > start && to < end) throw new DocumentDiagnosticError("invalid-operation", "a section cannot move into itself");
   const title = documentTitle(document);
-  if (title !== undefined && heading === title) throw new Error(`the section of block ${heading} opens with the document title: ${TITLE_FIXED}`);
+  if (title !== undefined && heading === title) throw new DocumentDiagnosticError("invalid-operation", `the section of block ${heading} opens with the document title: ${TITLE_FIXED}`);
   assertAfterTitle(document, to, "move");
   const inSection = sectionContent(document, start, end);
   const next = cloneDocument(document);
@@ -134,7 +134,7 @@ export function removeSection(document: MystDocument, heading: number): MystDocu
   const inSection = sectionContent(document, start, end);
   const orphaned = orphanedEndnotes(endnoteBlocks(document), inSection);
   if (orphaned.length > 0) {
-    throw new Error(`removing this section would leave footnote [^${orphaned[0]}] with no reference, and MyST drops an unreferenced definition`);
+    throw new DocumentDiagnosticError("invalid-footnote", `removing this section would leave footnote [^${orphaned[0]}] with no reference, and MyST drops an unreferenced definition`);
   }
   const next = cloneDocument(document);
   next.children = next.children.filter((_, index) => !inSection(index));
@@ -166,22 +166,22 @@ function assertCanonicalBlockBoundaries(document: MystDocument): void {
     reloadedBlocks.some((block, index) => !(tableOf(block) && tableOf(expectedBlocks[index])) &&
       (block.type !== expectedBlocks[index].type || block.kind !== expectedBlocks[index].kind))
   ) {
-    throw new Error(BOUNDARY_FAILURE);
+    throw new DocumentDiagnosticError("round-trip-mismatch", BOUNDARY_FAILURE);
   }
 }
 
 export function insertBlock(document: MystDocument, index: number, block: MystNode): MystDocument {
   assertBodyIndex(document, index);
   if (!block || typeof block.type !== "string" || block.type.length === 0) {
-    throw new Error("insertBlock requires a block with a type");
+    throw new DocumentDiagnosticError("invalid-operation", "insertBlock requires a block with a type");
   }
   const next = cloneDocument(document);
   const blocks = next.children;
   if (!Array.isArray(blocks)) {
-    throw new Error("insertBlock requires a document with top-level blocks");
+    throw new DocumentDiagnosticError("invalid-operation", "insertBlock requires a document with top-level blocks");
   }
   if (!Number.isInteger(index) || index < 0 || index > blocks.length) {
-    throw new Error(`insertBlock index out of range: ${index}`);
+    throw new DocumentDiagnosticError("invalid-operation", `insertBlock index out of range: ${index}`);
   }
   // Only the title's own label targets go before it.
   if (block.type !== "mystTarget") assertAfterTitle(document, index, "insert");
@@ -200,7 +200,7 @@ function documentTitle(document: MystDocument): number | undefined {
 function assertAfterTitle(document: MystDocument, index: number, action: "insert" | "move"): void {
   const title = documentTitle(document);
   if (title !== undefined && index <= title) {
-    throw new Error(`${action === "insert" ? "insert" : "move"} after the document title at block ${title}: ${TITLE_FIXED}`);
+    throw new DocumentDiagnosticError("invalid-operation", `${action === "insert" ? "insert" : "move"} after the document title at block ${title}: ${TITLE_FIXED}`);
   }
 }
 
@@ -220,7 +220,7 @@ const HEADING_FAILURE = "heading insertion cannot round-trip losslessly through 
 /** Insert a persistent top-level heading of plain text or supported inline content without line breaks. */
 export function insertHeading(document: MystDocument, index: number, level: number, text: string | InlineContent[]): MystDocument {
   if (!Number.isInteger(level) || level < 1 || level > 6) {
-    throw new Error(`heading level must be an integer from 1 to 6: ${level}`);
+    throw new DocumentDiagnosticError("invalid-operation", `heading level must be an integer from 1 to 6: ${level}`);
   }
   const content = headingContent(typeof text === "string" ? [{ kind: "text", text }] : text);
   const heading: MystNode = { type: "heading", depth: level, children: inlineContentToNodes(content) };
@@ -236,18 +236,18 @@ export function insertHeading(document: MystDocument, index: number, level: numb
     !projected || !sameInlineContent(content, projected) ||
     serialize(reparsed) !== markdown
   ) {
-    throw new Error(HEADING_FAILURE);
+    throw new DocumentDiagnosticError("round-trip-mismatch", HEADING_FAILURE);
   }
   return next;
 }
 
 /** Replace the inline content of one editable top-level Heading, keeping its level. */
 export function updateHeadingInlineContent(document: MystDocument, path: NodePath, content: InlineContent[]): MystDocument {
-  if (path.length !== 1) throw new Error("heading edits require a top-level path");
+  if (path.length !== 1) throw new DocumentDiagnosticError("invalid-operation", "heading edits require a top-level path");
   const normalized = headingContent(content);
   const block = getEditableDocument(document).blocks.find(block => block.path[0] === path[0]);
   if (getNode(document, path).type !== "heading" || block?.block !== "heading" || !block.editable) {
-    throw new Error(`heading edit is not supported at [${path.join(",")}]`);
+    throw new DocumentDiagnosticError("unsupported-content", `heading edit is not supported at [${path.join(",")}]`);
   }
   const next = cloneDocument(document);
   getNode(next, path).children = inlineContentToNodes(normalized);
@@ -258,8 +258,8 @@ export function updateHeadingInlineContent(document: MystDocument, path: NodePat
 /** Heading content is non-empty supported inline content without line breaks. */
 function headingContent(content: InlineContent[]): InlineContent[] {
   assertInlineContent(content);
-  if (containsBreak(content)) throw new DocumentWriteError("a heading cannot contain line breaks", { action: "Remove line breaks from the heading or convert it to a paragraph." });
-  if (inlineContentText(content).length === 0) throw new DocumentWriteError("empty heading cannot be saved", { action: "Enter text or delete this heading." });
+  if (containsBreak(content)) throw new DocumentWriteError("a heading cannot contain line breaks", { code: "line-break", action: "Remove line breaks from the heading or convert it to a paragraph." });
+  if (inlineContentText(content).length === 0) throw new DocumentWriteError("empty heading cannot be saved", { code: "empty-content", action: "Enter text or delete this heading." });
   return concatenateInlineContent(content);
 }
 
@@ -272,7 +272,7 @@ export function insertAdmonition(
   variant: AdmonitionVariant,
   content: InlineContent[],
 ): MystDocument {
-  if (!isAdmonitionVariant(variant)) throw new Error(`unsupported admonition variant: ${variant}`);
+  if (!isAdmonitionVariant(variant)) throw new DocumentDiagnosticError("unsupported-content", `unsupported admonition variant: ${variant}`);
   const normalizedContent = structuralInlineContent(content);
   const admonition: MystNode = {
     type: "admonition",
@@ -291,7 +291,7 @@ export function insertAdmonition(
     !sameInlineContent(normalizedContent, insertedContent) ||
     serialize(reparsed) !== markdown
   ) {
-    throw new Error(ADMONITION_INSERTION_FAILURE);
+    throw new DocumentDiagnosticError("round-trip-mismatch", ADMONITION_INSERTION_FAILURE);
   }
   return next;
 }
@@ -308,10 +308,10 @@ export function insertQuote(document: MystDocument, index: number, content: Inli
 
 /** Replace the paragraph of one Quote v1 block. */
 export function updateQuoteInlineContent(document: MystDocument, path: NodePath, content: InlineContent[]): MystDocument {
-  if (path.length !== 1) throw new Error("quote edits require a top-level path");
+  if (path.length !== 1) throw new DocumentDiagnosticError("invalid-operation", "quote edits require a top-level path");
   const normalized = structuralInlineContent(content);
   if (!supportedQuoteContent(getNode(document, path))) {
-    throw new Error(`quote edit is not supported at [${path.join(",")}]`);
+    throw new DocumentDiagnosticError("unsupported-content", `quote edit is not supported at [${path.join(",")}]`);
   }
   const next = cloneDocument(document);
   next.children[path[0]] = createQuoteNode(normalized);
@@ -325,7 +325,7 @@ function assertQuoteRoundTrip(document: MystDocument, index: number, content: In
   const quote = reparsed.children[bodyIndex(document, index)];
   const projected = quote && supportedQuoteContent(quote);
   if (!projected || !sameInlineContent(content, projected) || serialize(reparsed) !== markdown) {
-    throw new Error(QUOTE_FAILURE);
+    throw new DocumentDiagnosticError("round-trip-mismatch", QUOTE_FAILURE);
   }
   assertCanonicalBlockBoundaries(document);
 }
@@ -340,9 +340,9 @@ const FOOTNOTE_FAILURE = "footnote definition cannot round-trip losslessly throu
  */
 export function insertFootnote(document: MystDocument, path: NodePath, offset: number, content: InlineContent[]): MystDocument {
   const target = inlineTarget(document, path);
-  if (!target) throw new Error(`a footnote cannot be inserted at [${path.join(",")}]`);
+  if (!target) throw new DocumentDiagnosticError("invalid-operation", `a footnote cannot be inserted at [${path.join(",")}]`);
   if (!Number.isInteger(offset) || offset < 0 || offset > inlineContentLength(target.content)) {
-    throw new Error(`footnote offset out of range: ${offset}`);
+    throw new DocumentDiagnosticError("invalid-operation", `footnote offset out of range: ${offset}`);
   }
   const label = nextFootnoteLabel(footnoteLabels(document));
   const [left, right] = splitInlineContent(target.content, offset);
@@ -389,9 +389,9 @@ export function removeCitation(document: MystDocument, path: NodePath, offset: n
 
 function citationTarget(document: MystDocument, path: NodePath, offset: number) {
   const target = inlineTarget(document, path, true);
-  if (!target) throw new Error(`a citation cannot be edited at [${path.join(",")}]`);
+  if (!target) throw new DocumentDiagnosticError("invalid-operation", `a citation cannot be edited at [${path.join(",")}]`);
   if (!Number.isInteger(offset) || offset < 0 || offset > inlineContentLength(target.content)) {
-    throw new Error(`citation offset out of range: ${offset}`);
+    throw new DocumentDiagnosticError("invalid-operation", `citation offset out of range: ${offset}`);
   }
   return target;
 }
@@ -409,15 +409,15 @@ function replaceCitationAt(content: InlineContent[], offset: number, replacement
     }
     remaining -= length;
   }
-  throw new Error(`no citation at inline offset ${offset}`);
+  throw new DocumentDiagnosticError("invalid-operation", `no citation at inline offset ${offset}`);
 }
 
 /** Insert the definition of footnote `label`: one paragraph of supported inline content. */
 export function insertFootnoteDefinition(document: MystDocument, index: number, label: string, content: InlineContent[]): MystDocument {
   const error = typeof label === "string" ? footnoteLabelError(label) : "footnote label must be a string";
-  if (error) throw new Error(error);
+  if (error) throw new DocumentDiagnosticError("invalid-label", error);
   if (document.children.some(node => node.type === "footnoteDefinition" && node.label === label)) {
-    throw new Error(`footnote [^${label}] is already defined`);
+    throw new DocumentDiagnosticError("invalid-footnote", `footnote [^${label}] is already defined`);
   }
   const normalized = footnoteContent(content);
   const next = insertBlock(document, index, createFootnoteDefinition(label, normalized));
@@ -427,9 +427,9 @@ export function insertFootnoteDefinition(document: MystDocument, index: number, 
 
 /** Replace the paragraph of a Footnotes v2 definition; its label stays. */
 export function updateFootnoteDefinition(document: MystDocument, path: NodePath, content: InlineContent[]): MystDocument {
-  if (path.length !== 1) throw new Error("footnote edits require a top-level path");
+  if (path.length !== 1) throw new DocumentDiagnosticError("invalid-operation", "footnote edits require a top-level path");
   const node = getNode(document, path);
-  if (!supportedFootnoteContent(node)) throw new Error(`footnote edit is not supported at [${path.join(",")}]`);
+  if (!supportedFootnoteContent(node)) throw new DocumentDiagnosticError("unsupported-content", `footnote edit is not supported at [${path.join(",")}]`);
   const label = String(node.label);
   const normalized = footnoteContent(content);
   const next = cloneDocument(document);
@@ -440,10 +440,10 @@ export function updateFootnoteDefinition(document: MystDocument, path: NodePath,
 
 function footnoteContent(content: InlineContent[]): InlineContent[] {
   assertInlineContent(content);
-  if (inlineContentText(content).trim().length === 0) throw new DocumentWriteError("footnote definition must contain non-empty text", { action: "Enter the footnote text or remove its reference and definition." });
+  if (inlineContentText(content).trim().length === 0) throw new DocumentWriteError("footnote definition must contain non-empty text", { code: "empty-content", action: "Enter the footnote text or remove its reference and definition." });
   const hasFootnote = (items: InlineContent[]): boolean =>
     items.some(item => item.kind === "footnote" || ("children" in item && hasFootnote(item.children)));
-  if (hasFootnote(content)) throw new Error("a footnote definition cannot contain footnote references");
+  if (hasFootnote(content)) throw new DocumentDiagnosticError("invalid-footnote", "a footnote definition cannot contain footnote references");
   return concatenateInlineContent(content);
 }
 
@@ -457,7 +457,7 @@ function assertFootnoteRoundTrip(document: MystDocument, label: string, content:
   const definition = reparsed.children.find(node => node.type === "footnoteDefinition" && node.label === label);
   const projected = definition && supportedFootnoteContent(definition);
   if (!projected || definition.label !== label || !sameInlineContent(content, projected) || serialize(reparsed) !== markdown) {
-    throw new Error(FOOTNOTE_FAILURE);
+    throw new DocumentDiagnosticError("round-trip-mismatch", FOOTNOTE_FAILURE);
   }
   assertCanonicalBlockBoundaries(check);
 }
@@ -484,10 +484,10 @@ export function insertList(document: MystDocument, index: number, list: ListCont
 /** Replace the whole content of an editable top-level list: its kind, numbering, items and nesting. */
 export function updateList(document: MystDocument, path: NodePath, list: ListContent): MystDocument {
   if (!Array.isArray(path) || path.length !== 1) {
-    throw new Error("updateList requires a top-level list path [index]");
+    throw new DocumentDiagnosticError("invalid-operation", "updateList requires a top-level list path [index]");
   }
   if (!supportedListContent(getNode(document, path))) {
-    throw new Error(`list at [${path.join(",")}] is not editable in this version`);
+    throw new DocumentDiagnosticError("unsupported-content", `list at [${path.join(",")}] is not editable in this version`);
   }
   const normalized = normalizeList(list);
   const next = cloneDocument(document);
@@ -498,20 +498,20 @@ export function updateList(document: MystDocument, path: NodePath, list: ListCon
 
 function normalizeList(list: ListContent): ListContent {
   if (!list || typeof list !== "object" || typeof list.ordered !== "boolean") {
-    throw new Error("list requires a boolean ordered");
+    throw new DocumentDiagnosticError("invalid-operation", "list requires a boolean ordered");
   }
   if (!Array.isArray(list.items) || list.items.length === 0) {
-    throw new Error("a list needs at least one item");
+    throw new DocumentDiagnosticError("invalid-operation", "a list needs at least one item");
   }
   const start = list.start ?? 1;
   if (list.ordered && (!Number.isInteger(start) || start < 0 || start > MAX_LIST_START)) {
-    throw new Error(`numbered list start must be an integer from 0 to ${MAX_LIST_START}`);
+    throw new DocumentDiagnosticError("invalid-operation", `numbered list start must be an integer from 0 to ${MAX_LIST_START}`);
   }
   if (!list.ordered && list.start !== undefined) {
-    throw new Error("a bullet list has no start number");
+    throw new DocumentDiagnosticError("invalid-operation", "a bullet list has no start number");
   }
   const items = list.items.map((item) => {
-    if (!item || typeof item !== "object") throw new Error("list item must be an object");
+    if (!item || typeof item !== "object") throw new DocumentDiagnosticError("invalid-operation", "list item must be an object");
     const content = structuralInlineContent(item.content);
     return item.list === undefined ? { content } : { content, list: normalizeList(item.list) };
   });
@@ -528,7 +528,7 @@ function assertListRoundTrip(document: MystDocument, index: number, list: ListCo
   const content = reloaded && supportedListContent(reloaded);
   if (reparsed.children.length !== complete.children.length || !content || !sameList(content, list) ||
       serialize(reparsed) !== markdown) {
-    throw new Error(LIST_FAILURE);
+    throw new DocumentDiagnosticError("round-trip-mismatch", LIST_FAILURE);
   }
 }
 
@@ -554,11 +554,11 @@ export function insertCodeBlock(document: MystDocument, index: number, content: 
 /** Replace the language and/or code of an editable top-level code block; omitted properties are unchanged. */
 export function updateCodeBlock(document: MystDocument, path: NodePath, changes: Partial<CodeBlockContent>): MystDocument {
   if (!Array.isArray(path) || path.length !== 1) {
-    throw new Error("updateCodeBlock requires a top-level code block path [index]");
+    throw new DocumentDiagnosticError("invalid-operation", "updateCodeBlock requires a top-level code block path [index]");
   }
   const current = supportedCodeBlock(getNode(document, path));
   if (!current) {
-    throw new Error(`code block at [${path.join(",")}] is not editable in this version`);
+    throw new DocumentDiagnosticError("unsupported-content", `code block at [${path.join(",")}] is not editable in this version`);
   }
   const content = { language: changes?.language ?? current.language, code: changes?.code ?? current.code };
   assertCodeBlockContent(content);
@@ -570,13 +570,13 @@ export function updateCodeBlock(document: MystDocument, path: NodePath, changes:
 
 function assertCodeBlockContent(content: CodeBlockContent): void {
   if (!content || typeof content.language !== "string" || typeof content.code !== "string") {
-    throw new Error("code block language and code must be strings");
+    throw new DocumentDiagnosticError("invalid-operation", "code block language and code must be strings");
   }
   if (/[\s`]/.test(content.language) || content.language.startsWith("{")) {
-    throw new Error("code block language must be one word without spaces, backticks or a leading {");
+    throw new DocumentDiagnosticError("invalid-operation", "code block language must be one word without spaces, backticks or a leading {");
   }
   if (content.code.includes("\r")) {
-    throw new Error("code block line breaks must be \\n");
+    throw new DocumentDiagnosticError("invalid-operation", "code block line breaks must be \\n");
   }
 }
 
@@ -589,7 +589,7 @@ function assertCodeBlockRoundTrip(document: MystDocument, index: number, content
   const block = reloaded && supportedCodeBlock(reloaded);
   if (reparsed.children.length !== complete.children.length || !block || block.language !== content.language ||
       block.code !== content.code || serialize(reparsed) !== markdown) {
-    throw new Error(CODE_FAILURE);
+    throw new DocumentDiagnosticError("round-trip-mismatch", CODE_FAILURE);
   }
 }
 
@@ -620,10 +620,10 @@ export type TableCellInput = string | InlineContent[];
 /** Replace the whole content of an editable cell in a top-level table ([table, row, cell]). */
 export function updateTableCell(document: MystDocument, path: NodePath, cell: TableCellInput): MystDocument {
   if (path.length !== 3) {
-    throw new Error("updateTableCell requires a top-level table cell path [table,row,cell]");
+    throw new DocumentDiagnosticError("invalid-operation", "updateTableCell requires a top-level table cell path [table,row,cell]");
   }
   if (tableCellContent(tableCellAt(document, path)) === undefined) {
-    throw new Error(`table cell at [${path.join(",")}] is not editable in this version`);
+    throw new DocumentDiagnosticError("unsupported-content", `table cell at [${path.join(",")}] is not editable in this version`);
   }
   const content = tableCellInput(cell);
   const next = cloneDocument(document);
@@ -638,7 +638,7 @@ function tableCellAt(document: MystDocument, path: NodePath): MystNode | undefin
   const table = tableOf(getNode(document, [index]));
   if (!table) return undefined;
   const cell = table.children?.[row]?.children?.[column];
-  if (!Number.isInteger(row) || !Number.isInteger(column) || !cell) throw new Error(`table cell path [${path.join(",")}] is out of range`);
+  if (!Number.isInteger(row) || !Number.isInteger(column) || !cell) throw new DocumentDiagnosticError("invalid-operation", `table cell path [${path.join(",")}] is out of range`);
   return cell;
 }
 
@@ -656,14 +656,14 @@ const TABLE_CAPTION_FAILURE = "table caption cannot be preserved through canonic
  */
 export function updateTableCaption(document: MystDocument, path: NodePath, caption: TableCellInput): MystDocument {
   if (!Array.isArray(path) || path.length !== 1) {
-    throw new Error("updateTableCaption requires a top-level table path [index]");
+    throw new DocumentDiagnosticError("invalid-operation", "updateTableCaption requires a top-level table path [index]");
   }
   const current = getNode(document, path);
   const table = tableOf(current);
-  if (!table) throw new Error(`updateTableCaption requires an editable table at [${path.join(",")}]`);
+  if (!table) throw new DocumentDiagnosticError("invalid-operation", `updateTableCaption requires an editable table at [${path.join(",")}]`);
   const paragraph = tableCaptionParagraph(current);
   if (paragraph && projectInlineContent(paragraph) === undefined) {
-    throw new Error(`table caption at [${path.join(",")}] is not editable in this version`);
+    throw new DocumentDiagnosticError("unsupported-content", `table caption at [${path.join(",")}] is not editable in this version`);
   }
   const content = tableCellInput(caption);
   const next = cloneDocument(document);
@@ -676,16 +676,16 @@ export function updateTableCaption(document: MystDocument, path: NodePath, capti
 
 function tableCellInput(cell: TableCellInput): InlineContent[] {
   if (typeof cell !== "string" && !Array.isArray(cell)) {
-    throw new Error("table cell content must be text or InlineContent");
+    throw new DocumentDiagnosticError("invalid-operation", "table cell content must be text or InlineContent");
   }
   const content: InlineContent[] = typeof cell === "string" ? (cell.length > 0 ? [{ kind: "text", text: cell }] : []) : cell;
   assertInlineContent(content);
   const text = inlineContentText(content);
   if (containsBreak(content) || /[\r\n]/.test(text)) {
-    throw new DocumentWriteError("table cell text cannot contain line breaks", { action: "Remove line breaks from this table cell." });
+    throw new DocumentWriteError("table cell text cannot contain line breaks", { code: "line-break", action: "Remove line breaks from this table cell." });
   }
   if (text !== text.trim()) {
-    throw new DocumentWriteError("table cell text cannot start or end with whitespace", { action: "Remove leading and trailing whitespace from this table cell." });
+    throw new DocumentWriteError("table cell text cannot start or end with whitespace", { code: "table-cell-whitespace", action: "Remove leading and trailing whitespace from this table cell." });
   }
   // An empty cell has no children, as MyST parses it.
   return concatenateInlineContent(content).filter((item) => item.kind !== "text" || item.text.length > 0);
@@ -708,7 +708,7 @@ function assertStableTable(document: MystDocument, index: number, failure: strin
         const reloaded = after[rowIndex][column];
         return content !== undefined && (reloaded === undefined || !sameInlineContent(content, reloaded));
       }))) {
-    throw new Error(failure);
+    throw new DocumentDiagnosticError("round-trip-mismatch", failure);
   }
 }
 
@@ -717,14 +717,14 @@ const TABLE_FAILURE = "table cannot be preserved through canonical round-trip";
 /** Insert a top-level Markdown table of text or inline-content cells; the first row is its header row. */
 export function insertTable(document: MystDocument, index: number, rows: TableCellInput[][], align?: ("left" | "center" | "right" | null)[]): MystDocument {
   if (!Array.isArray(rows) || !Array.isArray(rows[0]) || rows[0].length === 0) {
-    throw new Error("a table needs a header row with at least one cell");
+    throw new DocumentDiagnosticError("table-shape", "a table needs a header row with at least one cell");
   }
   if (rows.some((row) => !Array.isArray(row) || row.length !== rows[0].length)) {
-    throw new Error("every table row needs the same number of cells");
+    throw new DocumentDiagnosticError("table-shape", "every table row needs the same number of cells");
   }
   if (align !== undefined && (!Array.isArray(align) || align.length !== rows[0].length ||
       align.some(value => value !== null && !["left", "center", "right"].includes(value)))) {
-    throw new Error("table alignment must contain left, center, right or null for each column");
+    throw new DocumentDiagnosticError("table-shape", "table alignment must contain left, center, right or null for each column");
   }
   const content = rows.map((row) => row.map(tableCellInput));
   const next = insertBlock(document, index, tableBlockNode(createTableNode(content, align), [], ""));
@@ -736,7 +736,7 @@ export function insertTable(document: MystDocument, index: number, rows: TableCe
 export function insertTableRow(document: MystDocument, path: NodePath, row: number): MystDocument {
   const rows = tableAt(document, path, "insertTableRow").children?.length ?? 0;
   if (!Number.isInteger(row) || row < 1 || row > rows) {
-    throw new Error(`table row index must be an integer from 1 to ${rows}: ${row}`);
+    throw new DocumentDiagnosticError("invalid-operation", `table row index must be an integer from 1 to ${rows}: ${row}`);
   }
   const next = cloneDocument(document);
   insertTableRowNode(tableAt(next, path, "insertTableRowNode"), row);
@@ -748,7 +748,7 @@ export function insertTableRow(document: MystDocument, path: NodePath, row: numb
 export function insertTableColumn(document: MystDocument, path: NodePath, column: number): MystDocument {
   const columns = tableAt(document, path, "insertTableColumn").children?.[0]?.children?.length ?? 0;
   if (!Number.isInteger(column) || column < 0 || column > columns) {
-    throw new Error(`table column index must be an integer from 0 to ${columns}: ${column}`);
+    throw new DocumentDiagnosticError("invalid-operation", `table column index must be an integer from 0 to ${columns}: ${column}`);
   }
   const next = cloneDocument(document);
   insertTableColumnNode(tableAt(next, path, "insertTableColumnNode"), column);
@@ -769,7 +769,7 @@ export function removeTableRow(document: MystDocument, path: NodePath, row: numb
 /** Remove a column, header cell included; a table keeps at least one column. */
 export function removeTableColumn(document: MystDocument, path: NodePath, column: number): MystDocument {
   const columns = tableAt(document, path, "removeTableColumn").children?.[0]?.children?.length ?? 0;
-  if (columns <= 1) throw new Error("a table needs at least one column; remove the table instead");
+  if (columns <= 1) throw new DocumentDiagnosticError("table-shape", "a table needs at least one column; remove the table instead");
   assertTableColumn(column, columns);
   const next = cloneDocument(document);
   removeTableColumnNode(tableAt(next, path, "removeTableColumnNode"), column);
@@ -804,7 +804,7 @@ export function updateTableColumnAlignment(document: MystDocument, path: NodePat
   const columns = tableAt(document, path, "updateTableColumnAlignment").children?.[0]?.children?.length ?? 0;
   assertTableColumn(column, columns);
   if (align !== null && !["left", "center", "right"].includes(align)) {
-    throw new Error("table alignment must be left, center, right or null");
+    throw new DocumentDiagnosticError("table-shape", "table alignment must be left, center, right or null");
   }
   const next = cloneDocument(document);
   setTableColumnAlignNode(tableAt(next, path, "setTableColumnAlignNode"), column, align);
@@ -813,25 +813,25 @@ export function updateTableColumnAlignment(document: MystDocument, path: NodePat
 }
 
 function assertTableBodyRow(row: number, rows: number): void {
-  if (rows <= 1) throw new Error("the table has no body row");
+  if (rows <= 1) throw new DocumentDiagnosticError("invalid-operation", "the table has no body row");
   if (!Number.isInteger(row) || row < 1 || row >= rows) {
-    throw new Error(`table body row index must be an integer from 1 to ${rows - 1}: ${row}`);
+    throw new DocumentDiagnosticError("invalid-operation", `table body row index must be an integer from 1 to ${rows - 1}: ${row}`);
   }
 }
 
 function assertTableColumn(column: number, columns: number): void {
   if (!Number.isInteger(column) || column < 0 || column >= columns) {
-    throw new Error(`table column index must be an integer from 0 to ${columns - 1}: ${column}`);
+    throw new DocumentDiagnosticError("invalid-operation", `table column index must be an integer from 0 to ${columns - 1}: ${column}`);
   }
 }
 
 function tableAt(document: MystDocument, path: NodePath, operation: string): MystNode {
   if (path.length !== 1) {
-    throw new Error(`${operation} requires a top-level table path [index]`);
+    throw new DocumentDiagnosticError("invalid-operation", `${operation} requires a top-level table path [index]`);
   }
   const table = tableOf(getNode(document, path));
   if (!table) {
-    throw new Error(`${operation} requires a table at [${path.join(",")}]`);
+    throw new DocumentDiagnosticError("invalid-operation", `${operation} requires a table at [${path.join(",")}]`);
   }
   return table;
 }
@@ -840,8 +840,8 @@ function tableAt(document: MystDocument, path: NodePath, operation: string): Mys
 export function updateMediaReferences(document: MystDocument, replacements: { from: string; to: string }[]): MystDocument {
   const paths = new Map<string, string>();
   for (const { from, to } of replacements) {
-    if (typeof from !== "string" || !from || typeof to !== "string" || !to) throw new Error("Media references require non-empty source and destination paths");
-    if (paths.has(from)) throw new Error(`Duplicate media source: ${from}`);
+    if (typeof from !== "string" || !from || typeof to !== "string" || !to) throw new DocumentDiagnosticError("invalid-operation", "Media references require non-empty source and destination paths");
+    if (paths.has(from)) throw new DocumentDiagnosticError("invalid-operation", `Duplicate media source: ${from}`);
     paths.set(from, to);
   }
   // Validate even a no-match request; never bypass the canonical loss-prevention guard.
@@ -858,17 +858,17 @@ export function updateMediaReferences(document: MystDocument, replacements: { fr
 export function updateFigure(document: MystDocument, path: NodePath, changes: Partial<FigureContent>): MystDocument {
   const current = getNode(document, path);
   if (!isFigure(current)) {
-    throw new Error(`updateFigure requires a figure at [${path.join(",")}]`);
+    throw new DocumentDiagnosticError("invalid-operation", `updateFigure requires a figure at [${path.join(",")}]`);
   }
   if (path.length !== 1) {
-    throw new Error("updateFigure requires a top-level figure path [index]");
+    throw new DocumentDiagnosticError("invalid-operation", "updateFigure requires a top-level figure path [index]");
   }
   const content = supportedFigureContent(current);
   if (!content) {
-    throw new Error(`figure structure at [${path.join(",")}] is not editable in this version`);
+    throw new DocumentDiagnosticError("unsupported-content", `figure structure at [${path.join(",")}] is not editable in this version`);
   }
   if (changes.mermaidSource !== undefined && content.mermaidSource === undefined) {
-    throw new Error("Mermaid source requires an existing Mermaid Figure; content conversion is not supported");
+    throw new DocumentDiagnosticError("unsupported-content", "Mermaid source requires an existing Mermaid Figure; content conversion is not supported");
   }
   const figure: FigureContent = {
     ...(content.mermaidSource !== undefined ? { mermaidSource: changes.mermaidSource ?? content.mermaidSource } : {}),
@@ -894,19 +894,19 @@ export function updateFigure(document: MystDocument, path: NodePath, changes: Pa
 export function updateLabel(document: MystDocument, path: NodePath, label: string,
   options: { updateReferences?: boolean } = {}): MystDocument {
   if (!Array.isArray(path) || path.length !== 1) {
-    throw new Error("updateLabel requires a top-level Equation, Figure, Table or target path [index]");
+    throw new DocumentDiagnosticError("invalid-operation", "updateLabel requires a top-level Equation, Figure, Table or target path [index]");
   }
   const current = getNode(document, path);
   const kind = current.type === "math" ? "Equation" : isFigure(current) ? "Figure" : tableOf(current) ? "Table"
     : current.type === "mystTarget" ? "Target" : undefined;
-  if (!kind) throw new Error(`updateLabel requires a top-level Equation, Figure, Table or target at [${path.join(",")}]`);
+  if (!kind) throw new DocumentDiagnosticError("invalid-operation", `updateLabel requires a top-level Equation, Figure, Table or target at [${path.join(",")}]`);
   if (options.updateReferences === true) return renameLabelReferences(document, path, label, () => updateLabel(document, path, label));
-  if (kind === "Target" && label.length === 0) throw new Error("a target cannot be unlabeled; remove the block instead");
+  if (kind === "Target" && label.length === 0) throw new DocumentDiagnosticError("invalid-label", "a target cannot be unlabeled; remove the block instead");
   const identifier = label.length > 0 ? newLabelIdentifier(document, kind, label, path) : undefined;
   const next = cloneDocument(document);
   if (kind === "Table") {
     const paragraph = tableCaptionParagraph(current);
-    if (paragraph && projectInlineContent(paragraph) === undefined) throw new Error("table caption is not editable in this version");
+    if (paragraph && projectInlineContent(paragraph) === undefined) throw new DocumentDiagnosticError("unsupported-content", "table caption is not editable in this version");
     next.children[path[0]] = tableBlockNode(tableOf(next.children[path[0]])!, tableCaptionContent(current), label, identifier);
   }
   const node = getNode(next, path);
@@ -930,9 +930,9 @@ export function updateLabel(document: MystDocument, path: NodePath, label: strin
  */
 export function insertTarget(document: MystDocument, index: number, label: string): MystDocument {
   if (!Number.isInteger(index) || index < 0 || index > document.children.length) {
-    throw new Error(`insertTarget index out of range: ${index}`);
+    throw new DocumentDiagnosticError("invalid-operation", `insertTarget index out of range: ${index}`);
   }
-  if (label.length === 0) throw new Error("a target needs a label");
+  if (label.length === 0) throw new DocumentDiagnosticError("invalid-label", "a target needs a label");
   // This target replaces the following heading's implicit ID, preserving its identity.
   newLabelIdentifier(document, "Target", label, document.children[index]?.type === "heading" ? [index] : undefined);
   const next = insertBlock(document, index, { type: "mystTarget", label });
@@ -944,13 +944,13 @@ export function insertTarget(document: MystDocument, index: number, label: strin
  * address through canonical Markdown, and that names no other target than `except`. */
 function newLabelIdentifier(document: MystDocument, kind: "Equation" | "Figure" | "Table" | "Target", label: string, except?: NodePath): string {
   const error = kind === "Target" ? targetLabelError(label) : labelError(label);
-  if (error) throw new Error(error);
+  if (error) throw new DocumentDiagnosticError("invalid-label", error);
   const identifier = labelIdentifier(label);
-  if (!identifier) throw new Error(`${kind} label ${JSON.stringify(label)} does not name a reference target`);
+  if (!identifier) throw new DocumentDiagnosticError("invalid-label", `${kind} label ${JSON.stringify(label)} does not name a reference target`);
   try {
     assertReferenceableLabel(kind === "Equation" ? "eq" : kind === "Target" ? "ref" : "numref", label, identifier);
   } catch {
-    throw new Error(`${kind} label ${JSON.stringify(label)} cannot be referenced through canonical Markdown`);
+    throw new DocumentDiagnosticError("invalid-label", `${kind} label ${JSON.stringify(label)} cannot be referenced through canonical Markdown`);
   }
   assertLabelAvailable(document, label, except);
   return identifier;
@@ -961,7 +961,7 @@ function assertLabelRoundTrip(document: MystDocument, index: number, label: stri
   const reparsed = parse(markdown);
   const reloaded = reparsed.children[bodyIndex(document, index)];
   if (reloaded?.type !== document.children[index].type || (reloaded.label ?? "") !== label || serialize(reparsed) !== markdown) {
-    throw new Error(failure);
+    throw new DocumentDiagnosticError("round-trip-mismatch", failure);
   }
 }
 
@@ -984,7 +984,7 @@ export function validateFigure(figure: FigureContent, label = ""): string | unde
 
 function assertFigureContent(figure: FigureContent): void {
   const error = figureContentError(figure);
-  if (error) throw new DocumentWriteError(error, { action: "Review the Figure image or Mermaid source, alt text and caption." });
+  if (error) throw new DocumentWriteError(error, { code: "invalid-figure", action: "Review the Figure image or Mermaid source, alt text and caption." });
   assertInlineContent(figureCaptionContent(figure.caption));
 }
 
@@ -995,7 +995,7 @@ export function updateNodeTextAtPath(
   to: string,
 ): MystDocument {
   if (from.length === 0) {
-    throw new Error("updateNodeTextAtPath requires a non-empty search string");
+    throw new DocumentDiagnosticError("invalid-operation", "updateNodeTextAtPath requires a non-empty search string");
   }
   const next = cloneDocument(document);
   const node = getNode(next, path);
@@ -1010,7 +1010,7 @@ export function updateNodeTextAtPath(
     node.children = [{ type: "text", value: to }];
     return finishTextEdit(document, next, node);
   }
-  throw new Error(`updateNodeTextAtPath could not replace text at [${path.join(",")}]`);
+  throw new DocumentDiagnosticError("invalid-operation", `updateNodeTextAtPath could not replace text at [${path.join(",")}]`);
 }
 
 const HEADING_LEVEL_FAILURE = "heading level change cannot round-trip losslessly through canonical Markdown";
@@ -1022,17 +1022,17 @@ export function updateHeadingLevel(
   from: number,
   to: number,
 ): MystDocument {
-  if (path.length !== 1) throw new Error("updateHeadingLevel requires a top-level heading path");
+  if (path.length !== 1) throw new DocumentDiagnosticError("invalid-operation", "updateHeadingLevel requires a top-level heading path");
   if (!Number.isInteger(from) || from < 1 || from > 6 || !Number.isInteger(to) || to < 1 || to > 6) {
-    throw new Error("heading level must be an integer from 1 to 6");
+    throw new DocumentDiagnosticError("invalid-operation", "heading level must be an integer from 1 to 6");
   }
   const current = getNode(document, path);
   const block = getEditableDocument(document).blocks.find(block => block.path[0] === path[0]);
   if (current.type !== "heading" || block?.block !== "heading" || !block.editable) {
-    throw new Error(`heading level change is not supported at [${path.join(",")}]`);
+    throw new DocumentDiagnosticError("unsupported-content", `heading level change is not supported at [${path.join(",")}]`);
   }
   if (Number(current.depth) !== from) {
-    throw new Error(`heading level does not match at [${path.join(",")}]`);
+    throw new DocumentDiagnosticError("invalid-operation", `heading level does not match at [${path.join(",")}]`);
   }
 
   const next = cloneDocument(document);
@@ -1046,7 +1046,7 @@ export function updateHeadingLevel(
     toText(updated) !== toText(current) ||
     serialize(reparsed) !== markdown
   ) {
-    throw new Error(HEADING_LEVEL_FAILURE);
+    throw new DocumentDiagnosticError("round-trip-mismatch", HEADING_LEVEL_FAILURE);
   }
   return next;
 }
@@ -1062,22 +1062,22 @@ const TEXT_BLOCK_FIELDS: Record<string, Set<string>> = {
 /** Convert a top-level Paragraph or Heading to another text block kind or heading level, keeping
  * its inline content. Fails when the target cannot keep that content (e.g. a line break in a heading). */
 export function convertBlock(document: MystDocument, path: NodePath, to: BlockConversion): MystDocument {
-  if (path.length !== 1) throw new Error("convertBlock requires a top-level block path");
+  if (path.length !== 1) throw new DocumentDiagnosticError("invalid-operation", "convertBlock requires a top-level block path");
   if (to.block === "heading" && (!Number.isInteger(to.level) || to.level < 1 || to.level > 6)) {
-    throw new Error(`heading level must be an integer from 1 to 6: ${to.level}`);
+    throw new DocumentDiagnosticError("invalid-operation", `heading level must be an integer from 1 to 6: ${to.level}`);
   }
   const current = getNode(document, path);
   const fields = TEXT_BLOCK_FIELDS[current.type];
-  if (!fields) throw new Error(`only a paragraph or heading can be converted at [${path.join(",")}]`);
+  if (!fields) throw new DocumentDiagnosticError("invalid-operation", `only a paragraph or heading can be converted at [${path.join(",")}]`);
   if (current.type === to.block && (to.block === "paragraph" || Number(current.depth) === to.level)) {
-    throw new Error(`block at [${path.join(",")}] is already this kind`);
+    throw new DocumentDiagnosticError("invalid-operation", `block at [${path.join(",")}] is already this kind`);
   }
   const content = projectInlineContent(current);
   if (!content || Object.entries(current).some(([key, value]) => value !== undefined && !fields.has(key))) {
-    throw new Error(`${current.type} at [${path.join(",")}] has content that conversion cannot preserve`);
+    throw new DocumentDiagnosticError("invalid-operation", `${current.type} at [${path.join(",")}] has content that conversion cannot preserve`);
   }
   if (to.block === "heading" && containsBreak(content)) {
-    throw new DocumentWriteError("a heading cannot contain line breaks", { action: "Remove line breaks from the heading or convert it to a paragraph." });
+    throw new DocumentWriteError("a heading cannot contain line breaks", { code: "line-break", action: "Remove line breaks from the heading or convert it to a paragraph." });
   }
 
   const next = cloneDocument(document);
@@ -1105,10 +1105,10 @@ export function updateEquationLatex(
 ): MystDocument {
   const current = getNode(document, path);
   if (current.type !== "math") {
-    throw new Error(`updateEquationLatex requires an equation at [${path.join(",")}]`);
+    throw new DocumentDiagnosticError("invalid-operation", `updateEquationLatex requires an equation at [${path.join(",")}]`);
   }
   if (typeof current.value !== "string" || current.value !== from) {
-    throw new Error(`equation LaTeX does not match at [${path.join(",")}]`);
+    throw new DocumentDiagnosticError("invalid-operation", `equation LaTeX does not match at [${path.join(",")}]`);
   }
 
   const next = cloneDocument(document);
@@ -1135,10 +1135,10 @@ function assertEquationRoundTrip(
     equation.label !== label ||
     equation.identifier !== identifier
   ) {
-    throw new Error(EQUATION_FAILURE);
+    throw new DocumentDiagnosticError("round-trip-mismatch", EQUATION_FAILURE);
   }
   if (serialize(reparsed) !== markdown) {
-    throw new Error("Equation LaTeX change is not canonical after round-trip");
+    throw new DocumentDiagnosticError("round-trip-mismatch", "Equation LaTeX change is not canonical after round-trip");
   }
 }
 
@@ -1151,10 +1151,10 @@ export function updateParagraphInlineContent(
   const next = cloneDocument(document);
   const node = getNode(next, path);
   if (node.type !== "paragraph") {
-    throw new Error(`updateParagraphInlineContent requires a paragraph at [${path.join(",")}]`);
+    throw new DocumentDiagnosticError("invalid-operation", `updateParagraphInlineContent requires a paragraph at [${path.join(",")}]`);
   }
   if (!projectInlineContent(node)) {
-    throw new Error(`updateParagraphInlineContent cannot replace unsupported inline content at [${path.join(",")}]`);
+    throw new DocumentDiagnosticError("unsupported-content", `updateParagraphInlineContent cannot replace unsupported inline content at [${path.join(",")}]`);
   }
   node.children = inlineContentToNodes(concatenateInlineContent(content));
   assertInlineBlockRoundTrip(node);
@@ -1167,11 +1167,11 @@ export function updateAdmonitionInlineContent(
   path: NodePath,
   content: InlineContent[],
 ): MystDocument {
-  if (path.length !== 1) throw new Error("admonition edits require a top-level path");
+  if (path.length !== 1) throw new DocumentDiagnosticError("invalid-operation", "admonition edits require a top-level path");
   const next = cloneDocument(document);
   const node = getNode(next, path);
   if (!supportedAdmonitionContent(node)) {
-    throw new Error(`admonition edit is not supported at [${path.join(",")}]`);
+    throw new DocumentDiagnosticError("unsupported-content", `admonition edit is not supported at [${path.join(",")}]`);
   }
   const normalized = structuralInlineContent(content);
   node.children = normalized.length ? [{ type: "paragraph", children: inlineContentToNodes(normalized) }] : [];
@@ -1181,19 +1181,19 @@ export function updateAdmonitionInlineContent(
   const reloaded = parse(markdown).children[0];
   if (!reloaded || reloaded.kind !== node.kind || !supportedAdmonitionContent(reloaded) ||
       serialize(parse(markdown)) !== markdown) {
-    throw new Error(failure);
+    throw new DocumentDiagnosticError("round-trip-mismatch", failure);
   }
   return next;
 }
 
 /** Change the kind of one simple admonition, keeping its body. */
 export function updateAdmonitionVariant(document: MystDocument, path: NodePath, variant: AdmonitionVariant): MystDocument {
-  if (path.length !== 1) throw new Error("admonition edits require a top-level path");
-  if (!isAdmonitionVariant(variant)) throw new Error(`unsupported admonition variant: ${variant}`);
+  if (path.length !== 1) throw new DocumentDiagnosticError("invalid-operation", "admonition edits require a top-level path");
+  if (!isAdmonitionVariant(variant)) throw new DocumentDiagnosticError("unsupported-content", `unsupported admonition variant: ${variant}`);
   const node = getNode(document, path);
   const content = supportedAdmonitionContent(node);
-  if (!content) throw new Error(`admonition edit is not supported at [${path.join(",")}]`);
-  if (node.kind === variant) throw new Error(`admonition at [${path.join(",")}] is already a ${variant}`);
+  if (!content) throw new DocumentDiagnosticError("unsupported-content", `admonition edit is not supported at [${path.join(",")}]`);
+  if (node.kind === variant) throw new DocumentDiagnosticError("invalid-operation", `admonition at [${path.join(",")}] is already a ${variant}`);
   const next = cloneDocument(document);
   getNode(next, path).kind = variant;
   const failure = "admonition kind change cannot round-trip losslessly through canonical Markdown";
@@ -1202,7 +1202,7 @@ export function updateAdmonitionVariant(document: MystDocument, path: NodePath, 
   const reloadedContent = reloaded && supportedAdmonitionContent(reloaded);
   if (reloaded?.kind !== variant || !reloadedContent || !sameInlineContent(content, reloadedContent) ||
       serialize(parse(markdown)) !== markdown) {
-    throw new Error(failure);
+    throw new DocumentDiagnosticError("round-trip-mismatch", failure);
   }
   return next;
 }
@@ -1212,10 +1212,10 @@ export function removeBlock(document: MystDocument, index: number): MystDocument
   const next = cloneDocument(document);
   const blocks = next.children;
   if (!Array.isArray(blocks) || blocks.length === 0) {
-    throw new Error("removeBlock requires a document with top-level blocks");
+    throw new DocumentDiagnosticError("invalid-operation", "removeBlock requires a document with top-level blocks");
   }
   if (!Number.isInteger(index) || index < 0 || index >= blocks.length) {
-    throw new Error(`removeBlock index out of range: ${index}`);
+    throw new DocumentDiagnosticError("invalid-operation", `removeBlock index out of range: ${index}`);
   }
   blocks.splice(index, 1);
   return next;
@@ -1287,7 +1287,7 @@ export function splitParagraph(document: MystDocument, path: NodePath, offset: n
   assertTopLevelPath(path);
   const content = paragraphContent(document, path);
   if (offset === 0 || offset === inlineContentLength(content)) {
-    throw new DocumentWriteError("split offset would create an empty paragraph that cannot be saved", {
+    throw new DocumentWriteError("split offset would create an empty paragraph that cannot be saved", { code: "empty-content",
       action: "Enter text in each paragraph or delete the empty paragraph.",
     });
   }
@@ -1308,7 +1308,7 @@ export function mergeParagraphWithPrevious(document: MystDocument, path: NodePat
   assertTopLevelPath(path);
   const current = paragraphContent(document, path);
   if (path[0] <= 0 || document.children[path[0] - 1]?.[FRONT_MATTER_FIELD] === true) {
-    throw new Error("merge requires a previous paragraph");
+    throw new DocumentDiagnosticError("invalid-operation", "merge requires a previous paragraph");
   }
   const previous = paragraphContent(document, [path[0] - 1]);
   const next = cloneDocument(document);
@@ -1320,18 +1320,18 @@ export function mergeParagraphWithPrevious(document: MystDocument, path: NodePat
 
 function paragraphContent(document: MystDocument, path: NodePath): InlineContent[] {
   const node = getNode(document, path);
-  if (node.type !== "paragraph") throw new Error("operation requires a paragraph");
+  if (node.type !== "paragraph") throw new DocumentDiagnosticError("invalid-operation", "operation requires a paragraph");
   const content = projectInlineContent(node);
-  if (!content) throw new Error("unsupported paragraph inline content");
+  if (!content) throw new DocumentDiagnosticError("unsupported-content", "unsupported paragraph inline content");
   return content;
 }
 
 function assertTopLevelPath(path: NodePath): void {
-  if (path.length !== 1) throw new Error("operation requires a top-level paragraph path [index]");
+  if (path.length !== 1) throw new DocumentDiagnosticError("invalid-operation", "operation requires a top-level paragraph path [index]");
 }
 
 function assertInteriorOffset(content: InlineContent[], offset: number): void {
   if (!Number.isInteger(offset) || offset <= 0 || offset >= inlineContentLength(content)) {
-    throw new Error("offset must be an interior UTF-16 position (0 < offset < paragraph length)");
+    throw new DocumentDiagnosticError("invalid-operation", "offset must be an interior UTF-16 position (0 < offset < paragraph length)");
   }
 }

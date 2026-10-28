@@ -622,6 +622,8 @@ test("command help is available from help and --help", () => {
   assert.equal(fromHelp.stdout, fromFlag.stdout);
   assert.equal(fromHelp.stdout, fromShort.stdout);
   assert.match(fromHelp.stdout, /ieumdoc check <file>/);
+  assert.match(fromHelp.stdout, /optional error\.code from Core/);
+  assert.match(fromHelp.stdout, /unclassified errors may omit the code/);
 
   const update = run(["help", "update-node-text"]);
   assert.equal(update.status, 0, update.stderr);
@@ -2186,6 +2188,16 @@ test("native create and admission keep existing files intact and report structur
     assert.equal(result.error.code, "native-marker");
     assert.equal(result.error.line, 1);
     assert.equal(result.nodes, undefined);
+    // A non-native write refusal keeps the same JSON envelope and passes through Core's code.
+    const unpreservable = nativeSource("[^unused]: Definition.\n");
+    writeFileSync(file, unpreservable);
+    const refusal = run(["check", file, "--format", "json"]);
+    assert.equal(refusal.status, 1);
+    const diagnostic = JSON.parse(refusal.stdout);
+    assert.equal(diagnostic.error.code, "invalid-footnote");
+    assert.ok(diagnostic.error.reason && diagnostic.error.action);
+    assert.equal(readFileSync(file, "utf8"), unpreservable);
+
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

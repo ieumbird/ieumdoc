@@ -1,9 +1,10 @@
-import { writeIssueOf } from "@ieumdoc/core";
+import { writeIssueOf, type WriteIssueCode } from "@ieumdoc/core";
 import type { OrderItem } from "./document-protocol.ts";
 
 export type SaveFailure = {
   phase: "collect" | "replay" | "serialize" | "revision" | "file" | "request" | "transport";
   action: string;
+  code?: WriteIssueCode;
   target?: OrderItem;
   /** Zero-based location in the submitted Editor snapshot, never the live edited document. */
   block?: { index: number; type: string };
@@ -13,6 +14,7 @@ export type SaveFailure = {
 
 /** Adds context; the original reason and cause remain intact. */
 export class SaveContentError extends Error implements SaveFailure {
+  readonly code?: WriteIssueCode;
   readonly phase: SaveFailure["phase"];
   readonly action: string;
   readonly block?: SaveFailure["block"];
@@ -20,6 +22,7 @@ export class SaveContentError extends Error implements SaveFailure {
   readonly line?: number;
   constructor(readonly reason: string, readonly target?: OrderItem, options: ErrorOptions & Partial<SaveFailure> = {}) {
     super(options.block ? `Block ${options.block.index + 1} (${options.block.type}): ${reason}` : reason, options);
+    this.code = options.code ?? (options.cause instanceof SaveContentError ? options.cause.code : writeIssueOf(options.cause).code);
     this.phase = options.phase ?? "replay";
     this.action = options.action ?? writeIssueOf(options.cause ?? this).action;
     this.block = options.block;

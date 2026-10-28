@@ -45,7 +45,7 @@ function errorPayload(error: unknown, access: FileAccess = LOCAL_FILE_ACCESS): D
   return { error: error instanceof NativeDocumentError ? error.message : fileErrorMessage(error instanceof SaveContentError && error.phase === "file" ? error.cause ?? error : error, access),
     ...(error instanceof NativeDocumentError ? { code: error.code, issue: writeIssueOf(error) } : {}),
     ...(error instanceof SaveContentError ? { target: error.target, failure: {
-      phase: error.phase, action: error.action, target: error.target, block: error.block, cell: error.cell, line: error.line,
+      code: error.code, phase: error.phase, action: error.action, target: error.target, block: error.block, cell: error.cell, line: error.line,
     } } : {}),
     ...(error instanceof DocumentConflictError ? { failure: { phase: "revision", action:
       "Keep editing, or copy applied content from Source. Reload only when you are ready to discard local changes." } satisfies SaveFailure } : {}),

@@ -110,7 +110,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
   const used = new Set<string>();
   const nodes = (next.content ?? []).filter(node => !isSessionPlaceholder(node));
   const saveError = (node: TiptapJSON, message: string, action = "Enter the required content or delete the empty block/item.") => new SaveContentError(message, undefined, {
-    phase: "collect", block: { index: (next.content ?? []).indexOf(node), type: node.type ?? "unknown" },
+    code: "empty-content", phase: "collect", block: { index: (next.content ?? []).indexOf(node), type: node.type ?? "unknown" },
     action,
   });
   const blocksByPath = new Map(document.blocks.map(block => [pathKey(block.path), block]));
@@ -128,7 +128,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
             throw saveError(node, "empty heading cannot be saved.", "Enter text or delete this block.");
           }
           if (insert.block === "footnote" && inlineText(insert.content).trim().length === 0) {
-            throw saveError(node, EMPTY_FOOTNOTE, "Enter its text or delete the footnote.");
+            throw saveError(node, EMPTY_FOOTNOTE, "Enter the footnote text or remove its reference and definition.");
           }
           if (insert.block === "figure") assertFigureContent(insert);
           insertOf.set(node, inserts.length);
@@ -190,7 +190,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
       } else if (block.block === "footnote" && block.editable) {
         const content = paragraphInline(node);
         if (sameInline(content, block.content)) return;
-        if (inlineText(content).trim().length === 0) throw saveError(node, EMPTY_FOOTNOTE, "Enter its text or delete the footnote.");
+        if (inlineText(content).trim().length === 0) throw saveError(node, EMPTY_FOOTNOTE, "Enter the footnote text or remove its reference and definition.");
         footnotes.push({ path: block.path, content });
       } else if (block.block === "target") {
         const label = targetLabel(node);
@@ -464,7 +464,7 @@ function insertEdit(node: TiptapJSON): InsertEdit {
     }
     const align = grid[0].map(cell => cell.align || null) as ("left" | "center" | "right" | null)[];
     if (grid.some(row => row.some((cell, column) => (cell.align || null) !== align[column]))) {
-      throw new SaveContentError("table alignment must be uniform within each column", undefined, { phase: "collect", action: "Set alignment for the whole column using the table controls." });
+      throw new SaveContentError("table alignment must be uniform within each column", undefined, { code: "table-shape", phase: "collect", action: "Set alignment for the whole column using the table controls." });
     }
     const caption = tableCaption(node);
     const label = blockLabel(node);
@@ -500,7 +500,7 @@ function captionValue(content: InlineContent[]): FigureContent["caption"] {
 
 function assertFigureContent(figure: FigureContent): void {
   const error = figureContentError(figure);
-  if (error) throw new SaveContentError(error, undefined, { phase: "collect",
+  if (error) throw new SaveContentError(error, undefined, { code: "invalid-figure", phase: "collect",
     action: "Review the Figure image, alt text and caption in its Edit form." });
 }
 
@@ -632,7 +632,7 @@ function tableCells(node: TiptapJSON): TableCellShape[][] {
         if (cell.type !== "tableCell") throw new Error(`unsupported Tiptap node ${describeType(cell)} in table row`);
         const content = paragraphInline(cell);
         if (hasBreak(content)) throw new SaveContentError("a table cell cannot contain line breaks", undefined, {
-          phase: "collect", action: "Remove the line breaks from this table cell.", cell: { row: rowIndex, column } });
+          code: "line-break", phase: "collect", action: "Remove the line breaks from this table cell.", cell: { row: rowIndex, column } });
         return { header, align, content, source };
       } catch (error) {
         throw new SaveContentError(error instanceof Error ? error.message : String(error), undefined, {
@@ -654,7 +654,7 @@ type TableShape = Pick<TableShapeEdit, "rows" | "columns" | "align">;
  */
 function tableShape(was: TableCellShape[][], is: TableCellShape[][]): TableShape {
   const width = is[0]?.length ?? 0;
-  if (width === 0 || is.some(row => row.length !== width)) throw new SaveContentError("table rows must have the same number of cells", undefined, { phase: "collect", action: "Use the table row/column controls to give every row the same number of cells." });
+  if (width === 0 || is.some(row => row.length !== width)) throw new SaveContentError("table rows must have the same number of cells", undefined, { code: "table-shape", phase: "collect", action: "Use the table row/column controls to give every row the same number of cells." });
   const snapshot = (cells: TableCellShape[], part: number) => {
     const found = new Set(cells.flatMap(cell => cell.source ? [Number(cell.source.split(",")[part])] : []));
     if (found.size > 1) throw new Error("table cells can only move as whole rows or columns");
@@ -673,7 +673,7 @@ function tableShape(was: TableCellShape[][], is: TableCellShape[][]): TableShape
   is.forEach((cells, rowIndex) => cells.forEach((cell, index) => {
     const from = rows[rowIndex];
     const to = columns[index];
-    if (cell.align !== align[index]) throw new SaveContentError("table alignment must be uniform within each column", undefined, { phase: "collect", action: "Set alignment for the whole column using the table controls." });
+    if (cell.align !== align[index]) throw new SaveContentError("table alignment must be uniform within each column", undefined, { code: "table-shape", phase: "collect", action: "Set alignment for the whole column using the table controls." });
     if (from !== null && to !== null) {
       const old = was[from][to];
       if (cell.source !== `${from},${to}` || cell.header !== old.header) {
@@ -690,7 +690,7 @@ function tableShape(was: TableCellShape[][], is: TableCellShape[][]): TableShape
 /** Heading content is paragraph inline content without line breaks. */
 function headingInline(node: TiptapJSON): InlineContent[] {
   const content = paragraphInline(node);
-  if (hasBreak(content)) throw new SaveContentError("a heading cannot contain line breaks", undefined, { phase: "collect", action: "Remove line breaks from the heading or convert it to a paragraph." });
+  if (hasBreak(content)) throw new SaveContentError("a heading cannot contain line breaks", undefined, { code: "line-break", phase: "collect", action: "Remove line breaks from the heading or convert it to a paragraph." });
   return content;
 }
 
@@ -722,7 +722,7 @@ export function tableCaption(node: TiptapJSON): InlineContent[] {
 /** A section label target always has a label; removing it removes the block. */
 function targetLabel(node: TiptapJSON): string {
   const label = blockLabel(node);
-  if (label.length === 0) throw new SaveContentError("a section label cannot be empty; delete it instead", undefined, { phase: "collect", action: "Enter a section label or delete the label target." });
+  if (label.length === 0) throw new SaveContentError("a section label cannot be empty; delete it instead", undefined, { code: "invalid-label", phase: "collect", action: "Enter a section label or delete the label target." });
   return label;
 }
 

@@ -42,11 +42,11 @@ export function assertLabelAvailable(document: MystDocument, label: string, exce
   const targetKey = targetPath?.join(".");
   const targets = referenceTargetIndex(document);
   const reason = targets.lookup(identifier)?.reason;
-  if (reason) throw new DocumentWriteError(reason, { action: "Choose a label whose normalized identifier is not an Object.prototype property." });
+  if (reason) throw new DocumentWriteError(reason, { code: "invalid-label", action: "Choose a label whose normalized identifier is not an Object.prototype property." });
   // Keep raw targets too: unattached or overridden explicit labels must remain reserved.
   if (targetIdentifiers(document, current).has(identifier) ||
       targets.candidates(identifier).some(node => !targetKey || targets.path(node)?.join(".") !== targetKey)) {
-    throw new DocumentWriteError(`label ${JSON.stringify(label)} already names another target (including implicit heading IDs)`, {
+    throw new DocumentWriteError(`label ${JSON.stringify(label)} already names another target (including implicit heading IDs)`, { code: "label-conflict",
       action: "Choose a label not used by another target, including an unlabeled heading's automatic ID.",
     });
   }
