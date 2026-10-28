@@ -168,7 +168,7 @@ pnpm --filter @ieumdoc/desktop test:packaged
 
 공개 `0.0.2-beta.2`의 실제 GitHub `0.0.2-beta.1 → 0.0.2-beta.2` 설치·업데이트는 소유자 결정으로 미실행·미검증이다. 공식 배포 첫 시도 성공과 공개 자산 대조 결과는 [#659 배포 기록](docs/releases/v0.0.2-beta.2.md)에 보존한다.
 
-다음 Beta 발행 순서: 버전 변경과 로컬 후보 검증 → 명시적 원격 승인 → 변경 push/CI/master 반영 → 실제 환경 보호 확인 → 검증된 master commit에 해당 버전 tag 게시 → master에서 해당 tag와 `unsigned-beta` 또는 `signed`로 수동 실행 → 모든 빌드·테스트·자산 검증 성공 후 추가 environment 승인 없이 게시 → 공개 결과와 [실제 GitHub 업데이트 검증](docs/test/README.md#real-github-beta-update) 확인 → 한국어 Release 본문·README의 공개 버전·릴리즈 기록 갱신. 게시 모드도 전체 검증을 실행하므로 동일 후보의 `verify`와 게시 빌드를 연속으로 반복할 필요는 없다. 게시 여부를 결정하기 전 산출물만 검토하려면 `verify`를 사용한다. 0.0.2-beta.1의 공개·철회 결과와 실제 GitHub 업데이트 미검증 범위는 [릴리즈 기록](docs/releases/v0.0.2-beta.1.md), 동작 계약은 [Desktop contract](docs/design/desktop-distribution-v1.md)를 참고한다. 이미 공개된 tag나 자산은 재작성하지 않는다.
+다음 Beta 발행 순서: 버전 변경과 로컬 후보 검증 → 명시적 원격 승인 → 변경 push/CI/master 반영 → 실제 환경 보호 확인 → 검증된 master commit에 해당 버전 tag 게시 → master에서 해당 tag와 `unsigned-beta` 또는 `signed`로 수동 실행 → 모든 빌드·테스트·자산 검증 성공 후 추가 environment 승인 없이 게시 → 공개 결과와 [실제 GitHub 업데이트 검증](docs/test/README.md#real-github-beta-update) 확인 → 한국어 Release 본문·릴리즈 기록 갱신. README에는 정확한 공개 버전이나 설치 파일 이름을 반복하지 않고 Releases 목록으로 안내한다. README는 제품 목적·지원 플랫폼·설치 절차·호환성 경계가 바뀔 때만 갱신한다. 게시 모드도 전체 검증을 실행하므로 동일 후보의 `verify`와 게시 빌드를 연속으로 반복할 필요는 없다. 게시 여부를 결정하기 전 산출물만 검토하려면 `verify`를 사용한다. 0.0.2-beta.1의 공개·철회 결과와 실제 GitHub 업데이트 미검증 범위는 [릴리즈 기록](docs/releases/v0.0.2-beta.1.md), 동작 계약은 [Desktop contract](docs/design/desktop-distribution-v1.md)를 참고한다. 이미 공개된 tag나 자산은 재작성하지 않는다.
 
 Unsigned Beta의 SHA-512/SHA-256은 무결성 검증이다. 악의적인 게시자가 파일과 manifest를 함께 바꾸는 경우에 대한 게시자 인증이 아니다. Unsigned 경로는 Authenticode 인증을 제공하지 않으며, Signed 경로의 인증서 검증을 해제하지 않는다.
 

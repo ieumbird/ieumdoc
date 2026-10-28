@@ -14,7 +14,7 @@ import type { ImageRenamer } from "./image-rename.ts";
 import type { FileOperationResponse } from "../shared/file-operations.ts";
 import { chooseHostImage, rollbackAsset } from "./image-assets.ts";
 import { createOutlineStore, type OutlineItem } from "./outline.ts";
-import { SaveDisplayError } from "./save-error.ts";
+import { SaveDisplayError, type SaveErrorLocation } from "./save-error.ts";
 import type { DocumentView } from "./shell/TopBar.tsx";
 import { collectSupportedEdits, type TiptapJSON } from "./tiptap-document.ts";
 import { createDocumentSessionLifetime, messageOf, requestBibliography, requestDocument, requestSave, requestSource, SaveConflictError, validateFigure } from "./document-session.ts";
@@ -57,7 +57,8 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
   const [referenceTemplates, setReferenceTemplates] = useState<import("@ieumdoc/core").ReferenceTemplates | null>(null);
   const [reloadDialog, setReloadDialog] = useState(false);
   const [status, setStatus] = useState<Operation>("ready");
-  const [error, setError] = useMessageState("");
+  const [error, setError, errorValue] = useMessageState("");
+  const [saveLocations, setSaveLocations] = useState<readonly SaveErrorLocation[]>([]);
   const [notice, setNoticeMessage] = useMessageState("");
   const [noticeAction, setNoticeAction] = useState<(() => void) | null>(null);
   const noticeActionRef = useRef<(() => void) | null>(null);
@@ -114,6 +115,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
       setImageChoice(imageChoiceRef.current);
     });
     return {
+      onSaveLocationsChange: (locations: readonly SaveErrorLocation[]) => { if (isCurrent()) setSaveLocations(locations); },
       onNotice: (message: UiMessage, action?: () => void) => { if (isCurrent()) setNotice(message, action); },
       onDraftChange: (active: boolean) => { if (isCurrent()) setDraftActive(active); },
       onAssetPendingChange: (active: boolean) => { if (isCurrent()) setAssetPending(active); },
@@ -151,6 +153,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
     setDocument(next.document);
     setBibliography(next.bibliography);
     setInitialEditorSnapshot(undefined);
+    setSaveLocations([]);
     sessionBase.current = { source: next.source };
     setEndnotesMove(!next.endnotesInPlace);
     sourceRevision.current = next.revision;
@@ -220,10 +223,12 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
       return true;
     } catch (cause) {
       if (!isCurrent()) return false;
-      editor.finishSave();
       const failure = cause instanceof SaveContentError ? cause
         : new SaveContentError(messageOf(cause), undefined, { phase: "collect", cause });
-      setError(new SaveDisplayError(failure, submitted, payload));
+      const display = new SaveDisplayError([failure], submitted, payload);
+      editor.showSaveErrors(display.locations);
+      editor.finishSave();
+      setError(display);
       setStatus(cause instanceof SaveConflictError ? "save-conflict" : "save-failed");
       return false;
     }
@@ -361,6 +366,15 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
       else recorder?.discard();
     },
     view, setView, sourceMarkdown, status, setStatus, error, setError, notice, setNotice, noticeAction,
+    saveFailure: errorValue instanceof SaveDisplayError ? errorValue : undefined,
+    saveLocations,
+    revealSaveLocation(index: number) {
+      const location = saveLocations[index];
+      if (!location) return;
+      if (view === "visual") { editorRef.current?.revealSaveLocation(location); return; }
+      setView("visual");
+      requestAnimationFrame(() => { if (isCurrent()) editorRef.current?.revealSaveLocation(location); });
+    },
     draftActive, assetPending, documentDirty, busy, switching, busyRef, draftNotice,
     documentNotice: endnotesMove ? i18n.t(ENDNOTES_MOVE_NOTICE) : "",
     load, save, showSource, reload, reloadFromDisk, reloadDialog, setReloadDialog,

@@ -1,6 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
+- Save refusal verification: 2026-10-28 (#578 phase 1: real collection/Host refusals, danger block/cell overlays, snapshot invalidation, keyboard reveal and [640/1440px light/dark captures](#save-refusal-highlights-578)).
 - Block outline verification: 2026-10-28 (#469 follow-up: 1440px/640px full outer-edge and inset-stroke comparison, stationary-pointer scroll suppression; [evidence](#typing-and-outline-verification-469)).
 - Last verified: 2026-10-28 (#637: full-column code-style source and draft preview; wider wrapping inline-math popover, with 1440/640px same-state comparison).
 - Segment verification: 2026-10-27 (#620: semibold/surface/shadow selection and quiet Command Center border; [checks and Before/After](#quiet-segments-and-command-center-620)).
@@ -93,6 +94,38 @@ popup. At the supported 640px minimum and at desktop widths, the existing footer
 The [shell capture record](editor-ux-shell-v1.md#file-action-verification-and-captures) records both
 sizes and light/dark OS preferences, using the current System theme and shared #595 roles.
 
+
+## Save refusal highlights (#578)
+
+A block that caused Save to be refused uses the #469 measured hover/selection outer rectangle,
+`--space-block-hover-inline` / `--space-block-hover-block`, `--size-block-hover-outline` and
+`--id-radius-block-hover`, with `--id-color-danger` replacing the stroke color. The absolute
+overlay adds no content border or padding. Its visible **Cannot save / 저장 불가** badge supplies
+a text cue and accessible text outside editable content. A known table cell has a matching danger
+inset stroke clipped to the visible horizontal table viewport. The cell stroke covers the existing
+2px current-cell outline; the block keeps #469's 1px stroke. Refusal overlays paint at z-index 2,
+above selection's z-index 1 and hover, because selection must not conceal the reason Save stopped.
+They are input-transparent and never cover gutter controls with an interactive hit target.
+While errors exist, the document isolates its local stacking context so the refusal stroke/badge
+cannot paint over the sticky header when a cell is revealed or the reader scrolls.
+
+The existing danger message surface contains a short localized summary, shared compact Button
+navigation and native keyboard-accessible collapsed **Technical details**. The original English
+diagnostic is preserved there. The state lifetime and snapshot invalidation rules belong to the
+[Save contract](editing-session-save-v1.md#refused-block-highlighting-and-navigation-578-phase-1).
+This is Editor presentation/navigation; Core semantics and CLI behavior are unchanged.
+
+`pnpm browser:test save-error --screenshots` captures actual refusals at 1440×900 and 640×900,
+light/dark, Windows persistent Chrome, DPR 1, 100% zoom and bundled Pretendard. The same-state
+Before/After empty-title pairs use base `c8debf3`; table-cell captures additionally show the
+localized row/column and selected destination. Images are manual review evidence, not pixel tests.
+[Capture metadata and SHA-256 hashes](assets/save-error-578/capture-metadata.json) record the
+fixture/state, viewport, theme, fonts, DPR and verified worktree-owned final server origin.
+
+| Theme | 1440px | 640px |
+| --- | --- | --- |
+| Light | [Before](assets/save-error-578/before-1440-light.png) / [After](assets/save-error-578/after-1440-light.png) / [Cell](assets/save-error-578/cell-1440-light.png) | [Before](assets/save-error-578/before-640-light.png) / [After](assets/save-error-578/after-640-light.png) / [Cell](assets/save-error-578/cell-640-light.png) |
+| Dark | [Before](assets/save-error-578/before-1440-dark.png) / [After](assets/save-error-578/after-1440-dark.png) / [Cell](assets/save-error-578/cell-1440-dark.png) | [Before](assets/save-error-578/before-640-dark.png) / [After](assets/save-error-578/after-640-dark.png) / [Cell](assets/save-error-578/cell-640-dark.png) |
 
 ## Direction
 

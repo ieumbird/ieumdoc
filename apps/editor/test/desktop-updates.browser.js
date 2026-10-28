@@ -137,6 +137,7 @@ async (page, { screenshots = false, openPath }) => {
         for (const panelOpen of [false, true]) {
           const toggle = page.getByRole('button', {name:'Outline', exact:true});
           if (await toggle.getAttribute('aria-pressed') !== String(panelOpen)) await toggle.click();
+          let expandedSettingsTop;
           for (const collapsed of [false, true]) {
             const sidebar = page.getByRole('button', {name:collapsed ? 'Collapse sidebar' : 'Expand sidebar', exact:true});
             if (await sidebar.isVisible()) await sidebar.click();
@@ -157,7 +158,7 @@ async (page, { screenshots = false, openPath }) => {
               const borderColor = getComputedStyle(document.querySelector('.document-tabs')).borderBottomColor;
               const continuous = Array.from({length:Math.ceil(header.width)}, (_, i) => header.left + i + 0.5)
                 .filter(x => x < header.right).every(x => lines.filter(line => line.left <= x && line.right > x && line.bottom === tabs.top && line.thickness === 1 && line.color === borderColor).length === 1);
-              const blocked = [...document.querySelectorAll('.app-titlebar button, .sidebar-header button, .document-panel-header button')].filter(node => {
+              const blocked = [...document.querySelectorAll('.app-titlebar button, .sidebar-header button, .sidebar-footer button, .document-panel-header button')].filter(node => {
                 const r = node.getBoundingClientRect();
                 return r.width && (r.right > innerWidth || (r.top < 40 && r.right > innerWidth - reserved) || getComputedStyle(node).getPropertyValue('app-region') !== 'no-drag');
               }).map(node => node.getAttribute('aria-label') || node.textContent);
@@ -168,10 +169,26 @@ async (page, { screenshots = false, openPath }) => {
               const docked = document.querySelector('.document-panel:not(.document-panel--overlay) .document-panel-navigation')?.getBoundingClientRect();
               const aligned = sidebar.top === tabs.top && sidebar.bottom === tabs.bottom && (!docked || docked.top === tabs.top && docked.bottom === tabs.bottom);
               const branded = brand.querySelector('img').complete && !!brand.querySelector('span') === !document.querySelector('.sidebar--collapsed');
-              return {aligned, branded, continuous, singleLine:lines.every(line => line.bottom === tabs.top && line.thickness === 1), lines, blocked,
+              const settings = document.querySelector('.sidebar-footer button');
+              const settingsBox = settings.getBoundingClientRect();
+              const rail = document.querySelector('.sidebar').getBoundingClientRect();
+              const settingsBounded = settingsBox.left >= rail.left && settingsBox.right <= rail.right && settingsBox.bottom <= innerHeight;
+              return {settingsTop:settingsBox.top, settingsBounded, aligned, branded, continuous, singleLine:lines.every(line => line.bottom === tabs.top && line.thickness === 1), lines, blocked,
                 rowHeight:header.height, usableWidth, barBottom:bar.bottom, tabsTop:tabs.top, headerBottom:document.querySelector('.app-header').getBoundingClientRect().bottom,
                 overlayTop:panel?.getBoundingClientRect().top, drag:getComputedStyle(document.querySelector('.top-bar')).getPropertyValue('app-region')};
             }, reserved);
+            if (!collapsed) expandedSettingsTop = geometry.settingsTop;
+            check(geometry.settingsBounded && geometry.settingsTop === expandedSettingsTop, 'Rail Settings moved vertically or escaped the sidebar');
+            if (collapsed && [1440,640].includes(width) && reserved === 138 && !panelOpen) {
+              const settings = page.getByTestId('sidebar').getByRole('button',{name:'Settings',exact:true});
+              await settings.click();
+              await page.getByTestId('settings-back').waitFor();
+              check(await page.getByRole('button',{name:'About & updates',exact:true}).isVisible(), 'Rail opened different Desktop Settings');
+              if (theme === 'light') await page.getByTestId('settings-back').click();
+              else await page.keyboard.press('Escape');
+              await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+              check(await settings.evaluate(node => node === document.activeElement), 'Desktop Settings did not return focus to rail');
+            }
             separatorGeometry.push({width, theme, reserved, panelOpen, collapsed, ...geometry});
             if (!geometry.aligned || !geometry.branded || !geometry.continuous || !geometry.singleLine || geometry.blocked.length || geometry.tabsTop - geometry.barBottom > 1 || geometry.drag !== 'drag' ||
                 (geometry.usableWidth >= 896 && geometry.rowHeight !== 40) ||

@@ -1,6 +1,7 @@
 # Editing session and Save v1
 
 - Status: Implemented
+- Save refusal verification: 2026-10-28 (#578 phase 1: localized summaries and collapsed original details, block/cell highlighting and keyboard reveal, list-shaped state with conservative submitted-snapshot invalidation; no Host/Core validation policy change).
 - Image rename verification: 2026-10-27 (#504: file-actions browser checks inactive dirty/property-draft refusal, clean active/inactive tabs, Source-to-Visual reload, subsequent Save and other-window revision conflict).
 - File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
 - Property Apply verification: 2026-10-27 (#576: shared Ctrl/Cmd+Enter submission, validation/busy guards, IME/modifier exclusions and prose hard-break isolation; Editor tests and targeted Windows Chrome browser regressions, with Apple platform emulation rather than native macOS).
@@ -448,10 +449,12 @@ and canonical writing, including caption-only edits, Undo/Redo and reopened docu
 
 Historical property-close and caret evidence: [Save, switching and property interaction evidence](#save-switching-and-property-interaction-evidence).
 
-## Save failure guidance (#220, phase 1)
+## Save failure guidance (#220, #578 phase 1)
 
-Save reports the first encountered failure in the existing message area: the submitted block
-number/kind, the reason and a correction or recovery action. The reason identifies the cause;
+Save reports the first encountered failure in the existing message area. Its short summary shows
+the submitted block number/kind (Korean names under Korean UI) and phase-specific guidance.
+The original Core/Host reason and correction/recovery action remain verbatim inside keyboard-accessible,
+initially collapsed **Technical details**, in both UI languages. The reason identifies the cause;
 the separate action supplies the correction without repeating it in the reason. Core-provided
 source line numbers survive Host replay and final serialization failures and appear alongside
 the submitted block location; they refer to source positions, not current rendered lines.
@@ -470,6 +473,49 @@ distinct from content failures. A missing/unreadable response or invalid acknowl
 Save unacknowledged and says that the file may already have been saved; inspect the disk version
 before deciding to save again or discard/reload. Failures keep local edits, drafts and history.
 This phase adds no persistent logs, diagnostics history, report export or automatic retry.
+
+### Refused-block highlighting and navigation (#578 phase 1)
+
+The Editor accepts a **list** of submitted problem locations. Located blocks have a danger-token
+red inset stroke with exactly the #469 selection/hover rectangle, thickness and radius, plus a
+visible **Cannot save** badge (**저장 불가** in Korean). A located table cell also has a danger
+inset stroke covering the current-cell outline, clipped to its table's horizontal scroll viewport. These overlays live outside
+the engine content and do not change document geometry, source, selection, history or dirty state.
+The error stroke paints above selection and hover: a refused Save needs to remain discoverable
+even when the user selects or points at the same block. See [visual contract](editor-visual-language-v1.md#save-refusal-highlights-578).
+
+**Go to problem** uses the same block-reveal path as Outline/Tables/Figures: it selects text or an
+atomic block using ProseMirror, focuses the editor and scrolls below the measured sticky header.
+A located cell receives the caret. Multiple locations expose keyboard-accessible previous/next
+buttons and a current/total count. Document-wide/file/transport failures without a block location
+have no document highlight or navigation action. Merely displaying errors does not move selection.
+
+Every Save attempt clears the previous highlight list before collection. A failed attempt installs
+its submitted locations only if the engine document is still the exact submitted snapshot. Any
+document-changing transaction (including another block's typing, insertion, deletion, move,
+split/merge, draft attributes, Undo/Redo) clears the whole list and its navigation actions. This
+conservative invalidation avoids treating snapshot indices as identity, including edits made while
+the Host response is pending. Selection, focus, hover, language or theme changes keep the list.
+The alert keeps its submitted location and original diagnostic and asks for another Save to locate
+the problem again. Editing a problem therefore clears its stale highlight; the next Save either
+locates the remaining failure or clears the alert on success. Dismissing the alert alone does not
+acknowledge Save or clear the block highlights.
+
+Host still stops at its **first** failure. Replay is sequential: label clearing/reassignment,
+paragraph merging/splitting, insertion and ordering can depend on earlier results. Continuing
+after a failed operation could produce secondary failures or invalid locators; final structure
+validation/serialization is document-wide. Collecting independent errors would require a separate
+Core-backed validation pass, rather than a small safe continuation of this replay. That Host/Core
+aggregation is deferred to a separate step; the Editor does not duplicate Core validation rules.
+Core diagnostic codes and Korean reason/action translation are also outside this phase. No new
+document semantic operation is introduced, so no Core/CLI command surface applies.
+
+The reported empty-table case is not currently reproducible (owner confirmation, 2026-10-28).
+This phase does not change empty-table admission or saving policy. `save-error` browser verification
+instead uses a real empty-heading collection refusal and unpreservable table-cell inline math
+rejected by Core/Host, including correction → Save → Reload, cell navigation, and invalidation after
+typing/insertion/deletion/move or input during a pending response. Multiple-location controls and
+snapshot locator resolution are also covered by Editor tests.
 
 ## Switching and recovery
 
