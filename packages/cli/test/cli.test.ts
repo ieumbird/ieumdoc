@@ -2117,6 +2117,16 @@ test("native create and admission keep existing files intact and report structur
     assert.equal(result.error.code, "native-marker");
     assert.equal(result.error.line, 1);
     assert.equal(result.nodes, undefined);
+    // A non-native write refusal keeps the same JSON envelope and passes through Core's code.
+    const unpreservable = nativeSource("[^unused]: Definition.\n");
+    writeFileSync(file, unpreservable);
+    const refusal = run(["check", file, "--format", "json"]);
+    assert.equal(refusal.status, 1);
+    const diagnostic = JSON.parse(refusal.stdout);
+    assert.equal(diagnostic.error.code, "invalid-footnote");
+    assert.ok(diagnostic.error.reason && diagnostic.error.action);
+    assert.equal(readFileSync(file, "utf8"), unpreservable);
+
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

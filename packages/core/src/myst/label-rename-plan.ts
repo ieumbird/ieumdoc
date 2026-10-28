@@ -1,3 +1,4 @@
+import { DocumentDiagnosticError } from "../write-error.ts";
 import type { InlineContent } from "../inline.ts";
 import { inlineContentToNodes, projectInlineContent } from "../inline.ts";
 import { updateLabel } from "../operations.ts";
@@ -51,6 +52,6 @@ export function planLabelRename(blocks: readonly LabelRenameBlock[], index: numb
     if (before.kind === "reference" && after.kind === "reference") {
       return before.label === after.label ? [] : [{ index, reference: after }];
     }
-    throw new Error("label rename changed reference kind");
+    throw new DocumentDiagnosticError("invalid-reference", "label rename changed reference kind");
   });
 }

@@ -1,0 +1,604 @@
+{
+  "captures": [
+    {
+      "path": "heading-1440-light-ko.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "dpr": 1,
+      "scale": 1,
+      "language": "ko",
+      "theme": "light",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "fontsReady": "loaded",
+      "origin": "http://127.0.0.1:5899",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+      "badge": {
+        "x": 902.484375,
+        "y": 261,
+        "width": 177.515625,
+        "height": 16,
+        "top": 261,
+        "right": 1080,
+        "bottom": 277,
+        "left": 902.484375
+      },
+      "ring": {
+        "x": 336,
+        "y": 277,
+        "width": 752,
+        "height": 53.890625,
+        "top": 277,
+        "right": 1088,
+        "bottom": 330.890625,
+        "left": 336
+      },
+      "sha256": "c4bc8c51ccfd4b973b9b208cfbbfb7d27753c483cbd0f915a8ed097816050ad8"
+    },
+    {
+      "path": "heading-1440-light-en.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "dpr": 1,
+      "scale": 1,
+      "language": "en",
+      "theme": "light",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "fontsReady": "loaded",
+      "origin": "http://127.0.0.1:5899",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+      "badge": {
+        "x": 813.6875,
+        "y": 261,
+        "width": 266.3125,
+        "height": 16,
+        "top": 261,
+        "right": 1080,
+        "bottom": 277,
+        "left": 813.6875
+      },
+      "ring": {
+        "x": 336,
+        "y": 277,
+        "width": 752,
+        "height": 53.890625,
+        "top": 277,
+        "right": 1088,
+        "bottom": 330.890625,
+        "left": 336
+      },
+      "sha256": "1128f3b5fb25050f55095c970e9a33b995ef32c9e417c629fd43040786e90e2d"
+    },
+    {
+      "path": "heading-1440-dark-ko.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "dpr": 1,
+      "scale": 1,
+      "language": "ko",
+      "theme": "dark",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "fontsReady": "loaded",
+      "origin": "http://127.0.0.1:5899",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+      "badge": {
+        "x": 902.484375,
+        "y": 261,
+        "width": 177.515625,
+        "height": 16,
+        "top": 261,
+        "right": 1080,
+        "bottom": 277,
+        "left": 902.484375
+      },
+      "ring": {
+        "x": 336,
+        "y": 277,
+        "width": 752,
+        "height": 53.890625,
+        "top": 277,
+        "right": 1088,
+        "bottom": 330.890625,
+        "left": 336
+      },
+      "sha256": "8e14379fde9539434c55784b0946db19714e07a47ae7c2a46841b70c7852bc33"
+    },
+    {
+      "path": "heading-1440-dark-en.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "dpr": 1,
+      "scale": 1,
+      "language": "en",
+      "theme": "dark",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "fontsReady": "loaded",
+      "origin": "http://127.0.0.1:5899",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+      "badge": {
+        "x": 813.6875,
+        "y": 261,
+        "width": 266.3125,
+        "height": 16,
+        "top": 261,
+        "right": 1080,
+        "bottom": 277,
+        "left": 813.6875
+      },
+      "ring": {
+        "x": 336,
+        "y": 277,
+        "width": 752,
+        "height": 53.890625,
+        "top": 277,
+        "right": 1088,
+        "bottom": 330.890625,
+        "left": 336
+      },
+      "sha256": "90a8650f645f91729c966c4f3297e259e272ccbbdc52e870430f670e9c2a21e0"
+    },
+    {
+      "path": "heading-640-light-ko.png",
+      "viewport": {
+        "width": 640,
+        "height": 900
+      },
+      "dpr": 1,
+      "scale": 1,
+      "language": "ko",
+      "theme": "light",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "fontsReady": "loaded",
+      "origin": "http://127.0.0.1:5899",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+      "badge": {
+        "x": 430.484375,
+        "y": 346,
+        "width": 177.515625,
+        "height": 16,
+        "top": 346,
+        "right": 608,
+        "bottom": 362,
+        "left": 430.484375
+      },
+      "ring": {
+        "x": 288,
+        "y": 362,
+        "width": 328,
+        "height": 53.890625,
+        "top": 362,
+        "right": 616,
+        "bottom": 415.890625,
+        "left": 288
+      },
+      "sha256": "059003f9c163e21d3b5208f6d433f8d200c6031911be7858899c31b20194a316"
+    },
+    {
+      "path": "heading-640-light-en.png",
+      "viewport": {
+        "width": 640,
+        "height": 900
+      },
+      "dpr": 1,
+      "scale": 1,
+      "language": "en",
+      "theme": "light",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "fontsReady": "loaded",
+      "origin": "http://127.0.0.1:5899",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+      "badge": {
+        "x": 341.6875,
+        "y": 346,
+        "width": 266.3125,
+        "height": 16,
+        "top": 346,
+        "right": 608,
+        "bottom": 362,
+        "left": 341.6875
+      },
+      "ring": {
+        "x": 288,
+        "y": 362,
+        "width": 328,
+        "height": 53.890625,
+        "top": 362,
+        "right": 616,
+        "bottom": 415.890625,
+        "left": 288
+      },
+      "sha256": "ccfbb1b790cc5f8e0ae3b36e92bcfdc25e6a6a321cadc8870ad0f69fbc7bb0ba"
+    },
+    {
+      "path": "heading-640-dark-ko.png",
+      "viewport": {
+        "width": 640,
+        "height": 900
+      },
+      "dpr": 1,
+      "scale": 1,
+      "language": "ko",
+      "theme": "dark",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "fontsReady": "loaded",
+      "origin": "http://127.0.0.1:5899",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+      "badge": {
+        "x": 430.484375,
+        "y": 346,
+        "width": 177.515625,
+        "height": 16,
+        "top": 346,
+        "right": 608,
+        "bottom": 362,
+        "left": 430.484375
+      },
+      "ring": {
+        "x": 288,
+        "y": 362,
+        "width": 328,
+        "height": 53.890625,
+        "top": 362,
+        "right": 616,
+        "bottom": 415.890625,
+        "left": 288
+      },
+      "sha256": "2437188387f2dd0e1fc5051c3d99c6389255d39491004b5fc696869c63d63b70"
+    },
+    {
+      "path": "heading-640-dark-en.png",
+      "viewport": {
+        "width": 640,
+        "height": 900
+      },
+      "dpr": 1,
+      "scale": 1,
+      "language": "en",
+      "theme": "dark",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "fontsReady": "loaded",
+      "origin": "http://127.0.0.1:5899",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+      "badge": {
+        "x": 341.6875,
+        "y": 346,
+        "width": 266.3125,
+        "height": 16,
+        "top": 346,
+        "right": 608,
+        "bottom": 362,
+        "left": 341.6875
+      },
+      "ring": {
+        "x": 288,
+        "y": 362,
+        "width": 328,
+        "height": 53.890625,
+        "top": 362,
+        "right": 616,
+        "bottom": 415.890625,
+        "left": 288
+      },
+      "sha256": "cbdac8f6976dc5c7322f725060707efef38b96ff6cc14def3ebef64ec7543d9c"
+    },
+    {
+      "path": "cell-1440-light-ko.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "dpr": 1,
+      "scale": 1,
+      "language": "ko",
+      "theme": "light",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "fontsReady": "loaded",
+      "origin": "http://127.0.0.1:5899",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+      "badge": {
+        "x": 881.75,
+        "y": 349.78125,
+        "width": 198.25,
+        "height": 16,
+        "top": 349.78125,
+        "right": 1080,
+        "bottom": 365.78125,
+        "left": 881.75
+      },
+      "ring": {
+        "x": 336,
+        "y": 365.78125,
+        "width": 752,
+        "height": 191,
+        "top": 365.78125,
+        "right": 1088,
+        "bottom": 556.78125,
+        "left": 336
+      },
+      "sha256": "a3329a80310c531ee18183465193d744897fd522e867b0cc9ad185ae0bd834e7"
+    },
+    {
+      "path": "cell-1440-light-en.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "dpr": 1,
+      "scale": 1,
+      "language": "en",
+      "theme": "light",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "fontsReady": "loaded",
+      "origin": "http://127.0.0.1:5899",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+      "badge": {
+        "x": 797.0625,
+        "y": 349.78125,
+        "width": 282.9375,
+        "height": 16,
+        "top": 349.78125,
+        "right": 1080,
+        "bottom": 365.78125,
+        "left": 797.0625
+      },
+      "ring": {
+        "x": 336,
+        "y": 365.78125,
+        "width": 752,
+        "height": 191,
+        "top": 365.78125,
+        "right": 1088,
+        "bottom": 556.78125,
+        "left": 336
+      },
+      "sha256": "c06a776c60ef8fee65540132fb281c85c392907701ec7bcc6c73857a2b0483de"
+    },
+    {
+      "path": "cell-1440-dark-ko.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "dpr": 1,
+      "scale": 1,
+      "language": "ko",
+      "theme": "dark",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "fontsReady": "loaded",
+      "origin": "http://127.0.0.1:5899",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+      "badge": {
+        "x": 881.75,
+        "y": 349.78125,
+        "width": 198.25,
+        "height": 16,
+        "top": 349.78125,
+        "right": 1080,
+        "bottom": 365.78125,
+        "left": 881.75
+      },
+      "ring": {
+        "x": 336,
+        "y": 365.78125,
+        "width": 752,
+        "height": 191,
+        "top": 365.78125,
+        "right": 1088,
+        "bottom": 556.78125,
+        "left": 336
+      },
+      "sha256": "e38cc058dcda5042d11775d09f797117e29e9d4f7e0ff7f31f04cba094028432"
+    },
+    {
+      "path": "cell-1440-dark-en.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "dpr": 1,
+      "scale": 1,
+      "language": "en",
+      "theme": "dark",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "fontsReady": "loaded",
+      "origin": "http://127.0.0.1:5899",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+      "badge": {
+        "x": 797.0625,
+        "y": 349.78125,
+        "width": 282.9375,
+        "height": 16,
+        "top": 349.78125,
+        "right": 1080,
+        "bottom": 365.78125,
+        "left": 797.0625
+      },
+      "ring": {
+        "x": 336,
+        "y": 365.78125,
+        "width": 752,
+        "height": 191,
+        "top": 365.78125,
+        "right": 1088,
+        "bottom": 556.78125,
+        "left": 336
+      },
+      "sha256": "f7236915d5daf50897f9446c006f77dad698f1d67f304b333d56693bf27f5f12"
+    },
+    {
+      "path": "cell-640-light-ko.png",
+      "viewport": {
+        "width": 640,
+        "height": 900
+      },
+      "dpr": 1,
+      "scale": 1,
+      "language": "ko",
+      "theme": "light",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "fontsReady": "loaded",
+      "origin": "http://127.0.0.1:5899",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+      "badge": {
+        "x": 409.75,
+        "y": 349.78125,
+        "width": 198.25,
+        "height": 16,
+        "top": 349.78125,
+        "right": 608,
+        "bottom": 365.78125,
+        "left": 409.75
+      },
+      "ring": {
+        "x": 288,
+        "y": 365.78125,
+        "width": 328,
+        "height": 191,
+        "top": 365.78125,
+        "right": 616,
+        "bottom": 556.78125,
+        "left": 288
+      },
+      "sha256": "26535ec2ba69a99d686487fe9591a4ae7930ae4cd6a14c7263d205171b62397e"
+    },
+    {
+      "path": "cell-640-light-en.png",
+      "viewport": {
+        "width": 640,
+        "height": 900
+      },
+      "dpr": 1,
+      "scale": 1,
+      "language": "en",
+      "theme": "light",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "fontsReady": "loaded",
+      "origin": "http://127.0.0.1:5899",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+      "badge": {
+        "x": 325.0625,
+        "y": 349.78125,
+        "width": 282.9375,
+        "height": 16,
+        "top": 349.78125,
+        "right": 608,
+        "bottom": 365.78125,
+        "left": 325.0625
+      },
+      "ring": {
+        "x": 288,
+        "y": 365.78125,
+        "width": 328,
+        "height": 191,
+        "top": 365.78125,
+        "right": 616,
+        "bottom": 556.78125,
+        "left": 288
+      },
+      "sha256": "510e9836b17f58eeb7d4df78078eb87adb51d5833a3614719a5e746aba2d3e65"
+    },
+    {
+      "path": "cell-640-dark-ko.png",
+      "viewport": {
+        "width": 640,
+        "height": 900
+      },
+      "dpr": 1,
+      "scale": 1,
+      "language": "ko",
+      "theme": "dark",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "fontsReady": "loaded",
+      "origin": "http://127.0.0.1:5899",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+      "badge": {
+        "x": 409.75,
+        "y": 349.78125,
+        "width": 198.25,
+        "height": 16,
+        "top": 349.78125,
+        "right": 608,
+        "bottom": 365.78125,
+        "left": 409.75
+      },
+      "ring": {
+        "x": 288,
+        "y": 365.78125,
+        "width": 328,
+        "height": 191,
+        "top": 365.78125,
+        "right": 616,
+        "bottom": 556.78125,
+        "left": 288
+      },
+      "sha256": "d76b9da0d660a47a62807bd0193f1a4fa8aef32fd6a8a1d9f31e396926943187"
+    },
+    {
+      "path": "cell-640-dark-en.png",
+      "viewport": {
+        "width": 640,
+        "height": 900
+      },
+      "dpr": 1,
+      "scale": 1,
+      "language": "en",
+      "theme": "dark",
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "fontsReady": "loaded",
+      "origin": "http://127.0.0.1:5899",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+      "badge": {
+        "x": 325.0625,
+        "y": 349.78125,
+        "width": 282.9375,
+        "height": 16,
+        "top": 349.78125,
+        "right": 608,
+        "bottom": 365.78125,
+        "left": 325.0625
+      },
+      "ring": {
+        "x": 288,
+        "y": 365.78125,
+        "width": 328,
+        "height": 191,
+        "top": 365.78125,
+        "right": 616,
+        "bottom": 556.78125,
+        "left": 288
+      },
+      "sha256": "29c09961ccb096559581ca86b0a960237003fd79990ec88a0652d8483936611e"
+    }
+  ],
+  "headingRefusal": true,
+  "cellRefusal": true,
+  "keyboardNavigation": true,
+  "snapshotInvalidation": [
+    "typing",
+    "insertion",
+    "deletion",
+    "move",
+    "pending-response"
+  ],
+  "realSaveReload": true,
+  "date": "2026-10-28",
+  "base": "a4504c9d0ece3be81de9ae4fa47209668efcb124",
+  "command": "pnpm browser:test save-error --screenshots",
+  "serverDocumentPath": "C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\feat-578-save-diagnostic-codes\\apps\\editor\\document\\technical-document.md",
+  "fixture": "tmp/table-authoring/tables.md; real empty title and unpreservable table-cell inline math",
+  "badPasswordAttempts": {
+    "initial": 3,
+    "observedMaximum": 5,
+    "waitedAt": 5,
+    "finalRunBefore": 0,
+    "finalRunAfter": 0
+  },
+  "notes": "Final compact badge captures; settings UI changes language; original diagnostics collapsed. Captures are manual evidence, not pixel tests."
+}

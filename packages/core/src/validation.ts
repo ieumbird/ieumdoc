@@ -1,21 +1,22 @@
+import { DocumentDiagnosticError } from "./write-error.ts";
 import type { MystDocument, MystNode } from "./myst/tree.ts";
 
 export function validateStructure(document: MystDocument): void {
   if (!document || document.type !== "root") {
-    throw new Error("document root must have type \"root\"");
+    throw new DocumentDiagnosticError("invalid-structure", "document root must have type \"root\"");
   }
   if (!Array.isArray(document.children)) {
-    throw new Error("document root must have a children array");
+    throw new DocumentDiagnosticError("invalid-structure", "document root must have a children array");
   }
   walk(document, "root", (node, path) => {
     if (!node || typeof node !== "object") {
-      throw new Error(`invalid node at ${path}`);
+      throw new DocumentDiagnosticError("invalid-structure", `invalid node at ${path}`);
     }
     if (typeof node.type !== "string" || node.type.length === 0) {
-      throw new Error(`node type missing at ${path}`);
+      throw new DocumentDiagnosticError("invalid-structure", `node type missing at ${path}`);
     }
     if (node.children !== undefined && !Array.isArray(node.children)) {
-      throw new Error(`children must be an array at ${path}`);
+      throw new DocumentDiagnosticError("invalid-structure", `children must be an array at ${path}`);
     }
   });
 }

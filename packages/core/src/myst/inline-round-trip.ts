@@ -1,3 +1,4 @@
+import { DocumentDiagnosticError } from "../write-error.ts";
 import { inlineContentText, projectInlineContent, sameInlineContent } from "../inline.ts";
 import { parse } from "./parse.ts";
 import { serialize, serializeFor } from "./serialize.ts";
@@ -12,7 +13,7 @@ export function assertInlineBlockRoundTrip(node: MystNode): void {
   // or reinterpret references or other unsupported inline semantics.
   if (!content) return;
   if (inlineContentText(content).length === 0) {
-    throw new Error(`empty ${node.type} cannot be saved`);
+    throw new DocumentDiagnosticError("empty-content", `empty ${node.type} cannot be saved`);
   }
   const failure = `${node.type} edit cannot round-trip losslessly through canonical Markdown`;
   const markdown = serializeFor({ type: "root", children: [node] }, failure);
@@ -25,6 +26,6 @@ export function assertInlineBlockRoundTrip(node: MystNode): void {
       (node.type === "heading" && block.depth !== node.depth) || !projected ||
       !sameInlineContent(content, projected) ||
       serialize(reparsed) !== markdown) {
-    throw new Error(failure);
+    throw new DocumentDiagnosticError("round-trip-mismatch", failure);
   }
 }

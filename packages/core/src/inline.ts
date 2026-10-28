@@ -1,3 +1,4 @@
+import { DocumentDiagnosticError } from "./write-error.ts";
 import { labelError } from "./label.ts";
 import { labelIdentifier } from "./myst/label.ts";
 import type { MystNode } from "./myst/tree.ts";
@@ -216,38 +217,38 @@ function inlineToNode(item: InlineContent): MystNode {
     if (item.title !== undefined) node.title = item.title;
     return node;
   }
-  throw new Error("unsupported InlineContent");
+  throw new DocumentDiagnosticError("unsupported-content", "unsupported InlineContent");
 }
 
 export function assertInlineContent(content: InlineContent[]): void {
   if (!Array.isArray(content)) {
-    throw new Error("InlineContent must be an array");
+    throw new DocumentDiagnosticError("unsupported-content", "InlineContent must be an array");
   }
   for (const item of content) {
     if (!item || typeof item !== "object") {
-      throw new Error("InlineContent item must be an object");
+      throw new DocumentDiagnosticError("unsupported-content", "InlineContent item must be an object");
     }
     if (item.kind === "citation") {
       const error = citationContentError(item);
-      if (error) throw new Error(error);
+      if (error) throw new DocumentDiagnosticError("unsupported-content", error);
       continue;
     }
     if (item.kind === "break") continue;
     if (item.kind === "math") {
       if (typeof item.value !== "string" || item.value.length === 0 || /[\r\n]/.test(item.value)) {
-        throw new Error("inline math must be non-empty single-line LaTeX");
+        throw new DocumentDiagnosticError("unsupported-content", "inline math must be non-empty single-line LaTeX");
       }
       continue;
     }
     if (item.kind === "code") {
       if (typeof item.value !== "string" || item.value.length === 0 || /[\r\n]/.test(item.value)) {
-        throw new Error("inline code must be non-empty single-line text");
+        throw new DocumentDiagnosticError("unsupported-content", "inline code must be non-empty single-line text");
       }
       continue;
     }
     if (item.kind === "text") {
       if (typeof item.text !== "string") {
-        throw new Error("text InlineContent requires a string");
+        throw new DocumentDiagnosticError("unsupported-content", "text InlineContent requires a string");
       }
       continue;
     }
@@ -258,41 +259,41 @@ export function assertInlineContent(content: InlineContent[]): void {
     if (item.kind === "subscript" || item.kind === "superscript") {
       assertInlineContent(item.children);
       const error = scriptContentError(item.children);
-      if (error) throw new Error(error);
+      if (error) throw new DocumentDiagnosticError("unsupported-content", error);
       continue;
     }
     if (item.kind === "link") {
       if (typeof item.url !== "string" || item.url.length === 0 || /\s/.test(item.url)) {
-        throw new Error("link URL must be non-empty and contain no whitespace");
+        throw new DocumentDiagnosticError("unsupported-content", "link URL must be non-empty and contain no whitespace");
       }
       if (item.title !== undefined && (typeof item.title !== "string" || /[\r\n]/.test(item.title))) {
-        throw new Error("link title must be a single-line string");
+        throw new DocumentDiagnosticError("unsupported-content", "link title must be a single-line string");
       }
       assertInlineContent(item.children);
       if (inlineContentText(item.children).length === 0) {
-        throw new Error("link text cannot be empty");
+        throw new DocumentDiagnosticError("unsupported-content", "link text cannot be empty");
       }
       if (containsLink(item.children)) {
-        throw new Error("links cannot contain links");
+        throw new DocumentDiagnosticError("unsupported-content", "links cannot contain links");
       }
       if (containsReference(item.children)) {
-        throw new Error("links cannot contain references, footnotes or citations");
+        throw new DocumentDiagnosticError("unsupported-content", "links cannot contain references, footnotes or citations");
       }
       continue;
     }
     if (item.kind === "reference") {
-      if (!REFERENCE_ROLES.has(item.role)) throw new Error("reference role must be eq or numref");
+      if (!REFERENCE_ROLES.has(item.role)) throw new DocumentDiagnosticError("invalid-reference", "reference role must be eq or numref");
       const error = typeof item.label === "string" ? labelError(item.label) : "Label must be a string.";
-      if (error) throw new Error(`reference label: ${error}`);
-      if (!labelIdentifier(item.label)) throw new Error("reference label must name a target");
+      if (error) throw new DocumentDiagnosticError("invalid-reference", `reference label: ${error}`);
+      if (!labelIdentifier(item.label)) throw new DocumentDiagnosticError("invalid-reference", "reference label must name a target");
       continue;
     }
     if (item.kind === "footnote") {
       const error = typeof item.label === "string" ? footnoteLabelError(item.label) : "footnote label must be a string";
-      if (error) throw new Error(error);
+      if (error) throw new DocumentDiagnosticError("unsupported-content", error);
       continue;
     }
-    throw new Error("unsupported InlineContent kind");
+    throw new DocumentDiagnosticError("unsupported-content", "unsupported InlineContent kind");
   }
 }
 

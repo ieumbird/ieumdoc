@@ -1,7 +1,7 @@
 # Editing session and Save v1
 
 - Status: Implemented
-- Save refusal verification: 2026-10-28 (#578 phase 1: localized summaries and collapsed original details, block/cell highlighting and keyboard reveal, list-shaped state with conservative submitted-snapshot invalidation; no Host/Core validation policy change).
+- Save refusal verification: 2026-10-28 (#578 phase 2: structured Core codes and bilingual cause/action in the alert and badge; [diagnostic guidance](#diagnostic-guidance-578-phase-2). Phase 1: localized summaries and collapsed original details, block/cell highlighting and keyboard reveal, list-shaped state with conservative submitted-snapshot invalidation; no Host/Core validation policy change).
 - Image rename verification: 2026-10-27 (#504: file-actions browser checks inactive dirty/property-draft refusal, clean active/inactive tabs, Source-to-Visual reload, subsequent Save and other-window revision conflict).
 - File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
 - Property Apply verification: 2026-10-27 (#576: shared Ctrl/Cmd+Enter submission, validation/busy guards, IME/modifier exclusions and prose hard-break isolation; Editor tests and targeted Windows Chrome browser regressions, with Apple platform emulation rather than native macOS).
@@ -507,8 +507,8 @@ after a failed operation could produce secondary failures or invalid locators; f
 validation/serialization is document-wide. Collecting independent errors would require a separate
 Core-backed validation pass, rather than a small safe continuation of this replay. That Host/Core
 aggregation is deferred to a separate step; the Editor does not duplicate Core validation rules.
-Core diagnostic codes and Korean reason/action translation are also outside this phase. No new
-document semantic operation is introduced, so no Core/CLI command surface applies.
+Phase 2 adds the structured diagnostic guidance below. No new document semantic operation is
+introduced, so no new Core/CLI command surface applies.
 
 The reported empty-table case is not currently reproducible (owner confirmation, 2026-10-28).
 This phase does not change empty-table admission or saving policy. `save-error` browser verification
@@ -516,6 +516,23 @@ instead uses a real empty-heading collection refusal and unpreservable table-cel
 rejected by Core/Host, including correction → Save → Reload, cell navigation, and invalidation after
 typing/insertion/deletion/move or input during a pending response. Multiple-location controls and
 snapshot locator resolution are also covered by Editor tests.
+
+### Diagnostic guidance (#578 phase 2)
+
+For known Core codes the short alert identifies the cause and a user correction in the current
+Korean/English UI language. The problem badge shows a compact cause/action in that language;
+it stays outside editable content, wraps within the block width and sits above the refusal
+stroke so it does not cover the table controls. Stroke/cell geometry, pointer transparency,
+reveal/navigation and submitted-snapshot invalidation keep phase 1 behavior. Language changes
+reformat both alert and badge without changing document state. Full original English reason
+and action remain unchanged in initially collapsed Technical details. No English reason parsing
+selects guidance. Unknown/missing codes use the existing phase-specific generic guidance and
+Cannot save badge. File/revision/transport guidance takes precedence over any content code.
+
+Core owns the [code inventory and collection decision](document-support-v1.md#save-diagnostic-codes-578-phase-2).
+Host still reports its first failure. Captures for real empty-heading collection and table-cell
+round-trip refusals cover 640/1440px, Korean/English and light/dark in the
+[visual evidence](editor-visual-language-v1.md#diagnostic-guidance-captures-578-phase-2).
 
 ## Switching and recovery
 

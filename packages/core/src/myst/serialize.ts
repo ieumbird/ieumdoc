@@ -23,7 +23,7 @@ const citationRule = citationRules.find(rule => !nonCitationRules.has(rule))!;
 /** Canonical serialization would lose semantics; `detail` names the node and reason. */
 export class SemanticLossError extends DocumentWriteError {
   constructor(readonly detail: string, options?: ErrorOptions & Partial<Omit<WriteIssue, "reason">>) {
-    super(`${LOSS}: ${detail}`, { action: options?.action ?? "Review this content and simplify or replace the unsupported content before saving.",
+    super(`${LOSS}: ${detail}`, { code: options?.code ?? "round-trip-mismatch", action: options?.action ?? "Review this content and simplify or replace the unsupported content before saving.",
       ...(options?.path ? { path: options.path } : {}), ...(options?.line ? { line: options.line } : {}) }, options);
   }
 }
@@ -64,7 +64,7 @@ export function serialize(document: MystDocument): string {
     }
     catch (error) {
       throw new DocumentWriteError(error instanceof Error ? error.message : String(error), {
-        path: blockPaths[index], action: "Review this reference or target and replace it with a supported reference or plain text.",
+        code: writeIssueOf(error).code ?? "invalid-reference", path: blockPaths[index], action: "Review this reference or target and replace it with a supported reference or plain text.",
       }, { cause: error });
     }
   });
@@ -74,7 +74,7 @@ export function serialize(document: MystDocument): string {
     writeMd(file, tree as never);
   } catch (error) {
     assertNoSerializationDiagnostics(file, document);
-    throw new SemanticLossError("serializer failed", { cause: error,
+    throw new SemanticLossError("serializer failed", { code: "serialization-failed", cause: error,
       action: "IeumDoc could not serialize this document. Keep your edits and report this error; no specific content cause was identified." });
   }
   assertNoSerializationDiagnostics(file, document);
@@ -107,7 +107,7 @@ function prepareWriter(tree: MystDocument, blockPaths: number[][]): string {
         throw error;
       }
       const issue = writeIssueOf(error);
-      throw new DocumentWriteError(issue.reason, { action: issue.action, path: issue.path ?? path,
+      throw new DocumentWriteError(issue.reason, { code: issue.code, action: issue.action, path: issue.path ?? path,
         ...(issue.line ? { line: issue.line } : {}) }, { cause: error });
     }
   }
@@ -118,7 +118,7 @@ function prepareWriter(tree: MystDocument, blockPaths: number[][]): string {
     if (node[FRONT_MATTER_FIELD] !== undefined) {
       if (parent !== tree || index !== 0 || node[FRONT_MATTER_FIELD] !== true) {
         throw new SemanticLossError(`Block ${index + 1}: front matter must be closed and remain at the start of the document`, {
-          path, action: "Close the front matter with --- and keep it at the start of the file, then Reload." });
+          code: "native-metadata", path, action: "Close the front matter with --- and keep it at the start of the file, then Reload." });
       }
       prefix = `---\n${String(node.value ?? "")}\n---\n\n`;
     }
@@ -152,7 +152,7 @@ function prepareWriter(tree: MystDocument, blockPaths: number[][]): string {
         const reloaded = parse(`${source}\n`).children[0];
         if (reloaded?.type !== "math" || reloaded.value !== "" || reloaded.label !== node.label || reloaded.identifier !== node.identifier) {
           throw new DocumentWriteError("This empty equation's label cannot be preserved in MyST dollar math.", {
-            path, action: "Enter equation content, remove the label, or use a label without spaces, closing parentheses or dollar signs.",
+            code: "invalid-label", path, action: "Enter equation content, remove the label, or use a label without spaces, closing parentheses or dollar signs.",
           });
         }
       }
@@ -170,7 +170,7 @@ function prepareWriter(tree: MystDocument, blockPaths: number[][]): string {
       const caption = tableCaptionParagraph(node);
       const body = render(tableOf(node)!);
       const title = caption ? render(caption) : "";
-      if (/[\r\n]/.test(title)) throw new SemanticLossError("table caption must fit on one line", { path,
+      if (/[\r\n]/.test(title)) throw new SemanticLossError("table caption must fit on one line", { code: "line-break", path,
         action: "Remove line breaks from the table caption." });
       const fence = ":".repeat(Math.max(3, ...[...body.matchAll(/^(:{3,})/gm)].map(match => match[1].length + 1)));
       node.type = "html";
@@ -279,5 +279,5 @@ function assertNoSerializationDiagnostics(file: VFile, document?: MystDocument):
   const line = file.messages[0]?.line;
   const index = line == null ? -1 : document?.children.findIndex(node =>
     node.position !== undefined && node.position.start.line <= line && node.position.end.line >= line) ?? -1;
-  throw new SemanticLossError(reasons.join("; "), { ...(line ? { line } : {}), ...(index >= 0 ? { path: [index] } : {}) });
+  throw new SemanticLossError(reasons.join("; "), { code: "unsupported-content", ...(line ? { line } : {}), ...(index >= 0 ? { path: [index] } : {}) });
 }

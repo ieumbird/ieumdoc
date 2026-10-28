@@ -2015,10 +2015,12 @@ ol.list { list-style: decimal; }
 }
 
 .block-save-error-badge {
+  max-width: calc(100% - 2 * var(--space-2));
+  overflow-wrap: anywhere;
   position: absolute;
   top: 0;
   right: var(--space-2);
-  transform: translateY(-50%);
+  transform: translateY(-100%);
   padding: 0 var(--space-1);
   border-radius: var(--id-radius-sm);
   background: var(--id-color-surface-danger);

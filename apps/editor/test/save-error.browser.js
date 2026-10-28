@@ -11,8 +11,31 @@ async (page, { openPath, reloadDocument, expect, screenshots }) => {
   const overlay = page.getByTestId('block-save-error');
   const cellOverlay = page.getByTestId('cell-save-error');
   const error = page.getByTestId('error');
+  const captures = [];
+  const capture = async path => {
+    const metadata = await page.evaluate(() => {
+      const badge = document.querySelector('.block-save-error-badge');
+      const ring = badge.parentElement.getBoundingClientRect();
+      const rect = badge.getBoundingClientRect();
+      if (rect.bottom > ring.top + 1) throw new Error('Badge covers the block controls');
+      return { viewport: {width:innerWidth, height:innerHeight}, dpr:devicePixelRatio,
+        scale:visualViewport.scale, language:document.documentElement.lang,
+        theme:matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+        font:getComputedStyle(badge).fontFamily, fontsReady:document.fonts.status,
+        origin:location.origin, userAgent:navigator.userAgent, badge:rect.toJSON(), ring:ring.toJSON() };
+    });
+    captures.push({ path, ...metadata });
+    await page.screenshot({path});
+  };
   const read = async () => (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json()).source;
-  const language = language => page.evaluate(async language => (await import('/src/i18n.ts')).i18n.changeLanguage(language), language);
+  const language = async language => {
+    if (await page.locator('html').getAttribute('lang') === language) return;
+    await page.getByRole('button', {name:/^(Settings|설정)$/}).click();
+    await page.getByTestId('ui-language').selectOption(language);
+    await expect(page.locator('html')).toHaveAttribute('lang', language);
+    await page.keyboard.press('Escape');
+    await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+  };
   const refuse = async () => {
     const before = await read();
     await page.getByTestId('save').click();
@@ -41,14 +64,20 @@ async (page, { openPath, reloadDocument, expect, screenshots }) => {
     await page.emulateMedia({colorScheme:theme});
     await page.mouse.move(0,0);
     await page.evaluate(async () => { window.scrollTo(0,0); await document.fonts.ready; });
-    await expect(overlay).toHaveText('저장 불가');
+    await expect(overlay).toHaveText('저장 불가: 빈 필수 내용 → 입력·삭제');
     if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw new Error('Error overflows the viewport');
-    await page.screenshot({path:`tmp/save-error-578/after-${width}-${theme}.png`});
+    for (const lang of ['ko','en']) {
+      await language(lang);
+      await expect(error).toContainText(lang === 'ko' ? '입력하거나 블록을 삭제하세요' : 'Enter text or delete the block');
+      await expect(overlay).toContainText(lang === 'ko' ? '빈 필수 내용' : 'Empty text');
+      await capture(`tmp/save-error-578-phase2/heading-${width}-${theme}-${lang}.png`);
+    }
+    await language('ko');
   }
   await error.getByText('기술적 세부 정보', {exact:true}).click();
   if (!(await error.innerText()).includes('empty heading')) throw new Error('Technical reason was lost');
   await language('en');
-  if (!(await error.innerText()).startsWith('Block 1 (heading):') || await overlay.innerText() !== 'Cannot save') throw new Error('Visible errors did not switch language');
+  if (!(await error.innerText()).startsWith('Block 1 (heading):') || await overlay.innerText() !== 'Cannot save: Empty text → Enter text or delete') throw new Error('Visible errors did not switch language');
   await page.getByRole('button', {name:'Go to problem',exact:true}).focus();
   await page.keyboard.press('Enter');
   if (!await editor.evaluate(el => el.editor.view.hasFocus() && el.editor.state.selection.$from.parent.type.name === 'heading')) throw new Error('Keyboard navigation missed heading');
@@ -64,7 +93,11 @@ async (page, { openPath, reloadDocument, expect, screenshots }) => {
     e.commands.insertContentAt(cellPos + 1, {type:'inlineMath', attrs:{value:'`v$'}});
     if (e.state.doc.nodeAt(cellPos + 1)?.attrs.value !== '`v$') throw new Error('Invalid math was not inserted');
   });
+  const hostRefusal = page.waitForResponse(response => response.url().endsWith('/api/document') && response.request().method() === 'POST');
   await refuse();
+  const payload = await (await hostRefusal).json();
+  if (payload.failure?.code !== 'round-trip-mismatch') throw new Error('Core diagnostic code lost in Host response: ' + JSON.stringify(payload));
+  await expect(error).toContainText('Simplify or replace it');
   await expect(cellOverlay).toBeVisible();
   await language('ko');
   if (!(await error.innerText()).includes('(표)') || !(await error.innerText()).includes('2행, 1열')) throw new Error('Cell coordinates/kind missing: ' + await error.innerText());
@@ -114,7 +147,14 @@ async (page, { openPath, reloadDocument, expect, screenshots }) => {
     await page.emulateMedia({colorScheme:theme});
     await page.getByRole('button',{name:'문제 위치로 이동',exact:true}).click();
     await page.mouse.move(0,0);
-    await page.screenshot({path:`tmp/save-error-578/cell-${width}-${theme}.png`});
+    for (const lang of ['ko','en']) {
+      await language(lang);
+      await expect(error).toContainText(lang === 'ko' ? '해당 내용을 단순하게 바꾸거나' : 'Simplify or replace it');
+      await expect(overlay).toContainText(lang === 'ko' ? '내용 보존 불가' : 'Cannot preserve content');
+      if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw new Error('Localized guidance overflows');
+      await capture(`tmp/save-error-578-phase2/cell-${width}-${theme}-${lang}.png`);
+    }
+    await language('ko');
   }
   await language('en');
   // Any structural edit invalidates the complete submitted list, even if another block changed.
@@ -176,5 +216,5 @@ async (page, { openPath, reloadDocument, expect, screenshots }) => {
     e.view.dispatch(e.state.tr.delete(start,start+1));
   });
   await save();
-  return {headingRefusal:true, cellRefusal:true, keyboardNavigation:true, snapshotInvalidation:['typing','insertion','deletion','move','pending-response'], realSaveReload:true};
+  return {captures, headingRefusal:true, cellRefusal:true, keyboardNavigation:true, snapshotInvalidation:['typing','insertion','deletion','move','pending-response'], realSaveReload:true};
 }

@@ -1,3 +1,4 @@
+import { DocumentDiagnosticError } from "./write-error.ts";
 /**
  * Sections are computed from a document's top-level blocks; they have no identity of their own
  * (ADR-0003). This rule is the one Core operations, the CLI and the Editor share.
@@ -45,7 +46,7 @@ function bodyEnd(markers: SectionMarker[]): number {
  */
 export function sectionRange(markers: SectionMarker[], heading: number): { start: number; end: number } {
   const level = markers[heading];
-  if (typeof level !== "number") throw new Error(`block ${heading} is not a heading`);
+  if (typeof level !== "number") throw new DocumentDiagnosticError("invalid-operation", `block ${heading} is not a heading`);
   const last = bodyEnd(markers);
   let start = heading;
   while (start > 0 && markers[start - 1] === "target") start--;
