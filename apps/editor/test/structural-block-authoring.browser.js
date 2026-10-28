@@ -202,6 +202,7 @@ async (page, { openDocument }) => {
   if (await page.getByRole('menuitem', {name:'Change to Heading 1', exact:true}).count()) throw new Error('Legacy body H1 menu offers H1');
   for (const level of [2, 3, 4, 5, 6]) await page.getByRole('menuitem', {name:`Change to Heading ${level}`, exact:true}).waitFor();
   await page.getByRole('menuitem', {name:'Change to Paragraph', exact:true}).waitFor();
+  await page.getByRole('menu', {name:'Block actions', exact:true}).and(page.locator(':focus-within')).waitFor();
   await page.keyboard.press('Escape');
   await selectHeading('Existing body H1', 'Existing body H1'.length);
   await page.keyboard.type('!');

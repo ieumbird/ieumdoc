@@ -206,6 +206,15 @@ A changed document recomputes numbering; source semantics and canonical output a
   switching retain them under the [editing-session contract](editing-session-save-v1.md#applied-content-and-drafts).
   Native text drag/drop and paste within a block Equation source or label field change only
   that draft; they do not create document content or history and Cancel leaves Save unchanged.
+  Deferred opening focus for Equation, Mermaid and image Figure properties is cancelled by
+  any trusted pointerdown or keydown after scheduling, including input inside the form,
+  Tab/Shift+Tab out of the form, caret movement within the same editor and a trip back
+  to the original focus owner. Once the user interacts, opening focus has no work left. The opening
+  pointerdown/Enter precedes the capture listeners; keyup is not a cancellation signal.
+  Programmatic focus is not user input, so the insertion command's editor focus return does not
+  cancel the pending source focus. Listeners are removed on execution, cancellation and unmount.
+  New Equation and Diagram insertion still hands focus to their source field on the next frame.
+  Escape in a focused block menu closes that menu and preserves the property draft (#664).
 - Mermaid Figures reuse the block Equation's in-document source editing surface and shared
   PropertyForm, with draft preview, label and explicit Apply/Cancel. Caption editing stays in
   the document. The [Figure contract](figure-authoring-v1.md#mermaid-editor) defines rendering,

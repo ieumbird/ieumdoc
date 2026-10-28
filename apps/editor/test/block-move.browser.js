@@ -25,6 +25,135 @@ async (page, { openPath, withBlockHover }) => {
   const before = await read();
   if (!before.includes('```{math}') || !before.includes(':::{figure}')) throw new Error('Scratch document is not a fresh technical-document.md copy');
 
+  const holdOpeningFrames = () => page.evaluate(() => {
+    const native = window.requestAnimationFrame;
+    const cancel = window.cancelAnimationFrame;
+    const callbacks = new Map();
+    let scheduled = 0;
+    window.requestAnimationFrame = callback => {
+      scheduled++;
+      const id = native.call(window, () => {});
+      callbacks.set(id, callback);
+      return id;
+    };
+    window.cancelAnimationFrame = id => {
+      callbacks.delete(id);
+      cancel.call(window, id);
+    };
+    window.releaseOpeningFrames = () => {
+      window.requestAnimationFrame = native;
+      window.cancelAnimationFrame = cancel;
+      delete window.releaseOpeningFrames;
+      callbacks.forEach(callback => callback(performance.now()));
+      return scheduled;
+    };
+  });
+  // Delay the opening frame, as a busy renderer can, while a user opens another surface.
+  // Release the real callbacks only after the menu owns focus; inspect immediately afterwards.
+  for (const [folder, document, blockSelector, editName, fieldId, cancelId, draft] of [
+    ['block-move', 'draft-boundaries.md', '[data-block="equation"]', 'Edit', 'equation-latex', 'equation-cancel', 'x + DeferredFocusDraft'],
+    ['mermaid-authoring', 'diagram.md', '[data-block="figure"]', 'Edit figure', 'mermaid-source', 'mermaid-cancel', 'graph TD\n  Draft --> Preserved'],
+    ['block-move', 'technical-document.md', '[data-block="figure"]', 'Edit figure', 'figure-image-url', 'figure-cancel', 'draft-image.svg'],
+  ]) {
+    await openPath(page, [root, 'tmp', folder, document].join(separator));
+    await page.getByRole('dialog').waitFor({state:'detached'});
+    const block = page.locator(`[data-document-tab][data-active=true] ${blockSelector}`).first();
+    await block.hover();
+    await holdOpeningFrames();
+    try {
+      await block.getByRole('button', {name:editName, exact:true}).click();
+      await page.getByTestId(fieldId).fill(draft);
+      await page.getByRole('button', {name: /^Move (equation|figure) block/}).first().click();
+      const menu = page.getByRole('menu', {name:'Block actions', exact:true});
+      await page.waitForFunction(() => document.querySelector('[role="menu"][aria-label="Block actions"]')?.contains(document.activeElement));
+      if (!await page.evaluate(() => window.releaseOpeningFrames())) throw new Error('Opening frame was not held');
+      if (!await menu.evaluate(node => node.contains(document.activeElement))) throw new Error(`${fieldId} stole menu focus after its delayed opening frame`);
+      await page.keyboard.press('Escape');
+      if (await menu.count() || await page.getByTestId(fieldId).inputValue() !== draft) throw new Error('Menu Escape discarded the property draft');
+      await page.getByTestId(cancelId).click();
+    } finally {
+      await page.evaluate(() => window.releaseOpeningFrames?.());
+    }
+    for (const movement of ['tab-out', 'tab-out-keyboard', 'composition', 'same-editor', 'round-trip', 'keyboard', 'programmatic-focus']) {
+      const prose = page.locator('[data-document-tab][data-active=true] .document-editor > p.paragraph').first();
+      const enter = movement === 'same-editor' || movement === 'keyboard' || movement === 'composition';
+      if (enter) {
+        // Prepare selected-node Enter without repeated setup clicks becoming an engine
+        // double/triple click. The entry key and subsequent user movement are real input.
+        await block.evaluate(node => {
+          const editor = node.closest('.document-editor').editor;
+          const path = node.getAttribute('data-source-path');
+          let position;
+          editor.state.doc.forEach((child, offset) => { if (child.attrs.sourcePath === path) position = offset; });
+          editor.commands.setNodeSelection(position); editor.view.focus();
+        });
+      }
+      else await block.hover();
+      await holdOpeningFrames();
+      try {
+        if (enter) await page.keyboard.press('Enter');
+        else await block.getByRole('button', {name:editName, exact:true}).click();
+        const field = page.getByTestId(fieldId);
+        await field.waitFor();
+        const originalDraft = await field.inputValue();
+        let openingFocus = await page.evaluateHandle(() => document.activeElement);
+        if (movement === 'tab-out' || movement === 'tab-out-keyboard') {
+          if (movement === 'tab-out') await field.click();
+          else await field.focus();
+          await page.keyboard.press('Shift+Tab');
+          if (await field.evaluate(node => node.closest('form').contains(document.activeElement))) throw new Error(`${fieldId}: Shift+Tab did not leave the form`);
+          await openingFocus.dispose();
+          openingFocus = await page.evaluateHandle(() => document.activeElement);
+        }
+        else if (movement === 'composition') {
+          // Programmatic field focus leaves the opening frame pending. CDP then sends a
+          // trusted IME-start keydown and real composition updates, without an OS keyboard.
+          await field.focus();
+          await field.evaluate(node => node.setSelectionRange(node.value.length, node.value.length));
+          const cdp = await page.context().newCDPSession(page);
+          try {
+            await cdp.send('Input.dispatchKeyEvent', {type:'keyDown', key:'Process', code:'KeyA', windowsVirtualKeyCode:229});
+            await cdp.send('Input.imeSetComposition', {text:'한글', selectionStart:2, selectionEnd:2});
+            await cdp.send('Input.insertText', {text:'한글'});
+            await cdp.send('Input.dispatchKeyEvent', {type:'keyUp', key:'Process', code:'KeyA', windowsVirtualKeyCode:229});
+          } finally { await cdp.detach(); }
+          if (await field.inputValue() !== originalDraft + '한글') throw new Error(`${fieldId}: IME input was interrupted`);
+          await openingFocus.dispose();
+          openingFocus = await page.evaluateHandle(() => document.activeElement);
+        }
+        else if (movement === 'keyboard') await page.keyboard.press('ArrowDown');
+        else if (movement === 'programmatic-focus') await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(node => node.editor.view.focus());
+        else {
+          await prose.click();
+          // Establish both the native caret and engine selection before releasing the held
+          // frame; click-to-selection synchronization is separate from deferred form focus.
+          await page.waitForFunction(path => {
+            const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor');
+            const {selection} = editor.editor.state;
+            const paragraph = [...editor.querySelectorAll(':scope > p.paragraph')].find(node => node.getAttribute('data-source-path') === path);
+            return selection.empty && selection.$from.parent.attrs.sourcePath === path &&
+              paragraph?.contains(window.getSelection()?.anchorNode);
+          }, await prose.getAttribute('data-source-path'));
+        }
+        if (movement === 'round-trip') await page.locator('.app-header').click({position:{x:1,y:1}});
+        if (movement !== 'programmatic-focus' && !await page.evaluate(element => document.activeElement === element, openingFocus)) throw new Error(`${fieldId}: ${movement} did not reproduce identical activeElement`);
+        if (!await page.evaluate(() => window.releaseOpeningFrames())) throw new Error('Opening frame was not held');
+        if (movement === 'programmatic-focus') {
+          if (!await field.evaluate(node => node === document.activeElement)) throw new Error(`${fieldId} lost autofocus after programmatic editor focus`);
+        } else if (!await page.evaluate(element => document.activeElement === element, openingFocus)) throw new Error(`${fieldId} stole focus after ${movement}`);
+        await openingFocus.dispose();
+        if (movement === 'same-editor') {
+          await page.keyboard.type('FocusDestinationProbe');
+          if (!(await prose.innerText()).includes('FocusDestinationProbe') || await field.inputValue() !== originalDraft) throw new Error(`${fieldId} took subsequent prose typing`);
+          await page.keyboard.press('ControlOrMeta+z');
+        }
+        await page.getByTestId(cancelId).click();
+      } finally {
+        await page.evaluate(() => window.releaseOpeningFrames?.());
+      }
+    }
+  }
+
   await openPath(page, file);
   await page.getByRole('dialog').waitFor({state:'detached'});
 
@@ -54,7 +183,9 @@ async (page, { openPath, withBlockHover }) => {
     const handle = page.locator('[data-document-tab][data-active=true] .block-handle').nth(index);
     await handle.focus();
     await page.keyboard.press('Enter');
-    return page.getByRole('menu', {name:label, exact:true});
+    const menu = page.getByRole('menu', {name:label, exact:true});
+    await menu.and(page.locator(':focus-within')).waitFor();
+    return menu;
   };
   const titleMenu = await openBlockMenu(0);
   for (const name of ['Move up', 'Move down']) {
@@ -103,7 +234,7 @@ async (page, { openPath, withBlockHover }) => {
     await equation.hover({position:{x:4, y:4}});
     await page.getByRole('button', {name:/^Move equation block \d+$/}).click();
     const menu = page.getByRole('menu', {name:'Block actions', exact:true});
-    await menu.waitFor();
+    await menu.and(page.locator(':focus-within')).waitFor();
     const offset = (await menu.boundingBox()).y - (await equation.boundingBox()).y;
     await page.keyboard.press('Escape');
     await menu.waitFor({state:'detached'});

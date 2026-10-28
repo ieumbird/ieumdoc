@@ -1094,12 +1094,8 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
     setFilename(appliedStem ?? "");
     setError("");
     setEditing(true);
-    // After the form renders.
-    requestAnimationFrame(() => {
-      const input = imageInput.current;
-      if (input && input.getClientRects().length && !input.closest('[data-testid="figure-editor"]')?.contains(document.activeElement)) input.focus();
-    });
   }
+  useSourceInputFocus(imageInput, editing);
   usePropertyEntry(anchor, beginEdit);
   const releaseCopy = () => {
     const copy = copied.current;
@@ -1269,7 +1265,6 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
       ) : null}
       <BlockProperties
         anchor={anchor}
-        initialFocus={imageInput}
         kind={numbered ?? i18n.t("Figure")}
         testId="figure"
         open={editing}
@@ -1312,20 +1307,34 @@ function isolateInputDrag(event: ReactDragEvent<HTMLDivElement>) {
   if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) event.stopPropagation();
 }
 
-/** Shared by the in-document Equation and Mermaid forms; insertion refocuses the engine first. */
-function useSourceInputFocus(input: RefObject<HTMLTextAreaElement | null>, editing: boolean) {
+/** Insertion refocuses the engine first; deferred entry must yield to subsequent user input. */
+function useSourceInputFocus(input: RefObject<HTMLElement | null>, editing: boolean) {
   const frame = useRef<number | null>(null);
+  const interaction = useRef<AbortController | null>(null);
   const cancel = () => {
+    interaction.current?.abort();
+    interaction.current = null;
     if (frame.current !== null) cancelAnimationFrame(frame.current);
     frame.current = null;
   };
   useEffect(() => {
     if (!editing) return;
     cancel();
+    // Entry's pointerdown/Enter has already passed document capture. Any later trusted
+    // input cancels entry; the insertion command's programmatic focus does not.
+    interaction.current = new AbortController();
+    const leave = (event: Event) => {
+      if (event.isTrusted) cancel();
+    };
+    const options = { capture: true, signal: interaction.current.signal };
+    document.addEventListener("pointerdown", leave, options);
+    document.addEventListener("keydown", leave, options);
     frame.current = requestAnimationFrame(() => {
       frame.current = null;
+      cancel();
       const element = input.current;
-      if (element?.getClientRects().length && !element.closest("form")?.contains(document.activeElement)) element.focus();
+      if (element?.getClientRects().length &&
+        !element.closest("form")?.contains(document.activeElement)) element.focus();
     });
     return cancel;
   }, [editing, input]);

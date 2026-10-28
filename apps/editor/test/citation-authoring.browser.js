@@ -329,6 +329,7 @@ async (page, { openFolderPicker, openPath, waitForActivePath, reloadDocument, wa
       await center.getByRole('option', { name: 'Insert citation…', exact: true }).click();
       await center.waitFor({ state: 'detached' });
       await form.waitFor();
+      await form.and(page.locator(':focus-within')).waitFor();
       await page.keyboard.press('Escape');
       await page.keyboard.press('Escape');
       await form.waitFor({ state: 'detached' });

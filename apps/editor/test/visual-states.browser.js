@@ -137,6 +137,7 @@ async (page, { withBlockHover, reloadDocument, recoveryRecords, expect }) => {
   check(ghostHover.background !== (await state(page.getByTestId('sidebar'))).background, 'Ghost hover disappears on panel');
   const menu = page.getByRole('button', {name:'More actions', exact:true});
   await menu.click(); await page.mouse.move(0,0); await settle(); const menuOpen = await state(menu);
+  await page.getByRole('menu').and(page.locator(':focus-within')).waitFor();
   // An open menu keeps the neutral pressed face, distinct from hover, and draws no border box.
   check(menuOpen.background !== ghostHover.background && menuOpen.background !== (await state(page.getByTestId('sidebar'))).background &&
     menuOpen.border === 'rgba(0, 0, 0, 0)', `Menu open looks like hover or keeps a border box ${JSON.stringify(menuOpen)}`);
@@ -259,6 +260,7 @@ async (page, { withBlockHover, reloadDocument, recoveryRecords, expect }) => {
   await withBlockHover(page, async () => {
     await page.locator('[data-document-tab][data-active=true] .heading').first().hover();
     await page.getByRole('button',{name:'Insert block after heading block 1',exact:true}).click();
+    await page.getByRole('menu', {name:'Insert block', exact:true}).and(page.locator(':focus-within')).waitFor();
     await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowUp');
     choiceFocus = await state(page.locator('.command-menu-item').first());
     check(choiceFocus.focused && choiceFocus.ringWidth >= 2 && choiceFocus.ringContrast >= 3, 'Command choice needs independent keyboard focus');
@@ -286,6 +288,7 @@ async (page, { withBlockHover, reloadDocument, recoveryRecords, expect }) => {
   await page.locator('[data-document-tab][data-active=true] .table [data-table-cell]').first().click();
   const tableActions = page.getByRole('button', {name:'Table actions', exact:true});
   await tableActions.click(); await page.mouse.move(0,0); await settle();
+  await page.getByRole('menu').and(page.locator(':focus-within')).waitFor();
   const tableOpen = await state(tableActions);
   check(tableOpen.background === menuOpen.background && tableOpen.ring === 'none' && menuOpen.border === 'rgba(0, 0, 0, 0)',
     `Native table menu needs the shared persistent open face without a boundary box ${JSON.stringify(tableOpen)}`);

@@ -20,8 +20,10 @@ async (page, { openFolderPicker, screenshots = false, fileActionsRoot, expect, r
   expect(await nativeMenu(row('nested'))).toBe(true);
   expect(await nativeMenu(activeDocument(page))).toBe(true);
   await row('a.md').focus(); await row('a.md').press('Shift+F10'); await expect(rename()).toBeVisible();
+  await menu.and(page.locator(':focus-within')).waitFor();
   await page.keyboard.press('Escape'); await menu.waitFor({state:'hidden'}); await expect(row('a.md')).toBeFocused();
   await row('a.md').press('ContextMenu'); await expect(rename()).toBeVisible();
+  await menu.and(page.locator(':focus-within')).waitFor();
   await page.keyboard.press('Escape'); await menu.waitFor({state:'hidden'});
   const metadata = [];
   for (const width of [1440, 640]) {
