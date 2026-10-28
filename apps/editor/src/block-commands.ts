@@ -383,7 +383,12 @@ export function updateFigure(
 ): Transaction {
   const figure = state.doc.nodeAt(position);
   if (figure?.type.name !== "figure") throw new Error("Figure target changed.");
-  return updateLabelProperties(state, position, attributes, caption);
+  return updateLabelProperties(state, position, {
+    ...attributes,
+    // Editor-only attachment identity travels through engine history, never into Markdown/Core.
+    // getRandomValues also works on non-localhost HTTP, unlike randomUUID.
+    ...(attributes.imageUrl !== undefined && attributes.imageUrl !== figure.attrs.imageUrl ? { imageIdentity: crypto.getRandomValues(new Uint32Array(4)).join("-") } : {}),
+  }, caption);
 }
 
 /** The new atom block is node-selected so its NodeView opens its authoring UI. */

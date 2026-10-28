@@ -9,16 +9,16 @@ import { insertFigureAfter, updateFigure } from "./block-commands.ts";
 import { isInternalClipboard } from "./document-interaction.ts";
 
 type AssetHost = {
-  create(file: File, documentPath: string): Promise<AssetResponse>;
+  create(file: File, documentPath: string, source: "paste" | "drop"): Promise<AssetResponse>;
   rollback(created: AssetResponse, documentPath: string): Promise<void>;
 };
 type Options = { documentPath: string | (() => string); reject(reason: string): void; pending?(active: boolean): void; changed?(path: string): void; host?: AssetHost };
 
 const browserHost: AssetHost = {
-  async create(file, documentPath) {
+  async create(file, documentPath, source) {
     let response: Response, body: AssetResponse & { error?: string };
     try {
-      response = await fetch(`${import.meta.env.BASE_URL}api/asset?path=${encodeURIComponent(documentPath)}`, {
+      response = await fetch(`${import.meta.env.BASE_URL}api/asset?path=${encodeURIComponent(documentPath)}&name=${encodeURIComponent(file.name)}&source=${source}`, {
         method: "POST", headers: { "Content-Type": file.type }, body: file,
       });
       body = await response.json() as AssetResponse & { error?: string };
@@ -60,7 +60,7 @@ export function imageAssetsPlugin(options: Options): Plugin {
   let uploading = false, destroyed = false;
   const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
 
-  const upload = async (view: EditorView, file: File, position: number) => {
+  const upload = async (view: EditorView, file: File, position: number, source: "paste" | "drop") => {
     const documentPath = typeof options.documentPath === "function" ? options.documentPath() : options.documentPath;
     uploading = true;
     options.pending?.(true);
@@ -71,7 +71,7 @@ export function imageAssetsPlugin(options: Options): Plugin {
       const target = view.state.doc.nodeAt(anchor);
       const emptyFigure = target?.type.name === "figure" && !target.attrs.imageUrl ? target : undefined;
       view.dispatch(view.state.tr.setMeta(key, { anchor, selectionMoved: false, emptyFigure }));
-      created = await host.create(file, documentPath);
+      created = await host.create(file, documentPath, source);
       const pending = key.getState(view.state);
       if (destroyed || !view.editable || pending?.anchor == null) throw new Error("Image insertion was cancelled because its Editor or target block changed.");
       const index = view.state.doc.resolve(pending.anchor).index(0);
@@ -88,6 +88,10 @@ export function imageAssetsPlugin(options: Options): Plugin {
       view.dispatch(tr);
       const accepted = view.state.doc.content.content.some(node => node.type.name === "figure" && node.attrs.sourcePath === sourcePath && node.attrs.imageUrl === created!.path);
       if (!accepted) throw new Error("The Figure insertion was rejected; your document is unchanged.");
+      // Insertion commits ownership to the document. No later UI/focus error may roll it back.
+      const committedPath = created.path;
+      created = undefined;
+      options.changed?.(committedPath);
       view.dispatch(closeHistory(view.state.tr).setMeta("addToHistory", false));
       if (!keepSelection) view.focus();
     } catch (error) {
@@ -113,7 +117,7 @@ export function imageAssetsPlugin(options: Options): Plugin {
     const file = input[0];
     if (input.length !== 1 || !isAssetMime(file.type)) { options.reject(`Add one ${ASSET_FORMATS} image at a time. No image was added.`); return true; }
     if (file.size === 0 || file.size > MAX_ASSET_BYTES) { options.reject(`Image must be non-empty and at most ${MAX_ASSET_BYTES / 1024 / 1024} MiB. No image was added.`); return true; }
-    void upload(view, file, position);
+    void upload(view, file, position, event.type === "drop" ? "drop" : "paste");
     return true;
   };
 

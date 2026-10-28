@@ -140,7 +140,7 @@ Markdown의 `image.svg`, `assets/image.svg`, `./image.svg` 같은 상대 media�
 
 ### Asset Host Contract v1 (#59)
 
-- Browser의 clipboard/drop 이미지 바이트를 local Host가 검증하고 열린 Markdown 문서의 `assets/image-<UUID>.<ext>`에 저장한다. 응답 경로는 `./assets/image-<UUID>.<ext>`이며 원본 filename은 사용하지 않는다. `<ext>`는 MIME이 정한다: PNG `png`, JPEG `jpg`, GIF `gif`, WebP `webp`. 문서와 `assets/`를 함께 이동하면 경로가 유지된다.
+- Browser의 clipboard/drop 이미지 바이트를 local Host가 검증하고 열린 Markdown 문서의 `assets/<name>.<ext>`에 저장한다. 응답 경로는 `./assets/<name>.<ext>`이며 이름은 아래 #652 규칙으로 Host가 정한다. `<ext>`는 MIME이 정한다: PNG `png`, JPEG `jpg`, GIF `gif`, WebP `webp`. 문서와 `assets/`를 함께 이동하면 경로가 유지된다.
 - PNG, JPEG, GIF, WebP를 지원한다. MIME과 그 형식의 완성된 container를 확인한다: PNG는 signature·IHDR·IEND까지의 chunk envelope, JPEG는 SOI·frame header·scan 뒤의 EOI(EOI 뒤 camera 부가 data는 유지), GIF는 header·block·trailer, WebP는 file 길이와 맞는 RIFF chunk와 image data. 내용이 MIME과 다르거나 잘린 파일, 빈 파일과 과도한 크기를 거부한다. 형식 목록과 크기 상한의 코드 기준은 `apps/editor/shared/asset-policy.ts`다. 이미지를 decode·변환·최적화하지 않는다. SVG는 script를 담을 수 있는 active content라 sanitizer 없이 저장하지 않는다. 원격 다운로드도 포함하지 않는다. 문서에 이미 있는 상대 media는 확장자에 맞는 `Content-Type`과 `nosniff`로 제공한다.
 - `POST /api/asset?path=<document locator>`는 지원 형식의 MIME을 `Content-Type`으로 한 binary body를 받는다. 응답은 상대 `path`와 opaque `rollbackToken`이다. 저장 protocol과 binary upload를 합치지 않는다.
 - 이미지 선택 POST와 rollback DELETE의 JSON body는 공통 strict UTF-8 decoder를 사용한다. 잘못된 UTF-8은 파일 복사·삭제 전에 HTTP 400으로 거부하고 문서·기존 asset 바이트를 보존한다. 이미지 binary body는 text로 decode하지 않는다. 이 경계는 Vite·Desktop·HTTP Host가 공유한다.
@@ -148,6 +148,44 @@ Markdown의 `image.svg`, `assets/image.svg`, `./image.svg` 같은 상대 media�
 - Host write 실패는 Editor를 변경하지 않는다. 성공한 경로로 기존 Figure insert 경로를 사용하며, 삽입이 거부되거나 요청 중 Editor가 사라지면 `DELETE /api/asset`로 rollback한다. 서명된 receipt는 생성 inode와 업로드 바이트에 묶는다. 삭제 전에 임시 이름으로 옮겨 같은 fd에서 identity/content를 검증하고, 다른 파일로 바뀌었으면 overwrite 없이 원위치로 복구한다. rollback/복구 실패는 남은 경로와 함께 명시한다. temp cleanup도 directory/file identity를 확인하며, 외부 directory 교체로 소유권을 확인할 수 없으면 삭제를 거부하고 잔여 temp 경로를 오류로 표시한다. Host는 session이나 asset 목록을 저장하지 않으며 receipt 서명 key는 각 Host 프로세스 수명에 한정한다.
 - 내부 IeumDoc rich clipboard는 기존 typed paste를 우선한다. 그 외 파일을 포함한 paste/drop은 한 번에 지원 형식 이미지 하나를 처리하고 함께 제공된 text/HTML은 삽입하지 않는다. 업로드 중 engine transaction mapping으로 삽입 위치를 유지하며, Figure 삽입은 독립 Undo 한 번으로 취소된다.
 - 정상 삽입 뒤 Undo, Figure 삭제, 미저장 종료로 남는 orphan asset은 자동 정리하지 않는다. 응답을 받기 전에 연결이 끊기거나 Host가 재시작되어 receipt가 무효화된 경우에도 자동 복구/GC는 없다. Markdown Save, Core canonical guard와 opening-snapshot session 계약은 그대로 유지한다.
+
+### Image filenames (#652)
+
+The implementation scope is Host naming, the Figure properties entry into the existing #504
+rename operation, session/history integration and focused Host/browser regression checks.
+No Core Figure operation changes, CLI command, SVG policy, format conversion, prompt on paste,
+or bulk rename is introduced. CLI is omitted because file naming reuses Host orchestration;
+Core's existing media-reference operation remains the semantic authority.
+
+Binary upload accepts `name` and `source=paste|drop` query hints (omitted source defaults to paste).
+The Host rejects unknown source values before creating assets and checks the name with
+`assertUnicode` before asset directory creation. It removes the hint's extension and replaces separators,
+Windows-invalid/control characters, repeated dots and encoded-traversal percent prefixes with
+hyphens; trims leading dots and trailing dots/spaces; prefixes reserved Windows stems with `_`;
+and bounds the stem to 180 UTF-8 bytes without splitting code points. Korean names are retained.
+The MIME determines the extension. A named image uses its sanitized stem, then `-2`, `-3`, etc.
+on exclusive hard-link EEXIST. For example `회로도.jpeg` with PNG MIME becomes `회로도.png`.
+Copied Host images use the same original-basename hint.
+
+Drops always retain the sanitized original name, including `image.png`; Host-selected real files
+also keep their names. For paste, an empty/empty-after-cleaning name or exact case-insensitive
+`image.png`, `image.jpg`, `image.jpeg`, `image.gif`, `image.webp` uses `<document-stem>-<number>.<mime-extension>`.
+Chromium supplies `image.png` for a native clipboard PNG (covered by the real clipboard browser
+scenario), so this deliberately narrow generic-name set covers the supported MIME family without
+mistaking descriptive `image-architecture.png` or `image1.png` for anonymous images. Thus a
+real file copied from Explorer with a descriptive name retains that name on paste. An unusable
+empty drop name falls back to document numbering. The document basename excludes `.md` and
+uses the same sanitization (empty fallback `document`). The number is the largest existing same-prefix numbered
+file in `assets/`, across extensions, plus one; gaps are not reused and directories are ignored.
+EEXIST advances the number, preserving the existing no-overwrite hard-link publication.
+
+Receipts remain signed for the exact created path, inode and bytes, including readable names.
+After insertion is accepted, the client releases the receipt before subsequent focus/history UI
+work; copied-choice receipts are released when Apply transfers ownership. Rename is available
+only after this transfer. Receipts are neither persisted nor followed to renamed paths, and
+Undo/deletion does not use them. A stale pre-rename receipt cannot delete a replacement at the
+old path (identity mismatch); an absent old path is a no-op. Committed renamed files are retained
+when their Figures are undone, under the existing orphan policy.
 
 ### Image choice v1 (#208)
 
@@ -397,7 +435,24 @@ there is no durable transaction journal or startup repair. A simultaneous extern
 change can also prevent rollback; errors describe that remaining state. The existing validation/use
 race boundary and #372 path-alias policy remain unchanged.
 
-Same-window dirty tabs refuse and clean affected tabs reload before the rename dialog closes.
+Sidebar rename keeps the #504 dirty-tab refusal and clean reload policy. Figure-form rename
+adds `figureDocument` (path, expected revision, applied canonical source, current image URL
+and optional historical source spellings)
+to the same request. The Host resolves that URL with the existing media resolver, verifies the
+current disk revision before publication, and returns matched old/new sources and the resulting
+revision. Historical spellings come from the engine's observed attachment/history state and
+are untrusted hints: the Host resolves them with the same media boundary and includes only
+paths whose actual device/inode matches the image before rename. This covers history-only
+`./assets/a.png` / `assets/a.png` and other equivalent in-scope spellings after Save, without
+implementing filesystem equivalence in the Editor. Invalid Unicode/type hints refuse before
+publication; remote, missing or out-of-scope spellings do not match. The source is used only to
+identify live references, never to save unsaved properties.
+Only that initiating session is exempt from the dirty list; other referring dirty tabs still
+refuse and affected clean tabs reload. Without an opened folder the document directory is the
+scan root; otherwise the outermost opened folder containing the document is used.
+
+Same-window dirty tabs other than the initiating Figure form refuse and clean affected tabs
+reload before the operation closes.
 Other windows do not share live state: **cross-window protection is Save-time revision conflict**.
 Their old content remains local and cannot overwrite rewritten documents without resolving the
 existing conflict. See [session behavior](editing-session-save-v1.md#referenced-image-rename-504).

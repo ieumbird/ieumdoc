@@ -7,6 +7,32 @@ import { deleteFile, renameFile, ReferencedImageError, ImageRenameError } from "
 import { RootAccess } from "../server/file-access.ts";
 import { nativeSource } from "./helpers/document.ts";
 import { getEditableDocument, parse } from "@ieumdoc/core";
+import { loadDocumentFile } from "../server/document-api.ts";
+
+test("Figure-form rename verifies its checkpoint and reports live/saved paths without saving local properties", t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-figure-rename-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const document = path.join(root, "a.md"), image = path.join(root, "old.svg");
+  fs.writeFileSync(image, "<svg/>");
+  fs.writeFileSync(document, nativeSource(":::{figure} old.svg\n:alt: Saved\n\nCaption\n:::\n"));
+  const loaded = loadDocumentFile(document);
+  const figureDocument = { path: document, revision: loaded.revision,
+    source: nativeSource(":::{figure} ./old.svg\n:alt: Local only\n\nCaption\n:::\n"), imageUrl: "./old.svg",
+    historicalSources: ["././old.svg", "https://example.invalid/old.svg", "../outside.svg", "missing.svg"] };
+  const request = { root, path: image, name: "회로도", figureDocument };
+  assert.throws(() => renameFile({ ...request, figureDocument: { ...figureDocument, revision: "stale" } }), /changed/);
+  assert.equal(fs.existsSync(image), true);
+  const result = renameFile(request);
+  assert.deepEqual(result.figureDocument?.replacements, [
+    { from: "./old.svg", to: "./회로도.svg" }, { from: "old.svg", to: "./회로도.svg" },
+    { from: "././old.svg", to: "./회로도.svg" },
+  ]);
+  assert.equal(result.figureDocument?.revision, loadDocumentFile(document).revision);
+  const saved = fs.readFileSync(document, "utf8");
+  assert.match(saved, /:alt: Saved/);
+  assert.doesNotMatch(saved, /Local only/);
+  assert.equal(fs.existsSync(image), false);
+});
 
 test("referenced image rename updates every admitted document and reports skipped files", t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-references-"));

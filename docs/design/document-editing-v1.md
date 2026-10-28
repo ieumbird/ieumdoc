@@ -592,6 +592,21 @@ The handler now consumes this accepted empty slice without dispatching. The same
 real paste pipeline is tested with existing undo and redo history, preserving
 the full document, selection, focus and the original typing Undo/Redo steps.
 
+
+### Figure file name (#652)
+
+Figure properties offer File name (stem only) for the already applied, loadable document-relative
+image. External/absolute URLs, paths containing `..` or backslashes, missing images and a newly
+chosen/unapplied Image path hide the field. Apply that image first to rename it. The Host checks
+actual regular-image existence, real document-folder containment and #504 root/symlink policy;
+a syntactically local hint never grants access. Extension is preserved and Korean stems work.
+A collision, invalid name or Host refusal retains all input and shows the reason in the form.
+Alt/Label validate before rename and apply only after success. Filename and its reference paths
+are excluded from history; Alt/Label keep normal Undo/Redo. Other open forms follow a renamed
+Image only if that Image input was unchanged, preserving Alt/Label and custom filename drafts.
+A directly edited Image stays as entered and is validated by the existing Figure Apply path;
+this preserves explicit user intent rather than silently selecting another file. See [session integration](editing-session-save-v1.md#figure-form-image-rename-652).
+
 ## History
 
 The implemented slices were tracked in #41 (continuous editing), #54 (block conversion), #58 (rich headings/cells/captions), #75 (table structure), #76 (sections), and #60 (external clipboard). These issue references record provenance; the behavior above is the current contract.

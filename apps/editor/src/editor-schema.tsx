@@ -16,6 +16,7 @@ import { NodeSelection, Plugin, PluginKey, TextSelection, type EditorState, type
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, useEditorState, type ReactNodeViewProps } from "@tiptap/react";
 import { documentInteraction } from "./document-interaction.ts";
 import { imageAssets } from "./image-assets.ts";
+import { ImageRenames, ImageRenameContext, imageFileStem } from "./image-rename.ts";
 import { figureMediaPath } from "../shared/figure-media-path.ts";
 import { MarkdownInputRules } from "./markdown-input-rules.ts";
 import StarterKit from "@tiptap/starter-kit";
@@ -430,6 +431,7 @@ const Figure = Node.create<{ documentPath?: string | (() => string) }>({
     return blockAttrs({
       label: hiddenAttr(""),
       imageUrl: hiddenAttr(""),
+      imageIdentity: hiddenAttr(""),
       imageAlt: hiddenAttr(""),
     });
   },
@@ -864,6 +866,7 @@ export function editorExtensions(
     }),
     DocumentNumbering,
     PropertyEntry,
+    ImageRenames,
     DocumentTitle,
     Endnotes.configure({ canOrder: () => !hasActiveDraft?.() }),
     TableCellFocus,
@@ -1021,6 +1024,7 @@ function figureAttrs(node: ProseMirrorNode): FigureContent {
 }
 
 function FigureView({ node, editor, selected, getPos, view, documentPath: initialDocumentPath, onDraftChange, validateFigure, chooseImage }: ReactNodeViewProps & { documentPath?: string | (() => string); onDraftChange?: DraftListener; validateFigure?: FigureValidator; chooseImage?: ImageChooser }) {
+  const renameImage = useContext(ImageRenameContext);
   const documentPath = useContext(DocumentPathContext) ?? (typeof initialDocumentPath === "function" ? initialDocumentPath() : initialDocumentPath);
   useTranslation();
   // Core's computed label prefixes the caption; it is never saved.
@@ -1040,20 +1044,32 @@ function FigureView({ node, editor, selected, getPos, view, documentPath: initia
   const editableFigure = view.editable;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(applied);
+  const previousImage = useRef(applied.imageUrl);
   const [labelDraft, setLabelDraft] = useState(label);
+  const appliedStem = imageFileStem(applied.imageUrl);
+  const [filename, setFilename] = useState(appliedStem ?? "");
+  const canRename = !!renameImage && !!documentPath && appliedStem !== undefined && !imageFailed && draft.imageUrl === applied.imageUrl && !copied.current;
   const [error, setError] = useMessageState("");
   const [validating, setValidating] = useState(false);
   const pendingRequest = useRef(0);
   const captionKey = JSON.stringify(applied.caption);
   const hasUnappliedDraft = isUnappliedFigureDraft(editing,
     { ...draft, caption: applied.caption }, applied) ||
-    (editing && labelDraft !== label);
+    (editing && (labelDraft !== label || canRename && filename !== appliedStem));
 
   useEffect(() => {
     if (!editing) {
       setDraft(applied);
       setLabelDraft(label);
+      setFilename(appliedStem ?? "");
+    } else if (previousImage.current !== applied.imageUrl) {
+      // A rename updates applied paths in every Figure. Follow only untouched Image
+      // and filename inputs; preserve the user's independent Image/Alt/Label drafts.
+      const before = previousImage.current;
+      setDraft(current => current.imageUrl === before ? { ...current, imageUrl: applied.imageUrl } : current);
+      setFilename(current => current === imageFileStem(before) ? appliedStem ?? "" : current);
     }
+    previousImage.current = applied.imageUrl;
   }, [editing, applied.imageUrl, applied.imageAlt, captionKey, label]);
 
   useEffect(() => {
@@ -1065,6 +1081,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath: initia
     if (!editableFigure || editing) return;
     setDraft(applied);
     setLabelDraft(label);
+    setFilename(appliedStem ?? "");
     setError("");
     setEditing(true);
     // After the form renders.
@@ -1151,6 +1168,21 @@ function FigureView({ node, editor, selected, getPos, view, documentPath: initia
       setError({ key: "Caption changed during validation. Apply again." });
       return;
     }
+    // Validate the exact label/reference transaction before changing any file.
+    try {
+      updateFigure(view.state, latestPosition, { imageUrl: candidate.imageUrl, imageAlt: candidate.imageAlt, label: nextLabel });
+      if (canRename && filename !== appliedStem) {
+        setValidating(true);
+        candidate.imageUrl = await renameImage!(documentPath!, applied.imageUrl, filename);
+        setDraft(value => ({ ...value, imageUrl: candidate.imageUrl }));
+        setFilename(imageFileStem(candidate.imageUrl) ?? filename);
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+      setValidating(false);
+      return;
+    }
+    setValidating(false);
     const { caption: _caption, ...attributes } = candidate;
     // Validation may finish after the user has moved on; only focus left in this form returns.
     const active = document.activeElement;
@@ -1161,7 +1193,10 @@ function FigureView({ node, editor, selected, getPos, view, documentPath: initia
     copied.current = undefined;
     // One undo step: undo returns the form's previous value.
     try {
-      view.dispatch(updateFigure(view.state, latestPosition, { ...attributes, label: nextLabel }));
+      const now = view.state.doc.nodeAt(latestPosition);
+      if (now?.attrs.imageUrl !== attributes.imageUrl || now.attrs.imageAlt !== attributes.imageAlt || now.attrs.label !== nextLabel) {
+        view.dispatch(updateFigure(view.state, latestPosition, { ...attributes, label: nextLabel }));
+      }
     } catch (cause) {
       copied.current = copy;
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -1239,6 +1274,10 @@ function FigureView({ node, editor, selected, getPos, view, documentPath: initia
             <Button ref={chooseButton} type="button" variant="outline" disabled={validating || choosing} onClick={() => void pickImage()}>{i18n.t("Choose…")}</Button>
           </div>
         ) : field("imageUrl", i18n.t("Image"), "figure-image-url")}
+        {canRename ? <label className="form-field"><span>{i18n.t("File name")}</span>
+          <Input data-testid="figure-file-name" value={filename} disabled={validating}
+            onChange={event => { setFilename(event.target.value); setError(""); }} />
+        </label> : null}
         {field("imageAlt", i18n.t("Alt text"), "figure-alt")}
         <label className="form-field">
           <span>{i18n.t("Label")}</span>
