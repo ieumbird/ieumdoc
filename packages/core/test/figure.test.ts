@@ -322,3 +322,59 @@ test("Figure captions keep supported inline semantics through updates, inserts a
     assert.equal(serialize(original), before);
   }
 });
+
+
+test("Mermaid Figure operations preserve opaque source, caption, identity and mixed Figure numbering", () => {
+  const input = parse(":::{figure} ./image.svg\n:name: fig-image\n\nImage\n:::\n\nSee [Flow](#fig-flow) and {numref}`fig-image`.\n");
+  const before = serialize(input);
+  const source = 'graph LR\n  A["한글 😀 ```"] --> B\n\n  %% ::: and ```` are opaque source';
+  const figure: FigureContent = { imageUrl: "", imageAlt: "", caption: [
+    { kind: "strong", children: [{ kind: "text", text: "흐름" }] },
+    { kind: "text", text: " $5 @literal " }, { kind: "math", value: "x_1" },
+  ], mermaidSource: source };
+  const inserted = updateLabel(insertFigure(input, 1, figure), [1], "fig-flow");
+  const markdown = serialize(inserted);
+  const reopened = parse(markdown);
+  const block = getEditableDocument(reopened).blocks[1];
+  assert.ok(block.block === "figure");
+  assert.equal(block.contentKind, "mermaid");
+  assert.equal(block.mermaidSource, source);
+  assert.equal(block.imageUrl, ""); assert.equal(block.imageAlt, "");
+  assert.deepEqual(block.caption.content, figure.caption);
+  assert.equal(block.label, "fig-flow");
+  assert.equal(serialize(reopened), markdown);
+  const blocks = getEditableDocument(reopened).blocks;
+  assert.deepEqual(targetNumbers(blocks.map(blockTargets)).map(n => n.figure).filter(n => n !== undefined), [1, 2]);
+  assert.equal(serialize(input), before);
+  // Core deliberately accepts invalid Mermaid syntax: rendering is an interface concern.
+  const changed = updateFigure(reopened, [1], { mermaidSource: "opaque invalid diagram 🐦", caption: "Changed" });
+  const projected = getEditableDocument(parse(serialize(changed))).blocks[1];
+  assert.ok(projected.block === "figure");
+  assert.equal(projected.mermaidSource, "opaque invalid diagram 🐦");
+  assert.equal(projected.caption.text, "Changed"); assert.equal(projected.label, "fig-flow");
+  const renamed = updateLabel(changed, [1], "fig-renamed", { updateReferences: true });
+  assert.match(serialize(renamed), /\[Flow\]\(#fig-renamed\)/);
+  // Caption-only edits retain source; unrelated image replacements leave it alone.
+  const captionOnly = getEditableDocument(updateFigure(inserted, [1], { caption: "New" })).blocks[1];
+  assert.ok(captionOnly.block === "figure"); assert.equal(captionOnly.mermaidSource, source);
+  const minimal = insertFigure(parse(""), 0, { ...figure, caption: "" });
+  assert.equal(serialize(minimal), ":::{figure}\n\n`````{mermaid}\n" + source + "\n`````\n:::\n");
+  assert.match(serialize(updateMediaReferences(inserted, [{ from: "./image.svg", to: "./new.svg" }])), /한글 😀/);
+  for (const source of ["", " \n\t"]) {
+    assert.throws(() => insertFigure(input, 1, { ...figure, mermaidSource: source }), /non-empty/);
+    assert.throws(() => updateFigure(inserted, [1], { mermaidSource: source }), /non-empty/);
+  }
+  for (const index of [0, 1]) {
+    const other = insertFigure(input, index, { imageUrl: "", imageAlt: "", caption: "" });
+    assert.throws(() => updateFigure(other, [index], { mermaidSource: "graph LR" }), /existing Mermaid Figure/);
+  }
+  assert.throws(() => updateFigure(input, [0], { mermaidSource: "graph LR" }), /existing Mermaid Figure/);
+  for (const changes of [{ imageUrl: "image.svg" }, { imageAlt: "Alt" }]) {
+    assert.throws(() => updateFigure(inserted, [1], changes), /cannot have an image or alt/);
+  }
+  // MyST trims boundary blank lines. Operations refuse this loss rather than changing source.
+  for (const source of ["\ngraph LR", "graph LR\n", "graph LR\r\n  A --> B"]) {
+    assert.throws(() => updateFigure(inserted, [1], { mermaidSource: source }), /round-trip/);
+  }
+  assert.equal(serialize(inserted), markdown);
+});

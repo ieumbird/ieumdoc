@@ -430,3 +430,28 @@ test("unrepresentable empty equation labels fail with an action and preserve the
     assert.equal(core.serialize(original), before);
   }
 });
+
+
+test("native Mermaid Figures admit only a single option-free non-empty diagram and keep the fingerprint", () => {
+  const body = (source: string, extra = "") => `:::{figure}\n:label: fig-flow\n\n\`\`\`\`{mermaid}\n${source}\n\`\`\`\`\n${extra}\n신호 흐름\n:::\n`;
+  for (const source of ["graph LR\n  A --> B", 'graph LR\n  A["``` 유니코드 😀"] --> B', "graph LR\n\n  %% :::\n  A --> B"]) {
+    const document = parse(native(body(source)));
+    const block = getEditableDocument(document).blocks[0];
+    assert.ok(block.block === "figure");
+    assert.equal(block.contentKind, "mermaid"); assert.equal(block.mermaidSource, source);
+    const markdown = serialize(document);
+    const reopened = parse(markdown);
+    assert.deepEqual(semanticFingerprint(document as unknown as MystDocument), semanticFingerprint(reopened as unknown as MystDocument));
+    assert.equal(serialize(reopened), markdown);
+    assert.deepEqual(core.unresolvedReferences(parse(native(body(source) + "\nSee [Flow](#fig-flow) and {numref}`fig-flow`.\n"))), []);
+  }
+  for (const source of ["", " \n\t", ":label: inner\ngraph LR", ":class: wide\ngraph LR", ":unknown: value\ngraph LR",
+    ":constructor: value\ngraph LR", "---\nclass: wide\n---\ngraph LR", "---\nunknown: value\n---\ngraph LR"]) {
+    assert.throws(() => parse(native(body(source))), /Unsupported native content/);
+  }
+  for (const extra of ["\n![other](./other.svg)\n", "\nExtra paragraph.\n\n", "\n```{mermaid}\ngraph TD\n```\n"]) {
+    assert.throws(() => parse(native(body("graph LR", extra))), /Unsupported native content/);
+  }
+  // Standalone diagram directives remain outside the native boundary.
+  assert.throws(() => parse(native("```{mermaid}\ngraph LR\n```\n")), /Unsupported native content/);
+});

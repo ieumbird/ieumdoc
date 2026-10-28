@@ -2684,3 +2684,34 @@ test("CLI retains whitespace-label link data and refuses unrepresentable formatt
     assert.equal(readFileSync(file, "utf8"), markedSource);
   }
 });
+
+
+test("Figure Mermaid argument input supports atomic writes, inspect, dry-run and batch with unchanged files on errors", () => {
+  const file = path.join(fixtures, "mermaid 한글.md"), batchFile = path.join(fixtures, "mermaid-batch.md");
+  const operationsFile = path.join(fixtures, "mermaid-operations.json");
+  const source = nativeSource("Intro.\n");
+  const diagram = 'graph LR\n  A["한글 ```"] --> B';
+  writeFileSync(file, source); writeFileSync(batchFile, source);
+  const args = ["insert-figure", file, "--at", "end", "--mermaid", diagram, "--label", "fig-flow", "--caption", "흐름"];
+  const preview = run([...args, "--dry-run", "--format", "json"]);
+  assert.equal(preview.status, 0, preview.stderr);
+  assert.equal(readFileSync(file, "utf8"), source);
+  assert.equal(run(args).status, 0);
+  const inspected = run(["inspect", file, "--format", "json"]);
+  assert.equal(inspected.status, 0, inspected.stderr);
+  const figure = JSON.parse(inspected.stdout).nodes.find((block: { type: string }) => block.type === "figure");
+  assert.equal(figure.contentKind, "mermaid"); assert.equal(figure.mermaidSource, diagram);
+  const updated = run(["update-figure", file, "--path", "2", "--mermaid", "graph TD\n  B --> C"]);
+  assert.equal(updated.status, 0, updated.stderr);
+  const output = readFileSync(file, "utf8");
+  const invalid = run(["update-figure", file, "--path", "2", "--mermaid", ""]);
+  assert.equal(invalid.status, 1); assert.match(invalid.stderr, /non-empty/);
+  assert.equal(readFileSync(file, "utf8"), output);
+  writeFileSync(operationsFile, JSON.stringify([
+    { command: "insert-figure", at: "end", mermaid: diagram, label: "fig-flow", caption: "흐름" },
+    { command: "update-figure", path: 2, mermaid: "graph TD\n  B --> C" },
+  ]));
+  const batch = run(["apply-batch", batchFile, "--operations", operationsFile]);
+  assert.equal(batch.status, 0, batch.stderr);
+  assert.equal(readFileSync(batchFile, "utf8"), output);
+});

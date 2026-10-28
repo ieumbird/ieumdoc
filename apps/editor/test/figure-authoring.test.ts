@@ -374,3 +374,17 @@ test("a Figure inserted with an image file is saved with it", () => {
   state = state.apply(insertFigureAfter(state, 0, undefined, { imageUrl: "./pasted.png", imageAlt: "" }));
   assert.equal(saveEdits(nativeSource("Intro\n"), collectSupportedEdits(editable, editorDocumentJSON(state))).markdown, nativeSource("Intro\n\n:::{figure} ./pasted.png\n:::\n"));
 });
+
+
+test("existing Editor Figure caption save replay preserves admitted Mermaid source", () => {
+  const markdown = nativeSource(":::{figure}\n:name: fig-flow\n\n```{mermaid}\ngraph LR\n  A --> B\n```\n\nBefore\n:::\n");
+  const document = loadEditableDocument(markdown);
+  const projected = toTiptapDocument(document);
+  blockAt(projected, "1").content = paragraphContent([{ kind: "text", text: "After" }]);
+  const edits = collectSupportedEdits(document, projected);
+  const saved = saveEdits(markdown, edits);
+  const figure = loadEditableDocument(saved.markdown).blocks[0];
+  assert.ok(figure.block === "figure");
+  assert.equal(figure.mermaidSource, "graph LR\n  A --> B");
+  assert.equal(figure.caption.text, "After"); assert.equal(figure.label, "fig-flow");
+});

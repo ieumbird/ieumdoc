@@ -1,6 +1,7 @@
 # Figure authoring v1
 
 - Status: Implemented
+- Mermaid Core/CLI update: 2026-10-28 (#651 PR 1; source/admission/canonical round-trip and thin CLI; Editor authoring/rendering remains PR 2).
 - Media reference verification: 2026-10-27 (#504: simultaneous exact source replacement, canonical preservation/refusal, CLI dry-run/batch/revision conflicts, real Host rename and Editor reload).
 - Property-entry update: 2026-10-27 (#557: shared selection/Enter/double-click and explicit property drafts; see [Continuous editing](document-editing-v1.md#continuous-editing)).
 - Active image preview verification: 2026-10-26 (#480: Figure browser preview/race/focus/overflow checks and [same-state manual captures](folder-picker-v1.md#active-image-preview-480); Editor tests/typecheck/build).
@@ -11,17 +12,17 @@
 - CLI insertion verification: 2026-10-15 (#280 `--at end` before endnotes; Core/CLI tests).
 - Property-focus verification: 2026-10-15 (#275 actual Apply click/Enter/Cancel/Escape reproduction, shared safe caret restoration, unchanged-caption caret/typing and formatted Save/Reload browser regressions).
 - Last verified: 2026-10-14 (#212: empty-Figure paste/drop fill, existing-image insertion, single Undo/Redo and real-file Save → Reload in `image-assets`; changed-target cancellation/rollback in Editor tests. #211 / PR #229: normal media separators and standalone dot-segment transport in Editor path-table tests; Host traversal rejection, actual image loading/failure and unchanged Save → Reload paths in Editor tests and `image-assets`; Choose… image selection and existing pending Figure regressions).
-- Scope: empty, pending and image Figures, under [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md), [Document support](document-support-v1.md) and [Editing session and Save](editing-session-save-v1.md).
+- Scope: empty, pending, image and Mermaid Figures in Core/CLI; image authoring in Editor, under [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md), [Document support](document-support-v1.md) and [Editing session and Save](editing-session-save-v1.md).
 
 ## Scope and completion
 
-The MVP keeps the existing MyST Figure container and image authoring UI. Completion requires real-file Save → Reload with caption, label and reference preserved, then image connection and another Save → Reload. Core owns persistence validity; CLI and Editor use the same operations. No new Media model, Mermaid authoring, upload workflow, autosave or export pipeline is introduced.
+The MVP keeps the existing MyST Figure container and image authoring UI. Completion requires real-file Save → Reload with caption, label and reference preserved, then image connection and another Save → Reload. Core owns persistence validity; CLI and Editor use the same operations. No new Media model, Editor Mermaid authoring/rendering, upload workflow, autosave or export pipeline is introduced.
 
 Verification covers Core canonical round-trip and fail-closed cases, CLI writes and failure without writes, Editor session collection/history, and browser insertion, Apply/Cancel, Source, Save acknowledgement and existing image authoring.
 
 ## Persistent meaning
 
-A Figure owns its caption, label, location and number. Content is optional: `contentKind` in the Core read model is `none` or `image`. Existing `imageUrl` and `imageAlt` fields remain available. Unsupported content, including Mermaid and subfigures, rejects native admission.
+A Figure owns its caption, label, location and number. Content is optional: `contentKind` in the Core read model is `none`, `image` or `mermaid`. Existing `imageUrl` and `imageAlt` fields remain available. Mermaid Figures additionally expose `mermaidSource`; image fields are empty. Unsupported content, including subfigures, rejects native admission.
 
 The computed caption number follows the document's authored Figure reference template,
 with the existing `. ` separator; absent a template, `Figure N. ` stays unchanged.
@@ -45,6 +46,53 @@ The controller structure is shown in [](#fig-pfc-control).
 Label-only pending Figures omit the body. Caption-only Figures omit `:name:`. An empty Figure is written as `:::{figure}` followed by `:::`. No fake asset, sidecar or persistent draft flag is written. Pending Figures, empty ones included, receive normal Figure numbers as MyST numbers them; labeled ones may be reference targets.
 
 Public `serialize` and `canonicalWriteError` validate the final state; an empty Figure is writable. Earlier versions refused a Figure with no image, caption or label; [#171](https://github.com/ieumbird/ieumdoc/issues/171) reversed this so that reserving a place does not require invented caption or label text. The limited pending writer handles a container with no content and at most a caption; existing whole-document semantic fingerprint, reparse and serializer diagnostic guards still apply. Legends, subfigures and unsupported contents keep their existing fail-closed boundary.
+
+## Mermaid Figures (#651, Core and CLI)
+
+A Figure may contain exactly one option-free MyST `mermaid` directive followed by an optional
+supported inline caption. The container owns the label, caption, number and reference target,
+just as for an image Figure. Mermaid directive options (including label/name, class and unknown
+options), additional content, legends and empty/whitespace-only source are rejected by native
+admission. A standalone `{mermaid}` directive is unsupported; ordinary fenced code blocks
+remain code blocks. Core treats diagram source as opaque text and does not validate Mermaid
+syntax or render it.
+
+`insertFigure(document, index, { imageUrl: "", imageAlt: "", caption, mermaidSource })`
+creates a Mermaid Figure. `updateFigure(document, path, { mermaidSource })` replaces source
+only on an existing Mermaid Figure; omitted properties retain their values. Caption/label
+operations preserve source. Image or alt text on a Mermaid Figure, and adding Mermaid source
+to an image or pending Figure, are refused. Image ↔ Mermaid conversion and diagram alt text
+are outside this contract.
+
+Canonical output uses an unindented colon Figure container, `:name:` for an optional label,
+a blank line before the inner backtick `{mermaid}` directive, and a blank line before an
+optional caption. Both fences are at least three characters. The inner fence is longer than
+any backtick run in the source, and the outer fence is longer than every leading colon run
+in the body. Indentation and interior blank lines in source are preserved. Document output
+uses LF and one final newline. Source must survive MyST parsing exactly: operations refuse
+boundary blank lines or CR/CRLF source that MyST would trim/normalize, rather than silently
+changing it. File parsing follows MyST's existing body and line-ending normalization.
+The complete semantic fingerprint (including source), native re-admission and idempotent
+second serialization remain mandatory; no fingerprint field is ignored for Mermaid.
+
+````markdown
+:::{figure}
+:name: fig-flow
+
+```{mermaid}
+graph LR
+  A --> B
+```
+
+신호 흐름
+:::
+````
+
+This extends the detailed support syntax allowed by ADR-0006 and keeps Core-owned canonical
+writes under ADR-0002; it changes neither architectural decision and needs no new ADR.
+Editor Mermaid editing and preview are deferred to PR 2. This PR does not add an Editor menu,
+source form or renderer; the existing Figure projection has no diagram preview. Core-backed
+caption updates preserve the diagram source, and image attachment is refused by Core.
 
 ## Editor session states
 
@@ -109,15 +157,22 @@ pnpm ieumdoc insert-figure doc.md --at 2 --label fig-pfc-control --caption "PFC 
 pnpm ieumdoc insert-figure doc.md --at 2 --label fig-label-only
 pnpm ieumdoc update-figure doc.md --path 2 --image ./pfc-control.svg --alt "PFC current control diagram"
 pnpm ieumdoc update-figure doc.md --path 2 --image "" --alt ""
+pnpm ieumdoc insert-figure doc.md --at end --mermaid "graph LR; A --> B" --label fig-flow --caption "신호 흐름"
+pnpm ieumdoc update-figure doc.md --path 2 --mermaid "graph TD; B --> C"
 pnpm ieumdoc inspect doc.md --format json
 pnpm ieumdoc check doc.md --format json
 ```
 
-`insert-figure --image`, `--caption` and `--label` are optional; with none of them it inserts an empty Figure. `--label` uses Core label validation in the same edit and single atomic file replacement. `update-figure` preserves omitted fields and the label. Invalid final states and label collisions, including another heading's implicit ID under the shared [label rules](section-references-v1.md#core), fail without writes.
+`--mermaid <source>` follows existing `--latex`/`--code` argument input, including multiline
+strings supplied by the shell; no separate file/stdin convention is introduced. `apply-batch`
+uses the same `mermaid` string option, and dry-run/revision checks/atomic replacement apply.
+CLI only passes source to Core. `inspect` exposes `mermaidSource` in JSON and text.
+
+`insert-figure --image`, `--mermaid`, `--caption` and `--label` are optional; with none of them it inserts an empty Figure. `--label` uses Core label validation in the same edit and single atomic file replacement. `update-figure` preserves omitted fields and the label. Invalid final states and label collisions, including another heading's implicit ID under the shared [label rules](section-references-v1.md#core), fail without writes.
 
 `insert-figure --at end` (#280) uses Core `bodyEndIndex` to insert before endnote definitions, or after the last body block when there are none (1 for an empty native document). `apply-batch` accepts the same options with `"at": "end"` and resolves the position on each canonical snapshot. [Equation insertion](document-support-v1.md#interfaces-and-errors) and [table insertion](table-caption-v1.md) follow the same one-edit/one-replacement pattern for optional labels and captions.
 
-`inspect` adds `contentKind` to Figure JSON and `content=none|image|other` to text. Existing fields remain. `check` reports pending Figure paths and labels in `readiness.pendingFigures`, or warnings on stderr in text mode. Existing validation/writeability/reference fields and exit codes stay intact: pending alone is writable and exits 0. This is a warning about incomplete content, not a complete publication certification; exporters and image decoding are not checked. Save and format remain allowed. Official MyST can diagnose pending Figures as errors while its build still exits 0; this MVP does not implement Publish/Export.
+`inspect` adds `contentKind` to Figure JSON and `content=none|image|mermaid|other` to text. Existing fields remain. `check` reports pending Figure paths and labels in `readiness.pendingFigures`, or warnings on stderr in text mode. Existing validation/writeability/reference fields and exit codes stay intact: pending alone is writable and exits 0. This is a warning about incomplete content, not a complete publication certification; exporters and image decoding are not checked. Save and format remain allowed. Official MyST can diagnose pending Figures as errors while its build still exits 0; this MVP does not implement Publish/Export.
 
 CLI `check` also reports each image Figure whose document-relative source is not a regular file or could not be checked in `readiness.missingImageFigures` (`path`, `label` as in `pendingFigures` with an empty string when unlabeled, and `source` as written), or one stderr warning line per Figure in text mode. It shares the Editor source classification/encoding and Host media resolver: bare and `./` paths are equivalent, non-ASCII and literal percent characters retain their filename meaning, and encoded traversal is refused. Sources with a scheme, protocol-relative sources, root-absolute and Windows drive/UNC paths are skipped. Paths the Host refuses, including `../` that escapes the document directory and symlink escapes, are skipped rather than reported as missing; paths containing `..` that resolve inside the boundary are checked. After Host resolution, `stat` follows symlinks and requires a regular file: directories and links to directories warn. All stat failures, including `ENOENT` and `EACCES`, use the same short warning, `is not a file or could not be checked`; they do not claim that an inaccessible target is absent. The existing JSON field name is retained and covers these cases. This checks filesystem file type only, not image loading, readability or decoding. Core remains headless. These warnings leave exit code, `ok`, writeability and all writes unchanged. `--dry-run` uses the same diagnostics on its result document relative to the same target file.
 

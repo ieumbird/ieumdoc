@@ -93,7 +93,7 @@ function supportedBlock(node: MystNode): boolean {
   if (node.type === "container" && node.kind === "figure") {
     return fields(node, ["kind", "children", "label", "identifier"]) && supportedFigureContent(node) !== undefined &&
       (node.children ?? []).every(child => child.type === "image"
-        ? fields(child, ["url", "alt"]) : fields(child, ["children"]) && (child.children ?? []).every(paragraph => fields(paragraph, ["children"])));
+        ? fields(child, ["url", "alt"]) : child.type === "mermaid" ? fields(child, ["value"]) : fields(child, ["children"]) && (child.children ?? []).every(paragraph => fields(paragraph, ["children"])));
   }
   const table = tableOf(node);
   if (table) {

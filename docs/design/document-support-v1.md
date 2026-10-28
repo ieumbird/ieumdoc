@@ -1,6 +1,7 @@
 # Native document support v1
 
 - Status: Implemented
+- Mermaid Figure update: 2026-10-28 (#651 PR 1; Core/CLI source/admission/canonical contract; [Figure authoring](figure-authoring-v1.md#mermaid-figures-651-core-and-cli)).
 - Empty structural elements: 2026-10-27 (#574; canonical forms and verification below).
 - Documentation verification: 2026-10-26 (Open protection and implemented Editor label rename compared with the session/reference contracts and current code; no new browser execution).
 - CLI insertion verification: 2026-10-15 (#280 Core body-end and CLI single/batch insertion tests; one-write and unchanged-file refusal).
@@ -43,7 +44,7 @@ Support is decided from Core semantic structure and existing authoring helpers, 
 | Headings | H1–H6, non-empty supported inline content, no line breaks or additional attributes. |
 | Paragraphs and inline content | Text, strong/emphasis/delete/code, ordinary links with non-empty content, inline math, supported subscript/superscript, footnote references, `{eq}`, `{numref}`, `{ref}` without custom display text, and explicit `{cite}`, `{cite:t}`, `{cite:p}` keys/groups. Existing inline nesting/round-trip restrictions apply. Distinct adjacent links with identical targets are unsupported. |
 | Equation | Display math value (including empty) and optional label; empty equations use dollar fences, filled equations use `{math}`. A label must preserve its identity in the chosen notation. No enumeration overrides or arbitrary attributes. |
-| Figure | Empty/pending or one image, optional alt text, label and one supported inline caption. Alt text requires an image. No legends, subfigures, Mermaid or extra directive/image attributes. |
+| Figure | Empty/pending, one image or one option-free non-empty `mermaid` directive, optional container label and one supported inline caption. Alt text requires an image. Mermaid source is opaque; no syntax validation or image ↔ Mermaid conversion. No legends, subfigures, mixed content or extra directive/image/Mermaid attributes. |
 | Table | Rectangular GFM grid with a header row, supported inline cells without line breaks, column alignment; optional supported table caption and label. Only plain GFM and the exact `{table}` directive are accepted. Its options may contain only `name` / `label`, and any MyST VFile diagnostic within the directive's source range causes refusal, including duplicate/unknown options in colon-line or YAML syntax. `{csv-table}`, `{list-table}` and other table directives are refused with or without caption/Label. Every table is numbered and canonically saved as `{table}`, including without caption or label. No merged cells, legends or extra directive attributes. |
 | List | Ordered or unordered lists with supported paragraph content and supported nested lists; existing start and nesting rules. A list retains at least one item. Each item may be empty, including a parent with only a nested list, or contain supported inline content such as text, a citation, footnote reference, math, code or semantic reference. This applies at every nesting level. Insert/update operations normalize whitespace-only content to empty content as described below. No tasks or arbitrary nested blocks. |
 | Code | Plain fenced code with the existing language contract; no captioned/directive variants. |

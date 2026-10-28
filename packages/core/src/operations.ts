@@ -867,7 +867,11 @@ export function updateFigure(document: MystDocument, path: NodePath, changes: Pa
   if (!content) {
     throw new Error(`figure structure at [${path.join(",")}] is not editable in this version`);
   }
+  if (changes.mermaidSource !== undefined && content.mermaidSource === undefined) {
+    throw new Error("Mermaid source requires an existing Mermaid Figure; content conversion is not supported");
+  }
   const figure: FigureContent = {
+    ...(content.mermaidSource !== undefined ? { mermaidSource: changes.mermaidSource ?? content.mermaidSource } : {}),
     imageUrl: changes.imageUrl ?? content.imageUrl,
     imageAlt: changes.imageAlt ?? content.imageAlt,
     caption: changes.caption ?? content.caption,
@@ -980,7 +984,7 @@ export function validateFigure(figure: FigureContent, label = ""): string | unde
 
 function assertFigureContent(figure: FigureContent): void {
   const error = figureContentError(figure);
-  if (error) throw new DocumentWriteError(error, { action: "Review the Figure image, alt text and caption in its Edit form." });
+  if (error) throw new DocumentWriteError(error, { action: "Review the Figure image or Mermaid source, alt text and caption." });
   assertInlineContent(figureCaptionContent(figure.caption));
 }
 

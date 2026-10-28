@@ -5,7 +5,7 @@ import { VFile } from "vfile";
 import { semanticDifferenceIssue, semanticFingerprint } from "./fingerprint.ts";
 import { DocumentWriteError, writeIssueOf, type WriteIssue } from "../write-error.ts";
 import { completeFootnotes, endnotePlacement, footnoteWriteIssue } from "./footnote.ts";
-import { isFigure } from "./figure.ts";
+import { isFigure, supportedFigureContent } from "./figure.ts";
 import { FRONT_MATTER_FIELD, parse } from "./parse.ts";
 import { prepareReferences } from "./reference.ts";
 import { isTableDirective, tableOf, tableCaptionParagraph, tableBlockNode } from "./table.ts";
@@ -112,6 +112,7 @@ function prepareWriter(tree: MystDocument, blockPaths: number[][]): string {
     }
   }
   function prepare(node: MystNode, index: number, parent: MystNode | undefined, path: number[], inLink: boolean): void {
+    const mermaidFigure = isFigure(node) && supportedFigureContent(node)?.mermaidSource !== undefined;
     // Lifted roles can lack positions; diagnostics still identify their containing block.
     node.position ??= parent?.position;
     if (node[FRONT_MATTER_FIELD] !== undefined) {
@@ -174,6 +175,19 @@ function prepareWriter(tree: MystDocument, blockPaths: number[][]): string {
       const fence = ":".repeat(Math.max(3, ...[...body.matchAll(/^(:{3,})/gm)].map(match => match[1].length + 1)));
       node.type = "html";
       node.value = `${fence}{table}${title ? ` ${title}` : ""}\n${node.label ? `:name: ${node.label}\n` : ""}\n${body}\n${fence}`;
+      delete node.children;
+    }
+    // Write the supported Mermaid shape ourselves; upstream's Figure writer assumes an image.
+    // Select both fences from the complete body; raw source is never parsed as Markdown here.
+    if (mermaidFigure) {
+      const source = node.children![0].value as string;
+      const caption = (node.children ?? []).filter(child => child.type === "caption")
+        .flatMap(child => child.children ?? []).map(render).join("\n\n");
+      const codeFence = "`".repeat(Math.max(3, ...[...source.matchAll(/`+/g)].map(match => match[0].length + 1)));
+      const body = `${codeFence}{mermaid}\n${source}\n${codeFence}${caption ? `\n\n${caption}` : ""}`;
+      const fence = ":".repeat(Math.max(3, ...[...body.matchAll(/^ *(:{3,})/gm)].map(match => match[1].length + 1)));
+      node.type = "html";
+      node.value = `${fence}{figure}\n${node.label ? `:name: ${node.label}\n` : ""}\n${body}\n${fence}`;
       delete node.children;
     }
     // myst-to-md writes a Figure only from its image. A pending Figure (no content, at most its
