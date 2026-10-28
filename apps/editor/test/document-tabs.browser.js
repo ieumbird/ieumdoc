@@ -255,8 +255,8 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
   await page.getByTestId('equation-latex').fill('A property draft');
   // Preserve an engine selection independently of the property input's DOM focus.
   await editor().evaluate(n => n.editor.commands.setTextSelection({from:3,to:10}));
-  await page.evaluate(() => window.scrollTo(0, 420));
-  const beforeA = await editor().evaluate(n => ({json:JSON.stringify(n.editor.getJSON()), selection:n.editor.state.selection.toJSON(), y:scrollY}));
+  await page.evaluate(() => document.querySelector('.document-scroll[data-active="true"]').scrollTo(0, 420));
+  const beforeA = await editor().evaluate(n => ({json:JSON.stringify(n.editor.getJSON()), selection:n.editor.state.selection.toJSON(), y:document.querySelector('.document-scroll[data-active="true"]').scrollTop}));
   await openPath(page, b);
   check(!await page.getByTestId('equation-editor').count(), 'A hidden Equation form is still mounted');
   await editor().evaluate(n => {
@@ -267,18 +267,18 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
   await equation().hover(); await equation().getByRole('button',{name:'Edit',exact:true}).click();
   await page.getByTestId('equation-latex').fill('B property draft');
   await editor().evaluate(n => n.editor.commands.setTextSelection({from:2,to:5}));
-  await page.evaluate(() => window.scrollTo(0, 180));
-  const beforeB = await editor().evaluate(n => ({json:JSON.stringify(n.editor.getJSON()), selection:n.editor.state.selection.toJSON(), y:scrollY}));
+  await page.evaluate(() => document.querySelector('.document-scroll[data-active="true"]').scrollTo(0, 180));
+  const beforeB = await editor().evaluate(n => ({json:JSON.stringify(n.editor.getJSON()), selection:n.editor.state.selection.toJSON(), y:document.querySelector('.document-scroll[data-active="true"]').scrollTop}));
   let switchRequests = 0;
   const countRequest = request => { if (/\/api\/document/.test(request.url())) switchRequests++; };
   page.on('request', countRequest);
   await activate('technical-1.md');
-  const afterA = await editor().evaluate(n => ({same:n.editor === window.tabEditorA, json:JSON.stringify(n.editor.getJSON()), selection:n.editor.state.selection.toJSON(), y:scrollY}));
+  const afterA = await editor().evaluate(n => ({same:n.editor === window.tabEditorA, json:JSON.stringify(n.editor.getJSON()), selection:n.editor.state.selection.toJSON(), y:document.querySelector('.document-scroll[data-active="true"]').scrollTop}));
   check(afterA.same && afterA.json === beforeA.json && JSON.stringify(afterA.selection) === JSON.stringify(beforeA.selection) && Math.abs(afterA.y-beforeA.y)<2, `A did not retain its state: ${JSON.stringify({beforeA,afterA})}`);
   check(await page.getByTestId('equation-latex').inputValue() === 'A property draft', 'A draft was replaced');
   check(await page.getByRole('tab',{name:'technical-1.md, Unsaved changes',exact:true}).evaluate(n => n === document.activeElement), 'Reactivated properties stole tab focus');
   await activate('technical-2.md');
-  const afterB = await editor().evaluate(n => ({same:n.editor === window.tabEditorB, json:JSON.stringify(n.editor.getJSON()), selection:n.editor.state.selection.toJSON(), y:scrollY}));
+  const afterB = await editor().evaluate(n => ({same:n.editor === window.tabEditorB, json:JSON.stringify(n.editor.getJSON()), selection:n.editor.state.selection.toJSON(), y:document.querySelector('.document-scroll[data-active="true"]').scrollTop}));
   check(afterB.same && afterB.json === beforeB.json && JSON.stringify(afterB.selection) === JSON.stringify(beforeB.selection) && Math.abs(afterB.y-beforeB.y)<2, 'B did not retain its own state');
   check(await page.getByTestId('equation-latex').inputValue() === 'B property draft', 'B draft was replaced');
   check(switchRequests === 0, 'Tab switching requested document serialization or loading');
@@ -432,7 +432,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
     for (const width of [1440,640]) {
       await page.setViewportSize({width,height:900});
       const shot = async state => {
-        await page.evaluate(async () => { await document.fonts.ready; window.scrollTo(0,0); document.activeElement?.blur(); });
+        await page.evaluate(async () => { await document.fonts.ready; document.querySelector('.document-scroll[data-active="true"]').scrollTo(0,0); document.activeElement?.blur(); });
         await page.mouse.move(0,0);
         await page.screenshot({path:`tmp/document-tabs-visual/after-${width}-${state}.png`});
       };

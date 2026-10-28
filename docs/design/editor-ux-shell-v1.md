@@ -1,6 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Document scroll verification: 2026-10-29 (#488 phase 0; [container contract and evidence](#document-scroll-container-488-phase-0)).
 - Feature sample verification: 2026-10-28 (#528 Core read-model coverage, canonical CLI check/format, Desktop version unit tests, existing Command center browser entry and manual 1440/640px Korean/English captures; packaged execution deferred to CI).
 - Last verified: 2026-10-28 (#637: block Equation editing moves into the document; inline math retains its popover).
 - Collapsed rail update: 2026-10-28 (#671: Files and shared Settings entry; [contract and captures](#collapsed-rail-files-and-settings-671)).
@@ -32,6 +33,105 @@
 - Scope: existing Editor interactions. [Visual Language (current v4.8)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
 
 Historical verification records: [Verification record](#verification-record).
+
+## Document scroll container (#488 phase 0)
+
+Each mounted document tab owns one native `.document-scroll` viewport. Hiding a tab retains
+its scroll position with its existing editor/session; closing it releases that element. Visual
+and Source share the tab's viewport. No scroll position is persisted across application reloads.
+`documentScrollContainer` is the single lookup for the owning viewport; shell actions can use
+the active surface, including the document start surface. There are no editor groups or new commands.
+
+The viewport spans the window width **below the measured tabs/messages header** to keep its
+native scrollbar at the right edge only in the document area (#694 follow-up). The root does
+not scroll; the DOM title strip and its bottom boundary extend across the whole viewport.
+This removes interruption caused by the root scrollbar. Browser geometry/captures do not
+verify native window-control overlay painting; overlay height, Settings gutter and native
+pixel verification belong to [#694](https://github.com/ieumbird/ieumdoc/issues/694). Its content keeps
+the existing Sidebar/Document panel insets, centered column, paper dimensions and measured
+header clearance. The shell reserves the viewport's actual native scrollbar width only below
+the full-width title strip, observed on
+viewport/content resize without a scroll listener. Sidebar and Outline retain their independent
+scrolling. Only the visible Visual editor subscribes to document scrolling for Outline/Tables/Figures;
+the same reading line, reveal pin and bottom-of-document behavior are retained.
+
+Native DOM `scrollIntoView` and ProseMirror's ancestor scrolling now reach the owning viewport:
+Outline, Find/Command center, save refusal locations (#578), cross references/endnotes, caret
+reveal, list/block movement and scroll preservation retain their existing paths. Block handles
+and local overlay bounds retain their capturing scroll listeners, which receive descendant
+container and horizontal-table scrolling. Portaled Base UI popovers explicitly use the owning viewport as their
+collision boundary, allow the library's sticky shift when resize/scroll moves the anchor out of
+view, and retain its anchor/scroll tracking. Native drag edge scrolling uses
+the document viewport. No per-block scroll listeners or independent editor engine are added.
+
+PageUp/PageDown, Space/Shift+Space and Home/End also scroll the active document when focus is
+in the surrounding shell. Editable controls, modal/menu keys, native button/link activation,
+and independent scrollable file/Outline lists keep their own keyboard behavior. Print media
+releases the fixed viewport and its overflow, removes shell navigation, and exposes the whole
+active document in normal flow. Hidden tabs remain hidden.
+
+### Scroll migration verification
+
+Before is master `a1be38ce063a10bf5068d077e07b8884455967e4`; After is this phase-0 implementation.
+The persistent Chrome runner captured the clean Before `tmp/quiet-document/quiet-document.md`,
+English, Pretendard loaded, 900px height, at scroll top and 420px, in light/dark themes,
+1440/640px widths and all four Sidebar/Outline open/closed combinations. Full 32-pair evidence
+is in [the asset directory](assets/document-scroll-488/). The final After capture is collected
+by the Linux CI geometry matrix because the five local browser runs were already used when
+the scrollbar/header completion criteria were extended. Cross-platform rasterization differs;
+the unchanged Host's default-locale filename collation also orders the Korean-named fixture
+differently on Windows and Linux. These platform differences are not scroll-layout changes;
+the geometry assertions verify that the scrollbar begins at the header bottom, ends at the
+viewport bottom, and the title-strip border reaches the full window width at both sizes and
+all captured states, while the root remains unscrolled. Representative top pairs:
+
+| Theme / width | Sidebar open, Outline open | Sidebar closed, Outline closed |
+| --- | --- | --- |
+| Light / 1440 | [Before](assets/document-scroll-488/before-light-1440-open-open-top.png) / [After](assets/document-scroll-488/after-light-1440-open-open-top.png) | [Before](assets/document-scroll-488/before-light-1440-closed-closed-top.png) / [After](assets/document-scroll-488/after-light-1440-closed-closed-top.png) |
+| Dark / 1440 | [Before](assets/document-scroll-488/before-dark-1440-open-open-top.png) / [After](assets/document-scroll-488/after-dark-1440-open-open-top.png) | [Before](assets/document-scroll-488/before-dark-1440-closed-closed-top.png) / [After](assets/document-scroll-488/after-dark-1440-closed-closed-top.png) |
+| Light / 640 | [Before](assets/document-scroll-488/before-light-640-open-open-top.png) / [After](assets/document-scroll-488/after-light-640-open-open-top.png) | [Before](assets/document-scroll-488/before-light-640-closed-closed-top.png) / [After](assets/document-scroll-488/after-light-640-closed-closed-top.png) |
+| Dark / 640 | [Before](assets/document-scroll-488/before-dark-640-open-open-top.png) / [After](assets/document-scroll-488/after-dark-640-open-open-top.png) | [Before](assets/document-scroll-488/before-dark-640-closed-closed-top.png) / [After](assets/document-scroll-488/after-dark-640-closed-closed-top.png) |
+
+The screenshots preserve geometry and content placement; they are not byte-identical pixel
+assertions. Some header text and dark scrolled document text have different antialiasing under
+the container compositor. Existing layout and overlay geometry checks remain authoritative for
+their measured contracts; captures are the manual visual evidence.
+
+The final [32-state geometry record](assets/document-scroll-488/geometry.json) and After PNGs
+come from [CI run 40778182959](https://github.com/ieumbird/ieumdoc/actions/runs/40778182959),
+product code `93e4b9a36e1de344a3b11a9c5fbcc5096fff7214`, Linux pinned Chromium
+154.0.8037.0. All measured states have root scroll 0, root height 900px, a 1px title-strip
+bottom border reaching exactly 640/1440px, and a document viewport starting at the measured
+header bottom (73/122/130px, depending on width/Sidebar state) and ending at 900px.
+
+Browser assertions migrated without changing their tolerances or retry/timeout/skip policies:
+
+- `document-tabs`: save/read each tab's actual scrollTop while retaining editor identity,
+  JSON, selection, draft, Undo and no-load-on-switch assertions.
+- `outline`: drive document scrolling and read its end/position from the viewport, using
+  `scrollTop + clientHeight >= scrollHeight - 2` for the same 2px end tolerance; retain
+  current-item visibility, list scroll, selection and editor-options stability assertions.
+- `new-document`: read writing scroll and scroll to the viewport's end; retain the same
+  visible caret/last-line end space and exact saved-source checks.
+- `save-error`: use viewport scrollTop for offscreen-cell navigation; retain editor/cell
+  selection and measured highlight/header geometry checks.
+- `ui-language`: compare document viewport position across Settings instead of window position.
+- `panel-lists`, `command-center`, `table-authoring`: direct scroll setup at the same target
+  positions; retain current target/reveal/editing assertions. Geometry queries in `layout-rules`,
+  `new-document` and `table-authoring` now select the active tab's column because hidden tabs
+  also own a column. The measured-header clearance calculation now adds the container top
+  to its scroll margin: the same header + 32px physical target, at the same 0.5px tolerance.
+- `scenarios.spec`, `citations`, `file-preview`, `folder-navigation`, `footnotes`, `layout-rules`,
+  `open-files`, `quiet-document`, `recovery`, `source-view` and manual capture sections:
+  reset the document viewport instead of the window. Other assertions are unchanged.
+
+The new `document-scroll` boundary scenario checks shell-focus reading keys, native Source
+PageDown, wheel/drag edge scrolling, stationary shell chrome, zero window scroll, right-edge
+viewport, scrollbar restricted below tabs/messages, full-width title-strip border, and unclipped
+full-document print flow. Its measured 32-state matrix also produces the CI captures without
+a separate capture-only tour. The existing 4-shard CI suite is the full
+regression gate. Local packaged Desktop, install/update/uninstall and Edge/profile probes are
+excluded from this task's validation scope.
 
 ## Folder Explorer menu (#487)
 
@@ -497,7 +597,7 @@ The shell has three responsibilities: the Sidebar on the left browses opened fol
 | --- | --- |
 | Sidebar | Files and Collapse sidebar in the header, followed by file navigation; no duplicate New document row with opened folders (#582). There is no Files / Display switch. The collapsed 48px rail contains a Files icon button at the document-tab row and an icon-only Settings button at the bottom (#671). The Files icon restores file navigation; its accessible name and tooltip remain Expand sidebar (사이드바 펼치기), describing the action rather than only naming the panel. Settings uses the same entry component and screen as the expanded footer, at the same vertical position; Back/Escape returns focus to its opening button. Both rail actions are keyboard reachable, have localized names/tooltips and are Desktop no-drag targets. An always-visible Activity bar and additional panels are future work. Files contains the opened folders (#112, [ADR-0009](../adr/0009-multiple-opened-folders.md)), each its own section in the order opened, or, without any, guidance followed by the browser's recent folders (name, full path in `title`): one click lists that folder like Open folder, without opening a document. User-controlled collapse/expand, with a 48px rail when collapsed. No workspace or placeholder navigation. Each folder heading names its folder (disclosure button and name, full path in `title`; [section visibility](#collapsible-folder-sections-425)) with `+` (New document…) and a `⋯` menu containing New folder…, Open folder…, Refresh and Close folder (removes only that folder; tabs stay open). Open folder… adds a folder; one already open is listed again in place. With no opened folder, the empty Files panel offers Open folder… and New document…. Below each heading is a folder tree; file listing and activation follow [Folder files and image preview](#folder-files-and-image-preview-217). A `.md` file whose leading frontmatter lacks the native marker stays listed in subtle text with its own icon, and its tooltip and accessible description say it is not an IeumDoc document; opening it still shows the refusal and why ([Folder listing](filesystem-host-boundary-v1.md#folder-listing-v1-112)). On explicit active-document path changes, the containing sections and folders above it expand in each opened folder containing it; a document elsewhere adds nothing to the trees. The opened folders' paths are browser preferences: on start they are listed again in order, and one the Host refuses or no longer has is left out quietly. Child-folder expansion is page state only. Root section collapse is an origin-specific preference restored on Reload/Desktop restart; startup document restoration respects it. Opening document settings or collapsing the sidebar retains the mounted tree, its expansion, scroll and keyboard stop, without listing again. The tree takes the remaining height and scrolls by itself; the open document uses the shared selected surface/text with 600 semibold as a non-color cue, without a left marker there and Close folder removes it. Keyboard: Up/Down, Home/End move through visible items; Right expands a folder or moves into it; Left collapses it or moves to the parent; Enter or Space opens a document or toggles a folder. Files does not list the open document separately: the tab row and TopBar name it. |
 | Document settings | Collapsed value summary at the top of the paper, before the title and outside ProseMirror (#580). Expands into grouped field rows for Number headings (H2–H6), Reference style (Default, Concise, Formal, Korean; unmatched values show Custom) with notation previews, and Connect bibliography…. Reuses existing operations, history, dirty indication and Save under the [numbering](heading-numbering-v1.md) and [bibliography](citations-v1.md#connect-and-disconnect-bibliography-files-438) contracts. Command center reveals/expands/focuses it. Field controls disable during pending work; Source/start omit the block and read-only shows only summary. Escape inside collapses and focuses the disclosure; the style menu handles its own Escape first. Bibliography uses the existing connection dialog with return to the row’s Connect button. Expansion is per-tab session only. Opening/collapsing preserves editor instance, selection, history and unapplied drafts. App Settings remains separate and has no document-settings entry (#669). |
-| Document panel | Outline, Tables N and Figures N navigation (#613), with 600 semibold, themed surface and segment shadow for the selected tab, muted inactive labels and reserved semibold label width (#620), titled Outline, with no internal close button (#590). The TopBar Outline toggle opens and closes it. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read with selected background/text and 600 semibold (no left marker, #515); a hidden semibold copy reserves its two-line text extent to prevent selection height jumps. The current item stays inside the list's visible area. The list scrolls by itself and is never written to the document. Table/Figure items reuse the body caption prefix and Core reference template (for example `Table 1. Caption`), including in Korean UI; a missing caption shows only the number. At 1424px and wider the panel is docked and starts open; below 1424px it starts closed and, opened, overlays the document below the sticky header instead of narrowing it, so Save, File actions and the Outline toggle stay usable; Escape closes it and returns focus to the TopBar Outline toggle. The docking width is independent of the 1024px narrow sidebar. Entering the overlay layout always closes it. Returning to docked restores the user's last explicit docked open/closed choice, or opens by default if none exists. Overlay interactions do not overwrite that choice. Open/closed is page memory only and resets on reload; no persistent preference is added. |
+| Document panel | Outline, Tables and Figures navigation (#613), with 600 semibold, themed surface and segment shadow for the selected tab, muted inactive labels and reserved semibold label width (#620), titled Outline, with no internal close button (#590). The TopBar Outline toggle opens and closes it. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read with selected background/text and 600 semibold (no left marker, #515); a hidden semibold copy reserves its two-line text extent to prevent selection height jumps. The current item stays inside the list's visible area. The list scrolls by itself and is never written to the document. Table/Figure items reuse the body caption prefix and Core reference template (for example `Table 1. Caption`), including in Korean UI; a missing caption shows only the number. At 1424px and wider the panel is docked and starts open; below 1424px it starts closed and, opened, overlays the document below the sticky header instead of narrowing it, so Save, File actions and the Outline toggle stay usable; Escape closes it and returns focus to the TopBar Outline toggle. The docking width is independent of the 1024px narrow sidebar. Entering the overlay layout always closes it. Returning to docked restores the user's last explicit docked open/closed choice, or opens by default if none exists. Overlay interactions do not overwrite that choice. Open/closed is page memory only and resets on reload; no persistent preference is added. |
 | TopBar | Actual status in the document area on the left; the centered command-center button leads with a search icon and Find documents and commands / 문서·명령 찾기; the document location/name is muted secondary information (full path in its title); the location names the folders from the outermost opened sidebar folder containing the document down, otherwise its own folder. Visual/Source, Wide document and Outline, then Save and File actions (`⋯`) on the right. File actions contains Reload and Copy path (the full path to the clipboard, confirmed by a temporary notice, or an explanatory error where the browser has no Clipboard API); the menu is unavailable without a document or during pending work. Enter/Space opens it, arrows navigate, Escape closes and returns focus. Reload keeps its existing discard confirmation and modal boundary while loading; closing that dialog returns focus to File actions. Wide document is a pressed toggle, remembered in device preferences and available without a document, during pending work and in Source. It changes no Markdown, history or dirty state, and its existing command remains. Outline shows or hides the Document panel (pressed while shown); closing the panel returns focus to it. Sticky while document scrolls. |
 | Document tabs | A separate row inside the sticky header below TopBar. A pressed-surface track and raised white current tab reuse Visual/Source border-control/shadow/text tokens, without an underline; height and close targets are unchanged (#515). Filename, dirty dot, close button and full-path tooltip; same-named files show the shortest distinguishing parent folder after the name, which stays visible while the name ellipsizes. Only this row scrolls horizontally on narrow screens. Accessible tablist/tab/tabpanel relationships, Left/Right/Home/End switching and Delete to close. Closing selects the right neighbour, else left; an inactive close keeps the current tab. |
 | MessageArea | Load/save errors, conflict and temporary notices below the tab row; no reserved height when empty. Explicit table deletion shows `Table deleted` / `표를 삭제했습니다` with `Undo` / `되돌리기`, using the existing five-second temporary notice, informational surface and polite status role. It takes no focus. Undo restores the table in one editor history step and returns focus to the editor. The notice/action closes on the next document change, Save, Reload (including opening its discard prompt), Source preview request start, tab switch or timeout; a revoked action cannot undo other work. Source cannot undo the hidden Visual document, and returning to Visual does not revive the action. See [Table interaction](table-interaction-v1.md). |
@@ -614,7 +714,7 @@ Folder navigation changes no document meaning, so this removal adds no Core oper
 ## Document navigation lists (#613)
 
 The Outline panel retains an accessible heading. Its first visible row, aligned with the document tabs (#647), is a full-width
-row that shares the document-tab height and offers Outline, Tables N and Figures N. The row
+row that shares the document-tab height and offers Outline, Tables and Figures without counts (#700). The row
 reuses the Visual/Source Button and segmented-control tokens, outside the title-strip drag region.
 It works in both docked and overlay layouts, independently of native caption-button space.
 
@@ -637,6 +737,8 @@ Korean labels and 1440px/640px light/dark geometry. Existing `outline`, `documen
 and recovery tests now count tabs inside the Documents tablist, retaining exact count/order assertions
 when navigation tabs are also visible. Editor tests (316), workspace typecheck, Editor build,
 documentation and whitespace checks pass. Packaging/platform coverage stays in CI.
+
+For #700, 1440×900 Chrome captures show the count-free [Tables](assets/panel-tabs-700/tables-1440.png) and [Figures](assets/panel-tabs-700/figures-1440.png) tabs with the existing lists.
 
 ### Navigation list comparison
 

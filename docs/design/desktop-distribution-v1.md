@@ -226,18 +226,14 @@ commands and theme colors retain Electron behavior; the native painted/hit regio
 pixel earlier, before the web border. CSS drag/no-drag and env-based width reservation stay
 unchanged. Outline is below this strip after #647, including when docked.
 
-Base UI's modal scroll lock retains a stable viewport scrollbar gutter outside the popup's
-paint. Windows OS probes confirm that this area accepts a solid canvas color, but clips
-background images and fixed DOM paint; a gradient cannot extend the separator into it.
-After Base UI acquires its lock, Settings temporarily removes only that reserved gutter
-and compensates with the measured gap in body padding. A single scoped attribute applies
-both CSS changes together, preserving the document's width, height and scroll position.
-Base UI's inline overflow/gutter styles remain its own; Settings does not implement scroll
-locking. On resize the compensation is removed before Base UI probes/relocks, then measured
-again. Cleanup follows `open=false`, before Base UI's deferred unlock, including quick close
-and nested dialogs. The original document styles and root scrollbar return on close.
-The document strip still ends before the root
-scrollbar: that remaining gutter belongs to #488 phase 0, not the overlay correction.
+Before #488 phase 0, Base UI could retain a 15px viewport gutter beside Settings. OS probes
+showed that this area accepted solid canvas colors but clipped background images and fixed
+DOM paint. #488 moved document scrolling below the header and keeps the body viewport locked;
+Base UI respects that existing lock without reserving a root gutter. Both title strips now
+span the full viewport. #694 adds no scroll-lock override, padding compensation or document
+scroll change; its Windows pixel checks cover the integrated #488 behavior as well as the
+native overlay correction. The earlier 13px sampled gutter interruption is historical evidence
+in PR #696, not a remaining exception to the full-edge assertion.
 
 The cause is established from Electron's [overlay height/color API](https://www.electronjs.org/docs/latest/api/base-window#winsettitlebaroverlayoptions-windows-linux)
 and its pinned [WinFrameView layout](https://github.com/electron/electron/blob/v44.7.0/shell/browser/ui/views/win_frame_view.cc)
@@ -253,17 +249,15 @@ control exclusion from drag and BrowserWindow title. It also uses Win32 `ClientT
 `System.Drawing.Graphics.CopyFromScreen` to sample the OS-composed separator below all three
 caption buttons, in document/Settings, light/dark, 1440px with docked Outline open/closed,
 640px, and maximized states, plus maximize/restore while Settings remains open. It checks
-document width/height/scroll position and original inline styles through close, resize,
-quick reopen/close and a nested confirmation. A reference pixel outside the buttons checks screen-coordinate
+document viewport width/height/scroll position, header content width and original inline
+styles through Settings close and native resize. A reference pixel outside the buttons checks screen-coordinate
 alignment; a negative control restores the old 40px height on light Settings and must cover
 the line before the fix is restored. Captures/measurements are uploaded as `desktop-caption-pixels`,
 including failures. A missing foreground window, unavailable screen, or wrong reference color
 fails the test rather than substituting renderer screenshots or skipping the assertion.
-Settings must pass through the full caption edge. Document captures record all sampled
-pixels, but the mandatory overlay assertion stops at the measured root client width;
-only pixels in the actual root scrollbar gutter are reported separately for #488 phase 0.
-The JSON summaries distinguish overlay and gutter mismatches instead of declaring the
-document's whole viewport separator fixed.
+Both Settings and document captures must pass through the full caption edge, with no gutter
+exclusion. JSON summaries record the root client gap and title-strip edge gap alongside all
+pixel mismatches, so a future reserved gutter cannot silently become an allowed exception.
 Local checks use persistent Chrome with
 the bridge and representative caption-width geometry, including long filenames in Settings
 and portal overlays over the wrapped header at 640×480; they do not launch packaged Desktop.

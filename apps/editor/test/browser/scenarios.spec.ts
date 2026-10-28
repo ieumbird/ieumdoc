@@ -138,7 +138,7 @@ const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
       await page.reload();
       await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: "attached" });
       await page.mouse.move(0, 0);
-      await page.evaluate(() => { window.scrollTo(0, 0); document.activeElement instanceof HTMLElement && document.activeElement.blur(); });
+      await page.evaluate(() => { document.querySelector<HTMLElement>('.document-scroll[data-active="true"]')?.scrollTo(0, 0); document.activeElement instanceof HTMLElement && document.activeElement.blur(); });
       await use(page);
     } finally {
       const classification = classifyConsoleErrors(testInfo.title, errors);

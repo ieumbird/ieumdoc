@@ -43,10 +43,9 @@ export async function captionPixels(app: ElectronApplication, page: Page, output
   assert.equal(geometry.overlayHeight, geometry.expectedOverlay, "native height follows the header content box, excluding its border");
   assert.ok(geometry.captionLeft > 8 && geometry.captionLeft < geometry.width - 30);
   if (surface === "settings") {
-    assert.ok(geometry.scrollLock.includes("hidden"), "Base UI retains the underlying page scroll lock");
-  } else {
-    assert.equal(geometry.rowRight, geometry.rootClientWidth, "document strip ends at the current root scrollbar; #488 owns that gutter");
+    assert.ok(geometry.scrollLock.includes("hidden"), "Settings preserves the existing page scroll lock");
   }
+  assert.equal(geometry.rowRight, geometry.width, "both title strips span the viewport after #488 moved scrolling below the header");
   const handle = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getNativeWindowHandle().readBigUInt64LE().toString());
   const sample = (suffix: string) => {
     const result = JSON.parse(execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-File",
@@ -71,14 +70,8 @@ export async function captionPixels(app: ElectronApplication, page: Page, output
     }
   }
   const result = sample("");
-  // #694 owner scope: keep the document's existing root scrollbar, record all its pixels,
-  // and require the native overlay not to obscure the separator in the web content area.
-  // Settings has no exception: its separator must reach the full window edge.
-  const allowedGutterStart = surface === "document" ? geometry.rootClientWidth : geometry.width;
-  const blocked = result.mismatches.filter(x => x < allowedGutterStart);
+  // #488 removed the former root gutter. Neither surface needs an exclusion now.
   writeFileSync(`${output}-summary.json`, JSON.stringify({ surface, rootClientGap: geometry.width - geometry.rootClientWidth, rowEdgeGap: geometry.width - geometry.rowRight,
-    sampled: result.sampled, mismatches: result.mismatches.length, gutterMismatches: result.mismatches.length - blocked.length,
-    requiredRegionMismatches: blocked.length, rootGutterFollowUp: surface === "document" ? "#488 phase 0" : null }, null, 2));
-  assert.deepEqual(blocked, [], surface === "settings" ? "Settings separator reaches the full native caption edge"
-    : "native paint leaves the document separator visible up to the existing root scrollbar (#488)");
+    sampled: result.sampled, mismatches: result.mismatches.length }, null, 2));
+  assert.deepEqual(result.mismatches, [], "the painted separator reaches the full native caption edge");
 }

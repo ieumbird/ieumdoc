@@ -133,7 +133,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       // Keep the existing quiet-document-long.md -> quiet-document.md keyboard neighbors.
       { name: "korean-wrap.md", create: () => fixture("quiet-document-wrap.md").create() },
       { name: "아주-긴-파일명-very-long-technical-document-name-for-visual-review.md", create: () => fixture("quiet-document-long.md").create() }],
-    scenarios: ["layout-rules", "quiet-document", "visual-states"],
+    scenarios: ["layout-rules", "quiet-document", "visual-states", "document-scroll"],
   },
   "reference-save-reload": { files: technical, scenarios: ["reference-save-reload", "ui-language"] },
   "bibliography": { files: [
@@ -209,7 +209,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "structural-block-authoring": { files: [fixture("structural-block-authoring.md")], scenarios: ["structural-block-authoring"] },
   "markdown-input": { files: [fixture("markdown-input.md")], scenarios: ["markdown-input"] },
   "basic-blocks": { files: [fixture("basic-blocks.md")], scenarios: ["basic-blocks"] },
-  "outline": { files: [fixture("outline.md"), fixture("panel-lists.md"), document("diagram.svg")], scenarios: ["outline", "panel-lists"] },
+  "outline": { files: [fixture("outline.md"), fixture("panel-lists.md"), document("diagram.svg")], scenarios: ["outline", "panel-lists", "document-scroll"] },
   "source-view": {
     files: [
       ...technical,

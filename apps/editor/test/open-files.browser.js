@@ -308,7 +308,7 @@ async (page, { openDocument, openPath, screenshots = false }) => {
     await dialog.waitFor();
     for (const width of [1440,640]) {
       await page.setViewportSize({width,height:900});
-      await page.evaluate(async () => { await document.fonts.ready; scrollTo(0,0); });
+      await page.evaluate(async () => { await document.fonts.ready; document.querySelector('.document-scroll[data-active="true"]').scrollTo(0,0); });
       const layout = await dialog.evaluate(node => {
         const box=node.getBoundingClientRect();
         return {width:node.clientWidth,scroll:node.scrollWidth,dpr:devicePixelRatio,zoom:visualViewport.scale,font:getComputedStyle(node).fontFamily,

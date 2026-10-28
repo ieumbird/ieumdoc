@@ -217,6 +217,17 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      - name: Upload document scroll layout evidence
+        if: always() && matrix.shard == 4
+        uses: actions/upload-artifact@v6
+        with:
+          name: document-scroll-layout
+          path: |
+            tmp/document-scroll-capture/
+            tmp/browser-results/scenarios-document-scroll/scenario-result.json
+          if-no-files-found: ignore
+          retention-days: 7
+
   http:
     name: HTTP Host package and browser (${{ matrix.os }})
     needs: changes

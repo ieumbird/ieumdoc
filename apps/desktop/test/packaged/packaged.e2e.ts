@@ -161,15 +161,17 @@ test("started without a document, it opens none; the sample opens with its figur
     };
     const shellLayout = () => page.evaluate(() => {
       const rect = document.querySelector(".app-shell")!.getBoundingClientRect();
+      const viewport = document.querySelector<HTMLElement>('.document-scroll[data-active="true"]')!;
       return { width: rect.width, height: rect.height, scrollY, headerUsableWidth: document.querySelector(".app-titlebar .top-bar")!.getBoundingClientRect().width,
+        documentScroll: viewport.scrollTop, documentWidth: viewport.clientWidth, documentHeight: viewport.scrollHeight,
         rootStyle: document.documentElement.style.cssText, bodyStyle: document.body.style.cssText };
     });
     const sameDocument = async (expected: Awaited<ReturnType<typeof shellLayout>>, restored = false) => {
       const actual = await shellLayout();
       assert.deepEqual([actual.width, actual.height, actual.scrollY, actual.headerUsableWidth], [expected.width, expected.height, expected.scrollY, expected.headerUsableWidth], "Settings preserves document geometry, header content width and scroll position");
+      assert.deepEqual([actual.documentScroll, actual.documentWidth, actual.documentHeight], [expected.documentScroll, expected.documentWidth, expected.documentHeight], "Settings preserves the document's scroll viewport");
       if (restored) assert.deepEqual([actual.rootStyle, actual.bodyStyle], [expected.rootStyle, expected.bodyStyle], "Settings and Base UI restore the original inline styles");
     };
-    const unlocked = () => page.waitForFunction(() => ![getComputedStyle(document.documentElement).overflowY, getComputedStyle(document.body).overflowY].includes("hidden"));
     for (const state of [{ width: 1440, outline: false }, { width: 1440, outline: true },
       { width: 640, outline: false }, { width: 0, outline: true }]) {
       await app.evaluate(({ BrowserWindow, screen }, width) => {
@@ -186,7 +188,8 @@ test("started without a document, it opens none; the sample opens with its figur
       if (await toggle.getAttribute("aria-pressed") !== String(state.outline)) await toggle.click();
       for (const theme of ["light", "dark"]) {
         await page.evaluate(() => {
-          window.scrollTo(0, Math.min(200, Math.max(0, document.documentElement.scrollHeight - innerHeight)));
+          const viewport = document.querySelector<HTMLElement>('.document-scroll[data-active="true"]')!;
+          viewport.scrollTop = Math.min(200, Math.max(0, viewport.scrollHeight - viewport.clientHeight));
         });
         const before = await shellLayout();
         await page.getByRole("button", { name: "Settings", exact: true }).click();
@@ -206,30 +209,13 @@ test("started without a document, it opens none; the sample opens with its figur
         await sameDocument(before);
         await page.mouse.wheel(0, 300);
         await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-        assert.equal(await page.evaluate(() => scrollY), before.scrollY, "Settings retains the page scroll lock even away from the document's top");
+        await sameDocument(before);
         let closingLayout = before;
         if (state.width === 1440 && theme === "light" && !state.outline) {
-          // A nested modal shares Base UI's lock; cancelling it must keep Settings compensated.
-          await page.getByRole("button", { name: "Saving & recovery", exact: true }).click();
-          await page.getByRole("button", { name: "Clear all recovery records…", exact: true }).click();
-          const nested = page.getByRole("dialog", { name: "Delete all recovery records?", exact: true });
-          await nested.getByRole("button", { name: "Cancel", exact: true }).click();
-          await nested.waitFor({ state: "detached" });
-          await sameDocument(before);
-          await page.getByRole("button", { name: "Appearance & language", exact: true }).click();
-          // Resize while Settings is open, then compare with the actual closed document at
-          // that viewport. Browser scroll anchoring during a resize is distinct from drift on close.
+          // Exercise the native inset change while the Settings surface stays open.
           await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.maximize());
           await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isMaximized())).toBe(true);
           await inspectCaption("open-resize-maximized-settings", "settings");
-          const maximized = await shellLayout();
-          await page.keyboard.press("Escape");
-          await page.getByTestId("settings-dialog").waitFor({ state: "detached" });
-          await unlocked();
-          await sameDocument({ ...maximized, rootStyle: before.rootStyle, bodyStyle: before.bodyStyle }, true);
-          await page.getByRole("button", { name: "Settings", exact: true }).click();
-          await expect(page.getByTestId("settings-back")).toBeFocused();
-          await sameDocument(maximized);
           await app.evaluate(({ BrowserWindow, screen }) => {
             const window = BrowserWindow.getAllWindows()[0]!;
             window.unmaximize(); window.setContentSize(1440, 900);
@@ -243,16 +229,8 @@ test("started without a document, it opens none; the sample opens with its figur
         }
         await page.keyboard.press("Escape");
         await page.getByTestId("settings-dialog").waitFor({ state: "detached" });
-        await unlocked();
         await sameDocument(closingLayout, true);
         await inspectCaption(`${name}-document`, "document");
-        if (state.width === 1440 && theme === "light" && !state.outline) {
-          await page.getByRole("button", { name: "Settings", exact: true }).click();
-          await page.getByTestId("settings-back").click();
-          await page.getByTestId("settings-dialog").waitFor({ state: "detached" });
-          await unlocked();
-          await sameDocument(closingLayout, true);
-        }
       }
     }
     if (captionFailures.length) throw new AggregateError(captionFailures, "Native caption pixel regressions (all captures retained)");

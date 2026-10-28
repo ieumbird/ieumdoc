@@ -131,7 +131,7 @@ async (page, { openPath, reloadDocument, screenshots, assertSavedSource }) => {
     if (screenshots) {
       for (const width of [1440, 640]) {
         await page.setViewportSize({ width, height: 1000 });
-        await page.evaluate(async () => { await document.fonts.ready; window.scrollTo(0, 0); document.activeElement?.blur(); });
+        await page.evaluate(async () => { await document.fonts.ready; document.querySelector('.document-scroll[data-active="true"]').scrollTo(0, 0); document.activeElement?.blur(); });
         await page.mouse.move(0, 0);
         await page.screenshot({ path: `tmp/visual-refinement/citations-${width}.png` });
       }

@@ -106,9 +106,9 @@ Windows Desktop 제목 줄은 문서와 Settings 양쪽에서 light/dark, Outlin
 Windows packaged CI는 기본 배율의 OS 화면 픽셀과 기존 40px 오버레이의 실패 대조를 검사한다
 (`desktop-caption-pixels` artifact). 로컬 browser geometry와 renderer screenshot은 네이티브
 오버레이를 포함하지 않으므로 이 확인의 대체 근거가 아니다.
-Settings는 modal scroll lock을 유지하면서 gutter까지 선이 이어져야 한다. 문서의 root
-scrollbar gutter는 #488 0단계 후속이며, CI JSON은 그 구간의 픽셀 불일치를 별도로 기록한다.
-오버레이 아래 웹 콘텐츠 구간의 불일치는 문서 화면에서도 실패다.
+Settings는 기존 scroll lock을 유지하면서 선이 창 끝까지 이어져야 한다. #488 0단계가
+문서 스크롤을 header 아래로 옮겼으므로 최종 CI는 문서·Settings 양쪽 모두 gutter 예외 없이
+전체 caption 구간의 픽셀을 검사한다. 병합 전 root gutter의 13px 불일치 측정은 PR #696에 보존한다.
 
 1. **OS 한국어 IME.** 문단에서 한글을 조합·확정하고 후보창을 쓴 뒤, Backspace와 문단 경계 이동을 거쳐 Save → Reload한다. 글자 누락·중복이 없어야 한다. 자동 검사는 Chromium 조합 입력만 본다.
 2. **실제 앱에서 붙여넣기.** 웹 페이지, Notion, Word에서 제목·목록·표·코드·링크가 섞인 내용을 복사해 붙여넣고 Save → Reload한다. 자동 검사는 대표 HTML을 쓴다. 정책은 [Continuous document editing](../design/document-editing-v1.md)을 따른다.
