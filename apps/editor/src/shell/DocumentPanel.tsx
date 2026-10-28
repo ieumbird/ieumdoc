@@ -24,8 +24,8 @@ export function DocumentPanel({ overlay, outline: store = emptyOutline, onSelect
   const outline = useSyncExternalStore(store.subscribe, store.get, store.get);
   const [kind, setKind] = useState<ListKind>("outline");
   const tabs = useRef<HTMLDivElement>(null);
-  const labels = { outline: i18n.t("Outline"), tables: i18n.t("Tables {{count}}", { count: outline.tables.items.length }),
-    figures: i18n.t("Figures {{count}}", { count: outline.figures.items.length }) };
+  const labels = { outline: i18n.t("Outline"), tables: i18n.t("Tables"),
+    figures: i18n.t("Figures") };
   const switchTab = (event: KeyboardEvent<HTMLDivElement>) => {
     const index = kinds.indexOf(kind);
     const next = event.key === "ArrowRight" ? (index + 1) % kinds.length : event.key === "ArrowLeft" ? (index + kinds.length - 1) % kinds.length

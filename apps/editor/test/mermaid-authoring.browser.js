@@ -254,7 +254,7 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument
   const ids=urls.map(svg=>svg.match(/<svg[^>]* id="([^"]+)"/)[1]);expect(ids[0]).not.toBe(ids[1]);
   const panel=page.getByRole('complementary',{name:'Outline'});
   if(!await panel.isVisible())await page.getByRole('button',{name:'Outline',exact:true}).click();
-  await panel.getByRole('tab',{name:'Figures 3',exact:true}).click();
+  await panel.getByRole('tab',{name:'Figures',exact:true}).click();
   await expect(panel.getByRole('tabpanel').getByRole('button')).toHaveCount(3);
   await save();
   // A rejected lazy import is a block error, while source editing and real Save still work.
