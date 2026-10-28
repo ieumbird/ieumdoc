@@ -115,3 +115,17 @@ test("Save goes through the Host's session checks and Core", async () => {
   assert.equal(readFileSync(initial, "utf8"), "---\nieumdoc: 1\n---\n\n# First\n\nAlpha, saved from Desktop.\n");
   assert.equal((await save({ path: initial })).status, 400);
 });
+
+
+test("sample failure reaches the Editor without blocking file or empty startup", async () => {
+  for (const document of [initial,undefined]) {
+    const unavailable = createProtocolHandler(editorDir, {document,sampleProblem:"unavailable"});
+    const response = await unavailable(new Request(`${ORIGIN}/api/document`));
+    assert.equal(response.status,200);
+    const payload = await response.json();
+    assert.equal(payload.sampleProblem,"unavailable");
+    assert.equal(payload.samples,undefined);
+    if (document) assert.equal(payload.path,document);
+    else assert.equal(payload.start,true);
+  }
+});

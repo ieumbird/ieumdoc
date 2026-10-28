@@ -22,7 +22,7 @@ import {
 } from "./document-replay.ts";
 
 import type {
-  SampleDocuments,
+  SampleAvailability,
   SaveRequest,
   SupportedEdits,
   DocumentFileResponse,
@@ -226,7 +226,7 @@ export async function handleDocumentRequest(
   access: FileAccess = LOCAL_FILE_ACCESS,
   bodyLimit = Infinity,
   removeFile?: (file: string) => void | Promise<void>,
-  samples?: SampleDocuments,
+  sampleAvailability?: SampleAvailability,
 ): Promise<void> {
   const readBody = async (request: IncomingMessage) => decodeUtf8(await readRequestBody(request, bodyLimit));
   const failure = (error: unknown) => sendJson(res,
@@ -355,8 +355,8 @@ export async function handleDocumentRequest(
     if (req.method === "GET") {
       const requestedPath = query.get("path") ?? undefined;
       if (access && !requestedPath?.trim()) {
-        sendJson(res, 200, { start: true, allowedRoots: access.roots, ...(samples ? { samples } : {}) });
-      } else sendJson(res, 200, { ...loadDocumentFile(requestedPath, access), ...(samples ? { samples } : {}) });
+        sendJson(res, 200, { start: true, allowedRoots: access.roots, ...sampleAvailability });
+      } else sendJson(res, 200, { ...loadDocumentFile(requestedPath, access), ...sampleAvailability });
       return;
     }
     if (req.method === "PUT") {

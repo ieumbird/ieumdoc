@@ -18,6 +18,6 @@ export function firstDocument(args: string[], userData: string, appRoot: string,
     }
     return existsSync(value) && statSync(value).isFile();
   });
-  const samples = prepareSampleDocuments(path.join(appRoot, "sample"), path.join(userData, "sample-native-v1"));
-  return { ...(argument ? { document: path.resolve(argument) } : {}), samples };
+  const sampleAvailability = prepareSampleDocuments(path.join(appRoot, "sample"), path.join(userData, "sample-native-v1"), onWarning);
+  return { ...(argument ? { document: path.resolve(argument) } : {}), ...sampleAvailability };
 }

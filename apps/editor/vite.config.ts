@@ -22,7 +22,7 @@ export default defineConfig({
       name: "ieumdoc-document",
       configureServer(server: ViteDevServer) {
         const assetSigningKey = randomBytes(32);
-        const samples = prepareSampleDocuments(fileURLToPath(new URL("./samples", import.meta.url)), fileURLToPath(new URL("../../tmp/sample-native-v1", import.meta.url)));
+        const sampleAvailability = prepareSampleDocuments(fileURLToPath(new URL("./samples", import.meta.url)), fileURLToPath(new URL("../../tmp/sample-native-v1", import.meta.url)));
         server.middlewares.use((req, res, next) => {
           const requestUrl = req.url ?? "";
           const base = server.config.base;
@@ -44,7 +44,7 @@ export default defineConfig({
           void server.ssrLoadModule("/server/document-api.ts").then((mod) => {
             const handle = (mod as { handleDocumentRequest: typeof import("./server/document-api.ts").handleDocumentRequest })
               .handleDocumentRequest;
-            return handle(req, res, next, LOCAL_FILE_ACCESS, Infinity, undefined, samples);
+            return handle(req, res, next, LOCAL_FILE_ACCESS, Infinity, undefined, sampleAvailability);
           }).catch((error: unknown) => {
             res.statusCode = 500;
             res.setHeader("Content-Type", "application/json; charset=utf-8");

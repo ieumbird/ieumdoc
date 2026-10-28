@@ -160,8 +160,9 @@ export type SaveRequest = SupportedEdits & {
 
 export type SampleDocuments = { ko: string; en: string };
 
-export type DocumentFileResponse = {
-  samples?: SampleDocuments;
+export type SampleAvailability = { samples?: SampleDocuments; sampleProblem?: "conflict" | "unavailable" };
+
+export type DocumentFileResponse = SampleAvailability & {
   /** Per-open dependency context; changing the Sidebar never changes this value. */
   bibliographyRoot?: string;
   bibliography?: { declarations: string[]; sources?: BibliographySource[] };
@@ -179,7 +180,7 @@ export type DocumentFileResponse = {
  * The Host's answer to the first request, which names no document, when it opens none: the
  * Editor starts without a document. `samples` offers writable localized samples the user may open.
  */
-export type DocumentStartResponse = { start: true; samples?: SampleDocuments; allowedRoots?: string[] };
+export type DocumentStartResponse = SampleAvailability & { start: true; allowedRoots?: string[] };
 
 /** Save acknowledges applied edits without replacing the Editor's opening source. */
 export type SaveResponse = Pick<DocumentFileResponse, "revision">;

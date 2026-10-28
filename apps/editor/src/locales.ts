@@ -1,5 +1,8 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Sample documents are unavailable because the sample folder could not be replaced safely. The existing folder was kept.": "Sample documents are unavailable because the sample folder could not be replaced safely. The existing folder was kept.",
+  "Sample documents could not be prepared. You can still open your documents.": "Sample documents could not be prepared. You can still open your documents.",
+
   "A converter control design note you can edit. Changes are kept until the bundled sample version changes.": "A converter control design note you can edit. Changes are kept until the bundled sample version changes.",
   "This is a writable sample copy. Changes are kept until the bundled sample version changes.": "This is a writable sample copy. Changes are kept until the bundled sample version changes.",
   "Calculating differences…": "Calculating differences…",
@@ -608,6 +611,8 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Sample documents are unavailable because the sample folder could not be replaced safely. The existing folder was kept.": "샘플 폴더를 안전하게 교체할 수 없어 샘플 문서를 제공하지 않습니다. 기존 폴더는 보존했습니다.",
+  "Sample documents could not be prepared. You can still open your documents.": "샘플 문서를 준비하지 못했습니다. 다른 문서는 계속 열 수 있습니다.",
   "Calculating differences…": "변경 내용을 계산하는 중…",
   "Comparison calculation failed.": "비교 계산에 실패했습니다.",
   "Word highlighting omitted to keep comparison responsive.": "비교 응답성을 유지하기 위해 단어 강조를 생략했습니다.",

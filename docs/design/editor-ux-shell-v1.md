@@ -2040,6 +2040,12 @@ templates, endnote, citation and a local BibTeX bibliography. Most content is a 
 The reference book's bibliographic data is verified against its
 [publisher record](https://link.springer.com/book/10.1007/978-3-030-43881-4).
 
+When sample preparation fails, the Host omits sample paths and reports a sample problem alongside
+the ordinary startup response. The Editor keeps opening the argument/restored document or shows
+the ordinary start screen, with a standing translated warning. A folder conflict explicitly says
+the existing folder was kept. No sample command or start action is shown for an unavailable sample;
+this is separate from document Open admission and does not show a native-document refusal Alert.
+
 The Host supplies writable copies; [sample distribution](desktop-distribution-v1.md#native-sample)
 defines version replacement. HTTP Host omits the sample command and start offer. Changing UI
 language affects the next selection, not an open document's content or editor state.

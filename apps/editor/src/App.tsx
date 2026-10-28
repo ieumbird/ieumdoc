@@ -336,7 +336,7 @@ export function App() {
         recovery = records.find(record => saved.paths.includes(record.path));
       }
       if (!current) return;
-      setStart("start" in first ? first : { start: true, samples: first.samples });
+      setStart("start" in first ? first : { start: true, samples: first.samples, sampleProblem: first.sampleProblem });
       if ("start" in first) setAllowedRoots(first.allowedRoots);
       setTabs(initialTabs);
       setActiveId(openedTab(initialTabs, activePath ?? "")?.id ?? initialTabs[0]?.id ?? null);
@@ -743,6 +743,9 @@ export function App() {
   const inlineInsertionDisabled = !document || busy || view !== "visual" ||
     !editorRef.current?.canInsertInline() || commandReturnFocus.current !== editorRef.current?.getFocusTarget();
   const historyDisabled = !document || busy || view !== "visual";
+  const sampleWarning = start?.sampleProblem === "conflict"
+    ? i18n.t("Sample documents are unavailable because the sample folder could not be replaced safely. The existing folder was kept.")
+    : start?.sampleProblem ? i18n.t("Sample documents could not be prepared. You can still open your documents.") : "";
   const samplePath = start?.samples?.[i18n.language === "ko" ? "ko" : "en"];
   const openSample = () => {
     if (samplePath) void openFile(samplePath, i18n.t("This is a writable sample copy. Changes are kept until the bundled sample version changes.")).then(message => {
@@ -911,7 +914,7 @@ export function App() {
             dirty: Boolean(sessions.current.get(tab.id)?.documentDirty || sessions.current.get(tab.id)?.draftActive),
           }))} active={activeId} disabled={busy || Boolean(continuation)} onActivate={activateTab} onClose={closeTab} /> : null}
           <MessageArea
-            warning={recoveryProblem || [...sessions.current.values()].map(owner => owner.recoveryError).find(Boolean) || ""}
+            warning={[recoveryProblem || [...sessions.current.values()].map(owner => owner.recoveryError).find(Boolean), sampleWarning].filter(Boolean).join(" ")}
             error={error || sessionError}
             saveError={!error && session?.saveFailure ? { failure: session.saveFailure, locations: session.saveLocations,
               onReveal: session.revealSaveLocation } : undefined}

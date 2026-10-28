@@ -1,6 +1,7 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
+- Sample safety verification: 2026-10-28 (#686 review fixes; OS-temp ownership/junction/copy/rename unit regressions and Host/client failure propagation; no additional local browser or packaged execution).
 - Feature sample verification: 2026-10-28 (#528 localized folders, Core read-model coverage and canonical CLI check/format; Desktop replacement/preservation unit tests and development browser entry/captures; no local packaged Desktop run).
 - Window startup verification: 2026-10-28 (#643 / #644 review: production-minified renderer bridge matrix, Desktop main lifecycle/strict-IPC unit tests including absent first paint; saved light/flat packaged restart regression is CI-only).
 - Version correction verification: 2026-10-28 (#632: `0.0.2-beta.1` published; anonymous assets and withdrawal of both `0.1.0` Beta Releases/assets/remote tags verified; actual GitHub installation/update unverified; [record](../releases/v0.0.2-beta.1.md)).
@@ -146,11 +147,25 @@ ship as Korean and English folders, each containing a canonical native `.md`, `a
 document** on the start screen or in Command center, including when an argument document is open.
 Changing UI language does not translate or replace an already open document.
 
-On startup, Desktop compares the bundled `samples/version` with `sample-native-v1/version` in
-user data. A missing or different marker replaces the whole `sample-native-v1` folder, including
-user edits to its old contents, then writes the new marker only after both language folders copy
-successfully. The same version preserves all edits; opening a sample does not copy or overwrite it.
-Version `2` replaces the original short sample. Bump the bundled marker when sample contents change.
+On startup, Desktop offers samples only after safe preparation succeeds. A new copy carries
+`.ieumdoc-sample` ownership text and `version`. Replacement requires a real directory (no
+junction/symlink in its ancestry or contents), the expected ownership marker and exact known
+file/directory set. Added files, extra empty directories, changed entry types or unconfirmed
+ownership cause a conflict: the existing folder is preserved and no sample paths are offered.
+
+The original v1 copy is recognized only by its exact two regular files, `technical-document.md`
+and `diagram.svg`, with no other entries. Their contents may have been edited; replacing those
+recognized sample edits remains authorized. A missing version alone never proves ownership.
+Unmarked copies of the unreleased bilingual layout are preserved as unconfirmed folders.
+
+A differing bundled `samples/version` replaces a confirmed copy once. The same version preserves
+edits. Copying finishes in a generated sibling directory, including version and ownership markers,
+before rename installs it. A confirmed old copy is moved aside only after staging succeeds; a
+failed installation rename restores it. Unknown or linked paths are never recursively removed.
+Sample preparation errors are logged and carried to the Editor as a standing sample-unavailable
+warning, while an argument document or empty startup remains usable. Both start screen and
+Command center omit unavailable sample paths. Version `2` replaces the recognized original
+sample; bump the bundled marker when sample contents change.
 Runtime copies use explicit `copyFileSync` reads for the document, bibliography and image in each
 language folder. Electron 44.7's ASAR wrapper extracts a file for `cpSync`, so it cannot copy the
 bundled language directories as directories. The first PR CI hit an installed-start timeout on that
@@ -163,8 +178,10 @@ The samples use only [Native document support](document-support-v1.md). There is
 operation or CLI command: CLI `check` and `format` use the existing Core contract. The original
 `apps/editor/document/technical-document.md` remains a regression fixture, not the distributed sample.
 Core read-model feature coverage and canonical round-trip live in the existing Editor browser-fixture
-tests; Desktop first-document unit tests cover initial replacement, version changes and same-version
-preservation of both languages and sidecars. Existing browser Command center checks
+tests. Desktop first-document unit tests use OS temporary folders outside the repository for legacy
+recognition, foreign-file preservation, destination/ancestor/nested junctions, same-version edits,
+copy failure and rename rollback; Host/client tests check that sample problems do not block startup.
+Existing browser Command center checks
 cover the UI entry and live language selection. See [sample capture evidence](editor-ux-shell-v1.md#localized-feature-samples-528).
 
 For #528, packaged Desktop, install/update/uninstall, Edge and fresh-profile probes are intentionally

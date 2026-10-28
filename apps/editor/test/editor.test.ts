@@ -2433,3 +2433,22 @@ test("Recovery preview uses Save bytes without changing disk, acknowledgement, o
     rmSync(dir, {recursive:true,force:true});
   }
 });
+
+
+test("startup sample problems survive client decoding for both file and empty startup", async (t) => {
+  const { requestDocument } = await import("../src/document-session.ts");
+  const model = getEditableDocument(parse(nativeSource("# My document\n")));
+  for (const initial of [
+    {start:true,sampleProblem:"conflict"},
+    {path:"document.md",source:nativeSource("# My document\n"),revision:"sample-test",document:model,sampleProblem:"unavailable"},
+  ]) {
+    const fetch = t.mock.method(globalThis, "fetch", async () => Response.json(initial));
+    try {
+      const decoded = await requestDocument("GET");
+      assert.equal(decoded.sampleProblem,initial.sampleProblem);
+      assert.equal(decoded.samples,undefined);
+      if ("path" in initial) { assert.ok("document" in decoded); assert.equal(decoded.path,initial.path); }
+      else assert.ok("start" in decoded);
+    } finally { fetch.mock.restore(); }
+  }
+});
