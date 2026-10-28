@@ -16,7 +16,9 @@ const bin = path.join(local, "IeumDoc", "bin");
 const environment = windowsEnvironment();
 function entries(): string {
   return execFileSync("powershell.exe", ["-NoProfile", "-Command",
-    "Get-ChildItem HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall | Get-ItemProperty | Where-Object { $_.DisplayName -like 'IeumDoc*' } | ForEach-Object { $_.UninstallString }"], { encoding: "utf8" }).trim();
+    "$key = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall'; " +
+    "if (Test-Path -LiteralPath $key) { Get-ChildItem -LiteralPath $key -ErrorAction Stop | " +
+    "ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction Stop } | Where-Object { $_.DisplayName -like 'IeumDoc*' } | ForEach-Object { $_.UninstallString } }"], { encoding: "utf8" }).trim();
 }
 
 test("NSIS removal cleans owned CLI entries, preserves user files and survives optional cleanup failures", {
