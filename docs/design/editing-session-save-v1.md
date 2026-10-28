@@ -306,11 +306,56 @@ compatibility exception above can restore affected structured records independen
 ### Recovery review layout contract
 
 The review prompt wraps full paths with `overflow-wrap: anywhere`, consistently with the deletion
-confirmation. This lets the existing grid shrink to the popup width; the existing footer stays stacked
-at phone widths and horizontal on desktop. No shared Dialog, spacing token, button size, focus policy,
-recovery storage, or Core/CLI operation changes.
+confirmation. The shared Dialog and compact footer controls remain available while comparison loads
+or fails. Supported review widths start at 640px (ADR-0010).
+
+**Compare (#655, stage 1)** lazily loads a read-only unified source diff: the current disk bytes
+against the canonical Markdown Save would write after restoring the record. The existing Host
+Save/Source replay validates the acknowledged revision from the opening source and `savedEdits`,
+then applies the same collected edits through Core. Comparison neither restores the record nor
+changes its snapshot, acknowledged revision, local storage or any file. An external disk revision
+change is reported; comparison still uses the current disk, and does not merge or bypass Save's
+existing conflict protection. Canonical formatting differences are shown with a short notice.
+
+The diff uses jsdiff (`diff`, BSD-3-Clause), with line numbers for disk/recovery, −/+ signs,
+word changes, contiguous change-region counts and keyboard-operable Previous/Next buttons.
+Navigation focuses and scrolls to the region and wraps at either end. Long lines wrap while the
+source pane scrolls vertically; the review grows to at most 72rem and fits the 640px viewport.
+Long unchanged ranges are currently retained. CRLF and missing final newlines remain observable.
+
+When restoration/collection or canonical preview is rejected, its reason accompanies a **plaintext
+comparison**. The disk's existing Core read model is projected with `toTiptapDocument`, then passed
+through the exact same `recoveryText` traversal used when recording. Thus both sides use the same
+salvage rules (text, atoms, captions, link destinations), rather than comparing Markdown to salvage
+text. If the disk cannot supply that read model, the comparison reports its error and retains the
+independent plaintext recovery copy. An absent disk file is explicitly identified and the recoverable
+side is all additions. Requests show loading and error states, time out after 15 seconds, can be
+retried, and are cancelled on closing the view. Restore/Delete/Not now do not wait for comparison.
+The diff computation has a bounded library timeout and reports oversized comparisons instead of
+silently showing an incomplete result. Recovery format, restoration/Save behavior, Core semantics
+and CLI are unchanged; this is an interface-only review of the existing semantic write operation.
 
 Historical layout comparisons: [Recovery review layout (#395)](#recovery-review-layout-395).
+
+Verification (2026-10-28, #655 stage 1): the persistent-Chrome `recovery` scenario checks
+mixed edits, displayed region count and wrapping keyboard navigation, unchanged records on review,
+loading/failure with available recovery actions, external revision warning, same-rule plaintext fallback,
+missing file, restore and byte-identical actual Save. The Host test checks bytes/mtime/revision and
+acknowledgement preservation, checkpoint replay and refusal reasons; HTTP tests check existing/absent
+paths outside allowed Roots. The pre-existing recovery tab assertion was scoped to the Documents
+tablist (including hidden document tabs under the modal), excluding Sidebar tabs.
+
+Captures use the same mixed-edit record and selected region, 900px height, DPR 1, zoom 1,
+Pretendard UI and Consolas source. The former prompt captures are baseline context; the four
+comparison captures are the same state across viewport/theme. The browser also asserts horizontal
+content bounds and footer button bounds at both supported widths.
+
+| Review | 640px | 1440px |
+| --- | --- | --- |
+| Former prompt (baseline) | [Before](../reviews/assets/recovery-source-diff-655/prompt-640.png) | [Before](../reviews/assets/recovery-source-diff-655/prompt-1440.png) |
+| Source comparison, light | [Capture](../reviews/assets/recovery-source-diff-655/comparison-640-light.png) | [Capture](../reviews/assets/recovery-source-diff-655/comparison-1440-light.png) |
+| Source comparison, dark | [Capture](../reviews/assets/recovery-source-diff-655/comparison-640-dark.png) | [Capture](../reviews/assets/recovery-source-diff-655/comparison-1440-dark.png) |
+
 
 ### Recovery regression coverage
 

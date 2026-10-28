@@ -31,6 +31,18 @@ union, limits and snapshot policy are specified in [Citations v1](citations-v1.m
 
 ## Purpose
 
+Recovery source review (#655 stage 1) uses a read-only mode of the existing endpoint:
+`POST /api/document-source?recovery=1` accepts `{ path, save? }`, where `save`, when present,
+contains the normal revision/opening source/savedEdits/edit payload. The shared Vite/Desktop/HTTP
+handler reads the current disk source, revision and Core read model (or explicit absence), and
+independently calls the same session preview used by Source and `saveCurrentDocument` used by Save.
+A Core preview refusal returns its reason alongside the disk comparison input; no commit, temporary
+file, revision acknowledgement or recovery storage change occurs. Normal Save conflict checks remain
+unchanged. Requests retain existing path/Root, JSON/body-limit and same-origin protections. An absent
+leaf is read only beneath the existing access boundary. The optional disk read model serves the
+[same-rule plaintext fallback](editing-session-save-v1.md#recovery-review-layout-contract); failure
+to read that model is explicit and never reclassifies a present file as missing.
+
 IeumDoc의 persistent SSOT는 Host가 접근하는 filesystem의 사람이 읽을 수 있는 plain-text `.md` 파일이다. HTTP 접속 시 경로는 브라우저 PC가 아닌 서버의 경로다. 이 문서는 Open, Save, New Document 및 Open Folder가 그 파일에 접근하는 경계를 정한다.
 
 이 경계의 핵심은 filesystem을 Browser Editor가 직접 소유하지 않고, 교체 가능한 Host가 소유한다는 것이다. 현재의 localhost HTTP adapter는 이 경계의 한 구현일 뿐이며 최종 backend architecture로 확정하지 않는다.
