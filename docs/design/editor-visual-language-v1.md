@@ -101,9 +101,9 @@ sizes and light/dark OS preferences, using the current System theme and shared #
 
 ## Shared controls and palette (B1 / C1, #514)
 
-The code-language field retains its shared 28px Input and adds a compact ghost disclosure
-inside the same footprint (#499). Its language list reuses the shared DropdownMenu rows,
-overlay and focus rules; [behavior and 1440/390px evidence](document-editing-v1.md#code-language-input-verification-499527).
+The code-language control is a compact 28px outlined Button showing the current language
+and a disclosure (#645). Its selection-only list reuses shared DropdownMenu rows, current
+check marks, overlay and focus rules; [behavior and 1440/640px evidence](document-editing-v1.md#code-language-selection-verification-645).
 
 B1 uses the existing Button/Input and product tokens: standard actions and fields are
 32px (`--size-control`), compact actions/fields 28px (`--size-control-compact`), with

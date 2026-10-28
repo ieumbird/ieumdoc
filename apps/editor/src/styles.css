@@ -1398,24 +1398,20 @@ ol.list { list-style: decimal; }
 }
 
 .code-language-control {
-  position: relative;
-  width: calc(var(--size-control) * 4);
+  width: max-content;
+  max-width: 100%;
   margin: 0 0 var(--space-1);
 }
 
 .code-language {
-  display: block;
-  width: 100%;
-  height: var(--size-control-compact);
-  padding-right: var(--size-control-compact);
+  max-width: 100%;
   color: var(--id-color-text-muted);
   font-family: var(--font-family-sans);
 }
 
-.code-language-trigger {
-  position: absolute;
-  top: 0;
-  right: 0;
+.code-language-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .code-language-popup {
