@@ -891,6 +891,8 @@ export function App() {
           <MessageArea
             warning={recoveryProblem || [...sessions.current.values()].map(owner => owner.recoveryError).find(Boolean) || ""}
             error={error || sessionError}
+            saveError={!error && session?.saveFailure ? { failure: session.saveFailure, locations: session.saveLocations,
+              onReveal: session.revealSaveLocation } : undefined}
             notice={notice || sessionNotice}
             noticeAction={notice ? null : session?.noticeAction}
             draftNotice={draftNotice}

@@ -10,6 +10,9 @@ type ExpectedConsoleErrorRule = {
 };
 
 const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
+  "save-error": [
+    {status:400, pathname:"/api/document", minimum:5, description:"Core refuses unpreservable table-cell inline math at the current submitted location"},
+  ],
   "file-actions": [
     { status:400, pathname:"/api/file", minimum:2, description:"duplicate file name and dirty referenced image renames are refused" },
   ],

@@ -156,6 +156,7 @@ async (page, { openDocument, waitForActivePath, reloadDocument }) => {
   await page.getByText('Save failed', {exact:true}).filter({visible:true}).waitFor();
   await page.getByRole('dialog').waitFor({state:'detached'});
   check('invalidContentStopsClose', await page.getByTestId('current-file').getAttribute('title') === file && await page.getByTestId('new-file-name').count() === 0);
+  await page.getByTestId('error').getByText('Technical details', {exact:true}).click();
   const invalid = { error: await page.getByTestId('error').innerText(), diskKept: (await read(file)).source === beforeInvalid,
     paragraph: await paragraph().textContent() };
   if (!invalid.error.includes('Block 2 (paragraph)') || !invalid.error.includes('empty paragraph') || !invalid.error.includes('Enter text') || !invalid.diskKept || invalid.paragraph !== '') throw new Error(JSON.stringify(invalid));
@@ -169,6 +170,7 @@ async (page, { openDocument, waitForActivePath, reloadDocument }) => {
   // The shortcut reports a failure exactly like the button.
   await page.keyboard.press('Control+s');
   await page.getByText('Save failed', {exact:true}).filter({visible:true}).waitFor();
+  await page.getByTestId('error').getByText('Technical details', {exact:true}).click();
   check('shortcutFailureShown', (await page.getByTestId('error').innerText()).includes('Temporary save failure'));
   check('failureRetainsInput', (await paragraph().innerText()).includes('Retry') && !(await read(file)).source.includes('Retry'));
   // A malformed response cannot acknowledge Save or promise that the disk was not written.
@@ -177,6 +179,7 @@ async (page, { openDocument, waitForActivePath, reloadDocument }) => {
     ? route.fulfill({status:200, contentType:'text/plain', body:'Not a JSON acknowledgement'}) : route.continue());
   await page.keyboard.press('Control+s');
   await page.getByText('Save failed', {exact:true}).filter({visible:true}).waitFor();
+  await page.getByTestId('error').getByText('Technical details', {exact:true}).click();
   const unconfirmed = await page.getByTestId('error').innerText();
   check('unconfirmedSaveExplained', unconfirmed.includes('Save result unconfirmed') && unconfirmed.includes('may already have been saved') && unconfirmed.includes('Keep your edits'));
   check('unconfirmedRetainsInput', (await paragraph().innerText()).includes('Retry') && !(await read(file)).source.includes('Retry'));

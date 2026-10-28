@@ -1,5 +1,12 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Heading": "Heading",
+  "Admonition": "Admonition",
+  "Cannot save": "Cannot save",
+  "Go to problem": "Go to problem",
+  "Previous problem": "Previous problem",
+  "Next problem": "Next problem",
+  "The document changed. Save again to locate the problem.": "The document changed. Save again to locate the problem.",
   "Command-line tools (CLI)": "Command-line tools (CLI)",
   "CLI installed": "Installed",
   "CLI off": "Off",
@@ -577,6 +584,13 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Heading": "제목",
+  "Admonition": "안내",
+  "Cannot save": "저장 불가",
+  "Go to problem": "문제 위치로 이동",
+  "Previous problem": "이전 문제",
+  "Next problem": "다음 문제",
+  "The document changed. Save again to locate the problem.": "문서가 변경되었습니다. 다시 저장하여 문제 위치를 확인하세요.",
   "Command-line tools (CLI)": "명령줄 도구(CLI)",
   "CLI installed": "설치됨",
   "CLI off": "꺼짐",

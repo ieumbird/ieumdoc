@@ -326,6 +326,7 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   assert(JSON.stringify(await chips.evaluateAll(nodes => nodes.map(node => node.dataset.label))) === '["a","1"]', 'Chip not removed');
   await save.click();
   await page.getByText('Save failed', {exact:true}).filter({visible:true}).waitFor();
+  await page.getByTestId('error').getByText('Technical details', {exact:true}).click();
   assert(/\[\^b\] has no reference/.test(await page.getByTestId('error').innerText()), 'Refusal reason missing: ' + await page.getByTestId('error').innerText());
   assert(await read() === inserted, 'Refused save wrote the file');
   result.unreferencedDefinitionRefused = true;
