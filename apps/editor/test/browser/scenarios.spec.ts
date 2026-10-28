@@ -42,6 +42,8 @@ const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
       headless: true,
       locale: "en-US",
       viewport: { width: 1280, height: 720 },
+      // Node-side page.request/route.fetch must not reuse an expiring idle socket (#658).
+      extraHTTPHeaders: { Connection: "close" },
     });
     try {
       // This worker-owned persistent context also creates startup and secondary-tab pages.
