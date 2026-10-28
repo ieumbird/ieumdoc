@@ -1,6 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Document scroll verification: 2026-10-29 (#488 phase 0; [container contract and evidence](#document-scroll-container-488-phase-0)).
 - Feature sample verification: 2026-10-28 (#528 Core read-model coverage, canonical CLI check/format, Desktop version unit tests, existing Command center browser entry and manual 1440/640px Korean/English captures; packaged execution deferred to CI).
 - Last verified: 2026-10-28 (#637: block Equation editing moves into the document; inline math retains its popover).
 - Collapsed rail update: 2026-10-28 (#671: Files and shared Settings entry; [contract and captures](#collapsed-rail-files-and-settings-671)).
@@ -32,6 +33,80 @@
 - Scope: existing Editor interactions. [Visual Language (current v4.8)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
 
 Historical verification records: [Verification record](#verification-record).
+
+## Document scroll container (#488 phase 0)
+
+Each mounted document tab owns one native `.document-scroll` viewport. Hiding a tab retains
+its scroll position with its existing editor/session; closing it releases that element. Visual
+and Source share the tab's viewport. No scroll position is persisted across application reloads.
+`documentScrollContainer` is the single lookup for the owning viewport; shell actions can use
+the active surface, including the document start surface. There are no editor groups or new commands.
+
+The viewport spans the window to keep its native scrollbar at the right edge. Its content keeps
+the existing Sidebar/Document panel insets, centered column, paper dimensions and measured
+header clearance. The shell reserves the viewport's actual native scrollbar width, observed on
+viewport/content resize without a scroll listener. Sidebar and Outline retain their independent
+scrolling. Only the visible Visual editor subscribes to document scrolling for Outline/Tables/Figures;
+the same reading line, reveal pin and bottom-of-document behavior are retained.
+
+Native DOM `scrollIntoView` and ProseMirror's ancestor scrolling now reach the owning viewport:
+Outline, Find/Command center, save refusal locations (#578), cross references/endnotes, caret
+reveal, list/block movement and scroll preservation retain their existing paths. Block handles
+and local overlay bounds retain their capturing scroll listeners, which receive descendant
+container and horizontal-table scrolling. Portaled Base UI popovers explicitly use the owning viewport as their
+collision boundary and retain the library's anchor/scroll tracking. Native drag edge scrolling uses
+the document viewport. No per-block scroll listeners or independent editor engine are added.
+
+PageUp/PageDown, Space/Shift+Space and Home/End also scroll the active document when focus is
+in the surrounding shell. Editable controls, modal/menu keys, native button/link activation,
+and independent scrollable file/Outline lists keep their own keyboard behavior. Print media
+releases the fixed viewport and its overflow, removes shell navigation, and exposes the whole
+active document in normal flow. Hidden tabs remain hidden.
+
+### Scroll migration verification
+
+Before is master `a1be38ce063a10bf5068d077e07b8884455967e4`; After is this phase-0 implementation.
+The persistent Chrome runner captured the same clean `tmp/quiet-document/quiet-document.md`,
+English, Pretendard loaded, 900px height, at scroll top and 420px, in light/dark themes,
+1440/640px widths and all four Sidebar/Outline open/closed combinations. Full 32-pair evidence
+is in [the asset directory](assets/document-scroll-488/). Representative top pairs:
+
+| Theme / width | Sidebar open, Outline open | Sidebar closed, Outline closed |
+| --- | --- | --- |
+| Light / 1440 | [Before](assets/document-scroll-488/before-light-1440-open-open-top.png) / [After](assets/document-scroll-488/after-light-1440-open-open-top.png) | [Before](assets/document-scroll-488/before-light-1440-closed-closed-top.png) / [After](assets/document-scroll-488/after-light-1440-closed-closed-top.png) |
+| Dark / 1440 | [Before](assets/document-scroll-488/before-dark-1440-open-open-top.png) / [After](assets/document-scroll-488/after-dark-1440-open-open-top.png) | [Before](assets/document-scroll-488/before-dark-1440-closed-closed-top.png) / [After](assets/document-scroll-488/after-dark-1440-closed-closed-top.png) |
+| Light / 640 | [Before](assets/document-scroll-488/before-light-640-open-open-top.png) / [After](assets/document-scroll-488/after-light-640-open-open-top.png) | [Before](assets/document-scroll-488/before-light-640-closed-closed-top.png) / [After](assets/document-scroll-488/after-light-640-closed-closed-top.png) |
+| Dark / 640 | [Before](assets/document-scroll-488/before-dark-640-open-open-top.png) / [After](assets/document-scroll-488/after-dark-640-open-open-top.png) | [Before](assets/document-scroll-488/before-dark-640-closed-closed-top.png) / [After](assets/document-scroll-488/after-dark-640-closed-closed-top.png) |
+
+The screenshots preserve geometry and content placement; they are not byte-identical pixel
+assertions. Some header text and dark scrolled document text have different antialiasing under
+the container compositor. Existing layout and overlay geometry checks remain authoritative for
+their measured contracts; captures are the manual visual evidence.
+
+Browser assertions migrated without changing their tolerances or retry/timeout/skip policies:
+
+- `document-tabs`: save/read each tab's actual scrollTop while retaining editor identity,
+  JSON, selection, draft, Undo and no-load-on-switch assertions.
+- `outline`: drive document scrolling and read its end/position from the viewport; retain
+  current-item visibility, list scroll, selection and editor-options stability assertions.
+- `new-document`: read writing scroll and scroll to the viewport's end; retain the same
+  visible caret/last-line end space and exact saved-source checks.
+- `save-error`: use viewport scrollTop for offscreen-cell navigation; retain editor/cell
+  selection and measured highlight/header geometry checks.
+- `ui-language`: compare document viewport position across Settings instead of window position.
+- `panel-lists`, `command-center`, `table-authoring`: direct scroll setup at the same target
+  positions; retain current target/reveal/editing assertions. Geometry queries in `layout-rules`,
+  `new-document` and `table-authoring` now select the active tab's column because hidden tabs
+  also own a column.
+- `scenarios.spec`, `citations`, `file-preview`, `folder-navigation`, `footnotes`, `layout-rules`,
+  `open-files`, `quiet-document`, `recovery`, `source-view` and manual capture sections:
+  reset the document viewport instead of the window. Other assertions are unchanged.
+
+The new `document-scroll` boundary scenario checks shell-focus reading keys, native Source
+PageDown, wheel/drag edge scrolling, stationary shell chrome, zero window scroll, right-edge
+viewport and unclipped full-document print flow. The existing 4-shard CI suite is the full
+regression gate. Local packaged Desktop, install/update/uninstall and Edge/profile probes are
+excluded from this task's validation scope.
 
 ## Folder Explorer menu (#487)
 

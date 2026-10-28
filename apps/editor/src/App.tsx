@@ -13,6 +13,7 @@ import { RecoveryList, RecoveryPrompt } from "./shell/Recovery.tsx";
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { DocumentEditorHandle } from "./DocumentEditor.tsx";
 import { DocumentTab } from "./DocumentTab.tsx";
+import { documentScrollContainer, scrollDocumentFromShell } from "./document-scroll.ts";
 import { DocumentTabs } from "./shell/DocumentTabs.tsx";
 import { activeAfterClose, allTabsPendingWork, openedTab, tabNames } from "./document-tabs.ts";
 import { type DocumentSession, type DocumentSessionSnapshot } from "./useDocumentSession.ts";
@@ -186,8 +187,6 @@ export function App() {
     return () => window.removeEventListener("focus", focused);
   }, [refreshRecovery, tabs.length]);
   const nextId = useRef(0);
-  const scrollPositions = useRef(new Map<string, number>());
-  const previousActive = useRef<string | null>(null);
   const focusAfterClose = useRef(false);
   const [operation, setOperation] = useState<Operation | "">("loading");
   const operationRef = useRef(true);
@@ -272,16 +271,11 @@ export function App() {
     if (operationRef.current || session?.busyRef.current || continuation) return;
     rememberTabs();
     if (id === activeId) return;
-    if (activeId) scrollPositions.current.set(activeId, window.scrollY);
     setActiveId(id);
     setError("");
     setNotice("");
   }
   useLayoutEffect(() => {
-    if (previousActive.current !== activeId) {
-      window.scrollTo(0, activeId ? scrollPositions.current.get(activeId) ?? 0 : 0);
-      previousActive.current = activeId;
-    }
     if (focusAfterClose.current) {
       focusAfterClose.current = false;
       const target = activeId ? globalThis.document.getElementById(`tab-${activeId}`)
@@ -293,7 +287,6 @@ export function App() {
   function acceptFile(file: DocumentFileResponse): void {
     rememberTabs();
     const existing = openedTab(tabs, file.path);
-    if (activeId) scrollPositions.current.set(activeId, window.scrollY);
     if (existing) setActiveId(existing.id);
     else {
       const id = `document-${++nextId.current}`;
@@ -368,7 +361,6 @@ export function App() {
 
   function removeTab(id: string): void {
     const next = activeAfterClose(tabs, activeId, id);
-    scrollPositions.current.delete(id);
     void sessions.current.get(id)?.discardRecovery()?.then(deleted => {
       if (!deleted) setError({ key: "The tab closed, but its local recovery record could not be deleted. Review it on the start screen and try Delete record again." });
     });
@@ -439,7 +431,6 @@ export function App() {
           file: { ...tab.file, path: result.path }, ...(tab.restored ? { restored: { ...tab.restored, file: { ...tab.restored.file, path: result.path } } } : {}) } : tab));
       } else if (tab) {
         sessions.current.delete(tab.id);
-        scrollPositions.current.delete(tab.id);
         setTabs(previous => previous.filter(item => item.id !== tab.id));
         setActiveId(activeAfterClose(tabs, activeId, tab.id));
       }
@@ -491,6 +482,24 @@ export function App() {
     observer.observe(element);
     observer.observe(title);
     return () => observer.disconnect();
+  }, []);
+
+  // Reserve exactly the native scrollbar's width for the shell, as window scrolling did.
+  // Content observation catches overflow changes without adding any scroll listener.
+  useLayoutEffect(() => {
+    const viewport = documentScrollContainer();
+    if (!viewport) return;
+    const measure = () => shell.current?.style.setProperty("--document-scrollbar-width", `${viewport.offsetWidth - viewport.clientWidth}px`);
+    const observer = new ResizeObserver(measure);
+    observer.observe(viewport);
+    const column = viewport.querySelector(".document-column");
+    if (column) observer.observe(column);
+    measure();
+    return () => observer.disconnect();
+  }, [activeId, tabs.length, start]);
+  useEffect(() => {
+    window.addEventListener("keydown", scrollDocumentFromShell);
+    return () => window.removeEventListener("keydown", scrollDocumentFromShell);
   }, []);
 
   // Entering overlay closes it; returning to docked restores the explicit choice or default.
@@ -945,13 +954,13 @@ export function App() {
             onNoticeExpired={() => { setNotice(""); session?.setNotice(""); }}
           />
         </div>
-        <main className="document-column" onMouseDown={(event) => {
+        <main className="document-stage" onMouseDown={(event) => {
           // The empty area below the document places the caret at its end.
-          if (event.button === 0 && event.target === event.currentTarget && view === "visual" &&
+          if (event.button === 0 && event.target instanceof HTMLElement && event.target.classList.contains("document-column") && view === "visual" &&
             editorRef.current?.focusEnd(event.clientY)) event.preventDefault();
         }}>
           {tabs.length === 0 && start ? (
-            <DocumentStart
+            <div className="document-scroll" data-active="true"><div className="document-column"><DocumentStart
               mark={productMark}
               recovery={<RecoveryList records={recoveryRecords.filter(record => !tabs.some(tab => tab.recoveryId === record.id))} unavailable={Boolean(recoveryProblem)} onReview={reviewRecovery} />}
               recent={visibleRecent}
@@ -964,7 +973,7 @@ export function App() {
               }}
               onOpenRecent={(folder) => void openFolder(folder).then((message) => { if (message) setError(message); })}
               onOpenSample={openSample}
-            />
+            /></div></div>
           ) : null}
           {tabs.map(tab => <DocumentTab settingsDisabled={busy} key={tab.id} id={tab.id} file={tab.file} restored={tab.restored} recoveryId={tab.recoveryId} active={tab.id === activeId} report={reportSession} onAssetChange={onAssetChange} renameImage={renameImage} />)}
         </main>

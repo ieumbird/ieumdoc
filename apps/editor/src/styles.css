@@ -14,6 +14,7 @@
 
 body {
   margin: 0;
+  overflow: hidden;
   /* Overrides the base layer's white `bg-background`, which would hide the root canvas. */
   background: var(--id-color-canvas);
 }
@@ -29,7 +30,8 @@ button {
   display: grid;
   grid-template-columns: var(--shell-sidebar) minmax(0, 1fr) var(--shell-panel);
   grid-template-rows: auto 1fr;
-  min-height: 100vh;
+  height: 100dvh;
+  width: calc(100% - var(--document-scrollbar-width, 0px));
 }
 
 .app-shell--collapsed {
@@ -70,6 +72,7 @@ button {
 .app-shell--collapsed .app-brand { justify-content: center; padding-inline: 0; }
 
 .sidebar {
+  z-index: 1;
   grid-column: 1;
   grid-row: 2;
   position: sticky;
@@ -382,6 +385,7 @@ button {
 
 /* The document panel mirrors the sidebar on the right: sticky and scrolling by itself. */
 .document-panel {
+  z-index: 1;
   grid-column: 3;
   grid-row: 2;
   position: sticky;
@@ -402,7 +406,7 @@ button {
 .document-panel--overlay {
   position: fixed;
   top: var(--app-header-height, var(--layout-header-row));
-  right: 0;
+  right: var(--document-scrollbar-width, 0px);
   z-index: 4;
   width: min(var(--layout-document-panel-width), 100vw);
   height: calc(100vh - var(--app-header-height, var(--layout-header-row)));
@@ -532,7 +536,21 @@ button {
   grid-column: 2;
   grid-row: 2;
   min-width: 0;
+  min-height: 0;
 }
+
+/* Each mounted tab keeps its native scroll position, including while hidden. The viewport
+ * spans the window so its native scrollbar stays at the right edge; only its content is
+ * inset between the independent Sidebar/Document panel. Header space scrolls under chrome
+ * just as it did with window scrolling. */
+.document-scroll {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  padding: var(--app-header-height, var(--layout-header-row)) var(--shell-panel) 0 var(--shell-sidebar);
+}
+.document-scroll[hidden] { display: none; }
+.document-stage { flex: 1; min-height: 0; }
 
 .app-header {
   position: sticky;
@@ -999,6 +1017,7 @@ body:has(.ui-portal [role="menu"]) :is(.app-titlebar, .top-bar, .settings-topbar
   max-width: var(--layout-content-width);
   margin: 0 auto;
   padding: var(--layout-content-gutter);
+  min-height: calc(100dvh - var(--app-header-height, var(--layout-header-row)));
 }
 
 /* The Wide document preference changes only the column's maximum width. */
@@ -3085,4 +3104,13 @@ ol.list { list-style: decimal; }
   outline-offset: -1px;
   border-radius: var(--id-radius-md);
   padding-inline: var(--space-3);
+}
+
+/* Printing must release the screen viewport so later pages are never clipped. */
+@media print {
+  body { overflow: visible; }
+  .app-shell { display: block; width: auto; height: auto; }
+  .app-titlebar, .sidebar, .app-header, .document-panel { display: none; }
+  .document-scroll { position: static; overflow: visible; padding: 0; }
+  .document-column, .app-shell--wide .document-column { max-width: none; min-height: 0; padding: 0; }
 }

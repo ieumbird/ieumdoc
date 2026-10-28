@@ -644,8 +644,8 @@ async (page, { openPath, reloadDocument }) => {
   result.arrowLeavesFinalTable = await caret() === 'paragraph 5/5';
   await tables.last().locator('td', {hasText:/^U$/}).click();
   await caretIn('U');
-  await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
-  const column = await page.locator('.document-column').boundingBox();
+  await page.evaluate(() => document.querySelector('.document-scroll[data-active="true"]').scrollTo(0, document.querySelector('.document-scroll[data-active="true"]').scrollHeight));
+  const column = await page.locator('.document-scroll[data-active="true"] .document-column').boundingBox();
   await page.mouse.click(column.x + column.width / 2, Math.min(column.y + column.height, 720) - 8);
   result.clickBelowReachesEnd = await caret() === 'paragraph 5/5' &&
     await page.evaluate(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.hasFocus()) &&

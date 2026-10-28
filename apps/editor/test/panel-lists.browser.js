@@ -89,7 +89,7 @@ async (page, { openDocument, expect }) => {
       const editor = element.editor;
       let last;
       editor.state.doc.forEach((node, pos) => { if (node.type.name === kind) last = editor.view.nodeDOM(pos); });
-      window.scrollTo(0, window.scrollY + last.getBoundingClientRect().top - window.innerHeight * 0.25);
+      document.querySelector('.document-scroll[data-active="true"]').scrollTo(0, document.querySelector('.document-scroll[data-active="true"]').scrollTop + last.getBoundingClientRect().top - window.innerHeight * 0.25);
     }, kind);
     await expect(list.locator('[aria-current="location"]')).toContainText(kind === 'table' ? 'Table 3.' : 'Figure 3.');
   }
