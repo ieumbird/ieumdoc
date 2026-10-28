@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { diffLines, diffWordsWithSpace } from "diff";
+import type { RecoveryDiff, RecoveryDiffReply } from "../recovery-diff.ts";
 import { Button } from "@/components/ui/button.tsx";
 import { i18n } from "../i18n.ts";
 import { prepareRecovery } from "../recovery-restore.ts";
@@ -41,33 +41,10 @@ async function compare(record: RecoveryRecord, signal: AbortSignal): Promise<Com
   return { before, after, fallback, changed: Boolean(result.disk && acknowledged && result.disk.revision !== acknowledged), missing: result.disk === null };
 }
 
-// Line endings remain part of the library comparison, including CRLF and missing final LF.
-const lines = (text: string) => text.match(/[^\n]*\n|[^\n]+$/g) ?? [];
-function changes(before: string, after: string) {
-  let oldLine = 1, newLine = 1, count = 0;
-  const parts = diffLines(before, after, { timeout: 1000 });
-  if (!parts) throw new Error(i18n.t("Comparison is too large. Use the plaintext recovery copy."));
-  return { groups: parts.map((part, index) => {
-    const changed = Boolean(part.added || part.removed);
-    const start = changed && (index === 0 || !(parts[index - 1].added || parts[index - 1].removed));
-    if (start) count++;
-    const peer = part.removed && parts[index + 1]?.added ? parts[index + 1]
-      : part.added && parts[index - 1]?.removed ? parts[index - 1] : undefined;
-    const peerLines = peer ? lines(peer.value) : [];
-    const rows = lines(part.value).map((line, n) => {
-      const old = part.added ? undefined : oldLine++;
-      const next = part.removed ? undefined : newLine++;
-      const words = peerLines[n] === undefined ? undefined : diffWordsWithSpace(
-        part.removed ? line : peerLines[n], part.removed ? peerLines[n] : line, { timeout: 100 });
-      return { line, old, next, words: words?.filter(word => part.removed ? !word.added : !word.removed) };
-    });
-    return { rows, kind: part.added ? "added" : part.removed ? "removed" : "same", change: changed ? count : 0, start };
-  }), count };
-}
-
 export default function RecoveryCompare({ record }: { record: RecoveryRecord }) {
   useTranslation();
   const [result, setResult] = useState<Comparison>();
+  const [diff, setDiff] = useState<RecoveryDiff>();
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
   const [current, setCurrent] = useState(0);
@@ -75,18 +52,31 @@ export default function RecoveryCompare({ record }: { record: RecoveryRecord }) 
   useEffect(() => {
     const controller = new AbortController();
     let live = true;
-    setResult(undefined); setError(""); setCurrent(0);
+    let worker: Worker | undefined;
+    let computationTimeout: ReturnType<typeof setTimeout> | undefined;
+    const stopWorker = () => { worker?.terminate(); worker = undefined; clearTimeout(computationTimeout); };
+    const budgetError = () => i18n.t("Comparison is too large. Use the plaintext recovery copy.");
+    setResult(undefined); setDiff(undefined); setError(""); setCurrent(0);
     const timeout = setTimeout(() => controller.abort(), 15000);
-    void compare(record, controller.signal).then(value => { if (live) setResult(value); })
-      .catch(cause => { if (live) setError(controller.signal.aborted ? i18n.t("Comparison request timed out.") : String(cause.message ?? cause)); })
+    void compare(record, controller.signal).then(value => {
+      clearTimeout(timeout);
+      if (!live) return;
+      setResult(value);
+      // A request-owned worker keeps even a single expensive library call off the UI thread.
+      worker = new Worker(new URL("../recovery-diff.worker.ts", import.meta.url), { type: "module" });
+      computationTimeout = setTimeout(() => { stopWorker(); if (live) setError(budgetError()); }, 2000);
+      worker.onmessage = (event: MessageEvent<RecoveryDiffReply>) => {
+        stopWorker();
+        if (!live) return;
+        if ("diff" in event.data) setDiff(event.data.diff);
+        else setError(event.data.error === "budget" ? budgetError() : i18n.t("Comparison calculation failed."));
+      };
+      worker.onerror = () => { stopWorker(); if (live) setError(i18n.t("Comparison calculation failed.")); };
+      worker.postMessage({ before: value.before, after: value.after });
+    }).catch(cause => { if (live) setError(controller.signal.aborted ? i18n.t("Comparison request timed out.") : String(cause.message ?? cause)); })
       .finally(() => clearTimeout(timeout));
-    return () => { live = false; clearTimeout(timeout); controller.abort(); };
+    return () => { live = false; clearTimeout(timeout); controller.abort(); stopWorker(); };
   }, [record, attempt]);
-  const diff = useMemo(() => {
-    if (!result) return;
-    try { return { ...changes(result.before, result.after), error: "" }; }
-    catch (cause) { return { groups: [], count: 0, error: String((cause as Error).message) }; }
-  }, [result]);
   function move(direction: number) {
     if (!diff?.count) return;
     const next = current === 0 ? (direction > 0 ? 1 : diff.count) : (current - 1 + direction + diff.count) % diff.count + 1;
@@ -96,13 +86,14 @@ export default function RecoveryCompare({ record }: { record: RecoveryRecord }) 
   }
   return <section className="recovery-comparison" aria-label={i18n.t("Recovery comparison")}>
     <p>{i18n.t("Current disk file → content Save would write. Canonical formatting changes are included.")}</p>
-    {!result && !error ? <p role="status">{i18n.t("Loading comparison…")}</p> : null}
-    {error || diff?.error ? <p role="alert">{i18n.t("Comparison unavailable: {{reason}}", { reason: error || diff?.error || "" })}</p> : null}
+    {!diff && !error ? <p role="status">{result ? i18n.t("Calculating differences…") : i18n.t("Loading comparison…")}</p> : null}
+    {error ? <p role="alert">{i18n.t("Comparison unavailable: {{reason}}", { reason: error })}</p> : null}
     {error ? <Button size="sm" variant="secondary" onClick={() => setAttempt(attempt + 1)}>{i18n.t("Retry comparison")}</Button> : null}
     {result?.changed ? <p role="status">{i18n.t("The file changed after this record. Comparing with the current disk file.")}</p> : null}
     {result?.missing ? <p role="status">{i18n.t("File missing. All recovered content is shown as added.")}</p> : null}
     {result?.fallback ? <p role="status">{i18n.t("Plaintext comparison instead of Save preview: {{reason}}", { reason: result.fallback })}</p> : null}
-    {diff && !diff.error ? <>
+    {diff ? <>
+      {diff.wordsOmitted ? <p role="status">{i18n.t("Word highlighting omitted to keep comparison responsive.")}</p> : null}
       <div className="recovery-diff-toolbar">
         <span role="status">{i18n.t("{{count}} changes", { count: diff.count })}</span>
         <Button size="sm" variant="secondary" disabled={!diff.count} onClick={() => move(-1)}>{i18n.t("Previous change")}</Button>

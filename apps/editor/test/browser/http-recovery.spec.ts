@@ -91,6 +91,10 @@ test("HTTP recovery survives an owned browser process crash, then Save/Reload an
     expect(await recoveryRecords(page)).toEqual(recorded);
     await expect(page.getByTestId("recovery-prompt")).toBeVisible();
     await expect(page.getByTestId("recovery-prompt")).toContainText(file);
+    // The built worker asset must load under the production Host's self-only CSP.
+    await page.getByRole("button", { name: "Compare", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Source differences", exact: true })).toContainText("HTTP crash recorded.");
+    expect(await recoveryRecords(page)).toEqual(recorded);
     await page.getByRole("button", { name: "Restore work", exact: true }).click();
     await expect(page.getByRole("tab", { name: "a.md, Unsaved changes", exact: true })).toBeVisible();
     await expect(page.locator(".document-editor")).toContainText("HTTP crash recorded.");

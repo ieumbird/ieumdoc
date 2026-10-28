@@ -1,5 +1,8 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Calculating differences…": "Calculating differences…",
+  "Comparison calculation failed.": "Comparison calculation failed.",
+  "Word highlighting omitted to keep comparison responsive.": "Word highlighting omitted to keep comparison responsive.",
   "Compare": "Compare",
   "Recovery comparison": "Recovery comparison",
   "Current disk file → content Save would write. Canonical formatting changes are included.": "Current disk file → content Save would write. Canonical formatting changes are included.",
@@ -595,6 +598,9 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Calculating differences…": "변경 내용을 계산하는 중…",
+  "Comparison calculation failed.": "비교 계산에 실패했습니다.",
+  "Word highlighting omitted to keep comparison responsive.": "비교 응답성을 유지하기 위해 단어 강조를 생략했습니다.",
   "Compare": "비교",
   "Recovery comparison": "복구 비교",
   "Current disk file → content Save would write. Canonical formatting changes are included.": "현재 디스크 파일 → 복원 후 저장될 내용입니다. 저장 시 정규화되는 형식 차이도 포함합니다.",

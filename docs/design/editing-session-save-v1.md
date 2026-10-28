@@ -331,9 +331,44 @@ text. If the disk cannot supply that read model, the comparison reports its erro
 independent plaintext recovery copy. An absent disk file is explicitly identified and the recoverable
 side is all additions. Requests show loading and error states, time out after 15 seconds, can be
 retried, and are cancelled on closing the view. Restore/Delete/Not now do not wait for comparison.
-The diff computation has a bounded library timeout and reports oversized comparisons instead of
-silently showing an incomplete result. Recovery format, restoration/Save behavior, Core semantics
-and CLI are unchanged; this is an interface-only review of the existing semantic write operation.
+Diff calculation runs in one request-owned Web Worker, never in a render or `useMemo`. A complete
+line diff is computed first. Each removed/added line pair has at most one word-diff call, projected
+onto both sides. Optional word highlighting stops for the rest of the comparison when its **total**
+100ms budget, 64Ki UTF-16 code-unit allowance, or 8Ki combined code units for one line pair is exceeded.
+The library timeout for a word call is at most 10ms and uses the remaining shared word budget.
+The UI explicitly says that word highlighting was omitted; line contents, signs, numbers, counts
+and navigation remain complete. These text-size guards also bound tokenization before jsdiff can
+check its own timeout: the reviewer's 1000-word old/new pair is about 13.8Ki code units and immediately
+falls back to line highlighting rather than repeatedly attempting quadratic word matching.
+
+The **whole worker calculation** has a 500ms elapsed budget, including line diff, projection and
+word work. Combined input is limited to 1,000,000 UTF-16 code units and 10,000 lines to bound transfer,
+allocation and rendered output, while admitting the reviewer's roughly 337KiB per-side document.
+Exceeding these limits or the line-diff budget rejects the whole comparison, with a reason rather
+than partial line results. An independent **2-second watchdog** terminates the worker even if library
+tokenization/search fails to return; this allows four times the compute budget for module startup
+and message transfer. The 100ms optional-word allowance is one fifth of the calculation budget, so
+word detail cannot consume all the time needed for the complete source comparison.
+
+Reading and calculation have separate loading states. Close, record replacement, retry, completion
+and failure all terminate their worker and clear its watchdog. The existing request is aborted too;
+a disposed request cannot publish a late result. Buttons/Escape remain on the main thread, including
+during calculation or a budget error; the independent plaintext copy remains available. Recovery
+format, restoration/Save behavior, Core semantics and CLI are unchanged; this is interface-only work.
+
+Performance regression (#672 review, 2026-10-28): a native `text` code block has 50 lines,
+each `Array.from({length:1000}, (_,i) => 'old'+i).join(' ')`, changed from `old` to `new`.
+Both sides are about 337KiB. The same controlled Host response and real RecoveryPrompt failed on
+`6277ecd`: 10ms heartbeat maximum gap **20,299.8ms**, result ready at **20,299ms**. With the worker,
+maximum gap was **59ms**, ready at **107.6ms**, and the omission notice was present. Unit calculation
+took about **9ms** and retained both complete sources. These are observed local values, not a speed SLA.
+The browser regression requires a maximum gap below **500ms** and a complete result below **2s**;
+the former allows scheduler/layout variance while rejecting the reproduced 20-second lock-up, and
+the latter matches the total worker watchdog. It uses a fixed 2-second observation window and direct
+DOM/timing assertions, without a readiness poll or reload. A held genuine worker module separately
+checks Delete/Escape within 1s, closing/cancellation, and that its late result cannot replace the next
+comparison. Oversized input checks retain the plaintext copy and all recovery actions. Production HTTP
+recovery also loads the built worker under the Host's existing self-only CSP, without changing headers.
 
 Historical layout comparisons: [Recovery review layout (#395)](#recovery-review-layout-395).
 

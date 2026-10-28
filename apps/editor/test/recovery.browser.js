@@ -182,6 +182,60 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
   await page.evaluate(()=>document.documentElement.dataset.theme='light'); await page.setViewportSize({width:1440,height:900});
   await compareButton.click();
   check(JSON.stringify(await records()) === firstBeforeCompare,'Comparison changed the recovery record');
+  // Hold a genuine worker module during calculation: Delete and Escape must remain usable.
+  let releaseWorker;
+  const workerGate=new Promise(resolve=>{releaseWorker=resolve;});
+  const workerURL='**/src/recovery-diff.worker.ts*';
+  const delayedWorker=async route=>{const response=await route.fetch();await workerGate;await route.fulfill({response});};
+  await page.route(workerURL,delayedWorker);
+  await compareButton.click(); await page.getByText('Calculating differences…',{exact:true}).waitFor();
+  let actionStart=Date.now();
+  await page.getByRole('button',{name:'Delete record',exact:true}).click();
+  const calculationDelete=page.getByRole('dialog',{name:'Delete recovery record?',exact:true});
+  await calculationDelete.waitFor();
+  check(Date.now()-actionStart<1000,'Delete did not respond during computation');
+  await page.keyboard.press('Escape'); await calculationDelete.waitFor({state:'hidden'});
+  actionStart=Date.now(); await page.keyboard.press('Escape');
+  await page.getByTestId('recovery-prompt').waitFor({state:'detached'});
+  check(Date.now()-actionStart<1000,'Escape did not respond during computation');
+  releaseWorker(); await page.unroute(workerURL,delayedWorker);
+  await page.getByRole('button',{name:'Review recovery'}).click();
+  if(await compareButton.getAttribute('aria-expanded')==='true') await compareButton.click();
+  // Reviewer regression: 50 changed code lines, 1000 words each (~337 KiB per side).
+  const largeSource = word => '---\nieumdoc: 1\n---\n\n```text\n' + Array(50).fill(Array.from({length:1000},(_,i)=>word+i).join(' ')).join('\n') + '\n```\n';
+  const largePair = {disk:{source:largeSource('old'),revision:first.snapshot.file.revision},markdown:largeSource('new')};
+  const largePreview = route=>route.fulfill({json:largePair});
+  await page.route(comparisonURL,largePreview);
+  await page.evaluate(()=>{
+    const started=performance.now(); let previous=started;
+    window.comparisonTiming={started,maxGap:0,readyAfter:null};
+    window.comparisonHeartbeat=setInterval(()=>{const now=performance.now();window.comparisonTiming.maxGap=Math.max(window.comparisonTiming.maxGap,now-previous);previous=now;},10);
+    window.comparisonObserver=new MutationObserver(()=>{
+      if(window.comparisonTiming.readyAfter===null && document.querySelector('[aria-label="Source differences"]')) window.comparisonTiming.readyAfter=performance.now()-started;
+    });
+    window.comparisonObserver.observe(document.body,{childList:true,subtree:true});
+  });
+  await compareButton.click();
+  // A fixed observation window, with direct assertions afterwards; no readiness polling/reload.
+  const largeComparisonMetrics = await page.evaluate(async()=>{
+    await new Promise(resolve=>setTimeout(resolve,2000));
+    clearInterval(window.comparisonHeartbeat); window.comparisonObserver.disconnect();
+    return {...window.comparisonTiming,ready:!!document.querySelector('[aria-label="Source differences"]'),
+      omitted:document.body.textContent.includes('Word highlighting omitted to keep comparison responsive.')};
+  });
+  check(largeComparisonMetrics.maxGap<500,`Comparison blocked the main thread: ${JSON.stringify(largeComparisonMetrics)}`);
+  check(largeComparisonMetrics.ready && largeComparisonMetrics.readyAfter<2000,`Comparison exceeded its total budget: ${JSON.stringify(largeComparisonMetrics)}`);
+  check(largeComparisonMetrics.omitted,'Large comparison did not explain omitted word highlighting');
+  check((await diffRegion().innerText()).includes('new999'),'Cancelled comparison overwrote the new result');
+  await compareButton.click(); await page.unroute(comparisonURL,largePreview);
+  const oversizedPreview=route=>route.fulfill({json:{disk:{...largePair.disk,source:'x'.repeat(1_000_001)},markdown:''}});
+  await page.route(comparisonURL,oversizedPreview); await compareButton.click();
+  await page.getByText('Comparison unavailable: Comparison is too large. Use the plaintext recovery copy.',{exact:true}).waitFor();
+  for(const name of ['Restore work','Delete record','Not now']) check(await page.getByRole('button',{name,exact:true}).isEnabled(),'Computation budget failure blocked recovery actions');
+  await page.getByText('Plaintext recovery copy',{exact:true}).click();
+  check(await page.getByRole('textbox',{name:'Plaintext recovery copy',exact:true}).inputValue()===first.recoveryText,'Computation budget failure lost the salvage copy');
+  await page.getByText('Plaintext recovery copy',{exact:true}).click();
+  await compareButton.click(); await page.unroute(comparisonURL,oversizedPreview);
   const beforeDelete = await records();
   const deleteButton = page.getByRole('button',{name:'Delete record',exact:true});
   await deleteButton.click();
@@ -453,7 +507,7 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
   await page.getByTestId('save').click();
   await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
   check((await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json()).source.includes('Storage unavailable but Save works.'), 'Unavailable recovery blocked original Save');
-  return { malformedPlaintext:true, crossWindowClear:true, insecureContextAPIs:true, modalSaveProtected:true, saveRaceReplay:true, draftsExcluded:true, unavailableVisible:true, persistence:true, matchingPrompt:true, restoreSaveReload:true, multiwindow:true, conflict:true,
+  return { largeComparisonMetrics, malformedPlaintext:true, crossWindowClear:true, insecureContextAPIs:true, modalSaveProtected:true, saveRaceReplay:true, draftsExcluded:true, unavailableVisible:true, persistence:true, matchingPrompt:true, restoreSaveReload:true, multiwindow:true, conflict:true,
     failedReloadRetained:true, unsaveableAndPendingFigure:true, tabDiscard:true, clearPending:true, pendingConcurrentWrites:true,
     recoveryLayouts, quotaFailureVisible:true, incompatiblePlaintext:true, screenshots };
 }
