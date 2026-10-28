@@ -19,7 +19,7 @@ import { imageAssets } from "./image-assets.ts";
 import { figureMediaPath } from "../shared/figure-media-path.ts";
 import { MarkdownInputRules } from "./markdown-input-rules.ts";
 import StarterKit from "@tiptap/starter-kit";
-import { createContext, useContext, useEffect, useId, useRef, useState, type DragEvent as ReactDragEvent, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
+import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type DragEvent as ReactDragEvent, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
 import { isAdmonitionVariant, type EditableBlock, type FigureContent, type InlineContent } from "@ieumdoc/core";
 import { figureContentError } from "@ieumdoc/core/figure";
 import { headingNumbers, type HeadingNumbering } from "@ieumdoc/core/numbering";
@@ -37,6 +37,7 @@ import { FootnoteReference } from "./footnote.tsx";
 import { Citation } from "./citation.tsx";
 import { renderEquation } from "./equation-render.ts";
 import { MermaidPreview } from "./mermaid-preview.tsx";
+import { normalizeMermaidSource } from "./mermaid-source.ts";
 import { snapshotBlocksByPath } from "./tiptap-edits.ts";
 import {
   DELETED_PATHS_ATTR,
@@ -1308,9 +1309,20 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
   const [labelDraft, setLabelDraft] = useState(label);
   const [error, setError] = useMessageState("");
   const [busy, setBusy] = useState(false);
+  const restoreInput = useRef<HTMLElement | null>(null);
+  const focusTracking = useRef<AbortController | null>(null);
+  // Disabled fields cannot focus until React commits busy=false. Restore in that same commit,
+  // before the user can type, and never after focus has moved to another surface.
+  useLayoutEffect(() => {
+    const target = restoreInput.current;
+    restoreInput.current = null;
+    const form = input.current?.closest("form");
+    if (target?.isConnected && !busy && editing && visible && document.hasFocus() &&
+        (document.activeElement === document.body || form?.contains(document.activeElement))) target.focus();
+  }, [busy, editing, error, visible]);
   const hasDraft = editing && (draft !== applied.mermaidSource || labelDraft !== label);
   const cancelFocus = useSourceInputFocus(input, editing);
-  useEffect(() => () => { request.current++; }, []);
+  useEffect(() => () => { request.current++; focusTracking.current?.abort(); }, []);
   useEffect(() => {
     if (!editing) { setDraft(applied.mermaidSource!); setLabelDraft(label); }
   }, [editing, applied.mermaidSource, label]);
@@ -1327,6 +1339,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
   usePropertyEntry(anchor, beginEdit);
   const cancel = () => {
     request.current++; cancelFocus(); setBusy(false);
+    focusTracking.current?.abort(); restoreInput.current = null;
     setDraft(applied.mermaidSource!); setLabelDraft(label); setError(""); setEditing(false);
     focusBlock(view, getPos);
   };
@@ -1336,29 +1349,46 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
     const current = typeof position === "number" ? view.state.doc.nodeAt(position) : null;
     if (!current) return;
     const caption = figureAttrs(current).caption;
-    const candidate = { ...figureAttrs(current), mermaidSource: draft, caption };
+    const source = normalizeMermaidSource(draft);
+    const candidate = { ...figureAttrs(current), mermaidSource: source, caption };
     const local = labelError(labelDraft) ?? figureContentError(candidate) ??
       (validateFigure ? undefined : "Figure validation is unavailable.");
-    if (local) { setError(local); return; }
+    if (local) { setError(local); input.current?.focus(); return; }
     const pending = ++request.current;
+    const form = input.current?.closest("form");
+    const activeBefore = document.activeElement;
+    const target = activeBefore instanceof HTMLInputElement || activeBefore instanceof HTMLTextAreaElement ? activeBefore : input.current;
+    let movedFocus = !form?.contains(activeBefore);
+    const trackFocus = (event: FocusEvent) => {
+      if (event.target instanceof globalThis.Node && event.target !== document.body && !form?.contains(event.target)) movedFocus = true;
+    };
+    focusTracking.current?.abort();
+    const tracking = new AbortController();
+    focusTracking.current = tracking;
+    document.addEventListener("focusin", trackFocus, { capture: true, signal: tracking.signal });
+    const reject = (message: UiMessage) => {
+      if (!movedFocus && !view.dom.closest("[hidden]")) restoreInput.current = target;
+      setError(message);
+    };
     setBusy(true); setError("");
     let message: string | undefined;
     try { message = await validateFigure!(candidate, labelDraft); }
     catch (cause) { message = i18n.t("Figure validation failed: {{reason}}", { reason: cause instanceof Error ? cause.message : String(cause) }); }
+    finally { tracking.abort(); }
     if (request.current !== pending || editor.isDestroyed) return;
     setBusy(false);
-    if (message) { setError(message); return; }
+    if (message) { reject(message); return; }
     const latestPosition = getPos();
     const latest = typeof latestPosition === "number" ? view.state.doc.nodeAt(latestPosition) : null;
     if (!latest || typeof latestPosition !== "number") return;
     if (JSON.stringify(figureAttrs(latest).caption) !== JSON.stringify(caption)) {
-      setError({ key: "Caption changed during validation. Apply again." }); return;
+      reject({ key: "Caption changed during validation. Apply again." }); return;
     }
     const active = document.activeElement;
     const returnFocus = !view.dom.closest("[hidden]") &&
       (active === document.body || Boolean(input.current?.closest("form")?.contains(active)));
-    try { view.dispatch(updateFigure(view.state, latestPosition, { mermaidSource: draft, label: labelDraft })); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
+    try { view.dispatch(updateFigure(view.state, latestPosition, { mermaidSource: source, label: labelDraft })); }
+    catch (cause) { reject(cause instanceof Error ? cause.message : String(cause)); return; }
     cancelFocus(); setError(""); setEditing(false);
     if (returnFocus) focusBlock(view, getPos);
   };

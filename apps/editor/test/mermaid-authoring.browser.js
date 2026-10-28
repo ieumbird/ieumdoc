@@ -110,10 +110,47 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument
   await openPath(page,[root,'tmp','mermaid-authoring','other.md'].join(separator));
   await page.getByRole('tab',{name:'diagram.md, Unsaved changes',exact:true}).click();
   expect(await field().inputValue()).toBe('graph TD\n  Draft --> Next');
-  for(const source of ['', '\ngraph LR\n  A-->B']) {
-    await field().fill(source);await active.getByTestId('mermaid-apply').click();
+  const rejectedSource=':class: rejected\ngraph LR\n  A-->B';
+  for(const [source,method] of [['','shortcut'], [' \t\n ','shortcut'], [rejectedSource,'shortcut'], ['\n'+rejectedSource+'\t \n','button']]) {
+    await field().fill(source);
+    if(method==='button')await active.getByTestId('mermaid-apply').click();
+    else await field().press('ControlOrMeta+Enter');
     await expect(active.getByTestId('mermaid-editor').locator('[role="alert"]')).toBeVisible();
+    await expect(field()).toBeEnabled();
+    expect(await field().evaluate(input=>document.activeElement===input)).toBe(true);
     expect(await field().inputValue()).toBe(source);expect(await model()).toEqual(opening);
+    await page.keyboard.type('Z');expect(await field().inputValue()).toBe(source+'Z');
+    expect(await model()).toEqual(opening);
+  }
+  // Hold actual Core refusals while focus moves to prose or another document tab.
+  // After busy completes, read focus directly; do not poll it back into the desired state.
+  for(const elsewhere of ['prose','tab']) {
+    let release, received;
+    const gate=new Promise(resolve=>release=resolve), responseReady=new Promise(resolve=>received=resolve);
+    await page.route('**/api/figure-validation',async route=>{
+      const response=await route.fetch();received();await gate;await route.fulfill({response});
+    },{times:1});
+    await field().fill(rejectedSource);await field().press('ControlOrMeta+Enter');
+    await responseReady;await expect(field()).toBeDisabled();
+    const otherTab=page.getByRole('tab',{name:'other.md',exact:true});
+    if(elsewhere==='prose')await active.getByText('Before.',{exact:true}).click();
+    else await otherTab.click();
+    const completed=page.waitForResponse(r=>r.url().endsWith('/api/figure-validation'));
+    release();await (await completed).finished();
+    if(elsewhere==='prose') {
+      await expect(field()).toBeEnabled();
+      expect(await field().evaluate(input=>document.activeElement===input)).toBe(false);
+      expect(await editor.evaluate(el=>el.editor.view.hasFocus())).toBe(true);
+    } else {
+      // Inactive tabs intentionally unmount the form controls while retaining NodeView drafts.
+      await page.evaluate(()=>new Promise(requestAnimationFrame));
+      expect(await otherTab.evaluate(tab=>document.activeElement===tab)).toBe(true);
+      const diagramTab=page.getByRole('tab',{name:'diagram.md, Unsaved changes',exact:true});
+      await diagramTab.click();await expect(field()).toBeEnabled();
+      await expect(active.getByTestId('mermaid-editor').locator('[role="alert"]')).toBeVisible();
+      expect(await diagramTab.evaluate(tab=>document.activeElement===tab)).toBe(true);
+    }
+    expect(await field().inputValue()).toBe(rejectedSource);expect(await model()).toEqual(opening);
   }
   await field().fill('graph TD\n  Applied --> Next');await active.getByTestId('mermaid-label').fill('fig-new');
   const caption=figure.getByTestId('figure-caption-content');
@@ -159,6 +196,15 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument
   await page.reload();await expect(diagrams.first().getByTestId('mermaid-error')).toBeVisible();
   await edit();await field().fill('graph TD\n  Offline --> Saved');await active.getByTestId('mermaid-apply').click();
   await expect(field()).toHaveCount(0);await save();expect(await disk()).toContain('Offline --> Saved');
+  // MyST drops only these boundaries. Keep first-line indentation, interior whitespace-only
+  // lines and trailing whitespace on non-final lines through Apply -> Save -> reopen.
+  const normalized='  graph LR  \n    A --> B\n \t\n    B --> C';
+  const padded='\r\n \t\r\n'+normalized.replaceAll('\n','\r\n')+'\t \r\n \t\r\n';
+  await edit();await field().fill(padded);
+  await field().press('ControlOrMeta+Enter');await expect(field()).toHaveCount(0);
+  await save();expect(await disk()).toContain('```{mermaid}\n'+normalized+'\n```');
+  await reloadDocument(page);await edit();expect(await field().inputValue()).toBe(normalized);
+  await active.getByTestId('mermaid-cancel').click();
   expect(await page.locator('body > div[style*="-100000px"]').count()).toBe(0);
   return {sourceSaved:true,draftsPreserved:true,realDrag:true,themeAndStaleRender:true};
 }

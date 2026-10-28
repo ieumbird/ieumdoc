@@ -104,11 +104,18 @@ Edit, selected-node Enter and diagram double-click open a full-column code-style
 debounced draft preview, label and shared explicit Apply/Cancel actions. Plain Enter adds a
 line; Ctrl/Cmd+Enter applies and Escape cancels. Outside click, blur and selection movement
 retain the form. Source/label drag events stay inside native controls. Apply validates through
-Core, retains rejected input/reason and preserves the live caption. Apply/Cancel return the
-block caret; late validation never steals focus from another location. Read-only views cannot edit.
-CRLF/CR input becomes LF in the textarea (line-ending normalization only); no trimming occurs.
-Core still refuses empty source and boundary blank lines. Mermaid syntax errors affect preview,
-not document validity: opaque source can still be applied and saved.
+Core, retains rejected input/reason and preserves the live caption. A rejected Apply restores
+keyboard editing after the busy inputs re-enable, unless focus moved outside the form or to
+another tab while validation was pending. Apply/Cancel return the block caret; late validation
+never steals focus from another location. Read-only views cannot edit.
+CRLF/CR input becomes LF in the textarea. Before Apply, Editor removes leading whitespace-only
+lines and trims whitespace from the end of the whole source, matching MyST directive reading.
+This includes trailing blank lines and the last content line's trailing whitespace. It does not
+trim each line: the first non-empty line's indentation, interior blank lines (including their
+spaces/tabs), and other lines' trailing whitespace remain literal. Validation/commit use this
+normalized candidate; a rejected Apply retains the original draft. Core stays strict and does
+not normalize operation input. Whitespace-only source is still rejected. Mermaid syntax errors
+affect preview, not document validity: opaque source can still be applied and saved.
 
 Mermaid is lazy-loaded only for a visible Mermaid Figure. Previews debounce for 250ms; stale
 results and unmounted/hidden views cannot overwrite current results. Rendering is serialized

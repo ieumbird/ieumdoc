@@ -21,6 +21,7 @@ import {
 import { commitDocumentSave, documentRevision } from "../server/document-api.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits, validateFigureRequest } from "../server/document-replay.ts";
+import { normalizeMermaidSource } from "../src/mermaid-source.ts";
 
 const source = nativeSource(readFileSync(
   fileURLToPath(new URL("../../../packages/core/test/fixtures/technical-document.md", import.meta.url)),
@@ -400,6 +401,23 @@ test("existing Editor Figure caption save replay preserves admitted Mermaid sour
   const stale = structuredClone(changed);
   stale.figures![0].from.mermaidSource = "graph TD; Changed";
   assert.throws(() => saveEdits(markdown, stale), /figure does not match/);
+});
+
+test("Mermaid Apply cleanup matches MyST reading while preserving authored indentation and interior whitespace", () => {
+  const expected = "  graph LR \t\n    A --> B  \n \t\n    B --> C";
+  const sources = [expected + "\n", " \t\n\n" + expected, "\n" + expected + "\t \n \t\n",
+    "\r\n" + expected.replaceAll("\n", "\r\n") + "\t\r\n", "\u00a0\n" + expected + "\u00a0"];
+  for (const source of sources) {
+    const normalized = normalizeMermaidSource(source);
+    assert.equal(normalized, expected);
+    const original = nativeSource(":::{figure}\n\n```{mermaid}\n" + source + "\n```\n:::\n");
+    const read = loadEditableDocument(original).blocks[0];
+    assert.ok(read.block === "figure");
+    assert.equal(normalized, read.mermaidSource);
+    assert.equal(validateFigureRequest({ imageUrl: "", imageAlt: "", caption: "", mermaidSource: normalized }), undefined);
+  }
+  assert.equal(normalizeMermaidSource(" \t\r\n \n"), "");
+  assert.match(validateFigureRequest({ imageUrl: "", imageAlt: "", caption: "", mermaidSource: "" }) ?? "", /non-empty/);
 });
 
 test("Diagram insertion and source Apply retain one-step history and canonical Save replay", () => {
