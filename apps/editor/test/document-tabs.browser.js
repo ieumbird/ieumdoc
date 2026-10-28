@@ -204,7 +204,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
         setWindowBackground: async () => {},
         cliIntegration: async () => ({status:'off'}),
         setCliIntegration: async enabled => ({status:enabled ? 'installed' : 'off'}),
-        info: async () => ({version:'0.0.1',channel:'beta',updatesSupported:false,update:{phase:'idle'},postponed:null}),
+        info: async () => ({version:'0.0.1',channel:'beta',updatesSupported:false,update:{phase:'idle'},seenUpdate:null}),
         onUpdateState: () => () => {}, onRestartCheck: () => () => {},
       };
     });

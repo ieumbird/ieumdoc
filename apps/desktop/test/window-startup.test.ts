@@ -8,12 +8,15 @@ import { runInNewContext } from "node:vm";
 import { test } from "node:test";
 import { transformSync } from "esbuild";
 
+import type { UpdateState } from "../../editor/shared/desktop-bridge.ts";
+
 const main = new URL("../src/main.ts", import.meta.url);
 const source = transformSync(readFileSync(main, "utf8"), {
   loader: "ts", format: "cjs", define: { "import.meta.url": JSON.stringify(main.href), __IEUMDOC_REQUIRE_SIGNED_UPDATES__: "false" },
 }).code;
 
-async function start(options: { startupError?: boolean; logError?: boolean; loadError?: boolean; lock?: boolean } = {}) {
+async function start(options: { startupError?: boolean; logError?: boolean; loadError?: boolean; lock?: boolean; update?: UpdateState } = {}) {
+  const preferences: unknown[] = [];
   const logs: string[] = [], errors: unknown[][] = [], alerts: string[] = [];
   const timers = new Map<number, { run: () => void; ms: number }>();
   const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
@@ -56,8 +59,8 @@ async function start(options: { startupError?: boolean; logError?: boolean; load
     "electron-updater": { autoUpdater: {} }, "js-yaml": {},
     "./host-protocol.ts": { ORIGIN: "ieumdoc://app", SCHEME: "ieumdoc", createProtocolHandler() {} },
     "./first-document.ts": { firstDocument() {} },
-    "./preferences.ts": { readPreferences: () => ({ channel: "beta", postponed: null }) },
-    "./updates.ts": { UpdateController: class { channel = "beta"; state = { phase: "idle" }; start() {} stop() {} } },
+    "./preferences.ts": { readPreferences: () => ({ channel: "beta", seenUpdate: null }), writePreferences: (_file: string, value: unknown) => preferences.push(JSON.parse(JSON.stringify(value))) },
+    "./updates.ts": { UpdateController: class { channel = "beta"; state = options.update ?? { phase: "idle" }; start() {} stop() {} } },
     "./update-policy.ts": {}, "./signatures.ts": {}, "./github-provider.ts": {}, "./cli-integration.ts": {}, "./windows-environment.ts": {},
   };
   runInNewContext(source, {
@@ -78,7 +81,8 @@ async function start(options: { startupError?: boolean; logError?: boolean; load
     timers.delete(id);
     run();
   };
-  return { app, window, logs, errors, alerts, timers, appearance, timeout, exits: () => exits, quits: () => quits };
+  return { app, window, logs, errors, alerts, timers, appearance, timeout, preferences,
+    seen: (version: unknown, trusted = true) => handlers.get("desktop:seen-update")!({ sender: window.webContents, senderFrame: trusted ? window.webContents.mainFrame : {} }, version), exits: () => exits, quits: () => quits };
 }
 
 test("startup waits for paint and appearance in either order; later updates never reveal a hidden window", async () => {
@@ -203,4 +207,23 @@ test("startup exceptions are logged, reported and exit; logging failure remains 
   const second = await start({ lock: false });
   assert.equal(second.quits(), 1);
   assert.equal(second.logs.length, 0, "a secondary process exits before startup/log creation");
+});
+
+
+test("viewed updates persist only the current offered version from a trusted renderer", async () => {
+  for (const update of [
+    { phase: "available", version: "0.3.0-beta.1", prerelease: true },
+    { phase: "downloaded", version: "0.3.0-beta.1", prerelease: true },
+    { phase: "error", during: "download", message: "offline", update: { version: "0.3.0-beta.1", prerelease: true } },
+  ] satisfies UpdateState[]) {
+    const h = await start({ update });
+    assert.throws(() => h.seen("0.3.0-beta.1", false), /Untrusted sender/);
+    h.seen("0.4.0"); h.seen(null);
+    assert.equal(h.preferences.length, 0);
+    h.seen("0.3.0-beta.1");
+    assert.equal(JSON.stringify(h.preferences), JSON.stringify([{ channel: "beta", seenUpdate: "0.3.0-beta.1" }]));
+  }
+  const idle = await start();
+  idle.seen("0.3.0-beta.1");
+  assert.equal(idle.preferences.length, 0);
 });

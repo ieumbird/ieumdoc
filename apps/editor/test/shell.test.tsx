@@ -699,3 +699,21 @@ test("command menu exposes disabled actions and an empty state", () => {
   const empty = renderToStaticMarkup(<CommandMenu label="Insert block" items={[]} style={{}} onSelect={noop} onClose={noop} />);
   assert.match(empty, /No matches/);
 });
+
+
+test("Settings exposes the offered update without relying on color in both sidebar states", () => {
+  for (const language of ["en", "ko"]) {
+    i18n.changeLanguage(language);
+    for (const open of [true, false]) {
+      const render = (updateVersion?: string) => renderToStaticMarkup(
+        <Sidebar onFileAction={async () => ""} fileActionsDisabled={false} isFileDirty={() => false}
+          open={open} documentPath={PATH} onToggle={noop} onOpenFolder={noop} onSettings={noop} updateVersion={updateVersion} />);
+      assert.doesNotMatch(render(), /settings-update-dot/);
+      const offered = render("0.3.0-beta.1");
+      assert.match(offered, /data-testid="settings-update-dot"/);
+      assert.ok(offered.includes(`aria-label="${i18n.t("Settings, new version available")}"`));
+      assert.ok(offered.includes(`title="${i18n.t("New version {{version}} available", { version: "0.3.0-beta.1" })}"`));
+    }
+  }
+  i18n.changeLanguage("en");
+});

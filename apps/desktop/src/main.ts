@@ -98,7 +98,7 @@ function trusted(event: IpcMainInvokeEvent | IpcMainEvent): boolean {
 }
 
 function info(): DesktopInfo {
-  return { version: app.getVersion(), channel: updates.channel, updatesSupported: updates.supported, update: updates.state, postponed: preferences.postponed };
+  return { version: app.getVersion(), channel: updates.channel, updatesSupported: updates.supported, update: updates.state, seenUpdate: preferences.seenUpdate };
 }
 
 /** Links leave through the system browser, and only as http(s). */
@@ -195,9 +195,11 @@ function registerIpc(): void {
   handle("desktop:check", () => updates.check());
   handle("desktop:download", () => updates.download());
   handle("desktop:install", () => installUpdate());
-  handle("desktop:postpone", (version) => {
-    if (typeof version !== "string" || !("version" in updates.state) || updates.state.version !== version) return;
-    preferences = { ...preferences, postponed: version };
+  handle("desktop:seen-update", (version) => {
+    const state = updates.state;
+    const offered = "version" in state ? state : state.phase === "error" ? state.update : undefined;
+    if (typeof version !== "string" || offered?.version !== version) return;
+    preferences = { ...preferences, seenUpdate: version };
     writePreferences(preferencesFile(), preferences);
   });
   handle("desktop:release-notes", (version) => openExternal(releaseNotesUrl(typeof version === "string" ? version : undefined)));

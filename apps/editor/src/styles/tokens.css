@@ -248,6 +248,8 @@
   --size-view-segment: calc(var(--size-control-compact) - 4px);
   --layout-gutter-gap: var(--space-1);
   --size-drop-indicator: 2px;
+  /* New-version cue on the Settings icon, shared by Sidebar and rail. */
+  --size-update-dot: 8px;
   /* Non-color cue shared by current navigation and the active menu/list choice. */
   --size-current-marker: 3px;
 }
