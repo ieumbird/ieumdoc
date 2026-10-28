@@ -3,11 +3,12 @@ import { i18n } from "./i18n.ts";
 import { Fragment, memo, useLayoutEffect, useState } from "react";
 import type { DocumentFileResponse } from "../shared/document-protocol.ts";
 import { DocumentEditor } from "./DocumentEditor.tsx";
+import type { ImageRenamer } from "./image-rename.ts";
 import { EditorVisibility } from "./editor-visibility.ts";
 import { useDocumentSession, type DocumentSession, type DocumentSessionSnapshot } from "./useDocumentSession.ts";
 
 /** One mounted hook/editor per tab. Reporting shell state never replaces the editor. */
-export const DocumentTab = memo(function DocumentTab({ settingsDisabled, id, file, restored, recoveryId, active, report, onAssetChange }: {
+export const DocumentTab = memo(function DocumentTab({ settingsDisabled, id, file, restored, recoveryId, active, report, onAssetChange, renameImage }: {
   settingsDisabled: boolean;
   id: string;
   file: DocumentFileResponse;
@@ -16,10 +17,11 @@ export const DocumentTab = memo(function DocumentTab({ settingsDisabled, id, fil
   active: boolean;
   report(id: string, session: DocumentSession | null): void;
   onAssetChange(documentPath: string, assetPath: string): void;
+  renameImage: ImageRenamer;
 }) {
   useTranslation();
   const [settingsExpanded, setSettingsExpanded] = useState(false);
-  const session = useDocumentSession(file, restored, recoveryId, onAssetChange);
+  const session = useDocumentSession(file, restored, recoveryId, onAssetChange, renameImage);
   useLayoutEffect(() => { if (!active && session.noticeAction) session.setNotice(""); }, [active]);
   useLayoutEffect(() => { report(id, session); });
   useLayoutEffect(() => () => report(id, null), [id, report]);

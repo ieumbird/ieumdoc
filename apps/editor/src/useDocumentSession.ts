@@ -10,6 +10,8 @@ import type { DocumentFileResponse, SaveRequest, SupportedEdits } from "../share
 import { SaveContentError } from "../shared/save-error.ts";
 import type { DocumentEditorHandle } from "./DocumentEditor.tsx";
 import type { ImageChoice, ImageChooser } from "./editor-schema.tsx";
+import type { ImageRenamer } from "./image-rename.ts";
+import type { FileOperationResponse } from "../shared/file-operations.ts";
 import { chooseHostImage, rollbackAsset } from "./image-assets.ts";
 import { createOutlineStore, type OutlineItem } from "./outline.ts";
 import { SaveDisplayError } from "./save-error.ts";
@@ -29,7 +31,9 @@ export type DocumentSessionSnapshot = {
 };
 
 /** One document's state and operations. The shell owns the shared work-loss confirmation. */
-export function useDocumentSession(initial: DocumentFileResponse, restored?: Pick<DocumentSessionSnapshot, "editor" | "savedEdits">, recoveryId?: string, onAssetChange?: (documentPath: string, assetPath: string) => void) {
+export function useDocumentSession(initial: DocumentFileResponse, restored?: Pick<DocumentSessionSnapshot, "editor" | "savedEdits">, recoveryId?: string, onAssetChange?: (documentPath: string, assetPath: string) => void, renameImage?: ImageRenamer) {
+  const renameRef = useRef(renameImage);
+  renameRef.current = renameImage;
   const assetChangeRef = useRef(onAssetChange);
   assetChangeRef.current = onAssetChange;
   const [initialEditorSnapshot, setInitialEditorSnapshot] = useState(() => restored?.editor && structuredClone(restored.editor));
@@ -122,6 +126,10 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
       onOutlineChange: (outline: Parameters<typeof outlineStore.set>[0]) => { if (isCurrent()) outlineStore.set(outline); },
       validateFigure,
       chooseImage,
+      renameImage: (path: string, url: string, name: string) => {
+        if (!renameRef.current) throw new Error("Image rename is unavailable.");
+        return renameRef.current(path, url, name);
+      },
       onStructuralReject: (reason?: UiMessage) => {
         if (isCurrent()) setNotice(reason ?? { key: "This change cannot preserve the supported document structure. Your document is unchanged." });
       },
@@ -341,6 +349,17 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
         ...collectSupportedEdits(document, editorRef.current.getSnapshot().editorDocument) });
     },
     getSnapshot, initialEditorSnapshot, editorRef, document, bibliography, openedPath, headingNumbering, referenceTemplates, outlineStore, editorGeneration, isCurrent,
+    imageRenameRevision: () => sourceRevision.current,
+    imageRenameSources: () => editorRef.current?.imageRenameSources() ?? [],
+    acceptImageRename(result: NonNullable<FileOperationResponse["figureDocument"]>) {
+      const editor = editorRef.current;
+      if (!editor) throw new Error("Editor is not ready");
+      editor.renameImagePaths(result.replacements);
+      if (sourceRevision.current !== result.revision) sessionBase.current.savedEdits = collectSupportedEdits(document, editor.getSnapshot().savedDocument);
+      sourceRevision.current = result.revision;
+      if (editor.hasDocumentChanges()) recorder?.edit();
+      else recorder?.discard();
+    },
     view, setView, sourceMarkdown, status, setStatus, error, setError, notice, setNotice, noticeAction,
     draftActive, assetPending, documentDirty, busy, switching, busyRef, draftNotice,
     documentNotice: endnotesMove ? i18n.t(ENDNOTES_MOVE_NOTICE) : "",

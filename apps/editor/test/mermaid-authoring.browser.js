@@ -43,6 +43,7 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument
   const edit = async () => {
     await figure.hover({position:{x:4,y:4}}); await figure.getByRole('button',{name:'Edit figure'}).click();
     await expect(field()).toBeFocused();
+    await expect(figure.getByTestId('figure-file-name')).toHaveCount(0);
   };
   await rendered(figure.getByTestId('mermaid-preview'), '>A<');
   const refs=active.getByTestId('cross-reference');

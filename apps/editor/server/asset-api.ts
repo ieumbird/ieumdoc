@@ -1,6 +1,7 @@
 import { ImageValidationError, validateImage } from "./image-validation.ts";
 import { NativeDocumentError } from "@ieumdoc/core";
-import { decodeUtf8 } from "@ieumdoc/file-commit";
+import { assertUnicode, decodeUtf8 } from "@ieumdoc/file-commit";
+import { validFileStem } from "../shared/file-operations.ts";
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import fs from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -12,7 +13,7 @@ import { requestQuery } from "./request-query.ts";
 import { accessPath, FileAccessError, fileErrorMessage, fileErrorStatus, inside, LOCAL_FILE_ACCESS, type FileAccess } from "./file-access.ts";
 import { readRequestBody, RequestBodyError } from "./request-body.ts";
 
-const ASSET_PATH = /^\.\/assets\/image-[a-f0-9-]{36}\.(png|jpg|gif|webp)$/;
+const ASSET_PATH = /^\.\/assets\/([^/\\]+)\.(png|jpg|gif|webp)$/;
 const UNSUPPORTED = `Only ${ASSET_FORMATS} images are supported.`;
 
 class AssetError extends Error {
@@ -95,10 +96,36 @@ function readReceipt(token: string, key: Buffer): Receipt {
 }
 
 /** The signing key belongs to the Host process lifetime, never to an Editor session. */
-export function createImageAsset(locator: string, mime: string, bytes: Buffer, key: Buffer, access: FileAccess = LOCAL_FILE_ACCESS): AssetResponse {
+export function createImageAsset(locator: string, mime: string, bytes: Buffer, key: Buffer, access: FileAccess = LOCAL_FILE_ACCESS, originalName = "", source = "paste"): AssetResponse {
   validateImage(mime, bytes); // Rejected input must not create even a directory/temp file.
+  assertUnicode(originalName);
+  if (source !== "paste" && source !== "drop") throw new AssetError("Invalid image input source.");
   const scope = documentScope(locator, true, access);
+  const cleanStem = (name: string) => {
+    let stem = name.replace(/%(?=2e|2f|5c|00)/gi, "-").replace(/[<>:"/\\|?*\u0000-\u001f\u007f]/g, "-").replace(/\.{2,}/g, "-").trim().replace(/[. ]+$/, "").replace(/^\.+/, "");
+    if (stem && !validFileStem(stem)) stem = `_${stem}`;
+    // Leave room for a collision suffix and MIME extension, without splitting Unicode.
+    let bounded = "";
+    for (const point of stem) {
+      if (Buffer.byteLength(bounded + point, "utf8") > 180) break;
+      bounded += point;
+    }
+    return bounded.trim().replace(/[. ]+$/, "");
+  };
+  const originalStem = cleanStem(originalName.replace(/\.[^.]*$/, ""));
+  // Chromium's clipboard File is named image.png; match exact MIME-family generic names,
+  // not descriptive names such as image-architecture.png or image1.png.
+  const numbered = !originalStem || source === "paste" && /^image\.(?:png|jpe?g|gif|webp)$/i.test(originalName);
+  const stem = numbered ? cleanStem(path.basename(scope.document, path.extname(scope.document))) || "document" : originalStem;
   const directory = assetDirectory(scope.root, true, access);
+  let sequence = 1;
+  if (numbered) for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const name = entry.name;
+    if (!name.toLowerCase().startsWith(`${stem}-`.toLowerCase())) continue;
+    const match = /^(\d+)\.[^.]+$/.exec(name.slice(stem.length + 1));
+    if (match && Number.isSafeInteger(Number(match[1]))) sequence = Math.max(sequence, Number(match[1]) + 1);
+  }
   const directoryId = fs.statSync(directory);
   const temporary = path.join(directory, `.image-${randomUUID()}.tmp`);
   let fd: number | undefined, owner: fs.Stats | undefined, ownsTemporary = false, published: string | undefined;
@@ -114,8 +141,8 @@ export function createImageAsset(locator: string, mime: string, bytes: Buffer, k
     assertOwnedFile(temporary, owner, access);
     // A hard link publishes the completed bytes atomically and fails on EEXIST.
     // Unlike rename on POSIX, it cannot overwrite another file on a name collision.
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const destination = path.join(directory, `image-${randomUUID()}.${ASSET_TYPES[mime]}`);
+    for (; Number.isSafeInteger(sequence); sequence++) {
+      const destination = path.join(directory, `${stem}${numbered || sequence > 1 ? `-${sequence}` : ""}.${ASSET_TYPES[mime]}`);
       try { fs.linkSync(accessPath(temporary, access), accessPath(destination, access, true)); published = destination; break; }
       catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
     }
@@ -163,7 +190,7 @@ export function chooseImageAsset(request: ImageChoiceRequest, key: Buffer, acces
   }
   if (!isAssetMime(mime)) throw new AssetError(`Only ${ASSET_FORMATS} images can be copied into assets/. Move the SVG into the document's folder to use it.`);
   if (stat.size > MAX_ASSET_BYTES) throw new AssetError(`Image exceeds the ${MAX_ASSET_BYTES / 1024 / 1024} MiB limit.`, 413);
-  return createImageAsset(request.documentPath, mime, fs.readFileSync(file), key, access);
+  return createImageAsset(request.documentPath, mime, fs.readFileSync(file), key, access, path.basename(file), "drop"); // A chosen real file keeps its name too.
 }
 
 /**
@@ -183,12 +210,13 @@ function servable(relative: string, document: string, access: FileAccess): boole
 
 /** No arbitrary delete API: only a signed receipt for this exact, unchanged created file. */
 export function rollbackImageAsset(request: AssetRollbackRequest, key: Buffer, access: FileAccess = LOCAL_FILE_ACCESS): void {
-  if (typeof request?.path !== "string" || !ASSET_PATH.test(request.path)) throw new AssetError("Invalid relative asset path.");
+  if (typeof request?.path !== "string" || !ASSET_PATH.test(request.path) || !validFileStem(ASSET_PATH.exec(request.path)![1])) throw new AssetError("Invalid relative asset path.");
+  assertUnicode(request.path);
   const receipt = readReceipt(request.rollbackToken, key);
   const scope = documentScope(request.documentPath, false, access);
   if (receipt.document !== scope.document || receipt.path !== request.path) throw new AssetError("Asset rollback receipt does not match this request.");
   assetDirectory(scope.root, false, access);
-  const file = resolveMediaPath(request.path, scope.document, access);
+  const file = resolveMediaPath(request.path.split("/").map(encodeURIComponent).join("/"), scope.document, access);
   try {
     if (inspectAsset(file, undefined, access).identity !== receipt.identity) throw new AssetError("Asset file changed; rollback refused.");
   } catch (error) {
@@ -241,7 +269,7 @@ export async function handleAssetRequest(req: IncomingMessage, res: ServerRespon
       const locator = query.get("path");
       if (!locator) throw new AssetError("A document locator is required.");
       const bytes = await readRequestBody(req, MAX_ASSET_BYTES);
-      json(201, createImageAsset(locator, mime, bytes, key, access));
+      json(201, createImageAsset(locator, mime, bytes, key, access, query.get("name") ?? "", query.get("source") ?? "paste"));
     } else if (req.method === "DELETE") {
       const body = JSON.parse(decodeUtf8(await readRequestBody(req, 8192))) as AssetRollbackRequest;
       rollbackImageAsset(body, key, access);

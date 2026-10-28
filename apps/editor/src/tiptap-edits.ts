@@ -288,7 +288,11 @@ export function appliedDocument(document: TiptapJSON): TiptapJSON {
     ...(document.attrs?.referenceTemplates && Object.keys(document.attrs.referenceTemplates).length ? { referenceTemplates: document.attrs.referenceTemplates } : {}),
     ...(document.attrs?.bibliography !== null && document.attrs?.bibliography !== undefined ? { bibliography: document.attrs.bibliography } : {}),
   };
-  return { type: "doc", ...(Object.keys(attrs).length ? { attrs } : {}), content: (document.content ?? []).filter(node => !isSessionPlaceholder(node)) };
+  return { type: "doc", ...(Object.keys(attrs).length ? { attrs } : {}), content: (document.content ?? []).filter(node => !isSessionPlaceholder(node)).map(node => {
+    if (node.type !== "figure" || !node.attrs) return node;
+    const { imageIdentity: _identity, ...attrs } = node.attrs;
+    return { ...node, attrs };
+  }) };
 }
 
 export function isSupportedDocumentChange(baseline: TiptapJSON, next: TiptapJSON, blocksByPath?: ReadonlyMap<string, TiptapJSON>): boolean {

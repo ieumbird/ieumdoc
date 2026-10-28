@@ -141,7 +141,8 @@ Closing properties retains a text selection inside the caption, otherwise return
 a text/gap caret after the Figure ([Continuous editing](document-editing-v1.md#continuous-editing)).
 Apply changes attributes without replacing an unchanged caption, preserving its
 caret and formatting. Captions are edited directly in the document, with the shared inline formatting tools.
-The properties form contains only image path, alt text and label. Apply always validates
+The image properties form contains image path, eligible local file name, alt text and label;
+Mermaid properties contain only diagram source and label. Apply always validates
 and preserves the live caption; it never replaces caption content.
 Figure validation that completes after the user moves elsewhere does not take focus back.
 

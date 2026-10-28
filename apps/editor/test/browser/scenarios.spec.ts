@@ -53,8 +53,9 @@ const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
       const writableScratch = (file: string) => scratchRoots.some(root => withinScratch(file, root));
       await context.route("**/api/file", route => {
         const body = route.request().postDataJSON();
-        const paths = [body?.root, body?.path].map(value => String(value ?? "").replaceAll("\\", "/"));
-        if (paths.some(file => !withinScratch(file, scratchRoots[1]!))) {
+        const paths = [body?.root, body?.path, ...(body?.figureDocument ? [body.figureDocument.path] : [])].map(value => String(value ?? "").replaceAll("\\", "/"));
+        const fileRoots = [scratchRoots[1]!, ...["image-assets/fresh", "http-host-a/fixture", "http-host-b/fixture"].map(folder => path.join(REPOSITORY_ROOT, "tmp", folder).replaceAll("\\", "/"))];
+        if (!fileRoots.some(root => paths.every(file => withinScratch(file, root)))) {
           return route.fulfill({ status: 403, json: { error: "Browser tests may mutate scratch files only." } });
         }
         return route.continue();

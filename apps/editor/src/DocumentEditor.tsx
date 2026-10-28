@@ -1,4 +1,6 @@
 import { DocumentSettings, type DocumentSettingsHandle } from "./shell/DocumentSettings.tsx";
+import { ImageRenameContext, imageRenameKey, renameSnapshot, type ImageRenamer } from "./image-rename.ts";
+import type { MediaReplacement } from "../shared/file-operations.ts";
 import { EDITOR_SHORTCUTS, LINK_SHORTCUT } from "./shortcuts.ts";
 import { BibliographyContent, useBibliographyEntries, type BibliographyHandle } from "./Bibliography.tsx";
 import { CITATION_COMMAND, CitationForm, citationCommandItems, citationKeyOfCommand, insertCitation } from "./citation.tsx";
@@ -75,6 +77,8 @@ export type DocumentEditorHandle = {
   setReferenceStyle(style: ReferenceStyle): void;
   beginSave(): TiptapJSON;
   finishSave(succeeded?: boolean): void;
+  renameImagePaths(replacements: MediaReplacement[]): void;
+  imageRenameSources(): string[];
   /** Live applied-content comparison with the acknowledged snapshot; excludes property drafts. */
   hasDocumentChanges(): boolean;
   hasUnsavedChanges(): boolean;
@@ -118,12 +122,13 @@ type DocumentEditorProps = {
   validateFigure?: FigureValidator;
   /** Opens the Host image picker for a Figure's image. */
   chooseImage?: ImageChooser;
+  renameImage?: ImageRenamer;
   /** Headings, tables and figures with their current reading positions. */
   onOutlineChange?: (outline: DocumentOutline) => void;
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { settingsExpanded = false, onSettingsExpandedChange, settingsDisabled = false, document, bibliography, initialSnapshot, documentPath, onStructuralReject, onNotice, onDraftChange, onAssetPendingChange, onAssetError, onAssetChange, onDirtyChange, onAppliedEdit, onHeadingNumberingChange, onReferenceTemplatesChange, validateFigure, chooseImage, onOutlineChange },
+  { settingsExpanded = false, onSettingsExpandedChange, settingsDisabled = false, document, bibliography, initialSnapshot, documentPath, onStructuralReject, onNotice, onDraftChange, onAssetPendingChange, onAssetError, onAssetChange, onDirtyChange, onAppliedEdit, onHeadingNumberingChange, onReferenceTemplatesChange, validateFigure, chooseImage, renameImage, onOutlineChange },
   ref,
 ) {
   useTranslation();
@@ -375,6 +380,14 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         return activeDrafts.current.size > 0 || hasDocumentChanges();
       },
       hasDocumentChanges,
+      imageRenameSources() {
+        return editor ? [...new Set([...imageRenameKey.getState(editor.state)!.seen.values()].flatMap(urls => [...urls]))] : [];
+      },
+      renameImagePaths(replacements) {
+        if (!editor || !saved.current) throw new Error("Editor is not ready");
+        saved.current = renameSnapshot(saved.current, replacements);
+        editor.view.dispatch(editor.state.tr.setMeta(imageRenameKey, replacements).setMeta("addToHistory", false));
+      },
       revealItem(item) {
         // Source-to-Visual navigation is deferred; a later tab switch must not steal focus/scroll.
         if (!editor || editor.view.dom.closest("[hidden]")) return;
@@ -628,7 +641,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         <button type="button" className="document-title-slot" onMouseDown={event => event.preventDefault()}
           onClick={() => addTitle(editor.view)}>{i18n.t("Add a title")}</button>
       ) : null}
-      <DocumentPathContext.Provider value={documentPath}><BibliographyContent ref={bibliographyControls} editor={editor} bibliography={bibliography} documentPath={documentPath}><EditorContent editor={editor} /></BibliographyContent></DocumentPathContext.Provider>
+      <DocumentPathContext.Provider value={documentPath}><ImageRenameContext.Provider value={renameImage}><BibliographyContent ref={bibliographyControls} editor={editor} bibliography={bibliography} documentPath={documentPath}><EditorContent editor={editor} /></BibliographyContent></ImageRenameContext.Provider></DocumentPathContext.Provider>
       {visible ? <BlockHandles
         editor={editor}
         menuIndex={blockMenu?.index}

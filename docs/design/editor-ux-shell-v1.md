@@ -1895,3 +1895,53 @@ list and document geometry remain in place. Generated traces/logs stay in `tmp/o
 | --- | --- | --- |
 | 1440 × 900 | [Before](assets/outline-toggle-590/before-1440.png) | [After](assets/outline-toggle-590/after-1440.png) |
 | 390 × 900 | [Before](assets/outline-toggle-590/before-390.png) | [After](assets/outline-toggle-590/after-390.png) |
+
+
+## Figure image filename (#652)
+
+The Figure properties form adds File name (without extension) after Image, using the existing
+shared Input, spacing, Apply/Cancel and inline error surface. It reuses the #504 Host rename,
+other-document protection and notices. Eligibility and failure behavior are specified in
+[Figure file name](document-editing-v1.md#figure-file-name-652); history and checkpoints in
+[Figure-form image rename](editing-session-save-v1.md#figure-form-image-rename-652).
+The Host chooses readable upload defaults without an extra paste dialog: drop retains even
+`image.png`, while paste uses document numbering for unnamed/generic images and retains real
+descriptive file names. No CLI surface is added because no new semantic operation is introduced.
+
+
+### Filename form verification (#652)
+
+Host unit tests cover sanitized hints, generic-name classification, MIME suffixes, Korean,
+sequence gaps/collisions, Unicode rejection and signed rollback after rename. The existing
+`image-assets` browser scenario covers native clipboard names, original drop names, rename
+refusal without partial properties, saved and just-pasted Figure rename, immediate Undo/Redo
+paths, and Save/Reload. The engine regression separately covers deletion history and a new
+attachment reusing an old filename. The 1440px/640px captures below use the same technical
+sample, local SVG and open properties state; the new field uses existing control geometry.
+
+| Viewport | Before | After |
+| --- | --- | --- |
+| 1440 x 900 | [Before](assets/image-names-652/before-1440.png) | [After](assets/image-names-652/after-1440.png) |
+| 640 x 900 | [Before](assets/image-names-652/before-640.png) | [After](assets/image-names-652/after-640.png) |
+
+Local verification: Editor unit suite (320 passed), final history/block-command regressions
+(36 passed), Host image/file tests (43 passed), workspace typecheck, Editor/CLI production
+builds and docs checks passed. Persistent Chrome `image-assets`, `figure-authoring`,
+`file-actions`, `layout-rules`, `quiet-document` and production `http-host` (including process
+crash recovery) passed. Packaged Desktop and Edge are left to CI. The packaged Desktop asset
+assertion now expects its supplied `paste.png` hint. A transient Vite ResizeObserver notification
+was logged on the last image-assets run; its console/behavior assertions passed.
+
+
+Review follow-up (#654): the existing image-assets scenario now saves an equivalent Image
+spelling before rename and checks immediate Undo/Redo paths plus actual Host 200 responses.
+It opens two Figure forms together, retains Alt/Label drafts while following untouched Image
+paths, and separately preserves an explicitly edited Image draft. Generic `image.png` drop
+keeps its stem while native clipboard paste keeps document numbering. Host tests cover source
+validation and inode-confirmed historical spellings, including remote/out-of-scope non-matches.
+The same browser scenario observes the actual post-rename recovery record, reloads, uses Restore
+work, checks all image paths against real files, and completes Save/Reload with the same applied
+content. The review's non-blocking record-disappearance observation was not reproduced in this
+flow; no separate recovery defect or cause is asserted. Existing recovery browser regressions
+also pass. Local follow-up: targeted unit tests 79, Editor unit tests 320, workspace typecheck,
+Editor/CLI build, docs checks and Vite image-assets/figure-authoring/file-actions/recovery pass.

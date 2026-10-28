@@ -19,6 +19,7 @@ import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
 import { chooseImageAsset, createImageAsset, handleAssetRequest, rollbackImageAsset } from "../server/asset-api.ts";
 import { resolveMediaPath } from "../server/document-api.ts";
+import { renameFile } from "../server/file-operations.ts";
 
 // A complete 1x1 PNG, rather than a filename/signature-only pseudo image.
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=", "base64");
@@ -40,7 +41,7 @@ test("PNG assets have portable paths, unique names, and request-scoped rollback"
   const { root, doc, assets } = fixture(t);
   const first = createImageAsset(doc, "image/png", PNG, key);
   const second = createImageAsset(doc, "image/png", PNG, key);
-  assert.match(first.path, /^\.\/assets\/image-[a-f0-9-]+\.png$/);
+  assert.match(first.path, /^\.\/assets\/document-1\.png$/);
   assert.notEqual(first.path, second.path);
   assert.deepEqual(fs.readFileSync(path.resolve(root, first.path)), PNG);
   assert.equal(resolveMediaPath(first.path, doc), path.resolve(root, first.path));
@@ -57,11 +58,47 @@ test("PNG assets have portable paths, unique names, and request-scoped rollback"
   assert.equal(fs.readFileSync(doc, "utf8"), nativeSource("# Images\n\nKeep this text.\n"));
 });
 
+test("Host filenames sanitize hints, retain Korean, use MIME, skip sequence gaps and never overwrite", t => {
+  const { root, doc, assets } = fixture(t);
+  const create = (name: string) => createImageAsset(doc, "image/png", PNG, key, undefined, name);
+  assert.throws(() => create("bad\ud800.png"), /Unicode/);
+  assert.equal(fs.existsSync(assets), false);
+  for (const [hint, expected] of [["회로도.jpeg", "회로도.png"], ["회로도.png", "회로도-2.png"],
+    ["CON.jpg", "_CON.png"], ["dir/../bad?\u0001.jpg", "dir---bad--.png"],
+    ["끝. .png", "끝.png"], ["image1.png", "image1.png"], ["a%2f.png", "a-2f.png"]]) {
+    const created = create(hint);
+    assert.equal(created.path, `./assets/${expected}`);
+    assert.deepEqual(fs.readFileSync(resolveMediaPath(created.path.split("/").map(encodeURIComponent).join("/"), doc)), PNG);
+  }
+  fs.writeFileSync(path.join(assets, "document-8.jpg"), "existing");
+  fs.writeFileSync(path.join(assets, "document-2.png"), "existing");
+  fs.mkdirSync(path.join(assets, "document-90.png"));
+  for (const [name, number] of [["image.png", 9], ["IMAGE.JPEG", 10], ["", 11], ["..", 12]] as const) {
+    assert.equal(create(name).path, `./assets/document-${number}.png`);
+  }
+  assert.equal(fs.readFileSync(path.join(assets, "document-8.jpg"), "utf8"), "existing");
+  assert.equal(createImageAsset(doc, "image/png", PNG, key, undefined, "image.png", "drop").path, "./assets/image.png");
+  assert.equal(createImageAsset(doc, "image/png", PNG, key, undefined, "image.png", "drop").path, "./assets/image-2.png");
+  assert.throws(() => createImageAsset(doc, "image/png", PNG, key, undefined, "image.png", "invalid"), /input source/);
+  const long = create("한".repeat(150) + ".png");
+  assert.ok(Buffer.byteLength(path.basename(long.path), "utf8") <= 255);
+  const percent = create("100%.png");
+  rollbackImageAsset({ documentPath: doc, ...percent }, key);
+  assert.equal(fs.existsSync(path.resolve(root, percent.path)), false);
+  const created = create("rollback.png");
+  renameFile({ root, path: path.resolve(root, created.path), name: "renamed" });
+  rollbackImageAsset({ documentPath: doc, ...created }, key); // Never follows the rename.
+  assert.deepEqual(fs.readFileSync(path.join(assets, "renamed.png")), PNG);
+  fs.writeFileSync(path.resolve(root, created.path), "replacement");
+  assert.throws(() => rollbackImageAsset({ documentPath: doc, ...created }, key), /changed/);
+  assert.equal(fs.readFileSync(path.resolve(root, created.path), "utf8"), "replacement");
+});
+
 test("JPEG, GIF and WebP assets keep their format's extension and roll back like PNG", t => {
   const { root, doc, assets } = fixture(t);
   for (const [mime, bytes, extension] of [["image/jpeg", JPEG, "jpg"], ["image/gif", GIF, "gif"], ["image/webp", WEBP, "webp"]] as const) {
     const created = createImageAsset(doc, mime, bytes, key);
-    assert.match(created.path, new RegExp(`^\\./assets/image-[a-f0-9-]+\\.${extension}$`));
+    assert.match(created.path, new RegExp(`^\\./assets/document-1\\.${extension}$`));
     assert.deepEqual(fs.readFileSync(path.resolve(root, created.path)), bytes);
     rollbackImageAsset({ documentPath: doc, ...created }, key);
   }
@@ -308,7 +345,7 @@ test("asset JSON endpoints reject malformed UTF-8 before copying or deleting fil
   assert.deepEqual(fs.readdirSync(assets), []);
 });
 
-test("binary Host endpoint ignores filename injection and bounds chunked uploads before writing", async t => {
+test("binary Host endpoint sanitizes filename hints and bounds chunked uploads before writing", async t => {
   const { doc, assets } = fixture(t);
   const server = createServer((req, res) => { void handleAssetRequest(req, res, key); });
   await new Promise<void>(done => server.listen(0, "127.0.0.1", done));
@@ -320,11 +357,11 @@ test("binary Host endpoint ignores filename injection and bounds chunked uploads
   assert.equal(malformed.status, 400);
   assert.match((await malformed.json()).error, /Invalid request query encoding/);
   assert.equal(fs.existsSync(assets), false);
-  const url = `${origin}/api/asset?path=${encodeURIComponent(doc)}&filename=../../injected.svg`;
+  const url = `${origin}/api/asset?path=${encodeURIComponent(doc)}&name=../../injected.svg`;
   const response = await fetch(url, { method: "POST", headers: { "Content-Type": "image/png" }, body: PNG });
   assert.equal(response.status, 201);
   const created = await response.json();
-  assert.match(created.path, /^\.\/assets\/image-[a-f0-9-]+\.png$/);
+  assert.equal(created.path, "./assets/----injected.png");
   assert.deepEqual(fs.readdirSync(assets), [path.basename(created.path)]);
   const deleted = await fetch(`${origin}/api/asset`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ documentPath: doc, ...created }) });
   assert.equal(deleted.status, 204);
@@ -367,14 +404,14 @@ test("a chosen image inside the document's folder is linked in place; one elsewh
   // A name the media route refuses to serve is copied instead of linked.
   fs.writeFileSync(path.join(root, "a%2e.png"), PNG);
   const unservable = choose(path.join(root, "a%2e.png"));
-  assert.match(unservable.path, /^\.\/assets\/image-[a-f0-9-]+\.png$/);
+  assert.equal(unservable.path, "./assets/a-2e.png");
   rollbackImageAsset({ documentPath: doc, path: unservable.path, rollbackToken: unservable.rollbackToken! }, key);
 
   for (const [name, bytes] of [["photo.jpeg", JPEG], ["diagram.svg", "<svg/>"], ["fake.png", JPEG], ["notes.txt", "x"]] as const) {
     fs.writeFileSync(path.join(outside, name), bytes);
   }
   const copied = choose(path.join(outside, "photo.jpeg"));
-  assert.match(copied.path, /^\.\/assets\/image-[a-f0-9-]+\.jpg$/);
+  assert.match(copied.path, /^\.\/assets\/photo\.jpg$/);
   assert.deepEqual(fs.readFileSync(path.resolve(root, copied.path)), JPEG);
   rollbackImageAsset({ documentPath: doc, path: copied.path, rollbackToken: copied.rollbackToken! }, key);
   assert.deepEqual(fs.readdirSync(assets), []);
@@ -386,7 +423,7 @@ test("a chosen image inside the document's folder is linked in place; one elsewh
 
   // A link inside the folder that resolves outside it is copied, never served through the link.
   fs.symlinkSync(outside, path.join(root, "linked"), process.platform === "win32" ? "junction" : "dir");
-  assert.match(choose(path.join(root, "linked", "photo.jpeg")).path, /^\.\/assets\/image-[a-f0-9-]+\.jpg$/);
+  assert.match(choose(path.join(root, "linked", "photo.jpeg")).path, /^\.\/assets\/photo\.jpg$/);
   assert.equal(fs.readFileSync(doc, "utf8"), nativeSource("# Images\n\nKeep this text.\n"));
 });
 
@@ -428,10 +465,10 @@ test("image paste inserts a Core-backed Figure as one independent Undo event", a
   assert.deepEqual(errors, []);
   const figure = e.view.state.doc.child(1);
   assert.equal(figure.type.name, "figure");
-  assert.match(figure.attrs.imageUrl, /^\.\/assets\/image-/);
+  assert.match(figure.attrs.imageUrl, /^\.\/assets\/document-1\.png$/);
   assert.equal(figure.attrs.imageAlt, "");
   const saved = saveEdits(nativeSource("Alpha.\n\nBeta.\n"), collectSupportedEdits(loadEditableDocument(nativeSource("Alpha.\n\nBeta.\n")), e.view.state.doc.toJSON()));
-  assert.match(saved.markdown, /:::\{figure\} \.\/assets\/image-/);
+  assert.match(saved.markdown, /:::\{figure\} \.\/assets\/document-1/);
   assert.equal(undo(e.view.state, tr => e.view.dispatch(tr)), true);
   assert.equal(e.view.state.doc.childCount, 2);
   assert.equal(e.view.state.doc.firstChild!.textContent, "typed Alpha.");
