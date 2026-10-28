@@ -131,9 +131,9 @@ test("started without a document, it opens none; the sample opens with its figur
       const geometry = await page.evaluate(() => {
         const overlay = (navigator as Navigator & { windowControlsOverlay: { getTitlebarAreaRect(): DOMRect } }).windowControlsOverlay.getTitlebarAreaRect();
         const controls = [...document.querySelectorAll<HTMLElement>('.top-bar button, .sidebar-header button')];
-        const header = document.querySelector('.app-header')!.getBoundingClientRect();
+        const header = document.querySelector('.app-titlebar')!.getBoundingClientRect();
         const tabs = document.querySelector('.document-tabs')!.getBoundingClientRect();
-        const captionEdgeLines = [...document.querySelectorAll('.app-header *')].filter(element => {
+        const captionEdgeLines = [...document.querySelectorAll('.app-titlebar, .app-titlebar *')].filter(element => {
           const r = element.getBoundingClientRect(), style = getComputedStyle(element);
           return r.left <= header.right - 0.5 && r.right >= header.right && r.bottom === tabs.top &&
             style.borderBottomStyle === 'solid' && parseFloat(style.borderBottomWidth) === 1;
