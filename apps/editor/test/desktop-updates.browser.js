@@ -149,7 +149,7 @@ async (page, { screenshots = false, openPath }) => {
             const geometry = await page.evaluate(reserved => {
               const header = document.querySelector('.app-titlebar').getBoundingClientRect();
               const bar = document.querySelector('.top-bar').getBoundingClientRect();
-              const tabs = document.querySelector('.document-tabs').getBoundingClientRect();
+              const tabs = document.querySelector('.document-tab-row').getBoundingClientRect();
               const lines = [...document.querySelectorAll('.app-titlebar, .app-titlebar *')].flatMap(node => {
                 const r = node.getBoundingClientRect(), style = getComputedStyle(node), thickness = parseFloat(style.borderBottomWidth);
                 return thickness && style.borderBottomStyle === 'solid' && r.bottom >= bar.bottom && r.bottom <= tabs.top
