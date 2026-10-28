@@ -128,7 +128,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
             throw saveError(node, "empty heading cannot be saved.", "Enter text or delete this block.");
           }
           if (insert.block === "footnote" && inlineText(insert.content).trim().length === 0) {
-            throw saveError(node, EMPTY_FOOTNOTE, "Enter its text or delete the footnote.");
+            throw saveError(node, EMPTY_FOOTNOTE, "Enter the footnote text or remove its reference and definition.");
           }
           if (insert.block === "figure") assertFigureContent(insert);
           insertOf.set(node, inserts.length);
@@ -190,7 +190,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
       } else if (block.block === "footnote" && block.editable) {
         const content = paragraphInline(node);
         if (sameInline(content, block.content)) return;
-        if (inlineText(content).trim().length === 0) throw saveError(node, EMPTY_FOOTNOTE, "Enter its text or delete the footnote.");
+        if (inlineText(content).trim().length === 0) throw saveError(node, EMPTY_FOOTNOTE, "Enter the footnote text or remove its reference and definition.");
         footnotes.push({ path: block.path, content });
       } else if (block.block === "target") {
         const label = targetLabel(node);

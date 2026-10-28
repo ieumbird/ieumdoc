@@ -556,6 +556,8 @@ test("command help is available from help and --help", () => {
   assert.equal(fromHelp.stdout, fromFlag.stdout);
   assert.equal(fromHelp.stdout, fromShort.stdout);
   assert.match(fromHelp.stdout, /ieumdoc check <file>/);
+  assert.match(fromHelp.stdout, /optional error\.code from Core/);
+  assert.match(fromHelp.stdout, /unclassified errors may omit the code/);
 
   const update = run(["help", "update-node-text"]);
   assert.equal(update.status, 0, update.stderr);

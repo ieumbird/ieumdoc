@@ -48,11 +48,17 @@ const diagnosticBadges = {
   "invalid-figure": "Invalid Figure → Check properties",
 } satisfies Record<WriteIssueCode, MessageKey>;
 
-function diagnostic(code?: string): MessageKey | undefined {
+function emptyEndnote(code?: string, blockType?: string): boolean {
+  return code === "empty-content" && blockType === "footnoteDefinition";
+}
+
+function diagnostic(code?: string, blockType?: string): MessageKey | undefined {
+  if (emptyEndnote(code, blockType)) return "Endnote text is empty → Enter text or remove its references and definition together.";
   return code && Object.hasOwn(diagnosticGuidance, code) ? diagnosticGuidance[code as WriteIssueCode] : undefined;
 }
 
-export function saveErrorBadge(code?: string): string {
+export function saveErrorBadge(code?: string, blockType?: string): string {
+  if (emptyEndnote(code, blockType)) return i18n.t("Cannot save") + ": " + i18n.t("Empty endnote → Enter text or remove references + definition");
   const guidance = diagnostic(code);
   return i18n.t("Cannot save") + (guidance ? ": " + i18n.t(diagnosticBadges[code as WriteIssueCode]) : "");
 }
@@ -62,7 +68,7 @@ export class SaveDisplayError extends Error {
   constructor(readonly failures: readonly unknown[], readonly submitted?: TiptapJSON, readonly edits?: SupportedEdits) { super(); }
   override get message(): string { return this.failures.map(error => saveErrorMessage(error, this.submitted, this.edits)).join("\n"); }
   get summary(): string { return this.failures.map(error => error instanceof SaveContentError
-    ? `${saveErrorScope(error, this.submitted, this.edits)}: ${saveErrorGuidance(error)}` : error instanceof Error ? error.message : String(error)).join("\n"); }
+    ? `${saveErrorScope(error, this.submitted, this.edits)}: ${saveErrorGuidance(error, saveErrorLocation(error, this.submitted, this.edits)?.type)}` : error instanceof Error ? error.message : String(error)).join("\n"); }
   get details(): string { return this.failures.map(error => error instanceof SaveContentError
     ? `${error.reason} ${error.action}` : error instanceof Error ? error.message : String(error)).join("\n"); }
   get locations(): SaveErrorLocation[] { return this.failures.flatMap(error => {
@@ -111,8 +117,8 @@ function saveErrorScope(error: SaveContentError, submitted?: TiptapJSON, edits?:
   return scope + position;
 }
 
-function saveErrorGuidance(error: SaveContentError): string {
-  const guidance = diagnostic(error.code);
+function saveErrorGuidance(error: SaveContentError, blockType?: string): string {
+  const guidance = diagnostic(error.code, blockType);
   if (["collect", "replay", "serialize"].includes(error.phase) && guidance) return i18n.t(guidance);
   return i18n.t(error.phase === "revision" ? "Keep your edits; the file changed outside IeumDoc. Copy applied content from Source before deciding whether to Reload."
     : error.phase === "transport" ? "Keep your edits and check the connection and disk version. The save result is unconfirmed."
@@ -124,6 +130,6 @@ export function saveErrorMessage(error: unknown, submitted?: TiptapJSON, edits?:
   if (!(error instanceof SaveContentError)) return error instanceof Error ? error.message : String(error);
   // Core/Host retain the authoritative diagnostic. UI guidance is selected by structured phase,
   // never by parsing English reasons or duplicating document validation rules.
-  const guidance = i18n.resolvedLanguage === "ko" ? saveErrorGuidance(error) + "\n" + i18n.t("Technical details") + ": " : "";
+  const guidance = i18n.resolvedLanguage === "ko" ? saveErrorGuidance(error, saveErrorLocation(error, submitted, edits)?.type) + "\n" + i18n.t("Technical details") + ": " : "";
   return `${saveErrorScope(error, submitted, edits)}: ${guidance}${error.reason} ${error.action}`;
 }

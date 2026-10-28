@@ -128,7 +128,7 @@ test("Core refusals expose stable codes through operation and cause wrappers", a
     ["invalid-label", () => core.insertTarget(document, 2, "bad\nlabel")],
     ["label-conflict", () => core.insertTarget(core.insertTarget(document, 2, "target"), 3, "target")],
     ["invalid-reference", () => core.updateParagraphInlineContent(document, [2], [{ kind: "reference", role: "eq", label: "" }])],
-    ["invalid-footnote", () => core.insertFootnoteDefinition(document, 2, "bad label", [{kind:"text", text:"Note"}])],
+    ["invalid-label", () => core.insertFootnoteDefinition(document, 2, "bad label", [{kind:"text", text:"Note"}])],
     ["invalid-footnote", () => core.serialize(core.updateParagraphInlineContent(document, [2], [{ kind: "footnote", label: "missing" }]))],
     ["line-break", () => core.updateTableCell(document, [3, 1, 0], "a\nb")],
     ["table-cell-whitespace", () => core.updateTableCell(document, [3, 1, 0], " padded ")],

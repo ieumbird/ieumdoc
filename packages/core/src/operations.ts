@@ -415,7 +415,7 @@ function replaceCitationAt(content: InlineContent[], offset: number, replacement
 /** Insert the definition of footnote `label`: one paragraph of supported inline content. */
 export function insertFootnoteDefinition(document: MystDocument, index: number, label: string, content: InlineContent[]): MystDocument {
   const error = typeof label === "string" ? footnoteLabelError(label) : "footnote label must be a string";
-  if (error) throw new DocumentDiagnosticError("invalid-footnote", error);
+  if (error) throw new DocumentDiagnosticError("invalid-label", error);
   if (document.children.some(node => node.type === "footnoteDefinition" && node.label === label)) {
     throw new DocumentDiagnosticError("invalid-footnote", `footnote [^${label}] is already defined`);
   }

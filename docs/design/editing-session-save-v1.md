@@ -527,7 +527,10 @@ reveal/navigation and submitted-snapshot invalidation keep phase 1 behavior. Lan
 reformat both alert and badge without changing document state. Full original English reason
 and action remain unchanged in initially collapsed Technical details. No English reason parsing
 selects guidance. Unknown/missing codes use the existing phase-specific generic guidance and
-Cannot save badge. File/revision/transport guidance takes precedence over any content code.
+Cannot save badge. For `empty-content` on a submitted `footnoteDefinition`, the alert and badge
+say to enter text or remove its references and definition together; deleting only the definition
+still fails the existing endnote relationship checks. This distinction uses structured block kind,
+never English prose. File/revision/transport guidance takes precedence over any content code.
 
 Core owns the [code inventory and collection decision](document-support-v1.md#save-diagnostic-codes-578-phase-2).
 Host still reports its first failure. Captures for real empty-heading collection and table-cell

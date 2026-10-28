@@ -148,7 +148,7 @@ both whole-document and operation-specific round-trip comparisons:
 | `round-trip-mismatch` | Fingerprint loss, operation content/canonical instability, or changed block boundaries. |
 | `serialization-failed` | Writer throws without a specific serialization diagnostic. |
 | `invalid-unicode` | Unpaired UTF-16 surrogate, including an unrepresentable text split. |
-| `invalid-label` | Invalid/unreferenceable target label or an empty equation label that dollar math cannot preserve. |
+| `invalid-label` | Invalid/unreferenceable target or endnote label syntax, or an empty equation label that dollar math cannot preserve. |
 | `label-conflict` | Label collides with another target, including automatic heading IDs. |
 | `invalid-reference` | Unsupported reference/target notation, ambiguous rename or changed reference resolution. |
 | `invalid-footnote` | Missing, repeated or unused definition, nested endnote reference or invalid endnote relationships. |

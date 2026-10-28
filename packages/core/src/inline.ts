@@ -290,7 +290,7 @@ export function assertInlineContent(content: InlineContent[]): void {
     }
     if (item.kind === "footnote") {
       const error = typeof item.label === "string" ? footnoteLabelError(item.label) : "footnote label must be a string";
-      if (error) throw new DocumentDiagnosticError("unsupported-content", error);
+      if (error) throw new DocumentDiagnosticError("invalid-label", error);
       continue;
     }
     throw new DocumentDiagnosticError("unsupported-content", "unsupported InlineContent kind");

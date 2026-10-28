@@ -1,5 +1,8 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Endnote text is empty → Enter text or remove its references and definition together.": "Endnote text is empty → Enter text or remove its references and definition together.",
+  "Empty endnote → Enter text or remove references + definition": "Empty endnote → Enter text or remove references + definition",
+
   "Invalid marker → Open native file": "Invalid marker → Open native file",
   "Invalid settings → Review settings": "Invalid settings → Review settings",
   "Unsupported content → Replace": "Unsupported content → Replace",
@@ -643,6 +646,9 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Endnote text is empty → Enter text or remove its references and definition together.": "미주 내용이 비어 있습니다 → 내용을 입력하거나 참조와 정의를 함께 제거하세요.",
+  "Empty endnote → Enter text or remove references + definition": "빈 미주 → 내용 입력 또는 참조·정의 함께 제거",
+
   "Invalid marker → Open native file": "표식 오류 → 이음독 문서 열기",
   "Invalid settings → Review settings": "설정 오류 → 문서 설정 확인",
   "Unsupported content → Replace": "미지원 내용 → 삭제·변경",
