@@ -44,8 +44,10 @@ the active surface, including the document start surface. There are no editor gr
 
 The viewport spans the window width **below the measured tabs/messages header** to keep its
 native scrollbar at the right edge only in the document area (#694 follow-up). The root does
-not scroll; the title strip and its bottom boundary extend across the whole window, including
-the native window-controls reservation. Its content keeps
+not scroll; the DOM title strip and its bottom boundary extend across the whole viewport.
+This removes interruption caused by the root scrollbar. Browser geometry/captures do not
+verify native window-control overlay painting; overlay height, Settings gutter and native
+pixel verification belong to [#694](https://github.com/ieumbird/ieumdoc/issues/694). Its content keeps
 the existing Sidebar/Document panel insets, centered column, paper dimensions and measured
 header clearance. The shell reserves the viewport's actual native scrollbar width only below
 the full-width title strip, observed on
@@ -106,7 +108,8 @@ Browser assertions migrated without changing their tolerances or retry/timeout/s
 
 - `document-tabs`: save/read each tab's actual scrollTop while retaining editor identity,
   JSON, selection, draft, Undo and no-load-on-switch assertions.
-- `outline`: drive document scrolling and read its end/position from the viewport; retain
+- `outline`: drive document scrolling and read its end/position from the viewport, using
+  `scrollTop + clientHeight >= scrollHeight - 2` for the same 2px end tolerance; retain
   current-item visibility, list scroll, selection and editor-options stability assertions.
 - `new-document`: read writing scroll and scroll to the viewport's end; retain the same
   visible caret/last-line end space and exact saved-source checks.

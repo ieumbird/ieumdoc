@@ -74,8 +74,10 @@ interactive descendants are no-drag. No fixed caption-button width is used in pr
 
 Document scrolling belongs to the active tab's viewport below the measured tabs/messages
 header (#488 phase 0, #694 follow-up). Its native scrollbar stays at the window's right edge
-only below that header. The title-strip border spans the entire window, including native
-caption space; scrollbar width is reserved only in the lower layout. Navigation clearance is
+only below that header. The DOM title-strip border spans the viewport, removing the root
+scrollbar interruption; scrollbar width is reserved only in the lower layout. Native window-control
+overlay height, Settings gutter and native pixel verification remain in [#694](https://github.com/ieumbird/ieumdoc/issues/694).
+Navigation clearance is
 the viewport's top plus the target's scroll margin, preserving the existing physical header
 clearance. Sidebar and Outline retain their independent scroll regions. See the
 [scroll contract and measured captures](editor-ux-shell-v1.md#document-scroll-container-488-phase-0).

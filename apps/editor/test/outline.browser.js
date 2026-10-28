@@ -82,9 +82,10 @@ async (page, { openDocument, reloadDocument, expect }) => {
     if (!(list instanceof HTMLElement) || !(item instanceof HTMLElement)) return false;
     const listBox = list.getBoundingClientRect();
     const itemBox = item.getBoundingClientRect();
+    const container = document.querySelector('.document-scroll[data-active="true"]');
     return item.textContent?.trim() === 'Detail 6' && list.scrollTop > 0
       && itemBox.top >= listBox.top - 1 && itemBox.bottom <= listBox.bottom + 1
-      && document.querySelector('.document-scroll[data-active="true"]').scrollTop + window.innerHeight >= document.querySelector('.document-scroll[data-active="true"]').scrollHeight - 2;
+      && container.scrollTop + container.clientHeight >= container.scrollHeight - 2;
   });
   const flushFrames = () => page.evaluate(() => new Promise(resolve => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined)));
