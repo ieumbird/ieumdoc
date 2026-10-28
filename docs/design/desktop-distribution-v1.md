@@ -20,6 +20,27 @@
 - Start-up/CLI path verification: 2026-10-15 (#287 unit tests for refusal before path I/O and valid Unicode names; Desktop tested without Electron).
 - Scope: Windows x64 per-user Electron/NSIS app, Stable/Beta updates and local/CI packaging. Publication requires an owner-authorized release and manual workflow dispatch from master; no separate environment approval is required after validation succeeds.
 
+## Open folders in File Explorer (#487)
+
+The Desktop preload exposes `openFolderInExplorer` as the Host capability, plus
+`setOpenedFolders` to synchronize the renderer's currently opened root paths. Vite and HTTP
+expose neither, so their folder menus omit the action. Root and child-folder More actions menus
+use **Open in File Explorer** / **파일 탐색기에서 열기**. This adds no folder context menu.
+
+Main's existing trusted top-frame IPC wrapper protects both calls. Successful shared Host root
+listings register eligible local roots in main; synchronization accepts only those registered
+roots and closing a section removes it from the active set. Main reuses pinned `RootAccess`
+validation for lexical containment, real-path containment and root identity, and requires an
+existing local directory before passing its canonical path to `shell.openPath`. Files (including
+executables), absent paths, outside paths, UNC/device paths and escaping junctions are refused.
+An OS error string or a rejected call produces a localized Editor error notice.
+
+Automated checks inject the OS opener and never start Explorer. Manual Windows acceptance:
+open both a root and a child via their menus; delete a displayed folder and confirm the failure
+notice. Actual Explorer execution is deliberately unverified locally. Packaging/update/install
+boundaries are unchanged; their tests remain Windows CI responsibilities.
+
+
 ## File context actions (#505 / #504 PR A)
 
 Desktop uses the same web context menu and dialogs as Vite/HTTP; Electron `Menu.popup` is not

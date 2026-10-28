@@ -187,6 +187,11 @@ export function App() {
   const [error, setError] = useMessageState("");
   // Restore folder context before opening tabs, including their bibliography resources.
   const folders = useFolderTrees(requestFolder, setError);
+  const openedFolderPaths = folders.trees.map(tree => tree.root);
+  useEffect(() => {
+    if (desktop?.setOpenedFolders) void desktop.setOpenedFolders(openedFolderPaths).catch(cause => setError(messageOf(cause)));
+  }, [JSON.stringify(openedFolderPaths)]);
+
   const foldersRef = useRef(folders);
   foldersRef.current = folders;
   // Tab reporting rerenders the shell; keep this memoized tab prop stable and read live trees.
@@ -854,6 +859,14 @@ export function App() {
         onOpenDocument={(path) => {
           void openFolderDocument(path);
         }}
+        onRevealFolder={desktop?.openFolderInExplorer ? path => {
+          void (async () => {
+            try {
+              await desktop.setOpenedFolders(openedFolderPaths);
+              await desktop.openFolderInExplorer(path);
+            } catch { setError({ key: "Could not open the folder in File Explorer. Check that it still exists and is accessible." }); }
+          })();
+        } : undefined}
         onRefreshFolder={folders.refreshRoot}
         onCloseFolder={folders.close}
         onSettings={(returnFocus) => {

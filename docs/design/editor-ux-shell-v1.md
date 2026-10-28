@@ -33,6 +33,23 @@
 
 Historical verification records: [Verification record](#verification-record).
 
+## Folder Explorer menu (#487)
+
+When the Host exposes `openFolderInExplorer`, every opened root's More actions menu adds
+**Open in File Explorer** / **파일 탐색기에서 열기** between Open folder and Refresh.
+Each child-folder row also offers More actions with this command. It uses the shared compact
+button and action menu components; activating it does not expand/collapse the folder.
+Vite and HTTP have no capability and display neither the command nor child-folder menu buttons.
+Folder right-click menus remain #223 scope. Failure shows the existing localized error surface.
+Closing a folder synchronizes Desktop's active roots without closing its documents.
+
+Browser verification uses a stand-in Desktop bridge and checks root/child paths, browser absence,
+close synchronization and failure notification; it does not execute Explorer. A 1440px menu
+capture is retained in the [menu screenshot](../reviews/assets/reveal-folder-487-1440.png).
+Actual Windows root/child Explorer launches and a deleted-folder failure are manual acceptance
+items (not run). See the [Desktop boundary](desktop-distribution-v1.md#open-folders-in-file-explorer-487).
+
+
 ## File context menu (#505 / #504 PR A)
 
 Each file tree row (native/foreign document, image or other file) offers Rename… and Delete file…

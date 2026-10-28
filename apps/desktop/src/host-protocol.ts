@@ -53,7 +53,7 @@ export type FirstDocument = { document?: string; samples?: SampleDocuments };
  * started with or, without one, a start without a document that offers the sample. The
  * development server's default file is not part of the app.
  */
-export function createProtocolHandler(editorDir: string, first: FirstDocument, trashItem: (file: string) => Promise<void> = async () => { throw new Error("OS trash is unavailable."); }): (request: Request) => Promise<Response> {
+export function createProtocolHandler(editorDir: string, first: FirstDocument, trashItem: (file: string) => Promise<void> = async () => { throw new Error("OS trash is unavailable."); }, onListedRoot?: (root: string) => void): (request: Request) => Promise<Response> {
   // Lives as long as this process, as the development server's key does.
   const assetSigningKey = randomBytes(32);
   return async (request) => {
@@ -73,7 +73,15 @@ export function createProtocolHandler(editorDir: string, first: FirstDocument, t
         }
         url.searchParams.set("path", first.document);
       }
-      return callNodeHandler(request, url, (req, res, next) => handleDocumentRequest(req, res, next, LOCAL_FILE_ACCESS, Infinity, trashItem, first.samples));
+      const response = await callNodeHandler(request, url, (req, res, next) => handleDocumentRequest(req, res, next, LOCAL_FILE_ACCESS, Infinity, trashItem, first.samples));
+      if (onListedRoot && url.pathname === "/api/folder" && request.method === "GET" && response.ok) {
+        const folder = await response.clone().json() as { root: string; path: string };
+        if (folder.root === folder.path) {
+          // UNC folders may still be browsed, but never gain the OS-launch capability.
+          try { onListedRoot(folder.root); } catch { /* Not an eligible local root. */ }
+        }
+      }
+      return response;
     }
     if (request.method !== "GET" && request.method !== "HEAD") return new Response(null, { status: 405, headers: SECURITY_HEADERS });
     return serveEditorFile(editorDir, url.pathname);

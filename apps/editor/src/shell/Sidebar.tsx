@@ -35,6 +35,7 @@ type SidebarProps = {
   onOpenDocument?(path: string): void;
   onCloseFolder?(root: string): void;
   onRefreshFolder?(root: string): void;
+  onRevealFolder?(path: string): void;
   /** App Settings, separate from document settings. Names the control focus returns to. */
   onSettings?(returnFocus: HTMLElement): void;
 };
@@ -42,7 +43,7 @@ type SidebarProps = {
 /** File navigation stays mounted when collapsed. Outline remains independent on the right. */
 export function Sidebar({
   onFileAction, fileActionsDisabled, isFileDirty, open, documentPath, onToggle, toggleRef, onOpenFolder, onNewDocument, recent = [], onOpenRecent, onNew, onNewFolder,
-  folders = [], onToggleFolder, onToggleSection, onOpenDocument, onCloseFolder, onRefreshFolder, onSettings,
+  folders = [], onToggleFolder, onToggleSection, onOpenDocument, onCloseFolder, onRefreshFolder, onRevealFolder, onSettings,
 }: SidebarProps) {
   useTranslation();
   return (
@@ -79,6 +80,7 @@ export function Sidebar({
             onNew={button => onNew?.(tree.root, button)}
             onNewFolder={button => onNewFolder?.(tree.root, button)}
             onOpenFolder={onOpenFolder}
+            onRevealFolder={onRevealFolder}
             onRefresh={() => onRefreshFolder?.(tree.root)}
             onClose={() => onCloseFolder?.(tree.root)}
           />
@@ -141,12 +143,13 @@ type FolderTreeProps = {
   onNew(button: HTMLButtonElement): void;
   onNewFolder(button: HTMLButtonElement): void;
   onOpenFolder(returnFocus: HTMLElement | null): void;
+  onRevealFolder?(path: string): void;
   onRefresh(): void;
   onClose(): void;
 };
 
 /** One opened folder as a tree: folders expand in place, documents open. */
-function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, documentPath, onToggleFolder, onToggleSection, onOpenDocument, onNew, onNewFolder, onOpenFolder, onRefresh, onClose }: FolderTreeProps) {
+function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, documentPath, onToggleFolder, onToggleSection, onOpenDocument, onNew, onNewFolder, onOpenFolder, onRevealFolder, onRefresh, onClose }: FolderTreeProps) {
   useTranslation();
   const treeId = useId();
   const section = useRef<HTMLElement>(null);
@@ -215,6 +218,8 @@ function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, docu
                 <FolderPlus aria-hidden="true" />{i18n.t("New folder…")}</DropdownMenuItem>
               <DropdownMenuItem onClick={() => onOpenFolder(moreActions.current)}>
                 <FolderOpen aria-hidden="true" />{i18n.t("Open folder…")}</DropdownMenuItem>
+              {onRevealFolder ? <DropdownMenuItem onClick={() => onRevealFolder(tree.root)}>
+                <FolderOpen aria-hidden="true" />{i18n.t("Open in File Explorer")}</DropdownMenuItem> : null}
               <DropdownMenuItem onClick={onRefresh}>
                 <RotateCw aria-hidden="true" />{i18n.t("Refresh")}</DropdownMenuItem>
               <DropdownMenuItem onClick={onClose}>
@@ -237,12 +242,13 @@ function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, docu
               key={entry.path}
               ref={row => { if (row) rows.current.set(entry.path, row); else rows.current.delete(entry.path); }}
               role="treeitem"
-              className="sidebar-tree-item"
+              className={`sidebar-tree-item${folder && onRevealFolder ? " sidebar-tree-item--actions" : ""}`}
               data-foreign={foreign || undefined}
               style={{ "--tree-depth": item.depth + 1 } as CSSProperties}
               tabIndex={entry.path === tabStop ? 0 : -1}
               title={description ? `${entry.path}\n${description}` : entry.path}
               aria-description={description}
+              aria-label={folder ? entry.name : undefined}
               aria-level={item.depth + 1}
               aria-posinset={item.position}
               aria-setsize={item.size}
@@ -254,6 +260,14 @@ function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, docu
               {folder ? <span className="sidebar-tree-chevron" aria-hidden="true"><ChevronRight /></span>
                 : <Icon className="sidebar-tree-icon" aria-hidden="true" />}
               <span className="sidebar-tree-name">{entry.name}</span>
+              {folder && onRevealFolder ? <DropdownMenu>
+                <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label={i18n.t("More actions for {{name}}", { name: entry.name })} />}
+                  onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}><Ellipsis /></DropdownMenuTrigger>
+                <DropdownMenuContent align="end" onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
+                  <DropdownMenuItem onClick={() => onRevealFolder(entry.path)}>
+                    <FolderOpen aria-hidden="true" />{i18n.t("Open in File Explorer")}</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu> : null}
             </li>
           );
           if (folder) return row;
