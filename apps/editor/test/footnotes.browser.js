@@ -422,7 +422,7 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   const displays = [];
   for (const width of [1440, 768, 640]) {
     await page.setViewportSize({width, height:900});
-    await page.evaluate(async () => { await document.fonts.ready; window.scrollTo(0,0); document.activeElement?.blur(); });
+    await page.evaluate(async () => { await document.fonts.ready; document.querySelector('.document-scroll[data-active="true"]').scrollTo(0,0); document.activeElement?.blur(); });
     await page.mouse.move(0,0);
     await page.waitForTimeout(150);
     if (screenshots) await page.screenshot({path:`tmp/visual-refinement/footnotes-${width}.png`, fullPage:true});

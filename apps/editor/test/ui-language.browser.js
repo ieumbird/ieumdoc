@@ -53,7 +53,7 @@ async (page, { openPath, screenshots }) => {
     await page.getByTestId('equation-latex').fill('x_{language} = 42');
     const before = await snapshot();
     const tabCount = await page.getByRole('tab').count();
-    const scrollBefore = await page.evaluate(() => scrollY);
+    const scrollBefore = await page.evaluate(() => document.querySelector('.document-scroll[data-active="true"]').scrollTop);
     await settings('en');
     const screen = page.getByTestId('settings-dialog');
     await page.waitForFunction(() => document.activeElement?.textContent === 'Back to document');
@@ -173,7 +173,7 @@ async (page, { openPath, screenshots }) => {
     check(await page.locator('html').getAttribute('lang') === 'ko', 'Page language did not update');
     if (screenshots) await page.screenshot({ path: 'tmp/256/settings-ko.png' });
     await closeSettings();
-    check(await page.evaluate(() => scrollY) === scrollBefore, 'Settings changed document scroll');
+    check(await page.evaluate(() => document.querySelector('.document-scroll[data-active="true"]').scrollTop) === scrollBefore, 'Settings changed document scroll');
     check(await page.getByTestId('sidebar').locator('.product').innerText() === '탐색기', 'Explorer heading must be translated into Korean');
     const collapseExplorer = page.getByRole('button', {name:'탐색기 접기', exact:true});
     check(await collapseExplorer.getAttribute('title') === '탐색기 접기', 'Expanded Explorer tooltip must be translated');

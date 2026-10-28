@@ -14,6 +14,7 @@
 
 body {
   margin: 0;
+  overflow: hidden;
   /* Overrides the base layer's white `bg-background`, which would hide the root canvas. */
   background: var(--id-color-canvas);
 }
@@ -27,9 +28,10 @@ button {
   --shell-sidebar: var(--layout-sidebar-width);
   --shell-panel: var(--layout-document-panel-width);
   display: grid;
-  grid-template-columns: var(--shell-sidebar) minmax(0, 1fr) var(--shell-panel);
+  grid-template-columns: var(--shell-sidebar) minmax(0, 1fr) calc(var(--shell-panel) + var(--document-scrollbar-width, 0px));
   grid-template-rows: auto 1fr;
-  min-height: 100vh;
+  height: 100dvh;
+  width: 100%;
 }
 
 .app-shell--collapsed {
@@ -70,6 +72,7 @@ button {
 .app-shell--collapsed .app-brand { justify-content: center; padding-inline: 0; }
 
 .sidebar {
+  z-index: 1;
   grid-column: 1;
   grid-row: 2;
   position: sticky;
@@ -132,7 +135,7 @@ button {
   font-size: var(--font-size-sm);
   line-height: var(--line-height-label);
   color: var(--id-color-text-muted);
-  scroll-margin-top: calc(var(--app-header-height, var(--layout-header-row)) + var(--space-4));
+  scroll-margin-top: var(--space-4);
 }
 .document-settings .document-settings-summary {
   display: flex;
@@ -382,6 +385,8 @@ button {
 
 /* The document panel mirrors the sidebar on the right: sticky and scrolling by itself. */
 .document-panel {
+  z-index: 1;
+  margin-right: var(--document-scrollbar-width, 0px);
   grid-column: 3;
   grid-row: 2;
   position: sticky;
@@ -400,9 +405,10 @@ button {
  * starts below the sticky header (measured by the App), so Save, File actions and the Outline toggle
  * stay visible and usable. */
 .document-panel--overlay {
+  margin-right: 0;
   position: fixed;
   top: var(--app-header-height, var(--layout-header-row));
-  right: 0;
+  right: var(--document-scrollbar-width, 0px);
   z-index: 4;
   width: min(var(--layout-document-panel-width), 100vw);
   height: calc(100vh - var(--app-header-height, var(--layout-header-row)));
@@ -522,7 +528,7 @@ button {
 /* A navigation target clears the sticky header, including React's Figure wrapper. */
 .document-editor > *,
 .document-editor :is(td, th) {
-  scroll-margin-top: calc(var(--app-header-height, var(--layout-header-row)) + var(--space-8));
+  scroll-margin-top: var(--space-8);
 }
 
 /* The document column fills the remaining height, so the area below the document is clickable. */
@@ -532,7 +538,21 @@ button {
   grid-column: 2;
   grid-row: 2;
   min-width: 0;
+  min-height: 0;
 }
+
+/* Each mounted tab keeps its native scroll position, including while hidden. Its viewport
+ * starts below tabs/messages; the native scrollbar stays at the window's right edge only
+ * below that line. Insets keep content between the independent Sidebar/Document panel. */
+.document-scroll {
+  position: fixed;
+  inset: 0;
+  top: var(--app-header-height, var(--layout-header-row));
+  overflow-y: auto;
+  padding: 0 var(--shell-panel) 0 var(--shell-sidebar);
+}
+.document-scroll[hidden] { display: none; }
+.document-stage { flex: 1; min-height: 0; }
 
 .app-header {
   position: sticky;
@@ -999,6 +1019,7 @@ body:has(.ui-portal [role="menu"]) :is(.app-titlebar, .top-bar, .settings-topbar
   max-width: var(--layout-content-width);
   margin: 0 auto;
   padding: var(--layout-content-gutter);
+  min-height: calc(100dvh - var(--app-header-height, var(--layout-header-row)));
 }
 
 /* The Wide document preference changes only the column's maximum width. */
@@ -3085,4 +3106,13 @@ ol.list { list-style: decimal; }
   outline-offset: -1px;
   border-radius: var(--id-radius-md);
   padding-inline: var(--space-3);
+}
+
+/* Printing must release the screen viewport so later pages are never clipped. */
+@media print {
+  body { overflow: visible; }
+  .app-shell { display: block; width: auto; height: auto; }
+  .app-titlebar, .sidebar, .app-header, .document-panel { display: none; }
+  .document-scroll { position: static; overflow: visible; padding: 0; }
+  .document-column, .app-shell--wide .document-column { max-width: none; min-height: 0; padding: 0; }
 }

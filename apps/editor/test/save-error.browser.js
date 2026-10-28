@@ -63,7 +63,7 @@ async (page, { openPath, reloadDocument, expect, screenshots }) => {
     await page.setViewportSize({width, height:900});
     await page.emulateMedia({colorScheme:theme});
     await page.mouse.move(0,0);
-    await page.evaluate(async () => { window.scrollTo(0,0); await document.fonts.ready; });
+    await page.evaluate(async () => { document.querySelector('.document-scroll[data-active="true"]').scrollTo(0,0); await document.fonts.ready; });
     await expect(overlay).toHaveText('저장 불가: 빈 필수 내용 → 입력·삭제');
     if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw new Error('Error overflows the viewport');
     for (const lang of ['ko','en']) {
@@ -102,10 +102,10 @@ async (page, { openPath, reloadDocument, expect, screenshots }) => {
   await language('ko');
   if (!(await error.innerText()).includes('(표)') || !(await error.innerText()).includes('2행, 1열')) throw new Error('Cell coordinates/kind missing: ' + await error.innerText());
   await page.setViewportSize({width:640,height:500});
-  await page.evaluate(() => window.scrollTo(0,0));
+  await page.evaluate(() => document.querySelector('.document-scroll[data-active="true"]').scrollTo(0,0));
   await page.getByRole('button',{name:'문제 위치로 이동',exact:true}).click();
   if (!await editor.evaluate(el => el.editor.view.hasFocus() && el.editor.state.selection.$from.parent.type.name === 'tableCell')) throw new Error('Cell navigation missed the cell');
-  if (!await page.evaluate(() => window.scrollY > 0)) throw new Error('Navigation did not scroll to the offscreen cell');
+  if (!await page.evaluate(() => document.querySelector('.document-scroll[data-active="true"]').scrollTop > 0)) throw new Error('Navigation did not scroll to the offscreen cell');
   const geometry = await overlay.evaluate(outline => {
     const e = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
     let pos = 0; for (let i=0;i<2;i++) pos += e.state.doc.child(i).nodeSize;

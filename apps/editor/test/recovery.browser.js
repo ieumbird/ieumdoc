@@ -46,7 +46,7 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
     const layoutFailures = [];
     for (const width of [1440,640]) {
       await page.setViewportSize({width,height:900});
-      await page.evaluate(async () => { await document.fonts.ready; window.scrollTo(0,0); });
+      await page.evaluate(async () => { await document.fonts.ready; document.querySelector('.document-scroll[data-active="true"]').scrollTo(0,0); });
       if (screenshots) await page.screenshot({path:`tmp/296/${name}-${width}.png`});
       const prompt = page.getByTestId('recovery-prompt');
       if (reviewLayout) {

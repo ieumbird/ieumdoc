@@ -544,8 +544,8 @@ test("document panel offers navigation lists, and the TopBar Outline toggle show
   assert.equal(currentText?.replace(/<[^>]+>/g, ""), "Detail");
   assert.match(panel, /role="tablist"/);
   assert.match(panel, /aria-controls="document-panel-list-tables"/);
-  assert.match(panel, />Tables 0</);
-  assert.match(panel, />Figures 0</);
+  assert.match(panel, />Tables</);
+  assert.match(panel, />Figures</);
   for (const open of [true, false]) {
     const html = renderToStaticMarkup(
       <TooltipProvider>

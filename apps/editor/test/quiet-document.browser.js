@@ -41,7 +41,7 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
       await closeSettings();
       for (const width of [1440,640]) {
         await page.setViewportSize({width,height:1000});
-        await page.evaluate(() => { window.scrollTo(0,0); document.activeElement?.blur(); });
+        await page.evaluate(() => { document.querySelector('.document-scroll[data-active="true"]').scrollTo(0,0); document.activeElement?.blur(); });
         await page.mouse.move(0,0);
         const shot = async name => {
           const file = `tmp/page-background-593/${theme}-${background}-${width}-${name}.png`;
@@ -55,7 +55,7 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
             await shot(name);
           }
         }
-        await page.evaluate(() => window.scrollTo(0,0));
+        await page.evaluate(() => document.querySelector('.document-scroll[data-active="true"]').scrollTo(0,0));
         await settings();
         await shot('settings');
         await closeSettings();
@@ -70,7 +70,7 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
       await page.locator('[data-document-tab][data-active=true] .hljs-keyword').waitFor();
       for (const width of [1440,640]) {
         await page.setViewportSize({width,height:1000});
-        await page.evaluate(() => { window.scrollTo(0,0); document.activeElement?.blur(); });
+        await page.evaluate(() => { document.querySelector('.document-scroll[data-active="true"]').scrollTo(0,0); document.activeElement?.blur(); });
         await page.mouse.move(0,0);
         const path = `tmp/page-background-593/${theme}-${background}-${width}-code.png`;
         await page.screenshot({path}); captures.push(path);
@@ -112,7 +112,7 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
     });
   };
   const rest = async () => {
-    await page.evaluate(() => { window.scrollTo(0,0); document.activeElement?.blur(); });
+    await page.evaluate(() => { document.querySelector('.document-scroll[data-active="true"]').scrollTo(0,0); document.activeElement?.blur(); });
     await page.mouse.move(0,0);
     await page.waitForTimeout(150);
   };
@@ -132,7 +132,12 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
       const children=[...n.querySelectorAll('input,select,textarea,button')].map(c=>{
         const a=c.getBoundingClientRect();return {x:a.x,y:a.y,right:a.right,bottom:a.bottom,height:a.height};
       });
-      return {x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height,header,viewport:[innerWidth,innerHeight],children,scrollWidth:n.scrollWidth,clientWidth:n.clientWidth,scrollHeight:n.scrollHeight,clientHeight:n.clientHeight};
+      const positioner=n.parentElement;
+      const documentScroll=document.querySelector('.document-scroll[data-active="true"]');
+      return {x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height,header,viewport:[innerWidth,innerHeight],children,scrollWidth:n.scrollWidth,clientWidth:n.clientWidth,scrollHeight:n.scrollHeight,clientHeight:n.clientHeight,
+        placement:n.dataset.side,positionerStyle:positioner?.getAttribute('style'),
+        documentScroll:documentScroll&&{top:documentScroll.scrollTop,height:documentScroll.clientHeight},
+        visualViewport:window.visualViewport&&[visualViewport.width,visualViewport.height]};
     });
     check(result.x>=0&&result.right<=result.viewport[0]+1&&result.y>=result.header-1&&result.bottom<=result.viewport[1]+1, `${label} outside viewport: ${JSON.stringify(result)}`);
     check(result.children.length>0, `${label}: required controls missing`);
@@ -730,7 +735,7 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
       await page.locator('[data-document-tab][data-active=true] .equation').hover();
       await page.locator('[data-document-tab][data-active=true] .equation').getByRole('button',{name:'Edit',exact:true}).click();
       await page.getByTestId('equation-editor').waitFor();
-      await page.evaluate(()=>window.scrollTo(0,0));
+      await page.evaluate(()=>document.querySelector('.document-scroll[data-active="true"]').scrollTo(0,0));
       await page.mouse.move(0,0);
       await shot(`${width}-equation-editing`);
       await page.getByTestId('equation-cancel').click();

@@ -159,7 +159,7 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
       for(const collapsed of [false,true]) {
         if(collapsed) await page.getByRole('button',{name:'Collapse Explorer',exact:true}).click();
         await page.mouse.move(width-2,2);
-        await page.evaluate(()=>{window.scrollTo(0,0);document.activeElement?.blur();});
+        await page.evaluate(()=>{document.querySelector('.document-scroll[data-active="true"]').scrollTo(0,0);document.activeElement?.blur();});
         const rest=await page.locator('.block-controls').evaluateAll(nodes=>nodes.map(n=>({opacity:getComputedStyle(n).opacity,pointer:getComputedStyle(n).pointerEvents})));
         if(!rest.length || rest.some(n=>n.opacity!=='0'||n.pointer!=='none')) throw Error('Rest gutter must be invisible and inert');
         const paragraph=page.locator('[data-document-tab][data-active=true] .document-editor > .paragraph').first();
@@ -186,7 +186,7 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
         const result=await page.evaluate(({collapsed,width})=>{
           const required=s=>{const n=document.querySelector(s);if(!n)throw Error(`Missing required ${s}`);return n;};
           const rect=s=>required(s).getBoundingClientRect();
-          const main=rect('.app-main'),column=rect('.document-column'),doc=rect('[data-document-tab][data-active=true] .document-editor');
+          const main=rect('.app-main'),column=rect('.document-scroll[data-active="true"] .document-column'),doc=rect('[data-document-tab][data-active=true] .document-editor');
           const selectors=['.heading','.paragraph','.table-block','.figure','.equation','.admonition'];
           const starts=selectors.map(s=>rect('[data-document-tab][data-active=true] .document-editor '+s).left);
           const controls=rect('.block-controls.visible');
@@ -240,7 +240,7 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
           if([body,...headings].some(t=>t.font!==documentFont)||
             [caption,table].some(t=>t.font!==uiFont)||getComputedStyle(document.body).fontFamily!==uiFont)
             throw Error('Document/UI font must follow its own token');
-          const shellOverflow=['.app-shell','.sidebar','.app-main','.top-bar','.document-column','[data-document-tab][data-active=true] .document','[data-document-tab][data-active=true] .document-editor','.figure','.equation','.table-block'].filter(s=>{const r=rect(s);return r.left<0||r.right>innerWidth+1;});
+          const shellOverflow=['.app-shell','.sidebar','.app-main','.top-bar','.document-scroll[data-active="true"] .document-column','[data-document-tab][data-active=true] .document','[data-document-tab][data-active=true] .document-editor','.figure','.equation','.table-block'].filter(s=>{const r=rect(s);return r.left<0||r.right>innerWidth+1;});
           const center=rect('.command-center-trigger'), actions=rect('.top-bar-actions');
           return {width,collapsed,header:rect('.app-titlebar').height,headerWidth:rect('.top-bar-container').width,commandCenterDelta:Math.abs(center.left+center.width/2-(rect('.top-bar').left+rect('.top-bar').width/2)),centerBottom:center.bottom,actionsTop:actions.top,sidebarHeader:rect('.sidebar-header').height,centerDelta:Math.abs(main.left+main.width/2-column.left-column.width/2),blockDelta:Math.max(...starts)-Math.min(...starts),gutterGap:doc.left-controls.right,standard,compact,icons:icons?.map(r=>({x:r.x,w:r.width,h:r.height}))??null,rowIcons,labels,sidebarWidth,expectedSidebar,panelWidth,expectedPanel,body,headings,caption,table,expectedTypeValues,shellOverflow};
         },{collapsed,width});
@@ -250,7 +250,7 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
         // The center gets its own row when the header's actual width is below 56rem,
         // independently of how much width the sidebar and outline occupy.
         if(width>=1280&&width<=1424&&result.header!==40)throw Error(`Docking boundary wrapped TopBar: ${JSON.stringify(result)}`);
-        if(width>=1279&&Math.abs(await page.locator('.document-column').evaluate(n=>n.getBoundingClientRect().width)-928)>0.5)
+        if(width>=1279&&Math.abs(await page.locator('.document-scroll[data-active="true"] .document-column').evaluate(n=>n.getBoundingClientRect().width)-928)>0.5)
           throw Error(`Docking reduced Standard column at ${width}px`);
         const stacked=result.headerWidth<896;
         if(fail||result.sidebarHeader!==33||result.commandCenterDelta>1||(!stacked&&result.header!==40)||
@@ -267,7 +267,7 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
     for(const collapsed of [false,true]) {
       if(collapsed) await page.getByRole('button',{name:'Collapse Explorer',exact:true}).click();
       else if(await page.getByRole('button',{name:'Expand Explorer',exact:true}).count()) await page.getByRole('button',{name:'Expand Explorer',exact:true}).click();
-      await page.evaluate(()=>window.scrollTo(0,0));
+      await page.evaluate(()=>document.querySelector('.document-scroll[data-active="true"]').scrollTo(0,0));
       const narrow=await page.evaluate(()=>{
         // Visual/Source is one segmented control: its track is measured as a single control.
         const views=document.querySelector('.view-toggle');
@@ -314,14 +314,15 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
     if(!heading)throw Error('Missing heading for measured-header scroll margin check');
     const gapProbe=document.createElement('span');document.body.append(gapProbe);gapProbe.style.height='var(--space-8)';
     const gap=parseFloat(getComputedStyle(gapProbe).height);gapProbe.remove();
-    if(Math.abs(measured-header)>0.5 || Math.abs(parseFloat(getComputedStyle(heading).scrollMarginTop)-header-gap)>0.5)
-      throw Error(`Heading scroll margin did not follow the measured header: ${JSON.stringify({measured,header,gap,margin:getComputedStyle(heading).scrollMarginTop})}`);
+    const viewportTop=heading.closest('.document-scroll').getBoundingClientRect().top;
+    if(Math.abs(measured-header)>0.5 || Math.abs(viewportTop+parseFloat(getComputedStyle(heading).scrollMarginTop)-header-gap)>0.5)
+      throw Error(`Heading scroll clearance did not follow the measured header: ${JSON.stringify({measured,header,gap,viewportTop,margin:getComputedStyle(heading).scrollMarginTop})}`);
     const panel=document.querySelector('.document-panel')?.getBoundingClientRect();
     const token=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--layout-document-panel-width'))*parseFloat(getComputedStyle(document.documentElement).fontSize);
     const uncovered=['[data-testid="save"]','.top-bar-actions button[aria-label="File actions"]','.top-bar-actions button[aria-label="Outline"]'].every(s=>{
       const r=rect(s);const hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return document.querySelector(s).contains(hit);
     });
-    return {main:rect('.app-main').width,column:rect('.document-column').width,panelLeft:panel?.left??null,panelRight:panel?.right??null,panelTop:panel?.top??null,panelBottom:panel?.bottom??null,headerBottom:rect('.app-header').bottom,uncovered,token,overflow:document.documentElement.scrollWidth>innerWidth};
+    return {main:rect('.app-main').width,column:rect('.document-scroll[data-active="true"] .document-column').width,panelLeft:panel?.left??null,panelRight:panel?.right??null,panelTop:panel?.top??null,panelBottom:panel?.bottom??null,headerBottom:rect('.app-header').bottom,uncovered,token,overflow:document.documentElement.scrollWidth>innerWidth};
     });
   };
   for(const width of [1423,1280,1279,1024,768,704]) {
@@ -417,7 +418,7 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
   await page.mouse.move(1918,2);
   const column=()=>page.evaluate(()=>{
     const rect=s=>{const n=document.querySelector(s);if(!n)throw Error(`Missing required ${s}`);return n.getBoundingClientRect();};
-    const main=rect('.app-main'),column=rect('.document-column'),doc=rect('[data-document-tab][data-active=true] .document-editor');
+    const main=rect('.app-main'),column=rect('.document-scroll[data-active="true"] .document-column'),doc=rect('[data-document-tab][data-active=true] .document-editor');
     const starts=['.heading','.paragraph','.table-block','.figure','.equation','.admonition'].map(s=>rect('[data-document-tab][data-active=true] .document-editor '+s).left);
     const probe=document.createElement('div');
     probe.style.width=getComputedStyle(document.documentElement).getPropertyValue('--layout-content-width-wide');

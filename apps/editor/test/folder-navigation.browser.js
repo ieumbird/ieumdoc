@@ -78,10 +78,10 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
         const wasCollapsed = state !== 'empty' && await sectionToggle.getAttribute('aria-expanded') === 'false';
         if (wasCollapsed) await sectionToggle.click();
         const environment = await page.evaluate(async () => {
-          await document.fonts.ready; window.scrollTo(0, 0); document.activeElement?.blur();
+          await document.fonts.ready; document.querySelector('.document-scroll[data-active="true"]').scrollTo(0, 0); document.activeElement?.blur();
           return {viewport:[innerWidth, innerHeight], dpr:devicePixelRatio, zoom:visualViewport.scale,
             cssZoom:getComputedStyle(document.documentElement).zoom, font:getComputedStyle(document.querySelector('.product')).fontFamily,
-            scroll:[scrollX, scrollY], language:document.documentElement.lang,
+            scroll:[scrollX, document.querySelector('.document-scroll[data-active="true"]').scrollTop], language:document.documentElement.lang,
             rootNameWidth:document.querySelector('.sidebar-folder-name .sidebar-tree-name')?.getBoundingClientRect().width};
         });
         await page.mouse.move(width - 2, 2);
@@ -315,10 +315,10 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
       await page.setViewportSize({width, height:812});
       await sidebar.getByRole('button', {name:'Collapse Explorer', exact:true}).waitFor();
       const environment = await page.evaluate(async () => {
-        await document.fonts.ready; document.activeElement?.blur(); window.scrollTo(0, 0);
+        await document.fonts.ready; document.activeElement?.blur(); document.querySelector('.document-scroll[data-active="true"]').scrollTo(0, 0);
         return {viewport:[innerWidth, innerHeight], dpr:devicePixelRatio, zoom:visualViewport.scale,
           cssZoom:getComputedStyle(document.documentElement).zoom, font:getComputedStyle(document.querySelector('.product')).fontFamily,
-          scroll:[scrollX, scrollY], language:document.documentElement.lang,
+          scroll:[scrollX, document.querySelector('.document-scroll[data-active="true"]').scrollTop], language:document.documentElement.lang,
             rootNameWidth:document.querySelector('.sidebar-folder-name .sidebar-tree-name')?.getBoundingClientRect().width};
       });
       await page.mouse.move(width - 2, 2);

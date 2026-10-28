@@ -97,7 +97,7 @@ async page => {
       const paper = document.querySelector('[data-document-tab][data-active=true] .document');
       const bounds = paper.getBoundingClientRect();
       const header = document.querySelector('.app-header').getBoundingClientRect();
-      const column = getComputedStyle(document.querySelector('.document-column'));
+      const column = getComputedStyle(document.querySelector('.document-scroll[data-active="true"] .document-column'));
       const style = getComputedStyle(paper);
       const titlebar = document.querySelector('.app-titlebar').getBoundingClientRect();
       return {height:bounds.height, minimum:innerHeight-titlebar.height-header.height-parseFloat(column.paddingTop)-parseFloat(column.paddingBottom),
@@ -171,13 +171,13 @@ async page => {
     below: innerHeight - (target === 'caret' ? getSelection().getRangeAt(0).getClientRects()[0]
       : document.querySelector('[data-document-tab][data-active=true] .document-editor > :last-child').getBoundingClientRect()).bottom,
     end: parseFloat(getComputedStyle(document.querySelector('[data-document-tab][data-active=true] .document')).paddingBottom),
-    viewport: innerHeight, scrolled: scrollY,
+    viewport: innerHeight, scrolled: document.querySelector('.document-scroll[data-active="true"]').scrollTop,
   }), target);
   // A quarter of the window is the least that lifts the line off the bottom edge.
   const writing = await room('caret');
   check(writing.scrolled > 0 && writing.end >= writing.viewport / 4 && writing.below >= writing.end - 1,
     `The line being written stays at the bottom of the window: ${JSON.stringify(writing)}`);
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await page.evaluate(() => document.querySelector('.document-scroll[data-active="true"]').scrollTo(0, document.querySelector('.document-scroll[data-active="true"]').scrollHeight));
   const scrolledEnd = await room('line');
   check(scrolledEnd.below >= scrolledEnd.end - 1, `No room below the last line: ${JSON.stringify(scrolledEnd)}`);
   await page.getByRole('button', {name:'Save', exact:true}).click();

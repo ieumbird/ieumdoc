@@ -1,5 +1,5 @@
 // Document navigation integration: Core-backed captions, shared current/reveal lifecycle and tabs.
-async (page, { openDocument, expect }) => {
+async (page, { openDocument, expect, screenshots }) => {
   const origin = page.url().split('/').slice(0, 3).join('/');
   const initial = await (await page.request.get(`${origin}/api/document`)).json();
   const sep = initial.path.includes('\\') ? '\\' : '/';
@@ -12,7 +12,7 @@ async (page, { openDocument, expect }) => {
   const tables = panel.getByTestId('tables');
   const figures = panel.getByTestId('figures');
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
-  await expect(tabs).toHaveText(['Outline', 'Tables 3', 'Figures 3']);
+  await expect(tabs).toHaveText(['Outline', 'Tables', 'Figures']);
   await expect(panel.getByRole('tab', { name: 'Outline', exact: true })).toHaveAttribute('aria-selected', 'true');
   // Every tab controls a mounted panel, and only the chosen panel is exposed.
   for (const tab of await tabs.all()) {
@@ -25,7 +25,9 @@ async (page, { openDocument, expect }) => {
     'Table 1. Measured results', 'Table 2',
     'Table 3. A very long caption with enough words to wrap across more than two lines in the document navigation panel without widening the panel',
   ]);
+  if (screenshots) await page.screenshot({ path: 'tmp/panel-700/tables-1440.png', animations: 'disabled' });
   await tabs.nth(2).click();
+  if (screenshots) await page.screenshot({ path: 'tmp/panel-700/figures-1440.png', animations: 'disabled' });
   await expect(figures.getByRole('button').nth(0)).toHaveText('Figure 1. Signal flow through the system.');
   await expect(figures.getByRole('button').nth(1)).toHaveText('Figure 2');
   // Compare the actual body prefix, including its separator, rather than a second template.
@@ -89,18 +91,20 @@ async (page, { openDocument, expect }) => {
       const editor = element.editor;
       let last;
       editor.state.doc.forEach((node, pos) => { if (node.type.name === kind) last = editor.view.nodeDOM(pos); });
-      window.scrollTo(0, window.scrollY + last.getBoundingClientRect().top - window.innerHeight * 0.25);
+      document.querySelector('.document-scroll[data-active="true"]').scrollTo(0, document.querySelector('.document-scroll[data-active="true"]').scrollTop + last.getBoundingClientRect().top - window.innerHeight * 0.25);
     }, kind);
     await expect(list.locator('[aria-current="location"]')).toContainText(kind === 'table' ? 'Table 3.' : 'Figure 3.');
   }
 
-  // A real keyboard deletion changes count/number immediately; Undo restores both.
+  // A real keyboard deletion updates the list immediately; Undo restores it.
   await figures.getByRole('button').first().click();
   await page.keyboard.press('Delete');
-  await expect(tabs.nth(2)).toHaveText('Figures 2');
+  await expect(tabs.nth(2)).toHaveText('Figures');
+  await expect(figures.getByRole('button')).toHaveCount(2);
   await expect(figures.getByRole('button').first()).toHaveText('Figure 1');
   await page.keyboard.press('Control+z');
-  await expect(tabs.nth(2)).toHaveText('Figures 3');
+  await expect(tabs.nth(2)).toHaveText('Figures');
+  await expect(figures.getByRole('button')).toHaveCount(3);
   await expect(figures.getByRole('button').first()).toContainText('Signal flow');
 
   // Caption edits update navigation without Save or Reload.
@@ -171,7 +175,7 @@ async (page, { openDocument, expect }) => {
   try {
     await page.evaluate(() => localStorage.setItem('ieumdoc.uiLanguage', 'ko'));
     await page.reload();
-    await expect(tabs).toHaveText(['개요', '표 0', '그림 0']);
+    await expect(tabs).toHaveText(['개요', '표', '그림']);
     await expect(tabs.first()).toHaveAttribute('aria-selected', 'true');
     await tabs.nth(1).click();
     await expect(tables).toHaveText('표 없음');
