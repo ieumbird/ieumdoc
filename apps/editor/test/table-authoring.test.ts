@@ -1,9 +1,11 @@
 import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getSchema } from "@tiptap/core";
+import { getExtensionField, getSchema, type Editor } from "@tiptap/core";
 import { history, undo } from "@tiptap/pm/history";
-import { EditorState, TextSelection, type Transaction } from "@tiptap/pm/state";
+import { EditorState, NodeSelection, TextSelection, type Transaction } from "@tiptap/pm/state";
+import type { Plugin } from "@tiptap/pm/state";
+import type { EditorView } from "@tiptap/pm/view";
 import {
   addTableColumnRight,
   addTableRowBelow,
@@ -17,7 +19,8 @@ import {
   removeTableColumn,
   removeTableRow,
 } from "../src/block-commands.ts";
-import { editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
+import { captionPlaceholderVisible, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
+import { documentInteraction } from "../src/document-interaction.ts";
 import {
   assertSupportedDocumentChange,
   collectSupportedEdits,
@@ -72,6 +75,58 @@ function caretIn(state: EditorState, row: number, column: number, index = TABLE)
 }
 
 const cellOf = (state: EditorState) => ({ row: state.selection.$from.index(1), column: state.selection.$from.index(2) });
+
+test("caption delete input without usable target ranges leaves the event and document untouched", () => {
+  const { state } = editorState(mixed);
+  const extension = documentInteraction(() => assert.fail("unexpected rejection"));
+  const editor = { schema: state.schema, isEditable: true } as Editor;
+  const factory = getExtensionField<() => Plugin[]>(extension, "addProseMirrorPlugins", {
+    name: extension.name, options: extension.options, storage: extension.storage, editor,
+  });
+  assert.ok(factory);
+  const plugin = factory()[0]!;
+  const handler = plugin.props.handleDOMEvents!.beforeinput!;
+  let dispatched = false;
+  const view = { state, composing: false, dispatch() { dispatched = true; },
+    posAtDOM() { assert.fail("cannot infer a target without ranges"); } } as unknown as EditorView;
+  for (const [name, method] of [
+    ["missing", undefined],
+    ["not a function", "unsupported"],
+    ["empty", () => []],
+    ["throws", () => { throw new Error("unavailable"); }],
+  ] as const) {
+    let prevented = false;
+    const event = { inputType: "deleteWordBackward", cancelable: true, isComposing: false,
+      getTargetRanges: method, preventDefault() { prevented = true; } } as unknown as InputEvent;
+    assert.equal(handler.call(plugin, view, event), false, name);
+    assert.equal(prevented, false, name);
+    assert.equal(dispatched, false, name);
+    assert.equal(view.state, state, name);
+  }
+});
+
+test("empty caption hint follows engine selection, content and editability", () => {
+  let { state } = editorState(mixed);
+  let captionPos = -1;
+  state.doc.descendants((node, pos) => { if (node.type.name === "tableCaption") captionPos = pos; });
+  assert.ok(captionPos >= 0);
+  assert.equal(captionPlaceholderVisible(state, captionPos, true), true);
+  assert.equal(captionPlaceholderVisible(state, captionPos, false), false);
+  state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, captionPos + 1)));
+  assert.equal(captionPlaceholderVisible(state, captionPos, true), false);
+  state = state.apply(state.tr.insertText("Caption"));
+  state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1)));
+  assert.equal(captionPlaceholderVisible(state, captionPos, true), false);
+  state = state.apply(state.tr.delete(captionPos + 1, captionPos + 8));
+  assert.equal(captionPlaceholderVisible(state, captionPos, true), true);
+  let figure = editorState(nativeSource("Before.\n\n:::{figure}\n:::\n")).state;
+  let figurePos = -1;
+  figure.doc.descendants((node, pos) => { if (node.type.name === "figure") figurePos = pos; });
+  figure = figure.apply(figure.tr.setSelection(NodeSelection.create(figure.doc, figurePos)));
+  assert.equal(captionPlaceholderVisible(figure, figurePos, true), true);
+  figure = figure.apply(figure.tr.setSelection(TextSelection.create(figure.doc, figurePos + 1)));
+  assert.equal(captionPlaceholderVisible(figure, figurePos, true), false);
+});
 
 test("handle targets reuse commands outside the table, preserving formatted cells and one-step undo", () => {
   let { document, state, rejected } = editorState(mixed);

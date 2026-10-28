@@ -401,7 +401,7 @@ async (page, { openPath, reloadDocument }) => {
   await page.getByTestId('table-label').fill('cancelled-label');
   await page.getByTestId('table-cancel').click();
   result.captionCancelKeepsTable = await table.getByTestId('table-caption').textContent() === '' &&
-    await table.getByLabel('Table caption',{exact:true}).getAttribute('data-placeholder') === 'Table caption';
+    await table.getByLabel('Table caption',{exact:true}).getAttribute('data-placeholder') === 'Enter a table caption…';
   await table.hover();
   await table.getByRole('button', {name:'Edit table'}).click();
   await page.getByTestId('table-cancel').click();
