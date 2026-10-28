@@ -13,6 +13,7 @@ import { activeDocument, openFolderPicker, openDocument, openPath, reloadDocumen
 import { withBlockHover } from "./hover.ts";
 import { recoveryRecords } from "./recovery-records.ts";
 import { inputEventScript } from "./input-event-script.ts";
+import { verifyBuiltAppearance } from "./desktop-appearance.ts";
 
 const url = process.env.IEUMDOC_BROWSER_URL ?? (process.env.IEUMDOC_BROWSER_HOST === "http" ? "http://127.0.0.1:5181" : "http://127.0.0.1:5173");
 const scenarios: string[] = process.env.IEUMDOC_BROWSER_SCENARIOS ? JSON.parse(process.env.IEUMDOC_BROWSER_SCENARIOS) : [...STABLE_SCENARIOS];
@@ -155,6 +156,7 @@ const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
 
 for (const name of scenarios) {
   test(name, async ({ page }) => {
+    if (name === "desktop-updates") await verifyBuiltAppearance(page);
     const source = readFileSync(path.join(REPOSITORY_ROOT, "apps/editor/test", `${name}.browser.js`), "utf8");
     const scenario = runInNewContext(`(${source})`) as (page: Page, options: { assertSavedSource: ReturnType<typeof savedSourceAssertion>; screenshots: boolean; fileActionsRoot: string; expect: typeof expect; recoveryRecords: typeof recoveryRecords; openFolderPicker: typeof openFolderPicker; openDocument: typeof openDocument; openPath: typeof openPath; waitForActivePath: typeof waitForActivePath; reloadDocument: typeof reloadDocument; waitForEditorFocus: typeof waitForEditorFocus; activeDocument: typeof activeDocument; withBlockHover: typeof withBlockHover; removeTabFixture: () => void; bibliographyFixture: unknown }) => Promise<unknown>;
     const bibliographyPath = path.join(REPOSITORY_ROOT, "tmp", name === "http-host" ? "http-host-a" : "bibliography", "refs.bib");

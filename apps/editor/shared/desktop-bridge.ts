@@ -61,7 +61,7 @@ export type DesktopBridge = {
   readonly fileDeletion: "trash";
   /** In-memory native appearance only; preference persistence stays in renderer localStorage. */
   setTheme(theme: "system" | "light" | "dark"): Promise<boolean>;
-  /** Resolved canvas and caption CSS roles; also marks the initial appearance ready to show. */
+  /** Opaque sRGB #rrggbb canvas and caption roles; also marks the initial appearance ready to show. */
   setWindowBackground(color: string, overlay: { color: string; symbolColor: string }): Promise<void>;
   info(): Promise<DesktopInfo>;
   cliIntegration(): Promise<CliIntegrationState>;

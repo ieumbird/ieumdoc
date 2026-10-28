@@ -192,6 +192,12 @@ test("a .md argument opens; edits save to disk and reopen", async () => {
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.show());
     await page.keyboard.press("Escape");
     assert.equal(await page.evaluate(() => localStorage.getItem("ieumdoc.theme")), "dark");
+    // Persist the production-shortened #fff combination that used to leave the next launch hidden.
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByTestId("theme").selectOption("light");
+    await page.getByTestId("page-background").selectOption("flat");
+    await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getBackgroundColor().toLowerCase())).toBe("#ffffff");
+    await page.keyboard.press("Escape");
     const preferencesFile = path.join(userData, "preferences.json");
     assert.ok(!existsSync(preferencesFile) || !readFileSync(preferencesFile, "utf8").includes('"theme"'), "the Host must not persist appearance");
   } finally {
@@ -200,8 +206,12 @@ test("a .md argument opens; edits save to disk and reopen", async () => {
   ({ app, page } = await launch(userData, [file]));
   try {
     assert.match(await page.locator(".ProseMirror").innerText(), /DESKTOP /);
-    assert.equal(await page.locator("html").getAttribute("data-theme"), "dark", "saved appearance is ready when the Editor mounts");
-    assert.equal(await app.evaluate(({ nativeTheme }) => nativeTheme.themeSource), "dark");
+    assert.equal(await page.locator("html").getAttribute("data-theme"), "light", "saved appearance is ready when the Editor mounts");
+    assert.equal(await page.locator("html").getAttribute("data-page"), "flat");
+    assert.equal(await app.evaluate(({ nativeTheme }) => nativeTheme.themeSource), "light");
+    await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isVisible())).toBe(true);
+    assert.equal(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getBackgroundColor().toLowerCase()), "#ffffff");
+    assert.doesNotMatch(readFileSync(path.join(userData, "logs/desktop.log"), "utf8"), /window startup fallback|window appearance failed/);
   } finally {
     await closeApp(app);
   }

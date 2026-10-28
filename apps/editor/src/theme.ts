@@ -15,11 +15,23 @@ function render(dark: boolean): void {
 }
 
 function syncBackground(): Promise<void> | undefined {
+  const desktop = window.ieumdocDesktop;
+  if (!desktop) return;
   // Keep the color value in tokens.css, including the native window's unpainted background.
   const style = getComputedStyle(root);
-  return window.ieumdocDesktop?.setWindowBackground(style.getPropertyValue("--id-color-canvas").trim(), {
-    color: style.getPropertyValue("--id-color-surface-subtle").trim(),
-    symbolColor: style.getPropertyValue("--id-color-text").trim(),
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 1;
+  const context = canvas.getContext("2d")!;
+  const color = (role: string) => {
+    // Let the browser parse CSS (including minified #fff), then send opaque sRGB bytes.
+    context.fillStyle = style.getPropertyValue(`--id-color-${role}`).trim();
+    context.fillRect(0, 0, 1, 1);
+    return "#" + [...context.getImageData(0, 0, 1, 1).data].slice(0, 3)
+      .map(value => value.toString(16).padStart(2, "0")).join("");
+  };
+  return desktop.setWindowBackground(color("canvas"), {
+    color: color("surface-subtle"),
+    symbolColor: color("text"),
   });
 }
 
