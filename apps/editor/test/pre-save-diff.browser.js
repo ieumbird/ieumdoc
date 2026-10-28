@@ -74,6 +74,15 @@ async (page, { openPath, activeDocument, screenshots = false, removeTabFixture }
   await page.getByTestId('save').click();
   await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
   check((await read()).source === preview.markdown, 'Preview differs from real Save');
+  const equation = editor().locator('[data-block="equation"]').first();
+  await equation.hover(); await equation.getByRole('button', { name: 'Edit', exact: true }).click();
+  await page.getByTestId('equation-latex').fill('x + 41');
+  await compare();
+  await dialog().getByText('0 changes', { exact: true }).waitFor();
+  check(!(await dialog().innerText()).includes('x + 41'), 'Unapplied draft entered preview');
+  await close();
+  check(await page.getByTestId('equation-latex').inputValue() === 'x + 41', 'Comparison lost property draft');
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await editor().evaluate(node => node.editor.commands.insertContentAt(1, 'Next edit. '));
   // Command center reuses the same command and captures the acknowledged Save checkpoint.
   await page.keyboard.press('Control+Slash');
@@ -97,6 +106,7 @@ async (page, { openPath, activeDocument, screenshots = false, removeTabFixture }
   await editor().evaluate(node => { const e = node.editor; e.view.dispatch(e.state.tr.delete(1, e.state.doc.firstChild.nodeSize - 1)); });
   await compare(); await dialog().getByRole('alert').waitFor();
   check((await dialog().getByRole('alert').innerText()).includes('Block 1 (heading)'), 'Preview refusal lost Save location');
+  check((await dialog().innerText()).includes('The file changed outside IeumDoc.'), 'Collection failure concealed external revision change');
   check(await dialog().getByRole('region', { name: 'Source differences' }).count() === 0, 'Refusal showed successful diff');
   await close(); await editor().evaluate(node => node.editor.commands.undo());
   removeTabFixture();

@@ -1,6 +1,7 @@
 # Editing session and Save v1
 
 - Status: Implemented
+- Pre-save comparison verification: 2026-10-28 (#655 stage 2: Save parity, read-only state, external revisions, refusal locations and missing files; [visual evidence](editor-visual-language-v1.md#pre-save-comparison-655)).
 - Save refusal verification: 2026-10-28 (#578 phase 1: localized summaries and collapsed original details, block/cell highlighting and keyboard reveal, list-shaped state with conservative submitted-snapshot invalidation; no Host/Core validation policy change).
 - Image rename verification: 2026-10-27 (#504: file-actions browser checks inactive dirty/property-draft refusal, clean active/inactive tabs, Source-to-Visual reload, subsequent Save and other-window revision conflict).
 - File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
