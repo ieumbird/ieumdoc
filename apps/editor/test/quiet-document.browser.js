@@ -412,15 +412,25 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
       if (dom === n || dom?.contains(n)) editor.commands.setNodeSelection(pos);
     });
   });
-  const outlineRadii = async block => {
+  const outlineGeometry = async block => {
     const selected = await block.evaluate(n => {
-      const s = getComputedStyle(n);
-      return {radius:parseFloat(s.borderTopLeftRadius), offset:parseFloat(s.outlineOffset), width:parseFloat(s.outlineWidth)};
+      const r = n.getBoundingClientRect(), s = getComputedStyle(n), overlay = getComputedStyle(n, '::after');
+      // Measure the painted outer edge, including the native outline on the base.
+      const expansion = parseFloat(s.outlineOffset) + parseFloat(s.outlineWidth);
+      return overlay.content !== 'none' ? {
+        x:r.x + parseFloat(overlay.left), y:r.y + parseFloat(overlay.top),
+        width:parseFloat(overlay.width), height:parseFloat(overlay.height),
+        radius:parseFloat(overlay.borderTopLeftRadius), shadow:overlay.boxShadow,
+      } : {x:r.x-expansion,y:r.y-expansion,width:r.width+2*expansion,height:r.height+2*expansion,
+        radius:parseFloat(s.borderTopLeftRadius)+expansion,stroke:parseFloat(s.outlineWidth)};
     });
-    const hover = await extent.evaluate(n => parseFloat(getComputedStyle(n).borderTopLeftRadius));
-    const selectedOuter = selected.radius + selected.offset + selected.width;
-    // The hover stroke is inset, so its outer edge follows the overlay's border radius.
-    return {...selected, selectedOuter, hoverOuter:hover, matches:Math.abs(selectedOuter - hover) < 0.1};
+    const hover = await extent.evaluate(n => {
+      const r=n.getBoundingClientRect(),s=getComputedStyle(n);
+      return {x:r.x,y:r.y,width:r.width,height:r.height,radius:parseFloat(s.borderTopLeftRadius),shadow:s.boxShadow};
+    });
+    const sameStroke = selected.shadow && selected.shadow.replace(/rgba?\([^)]+\)/, '') === hover.shadow.replace(/rgba?\([^)]+\)/, '');
+    const delta = Object.fromEntries(['x','y','width','height','radius'].map(k => [k, selected[k]-hover[k]]));
+    return {selected,hover,delta,sameStroke,matches:sameStroke && Object.values(delta).every(d => Math.abs(d)<0.1)};
   };
   const hoverStyle = await withBlockHover(page, async () => {
     await rest();
@@ -500,13 +510,35 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
       await extent.waitFor({state:'hidden'});
     }
     const radii = [];
-    for (const kind of ['figure','equation']) {
-      const block = page.locator(`[data-document-tab][data-active=true] .${kind}`);
-      await selectBlock(block);
-      check(await block.getAttribute('data-selected') === 'true', `${kind}: selection missing`);
-      await block.hover(); await extent.waitFor();
-      radii.push({kind,...await outlineRadii(block)});
+    const originalViewport = page.viewportSize();
+    for (const width of [1440,640]) {
+      await page.setViewportSize({width,height:1000});
+      for (const kind of ['figure','equation','table-block']) {
+        const block = page.locator(`[data-document-tab][data-active=true] .${kind}`);
+        await selectBlock(block);
+        check(await block.getAttribute('data-selected') === 'true', `${kind}: selection missing`);
+        await block.hover(); await extent.waitFor();
+        radii.push({width,kind,...await outlineGeometry(block)});
+        if (screenshots && kind !== 'table-block') {
+          const r = await extent.boundingBox();
+          await page.screenshot({path:`tmp/visual-refinement/overlap-${width}-${kind}.png`,
+            clip:{x:r.x-2,y:r.y-2,width:Math.min(r.width+4,180),height:Math.min(r.height+4,100)}});
+        }
+      }
     }
+    console.log('Block outline geometry: '+JSON.stringify(radii));
+    check(radii.every(r => r.matches), 'Selection/hover outer edges differ: '+JSON.stringify(radii));
+    await page.setViewportSize(originalViewport);
+    // A real exit and return to the exact same point restores hover; leaving alone does not.
+    const returnBlock = page.locator('[data-document-tab][data-active=true] .equation');
+    await returnBlock.hover();
+    const returnPoint = await returnBlock.boundingBox();
+    const point = {x:returnPoint.x+returnPoint.width/2,y:returnPoint.y+returnPoint.height/2};
+    await page.mouse.move(point.x,point.y);
+    await page.mouse.move(0,0);
+    check(!await extent.isVisible(), 'Pointer outside the document retained hover');
+    await page.mouse.move(point.x,point.y);
+    check(await extent.isVisible(), 'Returning to the same point after real movement lost hover');
     // Type with the pointer still on a different block. Do not poll for the disappearance.
     await hoverParagraph.click();
     await page.keyboard.press('End');
@@ -521,6 +553,12 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
       'Typing changed the independent metadata/Edit hover rules');
     check(JSON.stringify(await hoverParagraph.boundingBox()) === JSON.stringify(beforeTyping),
       'Hiding the hover outline while typing moved content');
+    // Scrolling moves blocks under a stationary pointer; it is not pointer movement.
+    await page.mouse.wheel(0,60);
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await equation.dispatchEvent('mouseover');
+    const hiddenAfterScroll = !await extent.isVisible();
+    check(hiddenAfterScroll, 'Scroll/mouseover restored the typing-suppressed outline');
     // A transaction and resize without pointer input must not bring the outline back.
     await page.keyboard.press('ArrowLeft');
     await page.setViewportSize({...viewport,height:viewport.height + 1});
@@ -545,7 +583,7 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
       await page.keyboard.press('Control+z');
       check(await json() === initial, `${key}: undo did not restore the document`);
     }
-    results.push({typingHover:{hiddenAfterTyping,hiddenAfterLayout},keyboardChanges,radii});
+    results.push({typingHover:{hiddenAfterTyping,hiddenAfterLayout,hiddenAfterScroll},keyboardChanges,radii});
     check(hiddenAfterTyping && hiddenAfterLayout && keyboardChanges.every(k => k.changed && k.hidden) && radii.every(r => r.matches),
       `Typing/outline regression: ${JSON.stringify({hiddenAfterTyping,hiddenAfterLayout,keyboardChanges,radii})}`);
     results.push({hoverStyle, hoverTextShift:0, gutterHoverRetainsExtent:true, adjacentGaps,
@@ -651,9 +689,9 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
     check(await page.locator('[data-document-tab][data-active=true] .figure .block-metadata').evaluate(n=>getComputedStyle(n).visibility==='visible'),'Selected metadata missing');
     await withBlockHover(page, async () => {
       await page.locator('[data-document-tab][data-active=true] .figure').hover(); await extent.waitFor();
-      check(await page.locator('[data-document-tab][data-active=true] .figure').evaluate((n, color) => getComputedStyle(n).outlineColor === color, hoverStyle.interaction) &&
+      check(await page.locator('[data-document-tab][data-active=true] .figure').evaluate((n, color) => getComputedStyle(n, '::after').boxShadow.includes(color), hoverStyle.interaction) &&
         await extent.evaluate((n, shadow) => getComputedStyle(n).boxShadow === shadow, hoverStyle.expectedShadow),
-        'Selected Figure must keep its blue outer outline alongside the neutral hover inset');
+        'Selected Figure must keep its accent stroke over the neutral hover stroke');
     });
     if (screenshots) {
       await rest();
@@ -666,15 +704,15 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
       const root=getComputedStyle(document.documentElement),input=document.querySelector('[data-testid="figure-image-url"]');
       const interaction=root.getPropertyValue('--id-color-interaction').trim();
       const probe=document.createElement('span');probe.style.color=interaction;document.body.append(probe);const color=getComputedStyle(probe).color;probe.remove();
-      return {color,outline:getComputedStyle(document.querySelector('[data-document-tab][data-active=true] .figure')).outlineColor,border:getComputedStyle(input).borderColor,ring:getComputedStyle(input).boxShadow};
+      return {color,outline:getComputedStyle(document.querySelector('[data-document-tab][data-active=true] .figure'), '::after').boxShadow,border:getComputedStyle(input).borderColor,ring:getComputedStyle(input).boxShadow};
     });
-    check(colors.outline===colors.color&&colors.border===colors.color&&colors.ring.includes(colors.color),`Interaction role not applied: ${JSON.stringify(colors)}`);
+    check(colors.outline.includes(colors.color)&&colors.border===colors.color&&colors.ring.includes(colors.color),`Interaction role not applied: ${JSON.stringify(colors)}`);
     await withBlockHover(page, async () => {
       await page.locator('[data-document-tab][data-active=true] .figure').hover(); await extent.waitFor();
-      check(await page.locator('[data-document-tab][data-active=true] .figure').evaluate((n, color) => getComputedStyle(n).outlineColor === color, colors.color),
+      check(await page.locator('[data-document-tab][data-active=true] .figure').evaluate((n, color) => getComputedStyle(n, '::after').boxShadow.includes(color), colors.color),
         'Hover obscured the editing Figure outline');
-      check((await outlineRadii(page.locator('[data-document-tab][data-active=true] .figure'))).matches,
-        'Editing Figure and hover outline corner radii differ');
+      check((await outlineGeometry(page.locator('[data-document-tab][data-active=true] .figure'))).matches,
+        'Editing Figure and hover outline geometry differs');
     });
     await page.mouse.move(0,0);
     await shot(`${width}-figure-editing`);

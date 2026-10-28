@@ -75,6 +75,8 @@ export const BlockHandles = memo(function BlockHandles({ editor, menuIndex, onIn
       return result;
     };
     let pointer: { x: number; y: number } | null = null;
+    // Preserve the last coordinates through mouseleave/scroll hit-test changes.
+    let lastPointer: { x: number; y: number } | null = null;
     let typing = false;
     let handlingKey = false;
     let scrollFrame: number | null = null;
@@ -141,9 +143,11 @@ export const BlockHandles = memo(function BlockHandles({ editor, menuIndex, onIn
       setActive(editor.state.selection.$from.index(0));
     };
     const hover = (event: MouseEvent) => {
-      if (!event.isTrusted || (pointer?.x === event.clientX && pointer.y === event.clientY)) return;
-      pointer = { x: event.clientX, y: event.clientY };
+      if (!event.isTrusted || (lastPointer?.x === event.clientX && lastPointer.y === event.clientY)) return;
+      lastPointer = { x: event.clientX, y: event.clientY };
       typing = false;
+      if (!host.contains(event.target as Node)) { leave(); return; }
+      pointer = lastPointer;
       const rects = rectangles();
       updateHovered(rects);
       setActive(rects.findIndex(rect => event.clientY >= rect.top - 8 && event.clientY <= rect.bottom + 8));
@@ -185,7 +189,7 @@ export const BlockHandles = memo(function BlockHandles({ editor, menuIndex, onIn
     // Settings can move the content without resizing either the paper or editor.
     const settings = host.querySelector(".document-settings");
     if (settings) resize.observe(settings);
-    host.addEventListener("mousemove", hover);
+    window.addEventListener("mousemove", hover);
     editor.view.dom.addEventListener("beforeinput", input, true);
     editor.view.dom.addEventListener("keydown", keydown, true);
     editor.view.dom.addEventListener("keydown", keydownEnd);
@@ -201,7 +205,7 @@ export const BlockHandles = memo(function BlockHandles({ editor, menuIndex, onIn
     return () => {
       editor.off("transaction", transaction);
       resize.disconnect();
-      host.removeEventListener("mousemove", hover);
+      window.removeEventListener("mousemove", hover);
       editor.view.dom.removeEventListener("beforeinput", input, true);
       editor.view.dom.removeEventListener("keydown", keydown, true);
       editor.view.dom.removeEventListener("keydown", keydownEnd);
