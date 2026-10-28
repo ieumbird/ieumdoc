@@ -290,9 +290,9 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
   await dialog.waitFor({state:'detached'});
   result.refreshesOnReopen = await section.getByTitle(folder, {exact:true}).count() === 1;
 
-  // Open adds another folder as its own section; Reload lists the opened folders again in order;
+  // Open adds an unrelated folder as its own section; Reload restores their order;
   // Close folder removes only its own section.
-  const guides = [folder, 'guides'].join(sep);
+  const guides = [root, 'tmp', 'folder-memory-b'].join(sep);
   const roots = () => section.evaluateAll(sections => sections.map(element => element.dataset.root));
   await openFolderPicker(page);
   await enterFolder(guides);
@@ -746,6 +746,60 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
   result.revealsOpenDocument = await row('자료').getAttribute('aria-expanded') === 'true' &&
     await row('추가.md').getAttribute('aria-current') === 'page' && await row('guides').getAttribute('aria-expanded') === 'false';
   await folderMenu('Close folder');
+
+  // #702: a wider root absorbs multiple sections and preserves expanded children and dirty tabs.
+  const openChosen = async path => {
+    await openFolderPicker(page);
+    await field.fill(path);
+    await open.click();
+    await dialog.waitFor({state:'detached'});
+  };
+  await openChosen(guidesPath);
+  await row('chapter').click();
+  await row('install.md').click();
+  await waitForActivePath(page, [guidesPath, 'install.md'].join(sep)); await ready();
+  const body = page.locator('[data-document-tab][data-active=true] .document-editor > .paragraph').first();
+  await body.click(); await page.keyboard.press('End'); await page.keyboard.type(' Absorption draft.');
+  const tabsBefore = await page.getByRole('tablist', {name:'Documents'}).innerText();
+  const textBefore = await body.innerText();
+  await openChosen(subFolder);
+  assert(await section.count() === 2, 'Sibling roots remain separate');
+  await openChosen(folder);
+  await row('chapter').waitFor();
+  assert(JSON.stringify(await roots()) === JSON.stringify([folder]) &&
+    await row('guides').getAttribute('aria-expanded') === 'true' &&
+    await row('chapter').getAttribute('aria-expanded') === 'true', 'Parent absorbs both roots and carries expansion');
+  assert(await body.innerText() === textBefore && await page.getByRole('tablist', {name:'Documents'}).innerText() === tabsBefore &&
+    await current() === 'install.md', 'Absorption preserves tabs, active document and unsaved content');
+  await page.setViewportSize({width:1440, height:900});
+  if (screenshots) await page.screenshot({path:'tmp/picker-capture/non-overlapping-parent-1440.png'});
+  await toggle.click();
+  await sidebar.getByRole('button', {name:'Collapse sidebar', exact:true}).click();
+  await page.getByRole('button', {name:'Find documents and commands', exact:true}).click();
+  await page.getByRole('dialog', {name:'Command center', exact:true}).getByRole('combobox').fill('>Open folder');
+  await page.getByRole('option', {name:'Open folder…', exact:true}).click();
+  await field.fill(chapterPath);
+  await open.click();
+  await dialog.waitFor({state:'detached'});
+  const chapter = row('chapter');
+  await chapter.waitFor({state:'visible'});
+  await page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'treeitem' &&
+    document.activeElement?.textContent === 'chapter');
+  assert(await section.count() === 1 && await toggle.getAttribute('aria-expanded') === 'true' &&
+    await chapter.getAttribute('aria-expanded') === 'true' && await chapter.getAttribute('aria-selected') === 'true',
+    'Opening a deep child reveals, expands and selects it inside the existing root');
+  assert(await chapter.evaluate(node => {
+    const r=node.getBoundingClientRect(), panel=node.closest('.sidebar-content').getBoundingClientRect();
+    return r.top >= panel.top && r.bottom <= panel.bottom;
+  }), 'The requested child is scrolled into view');
+  assert(await page.getByTestId('notice').innerText() === 'Already inside the opened folder folder-navigation.', 'Contained folder Open gives a localized notice');
+  assert(await body.innerText() === textBefore && await current() === 'install.md', 'Child navigation preserves the dirty document');
+  if (screenshots) await page.screenshot({path:'tmp/picker-capture/non-overlapping-child-1440.png'});
+  await body.click(); await page.keyboard.press('Control+z');
+  assert(!(await body.innerText()).includes('Absorption draft.'), 'Editor Undo remains available after root changes');
+  await folderMenu('Close folder');
+  await page.setViewportSize({width:1280, height:720});
+  result.nonOverlappingRoots = true;
 
   // Root identity uses the same compact row as child folders; long names ellipsize with the full path available.
   for (const name of ['a', '한글 English 프로젝트 문서와 설계 자료를 모아둔 아주 긴 폴더 이름 Long Folder Name 2026', 'UnbrokenFolderName'.repeat(7)]) {
