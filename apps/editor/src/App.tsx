@@ -670,23 +670,18 @@ export function App() {
     return result.ok ? "" : result.reason;
   }
 
-  function postponeUpdate(version: string): void {
-    setDesktopInfo((info) => info && { ...info, postponed: version });
-    void desktop?.postponeUpdate(version).catch((cause: unknown) => setError(cause instanceof Error ? cause : String(cause)));
-  }
-
   const update = desktopInfo?.update;
-  const updateNotice = update && (update.phase === "available" || update.phase === "downloaded") && update.version !== desktopInfo?.postponed
-    ? update.phase === "available"
-      ? { text: i18n.t("IeumDoc {{version}}{{channel}} is available.", { version: update.version, channel: update.prerelease ? i18n.t(" (Beta)") : "" }), action: i18n.t("View"), onAction: () => {
-          settingsReturnFocus.current = globalThis.document.activeElement as HTMLElement | null;
-          setSettingsCategory("about");
-          setSettingsOpen(true);
-        }, onLater: () => postponeUpdate(update.version) }
-      : { text: i18n.t("IeumDoc {{version}} is ready to install.", { version: update.version }), action: i18n.t("Restart to update"),
-          onAction: () => void installUpdate().then((reason) => { if (reason) setError(reason); })
-            .catch((cause: unknown) => setError(cause instanceof Error ? cause : String(cause))), onLater: () => postponeUpdate(update.version) }
-    : null;
+  const offeredUpdate = update && "version" in update ? update : update?.phase === "error" ? update.update : undefined;
+  const unseenUpdate = offeredUpdate && update?.phase !== "installing" && offeredUpdate.version !== desktopInfo?.seenUpdate
+    ? offeredUpdate.version : undefined;
+  const [highlightUpdate, setHighlightUpdate] = useState(false);
+
+  // Viewing the offered version acknowledges it, including an offer arriving while About is open.
+  useEffect(() => {
+    if (!desktop || !settingsOpen || settingsCategory !== "about" || !unseenUpdate) return;
+    setDesktopInfo(info => info && { ...info, seenUpdate: unseenUpdate });
+    void desktop.markUpdateSeen(unseenUpdate).catch((cause: unknown) => setError(cause instanceof Error ? cause : String(cause)));
+  }, [settingsOpen, settingsCategory, unseenUpdate]);
 
   useEffect(() => {
     const protect = (event: BeforeUnloadEvent) => {
@@ -860,9 +855,11 @@ export function App() {
         } : undefined}
         onRefreshFolder={folders.refreshRoot}
         onCloseFolder={folders.close}
+        updateVersion={unseenUpdate}
         onSettings={(returnFocus) => {
           settingsReturnFocus.current = returnFocus;
-          setSettingsCategory("appearance");
+          setSettingsCategory(unseenUpdate ? "about" : "appearance");
+          setHighlightUpdate(!!unseenUpdate);
           setSettingsOpen(true);
           void refreshRecovery();
         }}
@@ -910,7 +907,6 @@ export function App() {
             noticeAction={notice ? null : session?.noticeAction}
             draftNotice={draftNotice}
             documentNotice={documentNotice}
-            update={updateNotice}
             onDismissError={() => { setError(""); session?.setError(""); }}
             onNoticeExpired={() => { setNotice(""); session?.setNotice(""); }}
           />
@@ -956,7 +952,8 @@ export function App() {
       <SettingsDialog
           open={settingsOpen}
           category={settingsCategory}
-          onCategoryChange={setSettingsCategory}
+          highlightUpdate={highlightUpdate}
+          onCategoryChange={(category) => { setSettingsCategory(category); setHighlightUpdate(false); }}
           documentName={openedPath ? splitDocumentPath(openedPath).name : ""}
           unsaved={documentDirty || draftActive}
           recoveryCount={recoveryRecords.length}
@@ -967,7 +964,7 @@ export function App() {
           onInfo={setDesktopInfo}
           onInstall={installUpdate}
           returnFocus={() => shellReturnFocus(settingsReturnFocus.current)}
-          onClose={() => setSettingsOpen(false)}
+          onClose={() => { setSettingsOpen(false); setHighlightUpdate(false); }}
         />
       <CommandCenter open={commandQuery !== null} initialQuery={commandQuery ?? ""} items={commandItems}
         returnFocus={commandReturnFocus} onClose={() => setCommandQuery(null)} />

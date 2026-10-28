@@ -37,13 +37,14 @@ type SidebarProps = {
   onRefreshFolder?(root: string): void;
   onRevealFolder?(path: string): void;
   /** App Settings, separate from document settings. Names the control focus returns to. */
+  updateVersion?: string;
   onSettings?(returnFocus: HTMLElement): void;
 };
 
 /** File navigation stays mounted when collapsed. Outline remains independent on the right. */
 export function Sidebar({
   onFileAction, fileActionsDisabled, isFileDirty, open, documentPath, onToggle, toggleRef, onOpenFolder, onNewDocument, recent = [], onOpenRecent, onNew, onNewFolder,
-  folders = [], onToggleFolder, onToggleSection, onOpenDocument, onCloseFolder, onRefreshFolder, onRevealFolder, onSettings,
+  folders = [], onToggleFolder, onToggleSection, onOpenDocument, onCloseFolder, onRefreshFolder, onRevealFolder, onSettings, updateVersion,
 }: SidebarProps) {
   useTranslation();
   return (
@@ -114,7 +115,7 @@ export function Sidebar({
       </div>
       {onSettings ? (
         <div className="sidebar-footer">
-          <SettingsEntry iconOnly={!open} onOpen={onSettings} />
+          <SettingsEntry iconOnly={!open} onOpen={onSettings} updateVersion={updateVersion} />
         </div>
       ) : null}
     </nav>
@@ -122,12 +123,15 @@ export function Sidebar({
 }
 
 /** One Settings entry for both sidebar states, including its focus-return target. */
-function SettingsEntry({ iconOnly, onOpen }: { iconOnly: boolean; onOpen(returnFocus: HTMLElement): void }) {
+function SettingsEntry({ iconOnly, onOpen, updateVersion }: { updateVersion?: string; iconOnly: boolean; onOpen(returnFocus: HTMLElement): void }) {
   return <Button className={iconOnly ? undefined : "min-w-0 justify-start"}
     size={iconOnly ? "icon-sm" : "sm"} variant="ghost"
-    aria-label={i18n.t("Settings")} title={i18n.t("Settings")}
+    aria-label={updateVersion ? i18n.t("Settings, new version available") : i18n.t("Settings")}
+    title={updateVersion ? i18n.t("New version {{version}} available", { version: updateVersion }) : i18n.t("Settings")}
     onClick={event => onOpen(event.currentTarget)}>
-    <Settings aria-hidden="true" />{iconOnly ? null : i18n.t("Settings")}
+    <span className="settings-entry-icon"><Settings aria-hidden="true" />
+      {updateVersion ? <span className="settings-update-dot" data-testid="settings-update-dot" aria-hidden="true" /> : null}
+    </span>{iconOnly ? null : i18n.t("Settings")}
   </Button>;
 }
 

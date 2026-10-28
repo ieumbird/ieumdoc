@@ -33,6 +33,8 @@
 
 ## Alignment and ownership
 
+- The bottom Settings icon carries an 8px update dot in the same icon slot in both expanded Sidebar and collapsed rail (#665), without changing button targets or footer placement. Dot activation opens About & updates; its update actions receive an inset accent outline and selected-surface background. See the [update contract and captures](desktop-distribution-v1.md#settings-update-cue-verification-665).
+
 - Folder sections retain a 28px compact disclosure target (#425) around the 16px chevron,
   followed by the same name slot as subfolder rows (#582); folder rows have no folder icon. It rotates like
   subfolder chevrons and stays clear of the always-visible right-hand actions. The single-line

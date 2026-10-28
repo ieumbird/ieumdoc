@@ -1,4 +1,4 @@
-// App preferences in the user data folder: the release channel and a postponed update notification.
+// App preferences in the user data folder: the release channel and the last viewed update version.
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import semver from "semver";
@@ -6,15 +6,15 @@ import type { ReleaseChannel } from "../../editor/shared/desktop-bridge.ts";
 
 export type Preferences = {
   channel: ReleaseChannel;
-  /** Later on this version's notification; a newer version notifies again. */
-  postponed: string | null;
+  /** Last viewed offered version; a newer version shows the Settings dot again. */
+  seenUpdate: string | null;
 };
 
 /** Use the installed version's channel unless a valid user choice has been saved. */
 export function readPreferences(file: string, installedVersion: string): Preferences {
   const defaults: Preferences = {
     channel: semver.prerelease(installedVersion)?.[0] === "beta" ? "beta" : "stable",
-    postponed: null,
+    seenUpdate: null,
   };
   let value: unknown;
   try {
@@ -25,7 +25,7 @@ export function readPreferences(file: string, installedVersion: string): Prefere
   const record = typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
   return {
     channel: record.channel === "stable" || record.channel === "beta" ? record.channel : defaults.channel,
-    postponed: typeof record.postponed === "string" && semver.valid(record.postponed) ? record.postponed : null,
+    seenUpdate: typeof record.seenUpdate === "string" && semver.valid(record.seenUpdate) ? record.seenUpdate : null,
   };
 }
 

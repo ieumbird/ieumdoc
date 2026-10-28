@@ -41,8 +41,8 @@ export type DesktopInfo = {
   /** False in a development run, which has no installed update configuration. */
   updatesSupported: boolean;
   update: UpdateState;
-  /** The version whose notification the user postponed with Later. */
-  postponed: string | null;
+  /** The last viewed offered version. */
+  seenUpdate: string | null;
 };
 
 /** The Editor's answer when an update asks to restart: never yes with unsaved work. */
@@ -74,8 +74,8 @@ export type DesktopBridge = {
   downloadUpdate(): Promise<void>;
   /** Asks the Editor (onRestartCheck) and restarts to install only if it agrees; otherwise why not. */
   installUpdate(): Promise<RestartCheck>;
-  /** Later: no further notification for this version; About still shows it. */
-  postponeUpdate(version: string): Promise<void>;
+  /** Record that the user viewed this offered version in About & updates. */
+  markUpdateSeen(version: string): Promise<void>;
   /** Opens the GitHub release page of a version, or the releases list, in the system browser. */
   openReleaseNotes(version?: string): Promise<void>;
   onUpdateState(listener: (state: UpdateState) => void): () => void;
