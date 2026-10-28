@@ -1,8 +1,12 @@
 # Editor UX Shell v1
 
-**Spike branch only:** `spike/ai-report-1028` adds a right AI report panel and Settings AI
-status when its HTTP/development Host enables AI. App-owned conversation and drafts survive
-document-tab changes and panel closure. This is not a master/release UI contract; see the
+**Spike branch only:** `spike/ai-report-1028` replaces its right AI panel with one AI chat
+special tab, opened by a shared-size entry below Files in both expanded Sidebar and collapsed
+rail. App-owned conversation, in-flight work and input/scope drafts survive tab changes and
+chat closure. AI has no document path, editor session, save/source/file actions, recovery record
+or persisted navigation entry. Successful Host-verified reports open as ordinary document tabs
+beside the retained chat tab. Settings AI status remains available for HTTP/development Hosts
+that enable AI. This is not a master/release UI contract; see the
 [#657 scope and evidence](../reviews/ai-report-spike-2026-10-28.md).
 
 - Status: Implemented

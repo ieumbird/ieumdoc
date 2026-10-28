@@ -41,15 +41,17 @@ button {
   --shell-panel: 0px;
 }
 
-/* Spike: uses the existing right-panel geometry and surface tokens. */
-.ai-panel { display: flex; flex-direction: column; min-height: 0; }
-.ai-panel .document-panel-header > span { display: flex; align-items: center; gap: var(--space-2); }
-.ai-panel .document-panel-header svg { width: var(--size-icon); height: var(--size-icon); }
+/* Spike: App-owned chat uses the tab content area and existing surface/control tokens. */
+.ai-column { width: 100%; max-width: var(--layout-content-width); margin-inline: auto; padding: var(--space-4); }
+.ai-chat { display: flex; flex-direction: column; height: calc(100dvh - var(--app-header-height, 73px) - var(--space-8)); min-height: 28rem; background: var(--id-color-surface); border: var(--border-width) solid var(--id-color-border); border-radius: var(--id-radius-sm); }
+.sidebar-ai-entry { padding: var(--space-2); }
+.sidebar--collapsed .sidebar-ai-entry { display: flex; justify-content: center; padding-inline: 0; }
+.top-bar-actions[hidden] { display: none; }
 .ai-scope, .ai-compose { padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
 .ai-scope { border-bottom: var(--border-width) solid var(--id-color-border); }
 .ai-scope label { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--font-size-xs); }
-.ai-panel :is(input, select, textarea) { width: 100%; min-width: 0; border: var(--border-width) solid var(--id-color-border-control); border-radius: var(--id-radius-sm); background: var(--id-color-surface); color: var(--id-color-text); padding: var(--space-2); font: inherit; }
-.ai-panel :is(input, select, textarea):focus-visible { outline: var(--focus-ring); }
+.ai-chat :is(input, select, textarea) { width: 100%; min-width: 0; border: var(--border-width) solid var(--id-color-border-control); border-radius: var(--id-radius-sm); background: var(--id-color-surface); color: var(--id-color-text); padding: var(--space-2); font: inherit; }
+.ai-chat :is(input, select, textarea):focus-visible { outline: var(--focus-ring); }
 .ai-scope p, .ai-empty { font-size: var(--font-size-xs); color: var(--id-color-text-muted); margin: 0; }
 .ai-messages { flex: 1; overflow-y: auto; padding: var(--space-3); min-height: 0; }
 .ai-message { padding-block: var(--space-2); border-bottom: var(--border-width) solid var(--id-color-border); font-size: var(--font-size-sm); }

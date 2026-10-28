@@ -3,6 +3,7 @@
  * shards using observed durations from CI run 40296330682 (#535).
  */
 export const MANUAL_SCENARIO_FILES: Record<string, string> = {
+  "ai-report-round3": "spikes/ai-report-round3.browser.js",
   "ai-report": "spikes/ai-report.browser.js", "ai-report-round2": "spikes/ai-report.browser.js",
 };
 

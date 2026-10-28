@@ -3,8 +3,8 @@ import { FileActionDialog, type FileAction, type FileActionHandler } from "./Fil
 import { FilePreviewDialog } from "./FilePreviewDialog.tsx";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
-import { useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
-import { Pencil, Trash2, ChevronRight, Ellipsis, File, Files as FilesIcon, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, Plus, RotateCw, Settings, X } from "lucide-react";
+import { useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject, type Ref } from "react";
+import { Sparkles, Pencil, Trash2, ChevronRight, Ellipsis, File, Files as FilesIcon, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, Plus, RotateCw, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -36,6 +36,12 @@ type SidebarProps = {
   onCloseFolder?(root: string): void;
   onRefreshFolder?(root: string): void;
   onRevealFolder?(path: string): void;
+  /** Spike-only chat entry shares the expanded/icon-only navigation pattern. */
+  onAi?(): void;
+  aiActive?: boolean;
+  aiBusy?: boolean;
+  aiDisabled?: boolean;
+  aiRef?: Ref<HTMLButtonElement>;
   /** App Settings, separate from document settings. Names the control focus returns to. */
   updateVersion?: string;
   onSettings?(returnFocus: HTMLElement): void;
@@ -44,7 +50,7 @@ type SidebarProps = {
 /** File navigation stays mounted when collapsed. Outline remains independent on the right. */
 export function Sidebar({
   onFileAction, fileActionsDisabled, isFileDirty, open, documentPath, onToggle, toggleRef, onOpenFolder, onNewDocument, recent = [], onOpenRecent, onNew, onNewFolder,
-  folders = [], onToggleFolder, onToggleSection, onOpenDocument, onCloseFolder, onRefreshFolder, onRevealFolder, onSettings, updateVersion,
+  folders = [], onToggleFolder, onToggleSection, onOpenDocument, onCloseFolder, onRefreshFolder, onRevealFolder, onSettings, updateVersion, onAi, aiActive, aiBusy, aiDisabled, aiRef,
 }: SidebarProps) {
   useTranslation();
   return (
@@ -67,6 +73,13 @@ export function Sidebar({
           </Button>
         </div>
       </div>
+      {onAi ? <div className="sidebar-ai-entry">
+        <Button ref={aiRef} className={open ? "w-full min-w-0 justify-start" : undefined}
+          size={open ? "sm" : "icon-sm"} variant="ghost" aria-label={i18n.t("AI chat")}
+          title={i18n.t("AI chat")} aria-pressed={!!aiActive} aria-busy={!!aiBusy} disabled={aiDisabled} onClick={onAi} data-testid="ai-toggle">
+          <Sparkles aria-hidden="true" />{open ? i18n.t("AI chat") : null}
+        </Button>
+      </div> : null}
       {/* Keep the tree mounted: collapse retains scroll and keyboard position. */}
       <div id="sidebar-files" className="sidebar-content" hidden={!open}>
         {folders.length > 0 ? folders.map(tree => (

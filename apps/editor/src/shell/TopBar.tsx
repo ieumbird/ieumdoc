@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { operationText, type Operation } from "../operation.ts";
 import { useLayoutEffect, useRef, useState, type Ref } from "react";
-import { Copy, Ellipsis, FileDiff, LoaderCircle, PanelRight, RotateCcw, Search, Sparkles, StretchHorizontal } from "lucide-react";
+import { Copy, Ellipsis, FileDiff, LoaderCircle, PanelRight, RotateCcw, Search, StretchHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -36,10 +36,8 @@ type TopBarProps = {
   outline?: boolean;
   onToggleOutline?(): void;
   outlineToggleRef?: Ref<HTMLButtonElement>;
-  /** SPIKE: whether the AI Q&A panel is shown; the toggle appears only when the Host enabled AI. */
-  ai?: boolean;
-  onToggleAi?(): void;
-  aiToggleRef?: Ref<HTMLButtonElement>;
+  documentActionsHidden?: boolean;
+  contextLabel?: string;
 };
 
 /**
@@ -54,7 +52,7 @@ export function TopBar({
   onOpenCommandCenter, documentPath, wide, onToggleWide,
   location = [], status, unsaved = false, view, viewDisabled, onViewChange, saveDisabled,
   onSave, onCompare, compareDisabled, onReload, reloadDisabled, onCopyPath, fileActionsRef,
-  outline, onToggleOutline, outlineToggleRef, ai, onToggleAi, aiToggleRef,
+  outline, onToggleOutline, outlineToggleRef, documentActionsHidden, contextLabel,
 }: TopBarProps) {
   useTranslation();
   const { name } = splitDocumentPath(documentPath);
@@ -124,12 +122,12 @@ export function TopBar({
             <span className="document-path-folder" key={index}>{folder}<span className="document-path-separator" aria-hidden="true">/</span></span>
           )) : null}
           <span className={documentPath ? "document-path-name" : undefined} data-testid="current-file" title={documentPath || undefined}>
-            {documentPath ? name : i18n.t("No file opened")}
+            {documentPath ? name : contextLabel ?? i18n.t("No file opened")}
           </span>
         </span>
         <kbd ref={commandShortcut} aria-hidden="true">{COMMAND_CENTER_SHORTCUT.label}</kbd>
       </Button>
-      <div className="top-bar-actions">
+      <div className="top-bar-actions" hidden={documentActionsHidden}>
         <div className="top-bar-group" role="group" aria-label={i18n.t("View controls")}>
           <div className="view-toggle" role="group" aria-label={i18n.t("Document view")}>
             <Button
@@ -156,12 +154,7 @@ export function TopBar({
               <PanelRight aria-hidden="true" />
             </Button>
           ) : null}
-          {onToggleAi ? (
-            <Button ref={aiToggleRef} type="button" size="icon-sm" variant="ghost" className="top-bar-toggle" aria-label={i18n.t("Ask AI")}
-              title={i18n.t("Ask AI")} aria-pressed={ai} onClick={onToggleAi} data-testid="ai-toggle">
-              <Sparkles aria-hidden="true" />
-            </Button>
-          ) : null}
+
         </div>
         <div className="top-bar-group" role="group" aria-label={i18n.t("File actions")}>
             <Button type="button" variant={saveVariant} className="top-bar-save" data-save-state={saveState}

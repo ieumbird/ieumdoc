@@ -10,6 +10,7 @@ import { createOutlineStore } from "../src/outline.ts";
 import { createDocumentSessionLifetime } from "../src/document-session.ts";
 import { readCollapsedFolderSections, readOpenTabs, visibleRecentFolders, writeCollapsedFolderSections, writeOpenTabs } from "../src/preferences.ts";
 import { DocumentPanel } from "../src/shell/DocumentPanel.tsx";
+import { DocumentTabs } from "../src/shell/DocumentTabs.tsx";
 import { DisplaySettings } from "../src/shell/DisplaySettings.tsx";
 import { DocumentSettings } from "../src/shell/DocumentSettings.tsx";
 import { documentLocation, splitDocumentPath, unquotePath } from "../src/shell/document-path.ts";
@@ -35,6 +36,26 @@ import { extensions, flattenExtensions, getExtensionField, type Editor } from "@
 import { createEditorExtensions } from "../src/editor-schema.tsx";
 
 const normalizeBinding = (binding: string) => binding.toLowerCase().split("-").sort().join("-");
+
+test("AI entry and special tab share shell navigation without acquiring document identity", () => {
+  const noop = () => {};
+  for (const open of [true, false]) {
+    const sidebar = renderToStaticMarkup(<Sidebar open={open} documentPath="" onToggle={noop}
+      onOpenFolder={noop} onFileAction={async () => ""} fileActionsDisabled={false} isFileDirty={() => false}
+      onAi={noop} aiActive aiBusy />);
+    assert.match(sidebar, /aria-label="AI chat"[^>]*aria-pressed="true"[^>]*aria-busy="true"/);
+    assert.equal(sidebar.includes('>AI chat</button>'), open);
+  }
+  const tabs = renderToStaticMarkup(<DocumentTabs tabs={[
+    { id: "ai-chat", kind: "ai" },
+    { id: "a", path: "/a/report.md", dirty: true },
+    { id: "b", path: "/b/report.md", dirty: false },
+  ]} active="ai-chat" disabled={false} onActivate={noop} onClose={noop} />);
+  assert.match(tabs, /aria-controls="panel-ai-chat"[^>]*aria-selected="true"[^>]*aria-label="AI chat"/);
+  assert.match(tabs, /aria-label="Close AI chat"/);
+  assert.match(tabs, /aria-label="report.md — a, Unsaved changes"/);
+  assert.match(tabs, /aria-label="report.md — b"/);
+});
 function registeredBindings() {
   // Core enables these exported extensions; exclude the exported PluginKey, which has no type.
   // Include createEditorExtensions so application keymaps such as documentInteraction are audited.

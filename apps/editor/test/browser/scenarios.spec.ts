@@ -159,8 +159,8 @@ const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
 
 for (const name of scenarios) {
   test(name, async ({ page }) => {
-    // This explicitly selected, non-stable spike measures three real model runs, not UI latency.
-    if (name === "ai-report" || name === "ai-report-round2") test.setTimeout(1_800_000);
+    // These explicitly selected, non-stable spikes include live-model requests, not ordinary UI latency.
+    if (name === "ai-report" || name === "ai-report-round2" || name === "ai-report-round3") test.setTimeout(1_800_000);
     if (name === "desktop-updates") await verifyBuiltAppearance(page);
     const source = readFileSync(path.join(REPOSITORY_ROOT, "apps/editor/test", MANUAL_SCENARIO_FILES[name] ?? `${name}.browser.js`), "utf8");
     const scenario = runInNewContext(`(${source})`) as (page: Page, options: { aiReportRound2: boolean; assertSavedSource: ReturnType<typeof savedSourceAssertion>; screenshots: boolean; fileActionsRoot: string; expect: typeof expect; recoveryRecords: typeof recoveryRecords; openFolderPicker: typeof openFolderPicker; openDocument: typeof openDocument; openPath: typeof openPath; waitForActivePath: typeof waitForActivePath; reloadDocument: typeof reloadDocument; waitForEditorFocus: typeof waitForEditorFocus; activeDocument: typeof activeDocument; withBlockHover: typeof withBlockHover; removeTabFixture: () => void; bibliographyFixture: unknown }) => Promise<unknown>;

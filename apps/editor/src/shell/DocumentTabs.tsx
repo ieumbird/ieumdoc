@@ -5,7 +5,7 @@ import { X } from "lucide-react";
 import { tabLabels, tabNames } from "../document-tabs.ts";
 
 export function DocumentTabs({ tabs, active, disabled, onActivate, onClose }: {
-  tabs: { id: string; path: string; dirty: boolean }[];
+  tabs: ({ id: string; path: string; dirty: boolean; kind?: "document" } | { id: string; kind: "ai" })[];
   active: string | null;
   disabled: boolean;
   onActivate(id: string): void;
@@ -13,8 +13,13 @@ export function DocumentTabs({ tabs, active, disabled, onActivate, onClose }: {
 }) {
   useTranslation();
   const row = useRef<HTMLDivElement>(null);
-  const names = tabNames(tabs);
-  const labels = tabLabels(tabs);
+  const documents = tabs.filter(tab => tab.kind !== "ai");
+  const documentNames = tabNames(documents);
+  const documentLabels = tabLabels(documents);
+  let documentIndex = 0;
+  const labels = tabs.map(tab => tab.kind === "ai" ? { name: i18n.t("AI chat") } : documentLabels[documentIndex++]!);
+  documentIndex = 0;
+  const names = tabs.map(tab => tab.kind === "ai" ? i18n.t("AI chat") : documentNames[documentIndex++]!);
   useLayoutEffect(() => {
     const element = row.current?.querySelector<HTMLElement>('[aria-selected="true"]');
     // Scroll only the tab row; scrollIntoView would also move the document's window.
@@ -30,10 +35,10 @@ export function DocumentTabs({ tabs, active, disabled, onActivate, onClose }: {
   return (
     <div ref={row} className="document-tabs" role="tablist" aria-label={i18n.t("Documents")}>
       {tabs.map((tab, index) => (
-        <div className="document-tab" key={tab.id} data-selected={tab.id === active} title={tab.path} role="presentation">
+        <div className="document-tab" key={tab.id} data-selected={tab.id === active} title={tab.kind === "ai" ? i18n.t("AI chat") : tab.path} role="presentation">
           <button type="button" role="tab" id={`tab-${tab.id}`} aria-controls={`panel-${tab.id}`}
             aria-selected={tab.id === active} aria-disabled={disabled} tabIndex={tab.id === active ? 0 : -1}
-            aria-label={`${names[index]}${tab.dirty ? `, ${i18n.t("Unsaved changes")}` : ""}`}
+            aria-label={`${names[index]}${(tab.kind !== "ai" && tab.dirty) ? `, ${i18n.t("Unsaved changes")}` : ""}`}
             onClick={() => { if (!disabled) onActivate(tab.id); }}
             onKeyDown={event => {
               if (disabled) return;
@@ -54,7 +59,7 @@ export function DocumentTabs({ tabs, active, disabled, onActivate, onClose }: {
               <span className="document-tab-file">{labels[index]!.name}</span>
               {labels[index]!.folder ? <span className="document-tab-folder">{labels[index]!.folder}</span> : null}
             </span>
-            <span className="document-tab-dirty" aria-hidden="true">{tab.dirty ? "•" : ""}</span>
+            <span className="document-tab-dirty" aria-hidden="true">{(tab.kind !== "ai" && tab.dirty) ? "•" : ""}</span>
           </button>
           <button type="button" className="document-tab-close" aria-label={i18n.t("Close {{name}}", { name: names[index] })}
             disabled={disabled} onClick={() => onClose(tab.id)}><X aria-hidden="true" /></button>

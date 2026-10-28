@@ -8,7 +8,7 @@ export async function readAiStatus(): Promise<AiStatus> {
   catch { return { enabled: false }; }
 }
 
-// App owns this state. Switching tabs, closing the panel or opening Settings cannot reset it.
+// App owns this state. Switching tabs, closing the chat tab or opening Settings cannot reset it.
 export function useAiConversation(onReport: (file: string) => Promise<unknown>) {
   const report = useRef(onReport);
   report.current = onReport;

@@ -19,7 +19,7 @@ import { type DocumentSession, type DocumentSessionSnapshot } from "./useDocumen
 import { messageOf, NativeOpenError, requestDocument } from "./document-session.ts";
 import { readDocumentWidth, readOpenTabs, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, writeOpenTabs, type DocumentWidth } from "./preferences.ts";
 import { DocumentPanel } from "./shell/DocumentPanel.tsx";
-import { AiPanel } from "./shell/AiPanel.tsx";
+import { AiChat } from "./shell/AiChat.tsx";
 import { readAiStatus, useAiConversation, type AiStatus } from "./ai.ts";
 import { DocumentStart } from "./shell/DocumentStart.tsx";
 import productMark from "../../desktop/assets/icon.svg?url";
@@ -57,6 +57,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 
 const SaveCompare = lazy(() => import("./shell/SaveCompare.tsx"));
 
+const AI_TAB_ID = "ai-chat";
+
 // Below the docking width of styles.css the Document panel starts closed and overlays the
 // document; at and above it the panel docks. Independent of the narrow sidebar (64rem).
 const PANEL_OVERLAY_LAYOUT = "(width < 89rem)";
@@ -84,7 +86,8 @@ export function App() {
   const [panelOverlay, setPanelOverlay] = useState(() => globalThis.matchMedia?.(PANEL_OVERLAY_LAYOUT).matches ?? false);
   // Page state only: open when docked, closed (and overlaying when opened) below the docking width.
   const [panelOpen, setPanelOpen] = useState(!panelOverlay);
-  const [panelView, setPanelView] = useState<"outline" | "ai">("outline");
+  const [aiTabOpen, setAiTabOpen] = useState(false);
+  const focusAi = useRef(false);
   const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
   const refreshAi = async () => setAiStatus(await readAiStatus());
   useEffect(() => { if (!desktop) void refreshAi(); }, []);
@@ -126,6 +129,9 @@ export function App() {
   const renameImage = useCallback<ImageRenamer>((...args) => renameImageRef.current!(...args), []);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const aiActive = aiTabOpen && activeId === AI_TAB_ID;
+  const visibleTabs = [...(aiTabOpen ? [{ id: AI_TAB_ID, kind: "ai" as const }] : []), ...tabs];
+  const outlineVisible = panelOpen && !aiActive;
   const [tabsRestored, setTabsRestored] = useState(false);
   const [rememberVersion, rememberTabs] = useReducer(version => version + 1, 0);
   const serializedTabs = JSON.stringify({ paths: tabs.map(tab => tab.path), activePath: tabs.find(tab => tab.id === activeId)?.path ?? null });
@@ -256,8 +262,8 @@ export function App() {
   const selectImage = async (source: string) => session ? session.selectImage(source) : "";
 
   useEffect(() => {
-    globalThis.document.title = openedPath ? `${splitDocumentPath(openedPath).name} — IeumDoc` : "IeumDoc";
-  }, [openedPath]);
+    globalThis.document.title = openedPath ? `${splitDocumentPath(openedPath).name} — IeumDoc` : aiActive ? `${i18n.t("AI chat")} — IeumDoc` : "IeumDoc";
+  }, [openedPath, aiActive]);
 
   useEffect(() => {
     if (!commandFileFocus) return;
@@ -276,6 +282,19 @@ export function App() {
     return () => { cancelled = true; };
   }, [commandFileFocus, busy, session, openRefusal, recoveryReview]);
 
+  function openAi(): void {
+    if (busy || continuation) return;
+    if (aiActive) { globalThis.document.getElementById(`tab-${AI_TAB_ID}`)?.focus({ preventScroll: true }); return; }
+    setAiTabOpen(true);
+    focusAi.current = true;
+    activateTab(AI_TAB_ID);
+  }
+  useLayoutEffect(() => {
+    if (!focusAi.current) return;
+    focusAi.current = false;
+    globalThis.document.getElementById(`tab-${AI_TAB_ID}`)?.focus({ preventScroll: true });
+  }, [aiTabOpen, activeId]);
+
   function activateTab(id: string): void {
     if (operationRef.current || session?.busyRef.current || continuation) return;
     rememberTabs();
@@ -293,10 +312,10 @@ export function App() {
     if (focusAfterClose.current) {
       focusAfterClose.current = false;
       const target = activeId ? globalThis.document.getElementById(`tab-${activeId}`)
-        : globalThis.document.querySelector<HTMLElement>('[data-testid="document-start"] button');
+        : aiToggle.current ?? globalThis.document.querySelector<HTMLElement>('[data-testid="document-start"] button');
       target?.focus({ preventScroll: true });
     }
-  }, [activeId, tabs.length]);
+  }, [activeId, tabs.length, aiTabOpen]);
 
   function acceptFile(file: DocumentFileResponse): void {
     rememberTabs();
@@ -375,7 +394,7 @@ export function App() {
   }, [folders.restored]);
 
   function removeTab(id: string): void {
-    const next = activeAfterClose(tabs, activeId, id);
+    const next = activeAfterClose(visibleTabs, activeId, id);
     scrollPositions.current.delete(id);
     void sessions.current.get(id)?.discardRecovery()?.then(deleted => {
       if (!deleted) setError({ key: "The tab closed, but its local recovery record could not be deleted. Review it on the start screen and try Delete record again." });
@@ -449,7 +468,7 @@ export function App() {
         sessions.current.delete(tab.id);
         scrollPositions.current.delete(tab.id);
         setTabs(previous => previous.filter(item => item.id !== tab.id));
-        setActiveId(activeAfterClose(tabs, activeId, tab.id));
+        setActiveId(activeAfterClose(visibleTabs, activeId, tab.id));
       }
       rememberTabs();
       folders.refreshParents(entry.path);
@@ -469,6 +488,14 @@ export function App() {
     return `./${renamed.slice(directory.length).replaceAll("\\", "/")}`;
   };
   function closeTab(id: string): void {
+    if (busy || continuation) return;
+    if (id === AI_TAB_ID) {
+      setActiveId(activeAfterClose(visibleTabs, activeId, id));
+      setAiTabOpen(false);
+      scrollPositions.current.delete(id);
+      focusAfterClose.current = true;
+      return;
+    }
     const owner = sessions.current.get(id);
     if (!owner || busy || owner.busyRef.current || continuation) return;
     if (owner.editorRef.current?.hasUnsavedChanges()) {
@@ -820,12 +847,12 @@ export function App() {
       keywords: ["visual view", "비주얼 보기"], run: () => { globalThis.document.querySelector<HTMLElement>('[data-testid="view-visual"]')?.focus(); setView("visual"); } },
     { id: "source", kind: "command", label: i18n.t("Source"), icon: SquareCode, disabled: !document || busy, takesFocus: true,
       keywords: ["source markdown", "소스 보기"], run: () => { globalThis.document.querySelector<HTMLElement>('[data-testid="view-source"]')?.focus(); void showSource(); } },
-    { id: "outline", kind: "command", label: i18n.t(panelOpen ? "Hide outline" : "Show outline"), icon: PanelRight, takesFocus: true,
+    { id: "outline", kind: "command", label: i18n.t(panelOpen ? "Hide outline" : "Show outline"), icon: PanelRight, takesFocus: true, disabled: aiActive,
       keywords: ["outline", "개요"], run: () => { outlineToggle.current?.focus(); choosePanelOpen(!panelOpen); } },
     { id: "sidebar", kind: "command", label: i18n.t(sidebarOpen ? "Collapse sidebar" : "Expand sidebar"), icon: PanelLeft,
       keywords: ["sidebar", "사이드바"], takesFocus: true,
       run: () => { sidebarFocus.current = "sidebar"; setSidebarOpen(value => !value); } },
-    { id: "width", kind: "command", label: i18n.t(documentWidth === "wide" ? "Standard document width" : "Wide document"), icon: documentWidth === "wide" ? Columns3 : StretchHorizontal,
+    { id: "width", kind: "command", label: i18n.t(documentWidth === "wide" ? "Standard document width" : "Wide document"), icon: documentWidth === "wide" ? Columns3 : StretchHorizontal, disabled: aiActive,
       keywords: ["document width", "문서 너비"], run: toggleDocumentWidth },
     { id: "settings", kind: "command", label: i18n.t("Settings"), icon: Settings2, takesFocus: true,
       keywords: ["settings", "설정"], run: () => { settingsReturnFocus.current = commandReturnFocus.current; setSettingsCategory("appearance"); setSettingsOpen(true); void refreshRecovery(); } },
@@ -853,7 +880,7 @@ export function App() {
   ];
 
   return (
-    <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${panelOpen ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}`}>
+    <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${outlineVisible ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}`}>
       <Sidebar
         onFileAction={fileAction} fileActionsDisabled={busy || Boolean(continuation)}
         isFileDirty={path => { const tab = tabs.find(tab => tab.path === path); return !!(tab && sessions.current.get(tab.id)?.editorRef.current?.hasUnsavedChanges()); }}
@@ -895,6 +922,11 @@ export function App() {
         } : undefined}
         onRefreshFolder={folders.refreshRoot}
         onCloseFolder={folders.close}
+        onAi={aiStatus?.enabled ? openAi : undefined}
+        aiActive={aiActive}
+        aiBusy={conversation.busy}
+        aiDisabled={busy || Boolean(continuation)}
+        aiRef={aiToggle}
         updateVersion={unseenUpdate}
         onSettings={(returnFocus) => {
           settingsReturnFocus.current = returnFocus;
@@ -912,6 +944,8 @@ export function App() {
         <div className="top-bar-container">
           <TopBar
             onOpenCommandCenter={() => openCommandCenter()}
+            documentActionsHidden={aiActive}
+            contextLabel={aiActive ? i18n.t("AI chat") : undefined}
             documentPath={openedPath}
             wide={documentWidth === "wide"}
             onToggleWide={toggleDocumentWidth}
@@ -929,18 +963,15 @@ export function App() {
             reloadDisabled={!document || busy}
             onCopyPath={() => void copyPath()}
             fileActionsRef={fileActionsToggle}
-            outline={panelOpen && panelView === "outline"}
-            onToggleOutline={() => { setPanelView("outline"); choosePanelOpen(!panelOpen || panelView !== "outline"); }}
+            outline={outlineVisible}
+            onToggleOutline={() => choosePanelOpen(!panelOpen)}
             outlineToggleRef={outlineToggle}
-            ai={panelOpen && panelView === "ai"}
-            onToggleAi={aiStatus?.enabled ? () => { setPanelView("ai"); choosePanelOpen(!panelOpen || panelView !== "ai"); } : undefined}
-            aiToggleRef={aiToggle}
           />
         </div>
       </div>
       <div className="app-main">
         <div className="app-header" ref={header}>
-          {tabs.length > 0 ? <DocumentTabs tabs={tabs.map(tab => ({ ...tab,
+          {visibleTabs.length > 0 ? <DocumentTabs tabs={visibleTabs.map(tab => "kind" in tab ? tab : ({ ...tab,
             dirty: Boolean(sessions.current.get(tab.id)?.documentDirty || sessions.current.get(tab.id)?.draftActive),
           }))} active={activeId} disabled={busy || Boolean(continuation)} onActivate={activateTab} onClose={closeTab} /> : null}
           <MessageArea
@@ -956,12 +987,12 @@ export function App() {
             onNoticeExpired={() => { setNotice(""); session?.setNotice(""); }}
           />
         </div>
-        <main className="document-column" onMouseDown={(event) => {
+        <main className={aiActive ? "ai-column" : "document-column"} onMouseDown={(event) => {
           // The empty area below the document places the caret at its end.
           if (event.button === 0 && event.target === event.currentTarget && view === "visual" &&
             editorRef.current?.focusEnd(event.clientY)) event.preventDefault();
         }}>
-          {tabs.length === 0 && start ? (
+          {!aiActive && tabs.length === 0 && start ? (
             <DocumentStart
               mark={productMark}
               recovery={<RecoveryList records={recoveryRecords.filter(record => !tabs.some(tab => tab.recoveryId === record.id))} unavailable={Boolean(recoveryProblem)} onReview={reviewRecovery} />}
@@ -977,13 +1008,13 @@ export function App() {
               onOpenSample={openSample}
             />
           ) : null}
+          {aiActive ? <AiChat status={aiStatus} conversation={conversation} roots={folders.roots}
+            onSettings={() => { settingsReturnFocus.current = globalThis.document.activeElement as HTMLElement; setSettingsCategory("ai"); setSettingsOpen(true); }}
+            onOpen={file => void openFolderDocument(file)} /> : null}
           {tabs.map(tab => <DocumentTab settingsDisabled={busy} key={tab.id} id={tab.id} file={tab.file} restored={tab.restored} recoveryId={tab.recoveryId} active={tab.id === activeId} report={reportSession} onAssetChange={onAssetChange} renameImage={renameImage} />)}
         </main>
       </div>
-      {panelOpen && panelView === "ai" ? <AiPanel overlay={panelOverlay} status={aiStatus} conversation={conversation} roots={folders.roots}
-        onSettings={() => { setSettingsCategory("ai"); setSettingsOpen(true); }}
-        onClose={() => { choosePanelOpen(false); aiToggle.current?.focus(); }}
-        onOpen={file => void openFolderDocument(file)} /> : panelOpen ? (
+      {outlineVisible ? (
         <DocumentPanel
           overlay={panelOverlay}
           outline={document ? outlineStore : undefined}

@@ -1,9 +1,88 @@
 # CLI-only AI report spike #657
 
 - Status: Historical
-- Last verified: 2026-10-28 (spike implementation and local experiments; results below).
+- Last verified: 2026-10-29 (round 3 chat-tab flow; prior report measurements retained below).
 - Scope: `spike/ai-report-1028` only, based on master `1fff747`; **not a merge candidate**. [Issue #657](https://github.com/ieumbird/ieumdoc/issues/657).
 - Authority: experimental evidence under [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md) and [ADR-0005](../adr/0005-http-host.md). Does not establish a new production architecture.
+
+## Round 3: AI entry and chat tab (2026-10-29)
+
+Merged origin/master `a1be38ce063a10bf5068d077e07b8884455967e4` with a regular merge
+(`0fd93c8afddf3f08a39336eeaee0295b2a46f1e4`), retaining the spike's AI flow and incoming
+rail/Settings, writable samples, save comparison and save-refusal behavior. Master's stdin
+implementation supersedes the equivalent round-2 branch implementation. No rebase or force push.
+
+The expanded Sidebar and collapsed Files rail now expose the same AI entry, using the shared
+Button sizes and icon-only pattern of SettingsEntry. It opens/focuses one **AI chat** tab in the
+existing document tab row. The right AI panel is removed. The chat reuses its previous scope,
+progress, messages, Host results and report-opening controls. Ordinary document actions and the
+Outline are hidden while chat is active; the existing Outline choice returns on a document tab.
+
+App still owns the conversation, request lifetime, input draft and output folder. Closing the
+chat does not interrupt a request. Reopening restores them; a verified report opens as a normal
+document beside the retained chat. The AI tab has no file path, DocumentSession, dirty flag,
+recovery record or persistent tab entry. Document editing sessions remain mounted independently.
+No changes to the model, Host verification, document write path or sandbox were made in this
+round. The product changes after the master merge are confined to the Editor shell.
+
+Exactly two live requests used **`gpt-6-luna`**, Codex **0.164.0**, on the previous reference
+folder, writing into a separate `round3-reports` subfolder. This round checks UI flow; **report
+quality, source fidelity and feature completeness are not evaluated**, so it is not a quality
+comparison with the round-2 requests.
+
+| Request | Host revision + check | Time (s) | Shell calls / failures | CLI calls / failures |
+| --- | --- | ---: | ---: | ---: |
+| Short rated-power/voltage summary | Pass | 19.979 | 7 / 0 | 10 / 2 |
+| Short THD result summary | Pass | 17.271 | 4 / 0 | 10 / 0 |
+
+Time retains the previous definition: Host preparation through model completion, excluding the
+final independent Host check. The first request's two CLI failure receipts are the previously
+recorded `create --help` / `apply-batch --help` shim defect; it remains unfixed in this UI round.
+No Editor save POST was sent by the chat/shortcut checks. Both model requests produced a new
+Host-verified document tab without replacing the conversation tab.
+
+The live browser flow passed: single-tab reuse from both entry states, keyboard focus and
+Arrow/Home navigation, closing/reopening during generation, switching to a document and back,
+continued history across both requests, retained input draft/output folder after closing,
+hidden document actions in chat and restored actions on reports. Captures are 1440×1000:
+
+- [Expanded Sidebar and chat](../../spike-evidence/ai-report-1028/round3/chat-expanded-1440.png)
+- [Collapsed rail and chat](../../spike-evidence/ai-report-1028/round3/chat-rail-1440.png)
+- [Report alongside chat tab](../../spike-evidence/ai-report-1028/round3/report-and-chat-tabs-1440.png)
+
+No settings capture was needed. These three images were visually inspected; no account email or
+credentials are visible. The preceding right-panel state remains in the round-2 evidence.
+
+Verification: Core 333, CLI 138 and Editor 340 tests, workspace typecheck, production CLI/Editor
+build and docs check pass. Persistent Chrome `editor-shell`, `document-tabs`, `layout-rules` and
+`quiet-document` pass, followed by the live chat-tab scenario. Browser invocations: **3** total.
+The first live-scenario invocation failed **before any model call**, because the test VM has no
+`URL` global; the test uses the existing string-based URL convention after correction. Its logs
+were retained; no product/test criteria were weakened. BadPasswordAttempts: **0 before and after
+each invocation**. The same persistent profile was reused. Owned Host/Codex/browser/dev-server
+processes were closed; no owned temporary listener remained on 5173/5181/5198.
+
+### Special-tab observations and #488
+
+The currently published [#488](https://github.com/ieumbird/ieumdoc/issues/488) concerns split
+views of multiple documents. The owner's Diff/print-preview special-tab direction is recorded
+here as a future observation, not as an implemented #488 contract.
+
+- The tab row can share activation, close and keyboard navigation with non-file content without
+  inventing a file path or a document editor. Its presentation union now distinguishes AI.
+- This spike keeps the document-session array and persisted file navigation separate from the
+  AI tab's visibility. More special kinds would need explicit ordering, identity and capability
+  decisions rather than adding synthetic paths to file restoration.
+- Diff/print preview would need an explicit source document/revision and snapshot lifetime;
+  AI instead owns App-lifetime request/conversation state. Closing a view should not implicitly
+  destroy its backing task or document session. No generic tab framework was added for this.
+- Split panes would also require a focused pane/command target, per-pane focus and scroll rules,
+  and clear behavior when a generated report opens. This experiment still has one active tab
+  and does not verify simultaneous views, Diff or print-preview tabs.
+- Remaining limits: one in-memory Korean chat surface, no persistence/multiple conversations,
+  Desktop unsupported, existing Windows read-boundary limitation and help-receipt defect.
+  Automatic report activation uses existing document-opening guards; concurrent shell operations
+  can refuse activation, leaving the verified report button available for manual opening.
 
 ## Purpose and implementation
 

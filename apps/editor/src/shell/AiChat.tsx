@@ -1,17 +1,14 @@
 import { useEffect, useRef } from "react";
-import { X, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import type { AiConversation, AiStatus } from "../ai.ts";
 
-export function AiPanel({ overlay, status, conversation, roots, onSettings, onClose, onOpen }:
-  { overlay: boolean; status: AiStatus | null; conversation: AiConversation; roots: string[]; onSettings(): void; onClose(): void; onOpen(file: string): void }) {
+export function AiChat({ status, conversation, roots, onSettings, onOpen }:
+  { status: AiStatus | null; conversation: AiConversation; roots: string[]; onSettings(): void; onOpen(file: string): void }) {
   const { root, setRoot, output, setOutput, question, setQuestion } = conversation;
   const log = useRef<HTMLDivElement>(null);
   useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight; }, [conversation.messages.length, conversation.busy]);
   const selected = roots.includes(root) ? root : roots[0] ?? "";
-  return <aside className={`document-panel ai-panel${overlay ? " document-panel--overlay" : ""}`} aria-label="AI 보고서" data-testid="ai-panel">
-    <header className="document-panel-header"><span><Sparkles aria-hidden="true" /> AI</span>
-      <Button variant="ghost" size="icon-sm" aria-label="AI 패널 닫기" onClick={onClose}><X aria-hidden="true" /></Button></header>
+  return <section className="ai-chat" id="panel-ai-chat" role="tabpanel" aria-labelledby="tab-ai-chat" data-testid="ai-chat">
     <div className="ai-scope">
       <label>참고 폴더<select aria-label="참고 폴더" value={selected} disabled={conversation.busy} onChange={event => setRoot(event.target.value)}>
         {!roots.length ? <option value="">폴더를 열어주세요</option> : roots.map(item => <option key={item} value={item}>{item}</option>)}
@@ -33,5 +30,5 @@ export function AiPanel({ overlay, status, conversation, roots, onSettings, onCl
       <div>{conversation.busy ? <Button type="button" variant="secondary" onClick={() => void conversation.stop()}>중지</Button>
         : <Button type="submit" disabled={!selected || !output.trim() || !question.trim() || !status?.loggedIn || !status.modelAvailable}>보내기</Button>}</div>
     </form>
-  </aside>;
+  </section>;
 }
