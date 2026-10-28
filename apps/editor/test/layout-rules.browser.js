@@ -314,8 +314,9 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
     if(!heading)throw Error('Missing heading for measured-header scroll margin check');
     const gapProbe=document.createElement('span');document.body.append(gapProbe);gapProbe.style.height='var(--space-8)';
     const gap=parseFloat(getComputedStyle(gapProbe).height);gapProbe.remove();
-    if(Math.abs(measured-header)>0.5 || Math.abs(parseFloat(getComputedStyle(heading).scrollMarginTop)-header-gap)>0.5)
-      throw Error(`Heading scroll margin did not follow the measured header: ${JSON.stringify({measured,header,gap,margin:getComputedStyle(heading).scrollMarginTop})}`);
+    const viewportTop=heading.closest('.document-scroll').getBoundingClientRect().top;
+    if(Math.abs(measured-header)>0.5 || Math.abs(viewportTop+parseFloat(getComputedStyle(heading).scrollMarginTop)-header-gap)>0.5)
+      throw Error(`Heading scroll clearance did not follow the measured header: ${JSON.stringify({measured,header,gap,viewportTop,margin:getComputedStyle(heading).scrollMarginTop})}`);
     const panel=document.querySelector('.document-panel')?.getBoundingClientRect();
     const token=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--layout-document-panel-width'))*parseFloat(getComputedStyle(document.documentElement).fontSize);
     const uncovered=['[data-testid="save"]','.top-bar-actions button[aria-label="File actions"]','.top-bar-actions button[aria-label="Outline"]'].every(s=>{

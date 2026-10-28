@@ -77,6 +77,11 @@ async (page, { openPath, expect }) => {
   // The #694 follow-up requires the native scrollbar below chrome, while the title-strip
   // boundary reaches the window edge. Capture these same measured states for manual review.
   await openPath(page, [root, 'tmp', 'quiet-document', 'quiet-document.md'].join(sep));
+  // Match the Before navigation state after the functional checks used their long fixture.
+  await page.getByRole('button', {name:'Close outline.md', exact:true}).click();
+  const outlineFolder = page.getByTestId('folder').filter({has:page.getByRole('treeitem', {name:'outline.md', exact:true})});
+  await outlineFolder.getByRole('button', {name:'More actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Close folder', exact:true}).click();
   const captures = [], geometry = [];
   for (const theme of ['light', 'dark']) {
     await page.evaluate(theme => localStorage.setItem('ieumdoc.theme', theme), theme);
