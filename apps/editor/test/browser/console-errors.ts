@@ -10,6 +10,12 @@ type ExpectedConsoleErrorRule = {
 };
 
 const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
+  "pre-save-diff": [
+    {status:409, pathname:"/api/document", minimum:1, description:"comparison preserves the acknowledged revision and Save still conflicts"},
+  ],
+  "save-error": [
+    {status:400, pathname:"/api/document", minimum:5, description:"Core refuses unpreservable table-cell inline math at the current submitted location"},
+  ],
   "file-actions": [
     { status:400, pathname:"/api/file", minimum:2, description:"duplicate file name and dirty referenced image renames are refused" },
   ],
@@ -20,6 +26,7 @@ const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
     {status: 409, pathname: "/api/document", minimum: 1, description: "conflict guidance follows language changes while preserving edits"},
   ],
   "recovery": [
+    {status: 500, pathname: "/api/document-source", minimum: 1, description: "comparison transport failure keeps recovery actions available"},
     {status: 409, pathname: "/api/document", minimum: 1, description: "restored work retains its acknowledged revision against another window's Save"},
     {status: 400, pathname: "/api/document", minimum: 1, description: "failed Reload retains its local recovery record"},
   ],

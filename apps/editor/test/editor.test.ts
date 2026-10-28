@@ -41,11 +41,11 @@ import {
   isSupportedDocumentChange,
   toTiptapDocument,
 } from "../src/tiptap-document.ts";
-import { commitDocumentSave, createDocumentFile, createFolder, documentRevision, DocumentConflictError, browseFolder, folderPlaces, handleDocumentRequest, listFolder, loadDocumentFile, previewDocumentFile, resolveMediaPath, resolveDocumentPath, saveCurrentDocument, saveDocumentFile } from "../server/document-api.ts";
+import { commitDocumentSave, createDocumentFile, createFolder, documentRevision, DocumentConflictError, browseFolder, folderPlaces, handleDocumentRequest, listFolder, loadDocumentFile, previewDocumentFile, previewRecoveryFile, resolveMediaPath, resolveDocumentPath, saveCurrentDocument, saveDocumentFile } from "../server/document-api.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
 import { SaveContentError } from "../shared/save-error.ts";
-import { saveErrorMessage } from "../src/save-error.ts";
+import { SaveDisplayError, saveErrorBadge, saveErrorMessage } from "../src/save-error.ts";
 import { RootAccess } from "../server/file-access.ts";
 import { readFilePreview } from "../server/document-api.ts";
 
@@ -1532,6 +1532,15 @@ test("save error locations follow submitted split blocks and moved table cells",
   assert.match(unknown, /^Document:/);
   assert.match(unknown, /report this error/);
   assert.doesNotMatch(unknown, /Block \d/);
+  const failures = new SaveDisplayError([
+    new SaveContentError("split failed", { path: [1], part: 1 }),
+    new SaveContentError("cell failed", { path: [2, 1, 1], part: 0 }),
+    new SaveContentError("document failure", undefined, { phase: "serialize" }),
+  ], submitted);
+  assert.deepEqual(failures.locations, [{ index: 1, type: "paragraph" }, { index: 2, type: "table", cell: { row: 0, column: 0 } }]);
+  assert.match(failures.details, /split failed/);
+  assert.match(failures.details, /cell failed/);
+  assert.doesNotMatch(failures.summary, /split failed|cell failed/);
 });
 
 
@@ -2367,4 +2376,133 @@ test("plaintext salvage keeps readable content without dumping internal attribut
   assert.match(text,/Paper\n\nLinked \(https:\/\/example.com\) prosea\+b\n\nx\^2/);
   for (const content of ["Cell A\tCell B", "Results", "Figure caption", "Diagram", "image.png"]) assert.ok(text.includes(content),content);
   assert.doesNotMatch(text,/\[(?:level|latex|caption|marks):|sourcePath|deletedPaths|headingNumbering|"kind"/);
+});
+
+
+test("Recovery preview uses Save bytes without changing disk, acknowledgement, or missing files", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-recovery-preview-"));
+  const file = path.join(dir, "record.md");
+  const server = createServer((req, res) => { void handleDocumentRequest(req, res, () => res.end()); });
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as AddressInfo;
+  const post = (body: unknown) => fetch(`http://127.0.0.1:${port}/api/document-source?recovery=1`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+  });
+  try {
+    writeFileSync(file, source);
+    const loaded = loadDocumentFile(file);
+    const request = { path: file, revision: loaded.revision, base: { source: loaded.source },
+      paragraphs: [{ path: [9], content: [{ kind: "text" as const, text: PARAGRAPH_TO }] }] };
+    const captured = structuredClone(request);
+    const before = fs.statSync(file);
+    const response = await post({path: file, save: request});
+    assert.equal(response.status, 200);
+    const preview = await response.json() as import("../shared/document-protocol.ts").RecoveryPreviewResponse;
+    assert.equal(preview.disk?.source, source);
+    assert.equal(preview.disk?.revision, loaded.revision);
+    assert.deepEqual(preview.disk?.document, loaded.document);
+    assert.equal(fs.statSync(file).mtimeMs, before.mtimeMs);
+    assert.deepEqual(readFileSync(file), Buffer.from(source));
+    assert.equal(loadDocumentFile(file).revision, loaded.revision);
+    assert.deepEqual(request, captured);
+    assert.deepEqual(readdirSync(dir), ["record.md"]);
+    assert.deepEqual(Buffer.from(saveDocumentFile(file, request).markdown), Buffer.from(preview.markdown!));
+    // An acknowledged Save replays savedEdits from the opening source too.
+    const checkpoint = { ...request, revision: documentRevision(preview.markdown!),
+      base: { source, savedEdits: { paragraphs: request.paragraphs } }, paragraphs: [] };
+    const second = previewRecoveryFile(file, checkpoint);
+    assert.equal(second.markdown, saveDocumentFile(file, checkpoint).markdown);
+    writeFileSync(file, source + "\n");
+    const changed = previewRecoveryFile(file, request);
+    assert.notEqual(changed.disk?.revision, request.revision);
+    assert.equal(changed.markdown, preview.markdown);
+    const invalid = await post({path: file, save: {...request, paragraphs: [{path:[9],content:[]}]}});
+    const refused = await invalid.json() as typeof preview;
+    assert.equal(invalid.status, 200);
+    assert.ok(refused.error);
+    assert.equal(refused.failure?.phase, "replay");
+    assert.ok(refused.failure?.action);
+    assert.equal(refused.markdown, undefined);
+    assert.equal(refused.disk?.source, source + "\n");
+    assert.equal((await post({path:file,save:{...request,revision:"bad"}})).status, 400);
+    const missing = path.join(dir, "missing.md");
+    assert.deepEqual(previewRecoveryFile(missing, {...request,path:missing}), {disk:null,markdown:preview.markdown});
+    assert.equal(fs.existsSync(missing), false);
+    assert.deepEqual(previewRecoveryFile(file).disk?.source, source + "\n");
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+    rmSync(dir, {recursive:true,force:true});
+  }
+});
+
+
+test("startup sample problems survive client decoding for both file and empty startup", async (t) => {
+  const { requestDocument } = await import("../src/document-session.ts");
+  const model = getEditableDocument(parse(nativeSource("# My document\n")));
+  for (const initial of [
+    {start:true,sampleProblem:"conflict"},
+    {path:"document.md",source:nativeSource("# My document\n"),revision:"sample-test",document:model,sampleProblem:"unavailable"},
+  ]) {
+    const fetch = t.mock.method(globalThis, "fetch", async () => Response.json(initial));
+    try {
+      const decoded = await requestDocument("GET");
+      assert.equal(decoded.sampleProblem,initial.sampleProblem);
+      assert.equal(decoded.samples,undefined);
+      if ("path" in initial) { assert.ok("document" in decoded); assert.equal(decoded.path,initial.path); }
+      else assert.ok("start" in decoded);
+    } finally { fetch.mock.restore(); }
+  }
+});
+
+test("save diagnostic guidance and badges use codes in both languages and retain original details", async () => {
+  const { i18n } = await import("../src/i18n.ts");
+  const { DocumentDiagnosticError } = await import("@ieumdoc/core");
+  const cases = {
+    "native-marker": ["Open an IeumDoc", "이음독 문서를"],
+    "native-metadata": ["Check document frontmatter", "설정을 확인"],
+    "native-content": ["Remove or replace", "지우거나 바꾸세요"],
+    "invalid-structure": ["report technical details", "오류를 알려"],
+    "invalid-operation": ["review technical details", "세부 정보를 확인"],
+    "unsupported-content": ["Remove or replace", "지우거나 바꾸세요"],
+    "empty-content": ["Enter text or delete", "입력하거나 블록을 삭제"],
+    "round-trip-mismatch": ["Simplify or replace", "단순하게 바꾸거나"],
+    "serialization-failed": ["report technical details", "오류를 알려"],
+    "invalid-unicode": ["re-enter", "다시 입력"],
+    "invalid-label": ["Change it", "라벨을 바꾸세요"],
+    "label-conflict": ["different label", "다른 라벨"],
+    "invalid-reference": ["plain text", "일반 텍스트"],
+    "invalid-footnote": ["one non-empty definition", "정의를 하나씩"],
+    "line-break": ["Remove the line breaks", "줄바꿈을 지우세요"],
+    "table-cell-whitespace": ["Trim this cell", "앞뒤 공백을 지우세요"],
+    "table-shape": ["match cell counts", "셀 수와 열 정렬"],
+    "invalid-figure": ["Check image", "이미지·대체 텍스트"],
+  } as const;
+  try {
+    for (const [code, expected] of Object.entries(cases)) {
+      const cause = new DocumentDiagnosticError(code as import("@ieumdoc/core").WriteIssueCode, "Original diagnostic.");
+      const failure = new SaveContentError("Original diagnostic.", undefined, { cause, block: { index: 0, type: "table" } });
+      const display = new SaveDisplayError([failure]);
+      assert.equal(failure.code, code);
+      assert.equal(display.locations[0].code, code);
+      for (const [index, language] of ["en", "ko"].entries()) {
+        await i18n.changeLanguage(language);
+        assert.ok(display.summary.includes(expected[index]), display.summary);
+        assert.match(saveErrorBadge(failure.code), /→/);
+        assert.ok(saveErrorBadge(failure.code).startsWith(language === "ko" ? "저장 불가: " : "Cannot save: "));
+        assert.doesNotMatch(display.summary, /Original diagnostic/);
+        assert.match(display.details, /Original diagnostic/);
+      }
+    }
+    const unknown = new SaveDisplayError([new SaveContentError("empty heading cannot be saved", undefined, { code: "future-code" as never })]);
+    assert.match(unknown.summary, /기술적 세부 정보/);
+    assert.equal(saveErrorBadge("future-code"), "저장 불가");
+    assert.equal(saveErrorBadge(), "저장 불가");
+    const fileFailure = new SaveDisplayError([new SaveContentError("File error.", undefined, {
+      phase: "file", code: "empty-content", block: {index:0, type:"table"},
+    })]);
+    assert.match(fileFailure.summary, /파일 경로와 쓰기 권한/);
+    assert.equal(fileFailure.locations[0].code, undefined);
+
+  } finally { await i18n.changeLanguage("en"); }
 });

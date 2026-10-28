@@ -1,4 +1,5 @@
 import { fileURLToPath, URL } from "node:url";
+import { prepareSampleDocuments } from "./server/sample-documents.ts";
 import { randomBytes } from "node:crypto";
 import { LOCAL_FILE_ACCESS } from "./server/file-access.ts";
 import { AiHost, handleAiRequest } from "./server/ai/ai-api.ts";
@@ -7,9 +8,9 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, type ViteDevServer } from "vite";
 
 export default defineConfig({
-  // Prebundle the lazy renderer without fetching it in the browser until a Figure needs it.
+  // Prebundle the lazy renderer/worker dependencies without fetching them until needed.
   // First-use dependency discovery must not reload the development editor and lose drafts.
-  optimizeDeps: { include: ["mermaid"] },
+  optimizeDeps: { include: ["mermaid", "diff"] },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
@@ -24,6 +25,7 @@ export default defineConfig({
         const assetSigningKey = randomBytes(32);
         const ai = process.env.IEUMDOC_AI === "1" ? new AiHost(LOCAL_FILE_ACCESS) : null;
         server.httpServer?.once("close", () => ai?.close());
+        const sampleAvailability = prepareSampleDocuments(fileURLToPath(new URL("./samples", import.meta.url)), fileURLToPath(new URL("../../tmp/sample-native-v1", import.meta.url)));
         server.middlewares.use((req, res, next) => {
           const requestUrl = req.url ?? "";
           const base = server.config.base;
@@ -53,7 +55,7 @@ export default defineConfig({
           void server.ssrLoadModule("/server/document-api.ts").then((mod) => {
             const handle = (mod as { handleDocumentRequest: typeof import("./server/document-api.ts").handleDocumentRequest })
               .handleDocumentRequest;
-            return handle(req, res, next, LOCAL_FILE_ACCESS);
+            return handle(req, res, next, LOCAL_FILE_ACCESS, Infinity, undefined, sampleAvailability);
           }).catch((error: unknown) => {
             res.statusCode = 500;
             res.setHeader("Content-Type", "application/json; charset=utf-8");

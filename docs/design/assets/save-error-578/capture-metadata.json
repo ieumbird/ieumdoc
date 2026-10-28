@@ -1,0 +1,90 @@
+{
+  "base": "c8debf3fb9a6a0ab8ceb16e6dd19bf3eecf677da",
+  "date": "2026-10-28",
+  "browser": "Windows persistent Chrome via pnpm browser:test",
+  "afterOrigin": "http://127.0.0.1:5798",
+  "fixture": "tmp/table-authoring/tables.md",
+  "language": "ko",
+  "dpr": 1,
+  "zoom": "100%",
+  "fonts": "bundled Pretendard, document.fonts.ready",
+  "states": {
+    "before": "Empty title, actual collection refusal",
+    "after": "Same empty-title refusal, red block overlay and badge",
+    "cell": "Actual Core refusal of unpreservable inline math in body row 2 column 1, after Go to problem"
+  },
+  "captures": [
+    {
+      "name": "after-1440-dark.png",
+      "width": 1440,
+      "height": 900,
+      "sha256": "1b135a20278b478b5bd4bf602959cf0394b9046c50fc17392b58e2bc5a0b3652"
+    },
+    {
+      "name": "after-1440-light.png",
+      "width": 1440,
+      "height": 900,
+      "sha256": "ad0c9472161f1213fe695d81d857f7c4d778d5ac0e2119a667384dd1222f7911"
+    },
+    {
+      "name": "after-640-dark.png",
+      "width": 640,
+      "height": 900,
+      "sha256": "4eb0849c02ef8f6f873ff8004999ab41beaec915570534f7a452358bd9d453bb"
+    },
+    {
+      "name": "after-640-light.png",
+      "width": 640,
+      "height": 900,
+      "sha256": "ffbb9aa0c2aa2b1868bbb163951cfb7e120a50744efd1630717f6f80291ca6d1"
+    },
+    {
+      "name": "before-1440-dark.png",
+      "width": 1440,
+      "height": 900,
+      "sha256": "0584a08deb88a0d22a8e14ebf5c1eb991abda459bedd0d51f20775b23fe2e6bb"
+    },
+    {
+      "name": "before-1440-light.png",
+      "width": 1440,
+      "height": 900,
+      "sha256": "12e1e23180ba6a689ba9a39487438667c25d7697e14ea41c962badfe4bda0b7c"
+    },
+    {
+      "name": "before-640-dark.png",
+      "width": 640,
+      "height": 900,
+      "sha256": "ffca94fec23ad7b8851c96d7301cd0299afcd3c5a6de4bfec06607df42093bc3"
+    },
+    {
+      "name": "before-640-light.png",
+      "width": 640,
+      "height": 900,
+      "sha256": "39bea3b4019db2d37f14570f4a30bf97918c18115ed8fef3839bf7ba96a58a1f"
+    },
+    {
+      "name": "cell-1440-dark.png",
+      "width": 1440,
+      "height": 900,
+      "sha256": "e0b88bf741e0d1b413a01860e406442c63103c266463149a02cacafad11fda90"
+    },
+    {
+      "name": "cell-1440-light.png",
+      "width": 1440,
+      "height": 900,
+      "sha256": "c8a2b1f5dae50b94271394dbba2fd06bce4b8ba689c7ef8fb3c1ae62e95a4247"
+    },
+    {
+      "name": "cell-640-dark.png",
+      "width": 640,
+      "height": 900,
+      "sha256": "bfb3ce7598e1953d9ccf84a274bed00c32ed997231b4a3d66e6c571eb42af885"
+    },
+    {
+      "name": "cell-640-light.png",
+      "width": 640,
+      "height": 900,
+      "sha256": "d33434d6c4f0373cc0a91fa6c8dcaf8f93ba35eff4e41c088c1253379872a930"
+    }
+  ]
+}

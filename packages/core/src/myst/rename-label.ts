@@ -1,3 +1,4 @@
+import { DocumentDiagnosticError } from "../write-error.ts";
 import type { NodePath } from "../document.ts";
 import { assertLabelAvailable, labelIdentifier, referenceTargetIndex, resolveReference } from "./label.ts";
 import { parse } from "./parse.ts";
@@ -9,21 +10,21 @@ export function renameLabelReferences(document: MystDocument, path: NodePath, la
   changeLabel: () => MystDocument): MystDocument {
   const current = getNode(document, path);
   if (typeof current.label !== "string" || !current.label || !label) {
-    throw new Error("updating references requires an existing non-empty label and a non-empty new label");
+    throw new DocumentDiagnosticError("invalid-reference", "updating references requires an existing non-empty label and a non-empty new label");
   }
   const targetPath = current.type === "mystTarget" ? [path[0] + 1] : path;
   if (current.type === "mystTarget" && document.children[targetPath[0]]?.type !== "heading") {
-    throw new Error("updating references requires a section target immediately before a heading");
+    throw new DocumentDiagnosticError("invalid-reference", "updating references requires a section target immediately before a heading");
   }
   const before = referenceTargetIndex(document);
   const oldIdentifier = labelIdentifier(current.label);
   const oldLookup = oldIdentifier ? before.lookup(oldIdentifier) : undefined;
-  if (oldLookup?.reason) throw new Error(oldLookup.reason);
+  if (oldLookup?.reason) throw new DocumentDiagnosticError("invalid-reference", oldLookup.reason);
   const oldTarget = oldLookup?.target;
   const targetKey = targetPath.join(".");
   if (!oldIdentifier || !oldTarget?.node || before.candidates(oldIdentifier).length !== 1 ||
       before.path(oldTarget.node)?.join(".") !== targetKey) {
-    throw new Error("ambiguous target: the old label must resolve uniquely to the selected target");
+    throw new DocumentDiagnosticError("invalid-reference", "ambiguous target: the old label must resolve uniquely to the selected target");
   }
   // A conflict in the original snapshot must not be hidden by changing the selected label.
   const identifier = labelIdentifier(label);
@@ -36,9 +37,9 @@ export function renameLabelReferences(document: MystDocument, path: NodePath, la
     if (node.type === "crossReference" ||
         node.type === "link" && typeof node.url === "string" && node.url.startsWith("#")) {
       const resolved = resolveReference(node, before.lookup);
-      if (resolved?.reason) throw new Error(resolved.reason);
+      if (resolved?.reason) throw new DocumentDiagnosticError("invalid-reference", resolved.reason);
       const resolvedPath = resolved?.target?.node ? before.path(resolved.target.node) : undefined;
-      if (resolved?.target && !resolvedPath) throw new Error("ambiguous target: reference has no snapshot locator");
+      if (resolved?.target && !resolvedPath) throw new DocumentDiagnosticError("invalid-reference", "ambiguous target: reference has no snapshot locator");
       if (resolved?.target?.node === oldTarget.node) {
         const reference = getNode(next, at);
         if (node.type === "crossReference") {
@@ -55,18 +56,18 @@ export function renameLabelReferences(document: MystDocument, path: NodePath, la
   const newTarget = identifier ? after.lookup(identifier)?.target : undefined;
   if (!identifier || after.candidates(identifier).length !== 1 ||
       !newTarget?.node || after.path(newTarget.node)?.join(".") !== targetKey) {
-    throw new Error("ambiguous target: the new label does not resolve uniquely to the selected target");
+    throw new DocumentDiagnosticError("invalid-reference", "ambiguous target: the new label does not resolve uniquely to the selected target");
   }
   for (const reference of references) {
     const resolved = resolveReference(getNode(next, reference.path), after.lookup);
-    if (resolved?.reason) throw new Error(resolved.reason);
+    if (resolved?.reason) throw new DocumentDiagnosticError("invalid-reference", resolved.reason);
     const key = resolved?.target?.node ? after.path(resolved.target.node)?.join(".") : undefined;
     if (key !== reference.target) {
-      throw new Error("rename would change resolution of an unrelated or previously unresolved reference");
+      throw new DocumentDiagnosticError("invalid-reference", "rename would change resolution of an unrelated or previously unresolved reference");
     }
   }
   const failure = "reference notation cannot be rewritten while preserving meaning";
   const markdown = serializeFor(next, failure);
-  if (serializeFor(parse(markdown), failure) !== markdown) throw new Error(failure);
+  if (serializeFor(parse(markdown), failure) !== markdown) throw new DocumentDiagnosticError("invalid-reference", failure);
   return next;
 }

@@ -151,7 +151,7 @@ async (page, { openPath, reloadDocument, waitForEditorFocus, bibliographyFixture
   });
   if (await settings.getAttribute('aria-expanded') !== 'true') await settings.click();
   await page.getByRole('button',{name:'Reference style',exact:true}).click();
-  await page.getByRole('menu',{name:'Reference style',exact:true}).waitFor();
+  await page.getByRole('menu',{name:'Reference style',exact:true}).and(page.locator(':focus-within')).waitFor();
   await page.keyboard.press('Control+s'); await disk;
   const styleMenu = page.getByRole('menu',{name:'Reference style',exact:true});
   if (await styleMenu.count()) {

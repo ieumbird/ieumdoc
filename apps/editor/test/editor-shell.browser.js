@@ -67,8 +67,22 @@ async page => {
     await page.keyboard.press('Escape'); await settingsDialog.waitFor({state:'hidden'});
     result.documentSettingsEscapeReturnsFocus = await isFocused(settings);
     await page.getByRole('button',{name:'Collapse sidebar'}).click();
-    result.railOnlyReopensFiles = await page.getByTestId('sidebar').getByRole('button').count() === 1;
-    await page.getByRole('button',{name:'Expand sidebar'}).click();
+    const files = page.getByRole('button',{name:'Expand sidebar',exact:true});
+    const railSettings = page.getByTestId('sidebar').getByRole('button',{name:'Settings',exact:true});
+    result.railActionsNamed = await files.getAttribute('title') === 'Expand sidebar' &&
+      await railSettings.getAttribute('title') === 'Settings';
+    await files.focus();
+    await page.keyboard.press('Tab');
+    result.railSettingsKeyboardReachable = await isFocused(railSettings);
+    await page.keyboard.press('Enter');
+    await page.getByTestId('settings-back').waitFor();
+    await page.keyboard.press('Escape');
+    await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+    result.railSettingsReturnsFocus = await isFocused(railSettings);
+    await page.keyboard.press('Shift+Tab');
+    result.railFilesKeyboardReachable = await isFocused(files);
+    await page.keyboard.press('Enter');
+    result.railFilesRestoresNavigation = await openFolder.isVisible();
     result.settingsKeepsEditor = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate((n, original) => n.editor === original, editorHandle);
     await editorHandle.dispose();
 

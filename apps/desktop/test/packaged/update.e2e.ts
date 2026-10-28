@@ -27,7 +27,7 @@ const work = path.join(repo, "tmp", "desktop-update");
 const HOST = "127.0.0.1:47320";
 const LIVE = process.argv.includes("--github");
 const BETA = LIVE || process.env.IEUMDOC_TEST_UPDATE_CHANNEL === "beta";
-const [OLD, NEW] = LIVE ? ["0.0.2-beta.1", "0.0.2-beta.2"]
+const [OLD, NEW] = LIVE ? ["0.0.2-beta.2", "0.0.2-beta.3"]
   : BETA ? ["0.1.0-beta.1", "0.1.0-beta.2"] : ["0.0.1", "0.0.2"];
 // The public beta.3 predates native documents (#232) and edits leading frontmatter as a body block.
 const NATIVE_PREFIX = LIVE && OLD === "0.0.1-beta.3" ? "" : "---\nieumdoc: 1\n---\n\n";
@@ -170,7 +170,7 @@ test("installs per user, then updates from Settings only after the open document
     const exe = path.join(installedAt, "IeumDoc.exe");
     assert.equal(existsSync(exe), true);
     console.log(`installed ${OLD} in ${Date.now() - started} ms at ${installedAt}`);
-    const prefs = { channel: BETA ? "beta" as const : "stable" as const, postponed: OLD };
+    const prefs = { channel: BETA ? "beta" as const : "stable" as const, seenUpdate: OLD };
     const preferencesFile = path.join(appData, "preferences.json");
     const canary = path.join(appData, "update-test-canary.txt");
     mkdirSync(appData, { recursive: true });
@@ -185,7 +185,7 @@ test("installs per user, then updates from Settings only after the open document
     // public beta.4 is English-only, but shares this origin/profile with the updated app.
     await page.evaluate(() => localStorage.setItem("ieumdoc.uiLanguage", "en"));
     const phase = () => page.getByTestId("update-status").getAttribute("data-phase");
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("button", { name: /^Settings/ }).click();
     // LIVE starts an older published build whose Settings has no categories.
     if (await page.getByRole("button", { name: "About & updates", exact: true }).count())
       await page.getByRole("button", { name: "About & updates", exact: true }).click();
@@ -207,7 +207,7 @@ test("installs per user, then updates from Settings only after the open document
       writeFileSync(path.join(cliBin, "owner.json"), "damaged owner");
       await page.reload();
       await page.locator('[data-testid="status"][data-operation="ready" i]').waitFor({ state: "attached" });
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await page.getByRole("button", { name: /^Settings/ }).click();
       await page.getByRole("button", { name: "About & updates", exact: true }).click();
       await cli.getByText("Broken path", { exact: true }).waitFor();
       assert.equal(await cli.getByRole("button", { name: "Repair", exact: true }).isDisabled(), true);
@@ -248,7 +248,7 @@ test("installs per user, then updates from Settings only after the open document
     page = await app.firstWindow();
     page.on("dialog", () => {});
     await page.locator('[data-testid="status"][data-operation="ready" i]').waitFor({ state: "attached" });
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("button", { name: /^Settings/ }).click();
     if (await page.getByRole("button", { name: "About & updates", exact: true }).count())
       await page.getByRole("button", { name: "About & updates", exact: true }).click();
     assert.equal(await page.getByTestId("app-version").innerText(), OLD);
@@ -288,15 +288,23 @@ test("installs per user, then updates from Settings only after the open document
     await page.getByText("Alpha.", { exact: true }).click();
     await page.keyboard.press("End");
     await page.keyboard.type(" Saved before the update.");
-    await page.getByTestId("update-notice").getByRole("button", { name: "Restart to update" }).click();
-    await page.getByTestId("error").waitFor();
-    assert.match(await page.getByTestId("error").innerText(), /Save your changes, then restart to update/);
+    await page.getByRole("button", { name: /^Settings/ }).click();
+    await page.getByRole("button", { name: "About & updates", exact: true }).click();
+    await page.getByRole("button", { name: "Restart to update" }).click();
+    await page.getByTestId("update-problem").waitFor();
+    assert.match(await page.getByTestId("update-problem").innerText(), /Save your changes, then restart to update/);
+    await page.keyboard.press("Escape");
+    await page.getByTestId("settings-dialog").waitFor({ state: "detached" });
     assert.equal(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length), 1);
 
     await page.keyboard.press("Control+S");
     await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.textContent === "Saved");
+    const savedPreferences = readPreferences(preferencesFile, OLD);
+    if (!LIVE) assert.equal(savedPreferences.seenUpdate, NEW, "viewing About acknowledges the offered update");
     const closed = new Promise<void>((resolve) => app.once("close", () => resolve()));
-    await page.getByTestId("update-notice").getByRole("button", { name: "Restart to update" }).click();
+    await page.getByRole("button", { name: /^Settings/ }).click();
+    await page.getByRole("button", { name: "About & updates", exact: true }).click();
+    await page.getByRole("button", { name: "Restart to update" }).click();
     await closed;
     const restarted = Date.now();
     // The installer starts the new version without arguments, so it logs to the default user data.
@@ -309,7 +317,7 @@ test("installs per user, then updates from Settings only after the open document
     assert.ok(appProcesses(installedAt).some((process) => process.version === NEW), "the new version is running");
     console.log(`installed ${NEW} and showed its window ${Date.now() - restarted} ms after the restart`);
     assert.equal(readFileSync(documentFile, "utf8"), `${NATIVE_PREFIX}# Update\n\nAlpha. Saved before the update.\n`);
-    assert.deepEqual(readPreferences(preferencesFile, NEW), prefs, "saved channel and preferences survived installation");
+    assert.deepEqual(readPreferences(preferencesFile, NEW), savedPreferences, "saved channel and preferences survived installation");
     assert.equal(readFileSync(canary, "utf8"), "Preserve existing user data.\n");
     assert.ok(readFileSync(log, "utf8").includes(`started ${NEW} (${prefs.channel})`), "the new app loaded the preserved channel");
     if (!LIVE) verifyPackagedCli(exe, "ieumdoc", documents, NEW, await freshTerminalEnvironment());

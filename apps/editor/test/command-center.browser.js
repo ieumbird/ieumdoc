@@ -664,7 +664,9 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   check(await korean.getByRole('option',{name:'저장',exact:true}).count()===1, 'English alias did not find a Korean command');
   await korean.getByRole('combobox').fill('> 저장');
   check(await korean.getByRole('option',{name:'저장',exact:true}).count()===1, 'Korean command search failed');
-  check(await korean.getByTestId('command-center-count').innerText() === '검색 결과 1개', 'Korean result count missing');
+  const koreanMatches = await korean.getByRole('option').count();
+  check(await korean.getByRole('option',{name:'저장 전 변경 내용 보기',exact:true}).count() === 1, 'Korean Save comparison command missing');
+  check(await korean.getByTestId('command-center-count').innerText() === `검색 결과 ${koreanMatches}개`, 'Korean result count missing');
   if (screenshots) await page.screenshot({path:'tmp/command-center/search-ko-640.png'});
   await korean.getByRole('combobox').fill('> keyboard shortcuts');
   await page.keyboard.press('Enter'); await korean.waitFor({state:'detached'});
@@ -750,5 +752,52 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     page.off('request', countSearchRequests);
     await page.unroute('**/api/folder?**', bulkListing);
   }
+  // #528: the existing entry works with an open tab, follows live UI language, and
+  // uses the same Open path from the start screen. Samples are disposable worktree copies.
+  const sampleTitles = {en:'Current control for a 48 V converter',ko:'48 V 전력 변환기의 전류 제어 설계'};
+  check(loaded.samples?.en && loaded.samples?.ko, 'Development Host omitted localized sample folders');
+  for (const language of ['en','ko']) {
+    await page.getByRole('button', {name:'Settings', exact:true}).click();
+    await page.getByTestId('ui-language').selectOption(language);
+    await page.keyboard.press('Escape');
+    await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+    const commandName = language === 'ko' ? '샘플 문서 열기' : 'Open sample document';
+    await page.keyboard.press('Control+Slash');
+    const dialog = page.getByRole('dialog', {name:language === 'ko' ? '커맨드 센터' : 'Command center',exact:true});
+    await dialog.getByRole('combobox').fill('> sample');
+    await dialog.getByRole('option', {name:commandName,exact:true}).click();
+    await dialog.waitFor({state:'detached'});
+    await waitForActivePath(page, loaded.samples[language]);
+    check(await editor().locator('h1').innerText() === sampleTitles[language], 'Command opened the wrong sample language');
+    await editor().getByTestId("figure-image").waitFor();
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-document-tab][data-active=true] [data-block="figure"] img')].every(img => img.complete && img.naturalWidth > 0));
+    await editor().getByTestId("mermaid-preview").locator("img").waitFor();
+    check(await editor().locator('[data-block="figure"]').count() === 2, 'Sample figures were not rendered');
+    if (screenshots) for (const width of [1440,640]) {
+      await page.setViewportSize({width,height:900});
+      await page.evaluate(async () => { await document.fonts.ready; document.activeElement?.blur(); document.querySelector('.document-column')?.scrollTo(0,0); window.scrollTo(0,0); });
+      await page.mouse.move(0,0);
+      await page.screenshot({path:`tmp/command-center/sample-${language}-${width}.png`});
+      for (const [region,target] of [['image',editor().locator('[data-block="figure"]').first()],['mermaid',editor().getByTestId('mermaid-preview')]]) {
+        await target.scrollIntoViewIfNeeded();
+        await page.screenshot({path:`tmp/command-center/sample-${language}-${width}-${region}.png`});
+      }
+      await editor().locator('h1').scrollIntoViewIfNeeded();
+    }
+  }
+  // Reload into a real localized start offer; opening the sample uses the same retained mapping.
+  await page.route('**/api/document', route => route.fulfill({json:{start:true,samples:loaded.samples}}));
+  await page.evaluate(() => localStorage.removeItem('ieumdoc.openTabs'));
+  page.once('dialog', dialog => dialog.accept());
+  await page.reload();
+  await page.getByTestId('document-start').waitFor();
+  await page.getByRole('button',{name:'샘플 문서 열기',exact:true}).click();
+  await waitForActivePath(page, loaded.samples.ko);
+  check(await editor().locator('h1').innerText() === sampleTitles.ko, 'Start screen opened the wrong sample language');
+  await page.unroute('**/api/document');
+  await page.getByRole('button',{name:'설정',exact:true}).click();
+  await page.getByTestId('ui-language').selectOption('en');
+  await page.keyboard.press('Escape');
+  result.localizedSamples = {command:true,start:true,languages:['en','ko']};
   return result;
 }

@@ -536,18 +536,21 @@ const TableCaption = Node.create({
   },
 });
 
+function focusEmptyCaption(event: ReactMouseEvent, { editor, node, getPos }: Pick<ReactNodeViewProps, "editor" | "node" | "getPos">): void {
+  if (!editor.isEditable || node.content.size !== 0 || event.button !== 0) return;
+  const position = getPos();
+  if (typeof position !== "number") return;
+  event.preventDefault();
+  editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, position + 1)));
+  editor.view.focus();
+}
+
 function TableCaptionView({ node, editor, getPos }: ReactNodeViewProps) {
   useTranslation();
   const editable = useEditorState({ editor, selector: ({ editor: current }) => current.isEditable });
   const numbered = useCaptionNumberText(editor, getPos, "table");
-  return <NodeViewWrapper className="caption" data-testid="table-caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)} onMouseDown={(event: ReactMouseEvent) => {
-    if (!editor.isEditable || node.content.size !== 0 || event.button !== 0) return;
-    const position = getPos();
-    if (typeof position !== "number") return;
-    event.preventDefault();
-    editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, position + 1)));
-    editor.view.focus();
-  }}>
+  return <NodeViewWrapper className="caption" data-testid="table-caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}
+    onMouseDown={(event: ReactMouseEvent) => focusEmptyCaption(event, { editor, node, getPos })}>
     <NodeViewContent as="div" aria-label={i18n.t("Table caption")}
       data-placeholder={editable && node.content.size === 0 ? i18n.t("Table caption") : undefined} />
   </NodeViewWrapper>;
@@ -1094,12 +1097,8 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
     setFilename(appliedStem ?? "");
     setError("");
     setEditing(true);
-    // After the form renders.
-    requestAnimationFrame(() => {
-      const input = imageInput.current;
-      if (input && input.getClientRects().length && !input.closest('[data-testid="figure-editor"]')?.contains(document.activeElement)) input.focus();
-    });
   }
+  useSourceInputFocus(imageInput, editing);
   usePropertyEntry(anchor, beginEdit);
   const releaseCopy = () => {
     const copy = copied.current;
@@ -1263,13 +1262,14 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
       {editableFigure && !src ? (
         <div className="figure-no-content" data-testid="figure-no-content" contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>{i18n.t("No content yet")}</div>
       ) : null}
-      <figcaption className="caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}><NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")} /></figcaption>
+      <figcaption className="caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}
+        onMouseDown={event => focusEmptyCaption(event, { editor, node, getPos })}><NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")}
+        data-placeholder={editor.isEditable && node.content.size === 0 ? i18n.t("Figure caption") : undefined} /></figcaption>
       {editableFigure && !editing ? (
         <Button className="figure-edit" size="sm" variant="outline" aria-label={i18n.t("Edit figure")} contentEditable={false} onClick={beginEdit}>{i18n.t("Edit")}</Button>
       ) : null}
       <BlockProperties
         anchor={anchor}
-        initialFocus={imageInput}
         kind={numbered ?? i18n.t("Figure")}
         testId="figure"
         open={editing}
@@ -1312,20 +1312,34 @@ function isolateInputDrag(event: ReactDragEvent<HTMLDivElement>) {
   if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) event.stopPropagation();
 }
 
-/** Shared by the in-document Equation and Mermaid forms; insertion refocuses the engine first. */
-function useSourceInputFocus(input: RefObject<HTMLTextAreaElement | null>, editing: boolean) {
+/** Insertion refocuses the engine first; deferred entry must yield to subsequent user input. */
+function useSourceInputFocus(input: RefObject<HTMLElement | null>, editing: boolean) {
   const frame = useRef<number | null>(null);
+  const interaction = useRef<AbortController | null>(null);
   const cancel = () => {
+    interaction.current?.abort();
+    interaction.current = null;
     if (frame.current !== null) cancelAnimationFrame(frame.current);
     frame.current = null;
   };
   useEffect(() => {
     if (!editing) return;
     cancel();
+    // Entry's pointerdown/Enter has already passed document capture. Any later trusted
+    // input cancels entry; the insertion command's programmatic focus does not.
+    interaction.current = new AbortController();
+    const leave = (event: Event) => {
+      if (event.isTrusted) cancel();
+    };
+    const options = { capture: true, signal: interaction.current.signal };
+    document.addEventListener("pointerdown", leave, options);
+    document.addEventListener("keydown", leave, options);
     frame.current = requestAnimationFrame(() => {
       frame.current = null;
+      cancel();
       const element = input.current;
-      if (element?.getClientRects().length && !element.closest("form")?.contains(document.activeElement)) element.focus();
+      if (element?.getClientRects().length &&
+        !element.closest("form")?.contains(document.activeElement)) element.focus();
     });
     return cancel;
   }, [editing, input]);
@@ -1458,8 +1472,10 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
     </div> : null : <div contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>
       <MermaidPreview source={applied.mermaidSource!} />
     </div>}
-    <figcaption className="caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}>
-      <NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")} />
+    <figcaption className="caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}
+      onMouseDown={event => focusEmptyCaption(event, { editor, node, getPos })}>
+      <NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")}
+        data-placeholder={editor.isEditable && node.content.size === 0 ? i18n.t("Figure caption") : undefined} />
     </figcaption>
     {view.editable && !editing ? <Button className="figure-edit" size="sm" variant="outline" aria-label={i18n.t("Edit figure")}
       contentEditable={false} onClick={beginEdit}>{i18n.t("Edit")}</Button> : null}
@@ -1498,7 +1514,8 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
   const visible = useEditorVisible();
   const label = String(node.attrs.label ?? "");
   const number = useBlockNumber(editor, getPos, "equation");
-  const kind = number === undefined ? i18n.t("Equation") : `Equation (${number})`;
+  const numbered = useCaptionNumberText(editor, getPos, "equation");
+  const kind = numbered ?? i18n.t("Equation");
   const latex = String(node.attrs.latex ?? "");
   const anchor = useRef<HTMLParagraphElement>(null);
   const latexInput = useRef<HTMLTextAreaElement>(null);

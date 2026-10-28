@@ -10,7 +10,7 @@ export { CONTENT_SECURITY_POLICY, serveEditorFile } from "../../editor/server/ed
 import { handleAssetRequest } from "../../editor/server/asset-api.ts";
 import { handleDocumentRequest } from "../../editor/server/document-api.ts";
 import { requestQuery } from "../../editor/server/request-query.ts";
-import type { DocumentStartResponse } from "../../editor/shared/document-protocol.ts";
+import type { DocumentStartResponse, SampleAvailability } from "../../editor/shared/document-protocol.ts";
 
 export const SCHEME = "ieumdoc";
 export const ORIGIN = `${SCHEME}://app`;
@@ -46,16 +46,17 @@ export async function callNodeHandler(request: Request, url: URL, handler: Handl
 const notFound = () => new Response(null, { status: 404, headers: SECURITY_HEADERS });
 
 /** What the Editor's first request, which names no document, opens: a document, or none. */
-export type FirstDocument = { document: string } | { sample: string };
+export type FirstDocument = { document?: string } & SampleAvailability;
 
 /**
  * The protocol handler. `first` answers the Editor's first request: the document the app was
  * started with or, without one, a start without a document that offers the sample. The
  * development server's default file is not part of the app.
  */
-export function createProtocolHandler(editorDir: string, first: FirstDocument, trashItem: (file: string) => Promise<void> = async () => { throw new Error("OS trash is unavailable."); }): (request: Request) => Promise<Response> {
+export function createProtocolHandler(editorDir: string, first: FirstDocument, trashItem: (file: string) => Promise<void> = async () => { throw new Error("OS trash is unavailable."); }, onListedRoot?: (root: string) => void): (request: Request) => Promise<Response> {
   // Lives as long as this process, as the development server's key does.
   const assetSigningKey = randomBytes(32);
+  const sampleAvailability: SampleAvailability = { samples: first.samples, sampleProblem: first.sampleProblem };
   return async (request) => {
     const url = new URL(request.url);
     if (url.protocol !== `${SCHEME}:` || url.host !== "app") return notFound();
@@ -67,13 +68,21 @@ export function createProtocolHandler(editorDir: string, first: FirstDocument, t
     }
     if (DOCUMENT_ROUTES.has(url.pathname) || url.pathname.startsWith("/document/")) {
       if (url.pathname === "/api/document" && request.method === "GET" && !query.get("path")) {
-        if (!("document" in first)) {
-          const start: DocumentStartResponse = { start: true, sample: first.sample };
+        if (!first.document) {
+          const start: DocumentStartResponse = { start: true, ...sampleAvailability };
           return new Response(JSON.stringify(start), { headers: { ...SECURITY_HEADERS, "Content-Type": "application/json; charset=utf-8" } });
         }
         url.searchParams.set("path", first.document);
       }
-      return callNodeHandler(request, url, (req, res, next) => handleDocumentRequest(req, res, next, LOCAL_FILE_ACCESS, Infinity, trashItem));
+      const response = await callNodeHandler(request, url, (req, res, next) => handleDocumentRequest(req, res, next, LOCAL_FILE_ACCESS, Infinity, trashItem, sampleAvailability));
+      if (onListedRoot && url.pathname === "/api/folder" && request.method === "GET" && response.ok) {
+        const folder = await response.clone().json() as { root: string; path: string };
+        if (folder.root === folder.path) {
+          // UNC folders may still be browsed, but never gain the OS-launch capability.
+          try { onListedRoot(folder.root); } catch { /* Not an eligible local root. */ }
+        }
+      }
+      return response;
     }
     if (request.method !== "GET" && request.method !== "HEAD") return new Response(null, { status: 405, headers: SECURITY_HEADERS });
     return serveEditorFile(editorDir, url.pathname);

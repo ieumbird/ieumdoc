@@ -93,7 +93,18 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
     db.close(); return !keys.some(Array.isArray);
   }), 'Repeated clean Open/Close leaves per-session metadata');
   await openPath(page,file);
-  await edit(page,'Recovered applied text. '); await count(1);
+  // Normalize the CRLF fixture through real Save so independent edits form separate regions.
+  await page.getByTestId('save').click();
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
+  await edit(page,'Recovered applied text. ');
+  await engine(page).evaluate(async node => {
+    const {deleteBlock} = await import('/src/block-commands.ts');
+    const editor = node.editor;
+    const index = editor.state.doc.content.content.findIndex(block => block.type.name === 'paragraph');
+    editor.view.dispatch(deleteBlock(editor.state,index));
+    editor.commands.insertContentAt(editor.state.doc.content.size,{type:'paragraph',content:[{type:'text',text:'Added recovery paragraph.'}]});
+  });
+  await count(1);
   const first = (await records())[0];
   check(first.snapshot.editor.savedDocument && first.snapshot.file.source && first.snapshot.file.revision, 'Opening/checkpoint absent');
 
@@ -105,7 +116,7 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
   page.on('dialog', dialog => dialog.accept());
   await page.reload(); await ready(page);
   await page.getByTestId('recovery-prompt').waitFor();
-  check(await page.getByRole('tab',{includeHidden:true}).count() === 1 && await page.getByRole('tab',{name:'technical-2.md',exact:true,includeHidden:true}).count() === 1, 'Tab memory bypassed recovery or failed to restore the clean tab');
+  check(await page.getByRole('tablist',{name:'Documents',exact:true,includeHidden:true}).getByRole('tab',{includeHidden:true}).count() === 1 && await page.getByRole('tab',{name:'technical-2.md',exact:true,includeHidden:true}).count() === 1, 'Tab memory bypassed recovery or failed to restore the clean tab');
   check(JSON.stringify(await records()) === JSON.stringify([first]), 'Automatic tab restoration changed the recovery record');
   check(await page.evaluate(() => localStorage.getItem('ieumdoc.openTabs')) === navigation, 'Recovery exclusion rewrote navigation memory');
   await page.keyboard.press('Control+Slash');
@@ -122,6 +133,109 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
   await capture('list');
   await openPath(page,file);
   await page.getByTestId('recovery-prompt').waitFor(); await capture('prompt');
+  // Source comparison does not restore/acknowledge or modify this record.
+  const compareButton = page.getByRole('button',{name:'Compare',exact:true});
+  const diffRegion = () => page.getByRole('region',{name:'Source differences',exact:true});
+  const firstBeforeCompare = JSON.stringify(await records());
+  const comparisonURL = '**/api/document-source?recovery=1';
+  let releasePreview;
+  const gate = new Promise(resolve=>{releasePreview=resolve;});
+  const delayedPreview = async route=>{await gate; await route.fulfill({json:{disk:null,markdown:''}});};
+  await page.route(comparisonURL, delayedPreview);
+  await compareButton.click(); await page.getByText('Loading comparison…',{exact:true}).waitFor();
+  for(const name of ['Restore work','Delete record','Not now']) check(await page.getByRole('button',{name,exact:true}).isEnabled(), 'Loading blocked recovery actions');
+  await page.getByRole('button',{name:'Not now',exact:true}).click();
+  releasePreview(); await page.unroute(comparisonURL,delayedPreview);
+  await page.getByRole('button',{name:'Close technical-1.md',exact:true}).click();
+  await page.getByRole('button',{name:'Review recovery'}).click();
+  const failedPreview = route=>route.fulfill({status:500,json:{error:'Preview unavailable for test'}});
+  await page.route(comparisonURL,failedPreview);
+  // A reopened review starts collapsed.
+  if(await compareButton.getAttribute('aria-expanded')==='true') await compareButton.click();
+  await compareButton.click(); await page.getByText('Comparison unavailable: Preview unavailable for test',{exact:true}).waitFor();
+  for(const name of ['Restore work','Delete record','Not now']) check(await page.getByRole('button',{name,exact:true}).isEnabled(),'Error blocked recovery actions');
+  await page.unroute(comparisonURL,failedPreview); await compareButton.click();
+  let previewMarkdown;
+  const previewResponse = page.waitForResponse(response => response.url().includes('/api/document-source?recovery=1'));
+  await compareButton.click();
+  previewMarkdown = (await (await previewResponse).json()).markdown;
+  await diffRegion().waitFor();
+  const changeCount = await diffRegion().locator('[data-change-start]').count();
+  // Exactly three separated regions: modified title, deleted paragraph, appended paragraph.
+  check(changeCount === 3, 'Mixed edits did not produce the three expected change regions');
+  check((await page.getByRole('status').allTextContents()).includes(`${changeCount} changes`), 'Wrong displayed change count');
+  check(await diffRegion().locator('[data-kind="removed"]').count() > 0 && await diffRegion().locator('[data-kind="added"]').count() > 0 && await diffRegion().locator('mark').count() > 0,'Missing line/word changes');
+  await page.getByRole('button',{name:'Next change',exact:true}).focus(); await page.keyboard.press('Enter');
+  check(await diffRegion().locator('[data-change-start="1"]').evaluate(node=>node===document.activeElement),'Keyboard next change did not focus first change');
+  await page.getByRole('button',{name:'Previous change',exact:true}).click();
+  check(await diffRegion().locator(`[data-change-start="${changeCount}"]`).evaluate(node=>node===document.activeElement),'Previous did not wrap to last change');
+  for (const width of [640,1440]) for (const theme of ['light','dark']) {
+    await page.setViewportSize({width,height:900});
+    await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
+    await page.evaluate(()=>document.fonts.ready);
+    const geometry = await page.getByTestId('recovery-prompt').evaluate(node=>({width:node.clientWidth,scroll:node.scrollWidth,viewport:innerWidth,dpr:devicePixelRatio,zoom:visualViewport.scale,theme:document.documentElement.dataset.theme,
+      footer:[...node.querySelectorAll('[data-slot="dialog-footer"] button')].every(button=>{const b=button.getBoundingClientRect(),p=node.getBoundingClientRect();return b.left>=p.left&&b.right<=p.right;})}));
+    recoveryLayouts.push({name:'comparison',...geometry});
+    check(geometry.scroll<=geometry.width && geometry.width<width && geometry.footer,'Comparison/footer overflow');
+    if(screenshots) await page.screenshot({path:`tmp/296/comparison-${width}-${theme}.png`});
+  }
+  await page.evaluate(()=>document.documentElement.dataset.theme='light'); await page.setViewportSize({width:1440,height:900});
+  await compareButton.click();
+  check(JSON.stringify(await records()) === firstBeforeCompare,'Comparison changed the recovery record');
+  // Hold a genuine worker module during calculation: Delete and Escape must remain usable.
+  let releaseWorker;
+  const workerGate=new Promise(resolve=>{releaseWorker=resolve;});
+  const workerURL='**/src/recovery-diff.worker.ts*';
+  const delayedWorker=async route=>{const response=await route.fetch();await workerGate;await route.fulfill({response});};
+  await page.route(workerURL,delayedWorker);
+  await compareButton.click(); await page.getByText('Calculating differences…',{exact:true}).waitFor();
+  let actionStart=Date.now();
+  await page.getByRole('button',{name:'Delete record',exact:true}).click();
+  const calculationDelete=page.getByRole('dialog',{name:'Delete recovery record?',exact:true});
+  await calculationDelete.waitFor();
+  check(Date.now()-actionStart<1000,'Delete did not respond during computation');
+  await page.keyboard.press('Escape'); await calculationDelete.waitFor({state:'hidden'});
+  actionStart=Date.now(); await page.keyboard.press('Escape');
+  await page.getByTestId('recovery-prompt').waitFor({state:'detached'});
+  check(Date.now()-actionStart<1000,'Escape did not respond during computation');
+  releaseWorker(); await page.unroute(workerURL,delayedWorker);
+  await page.getByRole('button',{name:'Review recovery'}).click();
+  if(await compareButton.getAttribute('aria-expanded')==='true') await compareButton.click();
+  // Reviewer regression: 50 changed code lines, 1000 words each (~337 KiB per side).
+  const largeSource = word => '---\nieumdoc: 1\n---\n\n```text\n' + Array(50).fill(Array.from({length:1000},(_,i)=>word+i).join(' ')).join('\n') + '\n```\n';
+  const largePair = {disk:{source:largeSource('old'),revision:first.snapshot.file.revision},markdown:largeSource('new')};
+  const largePreview = route=>route.fulfill({json:largePair});
+  await page.route(comparisonURL,largePreview);
+  await page.evaluate(()=>{
+    const started=performance.now(); let previous=started;
+    window.comparisonTiming={started,maxGap:0,readyAfter:null};
+    window.comparisonHeartbeat=setInterval(()=>{const now=performance.now();window.comparisonTiming.maxGap=Math.max(window.comparisonTiming.maxGap,now-previous);previous=now;},10);
+    window.comparisonObserver=new MutationObserver(()=>{
+      if(window.comparisonTiming.readyAfter===null && document.querySelector('[aria-label="Source differences"]')) window.comparisonTiming.readyAfter=performance.now()-started;
+    });
+    window.comparisonObserver.observe(document.body,{childList:true,subtree:true});
+  });
+  await compareButton.click();
+  // A fixed observation window, with direct assertions afterwards; no readiness polling/reload.
+  const largeComparisonMetrics = await page.evaluate(async()=>{
+    await new Promise(resolve=>setTimeout(resolve,2000));
+    clearInterval(window.comparisonHeartbeat); window.comparisonObserver.disconnect();
+    return {...window.comparisonTiming,ready:!!document.querySelector('[aria-label="Source differences"]'),
+      omitted:document.body.textContent.includes('Word highlighting omitted to keep comparison responsive.')};
+  });
+  check(largeComparisonMetrics.maxGap<500,`Comparison blocked the main thread: ${JSON.stringify(largeComparisonMetrics)}`);
+  check(largeComparisonMetrics.ready && largeComparisonMetrics.readyAfter<2000,`Comparison exceeded its total budget: ${JSON.stringify(largeComparisonMetrics)}`);
+  check(largeComparisonMetrics.omitted,'Large comparison did not explain omitted word highlighting');
+  check((await diffRegion().innerText()).includes('new999'),'Cancelled comparison overwrote the new result');
+  await compareButton.click(); await page.unroute(comparisonURL,largePreview);
+  const oversizedPreview=route=>route.fulfill({json:{disk:{...largePair.disk,source:'x'.repeat(1_000_001)},markdown:''}});
+  await page.route(comparisonURL,oversizedPreview); await compareButton.click();
+  await page.getByText('Comparison unavailable: Comparison is too large. Use the plaintext recovery copy.',{exact:true}).waitFor();
+  for(const name of ['Restore work','Delete record','Not now']) check(await page.getByRole('button',{name,exact:true}).isEnabled(),'Computation budget failure blocked recovery actions');
+  await page.getByText('Plaintext recovery copy',{exact:true}).click();
+  check(await page.getByRole('textbox',{name:'Plaintext recovery copy',exact:true}).inputValue()===first.recoveryText,'Computation budget failure lost the salvage copy');
+  await page.getByText('Plaintext recovery copy',{exact:true}).click();
+  await compareButton.click(); await page.unroute(comparisonURL,oversizedPreview);
   const beforeDelete = await records();
   const deleteButton = page.getByRole('button',{name:'Delete record',exact:true});
   await deleteButton.click();
@@ -162,6 +276,7 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
   await page.locator('[data-testid="status"][data-operation="saved"]').waitFor(); await count(0);
   const disk = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json();
   check(disk.source.includes('Recovered applied text.'), 'Restored Save did not reach disk');
+  check(disk.source === previewMarkdown, 'Restored Save bytes differ from preview');
   await reloadDocument(page); await ready(page);
   check((await engine(page).innerText()).includes('Recovered applied text.'), 'Saved work did not survive Reload');
 
@@ -211,6 +326,8 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
   } finally { await other.close(); }
   await page.reload(); await ready(page); await count(1);
   await page.getByRole('button',{name:'Review recovery'}).click();
+  await page.getByRole('button',{name:'Compare',exact:true}).click(); await diffRegion().waitFor();
+  await page.getByText('The file changed after this record. Comparing with the current disk file.',{exact:true}).waitFor();
   await page.getByRole('button',{name:'Restore work',exact:true}).click();
   await page.getByTestId('recovery-prompt').waitFor({state:'detached'});
   await page.getByTestId('save').click();
@@ -236,6 +353,9 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
   const unsaveable = (await records())[0];
   await page.reload(); await ready(page);
   await page.getByRole('button',{name:'Review recovery'}).click();
+  await page.getByRole('button',{name:'Compare',exact:true}).click(); await diffRegion().waitFor();
+  await page.getByText(/^Plaintext comparison instead of Save preview:/).waitFor();
+  check(!(await diffRegion().innerText()).includes('ieumdoc:'),'Fallback compared Markdown to plaintext');
   await page.getByRole('button',{name:'Restore work',exact:true}).click();
   await page.getByTestId('recovery-prompt').waitFor({state:'detached'});
   check(await engine(page).evaluate(n => n.editor.state.doc.firstChild.textContent === '' && [...n.editor.state.doc.content.content].some(node => node.type.name === 'figure' && !node.attrs.imagePath)), 'Unsaveable heading/pending Figure lost on restore');
@@ -326,6 +446,21 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
   await page.locator('[data-testid="status"][data-operation="saved"]').waitFor(); await count(0);
   await page.getByRole('button',{name:'Close technical-1.md',exact:true}).click();
 
+  // A genuinely absent file still previews the session and marks all content as added.
+  await page.evaluate(async record=>{
+    const {recoveryStorage:store}=await import('/src/recovery-storage.ts');
+    const id='missing-file'; const clean=structuredClone(record);
+    clean.path=clean.path.replace(/\.md$/,'-missing.md'); clean.snapshot.file.path=clean.path;
+    clean.snapshot.editor.editorDocument=structuredClone(clean.snapshot.editor.savedDocument);
+    await store.write(id,await store.ticket(id,clean.path),()=>({...clean,id,recordedAt:Date.now()}));
+  },unsaveable);
+  await page.reload(); await ready(page); await page.getByRole('button',{name:'Review recovery'}).click();
+  await page.getByRole('button',{name:'Compare',exact:true}).click(); await diffRegion().waitFor();
+  await page.getByText('File missing. All recovered content is shown as added.',{exact:true}).waitFor();
+  check(await diffRegion().locator('[data-kind="removed"], [data-kind="same"]').count()===0,'Missing disk was not all additions');
+  await page.getByRole('button',{name:'Delete record',exact:true}).click();
+  await page.getByRole('dialog',{name:'Delete recovery record?',exact:true}).getByRole('button',{name:'Delete record',exact:true}).click(); await count(0);
+
   // Unsupported/malformed format still exposes independently stored plaintext and explicit delete.
   await page.evaluate(async record => {
     const {recoveryStorage: store} = await import('/src/recovery-storage.ts');
@@ -372,7 +507,7 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
   await page.getByTestId('save').click();
   await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
   check((await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json()).source.includes('Storage unavailable but Save works.'), 'Unavailable recovery blocked original Save');
-  return { malformedPlaintext:true, crossWindowClear:true, insecureContextAPIs:true, modalSaveProtected:true, saveRaceReplay:true, draftsExcluded:true, unavailableVisible:true, persistence:true, matchingPrompt:true, restoreSaveReload:true, multiwindow:true, conflict:true,
+  return { largeComparisonMetrics, malformedPlaintext:true, crossWindowClear:true, insecureContextAPIs:true, modalSaveProtected:true, saveRaceReplay:true, draftsExcluded:true, unavailableVisible:true, persistence:true, matchingPrompt:true, restoreSaveReload:true, multiwindow:true, conflict:true,
     failedReloadRetained:true, unsaveableAndPendingFigure:true, tabDiscard:true, clearPending:true, pendingConcurrentWrites:true,
     recoveryLayouts, quotaFailureVisible:true, incompatiblePlaintext:true, screenshots };
 }

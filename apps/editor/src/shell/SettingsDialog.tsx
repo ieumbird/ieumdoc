@@ -116,6 +116,7 @@ type SettingsDialogProps = {
   aiStatus?: AiStatus | null;
   onRefreshAi?(): Promise<void>;
   open: boolean;
+  highlightUpdate?: boolean;
   category: SettingsCategory;
   onCategoryChange(category: SettingsCategory): void;
   documentName: string;
@@ -134,7 +135,7 @@ type SettingsDialogProps = {
 };
 
 /** Shared local recovery settings; About and update controls require the Desktop bridge. */
-export function SettingsDialog({ open, category, onCategoryChange, documentName, unsaved, desktop, info, onInfo, onInstall, returnFocus, onClose, recoveryCount = 0, recoveryProblem: storageProblem, onClearRecovery, aiStatus, onRefreshAi }: SettingsDialogProps) {
+export function SettingsDialog({ open, highlightUpdate = false, category, onCategoryChange, documentName, unsaved, desktop, info, onInfo, onInstall, returnFocus, onClose, recoveryCount = 0, recoveryProblem: storageProblem, onClearRecovery, aiStatus, onRefreshAi }: SettingsDialogProps) {
   useTranslation();
   const backButton = useRef<HTMLButtonElement>(null);
   const [clearConfirm, setClearConfirm] = useState(false);
@@ -323,7 +324,8 @@ export function SettingsDialog({ open, category, onCategoryChange, documentName,
                       ))}
                     </fieldset>
                   </div>
-                  <div className="settings-section">
+                  <div className={`settings-section${highlightUpdate ? " settings-update-highlight" : ""}`} data-testid="settings-update-section"
+                    ref={highlightUpdate ? node => node?.scrollIntoView({ block: "nearest" }) : undefined}>
                     <div className="settings-label">
                       <h4 className="settings-heading">{i18n.t("Updates")}</h4>
                       <p className="settings-status" role="status" data-testid="update-status" data-phase={state?.phase}>{updateStatusText(info)}</p>

@@ -23,5 +23,5 @@ export class UiError extends Error {
 }
 export function useMessageState(initial: UiMessage = "") {
   const [message, setMessage] = useState<UiMessage>(initial);
-  return [messageText(message), setMessage] as const;
+  return [messageText(message), setMessage, message] as const;
 }

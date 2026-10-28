@@ -1,3 +1,4 @@
+import { DocumentDiagnosticError } from "../write-error.ts";
 import { evaluateBibliography, type BibliographySource } from "../bibliography.ts";
 import { isScalar, isSeq, parseDocument } from "yaml";
 import { bibliographyError, canonicalCitation, citationContentError, citationText, type CitationContent, type CitationReport } from "../citation.ts";
@@ -43,7 +44,7 @@ export function declaredBibliography(document: MystDocument): string[] {
   // No alias or scalar coercion: the declaration itself must be a string sequence.
   const paths = isSeq(value) ? value.items.map(item => isScalar(item) ? item.value : undefined) : undefined;
   const error = bibliographyError(paths);
-  if (error) throw new Error(error);
+  if (error) throw new DocumentDiagnosticError("unsupported-content", error);
   return paths as string[];
 }
 
@@ -51,7 +52,7 @@ export function declaredBibliography(document: MystDocument): string[] {
 export function updateBibliography(document: MystDocument, paths: string[]): MystDocument {
   if (!Array.isArray(paths) || paths.length) {
     const error = bibliographyError(paths);
-    if (error) throw new Error(error);
+    if (error) throw new DocumentDiagnosticError("unsupported-content", error);
   }
   const next = cloneDocument(document);
   const { node, yaml } = metadata(next);

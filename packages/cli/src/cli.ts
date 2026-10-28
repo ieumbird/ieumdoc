@@ -175,8 +175,9 @@ const COMMANDS: CommandSpec[] = [
     summary: "Apply document edits in order with one atomic file commit",
     usage: "ieumdoc apply-batch <file> --operations <json-file|-> [--if-revision <revision>] [--dry-run] [--format <text|json>]",
     details: [
-      "--operations reads a non-empty JSON array of { command, ...options } from a UTF-8 file, or stdin when the value is -.",
-      "Stdin accepts an optional initial UTF-8 BOM (including Windows PowerShell UTF-8 pipes). File input is unchanged.",
+      "--operations reads a non-empty JSON array of { command, ...options } from a UTF-8 file, or stdin with -.",
+      "Stdin accepts one leading UTF-8 BOM for Windows PowerShell pipes; file input rules are unchanged.",
+      "Example: cat operations.json | ieumdoc apply-batch document.md --operations -",
       "Use existing flag names without -- as keys. Scalar options accept string, number or boolean only.",
       "JSON options (content, caption-content, cells, list, keys, paths, and insert-table align) accept objects/arrays",
       "directly or existing JSON strings. Required, unknown and mutually exclusive options follow single edits.",
@@ -280,6 +281,7 @@ const COMMANDS: CommandSpec[] = [
       "Validate a document: its structure, and whether IeumDoc can rewrite it as canonical",
       "Markdown without losing semantics (the same check format and Editor Save use).",
       "Exits 1 when it cannot.",
+      "JSON failures may include optional error.code from Core; unclassified errors may omit the code.",
       "References ({eq}, {numref}, {ref}, and links such as [](#label) whose URL starts with #)",
       "that name no target in this document, as MyST resolves them (including the implicit IDs",
       "of unlabeled headings), are reported as warnings with their block and line; they do not",
@@ -1264,7 +1266,10 @@ function batchChange(operation: unknown): Change {
 }
 
 function applyBatch(file: string, operationsFile: string, ifRevision: string | undefined) {
-  const operations: unknown = JSON.parse(operationsFile === "-" ? decodeUtf8(readFileSync(0)).replace(/^\uFEFF/, "") : readFile(operationsFile));
+  const input = operationsFile === "-"
+    ? decodeUtf8(readFileSync(0)).replace(/^\uFEFF/, "")
+    : readFile(operationsFile);
+  const operations: unknown = JSON.parse(input);
   if (!Array.isArray(operations) || operations.length === 0) {
     throw new Error("--operations must be a non-empty JSON array");
   }

@@ -206,6 +206,15 @@ A changed document recomputes numbering; source semantics and canonical output a
   switching retain them under the [editing-session contract](editing-session-save-v1.md#applied-content-and-drafts).
   Native text drag/drop and paste within a block Equation source or label field change only
   that draft; they do not create document content or history and Cancel leaves Save unchanged.
+  Deferred opening focus for Equation, Mermaid and image Figure properties is cancelled by
+  any trusted pointerdown or keydown after scheduling, including input inside the form,
+  Tab/Shift+Tab out of the form, caret movement within the same editor and a trip back
+  to the original focus owner. Once the user interacts, opening focus has no work left. The opening
+  pointerdown/Enter precedes the capture listeners; keyup is not a cancellation signal.
+  Programmatic focus is not user input, so the insertion command's editor focus return does not
+  cancel the pending source focus. Listeners are removed on execution, cancellation and unmount.
+  New Equation and Diagram insertion still hands focus to their source field on the next frame.
+  Escape in a focused block menu closes that menu and preserves the property draft (#664).
 - Mermaid Figures reuse the block Equation's in-document source editing surface and shared
   PropertyForm, with draft preview, label and explicit Apply/Cancel. Caption editing stays in
   the document. The [Figure contract](figure-authoring-v1.md#mermaid-editor) defines rendering,
@@ -325,6 +334,14 @@ Rows/cells keep their existing coordinates. ArrowDown from the final row enters 
 caption, ArrowUp returns to the last cell, and Enter leaves the table. Whole-table move,
 delete and history include the caption. Core `updateTableCaption` and canonical MyST stay
 unchanged; see [Table caption and label](table-caption-v1.md).
+
+Equation block metadata uses Core's document equation reference template (#676),
+for example `식 (2)`. Without an authored template it combines the UI-language
+Equation name with Core's default number text. Without a number it keeps only the
+UI-language name. As for Figures, the properties form's accessible name uses the
+same visible kind text, followed by the localized properties suffix. The number
+beside the rendered formula remains `(2)`. This is display-only; Core semantics
+and CLI operations are unchanged.
 
 A Figure's caption is inline content in the single ProseMirror document, editable
 in place with the existing formatting/clipboard controls. Image/alt/label drafts

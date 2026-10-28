@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { writeIssueOf } from "@ieumdoc/core";
 import {
   canonicalWriteError, endnotesInPlace, footnoteNumbers, getEditableDocument, insertFootnote,
   insertFootnoteDefinition, insertQuote, nextFootnoteLabel, parse, removeBlock, serialize,
@@ -101,9 +102,20 @@ test("footnotes lost by parsing or incomplete operation snapshots cannot be writ
   const document = parse(SOURCE);
   const incomplete = removeBlock(document, 4);
   assert.match(canonicalWriteError(incomplete) ?? "", /has no definition/);
+  for (const operation of [() => serialize(incomplete),
+    () => insertFootnoteDefinition(document, 1, "n", [{kind: "text", text: "Duplicate."}])]) {
+    assert.throws(operation, error => { assert.equal(writeIssueOf(error).code, "invalid-footnote"); return true; });
+  }
   assert.doesNotThrow(() => insertQuote(incomplete, 2, [{ kind: "text", text: "Quoted." }]));
   for (const label of ["", "two words", "a]b"]) {
-    assert.throws(() => updateParagraphInlineContent(document, [1], [{ kind: "footnote", label }]), /footnote label/);
+    for (const operation of [
+      () => updateParagraphInlineContent(document, [1], [{ kind: "footnote", label }]),
+      () => insertFootnoteDefinition(document, 1, label, [{ kind: "text", text: "Note." }]),
+    ]) assert.throws(operation, error => {
+      assert.match(writeIssueOf(error).reason, /footnote label/);
+      assert.equal(writeIssueOf(error).code, "invalid-label");
+      return true;
+    });
   }
 });
 

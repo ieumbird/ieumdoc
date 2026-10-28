@@ -3,6 +3,7 @@
 - Status: Implemented
 - Brand title-strip update: 2026-10-28 (#647; title strip spans all columns, side headers align with document tabs).
 - Block outline verification: 2026-10-28 (#469 follow-up: shared expanded selection/hover rectangle and inset stroke; [measurements and captures](editor-visual-language-v1.md#typing-and-outline-verification-469)).
+- Save refusal geometry: 2026-10-28 (#578 phase 1: error overlays reuse the same measured block extent and inset stroke, paint above selection/hover within a locally isolated document below the sticky header, and add no document padding/border; [contract and captures](editor-visual-language-v1.md#save-refusal-highlights-578)).
 - Previous separator verification: 2026-10-28 (#635: persistent Windows Chrome matrix at 1440/1424/1423/640px, both themes, caption reservation 138px/zero and panel/sidebar states; 1440/640px before/after pixels differ only by the missing separator segment, preserving the total header/tab geometry).
 - Shell verification: 2026-10-27 (#582 / #605: 40px headers, native caption reservation and supported-width browser checks; [contract and captures](editor-ux-shell-v1.md#sidebar-and-native-title-bar-582--605)).
 - Document tab verification: 2026-10-27 (#581: adjustable 32px row, full-height activation, preserved 28px close and measured-header consumers; [comparison](editor-visual-language-v1.md#slim-document-tabs-581)).
@@ -31,6 +32,8 @@
 [ADR-0010](../adr/0010-supported-viewport-and-input.md) defines a minimum viewport width of **640px**, with keyboard and pointer input. Viewports below 640px and touch-only entry are outside support and verification. Existing no-hover fallbacks may remain without creating a touch requirement.
 
 ## Alignment and ownership
+
+- The bottom Settings icon carries an 8px update dot in the same icon slot in both expanded Sidebar and collapsed rail (#665), without changing button targets or footer placement. Dot activation opens About & updates; its update actions receive an inset accent outline and selected-surface background. See the [update contract and captures](desktop-distribution-v1.md#settings-update-cue-verification-665).
 
 - Folder sections retain a 28px compact disclosure target (#425) around the 16px chevron,
   followed by the same name slot as subfolder rows (#582); folder rows have no folder icon. It rotates like

@@ -1,6 +1,8 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
+- Sample safety verification: 2026-10-28 (#686 review fixes; OS-temp ownership/junction/copy/rename unit regressions and Host/client failure propagation; no additional local browser or packaged execution).
+- Feature sample verification: 2026-10-28 (#528 localized folders, Core read-model coverage and canonical CLI check/format; Desktop replacement/preservation unit tests and development browser entry/captures; no local packaged Desktop run).
 - Window startup verification: 2026-10-28 (#643 / #644 review: production-minified renderer bridge matrix, Desktop main lifecycle/strict-IPC unit tests including absent first paint; saved light/flat packaged restart regression is CI-only).
 - Version correction verification: 2026-10-28 (#632: `0.0.2-beta.1` published; anonymous assets and withdrawal of both `0.1.0` Beta Releases/assets/remote tags verified; actual GitHub installation/update unverified; [record](../releases/v0.0.2-beta.1.md)).
 - CLI directory cleanup verification: 2026-10-28 (#629: isolated disable/uninstall ownership tests, Desktop typecheck and CI channel-order tests; actual Stable→Beta and NSIS checks run only in disposable Windows CI).
@@ -9,7 +11,7 @@
 - Separator verification: 2026-10-28 (#635: persistent Windows Chrome, light/dark, 1440/1424/1423/640px, Outline/sidebar open and closed, representative 138px/zero caption reservations; four 1440/640px before/after PNG pairs differ only in the missing 138×1px line. Actual native geometry remains Windows packaged CI; native visual acceptance is separate).
 - File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
 - Documentation verification: 2026-10-26 (Host startup response versus Editor tab restoration compared with first-document.ts, host-protocol.ts, App.tsx and the session contract; no new Desktop execution).
-- Last verified: 2026-10-28 (public 0.0.2-beta.2, release workflow attempt 1 success and public body checked; orchestrator anonymous asset sizes/SHA-256 and installer SHA-512 results recorded; merge_group CI success and master push CI failure distinguished; actual GitHub installation/update unverified; [record](../releases/v0.0.2-beta.2.md)).
+- Last verified: 2026-10-29 (public 0.0.2-beta.3, release workflow attempt 1 success, tag/commit, public Korean body and asset sizes/SHA-256 checked; orchestrator anonymous downloads and installer SHA-512 results recorded; actual GitHub installation/update unverified; [record](../releases/v0.0.2-beta.3.md)).
 - Previous verification: 2026-10-26 (public 0.1.0-beta.1, release CI, anonymous assets, real GitHub 0.0.1-beta.4→0.1.0-beta.1 update and Korean Windows packaged regression with #450; see the release record).
 - Previous verification: 2026-10-16 (#296 PR3: actual packaged Windows process crash/normal close, same-profile recovery, pending Figure, Save/Reload and external conflict. Native close answer is stubbed; no install/update/release performed).
 - Previous verification: 2026-10-16 (#296 PR2: native Close without saving wording; Desktop tests/typecheck and mock-bridge browser guards).
@@ -18,6 +20,27 @@
 - Authority: [ADR-0004](../adr/0004-desktop-host-distribution.md); document semantics and Save remain owned by [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md), [Filesystem Host](filesystem-host-boundary-v1.md) and [Editing session](editing-session-save-v1.md).
 - Start-up/CLI path verification: 2026-10-15 (#287 unit tests for refusal before path I/O and valid Unicode names; Desktop tested without Electron).
 - Scope: Windows x64 per-user Electron/NSIS app, Stable/Beta updates and local/CI packaging. Publication requires an owner-authorized release and manual workflow dispatch from master; no separate environment approval is required after validation succeeds.
+
+## Open folders in File Explorer (#487)
+
+The Desktop preload exposes `openFolderInExplorer` as the Host capability, plus
+`setOpenedFolders` to synchronize the renderer's currently opened root paths. Vite and HTTP
+expose neither, so their folder menus omit the action. Root and child-folder More actions menus
+use **Open in File Explorer** / **파일 탐색기에서 열기**. This adds no folder context menu.
+
+Main's existing trusted top-frame IPC wrapper protects both calls. Successful shared Host root
+listings register eligible local roots in main; synchronization accepts only those registered
+roots and closing a section removes it from the active set. Main reuses pinned `RootAccess`
+validation for lexical containment, real-path containment and root identity, and requires an
+existing local directory before passing its canonical path to `shell.openPath`. Files (including
+executables), absent paths, outside paths, UNC/device paths and escaping junctions are refused.
+An OS error string or a rejected call produces a localized Editor error notice.
+
+Automated checks inject the OS opener and never start Explorer. Manual Windows acceptance:
+open both a root and a child via their menus; delete a displayed folder and confirm the failure
+notice. Actual Explorer execution is deliberately unverified locally. Packaging/update/install
+boundaries are unchanged; their tests remain Windows CI responsibilities.
+
 
 ## File context actions (#505 / #504 PR A)
 
@@ -118,7 +141,51 @@ state and existing Settings layout; the mock does not establish native registry/
 
 ## Native sample
 
-The default bundled sample is copied once to `sample-native-v1` under the user data directory. Existing `sample` directories and modified copies are preserved. The sample follows [Native document support](document-support-v1.md).
+The bundled [converter control design notes](../../apps/editor/samples/en/converter-control.md)
+ship as Korean and English folders, each containing a canonical native `.md`, `assets/` and
+`references.bib`. The current UI language selects the sample when the user chooses **Open sample
+document** on the start screen or in Command center, including when an argument document is open.
+Changing UI language does not translate or replace an already open document.
+
+On startup, Desktop offers samples only after safe preparation succeeds. A new copy carries
+`.ieumdoc-sample` ownership text and `version`. Replacement requires a real directory (no
+junction/symlink in its ancestry or contents), the expected ownership marker and exact known
+file/directory set. Added files, extra empty directories, changed entry types or unconfirmed
+ownership cause a conflict: the existing folder is preserved and no sample paths are offered.
+
+The original v1 copy is recognized only by its exact two regular files, `technical-document.md`
+and `diagram.svg`, with no other entries. Their contents may have been edited; replacing those
+recognized sample edits remains authorized. A missing version alone never proves ownership.
+Unmarked copies of the unreleased bilingual layout are preserved as unconfirmed folders.
+
+A differing bundled `samples/version` replaces a confirmed copy once. The same version preserves
+edits. Copying finishes in a generated sibling directory, including version and ownership markers,
+before rename installs it. A confirmed old copy is moved aside only after staging succeeds; a
+failed installation rename restores it. Unknown or linked paths are never recursively removed.
+Sample preparation errors are logged and carried to the Editor as a standing sample-unavailable
+warning, while an argument document or empty startup remains usable. Both start screen and
+Command center omit unavailable sample paths. Version `2` replaces the recognized original
+sample; bump the bundled marker when sample contents change.
+Runtime copies use explicit `copyFileSync` reads for the document, bibliography and image in each
+language folder. Electron 44.7's ASAR wrapper extracts a file for `cpSync`, so it cannot copy the
+bundled language directories as directories. The first PR CI hit an installed-start timeout on that
+path; the correction keeps the existing archive-safe file-copy behavior. The unit test compares
+all bundled files against the copied folder, so a new sidecar also requires updating the copy list.
+The older unrelated `sample` directory is untouched. The development Editor uses the same copier
+with a worktree-local `tmp/sample-native-v1` destination; HTTP Host offers no sample.
+
+The samples use only [Native document support](document-support-v1.md). There is no new semantic
+operation or CLI command: CLI `check` and `format` use the existing Core contract. The original
+`apps/editor/document/technical-document.md` remains a regression fixture, not the distributed sample.
+Core read-model feature coverage and canonical round-trip live in the existing Editor browser-fixture
+tests. Desktop first-document unit tests use OS temporary folders outside the repository for legacy
+recognition, foreign-file preservation, destination/ancestor/nested junctions, same-version edits,
+copy failure and rename rollback; Host/client tests check that sample problems do not block startup.
+Existing browser Command center checks
+cover the UI entry and live language selection. See [sample capture evidence](editor-ux-shell-v1.md#localized-feature-samples-528).
+
+For #528, packaged Desktop, install/update/uninstall, Edge and fresh-profile probes are intentionally
+not run locally by owner decision. The packaged regression expectations are updated for CI.
 
 ## Start-up document path Unicode (#287)
 
@@ -136,7 +203,7 @@ The native window enforces a minimum width of **640px** (minimum height 480px), 
 
 - App/product name: `IeumDoc`; App ID: `io.github.ieumbird.ieumdoc`; updater cache: `%LOCALAPPDATA%\ieumdoc-updater`; preferences/sample/logs: `%APPDATA%\IeumDoc`. Keep these identities stable after first publication.
 - Windows EXE, NSIS installer/uninstaller, shortcuts and runtime window use the [IeumDoc wing/document icon](app-icon-v1.md). Its SVG source and generated ICO are tracked together; this does not replace previously published Beta assets.
-- The per-user one-click NSIS installer requires no separate Node.js/pnpm/browser installation. Uninstall keeps user data. The Host supplies the first valid existing `.md` command-line file, or start information with a writable sample copied into user data once. Without an accepted argument it supplies no default document; the Editor may still restore tabs. Startup priority and session protection follow [Editing session and Save](editing-session-save-v1.md#tab-navigation-memory-383); if no tabs open, the Editor shows its [start](editor-ux-shell-v1.md#start-without-a-document-174). The sample opens only when chosen, through the same Open path as any file. Opening another argument into an already running instance and OS file association are not implemented.
+- The per-user one-click NSIS installer requires no separate Node.js/pnpm/browser installation. Uninstall keeps user data. The Host supplies the first valid existing `.md` command-line file, or start information with writable samples copied into user data once per bundled sample version. Without an accepted argument it supplies no default document; the Editor may still restore tabs. Startup priority and session protection follow [Editing session and Save](editing-session-save-v1.md#tab-navigation-memory-383); if no tabs open, the Editor shows its [start](editor-ux-shell-v1.md#start-without-a-document-174). The sample opens only when chosen, through the same Open path as any file. Opening another argument into an already running instance and OS file association are not implemented.
 - Electron main owns window lifecycle, protocol, preferences and updater. The sandboxed, isolated renderer has no Node integration; its typed preload exposes only update/settings calls and a restart check. Host/Markdown/file writes never pass through this bridge.
 - IPC accepts only the app's main frame. External navigation/new windows are denied; http(s) links open in the system browser. Static paths are confined to the production build, including symlinks. CSP permits own scripts, own/inline styles needed by the editor/KaTeX, and local/data/blob images; no remote code or frames.
 
@@ -217,7 +284,9 @@ logging. No alternate userData location or speculative filesystem repair is intr
 
 ## Channels and versions
 
-The public distribution is `0.0.2-beta.2`; Stable publication is deferred. See the [#659 release record](../releases/v0.0.2-beta.2.md) for the successful first release-workflow attempt, public assets and CI results. Actual GitHub `0.0.2-beta.1 → 0.0.2-beta.2` installation/update was not run by owner decision and remains unverified.
+The source and public distribution are `0.0.2-beta.3`; Stable publication is deferred. See the [#690 release record](../releases/v0.0.2-beta.3.md) for the successful first release-workflow attempt, public assets and Korean Release body. Actual GitHub `0.0.2-beta.2 → 0.0.2-beta.3` installation/update is **not run and unverified** because this PC’s installed state must remain unchanged. Local-feed CI is separate evidence.
+
+The preceding public distribution was `0.0.2-beta.2`. See the [#659 release record](../releases/v0.0.2-beta.2.md) for the successful first release-workflow attempt, public assets and CI results. Actual GitHub `0.0.2-beta.1 → 0.0.2-beta.2` installation/update was not run by owner decision and remains unverified.
 
 For the preceding #632 correction, the owner confirmed there were no existing users and approved correcting only the version. After verifying the new public assets, the two `0.1.0` Beta Releases/assets/remote tags were withdrawn; source commits and historical verification records remain. Downgrade protection and migration policy remain unchanged: an installed `0.1.0-beta.*` cannot automatically update down to `0.0.2-beta.1` and requires manual replacement. See the [#632 release record](../releases/v0.0.2-beta.1.md) for publication, withdrawal and the unverified actual GitHub installation/update boundary.
 
@@ -254,7 +323,9 @@ for the last-successful-record and platform limits.
 ## Update lifecycle and work protection
 
 - Check 15 seconds after launch, then every 6 hours; retry a failed check after 30 minutes. Manual Check for updates is immediate. Only one check is in flight; errors never block editing.
-- Finding an update downloads nothing (`autoDownload=false`). Download update starts the real updater download and progress events. A verified download does not restart or install on ordinary quit (`autoInstallOnAppQuit=false`). Later persists the dismissed version; a different version may notify again. About remains available.
+- Finding an update downloads nothing (`autoDownload=false`). Download update starts the real updater download and progress events. A verified download does not restart or install on ordinary quit (`autoInstallOnAppQuit=false`). Update discovery uses the Settings dot described below; About remains available.
+- New-version discovery (#665): remove the top View / Later notification and its postponed-version preference. An unseen offered version displays one 8px interaction-accent dot on the bottom Settings icon, both in the expanded Sidebar and collapsed rail. The localized native tooltip names the version (`New version <version> available` / `새 버전 <version> 사용 가능`), and the button's accessible name adds new-version availability so color is not the only cue.
+- Clicking Settings with the dot opens About & updates directly and highlights the update actions. Opening About by any route records the offered version as `seenUpdate` in Desktop preferences, including a new offer arriving while About is open. That version stays acknowledged after reload/restart; a newer offered version shows the dot again. A successful update no longer offers the installed version. There is no migration of the former Later setting. Without a dot, Settings continues to open Appearance & language. Download, installation consent and restart guards remain unchanged.
 - Restart to update disables window input and asks the live Editor whether all tabs are safe, using the [session work-protection contract](editing-session-save-v1.md#save-shortcut-and-work-loss-protection-56). No user-input dialog is added inside the timed handshake.
 - Missing/malformed answers, renderer failure or a 5-second timeout refuse and re-enable the window. The existing `beforeunload` remains a second check. `quitAndInstall(true, true)` runs only after the agreed window close; a close veto returns to the downloaded state. Updates never discard or save user work implicitly.
 
@@ -335,3 +406,33 @@ Signing credentials are not installed by this work. SmartScreen/reputation, corp
 - [electron-builder v26 updates](https://www.electron.build/v26/docs/features/auto-update/) (the current default site documents unreleased v27 APIs; this app uses 26.15.3 / updater 6.8.9)
 - [v26 release channels](https://www.electron.build/v26/docs/tutorials/release-using-channels/)
 - [Paseo updates UX](https://paseo.sh/docs/updates) (reference only; staged rollouts are excluded)
+
+
+## Settings update cue verification (#665)
+
+This changes only Desktop notification preferences and Editor interactions; Core document semantics
+and CLI operations are unaffected. Unit coverage checks bilingual accessible cues in both Sidebar
+states, preference persistence and trusted/current-offer IPC acknowledgement. The mock-bridge browser
+scenario checks acknowledgement, reload, a newer version, direct About navigation, highlight and
+existing download/restart work protection. Packaged/install/update/uninstall execution is CI-only.
+
+Same-state 1440px and 640px English/dark captures compare the former banner with the Settings dot:
+
+| Width | Before | After |
+| --- | --- | --- |
+| 1440px | [banner](assets/update-dot-665/before-en-dark-1440.png) | [dot](assets/update-dot-665/after-en-dark-1440.png) |
+| 640px | [banner](assets/update-dot-665/before-en-dark-640.png) | [dot](assets/update-dot-665/after-en-dark-640.png) |
+
+Additional states: [640px rail](assets/update-dot-665/after-en-dark-640-rail.png),
+[640px About highlight](assets/update-dot-665/about-en-dark-640.png).
+
+The complementary Korean/light states show [1440px](assets/update-dot-665/after-ko-light-1440.png),
+[640px](assets/update-dot-665/after-ko-light-640.png) and the
+[direct About highlight](assets/update-dot-665/about-ko-light-640.png).
+
+Local verification (2026-10-28): Editor 331 and Desktop 68 unit tests passed, workspace typecheck,
+Editor production build, docs check, desktop-updates, layout-rules and quiet-document passed.
+The browser used this checkout's persistent Chrome profile. BadPasswordAttempts checks were
+0 before the first launch, then 1, 3, 4 and 5 after the final run; no further browser run was
+started at 5. The dedicated 5365 Vite server and owned browser context were closed. Packaged
+Desktop, installer/update/uninstall, Edge and fresh-profile probes were not run locally.

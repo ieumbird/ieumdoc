@@ -293,6 +293,7 @@ button {
 }
 
 .sidebar-tree-item { cursor: pointer; }
+.sidebar-tree-item--actions { grid-template-columns: var(--size-icon-slot) minmax(0, 1fr) auto; }
 .sidebar-folder-name { flex: 1; min-width: 0; margin: 0; padding-right: 0; }
 
 .sidebar-folder-name svg,
@@ -538,7 +539,8 @@ button {
 }
 
 /* A navigation target clears the sticky header, including React's Figure wrapper. */
-.document-editor > :is(.heading, .node-table, .node-figure) {
+.document-editor > *,
+.document-editor :is(td, th) {
   scroll-margin-top: calc(var(--app-header-height, var(--layout-header-row)) + var(--space-8));
 }
 
@@ -842,11 +844,12 @@ button {
   gap: var(--space-1);
 }
 
-/* Shared Settings sits at the bottom of the sidebar, open or collapsed. */
+/* The same Settings entry stays bottom-aligned; the collapsed rail shows only its icon. */
 .sidebar-footer {
   display: flex;
   flex-direction: column;
   margin-top: auto;
+  app-region: no-drag;
 }
 
 /* Portal boundaries also exclude library-created transparent backdrops. Popups are nested
@@ -1999,6 +2002,7 @@ ol.list { list-style: decimal; }
 }
 
 .block-hover-outline,
+.block-save-error,
 .block-drag-source {
   position: absolute;
   left: var(--layout-document-gutter);
@@ -2007,12 +2011,49 @@ ol.list { list-style: decimal; }
 }
 
 /* Expand the measured block rectangle without changing content layout or pointer targets. */
-.block-hover-outline {
+.block-hover-outline,
+.block-save-error {
   left: calc(var(--layout-document-gutter) - var(--space-block-hover-inline));
   right: calc(var(--layout-document-inline-padding) - var(--space-block-hover-inline));
   border-radius: var(--id-radius-block-hover);
   box-shadow: inset 0 0 0 var(--size-block-hover-outline) var(--id-color-block-hover-outline);
 }
+
+/* Same measured rectangle and inset stroke as #469; refusal paints above selection/hover. */
+.document:has(.block-save-error) { isolation: isolate; } /* Keep local overlays below the sticky header. */
+.block-save-error,
+.cell-save-error {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+  box-shadow: inset 0 0 0 var(--size-block-hover-outline) var(--id-color-danger);
+}
+
+/* Cover the existing 2px current-cell outline as well as its border. */
+.cell-save-error {
+  box-shadow: inset 0 0 0 calc(2 * var(--size-block-hover-outline)) var(--id-color-danger);
+}
+
+.block-save-error-badge {
+  max-width: calc(100% - 2 * var(--space-2));
+  overflow-wrap: anywhere;
+  position: absolute;
+  top: 0;
+  right: var(--space-2);
+  transform: translateY(-100%);
+  padding: 0 var(--space-1);
+  border-radius: var(--id-radius-sm);
+  background: var(--id-color-surface-danger);
+  color: var(--id-color-danger);
+  font: var(--font-weight-semibold) var(--font-size-xs)/var(--line-height-meta) var(--font-family-sans);
+}
+
+.save-error-content { flex: 1; min-width: 0; }
+.save-error-content .message-actions { flex-wrap: wrap; }
+.save-error-details { margin-top: var(--space-1); }
+.save-error-details summary { cursor: pointer; width: fit-content; }
+.save-error-details summary:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.save-error-details p { white-space: pre-wrap; overflow-wrap: anywhere; margin: var(--space-1) 0; }
 
 @media (hover: none) {
   .block-hover-outline { display: none; }
@@ -3013,14 +3054,30 @@ ol.list { list-style: decimal; }
 .bibliography-choices > button { max-width: 100%; min-width: 0; flex-shrink: 1; }
 .bibliography-choices > button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
+/* Recovery source review: wrap source so both columns of line numbers stay visible at 640px. */
+.recovery-prompt-comparing[data-slot="dialog-content"] { width: min(var(--layout-recovery-compare-width), calc(100% - 2rem)); max-width: calc(100% - 2rem); }
+.recovery-comparison { display: grid; gap: var(--space-2); min-width: 0; }
+.recovery-comparison p { overflow-wrap: anywhere; color: var(--id-color-text-muted); }
+.recovery-diff-toolbar { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.recovery-diff { max-height: var(--layout-recovery-diff-max-height); overflow: auto; border: 1px solid var(--id-color-border); border-radius: var(--radius-sm); font-family: var(--font-family-mono); font-size: var(--font-size-xs); }
+.recovery-diff-line { display: grid; grid-template-columns: 4ch 4ch 2ch minmax(0, 1fr); gap: var(--space-1); padding-inline: var(--space-2); min-height: 1.5em; }
+.recovery-diff-line code { font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
+.recovery-diff-number { text-align: right; color: var(--id-color-text-muted); user-select: none; }
+.recovery-diff [data-kind="removed"] { background: var(--id-color-surface-danger); }
+.recovery-diff [data-kind="added"] { background: color-mix(in srgb, var(--id-color-accent-green) 12%, var(--id-color-surface)); }
+.recovery-diff mark { color: inherit; background: color-mix(in srgb, var(--id-color-accent-green) 30%, transparent); }
+.recovery-diff [data-kind="removed"] mark { background: color-mix(in srgb, var(--id-color-danger) 25%, transparent); }
+.recovery-diff [data-current="true"] { outline: 2px solid var(--id-color-interaction); outline-offset: -2px; }
+.recovery-eof { font-family: var(--font-family-sans); color: var(--id-color-text-muted); }
+
 
 /* The engine table owns its caption; native caption layout keeps it below the grid. */
 .table-grid:has(.table-caption) { padding-bottom: 0; }
 .table > table { width: 100%; border-collapse: collapse; }
 .table-caption { caption-side: bottom; text-align: left; padding-top: 44px; }
-.table-caption .caption [data-placeholder] { display: inline-block; min-width: 8em; }
-.table-caption [data-placeholder]::before {
-  content: attr(data-placeholder);
+.caption[data-number] [data-placeholder], .caption [data-placeholder] { display: inline-block; min-width: 8em; }
+.caption [data-placeholder]::before {
+  content: attr(data-placeholder) / "";
   float: left;
   height: 0;
   color: var(--id-color-text-muted);
@@ -3029,3 +3086,22 @@ ol.list { list-style: decimal; }
 
 /* The Table metadata is its object-selection surface; cells retain text editing. */
 .table-block:is(:hover, :focus-within, [data-selected="true"], [data-editing="true"]) > .block-metadata { pointer-events: auto; }
+
+/* Settings update cue shares the icon slot in the expanded sidebar and collapsed rail. */
+.settings-entry-icon { position: relative; display: inline-flex; flex-shrink: 0; }
+.settings-update-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: var(--size-update-dot);
+  height: var(--size-update-dot);
+  border-radius: 50%;
+  background: var(--id-color-interaction);
+}
+.settings-update-highlight {
+  background: var(--id-color-surface-selected);
+  outline: 1px solid var(--id-color-interaction);
+  outline-offset: -1px;
+  border-radius: var(--id-radius-md);
+  padding-inline: var(--space-3);
+}

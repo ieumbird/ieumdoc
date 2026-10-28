@@ -29,7 +29,31 @@ Bibliography reads reuse the shared stateless Host and existing Root checks thro
 resource errors do not block Markdown Save. The local per-document folder context, HTTP fixed Root
 union, limits and snapshot policy are specified in [Citations v1](citations-v1.md#bibliography-snapshots-and-limited-formatting-unit-b).
 
+## Desktop folder Explorer action (#487)
+
+Desktop alone offers the folder More actions command described in the
+[Desktop contract](desktop-distribution-v1.md#open-folders-in-file-explorer-487).
+Successful root listings through the shared handler register local roots for this action;
+shared HTTP/Vite endpoints gain no OS-launch operation. The main process keeps the current
+opened subset, checks directory type and reuses `RootAccess` to refuse lexical/real-path escape
+and replaced roots before invoking the OS. UNC/device paths are not eligible. This is a Desktop
+OS action, with no document write, Core semantic operation or CLI parity command.
+
+
 ## Purpose
+
+Recovery source review and pre-save comparison (#655 stages 1/2) use a read-only mode of the existing endpoint:
+`POST /api/document-source?recovery=1` accepts `{ path, save? }`, where `save`, when present,
+contains the normal revision/opening source/savedEdits/edit payload. The shared Vite/Desktop/HTTP
+handler reads the current disk source, revision and Core read model (or explicit absence), and
+independently calls the same session preview used by Source and `saveCurrentDocument` used by Save.
+A Core preview refusal returns its reason and the existing structured Save failure metadata (phase,
+action and available target/block/cell/line) alongside the disk comparison input; no commit, temporary
+file, revision acknowledgement or recovery storage change occurs. Normal Save conflict checks remain
+unchanged. Requests retain existing path/Root, JSON/body-limit and same-origin protections. An absent
+leaf is read only beneath the existing access boundary. The optional disk read model serves the
+[same-rule plaintext fallback](editing-session-save-v1.md#recovery-review-layout-contract); failure
+to read that model is explicit and never reclassifies a present file as missing.
 
 IeumDoc의 persistent SSOT는 Host가 접근하는 filesystem의 사람이 읽을 수 있는 plain-text `.md` 파일이다. HTTP 접속 시 경로는 브라우저 PC가 아닌 서버의 경로다. 이 문서는 Open, Save, New Document 및 Open Folder가 그 파일에 접근하는 경계를 정한다.
 
@@ -227,10 +251,12 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 
 ### CLI batch application (#215)
 
+Stdin verification: 2026-10-28 (#681: actual piped UTF-8/BOM input, file-byte/output equivalence, dry run and failure preservation).
+
 - Insertion options (#280): single commands and batches share `insert-equation --label` and `insert-table --caption|--caption-content --label`. They compose existing Core operations before one file replacement; label validation/duplicate rejection and caption rules remain Core-owned. A table label does not require a caption. Failed properties never leave an inserted block in the file.
 - `--at end` (batch JSON `"at": "end"`) is accepted by top-level body insertions: `insert-block`, `insert-heading`, `insert-admonition`, `insert-quote`, `insert-divider`, `insert-equation`, `insert-figure`, `insert-table`, `insert-list`, `insert-code-block`, `insert-target`. CLI calls Core `bodyEndIndex` for the current step's snapshot: before endnote definitions, after the last body block without definitions, or 1 for an empty native document. Table row/column positions, removal positions and move destinations (`--to`) remain numeric. The revision precondition above applies unchanged to all these edits.
 - `apply-batch <file> --operations <json-file|-> [--if-revision <revision>] [--format json]`은 한 문서에 기존 Core operation을 순서대로 적용하는 CLI orchestration이다. Core 의미 처리나 Markdown/AST 로직을 별도로 구현하지 않는다. 단건 명령과 같은 옵션 해석·Core operation 생성 함수를 공유한다.
-- 입력은 비어 있지 않은 JSON 배열이며 각 원소는 `{ "command": "<변경 명령명>", ...options }`다. 키는 기존 플래그에서 `--`를 뺀 이름이다. 스칼라 옵션은 string/number/boolean만 허용하고 플래그 문자열과 같은 의미로 해석한다. JSON 옵션(`content`, `caption-content`, `cells`, `list`, `insert-table`의 `align`)은 객체/배열을 직접 받거나 기존 JSON 문자열을 받으며 그 외 타입은 거부한다. 모든 옵션의 `null` 값은 거부한다. 필수·허용·상호 배타 옵션 검사는 단건과 같다. **스파이크 브랜치 `spike/ai-report-1028`의 2차 실험에서만** `--operations -`는 EOF까지 UTF-8 stdin을 읽고 초기 UTF-8 BOM 하나를 허용한다. 파일 입력은 변경하지 않으며 JSON 파싱 이후의 원자성·dry-run·revision·오류 처리는 두 입력에서 공유한다. [실험 기록](../reviews/ai-report-spike-2026-10-28.md).
+- 입력은 비어 있지 않은 JSON 배열이며 각 원소는 `{ "command": "<변경 명령명>", ...options }`다. 키는 기존 플래그에서 `--`를 뺀 이름이다. 스칼라 옵션은 string/number/boolean만 허용하고 플래그 문자열과 같은 의미로 해석한다. JSON 옵션(`content`, `caption-content`, `cells`, `list`, `insert-table`의 `align`)은 객체/배열을 직접 받거나 기존 JSON 문자열을 받으며 그 외 타입은 거부한다. 모든 옵션의 `null` 값은 거부한다. 필수·허용·상호 배타 옵션 검사는 단건과 같다. `--operations -`는 EOF까지 stdin을 UTF-8로 읽는다. 잘못된 UTF-8, 빈 입력과 잘못된 JSON은 문서를 변경하지 않고 exit 1로 거부한다. Windows PowerShell UTF-8 파이프의 선두 BOM 하나만 stdin에서 제거하며 파일 입력의 BOM 처리 규칙은 바꾸지 않는다.
 - `isEditCommand`인 모든 단건 변경 명령(`format` 포함)을 허용한다. `create`, `check`, `inspect`, `serve`, 중첩 `apply-batch`와 operation 내부의 `if-revision` 및 허용되지 않은 키를 거부한다. 배열이 아닌 입력과 빈 배열, 잘못된 JSON도 exit 1로 거부한다.
 - 파일 원본을 한 번 읽고, 배치 전체의 `--if-revision`을 그 원본에 대해 위 #214와 같은 규칙으로 Core parse/operation 전에 한 번 확인한다. Revision 불일치는 operation prefix 없이 단건과 같은 `revision mismatch; run inspect again; nothing was written`으로 표시한다.
 - 각 단계는 적용 → `validateStructure` → canonical serialize → 다시 parse 순서다. 후속 NodePath와 인덱스는 **직전 단계의 canonical 재파싱 snapshot** 기준이며 자동 추적·재지정하지 않는다. 따라서 같은 단건 명령을 순서대로 실행한 최종 파일 바이트와 일치한다. 각주 정의의 canonical 이동도 단계 사이에 반영된다.
@@ -258,6 +284,19 @@ pnpm ieumdoc inspect "<임시 폴더>/document.md" --format json
 ```bash
 pnpm ieumdoc apply-batch "<임시 폴더>/document.md" --operations "<임시 폴더>/operations.json" --if-revision <위 inspect에서 얻은 revision> --format json
 pnpm ieumdoc check "<임시 폴더>/document.md"
+```
+
+같은 초기 문서와 revision에서 파일 입력 대신 stdin을 사용할 수 있습니다. 아래 두 예제는 대안이며 연속으로 실행하지 않습니다.
+
+```bash
+cat "<임시 폴더>/operations.json" | pnpm ieumdoc apply-batch "<임시 폴더>/document.md" --operations - --if-revision <위 inspect에서 얻은 revision> --format json
+```
+
+Windows PowerShell에서는 파이프를 UTF-8로 인코딩합니다. JSON을 만드는 명령의 출력도 같은 방식으로 전달할 수 있습니다.
+
+```powershell
+$OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+Get-Content -Raw -Encoding utf8 "<임시 폴더>/operations.json" | pnpm ieumdoc apply-batch "<임시 폴더>/document.md" --operations - --if-revision <위 inspect에서 얻은 revision> --format json
 ```
 
 ### CLI dry run (#292)

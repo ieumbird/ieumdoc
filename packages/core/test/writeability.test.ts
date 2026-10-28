@@ -29,7 +29,7 @@ const WRITABLE: [string, string][] = [
 const NOT_WRITABLE: [string, string, RegExp][] = [
   ["unclosed front matter", "---\ntitle: Example\n", /front matter/],
   ["{kbd} role", "Press {kbd}`Ctrl` now.\n", /keyboard/],
-  // Reference roles Core cannot write back fail before myst-to-md runs, as a plain Error.
+  // Reference roles Core cannot write back fail before myst-to-md runs, as a structured Core diagnostic.
   ["{term} reference", "See {term}`glossary term`.\n", /cannot be preserved through canonical Markdown/],
 ];
 
@@ -107,4 +107,43 @@ test("preflight follows the current snapshot through Core operations", () => {
   const blocked = parse("Press {kbd}`Ctrl` now.\n\nBody.\n");
   assert.match(canonicalWriteError(blocked) ?? "", /keyboard/);
   assert.equal(canonicalWriteError(removeBlock(blocked, 0)), undefined);
+});
+
+
+test("Core refusals expose stable codes through operation and cause wrappers", async () => {
+  const core = await import("@ieumdoc/core");
+  const native = (body: string) => core.parse(`---\nieumdoc: 1\n---\n\n${body}`);
+  const document = native("# Title\n\nBody.\n\n| H |\n|---|\n| Cell |\n");
+  const cases: [string, () => unknown][] = [
+    ["native-marker", () => core.parse("# Title\n")],
+    ["native-metadata", () => core.parse("---\nieumdoc: 1\nunknown: true\n---\n")],
+    ["native-content", () => native("<div>HTML</div>\n")],
+    ["invalid-structure", () => core.validateStructure({} as never)],
+    ["invalid-operation", () => core.removeBlock(document, 0)],
+    ["invalid-operation", () => core.moveBlock(document, 1, 2)],
+    ["unsupported-content", () => core.updateParagraphInlineContent(document, [2], [{ kind: "unknown" }] as never)],
+    ["empty-content", () => core.updateHeadingInlineContent(document, [1], [])],
+    ["round-trip-mismatch", () => core.updateTableCell(document, [3, 1, 0], [{ kind: "math", value: "`v$" }])],
+    ["invalid-unicode", () => native("Bad\uD800\n")],
+    ["invalid-label", () => core.insertTarget(document, 2, "bad\nlabel")],
+    ["label-conflict", () => core.insertTarget(core.insertTarget(document, 2, "target"), 3, "target")],
+    ["invalid-reference", () => core.updateParagraphInlineContent(document, [2], [{ kind: "reference", role: "eq", label: "" }])],
+    ["invalid-label", () => core.insertFootnoteDefinition(document, 2, "bad label", [{kind:"text", text:"Note"}])],
+    ["invalid-footnote", () => core.serialize(core.updateParagraphInlineContent(document, [2], [{ kind: "footnote", label: "missing" }]))],
+    ["line-break", () => core.updateTableCell(document, [3, 1, 0], "a\nb")],
+    ["table-cell-whitespace", () => core.updateTableCell(document, [3, 1, 0], " padded ")],
+    ["table-shape", () => core.insertTable(document, 2, [["A", "B"], ["C"]])],
+    ["invalid-figure", () => core.insertFigure(document, 2, { imageUrl: "", imageAlt: "alt", caption: "" })],
+  ];
+  for (const [code, apply] of cases) {
+    assert.throws(apply, error => {
+      const issue = core.writeIssueOf(error);
+      assert.equal(issue.code, code, issue.reason);
+      assert.equal(core.writeIssueOf(new Error("operation wrapper", { cause: error })).code, code);
+      assert.ok(issue.reason && issue.action);
+      return true;
+    });
+  }
+  // Unknown failures stay unclassified, even if their prose resembles a known diagnostic.
+  assert.equal(core.writeIssueOf(new Error("empty heading cannot be saved")).code, undefined);
 });

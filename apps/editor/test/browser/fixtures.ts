@@ -18,7 +18,7 @@ const DOCUMENT_DIR = path.join(REPOSITORY_ROOT, "apps", "editor", "document");
 const FIXTURE_DIR = fileURLToPath(new URL("./fixtures/", import.meta.url));
 
 /** Committed sources the scratch files are made from. Tests never write these. */
-export const SOURCE_DIRS = [DOCUMENT_DIR, FIXTURE_DIR];
+export const SOURCE_DIRS = [DOCUMENT_DIR, FIXTURE_DIR, path.join(REPOSITORY_ROOT, "apps/editor/samples")];
 
 type ScratchFile = { name: string; create: () => string | Buffer };
 
@@ -80,7 +80,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       { name: `${folder}/guide.md`, create: () => document("technical-document.md").create() },
       { name: `${folder}/diagram.svg`, create: () => document("diagram.svg").create() },
     ]),
-  ], scenarios: ["document-tabs", "recovery", "command-center", "inline-document-settings"] },
+  ], scenarios: ["document-tabs", "pre-save-diff", "recovery", "command-center", "inline-document-settings"] },
   // Preserve the parent directories: the running HTTP Host pins their filesystem identities.
   "http-host-a/fixture": { files: [
     { name: "bibliography.md", create: () => fixture("bibliography.md").create() },
@@ -154,7 +154,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "document-title": { files: [...technical,
     { name: "untitled.md", create: () => nativeSource("Lead paragraph.\n\n## Part\n\nBody.\n") },
     { name: "untitled-empty.md", create: () => nativeSource("Lead paragraph.\n") }], scenarios: ["document-title"] },
-  "table-authoring": { files: [fixture("tables.md")], scenarios: ["table-authoring", "table-caption"] },
+  "table-authoring": { files: [fixture("tables.md")], scenarios: ["table-authoring", "table-caption", "save-error"] },
   "quote-save-reload": { files: [fixture("quotes.md")], scenarios: ["quote-save-reload"] },
   "section-reference": {
     files: [{ name: "sections.md", create: () => nativeSource("# Guide\n\n## Install\n\nRun the installer.\n\n## Use\n\nSee the install section.\n\n## 개요\n\nKorean heading.\n") }],
@@ -262,7 +262,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       { name: "guides/install.md", create: () => nativeSource("# Install\n\nInstall body.\n") },
       { name: "자료/메모.md", create: () => nativeSource("# 메모\n\n내용.\n") },
     ],
-    scenarios: ["folder-navigation", "folder-memory"],
+    scenarios: ["folder-navigation", "folder-memory", "reveal-folder"],
   },
 };
 

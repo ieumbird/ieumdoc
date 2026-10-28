@@ -1,5 +1,5 @@
 // The Desktop bridge in the sandboxed page: typed calls to the main process, nothing else.
-// No Node.js API, file path or document data passes through here.
+// No Node.js API or document content is exposed. OS folder actions are validated in main.
 import { contextBridge, ipcRenderer } from "electron";
 import type { DesktopBridge, RestartCheck, UpdateState } from "../../editor/shared/desktop-bridge.ts";
 
@@ -17,6 +17,8 @@ ipcRenderer.on("desktop:restart-check", (_event, id: number) => {
 
 const bridge: DesktopBridge = {
   fileDeletion: "trash",
+  setOpenedFolders: roots => ipcRenderer.invoke("desktop:opened-folders", roots),
+  openFolderInExplorer: folder => ipcRenderer.invoke("desktop:open-folder", folder),
   setTheme: (theme) => ipcRenderer.invoke("desktop:set-theme", theme),
   setWindowBackground: (color, overlay) => ipcRenderer.invoke("desktop:set-window-background", color, overlay),
   info: () => ipcRenderer.invoke("desktop:info"),
@@ -26,7 +28,7 @@ const bridge: DesktopBridge = {
   checkForUpdates: () => ipcRenderer.invoke("desktop:check"),
   downloadUpdate: () => ipcRenderer.invoke("desktop:download"),
   installUpdate: () => ipcRenderer.invoke("desktop:install"),
-  postponeUpdate: (version) => ipcRenderer.invoke("desktop:postpone", version),
+  markUpdateSeen: (version) => ipcRenderer.invoke("desktop:seen-update", version),
   openReleaseNotes: (version) => ipcRenderer.invoke("desktop:release-notes", version),
   onUpdateState(listener) {
     const handler = (_event: unknown, state: UpdateState) => listener(state);

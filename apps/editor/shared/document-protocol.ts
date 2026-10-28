@@ -12,6 +12,14 @@ import type {
 import type { NativeDocumentErrorCode, WriteIssue } from "@ieumdoc/core";
 import type { SaveFailure } from "./save-error.ts";
 
+/** Read-only recovery mode of document-source; disk is null only for an absent file. */
+export type RecoveryPreviewResponse = {
+  disk: { source: string; revision: string; document?: EditableDocument; error?: string } | null;
+  markdown?: string;
+  error?: string;
+  failure?: SaveFailure;
+};
+
 // Browser Editor/local Host data contract, not a Core operation or backend architecture.
 // Paths in edits address the session's opening snapshot, including after Save.
 /** The new inline content of an editable Heading. */
@@ -151,7 +159,11 @@ export type SaveRequest = SupportedEdits & {
   base: { source: string; savedEdits?: SupportedEdits };
 };
 
-export type DocumentFileResponse = {
+export type SampleDocuments = { ko: string; en: string };
+
+export type SampleAvailability = { samples?: SampleDocuments; sampleProblem?: "conflict" | "unavailable" };
+
+export type DocumentFileResponse = SampleAvailability & {
   /** Per-open dependency context; changing the Sidebar never changes this value. */
   bibliographyRoot?: string;
   bibliography?: { declarations: string[]; sources?: BibliographySource[] };
@@ -167,9 +179,9 @@ export type DocumentFileResponse = {
 
 /**
  * The Host's answer to the first request, which names no document, when it opens none: the
- * Editor starts without a document. `sample` is a writable sample the user may open.
+ * Editor starts without a document. `samples` offers writable localized samples the user may open.
  */
-export type DocumentStartResponse = { start: true; sample?: string; allowedRoots?: string[] };
+export type DocumentStartResponse = SampleAvailability & { start: true; allowedRoots?: string[] };
 
 /** Save acknowledges applied edits without replacing the Editor's opening source. */
 export type SaveResponse = Pick<DocumentFileResponse, "revision">;

@@ -6,7 +6,9 @@ document-tab changes and panel closure. This is not a master/release UI contract
 [#657 scope and evidence](../reviews/ai-report-spike-2026-10-28.md).
 
 - Status: Implemented
+- Feature sample verification: 2026-10-28 (#528 Core read-model coverage, canonical CLI check/format, Desktop version unit tests, existing Command center browser entry and manual 1440/640px Korean/English captures; packaged execution deferred to CI).
 - Last verified: 2026-10-28 (#637: block Equation editing moves into the document; inline math retains its popover).
+- Collapsed rail update: 2026-10-28 (#671: Files and shared Settings entry; [contract and captures](#collapsed-rail-files-and-settings-671)).
 - Settings entry update: 2026-10-28 (#669: remove the Settings-only document-settings entry; [contract and captures](#settings-document-entry-removal-669)).
 - Brand title-strip update: 2026-10-28 (#647 owner-approved composition; targeted verification recorded in the PR).
 - Previous shell verification: 2026-10-27 (#582 / #605: Editor 315 tests, Desktop 48 tests, typecheck/build and targeted persistent-Chrome regressions; [contract and captures](#sidebar-and-native-title-bar-582--605)).
@@ -35,6 +37,23 @@ document-tab changes and panel closure. This is not a master/release UI contract
 - Scope: existing Editor interactions. [Visual Language (current v4.8)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
 
 Historical verification records: [Verification record](#verification-record).
+
+## Folder Explorer menu (#487)
+
+When the Host exposes `openFolderInExplorer`, every opened root's More actions menu adds
+**Open in File Explorer** / **파일 탐색기에서 열기** between Open folder and Refresh.
+Each child-folder row also offers More actions with this command. It uses the shared compact
+button and action menu components; activating it does not expand/collapse the folder.
+Vite and HTTP have no capability and display neither the command nor child-folder menu buttons.
+Folder right-click menus remain #223 scope. Failure shows the existing localized error surface.
+Closing a folder synchronizes Desktop's active roots without closing its documents.
+
+Browser verification uses a stand-in Desktop bridge and checks root/child paths, browser absence,
+close synchronization and failure notification; it does not execute Explorer. A 1440px menu
+capture is retained in the [menu screenshot](../reviews/assets/reveal-folder-487-1440.png).
+Actual Windows root/child Explorer launches and a deleted-folder failure are manual acceptance
+items (not run). See the [Desktop boundary](desktop-distribution-v1.md#open-folders-in-file-explorer-487).
+
 
 ## File context menu (#505 / #504 PR A)
 
@@ -371,7 +390,7 @@ The first row is one full-width title strip (#647): the existing Desktop SVG ico
 **IEUMDOC** at the left, existing TopBar controls in the remaining width, and native caption
 buttons at the right in Desktop. HTTP Host uses the same arrangement with zero caption
 reservation and no native window dragging. The brand follows the Files width; collapsing
-Files retains only the icon. The existing Expand sidebar button stays in the 48px rail on
+Files retains only the icon. The Files icon button (Expand sidebar, #671) stays in the 48px rail on
 the second row, directly below the icon: this preserves its Files-navigation location,
 28px target, accessible name, aria-expanded and keyboard focus return without making the
 brand an additional action. DOM tab order retains Files controls, TopBar controls, document tabs/content, then
@@ -473,7 +492,7 @@ reservation; they do not show or prove native caption-button rendering or native
 
 ## Structure
 
-Every Host has an expanded Sidebar footer Settings entry (also available through the command center), opening the [dedicated Settings screen](#dedicated-settings-screen-594). The start screen adds a minimal recovery list/empty state; matching Open offers the newest record in a shared recovery dialog. Standing recording failures use MessageArea. The [recovery contract](editing-session-save-v1.md#local-recovery-records-296-pr2) owns retention and lifecycle. The typed Desktop bridge additionally provides About and update notice/actions. Update notices do not take editor focus. Version/channel/progress/retry/restart policy is defined by [Desktop distribution](desktop-distribution-v1.md).
+Every Host has a Sidebar footer Settings entry in both expanded and collapsed states (also available through the command center), opening the [dedicated Settings screen](#dedicated-settings-screen-594). The start screen adds a minimal recovery list/empty state; matching Open offers the newest record in a shared recovery dialog. Standing recording failures use MessageArea. The [recovery contract](editing-session-save-v1.md#local-recovery-records-296-pr2) owns retention and lifecycle. The typed Desktop bridge additionally provides About and update notice/actions. Update notices do not take editor focus. Version/channel/progress/retry/restart policy is defined by [Desktop distribution](desktop-distribution-v1.md).
 
 The document is the primary surface. Each document tab keeps one Tiptap/ProseMirror document state owning selection, history and editing; typed blocks use NodeViews and overlays.
 
@@ -481,7 +500,7 @@ The shell has three responsibilities: the Sidebar on the left browses opened fol
 
 | Area | Current behavior |
 | --- | --- |
-| Sidebar | Files and Collapse sidebar in the header, followed by file navigation; no duplicate New document row with opened folders (#582). There is no Files / Display switch. The collapsed rail contains only Expand sidebar, which restores file navigation. Files contains the opened folders (#112, [ADR-0009](../adr/0009-multiple-opened-folders.md)), each its own section in the order opened, or, without any, guidance followed by the browser's recent folders (name, full path in `title`): one click lists that folder like Open folder, without opening a document. User-controlled collapse/expand, with a 48px rail when collapsed. No workspace or placeholder navigation. Each folder heading names its folder (disclosure button and name, full path in `title`; [section visibility](#collapsible-folder-sections-425)) with `+` (New document…) and a `⋯` menu containing New folder…, Open folder…, Refresh and Close folder (removes only that folder; tabs stay open). Open folder… adds a folder; one already open is listed again in place. With no opened folder, the empty Files panel offers Open folder… and New document…. Below each heading is a folder tree; file listing and activation follow [Folder files and image preview](#folder-files-and-image-preview-217). A `.md` file whose leading frontmatter lacks the native marker stays listed in subtle text with its own icon, and its tooltip and accessible description say it is not an IeumDoc document; opening it still shows the refusal and why ([Folder listing](filesystem-host-boundary-v1.md#folder-listing-v1-112)). On explicit active-document path changes, the containing sections and folders above it expand in each opened folder containing it; a document elsewhere adds nothing to the trees. The opened folders' paths are browser preferences: on start they are listed again in order, and one the Host refuses or no longer has is left out quietly. Child-folder expansion is page state only. Root section collapse is an origin-specific preference restored on Reload/Desktop restart; startup document restoration respects it. Opening document settings or collapsing the sidebar retains the mounted tree, its expansion, scroll and keyboard stop, without listing again. The tree takes the remaining height and scrolls by itself; the open document uses the shared selected surface/text with 600 semibold as a non-color cue, without a left marker there and Close folder removes it. Keyboard: Up/Down, Home/End move through visible items; Right expands a folder or moves into it; Left collapses it or moves to the parent; Enter or Space opens a document or toggles a folder. Files does not list the open document separately: the tab row and TopBar name it. |
+| Sidebar | Files and Collapse sidebar in the header, followed by file navigation; no duplicate New document row with opened folders (#582). There is no Files / Display switch. The collapsed 48px rail contains a Files icon button at the document-tab row and an icon-only Settings button at the bottom (#671). The Files icon restores file navigation; its accessible name and tooltip remain Expand sidebar (사이드바 펼치기), describing the action rather than only naming the panel. Settings uses the same entry component and screen as the expanded footer, at the same vertical position; Back/Escape returns focus to its opening button. Both rail actions are keyboard reachable, have localized names/tooltips and are Desktop no-drag targets. An always-visible Activity bar and additional panels are future work. Files contains the opened folders (#112, [ADR-0009](../adr/0009-multiple-opened-folders.md)), each its own section in the order opened, or, without any, guidance followed by the browser's recent folders (name, full path in `title`): one click lists that folder like Open folder, without opening a document. User-controlled collapse/expand, with a 48px rail when collapsed. No workspace or placeholder navigation. Each folder heading names its folder (disclosure button and name, full path in `title`; [section visibility](#collapsible-folder-sections-425)) with `+` (New document…) and a `⋯` menu containing New folder…, Open folder…, Refresh and Close folder (removes only that folder; tabs stay open). Open folder… adds a folder; one already open is listed again in place. With no opened folder, the empty Files panel offers Open folder… and New document…. Below each heading is a folder tree; file listing and activation follow [Folder files and image preview](#folder-files-and-image-preview-217). A `.md` file whose leading frontmatter lacks the native marker stays listed in subtle text with its own icon, and its tooltip and accessible description say it is not an IeumDoc document; opening it still shows the refusal and why ([Folder listing](filesystem-host-boundary-v1.md#folder-listing-v1-112)). On explicit active-document path changes, the containing sections and folders above it expand in each opened folder containing it; a document elsewhere adds nothing to the trees. The opened folders' paths are browser preferences: on start they are listed again in order, and one the Host refuses or no longer has is left out quietly. Child-folder expansion is page state only. Root section collapse is an origin-specific preference restored on Reload/Desktop restart; startup document restoration respects it. Opening document settings or collapsing the sidebar retains the mounted tree, its expansion, scroll and keyboard stop, without listing again. The tree takes the remaining height and scrolls by itself; the open document uses the shared selected surface/text with 600 semibold as a non-color cue, without a left marker there and Close folder removes it. Keyboard: Up/Down, Home/End move through visible items; Right expands a folder or moves into it; Left collapses it or moves to the parent; Enter or Space opens a document or toggles a folder. Files does not list the open document separately: the tab row and TopBar name it. |
 | Document settings | Collapsed value summary at the top of the paper, before the title and outside ProseMirror (#580). Expands into grouped field rows for Number headings (H2–H6), Reference style (Default, Concise, Formal, Korean; unmatched values show Custom) with notation previews, and Connect bibliography…. Reuses existing operations, history, dirty indication and Save under the [numbering](heading-numbering-v1.md) and [bibliography](citations-v1.md#connect-and-disconnect-bibliography-files-438) contracts. Command center reveals/expands/focuses it. Field controls disable during pending work; Source/start omit the block and read-only shows only summary. Escape inside collapses and focuses the disclosure; the style menu handles its own Escape first. Bibliography uses the existing connection dialog with return to the row’s Connect button. Expansion is per-tab session only. Opening/collapsing preserves editor instance, selection, history and unapplied drafts. App Settings remains separate and has no document-settings entry (#669). |
 | Document panel | Outline, Tables N and Figures N navigation (#613), with 600 semibold, themed surface and segment shadow for the selected tab, muted inactive labels and reserved semibold label width (#620), titled Outline, with no internal close button (#590). The TopBar Outline toggle opens and closes it. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read with selected background/text and 600 semibold (no left marker, #515); a hidden semibold copy reserves its two-line text extent to prevent selection height jumps. The current item stays inside the list's visible area. The list scrolls by itself and is never written to the document. Table/Figure items reuse the body caption prefix and Core reference template (for example `Table 1. Caption`), including in Korean UI; a missing caption shows only the number. At 1424px and wider the panel is docked and starts open; below 1424px it starts closed and, opened, overlays the document below the sticky header instead of narrowing it, so Save, File actions and the Outline toggle stay usable; Escape closes it and returns focus to the TopBar Outline toggle. The docking width is independent of the 1024px narrow sidebar. Entering the overlay layout always closes it. Returning to docked restores the user's last explicit docked open/closed choice, or opens by default if none exists. Overlay interactions do not overwrite that choice. Open/closed is page memory only and resets on reload; no persistent preference is added. |
 | TopBar | Actual status in the document area on the left; the centered command-center button leads with a search icon and Find documents and commands / 문서·명령 찾기; the document location/name is muted secondary information (full path in its title); the location names the folders from the outermost opened sidebar folder containing the document down, otherwise its own folder. Visual/Source, Wide document and Outline, then Save and File actions (`⋯`) on the right. File actions contains Reload and Copy path (the full path to the clipboard, confirmed by a temporary notice, or an explanatory error where the browser has no Clipboard API); the menu is unavailable without a document or during pending work. Enter/Space opens it, arrows navigate, Escape closes and returns focus. Reload keeps its existing discard confirmation and modal boundary while loading; closing that dialog returns focus to File actions. Wide document is a pressed toggle, remembered in device preferences and available without a document, during pending work and in Source. It changes no Markdown, history or dirty state, and its existing command remains. Outline shows or hides the Document panel (pressed while shown); closing the panel returns focus to it. Sticky while document scrolls. |
@@ -804,12 +823,12 @@ sample. Choosing a recent folder lists it in the sidebar like Open folder; the s
 a document is chosen in the sidebar. Choosing a folder never discards current edits or drafts;
 choosing another file or New preserves existing sessions under the
 [session protection contract](editing-session-save-v1.md#switching-and-recovery). Open sample document
-opens the Host's writable sample through Open and its checks, with a temporary notice that it is a
-copy in the app's data. The sample is opened only on request. Without a document the TopBar keeps its Find documents and commands action, with `No file opened` only as optional secondary information; Save, File actions and the views
+opens the Host's writable sample for the current UI language through Open and its checks. Its
+temporary notice explains that edits persist until the bundled sample version changes. The sample is opened only on request. Without a document the TopBar keeps its Find documents and commands action, with `No file opened` only as optional secondary information; Save, File actions and the views
 stay unavailable. Document settings is absent; the TopBar local-width toggle remains available. No error is shown. With nothing to lose, the Desktop app's
 update restart check allows the restart unless a document is opening. Closing the last document tab returns here while keeping the folder tree and preferences. Host start
-information is retained; a Host that supplied an initial document instead of start information returns
-to the folder/recent-folder actions without inventing a sample. HTTP offers allowed server folders, filters recent folders to
+information is retained, including localized sample paths supplied alongside a Desktop launch file
+or the development fallback. HTTP offers allowed server folders, filters recent folders to
 those roots and has no sample fallback. The start writes nothing and changes no document
 semantics, so it has no CLI counterpart.
 
@@ -1976,3 +1995,90 @@ category access, overflow and reachable controls in both languages at both width
 Its document-settings checks now use Command center and retain disclosure focus,
 resize and Escape coverage. `ui-language` uses the inline disclosure after leaving
 Settings while preserving its draft/history checks.
+
+
+## Collapsed rail Files and Settings (#671)
+
+The owner decision is recorded in [#671](https://github.com/ieumbird/ieumdoc/issues/671).
+The 48px rail keeps Files on the document-tab row and Settings at the expanded
+footer's vertical position. The same Settings entry has a text or icon-only variant,
+so a later #665 indicator can apply to both; no update indicator is implemented here.
+The title strip, caption reservation and drag areas from #647 remain unchanged.
+This is shell interaction only; no Core semantic operation or CLI command is needed.
+
+Before/After uses master `c8debf3fb9a6a0ab8ceb16e6dd19bf3eecf677da` and this change in the same
+checkout, Vite origin (`127.0.0.1:5319`) and checkout-owned persistent Windows Chrome
+profile through `pnpm browser:test`. English, technical-document fixture, no opened
+folder, collapsed Files, 900px height, DPR 1, 100% zoom, bundled Pretendard and scroll 0.
+Desktop is a renderer bridge mock with a representative 138px caption reservation;
+native dragging and packaged Desktop are left to existing CI/manual checks.
+Captures are manual review evidence, separate from browser assertions.
+
+| Host / theme | 1440px Before / After | 640px Before / After |
+| --- | --- | --- |
+| browser / light | [Before](assets/rail-671/before-browser-1440-light.png) / [After](assets/rail-671/after-browser-1440-light.png) | [Before](assets/rail-671/before-browser-640-light.png) / [After](assets/rail-671/after-browser-640-light.png) |
+| browser / dark | [Before](assets/rail-671/before-browser-1440-dark.png) / [After](assets/rail-671/after-browser-1440-dark.png) | [Before](assets/rail-671/before-browser-640-dark.png) / [After](assets/rail-671/after-browser-640-dark.png) |
+| desktop / light | [Before](assets/rail-671/before-desktop-1440-light.png) / [After](assets/rail-671/after-desktop-1440-light.png) | [Before](assets/rail-671/before-desktop-640-light.png) / [After](assets/rail-671/after-desktop-640-light.png) |
+| desktop / dark | [Before](assets/rail-671/before-desktop-1440-dark.png) / [After](assets/rail-671/after-desktop-1440-dark.png) | [Before](assets/rail-671/before-desktop-640-dark.png) / [After](assets/rail-671/after-desktop-640-dark.png) |
+
+Verification for #671: Editor unit tests (324), typecheck, Editor production build,
+docs and whitespace checks pass. Existing editor-shell checks rail keyboard order,
+Settings dismissal focus and Files activation; desktop-updates measures the same
+footer position in both states, bounded targets and no-drag alongside the unchanged
+#647 header matrix, and opens Desktop Settings from the collapsed rail with Back/Escape
+focus return. The layout-rules, quiet-document and command-center scenarios retain
+their existing geometry, visual and command/focus protection. Across all eight
+Before/After pairs, pixel differences are confined to the rail (x=17–30); document,
+title strip and right panel pixels are identical.
+
+
+## Localized feature samples (#528)
+
+Desktop and the development Editor offer **Open sample document** on the start screen and in
+Command center. The command is also available with a document open, uses the current UI language
+at dispatch time and preserves existing tabs through ordinary Open. Korean and English notes have
+the same structure and supported features: heading numbering and section references, formatted
+inline content, links and math, nested bullet/ordered lists, code, quote and admonitions, a labeled
+captioned table, numbered equation, asset image and Mermaid Figure, references with authored
+templates, endnote, citation and a local BibTeX bibliography. Most content is a worked, illustrative
+48 V converter current-loop design note, with explicit separation between assumptions and tests.
+The reference book's bibliographic data is verified against its
+[publisher record](https://link.springer.com/book/10.1007/978-3-030-43881-4).
+
+When sample preparation fails, the Host omits sample paths and reports a sample problem alongside
+the ordinary startup response. The Editor keeps opening the argument/restored document or shows
+the ordinary start screen, with a standing translated warning. A folder conflict explicitly says
+the existing folder was kept. No sample command or start action is shown for an unavailable sample;
+this is separate from document Open admission and does not show a native-document refusal Alert.
+
+The Host supplies writable copies; [sample distribution](desktop-distribution-v1.md#native-sample)
+defines version replacement. HTTP Host omits the sample command and start offer. Changing UI
+language affects the next selection, not an open document's content or editor state.
+
+Manual capture review uses the existing `command-center --screenshots` path at 1440×900 and
+640×900 with both languages, the checkout-owned persistent Chrome profile and fully loaded
+fonts and image/Mermaid content. The sample feature assertions use Core's read model rather than
+source string matching. No document semantics or supported syntax are extended.
+
+
+| Sample | 1440px | 640px |
+| --- | --- | --- |
+| Korean, title/table | [Capture](assets/feature-samples-528/sample-ko-1440.png) | [Capture](assets/feature-samples-528/sample-ko-640.png) |
+| Korean, image/equation | [Capture](assets/feature-samples-528/sample-ko-1440-image.png) | [Capture](assets/feature-samples-528/sample-ko-640-image.png) |
+| Korean, Mermaid/list | [Capture](assets/feature-samples-528/sample-ko-1440-mermaid.png) | [Capture](assets/feature-samples-528/sample-ko-640-mermaid.png) |
+| English, title/table | [Capture](assets/feature-samples-528/sample-en-1440.png) | [Capture](assets/feature-samples-528/sample-en-640.png) |
+| English, image/equation | [Capture](assets/feature-samples-528/sample-en-1440-image.png) | [Capture](assets/feature-samples-528/sample-en-640-image.png) |
+| English, Mermaid/list | [Capture](assets/feature-samples-528/sample-en-1440-mermaid.png) | [Capture](assets/feature-samples-528/sample-en-640-mermaid.png) |
+
+Manual review confirmed title/paragraph wrapping, table columns, image/equation/caption containment
+and readable Mermaid/list content at both supported widths. Captures retain the pre-existing
+Command center scenario tabs. No shell geometry, typography or token values changed.
+The first new browser assertion incorrectly waited for an inline SVG; Mermaid intentionally renders
+an SVG data-URL image. The assertion was corrected to observe that actual image, without changing
+product behavior or timeout/console criteria. The rerun passed. Windows `BadPasswordAttempts`
+was 4 before the initial launch and 5 afterward; additional runs waited until it returned to 0.
+
+The local `open-files` scenario initially retained the old sample notice text and stopped before
+its later Save-error assertions. Its expected notice is updated to the new version-preservation
+wording. Under the owner's subsequent no-repeat/browser-counter rule, that scenario is not
+repeated locally; the final PR CI must verify the corrected assertion.

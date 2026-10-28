@@ -6,8 +6,11 @@ import { i18n } from "./i18n.ts";
 import { type Operation } from "./operation.ts";
 import { newRecoveryId, recoveryStorage, type RecoveryRecord } from "./recovery-storage.ts";
 import { prepareRecovery } from "./recovery-restore.ts";
+import type { SaveComparison } from "./shell/SaveCompare.tsx";
+import { SaveDisplayError } from "./save-error.ts";
+import { SaveContentError } from "../shared/save-error.ts";
 import { RecoveryList, RecoveryPrompt } from "./shell/Recovery.tsx";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { DocumentEditorHandle } from "./DocumentEditor.tsx";
 import { DocumentTab } from "./DocumentTab.tsx";
 import { DocumentTabs } from "./shell/DocumentTabs.tsx";
@@ -35,7 +38,7 @@ import appIcon from "../../desktop/assets/icon.svg";
 import { CommandCenter } from "./shell/CommandCenter.tsx";
 import { KeyboardShortcutsDialog } from "./shell/KeyboardShortcutsDialog.tsx";
 import type { CommandCenterItem } from "./shell/command-center.ts";
-import { Bookmark, Quote, Columns3, Copy, FileText, FileX, FolderOpen, Keyboard, PanelLeft, PanelRight, RotateCcw, RotateCw, Save, Settings2, SlidersHorizontal, SquareCode, StretchHorizontal } from "lucide-react";
+import { Bookmark, Quote, Columns3, Copy, FileDiff, FileText, FileX, FolderOpen, Keyboard, PanelLeft, PanelRight, RotateCcw, RotateCw, Save, Settings2, SlidersHorizontal, SquareCode, StretchHorizontal } from "lucide-react";
 import type {
   DocumentErrorResponse,
   DocumentFileResponse,
@@ -51,6 +54,8 @@ import type {
 import type { DesktopInfo, RestartCheck } from "../shared/desktop-bridge.ts";
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
+
+const SaveCompare = lazy(() => import("./shell/SaveCompare.tsx"));
 
 // Below the docking width of styles.css the Document panel starts closed and overlays the
 // document; at and above it the panel docks. Independent of the narrow sidebar (64rem).
@@ -100,6 +105,8 @@ export function App() {
   const [folderDialog, setFolderDialog] = useState(false);
   const [newAfterFolder, setNewAfterFolder] = useState(false);
   const folderNewReady = useRef(false);
+  const [saveComparison, setSaveComparison] = useState<SaveComparison | null>(null);
+  const saveComparisonReturnFocus = useRef<HTMLElement | null>(null);
   const [commandQuery, setCommandQuery] = useState<string | null>(null);
   const commandReturnFocus = useRef<HTMLElement | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -195,6 +202,11 @@ export function App() {
   const [error, setError] = useMessageState("");
   // Restore folder context before opening tabs, including their bibliography resources.
   const folders = useFolderTrees(requestFolder, setError);
+  const openedFolderPaths = folders.trees.map(tree => tree.root);
+  useEffect(() => {
+    if (desktop?.setOpenedFolders) void desktop.setOpenedFolders(openedFolderPaths).catch(cause => setError(messageOf(cause)));
+  }, [JSON.stringify(openedFolderPaths)]);
+
   const foldersRef = useRef(folders);
   foldersRef.current = folders;
   // Tab reporting rerenders the shell; keep this memoized tab prop stable and read live trees.
@@ -224,6 +236,16 @@ export function App() {
   const busy = Boolean(operation || fileOperationPending || session?.busy || continuationPending);
   const switching = Boolean(operation || session?.switching);
   const status = operation || sessionStatus;
+  function compareBeforeSave(returnFocus: HTMLElement | null): void {
+    if (!session || busy || !(documentDirty || draftActive)) return;
+    saveComparisonReturnFocus.current = returnFocus;
+    const submitted = session.editorRef.current?.getDocument();
+    try { setSaveComparison({ path: openedPath, revision: session.acknowledgedRevision, submitted, request: session.savePreviewRequest() }); }
+    catch (cause) {
+      const failure = cause instanceof SaveContentError ? cause : new SaveContentError(messageOf(cause), undefined, { phase: "collect", cause });
+      setSaveComparison({ path: openedPath, revision: session.acknowledgedRevision, submitted, failure: new SaveDisplayError([failure], submitted) });
+    }
+  }
   const save = () => session?.save();
   const showSource = () => session?.showSource();
   const setView = (next: "visual" | "source") => session?.setView(next);
@@ -339,7 +361,7 @@ export function App() {
         recovery = records.find(record => saved.paths.includes(record.path));
       }
       if (!current) return;
-      setStart("start" in first ? first : { start: true });
+      setStart("start" in first ? first : { start: true, samples: first.samples, sampleProblem: first.sampleProblem });
       if ("start" in first) setAllowedRoots(first.allowedRoots);
       setTabs(initialTabs);
       setActiveId(openedTab(initialTabs, activePath ?? "")?.id ?? initialTabs[0]?.id ?? null);
@@ -630,14 +652,14 @@ export function App() {
     if (COMMAND_CENTER_SHORTCUT.matches(event)) {
       event.preventDefault();
       if (globalThis.document.querySelector('[data-slot="dialog-content"]:not(.command-center-dialog)') ||
-          folderDialog || newDialog || newFolderDialog || reloadDialog || openRefusal || continuation || recoveryReview || settingsOpen) return;
+          folderDialog || newDialog || newFolderDialog || reloadDialog || openRefusal || continuation || recoveryReview || saveComparison || settingsOpen) return;
       openCommandCenter("");
       return;
     }
     if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey ||
         (event.key.toLowerCase() !== "s" && event.code !== "KeyS")) return;
     event.preventDefault();
-    if (globalThis.document.querySelector('[data-slot="dialog-content"]') || folderDialog || newDialog || newFolderDialog || reloadDialog || openRefusal || continuation || recoveryReview || settingsOpen) return;
+    if (globalThis.document.querySelector('[data-slot="dialog-content"]') || folderDialog || newDialog || newFolderDialog || reloadDialog || openRefusal || continuation || recoveryReview || saveComparison || settingsOpen) return;
     void save();
   };
   useEffect(() => {
@@ -673,23 +695,18 @@ export function App() {
     return result.ok ? "" : result.reason;
   }
 
-  function postponeUpdate(version: string): void {
-    setDesktopInfo((info) => info && { ...info, postponed: version });
-    void desktop?.postponeUpdate(version).catch((cause: unknown) => setError(cause instanceof Error ? cause : String(cause)));
-  }
-
   const update = desktopInfo?.update;
-  const updateNotice = update && (update.phase === "available" || update.phase === "downloaded") && update.version !== desktopInfo?.postponed
-    ? update.phase === "available"
-      ? { text: i18n.t("IeumDoc {{version}}{{channel}} is available.", { version: update.version, channel: update.prerelease ? i18n.t(" (Beta)") : "" }), action: i18n.t("View"), onAction: () => {
-          settingsReturnFocus.current = globalThis.document.activeElement as HTMLElement | null;
-          setSettingsCategory("about");
-          setSettingsOpen(true);
-        }, onLater: () => postponeUpdate(update.version) }
-      : { text: i18n.t("IeumDoc {{version}} is ready to install.", { version: update.version }), action: i18n.t("Restart to update"),
-          onAction: () => void installUpdate().then((reason) => { if (reason) setError(reason); })
-            .catch((cause: unknown) => setError(cause instanceof Error ? cause : String(cause))), onLater: () => postponeUpdate(update.version) }
-    : null;
+  const offeredUpdate = update && "version" in update ? update : update?.phase === "error" ? update.update : undefined;
+  const unseenUpdate = offeredUpdate && update?.phase !== "installing" && offeredUpdate.version !== desktopInfo?.seenUpdate
+    ? offeredUpdate.version : undefined;
+  const [highlightUpdate, setHighlightUpdate] = useState(false);
+
+  // Viewing the offered version acknowledges it, including an offer arriving while About is open.
+  useEffect(() => {
+    if (!desktop || !settingsOpen || settingsCategory !== "about" || !unseenUpdate) return;
+    setDesktopInfo(info => info && { ...info, seenUpdate: unseenUpdate });
+    void desktop.markUpdateSeen(unseenUpdate).catch((cause: unknown) => setError(cause instanceof Error ? cause : String(cause)));
+  }, [settingsOpen, settingsCategory, unseenUpdate]);
 
   useEffect(() => {
     const protect = (event: BeforeUnloadEvent) => {
@@ -746,7 +763,19 @@ export function App() {
   const inlineInsertionDisabled = !document || busy || view !== "visual" ||
     !editorRef.current?.canInsertInline() || commandReturnFocus.current !== editorRef.current?.getFocusTarget();
   const historyDisabled = !document || busy || view !== "visual";
+  const sampleWarning = start?.sampleProblem === "conflict"
+    ? i18n.t("Sample documents are unavailable because the sample folder could not be replaced safely. The existing folder was kept.")
+    : start?.sampleProblem ? i18n.t("Sample documents could not be prepared. You can still open your documents.") : "";
+  const samplePath = start?.samples?.[i18n.language === "ko" ? "ko" : "en"];
+  const openSample = () => {
+    if (samplePath) void openFile(samplePath, i18n.t("This is a writable sample copy. Changes are kept until the bundled sample version changes.")).then(message => {
+      if (message) setError(message);
+      else if (message === "") setCommandFileFocus(samplePath);
+    });
+  };
   const commandItems: CommandCenterItem[] = [
+    ...(samplePath ? [{ id: "open-sample", kind: "command" as const, label: i18n.t("Open sample document"), icon: FileText, takesFocus: true, disabled: busy || Boolean(continuation),
+      keywords: ["sample", "샘플"], run: openSample }] : []),
     ...tabs.map((tab, index) => ({
       id: `tab:${tab.id}`, kind: "document" as const, label: commandDocumentNames[index]!,
       detail: `${i18n.t("Opened tab")} · ${tab.path}`, icon: FileText, disabled: busy || Boolean(continuation),
@@ -780,6 +809,9 @@ export function App() {
       keywords: ["refresh folder", "폴더 새로고침"], run: () => folders.refreshRoot(tree.root) })),
     { id: "save", kind: "command", label: i18n.t("Save"), icon: Save, disabled: !document || busy,
       keywords: ["save", "저장"], shortcut: SAVE_SHORTCUT.label, run: () => { void save(); } },
+    { id: "save-comparison", kind: "command", label: i18n.t("Changes before saving"), icon: FileDiff,
+      disabled: !(documentDirty || draftActive) || busy, takesFocus: true, keywords: ["diff compare save preview", "저장 전 변경 내용 보기"],
+      run: () => compareBeforeSave(commandReturnFocus.current) },
     { id: "reload", kind: "command", label: i18n.t("Reload"), icon: RotateCcw, disabled: !document || busy, takesFocus: true,
       keywords: ["reload", "다시 불러오기", "새로고침"], run: () => { void reload(); } },
     { id: "copy-path", kind: "command", label: i18n.t("Copy path"), icon: Copy, disabled: !document || busy,
@@ -853,11 +885,21 @@ export function App() {
         onOpenDocument={(path) => {
           void openFolderDocument(path);
         }}
+        onRevealFolder={desktop?.openFolderInExplorer ? path => {
+          void (async () => {
+            try {
+              await desktop.setOpenedFolders(openedFolderPaths);
+              await desktop.openFolderInExplorer(path);
+            } catch { setError({ key: "Could not open the folder in File Explorer. Check that it still exists and is accessible." }); }
+          })();
+        } : undefined}
         onRefreshFolder={folders.refreshRoot}
         onCloseFolder={folders.close}
+        updateVersion={unseenUpdate}
         onSettings={(returnFocus) => {
           settingsReturnFocus.current = returnFocus;
-          setSettingsCategory("appearance");
+          setSettingsCategory(unseenUpdate ? "about" : "appearance");
+          setHighlightUpdate(!!unseenUpdate);
           setSettingsOpen(true);
           void refreshRecovery();
         }}
@@ -881,6 +923,8 @@ export function App() {
             onViewChange={(next) => (next === "source" ? void showSource() : setView("visual"))}
             saveDisabled={!document || busy}
             onSave={() => void save()}
+            onCompare={() => compareBeforeSave(fileActionsToggle.current)}
+            compareDisabled={!(documentDirty || draftActive) || busy}
             onReload={() => void reload()}
             reloadDisabled={!document || busy}
             onCopyPath={() => void copyPath()}
@@ -900,13 +944,14 @@ export function App() {
             dirty: Boolean(sessions.current.get(tab.id)?.documentDirty || sessions.current.get(tab.id)?.draftActive),
           }))} active={activeId} disabled={busy || Boolean(continuation)} onActivate={activateTab} onClose={closeTab} /> : null}
           <MessageArea
-            warning={recoveryProblem || [...sessions.current.values()].map(owner => owner.recoveryError).find(Boolean) || ""}
+            warning={[recoveryProblem || [...sessions.current.values()].map(owner => owner.recoveryError).find(Boolean), sampleWarning].filter(Boolean).join(" ")}
             error={error || sessionError}
+            saveError={!error && session?.saveFailure ? { failure: session.saveFailure, locations: session.saveLocations,
+              onReveal: session.revealSaveLocation } : undefined}
             notice={notice || sessionNotice}
             noticeAction={notice ? null : session?.noticeAction}
             draftNotice={draftNotice}
             documentNotice={documentNotice}
-            update={updateNotice}
             onDismissError={() => { setError(""); session?.setError(""); }}
             onNoticeExpired={() => { setNotice(""); session?.setNotice(""); }}
           />
@@ -921,7 +966,7 @@ export function App() {
               mark={productMark}
               recovery={<RecoveryList records={recoveryRecords.filter(record => !tabs.some(tab => tab.recoveryId === record.id))} unavailable={Boolean(recoveryProblem)} onReview={reviewRecovery} />}
               recent={visibleRecent}
-              sample={start.sample}
+              sample={samplePath}
               busy={busy}
               onNewDocument={newDocument}
               onOpenFolder={(returnFocus) => {
@@ -929,9 +974,7 @@ export function App() {
                 setFolderDialog(true);
               }}
               onOpenRecent={(folder) => void openFolder(folder).then((message) => { if (message) setError(message); })}
-              onOpenSample={(sample) => void openFile(sample, i18n.t("This is the sample document, a copy in IeumDoc's app data.")).then((message) => {
-                if (message) setError(message);
-              })}
+              onOpenSample={openSample}
             />
           ) : null}
           {tabs.map(tab => <DocumentTab settingsDisabled={busy} key={tab.id} id={tab.id} file={tab.file} restored={tab.restored} recoveryId={tab.recoveryId} active={tab.id === activeId} report={reportSession} onAssetChange={onAssetChange} renameImage={renameImage} />)}
@@ -955,7 +998,8 @@ export function App() {
       <SettingsDialog
           open={settingsOpen}
           category={settingsCategory}
-          onCategoryChange={setSettingsCategory}
+          highlightUpdate={highlightUpdate}
+          onCategoryChange={(category) => { setSettingsCategory(category); setHighlightUpdate(false); }}
           documentName={openedPath ? splitDocumentPath(openedPath).name : ""}
           unsaved={documentDirty || draftActive}
           recoveryCount={recoveryRecords.length}
@@ -966,13 +1010,15 @@ export function App() {
           onInfo={setDesktopInfo}
           onInstall={installUpdate}
           returnFocus={() => shellReturnFocus(settingsReturnFocus.current)}
-          onClose={() => setSettingsOpen(false)}
+          onClose={() => { setSettingsOpen(false); setHighlightUpdate(false); }}
           aiStatus={aiStatus}
           onRefreshAi={refreshAi}
         />
       <CommandCenter open={commandQuery !== null} initialQuery={commandQuery ?? ""} items={commandItems}
         returnFocus={commandReturnFocus} onClose={() => setCommandQuery(null)} />
       <KeyboardShortcutsDialog open={shortcutsOpen} returnFocus={shortcutsReturnFocus} onClose={() => setShortcutsOpen(false)} />
+      {saveComparison ? <Suspense fallback={null}><SaveCompare comparison={saveComparison}
+        returnFocus={saveComparisonReturnFocus} onClose={() => setSaveComparison(null)} /></Suspense> : null}
       <RecoveryPrompt key={recoveryReview?.record.id ?? "closed"} record={recoveryReview?.record ?? null} reason={recoveryReview?.reason ?? ""}
         onRestore={restoreRecovery} onDelete={async () => { if (recoveryReview) await deleteRecovery(recoveryReview.record.id); setRecoveryReview(null); }}
         onClose={() => setRecoveryReview(null)} />

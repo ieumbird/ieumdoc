@@ -204,14 +204,14 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
         setWindowBackground: async () => {},
         cliIntegration: async () => ({status:'off'}),
         setCliIntegration: async enabled => ({status:enabled ? 'installed' : 'off'}),
-        info: async () => ({version:'0.0.1',channel:'beta',updatesSupported:false,update:{phase:'idle'},postponed:null}),
+        info: async () => ({version:'0.0.1',channel:'beta',updatesSupported:false,update:{phase:'idle'},seenUpdate:null}),
         onUpdateState: () => () => {}, onRestartCheck: () => () => {},
       };
     });
     await page.evaluate(saved => localStorage.setItem('ieumdoc.openTabs',JSON.stringify(saved)), {paths:[a,b],activePath:a});
     await desktopPage.goto(origin); await desktopPage.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     check(await desktopPage.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').count() === 1 && await desktopPage.getByRole('tab',{name:'technical-document.md',exact:true}).count() === 1, 'Desktop file argument did not take precedence');
-    await desktopPage.route('**/api/document',route => route.fulfill({json:{start:true,sample:loaded.path}}));
+    await desktopPage.route('**/api/document',route => route.fulfill({json:{start:true,samples:{ko:loaded.path,en:loaded.path}}}));
     await desktopPage.reload(); await desktopPage.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     check(JSON.stringify(await desktopPage.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').allTextContents()) === JSON.stringify(['technical-1.md','technical-2.md']) && await desktopPage.getByRole('tab',{name:'technical-1.md',exact:true}).getAttribute('aria-selected') === 'true', 'Desktop startup without an argument did not restore tabs');
     await desktopPage.goto(`${origin}/?path=${encodeURIComponent(b)}`);

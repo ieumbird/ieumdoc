@@ -8,9 +8,11 @@ import { endnoteLabel } from "./endnotes.ts";
 import { editorTitleIndex, TITLE_FIXED } from "./document-title.ts";
 import { Button } from "@/components/ui/button.tsx";
 import { GripVertical, Plus } from "lucide-react";
+import { saveErrorBadge, type SaveErrorLocation } from "./save-error.ts";
 
 type BlockHandlesProps = {
   editor: Editor;
+  saveLocations: readonly SaveErrorLocation[];
   /** Block whose menu is open; its controls stay visible. */
   menuIndex?: number;
   onInsert(index: number, top: number): void;
@@ -52,11 +54,12 @@ const HandleControls = memo(function HandleControls({ index, name, endnote, bloc
   </>;
 });
 
-export const BlockHandles = memo(function BlockHandles({ editor, menuIndex, onInsert, onOpenMenu, moveBlockedHint }: BlockHandlesProps) {
+export const BlockHandles = memo(function BlockHandles({ editor, saveLocations, menuIndex, onInsert, onOpenMenu, moveBlockedHint }: BlockHandlesProps) {
   useTranslation();
   const gutter = useRef<HTMLDivElement>(null);
   const drag = useRef<{ index: number; doc: ProseMirrorNode } | null>(null);
-  const [blocks, setBlocks] = useState<{ top: number; height: number; name: string; endnote: boolean; title: boolean; sourcePath: string }[]>([]);
+  const [blocks, setBlocks] = useState<{ top: number; height: number; name: string; endnote: boolean; title: boolean; sourcePath: string;
+    cell?: { top: number; left: number; width: number; height: number } }[]>([]);
   // Event handlers read the latest measured geometry, not the controls' last render.
   const geometry = useRef(blocks);
   geometry.current = blocks;
@@ -121,19 +124,35 @@ export const BlockHandles = memo(function BlockHandles({ editor, menuIndex, onIn
     };
     const update = () => {
       const rects = rectangles();
-      const top = host.getBoundingClientRect().top;
+      const hostRect = host.getBoundingClientRect();
+      const top = hostRect.top;
       const titleIndex = editorTitleIndex(editor.state.doc);
+      let blockPos = 0;
       const next = rects.map((rect, index) => {
         const node = editor.state.doc.child(index);
+        const pos = blockPos;
+        blockPos += node.nodeSize;
         const endnote = endnoteLabel(node) !== undefined;
+        const location = saveLocations.find(location => location.index === index);
+        const element = location?.cell ? editor.view.nodeDOM(pos) : null;
+        const cellRect = element instanceof HTMLElement && location?.cell
+          ? element.querySelectorAll("tr")[location.cell.row]?.children[location.cell.column]?.getBoundingClientRect() : undefined;
+        // Clip to the scroll viewport so a horizontally hidden cell cannot paint over the gutter.
+        const scrollRect = element instanceof HTMLElement ? element.querySelector(".table-scroll")?.getBoundingClientRect() : undefined;
+        const left = cellRect ? Math.max(cellRect.left, scrollRect?.left ?? cellRect.left) : 0;
+        const right = cellRect ? Math.min(cellRect.right, scrollRect?.right ?? cellRect.right) : 0;
+        const cell = cellRect && right > left ? { top: cellRect.top - top, left: left - hostRect.left,
+          width: right - left, height: cellRect.height } : undefined;
         return {top: rect.top - top, height: rect.height, endnote, title: index === titleIndex,
+          cell,
           sourcePath: String(node.attrs.sourcePath ?? ""),
           name: endnote ? "endnote" : node.type.name.replace(/Block$/, "").toLowerCase()};
       });
       setBlocks(previous => previous.length === next.length && previous.every((block, index) => {
         const current = next[index];
         return block.top === current.top && block.height === current.height && block.name === current.name &&
-          block.endnote === current.endnote && block.title === current.title && block.sourcePath === current.sourcePath;
+          block.endnote === current.endnote && block.title === current.title && block.sourcePath === current.sourcePath &&
+          JSON.stringify(block.cell) === JSON.stringify(current.cell);
       }) ? previous : next);
       updateHovered(rects);
     };
@@ -197,6 +216,7 @@ export const BlockHandles = memo(function BlockHandles({ editor, menuIndex, onIn
     host.addEventListener("mouseleave", leave);
     window.addEventListener("blur", leave);
     window.addEventListener("scroll", scroll, true);
+    if (saveLocations.length) host.addEventListener("scroll", update, true);
     // Capture before ProseMirror's native content drag/drop handler.
     host.addEventListener("dragover", over, true);
     host.addEventListener("drop", drop, true);
@@ -213,12 +233,13 @@ export const BlockHandles = memo(function BlockHandles({ editor, menuIndex, onIn
       host.removeEventListener("mouseleave", leave);
       window.removeEventListener("blur", leave);
       window.removeEventListener("scroll", scroll, true);
+      host.removeEventListener("scroll", update, true);
       if (scrollFrame !== null) cancelAnimationFrame(scrollFrame);
       host.removeEventListener("dragover", over, true);
       host.removeEventListener("drop", drop, true);
       host.removeEventListener("dragend", finish);
     };
-  }, [editor]);
+  }, [editor, saveLocations]);
   const insert = useCallback((index: number) => {
     const block = geometry.current[index];
     if (block) onInsert(index, block.top);
@@ -248,6 +269,19 @@ export const BlockHandles = memo(function BlockHandles({ editor, menuIndex, onIn
     {!moving && blocks[hovered] && <div className="block-hover-outline" data-testid="block-hover-outline" aria-hidden="true"
       style={{top: `calc(${blocks[hovered].top}px - var(--space-block-hover-block))`,
         height: `calc(${blocks[hovered].height}px + 2 * var(--space-block-hover-block))`}} />}
+    {saveLocations.map((location, index) => {
+      const block = blocks[location.index];
+      if (!block) return null;
+      return <div key={index}>
+        <div className="block-save-error" data-testid="block-save-error" data-block-index={location.index}
+          style={{top: `calc(${block.top}px - var(--space-block-hover-block))`,
+            height: `calc(${block.height}px + 2 * var(--space-block-hover-block))`}}>
+          <span className="block-save-error-badge">{saveErrorBadge(location.code, location.type)}</span>
+        </div>
+        {block.cell ? <div className="cell-save-error" data-testid="cell-save-error" aria-label={i18n.t("Cannot save")}
+          style={block.cell} /> : null}
+      </div>;
+    })}
     {moving && <div className="block-drag-source" data-testid="block-drag-source" style={moving} />}
     {dropTop !== null && <div className="block-drop-line" data-testid="block-drop-line" style={{top: dropTop}} />}
   </div>;

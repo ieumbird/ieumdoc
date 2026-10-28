@@ -2,7 +2,7 @@ import { projectInlineContent, sameInlineContent, type InlineContent } from "../
 import { parse } from "./parse.ts";
 import { serialize, serializeFor } from "./serialize.ts";
 import type { MystNode } from "./tree.ts";
-import { DocumentWriteError } from "../write-error.ts";
+import { DocumentDiagnosticError, DocumentWriteError } from "../write-error.ts";
 
 /** Fail closed when Markdown cannot persist the requested inline semantics.
  * In particular, trailing breaks and whitespace-only split results are not
@@ -10,13 +10,13 @@ import { DocumentWriteError } from "../write-error.ts";
 export function assertPersistentParagraph(node: MystNode): void {
   const content = projectInlineContent(node);
   if (!content || !hasParagraphContent(content)) {
-    throw new DocumentWriteError("persistent paragraph must contain non-empty text", { action: "Enter text or delete this block." });
+    throw new DocumentWriteError("persistent paragraph must contain non-empty text", { code: "empty-content", action: "Enter text or delete this block." });
   }
   const failure = "paragraph edit cannot round-trip losslessly through canonical Markdown";
   const markdown = serializeFor({ type: "root", children: [node] }, failure);
   // UTF-8 files cannot retain an unpaired surrogate created by a UTF-16 split.
   if (new TextDecoder().decode(new TextEncoder().encode(markdown)) !== markdown) {
-    throw new Error("paragraph edit cannot persist an unpaired UTF-16 surrogate");
+    throw new DocumentDiagnosticError("invalid-unicode", "paragraph edit cannot persist an unpaired UTF-16 surrogate");
   }
   // Footnote definitions after the paragraph complete its references (see `serializeFor`).
   const reparsed = parse(markdown).children.filter((block) => block.type !== "footnoteDefinition");
@@ -24,7 +24,7 @@ export function assertPersistentParagraph(node: MystNode): void {
     ? projectInlineContent(reparsed[0]) : undefined;
   if (!projected || !sameInlineContent(content, projected) ||
       serialize(parse(markdown)) !== markdown) {
-    throw new Error(failure);
+    throw new DocumentDiagnosticError("round-trip-mismatch", failure);
   }
 }
 

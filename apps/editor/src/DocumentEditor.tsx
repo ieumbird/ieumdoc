@@ -52,6 +52,7 @@ import { MARKDOWN_INPUT_RULES } from "./markdown-input-rules.ts";
 import { currentOutlineItem, documentOutline, documentTargets, sameOutline, type DocumentOutline, type NavigationList, type OutlineItem } from "./outline.ts";
 import { documentEnd, runHistoryShortcut } from "./document-interaction.ts";
 import { NodeSelection, TextSelection } from "@tiptap/pm/state";
+import type { SaveErrorLocation } from "./save-error.ts";
 
 type BlockMenu = { kind: "insert" | "block"; index: number; top: number };
 
@@ -77,6 +78,8 @@ export type DocumentEditorHandle = {
   setReferenceStyle(style: ReferenceStyle): void;
   beginSave(): TiptapJSON;
   finishSave(succeeded?: boolean): void;
+  showSaveErrors(locations: readonly SaveErrorLocation[]): void;
+  revealSaveLocation(location: SaveErrorLocation): void;
   renameImagePaths(replacements: MediaReplacement[]): void;
   imageRenameSources(): string[];
   /** Live applied-content comparison with the acknowledged snapshot; excludes property drafts. */
@@ -117,6 +120,7 @@ type DocumentEditorProps = {
   onDirtyChange?: (dirty: boolean) => void;
   /** Applied-content changes only, excluding draft forms and filtered placeholders. */
   onAppliedEdit?: (dirty: boolean) => void;
+  onSaveLocationsChange?: (locations: readonly SaveErrorLocation[]) => void;
   onHeadingNumberingChange?: (enabled: boolean) => void;
   onReferenceTemplatesChange?: (templates: ReferenceTemplates | null) => void;
   validateFigure?: FigureValidator;
@@ -128,7 +132,7 @@ type DocumentEditorProps = {
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { settingsExpanded = false, onSettingsExpandedChange, settingsDisabled = false, document, bibliography, initialSnapshot, documentPath, onStructuralReject, onNotice, onDraftChange, onAssetPendingChange, onAssetError, onAssetChange, onDirtyChange, onAppliedEdit, onHeadingNumberingChange, onReferenceTemplatesChange, validateFigure, chooseImage, renameImage, onOutlineChange },
+  { settingsExpanded = false, onSettingsExpandedChange, settingsDisabled = false, document, bibliography, initialSnapshot, documentPath, onStructuralReject, onNotice, onDraftChange, onAssetPendingChange, onAssetError, onAssetChange, onDirtyChange, onAppliedEdit, onSaveLocationsChange, onHeadingNumberingChange, onReferenceTemplatesChange, validateFigure, chooseImage, renameImage, onOutlineChange },
   ref,
 ) {
   useTranslation();
@@ -139,6 +143,16 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     return { ...projected, attrs: { ...projected.attrs, bibliography: bibliography?.declarations ?? [] } };
   });
   const pending = useRef<TiptapJSON | null>(null);
+  const pendingDocument = useRef<Editor["state"]["doc"] | null>(null);
+  const [saveLocations, setSaveLocations] = useState<readonly SaveErrorLocation[]>([]);
+  const saveLocationsRef = useRef(saveLocations);
+  const saveLocationsChanged = useRef(onSaveLocationsChange);
+  saveLocationsChanged.current = onSaveLocationsChange;
+  function updateSaveLocations(locations: readonly SaveErrorLocation[]): void {
+    saveLocationsRef.current = locations;
+    setSaveLocations(locations);
+    saveLocationsChanged.current?.(locations);
+  }
   const brokenReferences = useRef(new Map<string, ReferenceTarget>());
   const tableDeletionDocument = useRef<Editor["state"]["doc"] | null>(null);
   const saved = useRef<TiptapJSON | null>(null);
@@ -233,6 +247,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         }
         // Block indexes are snapshot positions; a document change invalidates an open menu.
         if (transaction.docChanged) {
+          // All locators belong to the submitted snapshot. Invalidate rather than guess
+          // after typing, insertion, deletion, split/merge or a move (including Undo).
+          if (saveLocationsRef.current.length) updateSaveLocations([]);
           setBlockMenu(null);
           const broken = referencesBrokenByDeletion(transaction.before, transaction.doc);
           if (broken.length) {
@@ -338,6 +355,38 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     editor.view.dispatch(editor.state.tr.setDocAttribute("headingNumbering", settings));
   }
 
+  /** Shared outline / save-error navigation; selection remains owned by ProseMirror. */
+  function revealBlock(index: number, type: string, cell?: SaveErrorLocation["cell"]): void {
+    if (!editor || editor.view.dom.closest("[hidden]")) return;
+    const node = editor.state.doc.maybeChild(index);
+    if (!node || node.type.name !== type) return;
+    let pos = 0;
+    for (let i = 0; i < index; i++) pos += editor.state.doc.child(i).nodeSize;
+    let target = pos;
+    if (cell && node.type.name === "table") {
+      const row = node.maybeChild(cell.row);
+      if (row?.maybeChild(cell.column)) {
+        target++;
+        for (let i = 0; i < cell.row; i++) target += node.child(i).nodeSize;
+        target++;
+        for (let i = 0; i < cell.column; i++) target += row.child(i).nodeSize;
+      }
+    }
+    const selection = node.type.name === "figure" ? NodeSelection.create(editor.state.doc, pos)
+      : node.isTextblock ? TextSelection.create(editor.state.doc, pos + 1)
+      : node.type.name === "table" || cell ? TextSelection.near(editor.state.doc.resolve(target + 1))
+      : NodeSelection.create(editor.state.doc, pos);
+    editor.view.dispatch(editor.state.tr.setSelection(selection));
+    editor.view.focus();
+    const element = editor.view.nodeDOM(pos);
+    if (element instanceof HTMLElement) {
+      const cellElement = cell ? element.querySelectorAll("tr")[cell.row]?.children[cell.column] : undefined;
+      (cellElement ?? element).scrollIntoView({ block: "start", inline: "nearest" });
+    }
+    revealed.current = { index, scrollY: window.scrollY };
+    scheduleOutline.current();
+  }
+
   useImperativeHandle(
     ref,
     () => ({
@@ -367,13 +416,23 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         if (!editor) throw new Error("Editor is not ready");
         // Separate subsequent typing from this save's undo event without changing the document.
         editor.view.dispatch(closeHistory(editor.state.tr));
+        updateSaveLocations([]);
+        pendingDocument.current = editor.state.doc;
         pending.current = editorDocumentJSON(editor.state);
         return pending.current;
       },
       finishSave(succeeded = false) {
         if (succeeded && pending.current) saved.current = pending.current;
         pending.current = null;
+        pendingDocument.current = null;
         onDirtyChangeRef.current?.(hasDocumentChanges());
+      },
+      showSaveErrors(locations) {
+        // Input during the request invalidates the submitted coordinates before they arrive.
+        updateSaveLocations(editor && editor.state.doc === pendingDocument.current ? locations : []);
+      },
+      revealSaveLocation(location) {
+        if (saveLocationsRef.current.includes(location)) revealBlock(location.index, location.type, location.cell);
       },
       hasUnsavedChanges() {
         if (!editor) return false;
@@ -389,21 +448,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         editor.view.dispatch(editor.state.tr.setMeta(imageRenameKey, replacements).setMeta("addToHistory", false));
       },
       revealItem(item) {
-        // Source-to-Visual navigation is deferred; a later tab switch must not steal focus/scroll.
-        if (!editor || editor.view.dom.closest("[hidden]")) return;
-        const node = editor.state.doc.maybeChild(item.index);
-        if (!node || node.type.name !== (item.kind ?? "heading")) return;
-        let pos = 0;
-        for (let i = 0; i < item.index; i++) pos += editor.state.doc.child(i).nodeSize;
-        const selection = item.kind === "figure" ? NodeSelection.create(editor.state.doc, pos)
-          : item.kind === "table" ? TextSelection.near(editor.state.doc.resolve(pos + 1))
-          : TextSelection.create(editor.state.doc, pos + 1);
-        editor.view.dispatch(editor.state.tr.setSelection(selection));
-        editor.view.focus();
-        const element = editor.view.nodeDOM(pos);
-        if (element instanceof HTMLElement) element.scrollIntoView({ block: "start" });
-        revealed.current = { index: item.index, scrollY: window.scrollY };
-        scheduleOutline.current();
+        revealBlock(item.index, item.kind ?? "heading");
       },
       focusEnd,
       getSnapshot() {
@@ -644,6 +689,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       <DocumentPathContext.Provider value={documentPath}><ImageRenameContext.Provider value={renameImage}><BibliographyContent ref={bibliographyControls} editor={editor} bibliography={bibliography} documentPath={documentPath}><EditorContent editor={editor} /></BibliographyContent></ImageRenameContext.Provider></DocumentPathContext.Provider>
       {visible ? <BlockHandles
         editor={editor}
+        saveLocations={saveLocations}
         menuIndex={blockMenu?.index}
         onInsert={insertBlockMenu}
         onOpenMenu={openBlockMenu}

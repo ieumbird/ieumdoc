@@ -74,7 +74,7 @@ async (page, { openPath, screenshots, withBlockHover }) => {
   assert(await active().getByRole('checkbox',{name:'Number headings',exact:true}).evaluate(n=>n===document.activeElement),'Tab enters the numbering control');
   await page.keyboard.press('Tab'); await page.keyboard.press('Enter');
   const menu = page.getByRole('menu',{name:'Reference style',exact:true});
-  await menu.waitFor();
+  await menu.and(page.locator(':focus-within')).waitFor();
   assert((await menu.getByRole('menuitemradio',{name:'Concise',exact:true}).innerText()).includes('Fig. 1 · Table 1 · (1)'), 'Concise offers actual notation previews');
   assert((await menu.getByRole('menuitemradio',{name:'Korean',exact:true}).innerText()).includes('그림 1 · 표 1 · 식 (1)'), 'Korean offers actual notation previews');
   await page.keyboard.press('Escape'); await menu.waitFor({state:'detached'});
@@ -130,7 +130,7 @@ async (page, { openPath, screenshots, withBlockHover }) => {
         assert(geometry.left>=0&&geometry.right<=width&&!geometry.overflow&&geometry.controls.every(c=>c.left>=geometry.left&&c.right<=geometry.right),'Expanded settings must fit at '+JSON.stringify({language,theme,background,width,geometry}));
         await capture('expanded');
         await active().getByRole('button',{name:language==='en'?'Reference style':'상호 참조 표기',exact:true}).click();
-        const popup=page.getByRole('menu'); await popup.waitFor();
+        const popup=page.getByRole('menu'); await popup.and(page.locator(':focus-within')).waitFor();
         const r=await popup.boundingBox();assert(r.x>=0&&r.x+r.width<=width,'Preview menu must fit the supported viewport');
         await capture('menu');
         await page.keyboard.press('Escape');await popup.waitFor({state:'detached'});

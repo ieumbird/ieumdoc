@@ -4,7 +4,7 @@ import { FilePreviewDialog } from "./FilePreviewDialog.tsx";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
-import { Pencil, Trash2, ChevronRight, Ellipsis, File, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelLeftOpen, Plus, RotateCw, Settings, X } from "lucide-react";
+import { Pencil, Trash2, ChevronRight, Ellipsis, File, Files as FilesIcon, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, Plus, RotateCw, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -35,14 +35,16 @@ type SidebarProps = {
   onOpenDocument?(path: string): void;
   onCloseFolder?(root: string): void;
   onRefreshFolder?(root: string): void;
+  onRevealFolder?(path: string): void;
   /** App Settings, separate from document settings. Names the control focus returns to. */
+  updateVersion?: string;
   onSettings?(returnFocus: HTMLElement): void;
 };
 
 /** File navigation stays mounted when collapsed. Outline remains independent on the right. */
 export function Sidebar({
   onFileAction, fileActionsDisabled, isFileDirty, open, documentPath, onToggle, toggleRef, onOpenFolder, onNewDocument, recent = [], onOpenRecent, onNew, onNewFolder,
-  folders = [], onToggleFolder, onToggleSection, onOpenDocument, onCloseFolder, onRefreshFolder, onSettings,
+  folders = [], onToggleFolder, onToggleSection, onOpenDocument, onCloseFolder, onRefreshFolder, onRevealFolder, onSettings, updateVersion,
 }: SidebarProps) {
   useTranslation();
   return (
@@ -56,10 +58,12 @@ export function Sidebar({
             variant="ghost"
             size="icon-sm"
             aria-label={open ? i18n.t("Collapse sidebar") : i18n.t("Expand sidebar")}
+            title={open ? i18n.t("Collapse sidebar") : i18n.t("Expand sidebar")}
             aria-expanded={open}
+            aria-controls="sidebar-files"
             onClick={onToggle}
           >
-            {open ? <PanelLeftClose /> : <PanelLeftOpen />}
+            {open ? <PanelLeftClose /> : <FilesIcon />}
           </Button>
         </div>
       </div>
@@ -77,6 +81,7 @@ export function Sidebar({
             onNew={button => onNew?.(tree.root, button)}
             onNewFolder={button => onNewFolder?.(tree.root, button)}
             onOpenFolder={onOpenFolder}
+            onRevealFolder={onRevealFolder}
             onRefresh={() => onRefreshFolder?.(tree.root)}
             onClose={() => onCloseFolder?.(tree.root)}
           />
@@ -108,14 +113,26 @@ export function Sidebar({
           </section>
         )}
       </div>
-      {onSettings && open ? (
+      {onSettings ? (
         <div className="sidebar-footer">
-          <Button className="min-w-0 justify-start" size="sm" variant="ghost" onClick={event => onSettings(event.currentTarget)}>
-            <Settings aria-hidden="true" />{i18n.t("Settings")}</Button>
+          <SettingsEntry iconOnly={!open} onOpen={onSettings} updateVersion={updateVersion} />
         </div>
       ) : null}
     </nav>
   );
+}
+
+/** One Settings entry for both sidebar states, including its focus-return target. */
+function SettingsEntry({ iconOnly, onOpen, updateVersion }: { updateVersion?: string; iconOnly: boolean; onOpen(returnFocus: HTMLElement): void }) {
+  return <Button className={iconOnly ? undefined : "min-w-0 justify-start"}
+    size={iconOnly ? "icon-sm" : "sm"} variant="ghost"
+    aria-label={updateVersion ? i18n.t("Settings, new version available") : i18n.t("Settings")}
+    title={updateVersion ? i18n.t("New version {{version}} available", { version: updateVersion }) : i18n.t("Settings")}
+    onClick={event => onOpen(event.currentTarget)}>
+    <span className="settings-entry-icon"><Settings aria-hidden="true" />
+      {updateVersion ? <span className="settings-update-dot" data-testid="settings-update-dot" aria-hidden="true" /> : null}
+    </span>{iconOnly ? null : i18n.t("Settings")}
+  </Button>;
 }
 
 type FolderTreeProps = {
@@ -130,12 +147,13 @@ type FolderTreeProps = {
   onNew(button: HTMLButtonElement): void;
   onNewFolder(button: HTMLButtonElement): void;
   onOpenFolder(returnFocus: HTMLElement | null): void;
+  onRevealFolder?(path: string): void;
   onRefresh(): void;
   onClose(): void;
 };
 
 /** One opened folder as a tree: folders expand in place, documents open. */
-function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, documentPath, onToggleFolder, onToggleSection, onOpenDocument, onNew, onNewFolder, onOpenFolder, onRefresh, onClose }: FolderTreeProps) {
+function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, documentPath, onToggleFolder, onToggleSection, onOpenDocument, onNew, onNewFolder, onOpenFolder, onRevealFolder, onRefresh, onClose }: FolderTreeProps) {
   useTranslation();
   const treeId = useId();
   const section = useRef<HTMLElement>(null);
@@ -204,6 +222,8 @@ function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, docu
                 <FolderPlus aria-hidden="true" />{i18n.t("New folder…")}</DropdownMenuItem>
               <DropdownMenuItem onClick={() => onOpenFolder(moreActions.current)}>
                 <FolderOpen aria-hidden="true" />{i18n.t("Open folder…")}</DropdownMenuItem>
+              {onRevealFolder ? <DropdownMenuItem onClick={() => onRevealFolder(tree.root)}>
+                <FolderOpen aria-hidden="true" />{i18n.t("Open in File Explorer")}</DropdownMenuItem> : null}
               <DropdownMenuItem onClick={onRefresh}>
                 <RotateCw aria-hidden="true" />{i18n.t("Refresh")}</DropdownMenuItem>
               <DropdownMenuItem onClick={onClose}>
@@ -226,12 +246,13 @@ function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, docu
               key={entry.path}
               ref={row => { if (row) rows.current.set(entry.path, row); else rows.current.delete(entry.path); }}
               role="treeitem"
-              className="sidebar-tree-item"
+              className={`sidebar-tree-item${folder && onRevealFolder ? " sidebar-tree-item--actions" : ""}`}
               data-foreign={foreign || undefined}
               style={{ "--tree-depth": item.depth + 1 } as CSSProperties}
               tabIndex={entry.path === tabStop ? 0 : -1}
               title={description ? `${entry.path}\n${description}` : entry.path}
               aria-description={description}
+              aria-label={folder ? entry.name : undefined}
               aria-level={item.depth + 1}
               aria-posinset={item.position}
               aria-setsize={item.size}
@@ -243,6 +264,14 @@ function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, docu
               {folder ? <span className="sidebar-tree-chevron" aria-hidden="true"><ChevronRight /></span>
                 : <Icon className="sidebar-tree-icon" aria-hidden="true" />}
               <span className="sidebar-tree-name">{entry.name}</span>
+              {folder && onRevealFolder ? <DropdownMenu>
+                <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label={i18n.t("More actions for {{name}}", { name: entry.name })} />}
+                  onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}><Ellipsis /></DropdownMenuTrigger>
+                <DropdownMenuContent align="end" onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
+                  <DropdownMenuItem onClick={() => onRevealFolder(entry.path)}>
+                    <FolderOpen aria-hidden="true" />{i18n.t("Open in File Explorer")}</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu> : null}
             </li>
           );
           if (folder) return row;

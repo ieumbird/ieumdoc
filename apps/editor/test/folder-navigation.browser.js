@@ -146,6 +146,7 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
     for (const more of await section.getByRole('button', {name:'More actions', exact:true}).all()) {
       await more.click();
       await page.getByRole('menuitem', {name:'Close folder', exact:true}).waitFor();
+      await page.getByRole('menu').and(page.locator(':focus-within')).waitFor();
       if (screenshots && state === 'one') await page.screenshot({path:'tmp/picker-capture/folder-refresh-menu.png'});
       assert(JSON.stringify(await page.getByRole('menuitem').allInnerTexts()) === JSON.stringify(['New folder…', 'Open folder…', 'Refresh', 'Close folder']), 'Folder menu must order creation before folder management');
       await page.keyboard.press('Escape');
@@ -173,6 +174,7 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
       assert(await second.getAttribute('aria-expanded') === 'true' && await fileMenu.getAttribute('aria-expanded') === 'false',
         'A single click switches from File actions to the other folder menu');
       assert(await page.getByRole('menu').count() === 1, 'Menu switching leaves exactly the requested menu open');
+      await page.getByRole('menu').and(page.locator(':focus-within')).waitFor();
       await page.keyboard.press('Escape'); await page.getByRole('menu').waitFor({state:'hidden'});
     }
     await page.setViewportSize({width:1280, height:720});

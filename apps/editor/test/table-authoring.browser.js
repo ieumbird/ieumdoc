@@ -485,6 +485,7 @@ async (page, { openPath, reloadDocument }) => {
   }
   await finalTable.getByRole('button', {name:'Column A actions', exact:true}).click();
   result.lastColumnProtected = await page.getByRole('menu', {name:'Column A actions', exact:true}).getByRole('menuitem', {name:'Delete column', exact:true}).isDisabled();
+  await page.getByRole('menu', {name:'Column A actions', exact:true}).and(page.locator(':focus-within')).waitFor();
   await page.keyboard.press('Escape');
   await finalTable.locator('td').first().click();
   await page.keyboard.press('Control+z');

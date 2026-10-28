@@ -27,9 +27,9 @@ async (page, { screenshots = false, openPath }) => {
   await page.addInitScript(() => {
     const listeners = new Set();
     let restartCheck = null;
-    const info = {version:'0.2.0', channel:'stable', updatesSupported:true, update:{phase:'idle'}, postponed:null};
-    const calls = [];
-    window.__desktop = {calls, push(state) { info.update = state; for (const listener of listeners) listener(state); }};
+    const info = {version:'0.2.0', channel:sessionStorage.getItem('update-channel') || 'stable', updatesSupported:true, update:{phase:'idle'}, seenUpdate:sessionStorage.getItem('update-seen')};
+    const calls = JSON.parse(sessionStorage.getItem('update-calls') || '[]');
+    window.__desktop = {calls, info, push(state) { info.update = state; for (const listener of listeners) listener(state); }};
     window.__cli = {state:{status:'off'}, calls:[], pending:false, fail:false};
     window.ieumdocDesktop = {
       setTheme: async theme => theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches),
@@ -52,7 +52,7 @@ async (page, { screenshots = false, openPath }) => {
         calls.push(['install', answer]);
         return answer;
       },
-      postponeUpdate: async (version) => { calls.push(['postpone', version]); info.postponed = version; },
+      markUpdateSeen: async (version) => { calls.push(['seen', version]); info.seenUpdate = version; },
       openReleaseNotes: async (version) => { calls.push(['notes', version ?? null]); },
       onUpdateState(listener) { listeners.add(listener); return () => listeners.delete(listener); },
       onRestartCheck(check) { restartCheck = check; return () => { if (restartCheck === check) restartCheck = null; }; },
@@ -137,6 +137,7 @@ async (page, { screenshots = false, openPath }) => {
         for (const panelOpen of [false, true]) {
           const toggle = page.getByRole('button', {name:'Outline', exact:true});
           if (await toggle.getAttribute('aria-pressed') !== String(panelOpen)) await toggle.click();
+          let expandedSettingsTop;
           for (const collapsed of [false, true]) {
             const sidebar = page.getByRole('button', {name:collapsed ? 'Collapse sidebar' : 'Expand sidebar', exact:true});
             if (await sidebar.isVisible()) await sidebar.click();
@@ -157,7 +158,7 @@ async (page, { screenshots = false, openPath }) => {
               const borderColor = getComputedStyle(document.querySelector('.document-tabs')).borderBottomColor;
               const continuous = Array.from({length:Math.ceil(header.width)}, (_, i) => header.left + i + 0.5)
                 .filter(x => x < header.right).every(x => lines.filter(line => line.left <= x && line.right > x && line.bottom === tabs.top && line.thickness === 1 && line.color === borderColor).length === 1);
-              const blocked = [...document.querySelectorAll('.app-titlebar button, .sidebar-header button, .document-panel-header button')].filter(node => {
+              const blocked = [...document.querySelectorAll('.app-titlebar button, .sidebar-header button, .sidebar-footer button, .document-panel-header button')].filter(node => {
                 const r = node.getBoundingClientRect();
                 return r.width && (r.right > innerWidth || (r.top < 40 && r.right > innerWidth - reserved) || getComputedStyle(node).getPropertyValue('app-region') !== 'no-drag');
               }).map(node => node.getAttribute('aria-label') || node.textContent);
@@ -168,10 +169,26 @@ async (page, { screenshots = false, openPath }) => {
               const docked = document.querySelector('.document-panel:not(.document-panel--overlay) .document-panel-navigation')?.getBoundingClientRect();
               const aligned = sidebar.top === tabs.top && sidebar.bottom === tabs.bottom && (!docked || docked.top === tabs.top && docked.bottom === tabs.bottom);
               const branded = brand.querySelector('img').complete && !!brand.querySelector('span') === !document.querySelector('.sidebar--collapsed');
-              return {aligned, branded, continuous, singleLine:lines.every(line => line.bottom === tabs.top && line.thickness === 1), lines, blocked,
+              const settings = document.querySelector('.sidebar-footer button');
+              const settingsBox = settings.getBoundingClientRect();
+              const rail = document.querySelector('.sidebar').getBoundingClientRect();
+              const settingsBounded = settingsBox.left >= rail.left && settingsBox.right <= rail.right && settingsBox.bottom <= innerHeight;
+              return {settingsTop:settingsBox.top, settingsBounded, aligned, branded, continuous, singleLine:lines.every(line => line.bottom === tabs.top && line.thickness === 1), lines, blocked,
                 rowHeight:header.height, usableWidth, barBottom:bar.bottom, tabsTop:tabs.top, headerBottom:document.querySelector('.app-header').getBoundingClientRect().bottom,
                 overlayTop:panel?.getBoundingClientRect().top, drag:getComputedStyle(document.querySelector('.top-bar')).getPropertyValue('app-region')};
             }, reserved);
+            if (!collapsed) expandedSettingsTop = geometry.settingsTop;
+            check(geometry.settingsBounded && geometry.settingsTop === expandedSettingsTop, 'Rail Settings moved vertically or escaped the sidebar');
+            if (collapsed && [1440,640].includes(width) && reserved === 138 && !panelOpen) {
+              const settings = page.getByTestId('sidebar').getByRole('button',{name:'Settings',exact:true});
+              await settings.click();
+              await page.getByTestId('settings-back').waitFor();
+              check(await page.getByRole('button',{name:'About & updates',exact:true}).isVisible(), 'Rail opened different Desktop Settings');
+              if (theme === 'light') await page.getByTestId('settings-back').click();
+              else await page.keyboard.press('Escape');
+              await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+              check(await settings.evaluate(node => node === document.activeElement), 'Desktop Settings did not return focus to rail');
+            }
             separatorGeometry.push({width, theme, reserved, panelOpen, collapsed, ...geometry});
             if (!geometry.aligned || !geometry.branded || !geometry.continuous || !geometry.singleLine || geometry.blocked.length || geometry.tabsTop - geometry.barBottom > 1 || geometry.drag !== 'drag' ||
                 (geometry.usableWidth >= 896 && geometry.rowHeight !== 40) ||
@@ -266,7 +283,7 @@ async (page, { screenshots = false, openPath }) => {
 
   const calls = () => page.evaluate(() => window.__desktop.calls.map(call => call[0] === 'install' ? `install:${call[1].ok}` : call.join(':')));
   const push = state => page.evaluate(state => window.__desktop.push(state), state);
-  const settings = page.getByRole('button', {name:'Settings', exact:true});
+  const settings = page.getByTestId('sidebar').getByRole('button', {name:/^Settings/});
   const dialog = page.getByTestId('settings-dialog');
   const status = () => page.getByTestId('update-status').innerText();
   // Bridge callbacks schedule React work; delivery is not a rendered-state acknowledgement.
@@ -301,29 +318,50 @@ async (page, { screenshots = false, openPath }) => {
   await dialog.waitFor({state:'detached'});
   check(await settings.evaluate(node => node === document.activeElement), 'Closing Settings did not return focus to Settings');
 
-  // A found update is announced once per version; Later keeps it quiet until a newer one.
+  // One Settings dot acknowledges the viewed version, across sidebar/rail and reloads.
+  const dot = page.getByTestId('settings-update-dot');
   await push({phase:'available', version:'0.3.0-beta.1', prerelease:true});
-  await notice.waitFor();
-  check((await notice.innerText()).includes('IeumDoc 0.3.0-beta.1 (Beta) is available.'), 'The notice does not name the update');
-  await notice.getByRole('button', {name:'Later'}).click();
-  await notice.waitFor({state:'detached'});
-  // Observe each committed phase before checking that a postponed version stays quiet.
+  await dot.waitFor();
+  check(await notice.count() === 0, 'Top update banner remains');
+  check(await settings.getAttribute('aria-label') === 'Settings, new version available', 'Update cue has no accessible name');
+  check(await settings.getAttribute('title') === 'New version 0.3.0-beta.1 available', 'Tooltip omits the offered version');
+  for (const width of [1440,640]) {
+    await page.setViewportSize({width,height:900});
+    const geometry = await dot.evaluate(n => { const r=n.getBoundingClientRect(); return {width:r.width,height:r.height}; });
+    check(geometry.width === 8 && geometry.height === 8, 'Update dot is not 8px');
+    if (screenshots) await page.screenshot({path:`tmp/665/after-en-dark-${width}.png`});
+  }
+  await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
+  check(await dot.isVisible(), 'Collapsed rail lost the update dot');
+  if (screenshots) await page.screenshot({path:'tmp/665/after-en-dark-640-rail.png'});
   await settings.click();
   await dialog.waitFor();
-  await dialog.getByRole('button',{name:'About & updates',exact:true}).click();
-  await push({phase:'checking'});
-  await page.locator('[data-testid="update-status"][data-phase="checking"]').waitFor({state:'attached', timeout:5000});
-  await push({phase:'available', version:'0.3.0-beta.1', prerelease:true});
   await waitForStatus('IeumDoc 0.3.0-beta.1 (Beta) is available. You have 0.2.0.');
-  check(await notice.count() === 0, 'A postponed version notified again');
-  await page.keyboard.press('Escape');
-  await dialog.waitFor({state:'detached'});
+  check(await dialog.getByRole('button',{name:'About & updates',exact:true}).getAttribute('aria-current') === 'page', 'Dot did not open About');
+  check((await page.getByTestId('settings-update-section').getAttribute('class')).includes('settings-update-highlight'), 'Update section is not highlighted');
+  await dot.waitFor({state:'detached'});
+  await capture('update-highlight-en-dark-640');
+  await page.keyboard.press('Escape'); await dialog.waitFor({state:'detached'});
+  check(await settings.evaluate(n => n === document.activeElement), 'Rail Settings lost return focus');
+  await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+  await settings.click(); await dialog.waitFor();
+  check(await dialog.getByRole('button',{name:'Appearance & language',exact:true}).getAttribute('aria-current') === 'page', 'Seen update changed default Settings category');
+  await page.keyboard.press('Escape'); await dialog.waitFor({state:'detached'});
+  // Reload re-reads the persisted acknowledgement; the mock Host preserves preferences.
+  await page.evaluate(() => { sessionStorage.setItem('update-seen', window.__desktop.info.seenUpdate); sessionStorage.setItem('update-channel',window.__desktop.info.channel); sessionStorage.setItem('update-calls',JSON.stringify(window.__desktop.calls)); });
+  await page.reload(); await ready();
+  // Desktop startup supplies an explicit initial path, so reopen the scratch document after reload.
+  await openPath(page, file);
+  await push({phase:'available', version:'0.3.0-beta.1', prerelease:true});
+  await settings.click(); await dialog.waitFor();
+  await dialog.getByRole('button',{name:'About & updates',exact:true}).click();
+  await waitForStatus('IeumDoc 0.3.0-beta.1 (Beta) is available. You have 0.2.0.');
+  check(await dot.count() === 0, 'Viewed version notified after reload');
+  await page.keyboard.press('Escape'); await dialog.waitFor({state:'detached'});
   await push({phase:'available', version:'0.3.0-beta.2', prerelease:true});
-  await notice.waitFor();
-  await notice.getByRole('button', {name:'View'}).click();
-  await dialog.waitFor();
+  await dot.waitFor();
+  await settings.click(); await dialog.waitFor();
   await waitForStatus('IeumDoc 0.3.0-beta.2 (Beta) is available. You have 0.2.0.');
-  check((await status()).includes('0.3.0-beta.2 (Beta) is available. You have 0.2.0.'), 'About does not describe the update');
   await page.getByRole('button', {name:'Download update'}).click();
   await push({phase:'downloading', version:'0.3.0-beta.2', prerelease:true, percent:42.5, transferred:425, total:1000});
   await page.getByRole('progressbar', {name:'Update download'}).and(page.locator('[value="42.5"]')).waitFor({state:'attached', timeout:5000});
@@ -354,10 +392,12 @@ async (page, { screenshots = false, openPath }) => {
     return event.defaultPrevented;
   });
   check(unloadProtected, 'Hidden dirty tab did not protect browser unload');
-  await notice.getByRole('button', {name:'Restart to update'}).click();
-  await page.getByTestId('error').waitFor();
-  check((await page.getByTestId('error').innerText()).includes('Save your changes, then restart to update.'), 'Unsaved changes did not refuse the restart');
-  await page.getByRole('button', {name:'Dismiss error'}).click();
+  await settings.click(); await dialog.waitFor();
+  await dialog.getByRole('button',{name:'About & updates',exact:true}).click();
+  await restart.click();
+  await page.getByTestId('update-problem').waitFor();
+  check((await page.getByTestId('update-problem').innerText()).includes('Save your changes, then restart to update.'), 'Unsaved changes did not refuse the restart');
+  await page.keyboard.press('Escape'); await dialog.waitFor({state:'detached'});
   await page.getByRole('tab', {name:'updates.md, Unsaved changes',exact:true}).click();
   check((await editor.innerText()).includes('Alpha. Unsaved'), 'Refusing the restart lost the edit');
   await page.getByRole('button', {name:'Save', exact:true}).click();
@@ -381,10 +421,12 @@ async (page, { screenshots = false, openPath }) => {
 
   // The same live guard covers in-flight Save and Source, even when the applied document is clean.
   const refused = async expected => {
-    await notice.getByRole('button', {name:'Restart to update'}).click();
-    await page.getByTestId('error').waitFor();
-    check(expected.test(await page.getByTestId('error').innerText()), 'The pending operation did not refuse the restart');
-    await page.getByRole('button', {name:'Dismiss error'}).click();
+    await settings.click(); await dialog.waitFor();
+    await dialog.getByRole('button',{name:'About & updates',exact:true}).click();
+    await restart.click();
+    await page.getByTestId('update-problem').waitFor();
+    check(expected.test(await page.getByTestId('update-problem').innerText()), 'The pending operation did not refuse the restart');
+    await page.keyboard.press('Escape'); await dialog.waitFor({state:'detached'});
   };
   await page.getByText('Alpha. Unsaved', {exact:true}).filter({visible:true}).click();
   await page.keyboard.press('End');
@@ -459,19 +501,45 @@ async (page, { screenshots = false, openPath }) => {
   await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
 
   // With everything saved, the Editor allows the restart.
-  await notice.getByRole('button', {name:'Restart to update'}).click();
+  await settings.click(); await dialog.waitFor();
+  await dialog.getByRole('button',{name:'About & updates',exact:true}).click();
+  await restart.click();
   await page.waitForFunction(() => window.__desktop.calls.some(call => call[0] === 'install' && call[1].ok));
   const recorded = await calls();
-  check(JSON.stringify(recorded) === JSON.stringify(['channel:beta', 'check', 'notes:', 'postpone:0.3.0-beta.1', 'download', 'install:false', 'install:false', 'install:false', 'install:false', 'install:false', 'install:true']),
+  check(JSON.stringify(recorded) === JSON.stringify(['channel:beta', 'check', 'notes:', 'seen:0.3.0-beta.1', 'seen:0.3.0-beta.2', 'download', 'install:false', 'install:false', 'install:false', 'install:false', 'install:false', 'install:true']),
     `Unexpected Desktop calls ${JSON.stringify(recorded)}`);
 
   // Restore the baseline display state for the screen comparison (mock version 0.2.0,
   // Stable, idle, no records); the updater interaction assertions above are complete.
-  await settings.click();
-  await dialog.getByRole('button',{name:'About & updates',exact:true}).click();
   await stable.check();
   await push({phase:'idle'});
   await waitForStatus('IeumDoc checks for updates automatically.');
+  await page.keyboard.press('Escape'); await dialog.waitFor({state:'detached'});
+
+  // Korean/light uses the same cue and direct destination, including a new offer while About is open.
+  await settings.click(); await dialog.waitFor();
+  await page.getByTestId('theme').selectOption('light');
+  await page.getByTestId('ui-language').selectOption('ko');
+  await page.keyboard.press('Escape'); await dialog.waitFor({state:'detached'});
+  await push({phase:'available',version:'0.3.0-beta.3',prerelease:true});
+  await dot.waitFor();
+  const koreanSettings = page.getByTestId('sidebar').getByRole('button',{name:'설정, 새 버전 사용 가능',exact:true});
+  check(await koreanSettings.getAttribute('title') === '새 버전 0.3.0-beta.3 사용 가능', 'Korean update tooltip is wrong');
+  for (const width of [1440,640]) {
+    await page.setViewportSize({width,height:900});
+    if (screenshots) await page.screenshot({path:`tmp/665/after-ko-light-${width}.png`});
+  }
+  await koreanSettings.click(); await dialog.waitFor(); await dot.waitFor({state:'detached'});
+  check(await dialog.getByRole('button',{name:'정보·업데이트',exact:true}).getAttribute('aria-current') === 'page', 'Korean cue did not open About');
+  await capture('update-highlight-ko-light-640');
+  await push({phase:'available',version:'0.3.0-beta.4',prerelease:true});
+  await page.waitForFunction(() => window.__desktop.info.seenUpdate === '0.3.0-beta.4');
+  await page.keyboard.press('Escape'); await dialog.waitFor({state:'detached'});
+  check(await dot.count() === 0, 'Offer viewed in open About was not acknowledged');
+  await push({phase:'up-to-date',latest:'0.3.0-beta.4'});
+  await page.getByRole('button',{name:'설정',exact:true}).click();
+  await page.getByTestId('theme').selectOption('dark');
+  await page.getByTestId('ui-language').selectOption('en');
   await page.keyboard.press('Escape'); await dialog.waitFor({state:'detached'});
 
   // The actual screen stays bounded with every category and both languages, using the
@@ -558,6 +626,7 @@ async (page, { screenshots = false, openPath }) => {
   const firstRequest = route => route.request().method() === 'GET' ? route.fulfill({json:{start:true}}) : route.continue();
   await page.route(/\/api\/document$/, firstRequest);
   try {
+    await page.evaluate(() => { sessionStorage.removeItem('update-calls'); sessionStorage.removeItem('update-seen'); });
     await page.reload();
     await page.getByTestId('document-start').waitFor();
     await page.getByRole('button',{name:'Settings',exact:true}).click();
@@ -566,9 +635,11 @@ async (page, { screenshots = false, openPath }) => {
     await dialog.getByRole('button',{name:'Back to start',exact:true}).click();
     await dialog.waitFor({state:'detached'});
     await push({phase:'downloaded', version:'0.3.0-beta.2', prerelease:true});
-    await notice.getByRole('button', {name:'Restart to update'}).click();
+    await dot.waitFor();
+    await settings.click(); await dialog.waitFor();
+    await restart.click();
     await page.waitForFunction(() => window.__desktop.calls.some(call => call[0] === 'install'));
-    check(JSON.stringify(await calls()) === JSON.stringify(['install:true']), `The start refused the restart: ${JSON.stringify(await calls())}`);
+    check(JSON.stringify(await calls()) === JSON.stringify(['seen:0.3.0-beta.2','install:true']), `The start refused the restart: ${JSON.stringify(await calls())}`);
   } finally {
     await page.unroute(/\/api\/document$/, firstRequest);
   }

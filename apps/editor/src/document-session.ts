@@ -39,18 +39,21 @@ export async function requestDocument(
   }
   // Only the first request, which names no document, may start without one.
   if (response.ok && method === "GET" && !filePath && payload.start === true) {
-    return { start: true, ...(typeof payload.sample === "string" ? { sample: payload.sample } : {}),
+    return { start: true, ...(payload.samples ? { samples: payload.samples } : {}),
+      ...(payload.sampleProblem ? { sampleProblem: payload.sampleProblem } : {}),
       ...(Array.isArray(payload.allowedRoots) && payload.allowedRoots.every(root => typeof root === "string") ? { allowedRoots: payload.allowedRoots } : {}) };
   }
   if (!response.ok || !payload.document || typeof payload.source !== "string" || typeof payload.revision !== "string" || typeof payload.path !== "string") {
     if (!response.ok && method === "GET" && payload.code?.startsWith("native-")) {
       throw new NativeOpenError(payload.issue?.reason ?? payload.error ?? "Unsupported IeumDoc document.", payload.issue?.action ?? "", payload.code);
     }
-    throw new SaveContentError(payload.error ?? `request failed (${response.status})`, payload.target);
+    throw new SaveContentError(payload.error ?? `request failed (${response.status})`, payload.target, payload.failure);
   }
   const declarations = payload.bibliography?.declarations ?? [];
   const sources = await requestBibliography(payload.path, payload.revision, declarations, bibliographyRoot);
   return {
+    ...(payload.samples ? { samples: payload.samples } : {}),
+    ...(payload.sampleProblem ? { sampleProblem: payload.sampleProblem } : {}),
     bibliographyRoot,
     bibliography: { declarations, sources },
     path: payload.path,

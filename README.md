@@ -18,7 +18,13 @@ Currently available as a Windows Beta. The primary documentation is in Korean.
 2. **unsigned Beta**이므로 알 수 없는 게시자 또는 SmartScreen 경고가 나타날 수 있습니다. 공식 저장소의 다운로드인지 확인하고 PC의 보안 정책을 따르세요.
 3. 시작 화면에서 sample을 선택하거나 **Open folder**로 폴더를 연 뒤 Sidebar의 네이티브 `.md` 파일을 선택합니다. **New file**로 새 문서를 만들고, 편집 후 **Save**로 저장할 수 있습니다.
 
-Settings → About에서 버전·업데이트를 확인합니다. 업데이트 다운로드와 설치는 사용자 요청 후 진행합니다([Desktop 계약](docs/design/desktop-distribution-v1.md)). 공개 설치본의 변경 사항과 검증 범위는 각 Release 본문과 [릴리스 기록](docs/README.md#verification)을 확인하세요.
+Desktop 시작 화면이나 Command center의 **샘플 문서 열기**에서 현재 UI 언어에 맞는
+한국어·영어 전력 변환기 제어 설계 노트를 열어 직접 고칠 수 있습니다. 표·수식·그림·Mermaid,
+상호참조·미주·인용과 참고문헌을 함께 담습니다. 수정한 사본은 앱에 포함된 샘플 버전이
+바뀔 때 앱이 소유를 확인한 경우에만 교체됩니다. 개발 Editor에서도 같은 샘플을 제공하며 HTTP Host는 제외합니다.
+[샘플 배포 계약](docs/design/desktop-distribution-v1.md#native-sample)을 따릅니다.
+
+Settings → About에서 버전·업데이트를 확인합니다. 업데이트 다운로드와 설치는 사용자 요청 후 진행합니다([Desktop 계약](docs/design/desktop-distribution-v1.md)). 공개 설치본의 변경 사항과 검증 범위는 각 Release 본문과 [릴리스 기록](docs/README.md#verification)을 확인하세요. 현재 공개 [v0.0.2-beta.3의 배포·검증 기록](docs/releases/v0.0.2-beta.3.md)을 확인할 수 있습니다.
 지원 대상은 최소 **640px**의 데스크톱급 창과 키보드·포인터 입력입니다([ADR-0010](docs/adr/0010-supported-viewport-and-input.md)).
 
 <a id="document-compatibility-and-preservation"></a>
@@ -67,7 +73,7 @@ pnpm editor
 ```bash
 pnpm ieumdoc help
 pnpm ieumdoc check apps/editor/document/technical-document.md
-pnpm ieumdoc inspect apps/editor/document/technical-document.md --format json
+pnpm ieumdoc inspect apps/editor/samples/ko/converter-control.md --format json
 ```
 
 문서를 수정할 때는 저장소 밖의 사본을 사용하세요. 단건 명령은 `help <command>`, 여러 수정은 [배치 예제](docs/design/filesystem-host-boundary-v1.md#cli-batch-application-215)를 참고합니다.

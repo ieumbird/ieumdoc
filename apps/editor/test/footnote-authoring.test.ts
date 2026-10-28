@@ -6,12 +6,15 @@ import { history, undo, redo } from "@tiptap/pm/history";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { AllSelection, EditorState, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { parse, serialize } from "@ieumdoc/core";
-import { BLOCK_COMMANDS } from "../src/block-commands.ts";
+import { BLOCK_COMMANDS, deleteBlock } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { endnoteEditingKey, endnoteEditingPlugin, endnoteLabel, endnoteNumber, endnotesPlugin } from "../src/endnotes.ts";
 import { assertSupportedDocumentChange, collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
+import { SaveContentError } from "../shared/save-error.ts";
+import { SaveDisplayError, saveErrorBadge } from "../src/save-error.ts";
+import { i18n } from "../src/i18n.ts";
 
 const schema = getSchema(editorExtensions());
 
@@ -214,13 +217,62 @@ test("a new footnote, code edit and edited definition save through Core in their
   assert.equal(savedBlock.block === "footnote" && savedBlock.editable, true);
 });
 
-test("an empty definition and a changed label are refused before Save", () => {
+test("an empty definition and a changed label are refused before Save", async () => {
   const editable = loadEditableDocument(source);
   const baseline = toTiptapDocument(editable);
   const empty = structuredClone(baseline);
   empty.content![1].content!.push({ type: "footnoteReference", attrs: { label: "1" } });
   empty.content!.push({ type: "footnoteDefinition", attrs: { sourcePath: "new:footnote", label: "1" } });
   assert.throws(() => collectSupportedEdits(editable, empty), /footnote definition cannot be empty/);
+  const existing = structuredClone(baseline);
+  existing.content![2].content = [];
+  try {
+    for (const submitted of [empty, existing]) {
+      const noteIndex = submitted.content!.findIndex(node => node.type === "footnoteDefinition" && !node.content?.length);
+      const label = String(submitted.content![noteIndex].attrs!.label);
+      let refusal!: SaveContentError;
+      assert.throws(() => collectSupportedEdits(editable, submitted), error => {
+        assert.ok(error instanceof SaveContentError);
+        assert.equal(error.code, "empty-content");
+        refusal = error;
+        return true;
+      });
+      const display = new SaveDisplayError([refusal], submitted);
+      assert.ok(display.details.includes("remove its reference and definition"));
+      for (const language of ["en", "ko"]) {
+        await i18n.changeLanguage(language);
+        assert.ok(display.summary.includes(language === "en" ? "references and definition together" : "참조와 정의를 함께 제거"));
+        const location = display.locations[0];
+        assert.ok(saveErrorBadge(location.code, location.type).includes(language === "en" ? "references + definition" : "참조·정의 함께 제거"));
+      }
+      // Both actions named in the guidance must pass the actual collector and Core replay.
+      const filled = structuredClone(submitted);
+      filled.content![noteIndex].content = [{type:"text", text:"Restored note."}];
+      assert.ok(saveEdits(source, collectSupportedEdits(editable, filled)).markdown.includes("Restored note."));
+      const state = EditorState.create({schema, doc:schema.nodeFromJSON(submitted),
+        plugins:[structureGuardPlugin(baseline, () => assert.fail("supported removal refused"))]});
+      const removed = editorDocumentJSON(state.apply(deleteBlock(state, noteIndex)));
+      assert.throws(() => saveEdits(source, collectSupportedEdits(editable, removed)), error => {
+        assert.ok(error instanceof SaveContentError);
+        assert.equal(error.code, "invalid-footnote");
+        return true;
+      });
+      for (const block of removed.content!) {
+        block.content = block.content?.filter(node => node.type !== "footnoteReference" || node.attrs?.label !== label);
+      }
+      const saved = saveEdits(source, collectSupportedEdits(editable, removed)).markdown;
+      assert.ok(!saved.includes(`[^${label}]`));
+      assert.equal(serialize(parse(saved)), saved);
+    }
+    // Host locators resolve the same structured kind even without a collector block field.
+    assert.throws(() => saveEdits(source, {footnotes:[{path:[3], content:[]}]}), error => {
+      assert.ok(error instanceof SaveContentError);
+      const display = new SaveDisplayError([error], existing);
+      assert.ok(display.summary.includes("참조와 정의를 함께 제거"));
+      return true;
+    });
+  } finally { await i18n.changeLanguage("en"); }
+
   const renamed: TiptapJSON = structuredClone(baseline);
   renamed.content![2].attrs = { ...renamed.content![2].attrs, label: "z" };
   assert.throws(() => assertSupportedDocumentChange(baseline, renamed), /footnote label cannot change/);
