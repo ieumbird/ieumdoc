@@ -155,10 +155,10 @@ async (page, { screenshots = false, openPath }) => {
                 return thickness && style.borderBottomStyle === 'solid' && r.bottom >= bar.bottom && r.bottom <= tabs.top
                   ? [{left:r.left, right:r.right, bottom:r.bottom, thickness, color:style.borderBottomColor}] : [];
               });
-              const borderColor = getComputedStyle(document.querySelector('.document-tabs')).borderBottomColor;
+              const borderColor = getComputedStyle(document.querySelector('.document-tab-row')).borderBottomColor;
               const continuous = Array.from({length:Math.ceil(header.width)}, (_, i) => header.left + i + 0.5)
                 .filter(x => x < header.right).every(x => lines.filter(line => line.left <= x && line.right > x && line.bottom === tabs.top && line.thickness === 1 && line.color === borderColor).length === 1);
-              const blocked = [...document.querySelectorAll('.app-titlebar button, .sidebar-header button, .sidebar-footer button, .document-panel-header button')].filter(node => {
+              const blocked = [...document.querySelectorAll('.app-titlebar button, .document-tab-row button, .sidebar-header button, .sidebar-footer button, .document-panel-header button')].filter(node => {
                 const r = node.getBoundingClientRect();
                 return r.width && (r.right > innerWidth || (r.top < 40 && r.right > innerWidth - reserved) || getComputedStyle(node).getPropertyValue('app-region') !== 'no-drag');
               }).map(node => node.getAttribute('aria-label') || node.textContent);
@@ -191,7 +191,7 @@ async (page, { screenshots = false, openPath }) => {
             }
             separatorGeometry.push({width, theme, reserved, panelOpen, collapsed, ...geometry});
             if (!geometry.aligned || !geometry.branded || !geometry.continuous || !geometry.singleLine || geometry.blocked.length || geometry.tabsTop - geometry.barBottom > 1 || geometry.drag !== 'drag' ||
-                (geometry.usableWidth >= 896 && geometry.rowHeight !== 40) ||
+                (geometry.rowHeight !== 40) ||
                 (geometry.overlayTop !== undefined && geometry.overlayTop !== geometry.headerBottom))
               captionFailures.push({width, theme, reserved, panelOpen, collapsed, ...geometry});
             if ([1440, 640].includes(width))
@@ -225,7 +225,7 @@ async (page, { screenshots = false, openPath }) => {
     await page.evaluate(() => document.documentElement.style.setProperty('--window-controls-width', '138px'));
     for (const collapsed of [false, true]) {
       if (collapsed) await page.getByRole('button', {name:'Collapse sidebar', exact:true}).click();
-      const blocked = await page.evaluate(() => [...document.querySelectorAll('.top-bar button, .sidebar-header button')].filter(button => {
+      const blocked = await page.evaluate(() => [...document.querySelectorAll('.top-bar button, .document-tab-row button, .sidebar-header button')].filter(button => {
         const rect = button.getBoundingClientRect();
         return rect.right > innerWidth || (rect.top < 40 && rect.right > innerWidth - 138) || getComputedStyle(button).getPropertyValue('app-region') !== 'no-drag';
       }).map(button => button.getAttribute('aria-label') || button.textContent));

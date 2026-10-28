@@ -29,7 +29,7 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   const chips = editor.getByTestId('footnote-reference');
   const texts = async locator => (await locator.allInnerTexts()).map(text => text.trim());
   const notice = page.getByTestId('document-notice');
-  const save = page.locator('.top-bar [data-testid="save"]');
+  const save = page.locator('.document-tab-row [data-testid="save"]');
   const status = () => page.getByTestId('status').innerText();
   const order = () => editor.evaluate(element => {
     const labels = [];

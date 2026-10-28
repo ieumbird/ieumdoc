@@ -51,6 +51,7 @@ button {
   z-index: 3;
   display: grid;
   grid-template-columns: var(--shell-sidebar) minmax(0, 1fr);
+  height: var(--layout-header-row);
   padding-right: var(--window-controls-width);
   border-bottom: var(--border-width) solid var(--id-color-border);
   background: var(--id-color-surface-subtle);
@@ -565,18 +566,29 @@ button {
   container-type: inline-size;
 }
 .app-header { background: var(--id-color-surface-subtle); }
-:is(.app-titlebar, .sidebar-header, .document-panel-header, .settings-topbar) :is(button, input, select, textarea, a, [role="menu"], [role="menuitem"]) {
+:is(.app-titlebar, .document-tab-row, .sidebar-header, .document-panel-header, .settings-topbar) :is(button, input, select, textarea, a, [role="menu"], [role="menuitem"]) {
   app-region: no-drag;
 }
 
-/* Only this row scrolls horizontally; the shared Save controls keep their own row. */
+/* The active document's actions stay outside its horizontally scrolling tablist. */
+.document-tab-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: calc(var(--layout-document-tab-height) + var(--border-width));
+  border-bottom: var(--border-width) solid var(--id-color-border);
+  background: var(--id-color-surface);
+}
+
 .document-tabs {
   display: flex;
   overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
   min-width: 0;
+  height: var(--layout-document-tab-height);
   background: var(--id-color-surface);
-  border-bottom: var(--border-width) solid var(--id-color-border);
-  padding-inline: var(--layout-ui-inset);
+  padding-inline: var(--space-1);
 }
 
 .document-tab {
@@ -628,28 +640,12 @@ button {
 .top-bar {
   app-region: drag;
   user-select: none;
-  display: grid;
-  /* Equal side tracks reserve 21rem for document/view actions; the centered button yields
-   * down to 10rem before the existing 56rem stacked layout takes over. */
-  grid-template-columns: minmax(0, 1fr) minmax(10rem, min(var(--layout-command-center-width), calc(100% - 42rem - var(--space-4) - var(--space-4)))) minmax(0, 1fr);
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  min-height: calc(var(--layout-header-row) - var(--border-width));
-  padding: 0 var(--layout-ui-inset);
-  background: var(--id-color-surface-subtle);
-}
-
-.top-bar-identity {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  min-width: 0;
-}
-
-.top-bar-identity .status {
-  flex-shrink: 0;
-  white-space: nowrap;
+  justify-content: center;
+  height: calc(var(--layout-header-row) - var(--border-width));
+  padding: 0 var(--layout-ui-inset);
+  background: var(--id-color-surface-subtle);
 }
 
 .document-path {
@@ -692,6 +688,7 @@ button {
   align-items: center;
   gap: var(--space-3);
   justify-self: end;
+  padding-inline: var(--space-2);
 }
 
 .command-center-trigger[data-slot="button"] {
@@ -724,23 +721,16 @@ button {
   color: var(--id-color-text-subtle);
 }
 
-/* Panel widths change the available header independently of viewport width. Keep a real
- * center at wide widths; on narrow headers the search gets a centered row of its own. */
-@container (width < 56rem) {
-  .top-bar {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: var(--space-2) var(--space-3);
-    padding-block: var(--space-2);
+/* Search yields to native caption controls without adding another title row. */
+@container (width < 22rem) {
+  .command-center-trigger[data-slot="button"] {
+    width: var(--size-control);
+    padding-inline: 0;
+    justify-content: center;
   }
-  .command-center-trigger { grid-column: 1 / -1; grid-row: 1; }
-  .top-bar-identity { grid-column: 1; grid-row: 2; }
-  .top-bar-actions { grid-column: 2; grid-row: 2; }
-  .top-bar-identity .status { white-space: normal; }
-}
-@container (width < 35rem) {
-  .top-bar-identity { display: contents; }
-  .top-bar-actions { grid-column: 1 / -1; grid-row: 3; justify-self: stretch; min-width: 0; }
-  .top-bar-identity .status { grid-column: 1 / -1; grid-row: 4; }
+  .command-center-trigger .command-center-action,
+  .command-center-trigger .document-path,
+  .command-center-trigger kbd { position: absolute; visibility: hidden; width: max-content; }
 }
 
 .command-center-dialog[data-slot="dialog-content"] {
@@ -1035,6 +1025,17 @@ body:has(.ui-portal [role="menu"]) :is(.app-titlebar, .top-bar, .settings-topbar
 }
 
 .status:empty { display: none; }
+.document-status.status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 var(--size-icon-slot);
+  width: var(--size-icon-slot);
+  height: var(--size-icon-slot);
+  margin: 0;
+}
+.document-status svg { width: var(--size-icon-slot); height: var(--size-icon-slot); }
+.document-status .document-status-dirty { width: var(--space-2); height: var(--space-2); fill: currentColor; }
 /* Outline is a boolean toggle; tab-group current faces are defined with Visual/Source below. */
 .top-bar-toggle[aria-pressed="true"] {
   position: relative;
@@ -2540,25 +2541,6 @@ ol.list { list-style: decimal; }
   .document {
     --layout-document-inline-padding: var(--space-4);
     --layout-document-block-padding: var(--layout-document-block-padding-narrow);
-  }
-}
-
-@media (max-width: 44rem) {
-  .top-bar {
-    align-items: stretch;
-    flex-direction: column;
-    padding-block: var(--space-2);
-  }
-
-  /* Controls never leave the viewport: groups, then controls within a group, wrap in order
-   * (12px between groups, 4px within) when the column is narrower than they are. */
-  .top-bar-actions {
-    flex-wrap: wrap;
-    justify-content: space-between;
-  }
-
-  .top-bar-group {
-    flex-wrap: wrap;
   }
 }
 

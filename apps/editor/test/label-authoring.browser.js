@@ -27,7 +27,7 @@ async (page, { openPath }) => {
   };
   const equation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').first();
   const figure = page.locator('[data-document-tab][data-active=true] [data-block="figure"]').first();
-  const saveEnabled = page.locator('.top-bar [data-testid="save"]:not([aria-disabled="true"])');
+  const saveEnabled = page.locator('.document-tab-row [data-testid="save"]:not([aria-disabled="true"])');
   const save = async () => {
     await saveEnabled.waitFor();
     // A previous save can still show "Saved" until React handles this click. Wait

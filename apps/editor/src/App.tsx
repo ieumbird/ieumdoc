@@ -32,6 +32,7 @@ import type { ImageRenamer } from "./image-rename.ts";
 import { Sidebar } from "./shell/Sidebar.tsx";
 import { folderChain, knownFolders, useFolderTrees, type FolderTreeState } from "./shell/folder-tree.ts";
 import { childPath, documentLocation, splitDocumentPath, unquotePath } from "./shell/document-path.ts";
+import { DocumentActions } from "./shell/DocumentActions.tsx";
 import { TopBar } from "./shell/TopBar.tsx";
 import appIcon from "../../desktop/assets/icon.svg";
 import { CommandCenter } from "./shell/CommandCenter.tsx";
@@ -469,8 +470,8 @@ export function App() {
       : sidebarToggle.current ?? true;
   }
 
-  // The overlaid Document panel starts below the sticky header, whose height changes when the
-  // TopBar wraps or a message appears; it never covers Save, File actions or the Outline toggle.
+  // The overlaid Document panel starts below the sticky header, whose height changes when
+  // a message appears; it never covers Save, File actions or the Outline toggle.
   useEffect(() => {
     const element = header.current;
     const title = titlebar.current;
@@ -911,36 +912,37 @@ export function App() {
           {sidebarOpen ? <span aria-hidden="true">IEUMDOC</span> : null}
         </div>
         <div className="top-bar-container">
-          <TopBar
-            onOpenCommandCenter={() => openCommandCenter()}
-            documentPath={openedPath}
-            wide={documentWidth === "wide"}
-            onToggleWide={toggleDocumentWidth}
-            location={documentLocation(openedPath, folders.rootOf(openedPath))}
-            status={assetPending ? "adding-image" : status}
-            unsaved={documentDirty || draftActive}
-            view={view}
-            viewDisabled={!document || busy}
-            onViewChange={(next) => (next === "source" ? void showSource() : setView("visual"))}
-            saveDisabled={!document || busy}
-            onSave={() => void save()}
-            onCompare={() => compareBeforeSave(fileActionsToggle.current)}
-            compareDisabled={!(documentDirty || draftActive) || busy}
-            onReload={() => void reload()}
-            reloadDisabled={!document || busy}
-            onCopyPath={() => void copyPath()}
-            fileActionsRef={fileActionsToggle}
-            outline={panelOpen}
-            onToggleOutline={() => choosePanelOpen(!panelOpen)}
-            outlineToggleRef={outlineToggle}
-          />
+          <TopBar onOpenCommandCenter={() => openCommandCenter()} documentPath={openedPath}
+            location={documentLocation(openedPath, folders.rootOf(openedPath))} />
         </div>
       </div>
       <div className="app-main">
         <div className="app-header" ref={header}>
-          {tabs.length > 0 ? <DocumentTabs tabs={tabs.map(tab => ({ ...tab,
+          <DocumentTabs tabs={tabs.map(tab => ({ ...tab,
             dirty: Boolean(sessions.current.get(tab.id)?.documentDirty || sessions.current.get(tab.id)?.draftActive),
-          }))} active={activeId} disabled={busy || Boolean(continuation)} onActivate={activateTab} onClose={closeTab} /> : null}
+          }))} active={activeId} disabled={busy || Boolean(continuation)} onActivate={activateTab} onClose={closeTab} actions={
+            <DocumentActions
+              documentPath={openedPath}
+              wide={documentWidth === "wide"}
+              onToggleWide={toggleDocumentWidth}
+              status={assetPending ? "adding-image" : status}
+              unsaved={documentDirty || draftActive}
+              view={view}
+              viewDisabled={!document || busy}
+              onViewChange={(next) => (next === "source" ? void showSource() : setView("visual"))}
+              saveDisabled={!document || busy}
+              onSave={() => void save()}
+              onCompare={() => compareBeforeSave(fileActionsToggle.current)}
+              compareDisabled={!(documentDirty || draftActive) || busy}
+              onReload={() => void reload()}
+              reloadDisabled={!document || busy}
+              onCopyPath={() => void copyPath()}
+              fileActionsRef={fileActionsToggle}
+              outline={panelOpen}
+              onToggleOutline={() => choosePanelOpen(!panelOpen)}
+              outlineToggleRef={outlineToggle}
+            />
+          } />
           <MessageArea
             warning={[recoveryProblem || [...sessions.current.values()].map(owner => owner.recoveryError).find(Boolean), sampleWarning].filter(Boolean).join(" ")}
             error={error || sessionError}

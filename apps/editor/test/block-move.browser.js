@@ -293,7 +293,7 @@ async (page, { openPath, withBlockHover }) => {
     result.equationNotEditing = await equation.getAttribute('data-editing') === 'false' &&
       await page.getByTestId('equation-editor').count() === 0 && await line.count() === 0;
     result.saveStillAvailable = await page.getByTestId('status').innerText() === 'Unsaved changes' &&
-      await page.locator('.top-bar [data-testid="save"]').getAttribute('aria-disabled') === null;
+      await page.locator('.document-tab-row [data-testid="save"]').getAttribute('aria-disabled') === null;
     return movedOrder;
   });
 
