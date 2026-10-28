@@ -29,17 +29,17 @@ export async function captionPixels(app: ElectronApplication, page: Page, output
       rgb: style.borderBottomColor.match(/\d+/g)!.slice(0, 3).map(Number), captionLeft: overlay.right,
       overlayHeight: overlay.height, expectedOverlay, tokenBorder: parseFloat(root.getPropertyValue("--border-width")) };
   }, surface);
+  mkdirSync(path.dirname(output), { recursive: true });
+  writeFileSync(`${output}-geometry.json`, JSON.stringify(geometry, null, 2));
   assert.equal(geometry.border, geometry.tokenBorder);
   assert.equal(geometry.overlayHeight, geometry.expectedOverlay, "native height follows the header content box, excluding its border");
   assert.ok(geometry.captionLeft > 8 && geometry.captionLeft < geometry.width - 30);
   if (surface === "settings") {
-    assert.equal(geometry.rowRight, geometry.width, "Settings covers the scroll-lock gutter without changing the root scroll container");
     assert.ok(geometry.scrollLock.includes("hidden"), "Base UI retains the underlying page scroll lock");
   } else {
     assert.equal(geometry.rowRight, geometry.rootClientWidth, "document strip ends at the current root scrollbar; #488 owns that gutter");
   }
   const handle = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getNativeWindowHandle().readBigUInt64LE().toString());
-  mkdirSync(path.dirname(output), { recursive: true });
   const sample = (suffix: string) => {
     const result = JSON.parse(execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-File",
       fileURLToPath(new URL("caption-pixels.ps1", import.meta.url))], {

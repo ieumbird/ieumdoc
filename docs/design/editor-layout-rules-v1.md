@@ -78,8 +78,7 @@ interactive descendants are no-drag. No fixed caption-button width is used in pr
   `--layout-settings-control-width` (240px) and existing 32px control tokens. Content uses
   the 64px inline/32px block spacing scale; below 768px the named category list stacks above
   content with 24px content insets and single-column rows. The body scrolls inside the
-  viewport, leaving Back reachable. Its fixed popup uses `100vw` for viewport-based caption
-  reservation. While mounted, a fixed root background continues the Settings header's
+  viewport, leaving Back reachable. While mounted, a fixed root background continues the Settings header's
   surface/border colors into the gutter retained by Base UI scroll lock. The lock remains
   active; no document or shell geometry changes underneath it.
   Accent choices (#617) use one row of six 20px circles (compact control size minus

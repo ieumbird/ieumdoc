@@ -152,6 +152,11 @@ test("started without a document, it opens none; the sample opens with its figur
     // #694: DOM geometry cannot see the native opaque overlay covering a web border.
     // Keep the caption edge on-screen even if a CI monitor is narrower than 1440px.
     // #647 places docked Outline below the full-width strip; cover both docked states.
+    const captionFailures: Error[] = [];
+    const inspectCaption = async (name: string, surface: "settings" | "document", oldHeight = false) => {
+      try { await captionPixels(app, page, path.join(work, "caption-pixels", name), surface, oldHeight); }
+      catch (error) { captionFailures.push(new Error(`${name}: ${String(error)}`, { cause: error })); }
+    };
     for (const state of [{ width: 1440, outline: false }, { width: 1440, outline: true },
       { width: 640, outline: false }, { width: 0, outline: true }]) {
       await app.evaluate(({ BrowserWindow, screen }, width) => {
@@ -183,16 +188,17 @@ test("started without a document, it opens none; the sample opens with its figur
           });
         });
         const name = `${state.width || "maximized"}-${theme}-${state.outline ? "open" : "closed"}`;
-        await captionPixels(app, page, path.join(work, "caption-pixels", `${name}-settings`), "settings",
+        await inspectCaption(`${name}-settings`, "settings",
           state.width === 1440 && theme === "light" && !state.outline);
         await page.mouse.wheel(0, 300);
         await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
         assert.equal(await page.evaluate(() => scrollY), documentScroll, "Settings retains the page scroll lock even away from the document's top");
         await page.keyboard.press("Escape");
         await page.getByTestId("settings-dialog").waitFor({ state: "detached" });
-        await captionPixels(app, page, path.join(work, "caption-pixels", `${name}-document`), "document");
+        await inspectCaption(`${name}-document`, "document");
       }
     }
+    if (captionFailures.length) throw new AggregateError(captionFailures, "Native caption pixel regressions (all captures retained)");
     assert.match(await page.getByTestId("current-file").getAttribute("title") ?? "", /[\\/]sample-native-v1[\\/]en[\\/]converter-control\.md$/);
     assert.equal(await page.locator(".ProseMirror h1").first().innerText(), "Current control for a 48 V converter");
     assert.equal(await figuresLoaded(page), true);

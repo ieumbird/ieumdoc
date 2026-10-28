@@ -226,8 +226,7 @@ commands and theme colors retain Electron behavior; the native painted/hit regio
 pixel earlier, before the web border. CSS drag/no-drag and env-based width reservation stay
 unchanged. Outline is below this strip after #647, including when docked.
 
-Settings uses `100vw` for its fixed full-screen popup, aligning caption reservation with
-the viewport. Base UI's modal scroll lock retains a stable root scrollbar gutter outside
+Base UI's modal scroll lock retains a stable root scrollbar gutter outside
 the popup's paint. While Settings is mounted, a viewport-fixed root background continues
 the same surface/header/border tokens into that gutter. The lock itself and underlying
 document geometry and scroll container are unchanged. The document strip still ends before the root
