@@ -19,7 +19,7 @@ IeumDoc은 Git의 plain-text 문서를 단일 진실 공급원(SSOT)으로 사�
 
 ## Windows Desktop
 
-일반 사용자용 공개 버전은 **v0.0.2-beta.1** Windows x64 Beta입니다. Stable은 아직 없습니다. 아래 개발 실행과 달리, 설치된 앱에는 별도 Node.js, pnpm, 브라우저나 Vite 서버가 필요 없습니다.
+일반 사용자용 공개 버전은 **v0.0.2-beta.1** Windows x64 Beta입니다. 다음 후보 **v0.0.2-beta.2**는 [공개 전 준비 중](docs/releases/v0.0.2-beta.2.md)이며 아직 다운로드할 수 없습니다. Stable은 아직 없습니다. 아래 개발 실행과 달리, 설치된 앱에는 별도 Node.js, pnpm, 브라우저나 Vite 서버가 필요 없습니다.
 
 1. [공개 Beta Release](https://github.com/ieumbird/ieumdoc/releases/tag/v0.0.2-beta.1)의 **Assets**에서 `IeumDoc-Setup-0.0.2-beta.1.exe`를 다운로드하고 실행합니다. 현재 사용자에게 설치하며 관리자 권한이 필요하지 않습니다.
 2. 설치 파일은 unsigned이므로 알 수 없는 게시자 또는 SmartScreen 경고가 나타날 수 있습니다. 공식 저장소의 다운로드인지 확인하고 PC의 보안 정책을 따르세요.
