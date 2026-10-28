@@ -32,13 +32,15 @@ intentional MyST difference, spaces, history and CLI inspect contract. Labels ar
 written into caption Markdown.
 
 Empty editable image, pending and Mermaid captions show the UI-language
-`Figure caption` / `그림 캡션` hint in the same minimum 8em inline input area as
+italic `Enter a figure caption…` / `그림 캡션을 입력하세요...` hint while the
+ProseMirror selection is outside, in the same minimum 8em inline input area as
 table captions (#677). The existing computed prefix leads that area. The shared
 `data-placeholder` CSS generates the hint with empty accessibility alternative
 text, so the caption's accessible name is announced once. Clicking the hint places
-the engine caret in the caption; typing removes it. The hint is absent in read-only
+the engine caret in the caption and hides the hint; keyboard and programmatic selection
+do the same. Clearing the text and moving selection away restores it. The hint is absent in read-only
 mode and is never document text, clipboard content, Source or saved Markdown.
-See the [visual verification](editor-visual-language-v1.md#equation-label-and-empty-figure-caption-676-677).
+See the [visual verification](editor-visual-language-v1.md#empty-caption-hints-698).
 
 A pending Figure has no image. Its caption and label are optional: an empty Figure, with no image, caption or label, is a valid place reserved for content to come. Alt text requires an image. An image Figure may have neither caption nor label. Supported captions use the existing InlineContent contract. Connecting or removing an image updates the same container and preserves the label and caption. Removing an image with alt text requires clearing the alt text too.
 

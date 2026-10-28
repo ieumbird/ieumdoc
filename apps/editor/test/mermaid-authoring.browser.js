@@ -54,7 +54,8 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   for (const language of ['en', 'ko']) {
     await page.evaluate(async language => (await import('/src/i18n.ts')).i18n.changeLanguage(language), language);
-    const hint = language === 'ko' ? '그림 캡션' : 'Figure caption';
+    const hint = language === 'ko' ? '그림 캡션을 입력하세요...' : 'Enter a figure caption…';
+    const accessibleName = language === 'ko' ? '그림 캡션' : 'Figure caption';
     const allFigures = active.locator('[data-block="figure"]');
     const originalCaptions = ['Signal flow', 'Image caption'];
     for (let index = 0; index < 2; index++) {
@@ -83,10 +84,11 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument
     await page.getByTestId('view-source').click();
     expect(await active.getByTestId('source-view').innerText()).not.toContain(hint);
     await page.getByTestId('view-visual').click();
+    await active.locator('.document-editor').evaluate(element => element.editor.commands.setTextSelection(1));
     for (let index = 0; index < 2; index++) {
       const caption = allFigures.nth(index).getByTestId('figure-caption-content');
       await expect(caption).toHaveAttribute('data-placeholder', hint);
-      await expect(caption).toHaveAccessibleName(hint);
+      await expect(caption).toHaveAccessibleName(accessibleName);
       const style = await caption.evaluate(element => ({width:element.getBoundingClientRect().width,
         min:parseFloat(getComputedStyle(element).fontSize)*8, content:getComputedStyle(element,'::before').content,
         text:element.textContent}));

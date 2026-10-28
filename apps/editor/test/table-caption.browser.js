@@ -26,18 +26,97 @@ async (page, { openPath, expect, reloadDocument, screenshots }) => {
     return (await (await page.request.get(`${origin}/document/caption.md?path=${encodeURIComponent(path)}`)).text()).replaceAll('\r\n','\n');
   };
   if (screenshots) {
-    // Manual comparison only; the normal scenario below owns behavioral assertions.
-    await openPath(page, [root, 'tmp', 'table-authoring', 'tables.md'].join(separator));
-    const emptyTable = page.locator('[data-document-tab][data-active=true] [data-block="table"]').first();
-    for (const width of [1440,640]) {
+    // Same scratch document and interaction state before and after the visual change.
+    await openPath(page, [root, 'tmp', 'caption-placeholder', 'captions.md'].join(separator));
+    const cases = [
+      {selector:'[data-block="table"]', index:0, name:'table', width:1440, language:'en', theme:'light'},
+      {selector:'[data-block="figure"]', index:0, name:'image', width:640, language:'ko', theme:'dark'},
+      {selector:'[data-block="figure"]', index:1, name:'pending', width:1440, language:'ko', theme:'light'},
+      {selector:'[data-block="figure"]', index:2, name:'mermaid', width:640, language:'en', theme:'dark'},
+    ];
+    for (const {selector,index,name,width,language,theme} of cases) {
       await page.setViewportSize({width,height:900});
-      await emptyTable.scrollIntoViewIfNeeded();
+      await page.evaluate(async ({language,theme}) => {
+        await (await import('/src/i18n.ts')).i18n.changeLanguage(language);
+        (await import('/src/theme.ts')).applyTheme(theme);
+      }, {language,theme});
+      await page.locator(`[data-document-tab][data-active=true] ${selector}`).nth(index).scrollIntoViewIfNeeded();
       await page.mouse.move(width-2,2);
       await page.evaluate(() => document.fonts.ready);
-      await page.screenshot({path:`tmp/table-caption-577/after-${width}.png`});
+      await page.screenshot({path:`tmp/caption-placeholder-${name}.png`});
     }
-    return {manualCaptures:true};
   }
+  // One shared rule covers table, image, pending and Mermaid captions.
+  await openPath(page, [root, 'tmp', 'caption-placeholder', 'captions.md'].join(separator));
+  const surfaces = [
+    page.locator('[data-document-tab][data-active=true] [data-block="table"] [data-testid="table-caption"] [data-node-view-content]'),
+    ...[0,1,2].map(index => page.locator('[data-document-tab][data-active=true] [data-block="figure"]').nth(index).getByTestId('figure-caption-content')),
+  ];
+  const setCaret = index => editor.evaluate((element, index) => {
+    const instance = element.editor;
+    let found = 0;
+    instance.state.doc.descendants((node, pos) => {
+      if (node.type.name === (index === 0 ? 'tableCaption' : 'figure')) {
+        if (found++ === (index === 0 ? 0 : index - 1)) instance.commands.setTextSelection(pos + 1);
+      }
+    });
+  }, index);
+  const leave = () => editor.evaluate(element => element.editor.commands.setTextSelection(1));
+  await leave();
+  for (const language of ['en', 'ko']) {
+    await page.evaluate(async language => (await import('/src/i18n.ts')).i18n.changeLanguage(language), language);
+    for (let index = 0; index < surfaces.length; index++) {
+      const surface = surfaces[index];
+      const hint = language === 'en' ? (index ? 'Enter a figure caption…' : 'Enter a table caption…') :
+        (index ? '그림 캡션을 입력하세요...' : '표 캡션을 입력하세요...');
+      await expect(surface).toHaveAttribute('data-placeholder', hint);
+      await expect(surface).toHaveAccessibleName(language === 'en' ? (index ? 'Figure caption' : 'Table caption') : (index ? '그림 캡션' : '표 캡션'));
+      expect(await surface.evaluate(element => getComputedStyle(element, '::before').fontStyle)).toBe('italic');
+      await setCaret(index); // No DOM focus change: selection alone controls the hint.
+      await expect(surface).not.toHaveAttribute('data-placeholder');
+      await leave();
+      await expect(surface).toHaveAttribute('data-placeholder', hint);
+      await surface.click();
+      await expect(surface).not.toHaveAttribute('data-placeholder');
+      await page.keyboard.type('Temporary');
+      await expect(surface).toHaveText('Temporary');
+      await surface.evaluate(element => {
+        const instance = element.closest('.document-editor').editor;
+        const dom = instance.view.posAtDOM(element, 0);
+        const parent = instance.state.doc.resolve(dom).parent;
+        instance.commands.setTextSelection({from:dom, to:dom + parent.content.size});
+        instance.view.focus();
+      });
+      await page.keyboard.press('Backspace');
+      await expect(surface).not.toHaveAttribute('data-placeholder');
+      await leave();
+      await expect(surface).toHaveAttribute('data-placeholder', hint);
+    }
+  }
+  await page.evaluate(async () => (await import('/src/i18n.ts')).i18n.changeLanguage('en'));
+  await editor.evaluate(element => element.editor.setEditable(false));
+  for (const surface of surfaces) await expect(surface).not.toHaveAttribute('data-placeholder');
+  await editor.evaluate(element => element.editor.setEditable(true));
+  for (const surface of surfaces) await expect(surface).toHaveAttribute('data-placeholder');
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await editor.evaluate(element => { element.editor.commands.selectAll(); element.editor.view.focus(); });
+  await page.keyboard.press('ControlOrMeta+c');
+  const copied = await page.evaluate(async () => {
+    const items = await navigator.clipboard.read();
+    return Promise.all(items.flatMap(item => item.types.filter(type => type === 'text/plain' || type === 'text/html')
+      .map(async type => (await item.getType(type)).text())));
+  });
+  expect(copied.length).toBeGreaterThan(0);
+  for (const text of copied) expect(text).not.toContain('Enter a');
+  await leave();
+  await page.getByTestId('view-source').click();
+  expect(await page.getByTestId('source-view').innerText()).not.toContain('Enter a');
+  await page.getByTestId('view-visual').click();
+  await page.getByRole('button', {name:'Save',exact:true}).click();
+  await page.getByText('Saved',{exact:true}).filter({visible:true}).waitFor();
+  const fixturePath = [root, 'tmp', 'caption-placeholder', 'captions.md'].join(separator);
+  const fixtureSource = await (await page.request.get(`${origin}/document/captions.md?path=${encodeURIComponent(fixturePath)}`)).text();
+  expect(fixtureSource).not.toContain('Enter a');
   await openPath(page, path);
   await table.hover();
   await table.getByRole('button', {name:'Edit table',exact:true}).click();
@@ -148,7 +227,7 @@ async (page, { openPath, expect, reloadDocument, screenshots }) => {
   await editor.evaluate(element => element.editor.setEditable(false));
   await expect(table.getByLabel('Table caption',{exact:true})).not.toHaveAttribute('data-placeholder');
   await editor.evaluate(element => element.editor.setEditable(true));
-  await expect(table.getByLabel('Table caption',{exact:true})).toHaveAttribute('data-placeholder','Table caption');
+  await expect(table.getByLabel('Table caption',{exact:true})).toHaveAttribute('data-placeholder','Enter a table caption…');
   expect(await tableJSON(), 'Editable transitions preserve document content').toEqual(empty);
   expect(await editor.evaluate(element => element.editor.can().undo()), 'Editable transitions create no history').toBe(false);
   await table.locator('td').last().click();
@@ -156,8 +235,10 @@ async (page, { openPath, expect, reloadDocument, screenshots }) => {
   await page.keyboard.press('End');
   await page.keyboard.press('ArrowDown');
   expect(await parent(), 'ArrowDown also enters an empty caption').toBe('tableCaption');
+  await expect(table.getByLabel('Table caption',{exact:true})).not.toHaveAttribute('data-placeholder');
   await page.keyboard.press('ArrowUp');
   expect(await parent()).toBe('tableCell');
+  await expect(table.getByLabel('Table caption',{exact:true})).toHaveAttribute('data-placeholder','Enter a table caption…');
   await table.getByLabel('Table caption',{exact:true}).click();
   expect(await parent(), 'Clicking the empty surface places the engine caret immediately').toBe('tableCaption');
   await page.keyboard.press('Shift+Enter');

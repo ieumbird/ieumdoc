@@ -26,7 +26,9 @@ the existing `updateTableCaption` operation already owns the persistent semantic
 - Status: Implemented
 - Empty-caption surface (#577): every editable table exposes its inline caption without
   an Add caption action. An empty surface uses the caption typography and a muted
-  `Table caption` hint; clicking it starts normal inline input. Opening alone creates
+  italic `Enter a table caption…` / `표 캡션을 입력하세요...` hint while the ProseMirror
+  selection is outside it; clicking it starts normal inline input and hides the hint.
+  Clearing the text and moving the selection away restores it. Opening alone creates
   neither dirty state nor Undo history, and empty captions are omitted on Save.
 - Empty-caption verification: 2026-10-27 (#577: Editor tests, typecheck/build,
   caption/table authoring, references, recovery and layout browser checks;
@@ -55,7 +57,8 @@ same inline controls as Figure captions and prose. A table owns its caption: mov
 deleting the table includes its caption, and Undo/Redo restores them together. ArrowDown
 from the final grid row enters the caption; ArrowUp from its first line returns to the
 last cell. Enter leaves the table. Emptying a caption removes its persistent content.
-Every empty caption surface shows its official `Table N.` and the input hint. Filling or
+Every empty caption surface shows its official `Table N.` and, while the selection is outside,
+the input hint. Filling or
 clearing the caption or Label never changes the table's kind or number, nor the numbers
 of later tables. References to a retained Label therefore keep their number. Clearing a
 Label retains reference text but makes references to that removed target unresolved.
@@ -80,7 +83,10 @@ Whole-table clipboard output retains the empty structural `<caption>` element in
 and the existing trailing block separator (`\n\n`) in plain text. The input hint and
 generated number are never copied; canonical Save still omits empty caption content.
 Changing `setEditable(false)` at runtime removes the hint; reenabling editing restores it,
-without changing document content, dirty state or Undo history.
+when the selection is outside, without changing document content, dirty state or Undo history.
+The shared Figure/Table rule follows ProseMirror selection, including keyboard and programmatic
+selection, independently of DOM focus. The hint is generated with an empty accessibility
+alternative; the caption retains its single accessible name. See [visual evidence](editor-visual-language-v1.md#empty-caption-hints-698).
 
 The caption stays below the table. Its computed number follows the document's authored
 Table reference template, retaining the existing `. ` separator; without a template,

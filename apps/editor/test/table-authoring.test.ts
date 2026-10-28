@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getSchema } from "@tiptap/core";
 import { history, undo } from "@tiptap/pm/history";
-import { EditorState, TextSelection, type Transaction } from "@tiptap/pm/state";
+import { EditorState, NodeSelection, TextSelection, type Transaction } from "@tiptap/pm/state";
 import {
   addTableColumnRight,
   addTableRowBelow,
@@ -17,7 +17,7 @@ import {
   removeTableColumn,
   removeTableRow,
 } from "../src/block-commands.ts";
-import { editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
+import { captionPlaceholderVisible, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import {
   assertSupportedDocumentChange,
   collectSupportedEdits,
@@ -72,6 +72,29 @@ function caretIn(state: EditorState, row: number, column: number, index = TABLE)
 }
 
 const cellOf = (state: EditorState) => ({ row: state.selection.$from.index(1), column: state.selection.$from.index(2) });
+
+test("empty caption hint follows engine selection, content and editability", () => {
+  let { state } = editorState(mixed);
+  let captionPos = -1;
+  state.doc.descendants((node, pos) => { if (node.type.name === "tableCaption") captionPos = pos; });
+  assert.ok(captionPos >= 0);
+  assert.equal(captionPlaceholderVisible(state, captionPos, true), true);
+  assert.equal(captionPlaceholderVisible(state, captionPos, false), false);
+  state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, captionPos + 1)));
+  assert.equal(captionPlaceholderVisible(state, captionPos, true), false);
+  state = state.apply(state.tr.insertText("Caption"));
+  state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1)));
+  assert.equal(captionPlaceholderVisible(state, captionPos, true), false);
+  state = state.apply(state.tr.delete(captionPos + 1, captionPos + 8));
+  assert.equal(captionPlaceholderVisible(state, captionPos, true), true);
+  let figure = editorState(nativeSource("Before.\n\n:::{figure}\n:::\n")).state;
+  let figurePos = -1;
+  figure.doc.descendants((node, pos) => { if (node.type.name === "figure") figurePos = pos; });
+  figure = figure.apply(figure.tr.setSelection(NodeSelection.create(figure.doc, figurePos)));
+  assert.equal(captionPlaceholderVisible(figure, figurePos, true), true);
+  figure = figure.apply(figure.tr.setSelection(TextSelection.create(figure.doc, figurePos + 1)));
+  assert.equal(captionPlaceholderVisible(figure, figurePos, true), false);
+});
 
 test("handle targets reuse commands outside the table, preserving formatted cells and one-step undo", () => {
   let { document, state, rejected } = editorState(mixed);
