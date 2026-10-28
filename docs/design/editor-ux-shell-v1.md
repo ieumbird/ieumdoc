@@ -77,6 +77,8 @@ English, Pretendard loaded, 900px height, at scroll top and 420px, in light/dark
 is in [the asset directory](assets/document-scroll-488/). The final After capture is collected
 by the Linux CI geometry matrix because the five local browser runs were already used when
 the scrollbar/header completion criteria were extended. Cross-platform rasterization differs;
+the unchanged Host's default-locale filename collation also orders the Korean-named fixture
+differently on Windows and Linux. These platform differences are not scroll-layout changes;
 the geometry assertions verify that the scrollbar begins at the header bottom, ends at the
 viewport bottom, and the title-strip border reaches the full window width at both sizes and
 all captured states, while the root remains unscrolled. Representative top pairs:
@@ -93,6 +95,13 @@ assertions. Some header text and dark scrolled document text have different anti
 the container compositor. Existing layout and overlay geometry checks remain authoritative for
 their measured contracts; captures are the manual visual evidence.
 
+The final [32-state geometry record](assets/document-scroll-488/geometry.json) and After PNGs
+come from [CI run 40778182959](https://github.com/ieumbird/ieumdoc/actions/runs/40778182959),
+product code `93e4b9a36e1de344a3b11a9c5fbcc5096fff7214`, Linux pinned Chromium
+154.0.8037.0. All measured states have root scroll 0, root height 900px, a 1px title-strip
+bottom border reaching exactly 640/1440px, and a document viewport starting at the measured
+header bottom (73/122/130px, depending on width/Sidebar state) and ending at 900px.
+
 Browser assertions migrated without changing their tolerances or retry/timeout/skip policies:
 
 - `document-tabs`: save/read each tab's actual scrollTop while retaining editor identity,
@@ -107,7 +116,8 @@ Browser assertions migrated without changing their tolerances or retry/timeout/s
 - `panel-lists`, `command-center`, `table-authoring`: direct scroll setup at the same target
   positions; retain current target/reveal/editing assertions. Geometry queries in `layout-rules`,
   `new-document` and `table-authoring` now select the active tab's column because hidden tabs
-  also own a column.
+  also own a column. The measured-header clearance calculation now adds the container top
+  to its scroll margin: the same header + 32px physical target, at the same 0.5px tolerance.
 - `scenarios.spec`, `citations`, `file-preview`, `folder-navigation`, `footnotes`, `layout-rules`,
   `open-files`, `quiet-document`, `recovery`, `source-view` and manual capture sections:
   reset the document viewport instead of the window. Other assertions are unchanged.
