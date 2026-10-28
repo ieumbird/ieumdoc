@@ -41,7 +41,7 @@ export type DesktopInfo = {
   /** False in a development run, which has no installed update configuration. */
   updatesSupported: boolean;
   update: UpdateState;
-  /** The version whose notification the user seenUpdate with Later. */
+  /** The last viewed offered version. */
   seenUpdate: string | null;
 };
 
@@ -59,6 +59,9 @@ export type CliIntegrationState = {
 export type DesktopBridge = {
   /** The shared Host deletes through the operating system trash. */
   readonly fileDeletion: "trash";
+  /** OS folder action capability; only Host-listed roots can be synchronized. */
+  setOpenedFolders(roots: string[]): Promise<void>;
+  openFolderInExplorer(folder: string): Promise<void>;
   /** In-memory native appearance only; preference persistence stays in renderer localStorage. */
   setTheme(theme: "system" | "light" | "dark"): Promise<boolean>;
   /** Opaque sRGB #rrggbb canvas and caption roles; also marks the initial appearance ready to show. */

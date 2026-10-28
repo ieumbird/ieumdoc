@@ -8,6 +8,7 @@ import electronUpdater from "electron-updater";
 import { load as loadYaml } from "js-yaml";
 import type { DesktopInfo, RestartCheck } from "../../editor/shared/desktop-bridge.ts";
 import { createProtocolHandler, ORIGIN, SCHEME } from "./host-protocol.ts";
+import { ExplorerFolders } from "./explorer.ts";
 import { firstDocument } from "./first-document.ts";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.ts";
 import { parseChannel, releaseNotesUrl, RELEASE_REPOSITORY, RESTART_CHECK_TIMEOUT_MS } from "./update-policy.ts";
@@ -52,6 +53,7 @@ function showWhenReady(): void {
 let preferences: Preferences;
 let updates: UpdateController;
 let cliIntegration: CliIntegration | undefined;
+const explorerFolders = new ExplorerFolders();
 /** Set after the Editor agreed to restart for an update; the installer starts once the window closed. */
 let installing = false;
 
@@ -160,6 +162,8 @@ function registerIpc(): void {
       return run(...args);
     });
   };
+  handle("desktop:opened-folders", roots => explorerFolders.setOpened(roots));
+  handle("desktop:open-folder", folder => explorerFolders.open(folder, target => shell.openPath(target)));
   handle("desktop:info", () => info());
   handle("desktop:cli-state", () => cliIntegration?.state() ?? { status: "off", unsupported: true });
   handle("desktop:cli-set", (enabled) => {
@@ -296,7 +300,7 @@ if (!app.requestSingleInstanceLock()) {
     session.defaultSession.setPermissionCheckHandler(() => false);
     preferences = readPreferences(preferencesFile(), app.getVersion());
     const cliRoot = path.join(app.isPackaged ? process.resourcesPath : path.dirname(appRoot), "cli");
-    protocol.handle(SCHEME, createProtocolHandler(path.join(cliRoot, "editor"), firstDocument(process.argv.slice(app.isPackaged ? 1 : 2), app.getPath("userData"), appRoot, log), file => shell.trashItem(file)));
+    protocol.handle(SCHEME, createProtocolHandler(path.join(cliRoot, "editor"), firstDocument(process.argv.slice(app.isPackaged ? 1 : 2), app.getPath("userData"), appRoot, log), file => shell.trashItem(file), root => explorerFolders.listedRoot(root)));
     if (app.isPackaged && process.platform === "win32" && process.env.LOCALAPPDATA) {
       cliIntegration = new CliIntegration(process.execPath, process.env.LOCALAPPDATA, windowsEnvironment());
     }

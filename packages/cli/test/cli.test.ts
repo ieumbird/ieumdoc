@@ -366,6 +366,72 @@ test("apply-batch matches sequential file bytes across canonical endnote and pat
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test("apply-batch stdin matches file bytes and output, including UTF-8 BOM and dry run", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-batch-stdin-"));
+  const file = path.join(dir, "document.md");
+  const operationsFile = path.join(dir, "operations.json");
+  const original = Buffer.from(nativeSource("# Report\r\n\r\nOriginal.\r\n"));
+  const input = JSON.stringify([
+    { command: "insert-heading", at: "end", level: 2, text: "한글 😀 �" },
+    { command: "insert-block", at: "end", text: "파이프 입력" },
+  ]);
+  try {
+    writeFileSync(operationsFile, input);
+    for (const dryRun of [false, true]) {
+      const flags = ["--if-revision", textRevision(original.toString("utf8")), "--format", "json",
+        ...(dryRun ? ["--dry-run"] : [])];
+      writeFileSync(file, original);
+      const expected = run(["apply-batch", file, "--operations", operationsFile, ...flags]);
+      assert.equal(expected.status, 0, expected.stderr);
+      const saved = readFileSync(file);
+      if (dryRun) assert.deepEqual(saved, original);
+      else assert.match(saved.toString("utf8"), /한글 😀 �\n\n파이프 입력/);
+      for (const stdin of [input, "\uFEFF" + input]) {
+        writeFileSync(file, original);
+        const result = runProcess(["apply-batch", file, "--operations", "-", ...flags], [], undefined, stdin);
+        assert.ifError(result.error);
+        assert.deepEqual({ status: result.status, stdout: result.stdout, stderr: result.stderr }, expected);
+        assert.deepEqual(readFileSync(file), saved);
+      }
+    }
+    // BOM tolerance belongs to stdin only; a file still follows JSON.parse's BOM refusal.
+    writeFileSync(operationsFile, "\uFEFF" + input);
+    assert.equal(run(["apply-batch", file, "--operations", operationsFile]).status, 1);
+    assert.deepEqual(readFileSync(file), original);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("apply-batch stdin refuses malformed input and stale revisions without writing", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-batch-stdin-failure-"));
+  const file = path.join(dir, "document.md");
+  const original = Buffer.from(nativeSource("# Report\r\n\r\nOriginal ✓\r\n"));
+  const valid = JSON.stringify([{ command: "insert-block", at: "end", text: "Added" }]);
+  try {
+    writeFileSync(file, original);
+    for (const { input, flags = [], message } of [
+      { input: Buffer.from([0xff]), message: /Invalid UTF-8/ },
+      { input: "", message: /Unexpected end of JSON input/ },
+      { input: "[{", message: /JSON/ },
+      { input: "\uFEFF\uFEFF" + valid, message: /JSON/ },
+      { input: "[]", message: /non-empty JSON array/ },
+      { input: JSON.stringify([{ command: "insert-block", at: "end", text: "Added" },
+        { command: "remove-block", at: 999 }]), message: /operation 2 .*nothing was written/ },
+      { input: valid, flags: ["--if-revision", "0".repeat(64)], message: /revision mismatch/ },
+    ]) {
+      for (const dryRun of [false, true]) {
+        const result = runProcess(["apply-batch", file, "--operations", "-", "--format", "json",
+          ...flags, ...(dryRun ? ["--dry-run"] : [])], [], undefined, input);
+        assert.ifError(result.error);
+        assert.equal(result.status, 1);
+        assert.equal(result.stdout, "");
+        assert.match(result.stderr, message);
+        assert.deepEqual(readFileSync(file), original);
+      }
+    }
+    assert.deepEqual(readdirSync(dir), ["document.md"]);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test("apply-batch preserves original bytes for step errors, invalid input and stale revisions", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-batch-failure-"));
   const file = path.join(dir, "document.md");
@@ -615,6 +681,8 @@ test("command help is available from help and --help", () => {
   assert.match(batch.stdout, /preceding step's canonical, reparsed snapshot; no automatic tracking/);
   assert.match(batch.stdout, /operation <1-based index>/);
   assert.match(batch.stdout, /objects\/arrays/);
+  assert.match(batch.stdout, /stdin with -/);
+  assert.match(batch.stdout, /cat operations.json \| ieumdoc apply-batch document.md --operations -/);
 });
 
 test("CLI insert-heading persists a Core heading", () => {
@@ -1811,12 +1879,13 @@ function run(args: string[]) {
 }
 
 // Keep process exit delivery, serve, and Node preload/env isolation on the executable path.
-function runProcess(args: string[], nodeArgs: string[] = [], env?: NodeJS.ProcessEnv) {
+function runProcess(args: string[], nodeArgs: string[] = [], env?: NodeJS.ProcessEnv, input?: string | Buffer) {
   const tsxCli = fileURLToPath(import.meta.resolve("tsx/cli"));
   const cli = path.join(cliRoot, "src", "cli.ts");
   return spawnSync(process.execPath, [tsxCli, ...nodeArgs, cli, ...args], {
     encoding: "utf8",
     env,
+    input,
   });
 }
 

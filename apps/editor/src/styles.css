@@ -274,6 +274,7 @@ button {
 }
 
 .sidebar-tree-item { cursor: pointer; }
+.sidebar-tree-item--actions { grid-template-columns: var(--size-icon-slot) minmax(0, 1fr) auto; }
 .sidebar-folder-name { flex: 1; min-width: 0; margin: 0; padding-right: 0; }
 
 .sidebar-folder-name svg,
