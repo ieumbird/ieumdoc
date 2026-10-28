@@ -1,11 +1,12 @@
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { tabLabels, tabNames } from "../document-tabs.ts";
 
 export function DocumentTabs({ tabs, active, disabled, onActivate, onClose }: {
-  tabs: { id: string; path: string; dirty: boolean }[];
+  /** SPIKE: a diagram tab names itself (`label`) and shows an `icon`. */
+  tabs: { id: string; path: string; dirty: boolean; label?: string; icon?: ReactNode }[];
   active: string | null;
   disabled: boolean;
   onActivate(id: string): void;
@@ -13,8 +14,8 @@ export function DocumentTabs({ tabs, active, disabled, onActivate, onClose }: {
 }) {
   useTranslation();
   const row = useRef<HTMLDivElement>(null);
-  const names = tabNames(tabs);
-  const labels = tabLabels(tabs);
+  const names = tabNames(tabs).map((name, index) => tabs[index]!.label ?? name);
+  const labels = tabLabels(tabs).map((label, index) => tabs[index]!.label ? { name: tabs[index]!.label! } : label);
   useLayoutEffect(() => {
     const element = row.current?.querySelector<HTMLElement>('[aria-selected="true"]');
     // Scroll only the tab row; scrollIntoView would also move the document's window.
@@ -50,6 +51,7 @@ export function DocumentTabs({ tabs, active, disabled, onActivate, onClose }: {
               }
             }}>
             {/* The filename gives way first, so the folder that tells equal names apart stays visible. */}
+            {tab.icon}
             <span className="document-tab-name">
               <span className="document-tab-file">{labels[index]!.name}</span>
               {labels[index]!.folder ? <span className="document-tab-folder">{labels[index]!.folder}</span> : null}

@@ -1,4 +1,5 @@
-import { DrawioEditor, drawioAction, drawioInfo, isDrawioImage, pendingDrawio } from "./drawio.tsx";
+import { drawioAction, drawioInfo, isDrawioImage, pendingDrawio } from "./drawio.tsx";
+import { openDiagramTab, watchDiagram } from "./drawio-tabs.ts";
 import { updateLabelProperties } from "./label-rename.ts";
 import type { UiMessage } from "./ui-message.ts";
 import { useMessageState } from "./ui-message.ts";
@@ -1034,8 +1035,9 @@ function FigureView({ node, editor, selected, getPos, view, documentPath: initia
   const applied = figureAttrs(node);
   // SPIKE: a `.drawio.svg` image is edited in the Host's local Draw.io from the same properties popup
   // as any image (double-click → popup → Edit in Draw.io); an empty Figure's popup offers Create with Draw.io.
+  // Draw.io opens in a diagram tab beside the document tabs (drawio-tabs.ts).
   const drawio = isDrawioImage(applied.imageUrl);
-  const [drawing, setDrawing] = useState(false);
+  const mounted = useRef(true);
   const [drawioAvailable, setDrawioAvailable] = useState(false);
   const [version, setVersion] = useState(0);
   const resolved = resolveFigureSource(applied.imageUrl, documentPath);
@@ -1083,27 +1085,34 @@ function FigureView({ node, editor, selected, getPos, view, documentPath: initia
   usePropertyEntry(anchor, beginEdit);
   useEffect(() => {
     let live = true;
+    mounted.current = true;
     void drawioInfo().then(value => {
       if (!live) return;
       setDrawioAvailable(value.available);
-      if (value.available && pendingDrawio.delete(sourcePath) && editableFigure && documentPath) setDrawing(true);
+      if (value.available && pendingDrawio.delete(sourcePath) && editableFigure && documentPath) openDiagramTab(documentPath, undefined, drawioCreated);
     });
-    return () => { live = false; };
+    return () => { live = false; mounted.current = false; };
   }, []);
+  useEffect(() => {
+    if (!drawio || !documentPath) return;
+    return watchDiagram(documentPath, applied.imageUrl, () => setVersion(value => value + 1));
+  }, [drawio, documentPath, applied.imageUrl]);
   const drawioActionKind = editableFigure && documentPath ? drawioAction(applied.imageUrl, drawioAvailable) : undefined;
   const openDrawio = () => {
     if (!editableFigure || !documentPath || !drawioAvailable) return;
     setEditing(false);
-    setDrawing(true);
+    openDiagramTab(documentPath, drawio ? applied.imageUrl : undefined, drawioCreated);
   };
   // The first save of a new diagram puts its file in the Figure: one Undo step, like Apply.
-  const drawioSaved = (path: string) => {
+  // False when the Figure (or its document tab) is gone: the file is saved but placed nowhere.
+  function drawioCreated(path: string): boolean {
+    if (!mounted.current || editor.isDestroyed) return false;
     const position = getPos();
     const current = typeof position === "number" ? view.state.doc.nodeAt(position) : null;
-    if (!current || typeof position !== "number" || editor.isDestroyed) return;
+    if (!current || typeof position !== "number") return false;
     if (figureAttrs(current).imageUrl !== path) view.dispatch(updateFigure(view.state, position, { imageUrl: path }));
-    else setVersion(value => value + 1);
-  };
+    return true;
+  }
   const releaseCopy = () => {
     const copy = copied.current;
     copied.current = undefined;
@@ -1247,10 +1256,6 @@ function FigureView({ node, editor, selected, getPos, view, documentPath: initia
       ) : null}
       {editableFigure && !src ? (
         <div className="figure-no-content" data-testid="figure-no-content" contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>{i18n.t("No content yet")}</div>
-      ) : null}
-      {drawing && documentPath ? (
-        <DrawioEditor documentPath={documentPath} path={drawio ? applied.imageUrl : undefined} onSaved={drawioSaved}
-          onClose={() => { setDrawing(false); focusBlock(view, getPos); }} />
       ) : null}
       <figcaption className="caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}><NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")} /></figcaption>
       {editableFigure && !editing ? (

@@ -16,6 +16,8 @@ import { type DocumentSession, type DocumentSessionSnapshot } from "./useDocumen
 import { messageOf, NativeOpenError, requestDocument } from "./document-session.ts";
 import { readDocumentWidth, readOpenTabs, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, writeOpenTabs, type DocumentWidth } from "./preferences.ts";
 import { DocumentPanel } from "./shell/DocumentPanel.tsx";
+import { DiagramCloseDialog, DrawioTabPanel } from "./drawio.tsx";
+import { diagramFilePath, diagramTabName, removeDiagramTab, setDiagramActivator, useDiagramTabs } from "./drawio-tabs.ts";
 import { DocumentStart } from "./shell/DocumentStart.tsx";
 import productMark from "../../desktop/assets/icon.svg?url";
 import { MessageArea } from "./shell/MessageArea.tsx";
@@ -31,7 +33,7 @@ import { TopBar } from "./shell/TopBar.tsx";
 import { CommandCenter } from "./shell/CommandCenter.tsx";
 import { KeyboardShortcutsDialog } from "./shell/KeyboardShortcutsDialog.tsx";
 import type { CommandCenterItem } from "./shell/command-center.ts";
-import { Bookmark, Quote, Columns3, Copy, FileText, FileX, FolderOpen, Keyboard, PanelLeft, PanelRight, RotateCcw, RotateCw, Save, Settings2, SlidersHorizontal, SquareCode, StretchHorizontal } from "lucide-react";
+import { Bookmark, Quote, Columns3, Copy, FileText, FileX, FolderOpen, Keyboard, PanelLeft, PanelRight, RotateCcw, RotateCw, Save, Settings2, SlidersHorizontal, SquareCode, StretchHorizontal, Workflow } from "lucide-react";
 import type {
   DocumentErrorResponse,
   DocumentFileResponse,
@@ -105,6 +107,10 @@ export function App() {
   const [fileOperationPending, setFileOperationPending] = useState(false);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  // SPIKE: Draw.io diagram tabs, listed after the document that opened them.
+  const diagramTabs = useDiagramTabs();
+  const diagramActive = diagramTabs.some(tab => tab.id === activeId);
+  const [diagramClosing, setDiagramClosing] = useState<string | null>(null);
   const [tabsRestored, setTabsRestored] = useState(false);
   const [rememberVersion, rememberTabs] = useReducer(version => version + 1, 0);
   const serializedTabs = JSON.stringify({ paths: tabs.map(tab => tab.path), activePath: tabs.find(tab => tab.id === activeId)?.path ?? null });
@@ -248,6 +254,22 @@ export function App() {
     setActiveId(id);
     setError("");
     setNotice("");
+  }
+  const activateRef = useRef(activateTab);
+  activateRef.current = activateTab;
+  useEffect(() => setDiagramActivator(id => activateRef.current(id)), []);
+  /** Closes a diagram tab and returns to the document that opened it; unsaved changes ask first. */
+  function closeDiagram(id: string, discard = false): void {
+    const tab = diagramTabs.find(item => item.id === id);
+    if (!tab) return;
+    if (tab.dirty && !discard) { setDiagramClosing(id); return; }
+    setDiagramClosing(null);
+    removeDiagramTab(id);
+    scrollPositions.current.delete(id);
+    if (activeId === id) {
+      focusAfterClose.current = true;
+      setActiveId(openedTab(tabs, tab.documentPath)?.id ?? tabs.at(-1)?.id ?? null);
+    }
   }
   useLayoutEffect(() => {
     if (previousActive.current !== activeId) {
@@ -412,6 +434,7 @@ export function App() {
     }
   };
   function closeTab(id: string): void {
+    if (diagramTabs.some(tab => tab.id === id)) { closeDiagram(id); return; }
     const owner = sessions.current.get(id);
     if (!owner || busy || owner.busyRef.current || continuation) return;
     if (owner.editorRef.current?.hasUnsavedChanges()) {
@@ -849,9 +872,12 @@ export function App() {
               outlineToggleRef={outlineToggle}
             />
           </div>
-          {tabs.length > 0 ? <DocumentTabs tabs={tabs.map(tab => ({ ...tab,
+          {tabs.length + diagramTabs.length > 0 ? <DocumentTabs tabs={[...tabs, undefined].flatMap(tab => [...(tab ? [{ ...tab,
             dirty: Boolean(sessions.current.get(tab.id)?.documentDirty || sessions.current.get(tab.id)?.draftActive),
-          }))} active={activeId} disabled={busy || Boolean(continuation)} onActivate={activateTab} onClose={closeTab} /> : null}
+          }] : []), ...diagramTabs.filter(diagram => tab ? diagram.documentPath === tab.path : !openedTab(tabs, diagram.documentPath)).map(diagram => ({
+            id: diagram.id, path: diagramFilePath(diagram), dirty: diagram.dirty, label: diagramTabName(diagram, i18n.t("New diagram")),
+            icon: <Workflow className="document-tab-icon" aria-hidden="true" />,
+          }))])} active={activeId} disabled={busy || Boolean(continuation)} onActivate={activateTab} onClose={closeTab} /> : null}
           <MessageArea
             warning={recoveryProblem || [...sessions.current.values()].map(owner => owner.recoveryError).find(Boolean) || ""}
             error={error || sessionError}
@@ -864,12 +890,12 @@ export function App() {
             onNoticeExpired={() => { setNotice(""); session?.setNotice(""); }}
           />
         </div>
-        <main className="document-column" onMouseDown={(event) => {
+        <main className={diagramActive ? "document-column document-column--diagram" : "document-column"} onMouseDown={(event) => {
           // The empty area below the document places the caret at its end.
           if (event.button === 0 && event.target === event.currentTarget && view === "visual" &&
             editorRef.current?.focusEnd(event.clientY)) event.preventDefault();
         }}>
-          {tabs.length === 0 && start ? (
+          {tabs.length === 0 && !diagramActive && start ? (
             <DocumentStart
               mark={productMark}
               recovery={<RecoveryList records={recoveryRecords.filter(record => !tabs.some(tab => tab.recoveryId === record.id))} unavailable={Boolean(recoveryProblem)} onReview={reviewRecovery} />}
@@ -888,6 +914,7 @@ export function App() {
             />
           ) : null}
           {tabs.map(tab => <DocumentTab settingsDisabled={busy} key={tab.id} id={tab.id} file={tab.file} restored={tab.restored} recoveryId={tab.recoveryId} active={tab.id === activeId} report={reportSession} onAssetChange={onAssetChange} />)}
+          {diagramTabs.map(tab => <DrawioTabPanel key={tab.id} tab={tab} active={tab.id === activeId} onExit={() => closeDiagram(tab.id, true)} />)}
         </main>
       </div>
       {panelOpen ? (
@@ -966,6 +993,11 @@ export function App() {
         finalFocus={() => shellReturnFocus(newFileButton.current)}
         returnFocus={newFileButton}
         onClose={() => { if (!switching) { setNewDialog(false); folderNewReady.current = false; } }}
+      />
+      <DiagramCloseDialog
+        name={(() => { const tab = diagramTabs.find(item => item.id === diagramClosing); return tab ? diagramTabName(tab, i18n.t("New diagram")) : null; })()}
+        onDiscard={() => { if (diagramClosing) closeDiagram(diagramClosing, true); }}
+        onCancel={() => setDiagramClosing(null)}
       />
       <UnsavedChangesDialog
         open={continuation !== null}

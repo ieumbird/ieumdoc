@@ -1,8 +1,10 @@
 // SPIKE: edit a Figure's `.drawio.svg` image in the Host's local Draw.io webapp (embed=1&proto=json).
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import type { DrawioFile, DrawioInfo, DrawioWriteResponse } from "../shared/drawio-protocol.ts";
 import { i18n } from "./i18n.ts";
+import { Button } from "@/components/ui/button.tsx";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
+import { diagramSaved, setDiagramDirty, type DiagramTab } from "./drawio-tabs.ts";
 
 export { drawioAction, isDrawioImage } from "../shared/drawio-protocol.ts";
 
@@ -55,21 +57,24 @@ function frameUrl(): string {
 }
 
 type Props = {
-  documentPath: string;
-  /** The Figure's current `.drawio.svg`, or undefined to create one in assets/. */
-  path?: string;
-  onSaved: (path: string) => void;
-  onClose: () => void;
+  tab: DiagramTab;
+  active: boolean;
+  /** Draw.io's Save & Exit or Exit (which confirms lost changes itself). */
+  onExit: () => void;
 };
 
-/** A full-window Draw.io editor. Save writes the file; Save & Exit / Exit close it. */
-export function DrawioEditor({ documentPath, path, onSaved, onClose }: Props) {
+/** A diagram tab's panel: Draw.io fills the document area and stays mounted while another tab is shown. */
+export function DrawioTabPanel({ tab, active, onExit }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [error, setError] = useState("");
-  const state = useRef<{ path?: string; revision?: string; exit?: boolean; file?: Promise<DrawioFile | undefined> }>({ path });
+  const state = useRef<{ path?: string; revision?: string; exit?: boolean; file?: Promise<DrawioFile | undefined> }>({ path: tab.path });
+  const exit = useRef(onExit);
+  exit.current = onExit;
 
   useEffect(() => {
     const current = state.current;
+    const { documentPath } = tab;
+    const path = current.path;
     current.file = path ? readDiagram(documentPath, path) : Promise.resolve(undefined);
     current.file.then(file => { current.revision = file?.revision; }, cause => setError(String(cause?.message ?? cause)));
     const post = (message: unknown) => frame.current?.contentWindow?.postMessage(JSON.stringify(message), location.origin);
@@ -87,35 +92,57 @@ export function DrawioEditor({ documentPath, path, onSaved, onClose }: Props) {
         } });
       } else if (message.event === "init") {
         const file = await current.file?.catch(() => undefined);
-        post({ action: "load", xml: file ? diagramXml(file.svg) : "", autosave: 0, title: path?.split("/").pop() ?? i18n.t("New diagram") });
+        // autosave: Draw.io reports each change, which marks the tab unsaved; nothing is written until Save.
+        post({ action: "load", xml: file ? diagramXml(file.svg) : "", autosave: 1, title: path?.split("/").pop() ?? i18n.t("New diagram") });
+      } else if (message.event === "autosave") {
+        setDiagramDirty(tab.id, true);
       } else if (message.event === "save") {
         current.exit = message.exit;
         post({ action: "export", format: "xmlsvg", xml: message.xml, spinKey: "saving" });
       } else if (message.event === "export" && message.data) {
         try {
           const svg = decodeSvg(message.data);
+          const created = !current.path;
           const saved = await writeDiagram({ documentPath, svg, path: current.path, revision: current.path ? current.revision : undefined });
           current.path = saved.path;
           current.revision = saved.revision;
-          setError("");
-          onSaved(saved.path);
-          if (current.exit) onClose();
+          const { placed } = diagramSaved(tab.id, saved.path);
+          setError(created && !placed ? i18n.t("The diagram was saved as {{path}}, but its Figure is no longer open.", { path: saved.path }) : "");
+          if (current.exit && (placed || !created)) exit.current();
           else post({ action: "status", message: i18n.t("Saved"), modified: false });
         } catch (cause) {
           post({ action: "spinner", show: false });
           setError(i18n.t("Diagram could not be saved: {{reason}}", { reason: cause instanceof Error ? cause.message : String(cause) }));
         }
-      } else if (message.event === "exit") onClose();
+      } else if (message.event === "exit") exit.current();
     };
     addEventListener("message", receive);
     return () => removeEventListener("message", receive);
-  }, [documentPath, path]);
+  }, [tab.id]);
 
-  return createPortal(
-    <div className="drawio-overlay" data-testid="drawio-editor" role="dialog" aria-label={i18n.t("Draw.io diagram")}>
+  return (
+    <div role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={!active} inert={!active}
+      className="drawio-tab" data-testid="drawio-editor" data-diagram-tab={tab.id} data-active={active ? "true" : "false"}>
       {error ? <div className="drawio-error" role="alert">{error}</div> : null}
       <iframe ref={frame} className="drawio-frame" title={i18n.t("Draw.io diagram")} src={frameUrl()} />
-    </div>,
-    document.body,
+    </div>
+  );
+}
+
+/** Closing a diagram tab with changes Draw.io has not saved. */
+export function DiagramCloseDialog({ name, onDiscard, onCancel }: { name: string | null; onDiscard(): void; onCancel(): void }) {
+  return (
+    <Dialog open={name !== null} onOpenChange={next => { if (!next) onCancel(); }}>
+      <DialogContent showCloseButton={false} data-testid="drawio-close-dialog">
+        <DialogHeader>
+          <DialogTitle>{i18n.t("Close without saving?")}</DialogTitle>
+          <DialogDescription>{i18n.t("{{name}} has changes that are not saved. Closing the tab discards them.", { name: name ?? "" })}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="secondary" size="sm" onClick={onCancel} autoFocus>{i18n.t("Cancel")}</Button>
+          <Button variant="destructive" size="sm" onClick={onDiscard}>{i18n.t("Don't save")}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
