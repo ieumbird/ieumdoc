@@ -44,15 +44,26 @@ try {
     $expected = [string]::Join(',', $capture.rgb)
     $reference = $bitmap.GetPixel([int][Math]::Floor(($capture.captionLeft - 8) * $scale) - $cropX, $y)
     $mismatches = @()
+    $colors = @{}
     for ($x = $left; $x -lt $right; $x++) {
         $pixel = $bitmap.GetPixel($x, $y)
-        if ("$($pixel.R),$($pixel.G),$($pixel.B)" -ne $expected) {
+        $rgb = "$($pixel.R),$($pixel.G),$($pixel.B)"
+        $colors[$rgb] = 1 + $colors[$rgb]
+        if ($rgb -ne $expected) {
             $mismatches += [Math]::Floor(($x + $cropX) / $scale)
         }
     }
+    $edgeRows = @{}
+    foreach ($row in @(($y - 1), $y, ($y + 1), ($y + 2))) {
+        $edgeRows["$row"] = @(for ($x = $width - 20; $x -lt $width; $x++) {
+            $pixel = $bitmap.GetPixel($x, $row)
+            "$($pixel.R),$($pixel.G),$($pixel.B)"
+        })
+    }
     [ordered]@{ scale = $scale; origin = @{ x = $origin.X; y = $origin.Y }; y = $y
         reference = @($reference.R, $reference.G, $reference.B)
-        expected = $capture.rgb; sampled = $right - $left; mismatches = $mismatches
+        expected = $capture.rgb; sampled = $right - $left; mismatches = $mismatches; colors = $colors
+        edgeStart = $client.Right - $client.Left - 20; edgeRows = $edgeRows
     } | ConvertTo-Json -Compress
 } finally {
     $graphics.Dispose()

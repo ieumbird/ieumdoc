@@ -23,7 +23,15 @@ export async function captionPixels(app: ElectronApplication, page: Page, output
     document.body.append(probe);
     const expectedOverlay = probe.getBoundingClientRect().height;
     probe.remove();
+    const inspect = (element: HTMLElement) => {
+      const css = getComputedStyle(element), bounds = element.getBoundingClientRect();
+      return { inline: element.getAttribute("style"), width: bounds.width, right: bounds.right, clientWidth: element.clientWidth,
+        background: css.background, backgroundColor: css.backgroundColor, backgroundImage: css.backgroundImage,
+        backgroundAttachment: css.backgroundAttachment, scrollbarGutter: css.scrollbarGutter, position: css.position,
+        overflow: css.overflow, transform: css.transform, contain: css.contain };
+    };
     return { surface, width: innerWidth, height: innerHeight, rowRight: rect.right, rootClientWidth: document.documentElement.clientWidth,
+      scrollY, root: inspect(document.documentElement), body: inspect(document.body), popup: surface === "settings" ? inspect(row.parentElement!) : null,
       scrollLock: [getComputedStyle(document.documentElement).overflowY, getComputedStyle(document.body).overflowY],
       bottom: rect.bottom, border: parseFloat(style.borderBottomWidth),
       rgb: style.borderBottomColor.match(/\d+/g)!.slice(0, 3).map(Number), captionLeft: overlay.right,
@@ -63,6 +71,73 @@ export async function captionPixels(app: ElectronApplication, page: Page, output
     }
   }
   const result = sample("");
+  // Diagnostic only: preserve the original acceptance result, and restore every changed
+  // property before returning. This CI experiment distinguishes native and DOM paint.
+  if (proveOldHeight && result.mismatches.length) {
+    const nativeBackground = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getBackgroundColor());
+    const properties = ["background-color", "background-image", "background-position-x", "background-position-y", "background-size",
+      "background-repeat", "background-attachment", "background-origin", "background-clip"];
+    const original = await page.evaluate(properties => ({
+      backgrounds: [document.documentElement, document.body].map(element => properties.map(property =>
+        ({ property, value: element.style.getPropertyValue(property), priority: element.style.getPropertyPriority(property) }))),
+      gutter: { value: document.documentElement.style.getPropertyValue("scrollbar-gutter"), priority: document.documentElement.style.getPropertyPriority("scrollbar-gutter") },
+    }), properties);
+    const restore = async () => {
+      await page.evaluate(original => {
+        document.getElementById("caption-gutter-probe")?.remove();
+        [document.documentElement, document.body].forEach((element, i) => {
+          element.style.removeProperty("background");
+          original.backgrounds[i]!.forEach(({ property, value, priority }) => {
+            if (value) element.style.setProperty(property, value, priority); else element.style.removeProperty(property);
+          });
+        });
+        if (original.gutter.value) document.documentElement.style.setProperty("scrollbar-gutter", original.gutter.value, original.gutter.priority);
+        else document.documentElement.style.removeProperty("scrollbar-gutter");
+      }, original);
+      await app.evaluate(({ BrowserWindow }, color) => BrowserWindow.getAllWindows()[0]!.setBackgroundColor(color), nativeBackground);
+    };
+    const record = async (suffix: string) => {
+      await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      const dom = await page.evaluate(() => {
+        const html = document.documentElement, body = document.body, shell = document.querySelector(".app-shell")!;
+        return { innerWidth, scrollY, scrollHeight: html.scrollHeight, shell: shell.getBoundingClientRect().toJSON(),
+          popup: document.querySelector(".settings-screen")!.getBoundingClientRect().toJSON(),
+          htmlStyle: html.getAttribute("style"), bodyStyle: body.getAttribute("style"),
+          rootBackground: getComputedStyle(html).background, bodyBackground: getComputedStyle(body).background,
+          lock: [getComputedStyle(html).overflowY, getComputedStyle(body).overflowY],
+          probe: document.getElementById("caption-gutter-probe")?.getBoundingClientRect().toJSON() };
+      });
+      const background = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getBackgroundColor());
+      writeFileSync(`${output}${suffix}-dom.json`, JSON.stringify({ ...dom, nativeBackground: background }, null, 2));
+      return sample(suffix);
+    };
+    try {
+      await record("-probe-baseline");
+      await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setBackgroundColor("#ff00ff"));
+      await page.evaluate(({ top, height }) => {
+        document.documentElement.style.setProperty("background", "linear-gradient(#0000ff, #0000ff) scroll #00ff00", "important");
+        const strip = document.createElement("div"); strip.id = "caption-gutter-probe";
+        strip.style.cssText = `position:fixed;top:${top}px;height:${height}px;left:calc(100% - 1px);right:-100px;background:#ff0000;z-index:2147483647;pointer-events:none`;
+        document.body.append(strip);
+      }, { top: geometry.bottom - geometry.border, height: geometry.border * 2 });
+      await record("-probe-layered");
+      await page.evaluate(() => document.getElementById("caption-gutter-probe")!.remove());
+      await record("-probe-root-image-color-native");
+      await restore();
+      await page.evaluate(() => {
+        document.documentElement.style.setProperty("background", "none", "important");
+        document.body.style.setProperty("background", "#00ffff", "important");
+      });
+      await record("-probe-body");
+      await restore();
+      await page.evaluate(() => document.documentElement.style.setProperty("scrollbar-gutter", "auto", "important"));
+      await record("-probe-auto-gutter");
+    } finally {
+      await restore();
+      const restored = await record("-probe-restored");
+      assert.deepEqual(restored.mismatches, result.mismatches, "diagnostics restore the original pixel result");
+    }
+  }
   // #694 owner scope: keep the document's existing root scrollbar, record all its pixels,
   // and require the native overlay not to obscure the separator in the web content area.
   // Settings has no exception: its separator must reach the full window edge.
