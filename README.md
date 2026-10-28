@@ -21,10 +21,10 @@ Currently available as a Windows Beta. The primary documentation is in Korean.
 Desktop 시작 화면이나 Command center의 **샘플 문서 열기**에서 현재 UI 언어에 맞는
 한국어·영어 전력 변환기 제어 설계 노트를 열어 직접 고칠 수 있습니다. 표·수식·그림·Mermaid,
 상호참조·미주·인용과 참고문헌을 함께 담습니다. 수정한 사본은 앱에 포함된 샘플 버전이
-바뀔 때 교체됩니다. 개발 Editor에서도 같은 샘플을 제공하며 HTTP Host는 제외합니다.
+바뀔 때 앱이 소유를 확인한 경우에만 교체됩니다. 개발 Editor에서도 같은 샘플을 제공하며 HTTP Host는 제외합니다.
 [샘플 배포 계약](docs/design/desktop-distribution-v1.md#native-sample)을 따릅니다.
 
-Settings → About에서 버전·업데이트를 확인합니다. 업데이트 다운로드와 설치는 사용자 요청 후 진행합니다([Desktop 계약](docs/design/desktop-distribution-v1.md)). 공개 설치본의 변경 사항과 검증 범위는 각 Release 본문과 [릴리스 기록](docs/README.md#verification)을 확인하세요.
+Settings → About에서 버전·업데이트를 확인합니다. 업데이트 다운로드와 설치는 사용자 요청 후 진행합니다([Desktop 계약](docs/design/desktop-distribution-v1.md)). 공개 설치본의 변경 사항과 검증 범위는 각 Release 본문과 [릴리스 기록](docs/README.md#verification)을 확인하세요. 다음 소스 후보는 [공개 전 준비 기록](docs/releases/v0.0.2-beta.3.md)에서 구분합니다.
 지원 대상은 최소 **640px**의 데스크톱급 창과 키보드·포인터 입력입니다([ADR-0010](docs/adr/0010-supported-viewport-and-input.md)).
 
 <a id="document-compatibility-and-preservation"></a>

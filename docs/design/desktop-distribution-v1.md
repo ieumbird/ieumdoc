@@ -284,6 +284,8 @@ logging. No alternate userData location or speculative filesystem repair is intr
 
 ## Channels and versions
 
+The source candidate is `0.0.2-beta.3` and remains unpublished; the public distribution is still `0.0.2-beta.2`. See the [#690 preparation record](../releases/v0.0.2-beta.3.md). Actual GitHub `0.0.2-beta.2 → 0.0.2-beta.3` installation/update is **not run and unverified** because this PC’s installed state must remain unchanged. Local-feed CI is separate evidence.
+
 The public distribution is `0.0.2-beta.2`; Stable publication is deferred. See the [#659 release record](../releases/v0.0.2-beta.2.md) for the successful first release-workflow attempt, public assets and CI results. Actual GitHub `0.0.2-beta.1 → 0.0.2-beta.2` installation/update was not run by owner decision and remains unverified.
 
 For the preceding #632 correction, the owner confirmed there were no existing users and approved correcting only the version. After verifying the new public assets, the two `0.1.0` Beta Releases/assets/remote tags were withdrawn; source commits and historical verification records remain. Downgrade protection and migration policy remain unchanged: an installed `0.1.0-beta.*` cannot automatically update down to `0.0.2-beta.1` and requires manual replacement. See the [#632 release record](../releases/v0.0.2-beta.1.md) for publication, withdrawal and the unverified actual GitHub installation/update boundary.

@@ -43,7 +43,7 @@ async function start(options: { startupError?: boolean; logError?: boolean; load
   const app = Object.assign(new EventEmitter(), {
     isPackaged: false, requestSingleInstanceLock: () => options.lock !== false,
     quit: () => quits++, exit: (code: number) => { assert.equal(code, 1); exits++; },
-    whenReady: () => Promise.resolve(), getPath: () => "/fake-user-data", getVersion: () => "0.0.2-beta.2",
+    whenReady: () => Promise.resolve(), getPath: () => "/fake-user-data", getVersion: () => "0.0.2-beta.3",
   });
   const require = createRequire(import.meta.url);
   const dependencies: Record<string, unknown> = {
@@ -203,7 +203,7 @@ test("close cancels both timers; second launch reveals, restores and focuses the
 
 test("startup exceptions are logged, reported and exit; logging failure remains observable on stderr", async () => {
   const h = await start({ startupError: true });
-  assert.match(h.logs.join(""), /starting 0.0.2-beta.2[\s\S]*startup failed: Error: permission setup failed/);
+  assert.match(h.logs.join(""), /starting 0.0.2-beta.3[\s\S]*startup failed: Error: permission setup failed/);
   assert.match(h.alerts[0]!, /permission setup failed/);
   assert.equal(h.exits(), 1);
   const denied = await start({ logError: true, startupError: true });
