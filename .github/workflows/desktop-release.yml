@@ -54,9 +54,22 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   browser:
+    name: Release Editor browser regressions (${{ matrix.shard }}/4)
     needs: preflight
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    container:
+      # Match CI: image OS dependencies, with the locked alpha browser installed below.
+      image: mcr.microsoft.com/playwright:v1.64.0-noble
+      options: --ipc=host --init
+      env:
+        PLAYWRIGHT_BROWSERS_PATH: /github/home/.cache/ms-playwright
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    env:
+      IEUMDOC_BROWSER_SHARD: ${{ matrix.shard }}/4
     steps:
       - uses: actions/checkout@v7
         with:
@@ -70,16 +83,29 @@ jobs:
           version: 12.5.1
           cache: true
           run_install: false
+      - name: Cache Playwright browsers
+        uses: actions/cache@v6
+        with:
+          path: /github/home/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install chromium --with-deps
+      - name: Install pinned Chromium
+        timeout-minutes: 2
+        run: |
+          pnpm exec playwright install chromium
+          fc-match :lang=ko
       - name: Full Editor browser regressions on the existing CI platform
-        run: pnpm browser:test
+        env:
+          IEUMDOC_BROWSER_SERVER_LOG: ${{ runner.temp }}/editor-vite.log
+        run: pnpm browser:test --shard="$IEUMDOC_BROWSER_SHARD"
       - name: Preserve browser failure diagnostics
         if: failure()
         uses: actions/upload-artifact@v6
         with:
-          name: desktop-release-browser-diagnostics
-          path: tmp/browser-results/
+          name: desktop-release-browser-diagnostics-${{ matrix.shard }}
+          path: |
+            ${{ runner.temp }}/editor-vite.log
+            tmp/browser-results/
           if-no-files-found: ignore
           retention-days: 7
 

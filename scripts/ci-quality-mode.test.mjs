@@ -93,16 +93,49 @@ test('CI keeps policy checks in both modes and gates only product quality steps'
 
 test('Linux browser container tags match the locked Playwright base version', () => {
   const workflow = load(readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'));
+  const release = load(readFileSync(new URL('../.github/workflows/desktop-release.yml', import.meta.url), 'utf8'));
   const lockfile = loadAll(readFileSync(new URL('../pnpm-lock.yaml', import.meta.url), 'utf8'))
     .find(doc => doc?.importers?.['.']?.devDependencies?.['@playwright/test']);
   const version = lockfile?.importers['.'].devDependencies['@playwright/test'].version;
   const baseVersion = /^(\d+\.\d+\.\d+)(?:-|$)/.exec(version)?.[1];
   assert.ok(baseVersion, `Unrecognized locked Playwright version: ${version}`);
   const httpLinux = workflow.jobs.http.strategy.matrix.include.find(entry => entry.os === 'ubuntu-latest');
-  for (const [name, container] of [['browser', workflow.jobs.browser.container], ['http Linux', httpLinux?.container]]) {
+  for (const [name, container] of [['browser', workflow.jobs.browser.container], ['http Linux', httpLinux?.container],
+    ['release browser', release.jobs.browser.container]]) {
     assert.equal(container?.image, `mcr.microsoft.com/playwright:v${baseVersion}-noble`,
       `${name}: image OS dependencies must match locked Playwright base ${baseVersion} (${version})`);
   }
+});
+
+test('release browser shards match CI while preserving trusted checkout and publication gates', () => {
+  const ci = load(readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'));
+  const release = load(readFileSync(new URL('../.github/workflows/desktop-release.yml', import.meta.url), 'utf8'));
+  const { browser, publish } = release.jobs;
+  assert.deepEqual(browser.strategy.matrix.shard, [1, 2, 3, 4]);
+  assert.equal(browser.strategy['fail-fast'], false);
+  assert.deepEqual(browser.container, ci.jobs.browser.container);
+  assert.equal(browser['runs-on'], ci.jobs.browser['runs-on']);
+  assert.equal(browser['timeout-minutes'], ci.jobs.browser['timeout-minutes']);
+  assert.deepEqual(browser.env, ci.jobs.browser.env);
+  for (const name of ['Cache Playwright browsers', 'Install pinned Chromium']) {
+    assert.deepEqual(browser.steps.find(step => step.name === name), ci.jobs.browser.steps.find(step => step.name === name));
+  }
+  const run = browser.steps.find(step => step.run?.startsWith('pnpm browser:test'));
+  const ciRun = ci.jobs.browser.steps.find(step => step.run?.startsWith('pnpm browser:test'));
+  assert.equal(run.run, ciRun.run);
+  assert.deepEqual(run.env, ciRun.env);
+  assert.equal(browser.needs, 'preflight');
+  assert.deepEqual(browser.steps.find(step => step.uses?.startsWith('actions/checkout@')).with,
+    { ref: '${{ needs.preflight.outputs.commit }}', 'persist-credentials': false });
+  assert.deepEqual(release.permissions, { contents: 'read' });
+  assert.equal(browser.permissions, undefined);
+  const diagnostics = browser.steps.find(step => step.uses?.startsWith('actions/upload-artifact@'));
+  assert.equal(diagnostics.if, 'failure()');
+  assert.ok(diagnostics.with.name.includes('${{ matrix.shard }}'));
+  assert.equal(diagnostics.with.path, ci.jobs.browser.steps.find(step => step.uses?.startsWith('actions/upload-artifact@')).with.path);
+  assert.deepEqual(publish.needs, ['preflight', 'browser', 'build']);
+  // No status function overrides Actions' implicit success() gate for all matrix jobs.
+  assert.equal(publish.if, "inputs.mode != 'verify' && github.ref == 'refs/heads/master'");
 });
 
 // These expressions use the JS-compatible subset of Actions expressions.

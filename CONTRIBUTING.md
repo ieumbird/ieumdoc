@@ -160,6 +160,8 @@ pnpm --filter @ieumdoc/desktop test:packaged
 
 컨트롤러는 dispatch의 master SHA에서 실행하며, tag 코드 실행 전에 기존 tag와 master ancestry·Desktop 버전을 검증한다. 검증한 commit SHA로 빌드하고 게시 직전 remote tag도 재확인한다. Installer/app의 전체 PE FileVersion, metadata 버전·파일명·SHA-512·크기, builder로 재계산한 blockmap을 검증한다. Beta는 `prerelease=true`, `latest=false`, `beta.yml`만 공개한다.
 
+모든 release 모드는 기존 CI 결과를 재사용하지 않고 검증한 tag commit에서 Editor browser 회귀 전체를 Linux 4개 shard(`pnpm browser:test --shard=N/4`)로 다시 실행한다. CI와 같은 Playwright 컨테이너·고정 Chromium 설치·브라우저 캐시·한글 폰트 확인을 사용하며 shard별 제한은 35분이다. `fail-fast: false`로 나머지 shard도 끝까지 실행하고, 실패 시 Vite 로그와 browser diagnostics를 shard별 artifact에 보존한다. 게시 job의 `needs: [preflight, browser, build]`와 기본 성공 조건을 유지하므로 모든 shard와 Windows build가 성공해야 게시할 수 있다. 하나라도 실패·취소되면 게시하지 않는다.
+
 게시 job만 `contents: write`를 가지며 `desktop-release` environment를 사용한다. 2026-10-28 소유자 결정으로 별도 게시 승인을 없애고 실제 GitHub environment의 required reviewer를 제거했다. API로 required reviewer·wait timer가 없고 custom deployment branch policy가 `master` branch 한 개만 허용함을 확인했다. 릴리스 요청의 명시적 승인과 master에서의 수동 workflow 실행은 유지하며, 검증 성공 후 게시 job은 추가 승인 없이 진행한다. 다음 게시 전에도 실제 환경 규칙을 확인한다. Signed 모드는 이 환경에 `WINDOWS_CSC_LINK`(PFX/인증서 참조), `WINDOWS_CSC_KEY_PASSWORD`도 필요하다. 인증서/키/토큰은 source에 넣지 않는다. 환경·secret 설정과 workflow 실행은 명시적 승인 범위에서 수행한다. 이전 beta.2 게시는 이 변경 전에 소유자 요청에 따른 agent의 reviewer 승인으로 진행했다([기록](docs/releases/v0.1.0-beta.2.md)).
 
 인증된 paginated Release 목록에서 기존 공개 Release와 Draft를 모두 거부한다. 생성 응답의 ID로 새 Draft에 세 자산을 올리고 서버의 정확한 자산 집합·uploaded 상태·size·SHA-256·tag/channel을 확인한 뒤 마지막 요청으로 공개한다. 업로드/검증 실패는 Draft로 남기고 자동 삭제·덮어쓰기·재시도하지 않는다. 마지막 공개 요청의 응답이 소실되면 공개 여부를 확인해야 하므로 `Publication confirmation required`와 ID를 보고한다.
