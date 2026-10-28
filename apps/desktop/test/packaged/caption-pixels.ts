@@ -23,15 +23,15 @@ export async function captionPixels(app: ElectronApplication, page: Page, output
     document.body.append(probe);
     const expectedOverlay = probe.getBoundingClientRect().height;
     probe.remove();
-    const inspect = (element: HTMLElement) => {
+    const layers = [document.documentElement, document.body, row.parentElement!].map(element => {
       const css = getComputedStyle(element), bounds = element.getBoundingClientRect();
       return { inline: element.getAttribute("style"), width: bounds.width, right: bounds.right, clientWidth: element.clientWidth,
         background: css.background, backgroundColor: css.backgroundColor, backgroundImage: css.backgroundImage,
         backgroundAttachment: css.backgroundAttachment, scrollbarGutter: css.scrollbarGutter, position: css.position,
         overflow: css.overflow, transform: css.transform, contain: css.contain };
-    };
+    });
     return { surface, width: innerWidth, height: innerHeight, rowRight: rect.right, rootClientWidth: document.documentElement.clientWidth,
-      scrollY, root: inspect(document.documentElement), body: inspect(document.body), popup: surface === "settings" ? inspect(row.parentElement!) : null,
+      scrollY, root: layers[0], body: layers[1], popup: surface === "settings" ? layers[2] : null,
       scrollLock: [getComputedStyle(document.documentElement).overflowY, getComputedStyle(document.body).overflowY],
       bottom: rect.bottom, border: parseFloat(style.borderBottomWidth),
       rgb: style.borderBottomColor.match(/\d+/g)!.slice(0, 3).map(Number), captionLeft: overlay.right,
