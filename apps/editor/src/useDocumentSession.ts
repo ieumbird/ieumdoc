@@ -340,6 +340,8 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
       return requestSource({ path: openedPathRef.current, revision: sourceRevision.current, base: sessionBase.current,
         ...collectSupportedEdits(document, editorRef.current.getSnapshot().editorDocument) });
     },
+    /** SPIKE: the disk revision this session last loaded or saved. */
+    revision: () => sourceRevision.current,
     getSnapshot, initialEditorSnapshot, editorRef, document, bibliography, openedPath, headingNumbering, referenceTemplates, outlineStore, editorGeneration, isCurrent,
     view, setView, sourceMarkdown, status, setStatus, error, setError, notice, setNotice, noticeAction,
     draftActive, assetPending, documentDirty, busy, switching, busyRef, draftNotice,

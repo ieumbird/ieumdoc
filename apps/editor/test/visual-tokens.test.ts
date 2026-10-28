@@ -144,6 +144,7 @@ const nativeButtons = new Map([
   ["shell/DocumentStart.tsx:document-start-folder", "Wrapping recent-folder list row, not a fixed action."],
   ["shell/FolderDialog.tsx:folder-picker-option", "Recent-folder list option retains picker navigation."],
   ["shell/Sidebar.tsx:sidebar-tree-item", "Recent-folder tree row retains navigation geometry."],
+  ["shell/AiPanel.tsx:ai-panel-mode", "SPIKE: segmented radio for the AI panel question/edit mode."],
 ]);
 
 test("UI consumers use shared colors, control geometry and reasoned native-button exceptions", () => {

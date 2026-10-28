@@ -1,4 +1,6 @@
 // SPIKE: Editor side of the `/api/ai/*` Host routes (`ieumdoc serve --ai`).
+import type { EditableDocument } from "@ieumdoc/core";
+import type { ProposalHunk } from "./ai-review.ts";
 export type AiStatus = { enabled: false } | {
   enabled: true;
   installed: boolean;
@@ -17,7 +19,14 @@ export type AiEvent =
   | { type: "message"; itemId: string; text: string }
   | { type: "activity"; text: string }
   | { type: "error"; message: string }
+  | { type: "proposal"; proposal: AiProposal }
   | { type: "done"; status: string; error: string | null };
+
+/** An AI edit proposal for a saved document; nothing is written until accepted hunks are applied. */
+export type AiProposal = {
+  id: string; path: string; revision: string; summary: string; hunks: ProposalHunk[];
+  before: string[]; after: string[]; original: EditableDocument; proposed: EditableDocument; elapsedMs: number; model: string;
+};
 
 const base = () => `${import.meta.env?.BASE_URL ?? "/"}api/ai/`;
 
@@ -49,8 +58,10 @@ export async function* readEvents(body: ReadableStream<Uint8Array>): AsyncGenera
 
 export type AiTurnRequest = { session: string; root: string; path: string; question: string; documentText: string; selection: string };
 
-export async function* askAi(request: AiTurnRequest, signal: AbortSignal): AsyncGenerator<AiEvent> {
-  const response = await fetch(`${base()}turn`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request), signal });
+export type AiEditRequest = { session: string; root: string; path: string; revision: string; request: string; selection: string };
+
+export async function* askAi(request: AiTurnRequest | AiEditRequest, signal: AbortSignal): AsyncGenerator<AiEvent> {
+  const response = await fetch(`${base()}${"request" in request ? "edit" : "turn"}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request), signal });
   if (!response.ok || !response.body) {
     const error = await response.json().catch(() => ({})) as { error?: string };
     yield { type: "error", message: error.error ?? `HTTP ${response.status}` };
@@ -89,4 +100,12 @@ export function joinDocumentPath(root: string, relative: string): string {
   const separator = root.includes("\\") && !root.includes("/") ? "\\" : "/";
   const parts = relative.split(/[\\/]+/).filter(part => part && part !== ".");
   return [root.replace(/[\\/]+$/, ""), ...parts].join(separator);
+}
+
+/** Applies the accepted hunks (none discards the proposal); a changed file answers 409 and nothing is written. */
+export async function applyProposal(id: string, accepted: number[]): Promise<{ revision: string; written: boolean }> {
+  const response = await fetch(`${base()}apply`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, accepted }) });
+  const body = await response.json() as { revision: string; written: boolean; error?: string };
+  if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`);
+  return body;
 }

@@ -127,5 +127,6 @@ export const updateFootnoteDefinition = fence(operations.updateFootnoteDefinitio
 export const updateLabel = fence(operations.updateLabel);
 export const insertTarget = fence(operations.insertTarget);
 export const validateFigure = operations.validateFigure;
+export { documentBlocks, composeBlocks, type DocumentBlock } from "./myst/blocks.ts";
 export { evaluateBibliography, BIBLIOGRAPHY_LIMITS } from "./bibliography.ts";
 export type { BibliographySource, BibliographyDiagnostic, BibliographyPart, BibliographyReference, BibliographyEntry, BibliographyEvaluation } from "./bibliography.ts";

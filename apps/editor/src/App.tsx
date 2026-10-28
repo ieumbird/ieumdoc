@@ -17,7 +17,7 @@ import { messageOf, NativeOpenError, requestDocument } from "./document-session.
 import { readDocumentWidth, readOpenTabs, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, writeOpenTabs, type DocumentWidth } from "./preferences.ts";
 import { DocumentPanel } from "./shell/DocumentPanel.tsx";
 import { AiPanel } from "./shell/AiPanel.tsx";
-import { joinDocumentPath, readAiStatus, type AiStatus } from "./ai.ts";
+import { joinDocumentPath, readAiStatus, type AiProposal, type AiStatus } from "./ai.ts";
 import { DocumentStart } from "./shell/DocumentStart.tsx";
 import productMark from "../../desktop/assets/icon.svg?url";
 import { MessageArea } from "./shell/MessageArea.tsx";
@@ -597,6 +597,9 @@ export function App() {
     return message === "";
   }
 
+  const [proposals, setProposals] = useState<Record<string, AiProposal>>({});
+  const closeProposal = useCallback((tab: string) => setProposals(({ [tab]: _closed, ...rest }) => rest), []);
+
   /** SPIKE: AI questions cover the opened folder, or the document's own folder when none is open. */
   function aiRoot(): string {
     return folders.rootOf(openedPath) ?? folders.roots[0] ?? (openedPath ? splitDocumentPath(openedPath).directory : "");
@@ -941,7 +944,8 @@ export function App() {
               })}
             />
           ) : null}
-          {tabs.map(tab => <DocumentTab settingsDisabled={busy} key={tab.id} id={tab.id} file={tab.file} restored={tab.restored} recoveryId={tab.recoveryId} active={tab.id === activeId} report={reportSession} onAssetChange={onAssetChange} />)}
+          {tabs.map(tab => <DocumentTab settingsDisabled={busy} key={tab.id} id={tab.id} file={tab.file} restored={tab.restored} recoveryId={tab.recoveryId} active={tab.id === activeId} report={reportSession} onAssetChange={onAssetChange}
+            proposal={proposals[tab.id]} onProposalDone={closeProposal} />)}
         </main>
       </div>
       {panelOpen && panelView === "ai" ? (
@@ -953,6 +957,8 @@ export function App() {
           path={openedPath}
           context={() => editorRef.current?.aiContext?.() ?? { text: "", selection: "" }}
           onOpenCitation={(path, anchor) => void openCitation(path, anchor)}
+          edit={{ revision: () => session?.revision() ?? "", dirty: Boolean(session?.documentDirty || session?.draftActive), reviewing: Boolean(activeId && proposals[activeId]) }}
+          onProposal={(tab, proposal) => setProposals(all => ({ ...all, [tab]: proposal }))}
           onSettings={() => { setSettingsCategory("ai"); setSettingsOpen(true); }}
           onClose={() => { choosePanelOpen(false); aiToggle.current?.focus(); }}
         />

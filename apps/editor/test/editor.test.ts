@@ -122,12 +122,12 @@ test("Host file loading exposes the Core read model", () => {
   );
 });
 
-test("one Tiptap editor owns the document", () => {
+test("one Tiptap editor owns the document; the AI proposal review renders read-only copies", () => {
   const files = listSourceFiles(path.join(editorRoot, "src"));
   const owners = files.filter((file) => /\buseEditor\s*\(/.test(readFileSync(file, "utf8")));
   assert.deepEqual(
     owners.map((file) => path.basename(file)),
-    ["DocumentEditor.tsx"],
+    ["DocumentEditor.tsx", "ProposalReview.tsx"],
   );
 });
 
