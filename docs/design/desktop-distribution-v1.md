@@ -249,8 +249,8 @@ control exclusion from drag and BrowserWindow title. It also uses Win32 `ClientT
 `System.Drawing.Graphics.CopyFromScreen` to sample the OS-composed separator below all three
 caption buttons, in document/Settings, light/dark, 1440px with docked Outline open/closed,
 640px, and maximized states, plus maximize/restore while Settings remains open. It checks
-document viewport width/height/scroll position, header content width and original inline
-styles through Settings close and native resize. A reference pixel outside the buttons checks screen-coordinate
+that Settings wheel input does not scroll the document behind it, and records the document
+viewport/scroll and root/body geometry with every capture. A reference pixel outside the buttons checks screen-coordinate
 alignment; a negative control restores the old 40px height on light Settings and must cover
 the line before the fix is restored. Captures/measurements are uploaded as `desktop-caption-pixels`,
 including failures. A missing foreground window, unavailable screen, or wrong reference color

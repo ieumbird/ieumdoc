@@ -30,7 +30,9 @@ export async function captionPixels(app: ElectronApplication, page: Page, output
         backgroundAttachment: css.backgroundAttachment, scrollbarGutter: css.scrollbarGutter, position: css.position,
         overflow: css.overflow, transform: css.transform, contain: css.contain };
     });
+    const viewport = document.querySelector<HTMLElement>('.document-scroll[data-active="true"]');
     return { surface, width: innerWidth, height: innerHeight, rowRight: rect.right, rootClientWidth: document.documentElement.clientWidth,
+      documentScroll: viewport ? { top: viewport.scrollTop, width: viewport.clientWidth, height: viewport.scrollHeight } : null,
       scrollY, root: layers[0], body: layers[1], popup: surface === "settings" ? layers[2] : null,
       scrollLock: [getComputedStyle(document.documentElement).overflowY, getComputedStyle(document.body).overflowY],
       bottom: rect.bottom, border: parseFloat(style.borderBottomWidth),
