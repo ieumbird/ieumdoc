@@ -100,6 +100,16 @@ pnpm browser:test citations --screenshots           # tmp/visual-refinement/cita
 
 ### 실제 환경 확인
 
+Windows Desktop 제목 줄은 문서와 Settings 양쪽에서 light/dark, Outline 열림/닫힘,
+일반/최대화 및 실제 디스플레이 배율로 확인한다. 하단선이 창 컨트롤 아래까지 이어져야 하며,
+컨트롤의 hover/press·최소화/최대화/닫기와 빈 영역 drag·더블클릭도 유지되어야 한다.
+Windows packaged CI는 기본 배율의 OS 화면 픽셀과 기존 40px 오버레이의 실패 대조를 검사한다
+(`desktop-caption-pixels` artifact). 로컬 browser geometry와 renderer screenshot은 네이티브
+오버레이를 포함하지 않으므로 이 확인의 대체 근거가 아니다.
+Settings는 기존 scroll lock을 유지하면서 선이 창 끝까지 이어져야 한다. #488 0단계가
+문서 스크롤을 header 아래로 옮겼으므로 최종 CI는 문서·Settings 양쪽 모두 gutter 예외 없이
+전체 caption 구간의 픽셀을 검사한다. 병합 전 root gutter의 13px 불일치 측정은 PR #696에 보존한다.
+
 1. **OS 한국어 IME.** 문단에서 한글을 조합·확정하고 후보창을 쓴 뒤, Backspace와 문단 경계 이동을 거쳐 Save → Reload한다. 글자 누락·중복이 없어야 한다. 자동 검사는 Chromium 조합 입력만 본다.
 2. **실제 앱에서 붙여넣기.** 웹 페이지, Notion, Word에서 제목·목록·표·코드·링크가 섞인 내용을 복사해 붙여넣고 Save → Reload한다. 자동 검사는 대표 HTML을 쓴다. 정책은 [Continuous document editing](../design/document-editing-v1.md)을 따른다.
 3. **이미지 붙여넣기와 이동.** 스크린샷 PNG를 붙여넣고, 파일 탐색기에서 사진(JPEG)을 끌어다 놓아 Save한 뒤, 문서와 `assets/`를 함께 다른 폴더로 옮겨 다시 연다. 이미지가 모두 보여야 한다. 자동 검사의 drop은 합성 event다.

@@ -209,7 +209,7 @@ The native window enforces a minimum width of **640px** (minimum height 480px), 
 
 ## Integrated Windows title bar (#605)
 
-`BrowserWindow` uses `titleBarStyle: "hidden"` and a 40px `titleBarOverlay`, retaining native
+`BrowserWindow` uses `titleBarStyle: "hidden"` and a 39px `titleBarOverlay`, retaining native
 minimize/maximize/close controls. Editor CSS reserves their actual Window Controls Overlay
 geometry without a fixed button width; browser Hosts have no reservation. Header empty areas
 use `app-region: drag`, interactive controls and shared portal popup/positioner/backdrop
@@ -217,19 +217,54 @@ boundaries `no-drag`. Menus preserve pointer input to other triggers; while
 a menu is open, underlying shell headers temporarily use no-drag for outside dismissal. Full-screen Settings leaves only its 40px header draggable and retains
 caption reservation at 640px. Native move/double-click maximize and
 maximized inset behavior require Windows manual checks. Document tabs remain below TopBar.
-The TopBar bottom separator spans its full column, including the native button reservation
-when Outline is closed or overlaid, without a second line or a header-height change (#635).
+The full-width title strip introduced by #647 and the Settings header keep their 40px total
+height, including the 1px bottom separator. The native height is the content height:
+`--layout-header-row` (2.5rem = 40px at the UI root size) minus `--border-width` (1px), not a
+separate adjustable metric (#694). Changing either token requires updating the main-process
+height; packaged CI compares it with the resolved CSS values. Native button widths, symbols,
+commands and theme colors retain Electron behavior; the native painted/hit region ends one
+pixel earlier, before the web border. CSS drag/no-drag and env-based width reservation stay
+unchanged. Outline is below this strip after #647, including when docked.
+
+Before #488 phase 0, Base UI could retain a 15px viewport gutter beside Settings. OS probes
+showed that this area accepted solid canvas colors but clipped background images and fixed
+DOM paint. #488 moved document scrolling below the header and keeps the body viewport locked;
+Base UI respects that existing lock without reserving a root gutter. Both title strips now
+span the full viewport. #694 adds no scroll-lock override, padding compensation or document
+scroll change; its Windows pixel checks cover the integrated #488 behavior as well as the
+native overlay correction. The earlier 13px sampled gutter interruption is historical evidence
+in PR #696, not a remaining exception to the full-edge assertion.
+
+The cause is established from Electron's [overlay height/color API](https://www.electronjs.org/docs/latest/api/base-window#winsettitlebaroverlayoptions-windows-linux)
+and its pinned [WinFrameView layout](https://github.com/electron/electron/blob/v44.7.0/shell/browser/ui/views/win_frame_view.cc)
+and [opaque caption background](https://github.com/electron/electron/blob/v44.7.0/shell/browser/ui/views/win_caption_button_container.cc):
+the old height 40 covers y=39, where the web separator is painted. A DOM border reaching the
+right edge (#636) does not establish that the line survives native composition.
 The renderer title is the active filename followed by ` — IeumDoc`, or `IeumDoc` without a
 document, for native taskbar/Alt+Tab identification as well as browser tabs. The existing
 beforeunload/unsaved-work protection remains authoritative for native Close.
 
 Packaged CI checks actual Window Controls Overlay visibility/geometry at 1440px and 640px,
-control exclusion from drag, the separator at the real native caption edge with Outline closed,
-and BrowserWindow title. Local checks use persistent Chrome with
+control exclusion from drag and BrowserWindow title. It also uses Win32 `ClientToScreen` and
+`System.Drawing.Graphics.CopyFromScreen` to sample the OS-composed separator below all three
+caption buttons, in document/Settings, light/dark, 1440px with docked Outline open/closed,
+640px, and maximized states, plus maximize/restore while Settings remains open. It checks
+that Settings wheel input does not scroll the document behind it, and records the document
+viewport/scroll and root/body geometry with every capture. A reference pixel outside the buttons checks screen-coordinate
+alignment; a negative control restores the old 40px height on light Settings and must cover
+the line before the fix is restored. Captures/measurements are uploaded as `desktop-caption-pixels`,
+including failures. A missing foreground window, unavailable screen, or wrong reference color
+fails the test rather than substituting renderer screenshots or skipping the assertion.
+Both Settings and document captures must pass through the full caption edge, with no gutter
+exclusion. JSON summaries record the root client gap and title-strip edge gap alongside all
+pixel mismatches, so a future reserved gutter cannot silently become an allowed exception.
+Local checks use persistent Chrome with
 the bridge and representative caption-width geometry, including long filenames in Settings
 and portal overlays over the wrapped header at 640×480; they do not launch packaged Desktop.
-Manual checks cover drag, double-click maximize, maximized gaps, rendered light/dark button
-colors on theme changes, and taskbar/Alt+Tab presentation.
+Manual checks still cover drag, native minimize/maximize/close hit targets (including hover
+and press at the bottom edge), double-click maximize, non-default Windows display scaling,
+rendered light/dark symbols and taskbar/Alt+Tab presentation. CI screen pixels do not establish
+real-user Windows acceptance or all display-scale behavior.
 
 ## Appearance (#595)
 
