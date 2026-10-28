@@ -60,6 +60,7 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
         await shot('settings');
         await closeSettings();
         await page.getByRole('button',{name:'File actions',exact:true}).click();
+        await page.getByRole('menu').and(page.locator(':focus-within')).waitFor();
         await page.mouse.move(0,0);
         await shot('menu');
         await page.keyboard.press('Escape');

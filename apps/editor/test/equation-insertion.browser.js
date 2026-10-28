@@ -118,6 +118,7 @@ async (page, { expect }) => {
     await page.keyboard.type('/equation');
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Equation', exact:true}).click();
     await page.getByTestId('equation-editor').waitFor();
+    await expect(page.getByTestId('equation-latex')).toBeFocused();
     const afterCancel = await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').count();
     const noEmptyParagraphAfterSlash = await page.locator('[data-document-tab][data-active=true] [data-block="paragraph"]').count() === baselineParagraphCount;
     await page.getByTestId('equation-latex').fill('Unapplied');
@@ -141,6 +142,7 @@ async (page, { expect }) => {
     await insertButton.click();
     await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Equation', exact:true}).click();
     const latex = page.getByTestId('equation-latex');
+    await expect(latex).toBeFocused();
     await latex.fill('');
     await latex.press('Control+Enter');
     await page.getByTestId('equation-editor').waitFor({state:'detached'});

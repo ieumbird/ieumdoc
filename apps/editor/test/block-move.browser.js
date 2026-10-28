@@ -25,6 +25,54 @@ async (page, { openPath, withBlockHover }) => {
   const before = await read();
   if (!before.includes('```{math}') || !before.includes(':::{figure}')) throw new Error('Scratch document is not a fresh technical-document.md copy');
 
+  // Delay the opening frame, as a busy renderer can, while a user opens another surface.
+  // Release the real callbacks only after the menu owns focus; inspect immediately afterwards.
+  for (const [folder, document, blockSelector, editName, fieldId, cancelId, draft] of [
+    ['block-move', 'draft-boundaries.md', '[data-block="equation"]', 'Edit', 'equation-latex', 'equation-cancel', 'x + DeferredFocusDraft'],
+    ['mermaid-authoring', 'diagram.md', '[data-block="figure"]', 'Edit figure', 'mermaid-source', 'mermaid-cancel', 'graph TD\n  Draft --> Preserved'],
+    ['block-move', 'technical-document.md', '[data-block="figure"]', 'Edit figure', 'figure-image-url', 'figure-cancel', 'draft-image.svg'],
+  ]) {
+    await openPath(page, [root, 'tmp', folder, document].join(separator));
+    await page.getByRole('dialog').waitFor({state:'detached'});
+    const block = page.locator(`[data-document-tab][data-active=true] ${blockSelector}`).first();
+    await block.hover();
+    await page.evaluate(() => {
+      const native = window.requestAnimationFrame;
+      const cancel = window.cancelAnimationFrame;
+      const callbacks = new Map();
+      window.requestAnimationFrame = callback => {
+        const id = native.call(window, () => {});
+        callbacks.set(id, callback);
+        return id;
+      };
+      window.cancelAnimationFrame = id => {
+        callbacks.delete(id);
+        cancel.call(window, id);
+      };
+      window.releaseOpeningFrames = () => {
+        window.requestAnimationFrame = native;
+        window.cancelAnimationFrame = cancel;
+        delete window.releaseOpeningFrames;
+        callbacks.forEach(callback => callback(performance.now()));
+        return callbacks.size;
+      };
+    });
+    try {
+      await block.getByRole('button', {name:editName, exact:true}).click();
+      await page.getByTestId(fieldId).fill(draft);
+      await page.getByRole('button', {name: /^Move (equation|figure) block/}).first().click();
+      const menu = page.getByRole('menu', {name:'Block actions', exact:true});
+      await page.waitForFunction(() => document.querySelector('[role="menu"][aria-label="Block actions"]')?.contains(document.activeElement));
+      if (!await page.evaluate(() => window.releaseOpeningFrames())) throw new Error('Opening frame was not held');
+      if (!await menu.evaluate(node => node.contains(document.activeElement))) throw new Error(`${fieldId} stole menu focus after its delayed opening frame`);
+      await page.keyboard.press('Escape');
+      if (await menu.count() || await page.getByTestId(fieldId).inputValue() !== draft) throw new Error('Menu Escape discarded the property draft');
+      await page.getByTestId(cancelId).click();
+    } finally {
+      await page.evaluate(() => window.releaseOpeningFrames?.());
+    }
+  }
+
   await openPath(page, file);
   await page.getByRole('dialog').waitFor({state:'detached'});
 
@@ -54,7 +102,9 @@ async (page, { openPath, withBlockHover }) => {
     const handle = page.locator('[data-document-tab][data-active=true] .block-handle').nth(index);
     await handle.focus();
     await page.keyboard.press('Enter');
-    return page.getByRole('menu', {name:label, exact:true});
+    const menu = page.getByRole('menu', {name:label, exact:true});
+    await menu.and(page.locator(':focus-within')).waitFor();
+    return menu;
   };
   const titleMenu = await openBlockMenu(0);
   for (const name of ['Move up', 'Move down']) {
@@ -103,7 +153,7 @@ async (page, { openPath, withBlockHover }) => {
     await equation.hover({position:{x:4, y:4}});
     await page.getByRole('button', {name:/^Move equation block \d+$/}).click();
     const menu = page.getByRole('menu', {name:'Block actions', exact:true});
-    await menu.waitFor();
+    await menu.and(page.locator(':focus-within')).waitFor();
     const offset = (await menu.boundingBox()).y - (await equation.boundingBox()).y;
     await page.keyboard.press('Escape');
     await menu.waitFor({state:'detached'});

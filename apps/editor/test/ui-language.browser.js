@@ -175,6 +175,7 @@ async (page, { openPath, screenshots }) => {
     check(await page.evaluate(() => scrollY) === scrollBefore, 'Settings changed document scroll');
     await page.getByTestId('folder').first().getByRole('button', {name:'더 많은 작업', exact:true}).click();
     await page.getByRole('menuitem', {name:'폴더 열기…', exact:true}).waitFor();
+    await page.getByRole('menu').and(page.locator(':focus-within')).waitFor();
     check(await page.getByRole('menuitem', {name:'폴더 열기…', exact:true}).isVisible(), 'Folder menu must be translated');
     await page.keyboard.press('Escape');
     await page.getByRole('menu').waitFor({state:'detached'});

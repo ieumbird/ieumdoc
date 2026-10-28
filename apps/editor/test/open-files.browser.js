@@ -137,6 +137,7 @@ async (page, { openDocument, openPath, screenshots = false }) => {
     await openDocument(page, pathA);
     if (screenshots) {
       await page.getByRole('button', {name:'More actions', exact:true}).click();
+      await page.getByRole('menu').and(page.locator(':focus-within')).waitFor();
       await page.screenshot({path:'tmp/visual-refinement/after-folder-menu.png'});
       await page.keyboard.press('Escape');
     }
