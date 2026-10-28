@@ -823,11 +823,12 @@ button {
   gap: var(--space-1);
 }
 
-/* Shared Settings sits at the bottom of the sidebar, open or collapsed. */
+/* The same Settings entry stays bottom-aligned; the collapsed rail shows only its icon. */
 .sidebar-footer {
   display: flex;
   flex-direction: column;
   margin-top: auto;
+  app-region: no-drag;
 }
 
 /* Portal boundaries also exclude library-created transparent backdrops. Popups are nested
