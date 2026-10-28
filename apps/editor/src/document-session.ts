@@ -47,7 +47,7 @@ export async function requestDocument(
     if (!response.ok && method === "GET" && payload.code?.startsWith("native-")) {
       throw new NativeOpenError(payload.issue?.reason ?? payload.error ?? "Unsupported IeumDoc document.", payload.issue?.action ?? "", payload.code);
     }
-    throw new SaveContentError(payload.error ?? `request failed (${response.status})`, payload.target);
+    throw new SaveContentError(payload.error ?? `request failed (${response.status})`, payload.target, payload.failure);
   }
   const declarations = payload.bibliography?.declarations ?? [];
   const sources = await requestBibliography(payload.path, payload.revision, declarations, bibliographyRoot);

@@ -22,7 +22,7 @@ import { declaredBibliography } from "./citation.ts";
 export type NativeDocumentErrorCode = "native-marker" | "native-metadata" | "native-content";
 export class NativeDocumentError extends DocumentWriteError {
   constructor(readonly code: NativeDocumentErrorCode, reason: string, path?: number[], line?: number) {
-    super(reason, { action: "Open an IeumDoc native document or create a new document. Automatic conversion is not supported.", path, line });
+    super(reason, { code, action: "Open an IeumDoc native document or create a new document. Automatic conversion is not supported.", path, line });
     this.name = "NativeDocumentError";
   }
 }

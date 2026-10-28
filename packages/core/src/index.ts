@@ -21,8 +21,8 @@ import { citationReport as citationReportTree, updateBibliography as updateBibli
 export type { Document, NodePath, BlockSummary } from "./document.ts";
 export { hasNativeMarker, NativeDocumentError } from "./myst/native.ts";
 export type { NativeDocumentErrorCode } from "./myst/native.ts";
-export { writeIssueOf } from "./write-error.ts";
-export type { WriteIssue } from "./write-error.ts";
+export { writeIssueOf, DocumentDiagnosticError } from "./write-error.ts";
+export type { WriteIssue, WriteIssueCode } from "./write-error.ts";
 export type { EditableDocument, EditableBlock } from "./editable.ts";
 export type { InlineContent, ReferenceRole } from "./inline.ts";
 export type { CitationContent, CitationRole, CitationReport } from "./citation.ts";

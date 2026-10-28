@@ -654,5 +654,42 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   assert(await note.locator('p').innerText() === beforeCompositionText, 'IME changed read-only rendered text');
   await input.detach();
 
+  // Empty-definition guidance names both safe corrections, in the actual alert and badge.
+  await note.locator('p').dblclick();
+  await caretIn('x');
+  await editor.evaluate(element => {
+    const e = element.editor;
+    e.state.doc.forEach((node, pos) => {
+      if (node.type.name === 'footnoteDefinition' && node.attrs.label === 'x') {
+        e.commands.setTextSelection({from:pos+1, to:pos+node.nodeSize-1});
+        e.commands.deleteSelection();
+      }
+    });
+  });
+  await save.click();
+  await page.locator('[data-testid="status"][data-operation="save-failed"]').waitFor();
+  const error = page.getByTestId('error');
+  assert((await error.innerText()).includes('references and definition together'), 'Empty endnote guidance omits paired removal');
+  assert((await page.getByTestId('block-save-error').innerText()).includes('references + definition'), 'Empty endnote badge omits paired removal');
+  assert(await reader(fixture('repeat.md'))() === repeatedSaved, 'Empty endnote refusal wrote the file');
+  await page.getByRole('button', {name:'Settings', exact:true}).click();
+  await page.getByTestId('ui-language').selectOption('ko');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+  assert((await error.innerText()).includes('참조와 정의를 함께 제거'), 'Korean empty endnote guidance omits paired removal');
+  assert((await page.getByTestId('block-save-error').innerText()).includes('참조·정의 함께 제거'), 'Korean badge omits paired removal');
+  await page.getByRole('button', {name:'설정', exact:true}).click();
+  await page.getByTestId('ui-language').selectOption('en');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+  await note.locator('p').dblclick();
+  await caretIn('x');
+  await page.keyboard.type('Restored note.');
+  await save.click();
+  await saved();
+  assert((await reader(fixture('repeat.md'))()).includes('[^x]: Restored note.'), 'Filling the empty definition did not save');
+  assert(await page.getByTestId('error').count() === 0, 'Successful correction retained save guidance');
+  result.emptyEndnoteGuidance = true;
+
   return result;
 }

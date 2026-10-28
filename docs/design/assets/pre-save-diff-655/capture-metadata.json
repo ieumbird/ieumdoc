@@ -1,0 +1,127 @@
+{
+  "capturedAt": "2026-10-28T13:44:32.386261+00:00",
+  "productCodeCommit": "88a2d3704bf3e67fb300ff52b26675b3f47d5864",
+  "url": "http://127.0.0.1:5296",
+  "profile": "checkout-owned persistent Chrome, pnpm browser:test",
+  "viewportHeights": 900,
+  "environment": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "dpr": 1,
+    "zoom": 1,
+    "theme": "light",
+    "bodyFont": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+    "sourceFont": "Consolas, \"Courier New\", monospace"
+  },
+  "captures": [
+    {
+      "name": "menu",
+      "language": "en",
+      "width": 640,
+      "bounds": {
+        "width": 200,
+        "scroll": 200,
+        "left": 418,
+        "right": 619.96875
+      }
+    },
+    {
+      "name": "menu",
+      "language": "en",
+      "width": 1440,
+      "bounds": {
+        "width": 200,
+        "scroll": 200,
+        "left": 1218,
+        "right": 1419.96875
+      }
+    },
+    {
+      "name": "menu",
+      "language": "ko",
+      "width": 640,
+      "bounds": {
+        "width": 179,
+        "scroll": 179,
+        "left": 439,
+        "right": 619.953125
+      }
+    },
+    {
+      "name": "menu",
+      "language": "ko",
+      "width": 1440,
+      "bounds": {
+        "width": 179,
+        "scroll": 179,
+        "left": 1239,
+        "right": 1419.953125
+      }
+    },
+    {
+      "name": "comparison",
+      "language": "en",
+      "width": 640,
+      "bounds": {
+        "width": 606,
+        "scroll": 606,
+        "left": 16,
+        "right": 624
+      }
+    },
+    {
+      "name": "comparison",
+      "language": "en",
+      "width": 1440,
+      "bounds": {
+        "width": 1150,
+        "scroll": 1150,
+        "left": 144,
+        "right": 1296
+      }
+    },
+    {
+      "name": "comparison",
+      "language": "ko",
+      "width": 640,
+      "bounds": {
+        "width": 606,
+        "scroll": 606,
+        "left": 16,
+        "right": 624
+      }
+    },
+    {
+      "name": "comparison",
+      "language": "ko",
+      "width": 1440,
+      "bounds": {
+        "width": 1150,
+        "scroll": 1150,
+        "left": 144,
+        "right": 1296
+      }
+    }
+  ],
+  "before": "Only the newly added TopBar menu row was temporarily omitted, matching the prior File actions menu. All other product code stayed at productCodeCommit. Restored before final verification.",
+  "state": "Same scratch technical-1.md, normalized through real Save, then Preview changes. 미리보기. inserted at heading start. Source comparison selects change 1 with source pane at scroll top.",
+  "fonts": "document.fonts.ready; bundled Pretendard Variable 1.3.9 and existing Consolas fallback stack",
+  "localPreSavePerformance": {
+    "maxHeartbeatGapMs": 89.9,
+    "resultReadyMs": 225.3,
+    "input": "Controlled Host response: 50 lines x 1000 old/new words; real shared SourceCompare and Worker. Prior successful pre-save-diff run."
+  },
+  "sha256": {
+    "before-en-1440.png": "44b8690ae9df9f0d9600064d3a71e2baaaac139f706d4895697aab0372549fb0",
+    "before-en-640.png": "baeac53dfe9da67979af70fef7e4adc9bcbefb0a678025d21d2b9208250da752",
+    "before-ko-1440.png": "16135180696d2156653baa396e078b9ce682e9c5c659aa4f764705b4f1d7dd20",
+    "before-ko-640.png": "4cabef0c8e6478ad71b6193d886f06300c764251bf732135e4007b02f8906b21",
+    "comparison-en-1440.png": "63bb20942b20e8eac111c939afa8c402f149ae05ba71430e55b19c0191fbdb3b",
+    "comparison-en-640.png": "2f643e7fd976fc83462d0971cbab5e2a9dda7270bdd71c75878f6d1acc005686",
+    "comparison-ko-1440.png": "dcb672a6f41976ba71500b21e71f3b0043261bf72b3efee8ae9d84f4b76ff4d8",
+    "comparison-ko-640.png": "707bfe48f6d7f5626135d075a049b280efa224089b13905566e5f296cb1b4a53",
+    "menu-en-1440.png": "5a33ac35bca60d616b88e6de0fa8f94296c51b31acb787f66483437b117cc3cd",
+    "menu-en-640.png": "0c5feb14e92176aaa9a400a7ab6172bc627b361938f4dbd71ac59945e5a470b9",
+    "menu-ko-1440.png": "378b38067fb75d627da684fbbeb9a9ed0760ccbc48f422eb83b4db58a0613684",
+    "menu-ko-640.png": "395b83a42b84342293bd37d6704b48d6a7befa83288dfa6b83146fef4d2e3bd1"
+  }
+}

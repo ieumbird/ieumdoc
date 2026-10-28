@@ -1,3 +1,4 @@
+import { DocumentDiagnosticError } from "../write-error.ts";
 import { defaultHeadingNumbering, type HeadingNumbering } from "../numbering.ts";
 import { FRONT_MATTER_FIELD } from "./parse.ts";
 import { cloneDocument, type MystDocument } from "./tree.ts";
@@ -13,7 +14,7 @@ export function getHeadingNumbering(document: MystDocument): HeadingNumbering | 
 }
 
 export function updateHeadingNumbering(document: MystDocument, enabled: boolean): MystDocument {
-  if (typeof enabled !== "boolean") throw new Error("heading numbering must be true or false");
+  if (typeof enabled !== "boolean") throw new DocumentDiagnosticError("native-metadata", "heading numbering must be true or false");
   const next = cloneDocument(document);
   const { node, yaml } = metadata(next);
   yaml.setIn(["numbering", "headings"], enabled);

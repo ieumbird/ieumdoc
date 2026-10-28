@@ -321,7 +321,9 @@ for the last-successful-record and platform limits.
 ## Update lifecycle and work protection
 
 - Check 15 seconds after launch, then every 6 hours; retry a failed check after 30 minutes. Manual Check for updates is immediate. Only one check is in flight; errors never block editing.
-- Finding an update downloads nothing (`autoDownload=false`). Download update starts the real updater download and progress events. A verified download does not restart or install on ordinary quit (`autoInstallOnAppQuit=false`). Later persists the dismissed version; a different version may notify again. About remains available.
+- Finding an update downloads nothing (`autoDownload=false`). Download update starts the real updater download and progress events. A verified download does not restart or install on ordinary quit (`autoInstallOnAppQuit=false`). Update discovery uses the Settings dot described below; About remains available.
+- New-version discovery (#665): remove the top View / Later notification and its postponed-version preference. An unseen offered version displays one 8px interaction-accent dot on the bottom Settings icon, both in the expanded Sidebar and collapsed rail. The localized native tooltip names the version (`New version <version> available` / `새 버전 <version> 사용 가능`), and the button's accessible name adds new-version availability so color is not the only cue.
+- Clicking Settings with the dot opens About & updates directly and highlights the update actions. Opening About by any route records the offered version as `seenUpdate` in Desktop preferences, including a new offer arriving while About is open. That version stays acknowledged after reload/restart; a newer offered version shows the dot again. A successful update no longer offers the installed version. There is no migration of the former Later setting. Without a dot, Settings continues to open Appearance & language. Download, installation consent and restart guards remain unchanged.
 - Restart to update disables window input and asks the live Editor whether all tabs are safe, using the [session work-protection contract](editing-session-save-v1.md#save-shortcut-and-work-loss-protection-56). No user-input dialog is added inside the timed handshake.
 - Missing/malformed answers, renderer failure or a 5-second timeout refuse and re-enable the window. The existing `beforeunload` remains a second check. `quitAndInstall(true, true)` runs only after the agreed window close; a close veto returns to the downloaded state. Updates never discard or save user work implicitly.
 
@@ -402,3 +404,33 @@ Signing credentials are not installed by this work. SmartScreen/reputation, corp
 - [electron-builder v26 updates](https://www.electron.build/v26/docs/features/auto-update/) (the current default site documents unreleased v27 APIs; this app uses 26.15.3 / updater 6.8.9)
 - [v26 release channels](https://www.electron.build/v26/docs/tutorials/release-using-channels/)
 - [Paseo updates UX](https://paseo.sh/docs/updates) (reference only; staged rollouts are excluded)
+
+
+## Settings update cue verification (#665)
+
+This changes only Desktop notification preferences and Editor interactions; Core document semantics
+and CLI operations are unaffected. Unit coverage checks bilingual accessible cues in both Sidebar
+states, preference persistence and trusted/current-offer IPC acknowledgement. The mock-bridge browser
+scenario checks acknowledgement, reload, a newer version, direct About navigation, highlight and
+existing download/restart work protection. Packaged/install/update/uninstall execution is CI-only.
+
+Same-state 1440px and 640px English/dark captures compare the former banner with the Settings dot:
+
+| Width | Before | After |
+| --- | --- | --- |
+| 1440px | [banner](assets/update-dot-665/before-en-dark-1440.png) | [dot](assets/update-dot-665/after-en-dark-1440.png) |
+| 640px | [banner](assets/update-dot-665/before-en-dark-640.png) | [dot](assets/update-dot-665/after-en-dark-640.png) |
+
+Additional states: [640px rail](assets/update-dot-665/after-en-dark-640-rail.png),
+[640px About highlight](assets/update-dot-665/about-en-dark-640.png).
+
+The complementary Korean/light states show [1440px](assets/update-dot-665/after-ko-light-1440.png),
+[640px](assets/update-dot-665/after-ko-light-640.png) and the
+[direct About highlight](assets/update-dot-665/about-ko-light-640.png).
+
+Local verification (2026-10-28): Editor 331 and Desktop 68 unit tests passed, workspace typecheck,
+Editor production build, docs check, desktop-updates, layout-rules and quiet-document passed.
+The browser used this checkout's persistent Chrome profile. BadPasswordAttempts checks were
+0 before the first launch, then 1, 3, 4 and 5 after the final run; no further browser run was
+started at 5. The dedicated 5365 Vite server and owned browser context were closed. Packaged
+Desktop, installer/update/uninstall, Edge and fresh-profile probes were not run locally.

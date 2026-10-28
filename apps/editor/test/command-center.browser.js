@@ -664,7 +664,9 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   check(await korean.getByRole('option',{name:'저장',exact:true}).count()===1, 'English alias did not find a Korean command');
   await korean.getByRole('combobox').fill('> 저장');
   check(await korean.getByRole('option',{name:'저장',exact:true}).count()===1, 'Korean command search failed');
-  check(await korean.getByTestId('command-center-count').innerText() === '검색 결과 1개', 'Korean result count missing');
+  const koreanMatches = await korean.getByRole('option').count();
+  check(await korean.getByRole('option',{name:'저장 전 변경 내용 보기',exact:true}).count() === 1, 'Korean Save comparison command missing');
+  check(await korean.getByTestId('command-center-count').innerText() === `검색 결과 ${koreanMatches}개`, 'Korean result count missing');
   if (screenshots) await page.screenshot({path:'tmp/command-center/search-ko-640.png'});
   await korean.getByRole('combobox').fill('> keyboard shortcuts');
   await page.keyboard.press('Enter'); await korean.waitFor({state:'detached'});

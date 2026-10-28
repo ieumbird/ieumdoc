@@ -20,6 +20,8 @@ import { NewDialog } from "../src/shell/NewDialog.tsx";
 import { Sidebar } from "../src/shell/Sidebar.tsx";
 import { TopBar } from "../src/shell/TopBar.tsx";
 import { i18n } from "../src/i18n.ts";
+import { MissingFileNotice, type Comparison } from "../src/shell/SourceCompare.tsx";
+import type { RecoveryDiff } from "../src/recovery-diff.ts";
 import { en, ko } from "../src/locales.ts";
 import { messageText, type UiMessage } from "../src/ui-message.ts";
 import { ACCENT_COLORS, ACCENT_COLOR_KEY, readAccentColor, writeAccentColor, readUiLanguage, writeUiLanguage, UI_LANGUAGE_KEY } from "../src/preferences.ts";
@@ -698,4 +700,47 @@ test("command menu exposes disabled actions and an empty state", () => {
   assert.match(html, />Delete</);
   const empty = renderToStaticMarkup(<CommandMenu label="Insert block" items={[]} style={{}} onSelect={noop} onClose={noop} />);
   assert.match(empty, /No matches/);
+});
+
+
+test("Settings exposes the offered update without relying on color in both sidebar states", () => {
+  for (const language of ["en", "ko"]) {
+    i18n.changeLanguage(language);
+    for (const open of [true, false]) {
+      const render = (updateVersion?: string) => renderToStaticMarkup(
+        <Sidebar onFileAction={async () => ""} fileActionsDisabled={false} isFileDirty={() => false}
+          open={open} documentPath={PATH} onToggle={noop} onOpenFolder={noop} onSettings={noop} updateVersion={updateVersion} />);
+      assert.doesNotMatch(render(), /settings-update-dot/);
+      const offered = render("0.3.0-beta.1");
+      assert.match(offered, /data-testid="settings-update-dot"/);
+      assert.ok(offered.includes(`aria-label="${i18n.t("Settings, new version available")}"`));
+      assert.ok(offered.includes(`title="${i18n.t("New version {{version}} available", { version: "0.3.0-beta.1" })}"`));
+    }
+  }
+  i18n.changeLanguage("en");
+});
+
+test("missing-file notice only claims additions after a successful comparison", () => {
+  const language = i18n.resolvedLanguage ?? "en";
+  const completed: RecoveryDiff = { groups: [], count: 0, wordsOmitted: false };
+  const missing: Comparison = { before: "", after: "", changed: false, missing: true };
+  const render = (result?: Comparison, diff?: RecoveryDiff, recovery = false) =>
+    renderToStaticMarkup(<MissingFileNotice result={result} diff={diff} recovery={recovery} />);
+  try {
+    for (const locale of ["en", "ko"]) {
+      i18n.changeLanguage(locale);
+      for (const recovery of [false, true]) {
+        const added = i18n.t(recovery ? "File missing. All recovered content is shown as added." : "File missing. All content Save would write is shown as added.");
+        const failed = { ...missing, failure: new Error("Save preview refused") };
+        // Pending calculation, preview refusal, and any stale completed diff all retain only the missing fact.
+        for (const markup of [render(missing, undefined, recovery), render(failed, undefined, recovery), render(failed, completed, recovery)]) {
+          assert.ok(markup.includes(i18n.t("File missing.")), markup);
+          assert.ok(!markup.includes(added), markup);
+        }
+        assert.ok(render(missing, completed, recovery).includes(added));
+        assert.equal(render({ ...missing, missing: false }, completed, recovery), "");
+      }
+      assert.equal(render(), "");
+    }
+  } finally { i18n.changeLanguage(language); }
 });

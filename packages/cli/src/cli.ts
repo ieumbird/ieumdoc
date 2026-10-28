@@ -280,6 +280,7 @@ const COMMANDS: CommandSpec[] = [
       "Validate a document: its structure, and whether IeumDoc can rewrite it as canonical",
       "Markdown without losing semantics (the same check format and Editor Save use).",
       "Exits 1 when it cannot.",
+      "JSON failures may include optional error.code from Core; unclassified errors may omit the code.",
       "References ({eq}, {numref}, {ref}, and links such as [](#label) whose URL starts with #)",
       "that name no target in this document, as MyST resolves them (including the implicit IDs",
       "of unlabeled headings), are reported as warnings with their block and line; they do not",

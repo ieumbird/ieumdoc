@@ -1,3 +1,4 @@
+import { DocumentDiagnosticError } from "./write-error.ts";
 import type { BibliographyEvaluation } from "./bibliography.ts";
 import type { InlineContent } from "./inline.ts";
 
@@ -18,7 +19,7 @@ export function citationContentError(value: CitationContent): string | undefined
 
 export function canonicalCitation(content: CitationContent): CitationContent {
   const error = citationContentError(content);
-  if (error) throw new Error(error);
+  if (error) throw new DocumentDiagnosticError("unsupported-content", error);
   return { kind: "citation", role: content.role === "cite" && content.keys.length > 1 ? "cite:t" : content.role, keys: [...content.keys] };
 }
 

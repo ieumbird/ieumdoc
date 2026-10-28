@@ -418,7 +418,7 @@ test("the release channel persists across restarts; an update check never blocks
     await answerClose(app, 0);
     await closeApp(app);
   }
-  assert.deepEqual(JSON.parse(readFileSync(path.join(userData, "preferences.json"), "utf8")), { channel: selectedChannel, postponed: null });
+  assert.deepEqual(JSON.parse(readFileSync(path.join(userData, "preferences.json"), "utf8")), { channel: selectedChannel, seenUpdate: null });
   ({ app, page } = await launch(userData));
   try {
     await page.getByRole("button", { name: "Settings", exact: true }).click();

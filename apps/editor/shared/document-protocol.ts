@@ -17,6 +17,7 @@ export type RecoveryPreviewResponse = {
   disk: { source: string; revision: string; document?: EditableDocument; error?: string } | null;
   markdown?: string;
   error?: string;
+  failure?: SaveFailure;
 };
 
 // Browser Editor/local Host data contract, not a Core operation or backend architecture.

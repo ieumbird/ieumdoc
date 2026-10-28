@@ -10,6 +10,9 @@ type ExpectedConsoleErrorRule = {
 };
 
 const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
+  "pre-save-diff": [
+    {status:409, pathname:"/api/document", minimum:1, description:"comparison preserves the acknowledged revision and Save still conflicts"},
+  ],
   "save-error": [
     {status:400, pathname:"/api/document", minimum:5, description:"Core refuses unpreservable table-cell inline math at the current submitted location"},
   ],

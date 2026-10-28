@@ -42,12 +42,13 @@ OS action, with no document write, Core semantic operation or CLI parity command
 
 ## Purpose
 
-Recovery source review (#655 stage 1) uses a read-only mode of the existing endpoint:
+Recovery source review and pre-save comparison (#655 stages 1/2) use a read-only mode of the existing endpoint:
 `POST /api/document-source?recovery=1` accepts `{ path, save? }`, where `save`, when present,
 contains the normal revision/opening source/savedEdits/edit payload. The shared Vite/Desktop/HTTP
 handler reads the current disk source, revision and Core read model (or explicit absence), and
 independently calls the same session preview used by Source and `saveCurrentDocument` used by Save.
-A Core preview refusal returns its reason alongside the disk comparison input; no commit, temporary
+A Core preview refusal returns its reason and the existing structured Save failure metadata (phase,
+action and available target/block/cell/line) alongside the disk comparison input; no commit, temporary
 file, revision acknowledgement or recovery storage change occurs. Normal Save conflict checks remain
 unchanged. Requests retain existing path/Root, JSON/body-limit and same-origin protections. An absent
 leaf is read only beneath the existing access boundary. The optional disk read model serves the

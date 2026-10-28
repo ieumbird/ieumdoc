@@ -131,7 +131,7 @@ export function saveEdits(
         throw new Error(`paragraph edit is not allowed at [${paragraph.path.join(",")}]`);
       }
       if (inlineText(paragraph.content).length === 0) {
-        throw new SaveContentError("empty paragraph cannot be saved", undefined, { action: "Enter text or delete this block." });
+        throw new SaveContentError("empty paragraph cannot be saved", undefined, { code: "empty-content", action: "Enter text or delete this block." });
       }
       document = editAt(target, () => updateParagraphInlineContent(document, paragraph.path, paragraph.content));
     });
@@ -368,7 +368,7 @@ export function saveEdits(
       }
       if (insert.block === "paragraph") {
         if (!Array.isArray(insert.content) || inlineText(insert.content).length === 0) {
-          throw new SaveContentError("empty paragraph cannot be saved", undefined, { action: "Enter text or delete this block." });
+          throw new SaveContentError("empty paragraph cannot be saved", undefined, { code: "empty-content", action: "Enter text or delete this block." });
         }
         return;
       }
@@ -398,7 +398,7 @@ export function saveEdits(
         throw new Error("invalid heading insertion");
       }
       if (!Array.isArray(insert.content) || inlineText(insert.content).length === 0) {
-        throw new SaveContentError("empty heading cannot be saved", undefined, { action: "Enter text or delete this block." });
+        throw new SaveContentError("empty heading cannot be saved", undefined, { code: "empty-content", action: "Enter text or delete this block." });
       }
     });
   }

@@ -1,3 +1,4 @@
+import { DocumentDiagnosticError } from "../write-error.ts";
 import { writeMd } from "myst-to-md";
 import { VFile } from "vfile";
 import { parse } from "./parse.ts";
@@ -31,13 +32,13 @@ export function prepareReferences(node: MystNode): void {
 function referenceRole(node: MystNode): MystNode {
   const { kind, label, children } = node;
   if (typeof kind !== "string" || !REFERENCE_ROLES.has(kind)) {
-    throw new Error(`cross-reference kind ${JSON.stringify(kind)} cannot be preserved through canonical Markdown`);
+    throw new DocumentDiagnosticError("invalid-reference", `cross-reference kind ${JSON.stringify(kind)} cannot be preserved through canonical Markdown`);
   }
   const text = children === undefined ? undefined
     : children.length === 1 && children[0].type === "text" && typeof children[0].value === "string"
       ? children[0].value : null;
   if (typeof label !== "string" || text === null || Object.keys(node).some((key) => !REFERENCE_KEYS.has(key))) {
-    throw new Error(`{${kind}} cross-reference cannot be preserved through canonical Markdown`);
+    throw new DocumentDiagnosticError("invalid-reference", `{${kind}} cross-reference cannot be preserved through canonical Markdown`);
   }
   const role: MystNode = { type: "mystRole", name: kind, value: text === undefined ? label : `${text} <${label}>` };
   const reparsed = parse(write(role)).children;
@@ -46,7 +47,7 @@ function referenceRole(node: MystNode): MystNode {
   if (reparsed.length !== 1 || block.length !== 1 || reference.type !== "crossReference" ||
       reference.kind !== kind || reference.label !== label || reference.identifier !== node.identifier ||
       reference.children?.[0]?.value !== text) {
-    throw new Error(`{${kind}}\`${label}\` cannot round-trip through canonical Markdown`);
+    throw new DocumentDiagnosticError("invalid-reference", `{${kind}}\`${label}\` cannot round-trip through canonical Markdown`);
   }
   return role;
 }
@@ -69,7 +70,7 @@ function targetLine(node: MystNode): MystNode {
   const reparsed = parse(`${line}\n`).children;
   if (typeof node.label !== "string" || Object.keys(node).some((key) => !TARGET_KEYS.has(key)) ||
       reparsed.length !== 1 || reparsed[0].type !== "mystTarget" || reparsed[0].label !== node.label) {
-    throw new Error(`target ${JSON.stringify(node.label)} cannot be preserved through canonical Markdown`);
+    throw new DocumentDiagnosticError("invalid-reference", `target ${JSON.stringify(node.label)} cannot be preserved through canonical Markdown`);
   }
   return { type: "html", value: line };
 }

@@ -1,7 +1,8 @@
 # Editing session and Save v1
 
 - Status: Implemented
-- Save refusal verification: 2026-10-28 (#578 phase 1: localized summaries and collapsed original details, block/cell highlighting and keyboard reveal, list-shaped state with conservative submitted-snapshot invalidation; no Host/Core validation policy change).
+- Pre-save comparison verification: 2026-10-28 (#655 stage 2: Save parity, read-only state, external revisions, refusal locations and missing files; [visual evidence](editor-visual-language-v1.md#pre-save-comparison-655)).
+- Save refusal verification: 2026-10-28 (#578 phase 2: structured Core codes and bilingual cause/action in the alert and badge; [diagnostic guidance](#diagnostic-guidance-578-phase-2). Phase 1: localized summaries and collapsed original details, block/cell highlighting and keyboard reveal, list-shaped state with conservative submitted-snapshot invalidation; no Host/Core validation policy change).
 - Image rename verification: 2026-10-27 (#504: file-actions browser checks inactive dirty/property-draft refusal, clean active/inactive tabs, Source-to-Visual reload, subsequent Save and other-window revision conflict).
 - File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
 - Property Apply verification: 2026-10-27 (#576: shared Ctrl/Cmd+Enter submission, validation/busy guards, IME/modifier exclusions and prose hard-break isolation; Editor tests and targeted Windows Chrome browser regressions, with Apple platform emulation rather than native macOS).
@@ -507,8 +508,8 @@ after a failed operation could produce secondary failures or invalid locators; f
 validation/serialization is document-wide. Collecting independent errors would require a separate
 Core-backed validation pass, rather than a small safe continuation of this replay. That Host/Core
 aggregation is deferred to a separate step; the Editor does not duplicate Core validation rules.
-Core diagnostic codes and Korean reason/action translation are also outside this phase. No new
-document semantic operation is introduced, so no Core/CLI command surface applies.
+Phase 2 adds the structured diagnostic guidance below. No new document semantic operation is
+introduced, so no new Core/CLI command surface applies.
 
 The reported empty-table case is not currently reproducible (owner confirmation, 2026-10-28).
 This phase does not change empty-table admission or saving policy. `save-error` browser verification
@@ -516,6 +517,26 @@ instead uses a real empty-heading collection refusal and unpreservable table-cel
 rejected by Core/Host, including correction → Save → Reload, cell navigation, and invalidation after
 typing/insertion/deletion/move or input during a pending response. Multiple-location controls and
 snapshot locator resolution are also covered by Editor tests.
+
+### Diagnostic guidance (#578 phase 2)
+
+For known Core codes the short alert identifies the cause and a user correction in the current
+Korean/English UI language. The problem badge shows a compact cause/action in that language;
+it stays outside editable content, wraps within the block width and sits above the refusal
+stroke so it does not cover the table controls. Stroke/cell geometry, pointer transparency,
+reveal/navigation and submitted-snapshot invalidation keep phase 1 behavior. Language changes
+reformat both alert and badge without changing document state. Full original English reason
+and action remain unchanged in initially collapsed Technical details. No English reason parsing
+selects guidance. Unknown/missing codes use the existing phase-specific generic guidance and
+Cannot save badge. For `empty-content` on a submitted `footnoteDefinition`, the alert and badge
+say to enter text or remove its references and definition together; deleting only the definition
+still fails the existing endnote relationship checks. This distinction uses structured block kind,
+never English prose. File/revision/transport guidance takes precedence over any content code.
+
+Core owns the [code inventory and collection decision](document-support-v1.md#save-diagnostic-codes-578-phase-2).
+Host still reports its first failure. Captures for real empty-heading collection and table-cell
+round-trip refusals cover 640/1440px, Korean/English and light/dark in the
+[visual evidence](editor-visual-language-v1.md#diagnostic-guidance-captures-578-phase-2).
 
 ## Switching and recovery
 
@@ -633,6 +654,40 @@ responses, aliases, cross-tab preference writes, URL/Desktop launch precedence a
 tab; `recovery-structure` retains generated structured-record Restore/Save/Reload coverage.
 These browser Desktop checks use the bridge/first-response contract; actual Electron restart and
 packaged-platform coverage remain the required Desktop CI boundary.
+
+## Changes before saving (#655, stage 2)
+
+With unsaved applied content or property drafts, **File actions → Changes before saving** and the same Command
+center command open a read-only source comparison. The existing TopBar keeps its geometry;
+no permanent button is added. Clean documents and pending document operations disable the command.
+
+The command captures the current applied Editor snapshot and acknowledged revision/checkpoint,
+using `collectSupportedEdits` exactly as Save does, without `beginSave`, history transactions or
+acknowledgement. The existing `document-source?recovery=1` request reads the current disk bytes
+and runs `previewSession → saveCurrentDocument → saveEdits` without a file commit. It includes
+canonical formatting, CRLF and final-newline changes. Unapplied property drafts are excluded,
+just as with Save; the dialog says so. A new Core operation or CLI surface is unnecessary because
+this is an Editor review interface to the existing dry run, with no semantic change.
+
+Recovery and pre-save review share `SourceCompare`: unified line diff, word highlights, −/+ cues,
+line numbers, change count and cyclic Previous/Next navigation with focus. Both use the same
+request-owned Worker, 500ms total/100ms optional word budget, input limits, 2-second watchdog,
+word-omission notice and cleanup on completion/failure/close/retry. Pre-save budget refusal asks
+the user to narrow the changes rather than pointing at a nonexistent recovery-copy control.
+
+The dialog compares the captured applied state with disk at request time. An external revision
+mismatch is explicitly reported; it never acknowledges the new disk version, and Save still
+conflicts. An absent file is always reported; the notice says all content is shown as additions only
+after a successful diff. Pending calculation or preview/comparison failure retains only the missing-file
+fact alongside any failure reason. Preview refusal
+shows the original reason and existing Save location/guidance via `SaveDisplayError`; structured
+Host failure metadata is preserved by the existing preview response. No empty successful diff
+or alternate serialization is shown on refusal. The read-only dialog contains navigation,
+retry for read/calculation errors and Close, with no Save or revert action. Close/Escape restores
+the invoking focus target. Ctrl/Cmd+S is blocked while the dialog is open.
+
+Visual evidence and capture conditions are recorded in
+[Visual Language](editor-visual-language-v1.md#pre-save-comparison-655).
 
 ## Save shortcut and work-loss protection (#56)
 

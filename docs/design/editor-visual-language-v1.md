@@ -1,6 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
+- Pre-save comparison verification: 2026-10-28 (#655 stage 2: shared dry run/Worker review, persistent-browser regressions and [640/1440px bilingual captures](#pre-save-comparison-655)).
 - Save refusal verification: 2026-10-28 (#578 phase 1: real collection/Host refusals, danger block/cell overlays, snapshot invalidation, keyboard reveal and [640/1440px light/dark captures](#save-refusal-highlights-578)).
 - Block outline verification: 2026-10-28 (#469 follow-up: 1440px/640px full outer-edge and inset-stroke comparison, stationary-pointer scroll suppression; [evidence](#typing-and-outline-verification-469)).
 - Last verified: 2026-10-28 (#637: full-column code-style source and draft preview; wider wrapping inline-math popover, with 1440/640px same-state comparison).
@@ -113,7 +114,7 @@ The existing danger message surface contains a short localized summary, shared c
 navigation and native keyboard-accessible collapsed **Technical details**. The original English
 diagnostic is preserved there. The state lifetime and snapshot invalidation rules belong to the
 [Save contract](editing-session-save-v1.md#refused-block-highlighting-and-navigation-578-phase-1).
-This is Editor presentation/navigation; Core semantics and CLI behavior are unchanged.
+This is Editor presentation/navigation. Phase 2 adds Core diagnostic metadata and localized cause/action below; document semantics remain unchanged.
 
 `pnpm browser:test save-error --screenshots` captures actual refusals at 1440×900 and 640×900,
 light/dark, Windows persistent Chrome, DPR 1, 100% zoom and bundled Pretendard. The same-state
@@ -126,6 +127,24 @@ fixture/state, viewport, theme, fonts, DPR and verified worktree-owned final ser
 | --- | --- | --- |
 | Light | [Before](assets/save-error-578/before-1440-light.png) / [After](assets/save-error-578/after-1440-light.png) / [Cell](assets/save-error-578/cell-1440-light.png) | [Before](assets/save-error-578/before-640-light.png) / [After](assets/save-error-578/after-640-light.png) / [Cell](assets/save-error-578/cell-640-light.png) |
 | Dark | [Before](assets/save-error-578/before-1440-dark.png) / [After](assets/save-error-578/after-1440-dark.png) / [Cell](assets/save-error-578/cell-1440-dark.png) | [Before](assets/save-error-578/before-640-dark.png) / [After](assets/save-error-578/after-640-dark.png) / [Cell](assets/save-error-578/cell-640-dark.png) |
+
+### Diagnostic guidance captures (#578 phase 2)
+
+The existing danger message surface shows the localized cause/action; its compact badge uses
+the same code and sits immediately above the unchanged refusal stroke. It wraps within the
+block width and remains pointer-transparent. Original diagnostics stay in collapsed details.
+`pnpm browser:test save-error --screenshots` uses the same real refusal fixtures and includes
+cause/action, Host `failure.code`, unchanged-file, reveal and Save/Reload assertions. Language
+variants are checked in the same refusal state. Captures are manual review evidence, not pixel
+assertions. [Metadata and SHA-256 hashes](assets/save-error-578-phase2/capture-metadata.json).
+Phase 1 [captures above](#save-refusal-highlights-578) are the Before reference (same fixture).
+
+| State | 1440px Korean / English | 640px Korean / English |
+| --- | --- | --- |
+| Empty heading, light | [KO](assets/save-error-578-phase2/heading-1440-light-ko.png) / [EN](assets/save-error-578-phase2/heading-1440-light-en.png) | [KO](assets/save-error-578-phase2/heading-640-light-ko.png) / [EN](assets/save-error-578-phase2/heading-640-light-en.png) |
+| Empty heading, dark | [KO](assets/save-error-578-phase2/heading-1440-dark-ko.png) / [EN](assets/save-error-578-phase2/heading-1440-dark-en.png) | [KO](assets/save-error-578-phase2/heading-640-dark-ko.png) / [EN](assets/save-error-578-phase2/heading-640-dark-en.png) |
+| Table cell, light | [KO](assets/save-error-578-phase2/cell-1440-light-ko.png) / [EN](assets/save-error-578-phase2/cell-1440-light-en.png) | [KO](assets/save-error-578-phase2/cell-640-light-ko.png) / [EN](assets/save-error-578-phase2/cell-640-light-en.png) |
+| Table cell, dark | [KO](assets/save-error-578-phase2/cell-1440-dark-ko.png) / [EN](assets/save-error-578-phase2/cell-1440-dark-en.png) | [KO](assets/save-error-578-phase2/cell-640-dark-ko.png) / [EN](assets/save-error-578-phase2/cell-640-dark-en.png) |
 
 ## Direction
 
@@ -1478,3 +1497,47 @@ keyboard focus and unchanged display-preference/document behavior.
 | Light / 640px | [Before](assets/settings-617/before-light-640.png) | [After](assets/settings-617/after-light-640.png) |
 | Dark / 1440px | [Before](assets/settings-617/before-dark-1440.png) | [After](assets/settings-617/after-dark-1440.png) |
 | Dark / 640px | [Before](assets/settings-617/before-dark-640.png) | [After](assets/settings-617/after-dark-640.png) |
+
+## Pre-save comparison (#655)
+
+The existing File actions menu beside Save contains **Changes before saving / 저장 전 변경 내용 보기**.
+The same named Command center command is available for unsaved applied content or property drafts. There is no
+new permanent TopBar control. Review reuses the recovery comparison width/height tokens, shared
+Dialog, compact Buttons, monospace source, wrapping long lines and line/word difference colors.
+Both color and −/+ cues identify changes; Previous/Next moves keyboard focus to the change.
+At 640px the toolbar wraps inside the dialog. The existing overlay scroll keeps Close reachable.
+The content remains read-only, including failures and external-change warnings.
+
+2026-10-28 verification: Editor tests (330), workspace typecheck/build, `pre-save-diff` and
+`recovery save-session layout-rules quiet-document command-center` browser regressions passed.
+The final bilingual capture-only pass waited for each translated title/menu item before capture;
+the initial development-server HMR instance had produced stale-language images, which are replaced.
+These final screenshots use the same applied heading edit, normalized disk file, 900px height,
+DPR/zoom 1, light theme, fonts ready and checkout-owned persistent Windows Chrome. The Before
+menu temporarily omits only the new menu row, matching the prior menu; it is restored for After
+and regression checks. Product code is `88a2d3704bf3e67fb300ff52b26675b3f47d5864` for both,
+with that explicit Before-only omission. Source review has no prior equivalent screen.
+[Capture metadata, measured bounds and SHA-256 hashes](assets/pre-save-diff-655/capture-metadata.json).
+
+| Language / viewport | Before menu | After menu | Read-only comparison |
+| --- | --- | --- | --- |
+| English / 640px | [Before](assets/pre-save-diff-655/before-en-640.png) | [After](assets/pre-save-diff-655/menu-en-640.png) | [Compare](assets/pre-save-diff-655/comparison-en-640.png) |
+| English / 1440px | [Before](assets/pre-save-diff-655/before-en-1440.png) | [After](assets/pre-save-diff-655/menu-en-1440.png) | [Compare](assets/pre-save-diff-655/comparison-en-1440.png) |
+| Korean / 640px | [Before](assets/pre-save-diff-655/before-ko-640.png) | [After](assets/pre-save-diff-655/menu-ko-640.png) | [Compare](assets/pre-save-diff-655/comparison-ko-640.png) |
+| Korean / 1440px | [Before](assets/pre-save-diff-655/before-ko-1440.png) | [After](assets/pre-save-diff-655/menu-ko-1440.png) | [Compare](assets/pre-save-diff-655/comparison-ko-1440.png) |
+
+The shared Worker large-response check observed a 225ms result and 90ms maximum 10ms-heartbeat
+gap, within the existing <2s / <500ms regression thresholds; word highlighting omission was explicit.
+This controls the Host response and measures the real UI/Worker, not end-to-end large-file Save latency.
+The read-only snapshot keeps file revision, recovery records, editor/selection/Undo availability,
+property drafts and later real Save conflict behavior. Required Desktop packaging stays in CI;
+actual packaged Desktop comparison interaction was not run locally.
+
+## Settings update cue (#665)
+
+The unseen-version dot uses the shared interaction accent and the existing Settings icon slot,
+including the collapsed rail. A localized version tooltip and a new-version accessible button name
+accompany the 8px dot. The direct About destination highlights update actions with the existing
+selected-surface color, interaction outline and control radius. It does not flash or animate.
+The top update banner and Later control are removed; ordinary Settings entry remains unchanged.
+See the [current update contract and before/after evidence](desktop-distribution-v1.md#settings-update-cue-verification-665).
