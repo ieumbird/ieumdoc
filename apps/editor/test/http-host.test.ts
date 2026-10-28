@@ -38,6 +38,25 @@ test("HTTP file mutations reuse shared validation, strict bodies and allowlisted
   assert.equal(fs.readFileSync(path.join(b, "document.md"), "utf8"), source, "another allowed root is outside the chosen opened folder");
 });
 
+test("recovery Source mode preserves HTTP Root checks for existing and absent files", async t => {
+  const { a, outside, send } = await fixture(t);
+  const endpoint = "/api/document-source?recovery=1";
+  const file = path.join(a, "document.md");
+  const opened = loadDocumentFile(file);
+  const response = await send(endpoint, "POST", {path:file,save:{revision:opened.revision,base:{source:opened.source}}});
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.disk.source, opened.source);
+  assert.ok(result.markdown);
+  for (const name of ["document.md", "absent.md"]) {
+    assert.equal((await send(endpoint,"POST",{path:path.join(outside,name)})).status,403);
+  }
+  const missing = path.join(a,"absent.md");
+  assert.deepEqual(await (await send(endpoint,"POST",{path:missing})).json(),{disk:null});
+  assert.equal(fs.existsSync(missing),false);
+  assert.equal(fs.readFileSync(file,"utf8"),opened.source);
+});
+
 test("folder image preview is read-only, root bounded and isolated for GET, HEAD and direct SVG URLs", async t => {
   const { a, outside, send } = await fixture(t);
   const route = (root: string, file: string) => `/api/file-preview?${new URLSearchParams({ root, path: file })}`;

@@ -12,6 +12,13 @@ import type {
 import type { NativeDocumentErrorCode, WriteIssue } from "@ieumdoc/core";
 import type { SaveFailure } from "./save-error.ts";
 
+/** Read-only recovery mode of document-source; disk is null only for an absent file. */
+export type RecoveryPreviewResponse = {
+  disk: { source: string; revision: string; document?: EditableDocument; error?: string } | null;
+  markdown?: string;
+  error?: string;
+};
+
 // Browser Editor/local Host data contract, not a Core operation or backend architecture.
 // Paths in edits address the session's opening snapshot, including after Save.
 /** The new inline content of an editable Heading. */

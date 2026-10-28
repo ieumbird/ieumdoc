@@ -307,11 +307,98 @@ compatibility exception above can restore affected structured records independen
 ### Recovery review layout contract
 
 The review prompt wraps full paths with `overflow-wrap: anywhere`, consistently with the deletion
-confirmation. This lets the existing grid shrink to the popup width; the existing footer stays stacked
-at phone widths and horizontal on desktop. No shared Dialog, spacing token, button size, focus policy,
-recovery storage, or Core/CLI operation changes.
+confirmation. The shared Dialog and compact footer controls remain available while comparison loads
+or fails. Supported review widths start at 640px (ADR-0010).
+
+**Compare (#655, stage 1)** lazily loads a read-only unified source diff: the current disk bytes
+against the canonical Markdown Save would write after restoring the record. The existing Host
+Save/Source replay validates the acknowledged revision from the opening source and `savedEdits`,
+then applies the same collected edits through Core. Comparison neither restores the record nor
+changes its snapshot, acknowledged revision, local storage or any file. An external disk revision
+change is reported; comparison still uses the current disk, and does not merge or bypass Save's
+existing conflict protection. Canonical formatting differences are shown with a short notice.
+
+The diff uses jsdiff (`diff`, BSD-3-Clause), with line numbers for disk/recovery, −/+ signs,
+word changes, contiguous change-region counts and keyboard-operable Previous/Next buttons.
+Navigation focuses and scrolls to the region and wraps at either end. Long lines wrap while the
+source pane scrolls vertically; the review grows to at most 72rem and fits the 640px viewport.
+Long unchanged ranges are currently retained. CRLF and missing final newlines remain observable.
+
+When restoration/collection or canonical preview is rejected, its reason accompanies a **plaintext
+comparison**. The disk's existing Core read model is projected with `toTiptapDocument`, then passed
+through the exact same `recoveryText` traversal used when recording. Thus both sides use the same
+salvage rules (text, atoms, captions, link destinations), rather than comparing Markdown to salvage
+text. If the disk cannot supply that read model, the comparison reports its error and retains the
+independent plaintext recovery copy. An absent disk file is explicitly identified and the recoverable
+side is all additions. Requests show loading and error states, time out after 15 seconds, can be
+retried, and are cancelled on closing the view. Restore/Delete/Not now do not wait for comparison.
+Diff calculation runs in one request-owned Web Worker, never in a render or `useMemo`. A complete
+line diff is computed first. Each removed/added line pair has at most one word-diff call, projected
+onto both sides. Optional word highlighting stops for the rest of the comparison when its **total**
+100ms budget, 64Ki UTF-16 code-unit allowance, or 8Ki combined code units for one line pair is exceeded.
+The library timeout for a word call is at most 10ms and uses the remaining shared word budget.
+The UI explicitly says that word highlighting was omitted; line contents, signs, numbers, counts
+and navigation remain complete. These text-size guards also bound tokenization before jsdiff can
+check its own timeout: the reviewer's 1000-word old/new pair is about 13.8Ki code units and immediately
+falls back to line highlighting rather than repeatedly attempting quadratic word matching.
+
+The **whole worker calculation** has a 500ms elapsed budget, including line diff, projection and
+word work. Combined input is limited to 1,000,000 UTF-16 code units and 10,000 lines to bound transfer,
+allocation and rendered output, while admitting the reviewer's roughly 337KiB per-side document.
+Exceeding these limits or the line-diff budget rejects the whole comparison, with a reason rather
+than partial line results. An independent **2-second watchdog** terminates the worker even if library
+tokenization/search fails to return; this allows four times the compute budget for module startup
+and message transfer. The 100ms optional-word allowance is one fifth of the calculation budget, so
+word detail cannot consume all the time needed for the complete source comparison.
+
+Reading and calculation have separate loading states. Close, record replacement, retry, completion
+and failure all terminate their worker and clear its watchdog. The existing request is aborted too;
+a disposed request cannot publish a late result. Buttons/Escape remain on the main thread, including
+during calculation or a budget error; the independent plaintext copy remains available. Recovery
+format, restoration/Save behavior, Core semantics and CLI are unchanged; this is interface-only work.
+
+Performance regression (#672 review, 2026-10-28): a native `text` code block has 50 lines,
+each `Array.from({length:1000}, (_,i) => 'old'+i).join(' ')`, changed from `old` to `new`.
+Both sides are about 337KiB. The same controlled Host response and real RecoveryPrompt failed on
+`6277ecd`: 10ms heartbeat maximum gap **20,299.8ms**, result ready at **20,299ms**. With the worker,
+maximum gap was **59ms**, ready at **107.6ms**, and the omission notice was present. Unit calculation
+took about **9ms** and retained both complete sources. These are observed local values, not a speed SLA.
+The browser regression requires a maximum gap below **500ms** and a complete result below **2s**;
+the former allows scheduler/layout variance while rejecting the reproduced 20-second lock-up, and
+the latter matches the total worker watchdog. It uses a fixed 2-second observation window and direct
+DOM/timing assertions, without a readiness poll or reload. A held genuine worker module separately
+checks Delete/Escape within 1s, closing/cancellation, and that its late result cannot replace the next
+comparison. Oversized input checks retain the plaintext copy and all recovery actions. Production HTTP
+recovery also loads the built worker under the Host's existing self-only CSP, without changing headers.
+The development adapter explicitly prebundles the lazy worker's `diff` dependency, as it already does
+for Mermaid, while leaving browser loading lazy. Cold CI initially exposed Vite discovering `diff`
+on the first comparison and reloading the page; its artifact showed the optimizer reload rather than
+a performance-budget failure. The existing recovery regression also runs after a forced cold start
+to ensure opening Compare preserves the review and applied work without that reload.
 
 Historical layout comparisons: [Recovery review layout (#395)](#recovery-review-layout-395).
+
+Verification (2026-10-28, #655 stage 1): the persistent-Chrome `recovery` scenario checks
+mixed edits, displayed region count and wrapping keyboard navigation, unchanged records on review,
+loading/failure with available recovery actions, external revision warning, same-rule plaintext fallback,
+missing file, restore and byte-identical actual Save. The Host test checks bytes/mtime/revision and
+acknowledgement preservation, checkpoint replay and refusal reasons; HTTP tests check existing/absent
+paths outside allowed Roots. The pre-existing recovery tab assertion was scoped to the Documents
+tablist (including hidden document tabs under the modal), excluding Sidebar tabs.
+
+Captures use the same mixed-edit record and selected region, 900px height, DPR 1, zoom 1,
+Pretendard UI and Consolas source. Collapsed prompt Before/After uses the same visible path/review
+state (record text is collapsed). The four
+comparison captures are the same state across viewport/theme. The browser also asserts horizontal
+content bounds and footer button bounds at both supported widths.
+
+| Review | 640px | 1440px |
+| --- | --- | --- |
+| Former prompt (baseline `23d178a`) | [Before](../reviews/assets/recovery-source-diff-655/prompt-640.png) | [Before](../reviews/assets/recovery-source-diff-655/prompt-1440.png) |
+| Collapsed prompt, with Compare | [After](../reviews/assets/recovery-source-diff-655/review-after-640.png) | [After](../reviews/assets/recovery-source-diff-655/review-after-1440.png) |
+| Source comparison, light | [Capture](../reviews/assets/recovery-source-diff-655/comparison-640-light.png) | [Capture](../reviews/assets/recovery-source-diff-655/comparison-1440-light.png) |
+| Source comparison, dark | [Capture](../reviews/assets/recovery-source-diff-655/comparison-640-dark.png) | [Capture](../reviews/assets/recovery-source-diff-655/comparison-1440-dark.png) |
+
 
 ### Recovery regression coverage
 

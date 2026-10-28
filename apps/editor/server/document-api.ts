@@ -27,6 +27,7 @@ import type {
   DocumentFileResponse,
   SaveResponse,
   SourceResponse,
+  RecoveryPreviewResponse,
   DocumentErrorResponse,
   FolderBrowseResponse,
   FolderCreateResponse,
@@ -148,11 +149,33 @@ export function previewDocumentFile(requestedPath: string | undefined, request: 
   if (request.base) {
     // A preview describes this session, even after an external conflict. Validate its
     // acknowledged revision without writing or requiring the disk to remain unchanged.
-    const previous = request.base.savedEdits
-      ? saveEdits(request.base.source, request.base.savedEdits).markdown : request.base.source;
-    return { markdown: saveCurrentDocument(previous, request).markdown };
+    return previewSession(request);
   }
   return { markdown: saveCurrentDocument(decodeUtf8(readFileSync(filePath)), request).markdown };
+}
+
+function previewSession(request: FileSaveRequest & { base?: SaveRequest["base"] }): SourceResponse {
+  if (!request.base) throw new Error("invalid session source");
+  const previous = request.base.savedEdits
+    ? saveEdits(request.base.source, request.base.savedEdits).markdown : request.base.source;
+  return { markdown: saveCurrentDocument(previous, request).markdown };
+}
+
+/** Current disk bytes and an independent session dry run. No acknowledgement or file commit. */
+export function previewRecoveryFile(requestedPath: string, request?: SaveRequest, access: FileAccess = LOCAL_FILE_ACCESS): RecoveryPreviewResponse {
+  const filePath = resolveDocumentPath(requestedPath, access, true);
+  let disk: RecoveryPreviewResponse["disk"] = null;
+  try {
+    const source = decodeUtf8(readFileSync(accessPath(filePath, access, true)));
+    disk = { source, revision: documentRevision(source) };
+    try { disk.document = readModel(source).document; }
+    catch (error) { disk.error = errorPayload(error, access).error; }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+  if (!request) return { disk };
+  try { return { disk, ...previewSession(request) }; }
+  catch (error) { return { disk, error: errorPayload(error, access).error }; }
 }
 
 export function saveCurrentDocument(
@@ -274,6 +297,14 @@ export async function handleDocumentRequest(
       return;
     }
     try {
+      if (query.get("recovery") === "1") {
+        const body: unknown = JSON.parse(await readBody(req));
+        if (!isObject(body) || typeof body.path !== "string" || !body.path.trim()) throw new Error("document path is required");
+        if (body.save !== undefined && !isObject(body.save)) throw new Error("invalid session source");
+        const request = body.save === undefined ? undefined : saveRequestOf({ ...body.save as object, path: body.path });
+        sendJson(res, 200, previewRecoveryFile(body.path, request, access));
+        return;
+      }
       const request = saveRequestOf(JSON.parse(await readBody(req)));
       sendJson(res, 200, previewDocumentFile(request.path, request, access));
     } catch (error) {

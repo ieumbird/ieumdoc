@@ -41,7 +41,7 @@ import {
   isSupportedDocumentChange,
   toTiptapDocument,
 } from "../src/tiptap-document.ts";
-import { commitDocumentSave, createDocumentFile, createFolder, documentRevision, DocumentConflictError, browseFolder, folderPlaces, handleDocumentRequest, listFolder, loadDocumentFile, previewDocumentFile, resolveMediaPath, resolveDocumentPath, saveCurrentDocument, saveDocumentFile } from "../server/document-api.ts";
+import { commitDocumentSave, createDocumentFile, createFolder, documentRevision, DocumentConflictError, browseFolder, folderPlaces, handleDocumentRequest, listFolder, loadDocumentFile, previewDocumentFile, previewRecoveryFile, resolveMediaPath, resolveDocumentPath, saveCurrentDocument, saveDocumentFile } from "../server/document-api.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
 import { SaveContentError } from "../shared/save-error.ts";
@@ -2376,4 +2376,60 @@ test("plaintext salvage keeps readable content without dumping internal attribut
   assert.match(text,/Paper\n\nLinked \(https:\/\/example.com\) prosea\+b\n\nx\^2/);
   for (const content of ["Cell A\tCell B", "Results", "Figure caption", "Diagram", "image.png"]) assert.ok(text.includes(content),content);
   assert.doesNotMatch(text,/\[(?:level|latex|caption|marks):|sourcePath|deletedPaths|headingNumbering|"kind"/);
+});
+
+
+test("Recovery preview uses Save bytes without changing disk, acknowledgement, or missing files", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-recovery-preview-"));
+  const file = path.join(dir, "record.md");
+  const server = createServer((req, res) => { void handleDocumentRequest(req, res, () => res.end()); });
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as AddressInfo;
+  const post = (body: unknown) => fetch(`http://127.0.0.1:${port}/api/document-source?recovery=1`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+  });
+  try {
+    writeFileSync(file, source);
+    const loaded = loadDocumentFile(file);
+    const request = { path: file, revision: loaded.revision, base: { source: loaded.source },
+      paragraphs: [{ path: [9], content: [{ kind: "text" as const, text: PARAGRAPH_TO }] }] };
+    const captured = structuredClone(request);
+    const before = fs.statSync(file);
+    const response = await post({path: file, save: request});
+    assert.equal(response.status, 200);
+    const preview = await response.json() as import("../shared/document-protocol.ts").RecoveryPreviewResponse;
+    assert.equal(preview.disk?.source, source);
+    assert.equal(preview.disk?.revision, loaded.revision);
+    assert.deepEqual(preview.disk?.document, loaded.document);
+    assert.equal(fs.statSync(file).mtimeMs, before.mtimeMs);
+    assert.deepEqual(readFileSync(file), Buffer.from(source));
+    assert.equal(loadDocumentFile(file).revision, loaded.revision);
+    assert.deepEqual(request, captured);
+    assert.deepEqual(readdirSync(dir), ["record.md"]);
+    assert.deepEqual(Buffer.from(saveDocumentFile(file, request).markdown), Buffer.from(preview.markdown!));
+    // An acknowledged Save replays savedEdits from the opening source too.
+    const checkpoint = { ...request, revision: documentRevision(preview.markdown!),
+      base: { source, savedEdits: { paragraphs: request.paragraphs } }, paragraphs: [] };
+    const second = previewRecoveryFile(file, checkpoint);
+    assert.equal(second.markdown, saveDocumentFile(file, checkpoint).markdown);
+    writeFileSync(file, source + "\n");
+    const changed = previewRecoveryFile(file, request);
+    assert.notEqual(changed.disk?.revision, request.revision);
+    assert.equal(changed.markdown, preview.markdown);
+    const invalid = await post({path: file, save: {...request, paragraphs: [{path:[9],content:[]}]}});
+    const refused = await invalid.json() as typeof preview;
+    assert.equal(invalid.status, 200);
+    assert.ok(refused.error);
+    assert.equal(refused.markdown, undefined);
+    assert.equal(refused.disk?.source, source + "\n");
+    assert.equal((await post({path:file,save:{...request,revision:"bad"}})).status, 400);
+    const missing = path.join(dir, "missing.md");
+    assert.deepEqual(previewRecoveryFile(missing, {...request,path:missing}), {disk:null,markdown:preview.markdown});
+    assert.equal(fs.existsSync(missing), false);
+    assert.deepEqual(previewRecoveryFile(file).disk?.source, source + "\n");
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+    rmSync(dir, {recursive:true,force:true});
+  }
 });
