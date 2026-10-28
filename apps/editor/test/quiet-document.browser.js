@@ -22,7 +22,7 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
   const captures = [];
   const settings = async () => {
     const button = page.getByRole('button',{name:'Settings',exact:true});
-    if (!await button.isVisible()) await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+    if (!await button.isVisible()) await page.getByRole('button',{name:'Expand Explorer',exact:true}).click();
     await button.click();
   };
   const closeSettings = async () => {
@@ -662,15 +662,15 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
         await shot(`${width}-paragraph-hover`);
       });
       // Capture both explicit Sidebar states.
-      if(await page.getByRole('button',{name:'Expand sidebar',exact:true}).count()) {
-        await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+      if(await page.getByRole('button',{name:'Expand Explorer',exact:true}).count()) {
+        await page.getByRole('button',{name:'Expand Explorer',exact:true}).click();
         await rest();
         await shot(`${width}-sidebar-expanded`);
       } else {
-        await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
+        await page.getByRole('button',{name:'Collapse Explorer',exact:true}).click();
         await rest();
         await shot(`${width}-collapsed`);
-        await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+        await page.getByRole('button',{name:'Expand Explorer',exact:true}).click();
       }
       await page.getByRole('button',{name:'Document settings',exact:true}).click();
       await rest();

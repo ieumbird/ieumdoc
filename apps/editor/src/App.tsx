@@ -781,7 +781,7 @@ export function App() {
     })),
     ...listedDocuments.filter(entry => !openedPaths.has(entry.path)).map(entry => ({
       id: `file:${entry.path}`, kind: "file" as const, label: entry.name,
-      detail: `${i18n.t("Files")} · ${entry.native === false ? `${i18n.t("Not an IeumDoc document")} · ` : ""}${entry.path}`,
+      detail: `${i18n.t("Explorer")} · ${entry.native === false ? `${i18n.t("Not an IeumDoc document")} · ` : ""}${entry.path}`,
       icon: entry.native === false ? FileX : FileText, foreign: entry.native === false,
       disabled: busy || Boolean(continuation), takesFocus: true,
       run: () => {
@@ -814,7 +814,7 @@ export function App() {
       keywords: ["source markdown", "소스 보기"], run: () => { globalThis.document.querySelector<HTMLElement>('[data-testid="view-source"]')?.focus(); void showSource(); } },
     { id: "outline", kind: "command", label: i18n.t(panelOpen ? "Hide outline" : "Show outline"), icon: PanelRight, takesFocus: true,
       keywords: ["outline", "개요"], run: () => { outlineToggle.current?.focus(); choosePanelOpen(!panelOpen); } },
-    { id: "sidebar", kind: "command", label: i18n.t(sidebarOpen ? "Collapse sidebar" : "Expand sidebar"), icon: PanelLeft,
+    { id: "sidebar", kind: "command", label: i18n.t(sidebarOpen ? "Collapse Explorer" : "Expand Explorer"), icon: PanelLeft,
       keywords: ["sidebar", "사이드바"], takesFocus: true,
       run: () => { sidebarFocus.current = "sidebar"; setSidebarOpen(value => !value); } },
     { id: "width", kind: "command", label: i18n.t(documentWidth === "wide" ? "Standard document width" : "Wide document"), icon: documentWidth === "wide" ? Columns3 : StretchHorizontal,

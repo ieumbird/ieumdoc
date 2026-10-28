@@ -139,7 +139,7 @@ async (page, { screenshots = false, openPath }) => {
           if (await toggle.getAttribute('aria-pressed') !== String(panelOpen)) await toggle.click();
           let expandedSettingsTop;
           for (const collapsed of [false, true]) {
-            const sidebar = page.getByRole('button', {name:collapsed ? 'Collapse sidebar' : 'Expand sidebar', exact:true});
+            const sidebar = page.getByRole('button', {name:collapsed ? 'Collapse Explorer' : 'Expand Explorer', exact:true});
             if (await sidebar.isVisible()) await sidebar.click();
             // Wait for the measured header height used by overlay placement, not a fixed delay.
             await page.waitForFunction(() => {
@@ -197,7 +197,7 @@ async (page, { screenshots = false, openPath }) => {
             if ([1440, 640].includes(width))
               await capture(`titlebar-${theme}-${width}-${reserved}-${panelOpen}-${collapsed}`);
           }
-          await page.getByRole('button', {name:'Expand sidebar', exact:true}).click();
+          await page.getByRole('button', {name:'Expand Explorer', exact:true}).click();
         }
       }
     }
@@ -224,13 +224,13 @@ async (page, { screenshots = false, openPath }) => {
     // Representative caption width; production uses the native CSS environment, never this value.
     await page.evaluate(() => document.documentElement.style.setProperty('--window-controls-width', '138px'));
     for (const collapsed of [false, true]) {
-      if (collapsed) await page.getByRole('button', {name:'Collapse sidebar', exact:true}).click();
+      if (collapsed) await page.getByRole('button', {name:'Collapse Explorer', exact:true}).click();
       const blocked = await page.evaluate(() => [...document.querySelectorAll('.top-bar button, .sidebar-header button')].filter(button => {
         const rect = button.getBoundingClientRect();
         return rect.right > innerWidth || (rect.top < 40 && rect.right > innerWidth - 138) || getComputedStyle(button).getPropertyValue('app-region') !== 'no-drag';
       }).map(button => button.getAttribute('aria-label') || button.textContent));
       check(blocked.length === 0, `Caption controls overlap at ${width}px: ${blocked}`);
-      if (collapsed) await page.getByRole('button', {name:'Expand sidebar', exact:true}).click();
+      if (collapsed) await page.getByRole('button', {name:'Expand Explorer', exact:true}).click();
     }
     await page.getByRole('button', {name:'Settings', exact:true}).click();
     const settingsScreen = page.getByTestId('settings-dialog');
@@ -331,7 +331,7 @@ async (page, { screenshots = false, openPath }) => {
     check(geometry.width === 8 && geometry.height === 8, 'Update dot is not 8px');
     if (screenshots) await page.screenshot({path:`tmp/665/after-en-dark-${width}.png`});
   }
-  await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
+  await page.getByRole('button',{name:'Collapse Explorer',exact:true}).click();
   check(await dot.isVisible(), 'Collapsed rail lost the update dot');
   if (screenshots) await page.screenshot({path:'tmp/665/after-en-dark-640-rail.png'});
   await settings.click();
@@ -343,7 +343,7 @@ async (page, { screenshots = false, openPath }) => {
   await capture('update-highlight-en-dark-640');
   await page.keyboard.press('Escape'); await dialog.waitFor({state:'detached'});
   check(await settings.evaluate(n => n === document.activeElement), 'Rail Settings lost return focus');
-  await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+  await page.getByRole('button',{name:'Expand Explorer',exact:true}).click();
   await settings.click(); await dialog.waitFor();
   check(await dialog.getByRole('button',{name:'Appearance & language',exact:true}).getAttribute('aria-current') === 'page', 'Seen update changed default Settings category');
   await page.keyboard.press('Escape'); await dialog.waitFor({state:'detached'});
@@ -548,7 +548,7 @@ async (page, { screenshots = false, openPath }) => {
   for (const language of ['en', 'ko']) {
     for (const width of [1440, 640]) {
       await page.setViewportSize({width, height:900});
-      const expand = page.getByRole('button',{name:language === 'en' ? 'Expand sidebar' : '사이드바 펼치기',exact:true});
+      const expand = page.getByRole('button',{name:language === 'en' ? 'Expand Explorer' : '탐색기 펼치기',exact:true});
       if (await expand.isVisible()) await expand.click();
       await page.getByRole('button',{name:language === 'en' ? 'Settings' : '설정',exact:true}).click();
       await dialog.waitFor();
@@ -613,7 +613,7 @@ async (page, { screenshots = false, openPath }) => {
       }
     }
     // Change through the actual preference control; never rewrite UI text in a capture.
-    const expand = page.getByRole('button',{name:language === 'en' ? 'Expand sidebar' : '사이드바 펼치기',exact:true});
+    const expand = page.getByRole('button',{name:language === 'en' ? 'Expand Explorer' : '탐색기 펼치기',exact:true});
     if (await expand.isVisible()) await expand.click();
     await page.getByRole('button',{name:language === 'en' ? 'Settings' : '설정',exact:true}).click();
     await page.getByTestId('ui-language').selectOption(language === 'en' ? 'ko' : 'en');

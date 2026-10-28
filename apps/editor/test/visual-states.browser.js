@@ -357,7 +357,7 @@ async (page, { withBlockHover, reloadDocument, recoveryRecords, expect }) => {
   await page.evaluate(() => { document.documentElement.dataset.accent = 'blue'; });
   check(contrasts.every(c => c.ratio >= c.min), `Contrast failure: ${JSON.stringify(contrasts.filter(c => c.ratio < c.min))}`);
   // The approved non-color cue may change glyph widths. It must not jump these rows vertically,
-  // remove Files ellipsis, exceed Outline's two-line clamp or overflow the real menu at either width.
+  // remove Explorer ellipsis, exceed Outline's two-line clamp or overflow the real menu at either width.
   const weightGeometry = [];
   const rows = async (selector, kind) => {
     const measured = await page.locator(selector).evaluateAll((nodes, kind) => {
@@ -379,7 +379,7 @@ async (page, { withBlockHover, reloadDocument, recoveryRecords, expect }) => {
     await page.setViewportSize({width,height:1000});
     const files = await rows('.sidebar-tree-item', 'files');
     if(width===640) {
-      await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
+      await page.getByRole('button',{name:'Collapse Explorer',exact:true}).click();
       await page.getByRole('button',{name:'Outline',exact:true}).click();
     }
     const outline = await rows('.document-outline-item','outline');

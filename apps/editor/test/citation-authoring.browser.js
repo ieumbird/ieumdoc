@@ -14,7 +14,7 @@ async (page, { openFolderPicker, openPath, waitForActivePath, reloadDocument, wa
   // Reopen from the common folder so the tab may read ../refs.bib (the chapter folder alone may not).
   await openPath(page, file);
   const sidebar = page.getByTestId('sidebar');
-  const expand = page.getByRole('button', { name: 'Expand sidebar', exact: true });
+  const expand = page.getByRole('button', { name: 'Expand Explorer', exact: true });
   if (await expand.isVisible()) await expand.click();
   await openFolderPicker(page);
   await page.getByTestId('folder-path').fill(root);

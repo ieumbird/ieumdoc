@@ -48,14 +48,14 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
   const checkSidebarEntry = async state => {
     for (const width of [1440, 1024, 640]) {
       await page.setViewportSize({width, height:812});
-      const expand = page.getByRole('button', {name:'Expand sidebar', exact:true});
+      const expand = page.getByRole('button', {name:'Expand Explorer', exact:true});
       if (await expand.isVisible()) await expand.click();
-      await sidebar.getByRole('button', {name:'Collapse sidebar', exact:true}).waitFor();
+      await sidebar.getByRole('button', {name:'Collapse Explorer', exact:true}).waitFor();
       const header = sidebar.locator('.sidebar-header');
-      assert(await header.getByRole('button').count() === 1 && await header.innerText() === 'Files',
-        `Sidebar header contains only Files and collapse: ${state}, ${width}px`);
+      assert(await header.getByRole('button').count() === 1 && await header.innerText() === 'Explorer',
+        `Sidebar header contains only Explorer and collapse: ${state}, ${width}px`);
       const entry = state === 'empty' ? openFolder : section.first().getByRole('button', {name:'More actions', exact:true});
-      const collapse = header.getByRole('button', {name:'Collapse sidebar', exact:true});
+      const collapse = header.getByRole('button', {name:'Collapse Explorer', exact:true});
       const geometry = await collapse.evaluate(button => {
         const rect = button.getBoundingClientRect();
         const header = button.closest('.sidebar-header').getBoundingClientRect();
@@ -262,7 +262,7 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
   await field.press('Enter');
   await dialog.waitFor({state:'detached'});
   await section.waitFor();
-  assert(await sidebar.getByRole("button", {name:"Collapse sidebar", exact:true}).evaluate(node => node === document.activeElement), 'Successful folder Open returns focus to header');
+  assert(await sidebar.getByRole("button", {name:"Collapse Explorer", exact:true}).evaluate(node => node === document.activeElement), 'Successful folder Open returns focus to header');
   await checkSidebarEntry('one');
   const sectionToggle = target => target.getByRole('button', {name:/^(Collapse|Expand) folder /});
   const firstSection = section.first();
@@ -313,7 +313,7 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
   if (screenshots) {
     for (const width of [1440, 640]) {
       await page.setViewportSize({width, height:812});
-      await sidebar.getByRole('button', {name:'Collapse sidebar', exact:true}).waitFor();
+      await sidebar.getByRole('button', {name:'Collapse Explorer', exact:true}).waitFor();
       const environment = await page.evaluate(async () => {
         await document.fonts.ready; document.activeElement?.blur(); window.scrollTo(0, 0);
         return {viewport:[innerWidth, innerHeight], dpr:devicePixelRatio, zoom:visualViewport.scale,
@@ -468,10 +468,10 @@ async (page, { openFolderPicker, waitForActivePath, screenshots = false } = {}) 
   await page.keyboard.press('Escape');
   await page.getByRole('region', {name:'Document settings',exact:true}).locator('.display-settings').waitFor({state:'hidden'});
   assert(JSON.stringify(await treeState()) === JSON.stringify(retained), 'Settings reset tree scroll or keyboard stop');
-  await page.getByRole('button', {name:'Collapse sidebar', exact:true}).click();
-  await page.getByRole('button', {name:'Expand sidebar', exact:true}).click();
+  await page.getByRole('button', {name:'Collapse Explorer', exact:true}).click();
+  await page.getByRole('button', {name:'Expand Explorer', exact:true}).click();
   assert(JSON.stringify(await treeState()) === JSON.stringify(retained) && await row('guides').getAttribute('aria-expanded') === 'true' &&
-    folderRequests.length === requestsBeforeSwitch, 'Reopening Files reset the tree or reloaded its folder');
+    folderRequests.length === requestsBeforeSwitch, 'Reopening Explorer reset the tree or reloaded its folder');
   await page.setViewportSize(viewport);
   result.settingsPreservesTree = true;
 

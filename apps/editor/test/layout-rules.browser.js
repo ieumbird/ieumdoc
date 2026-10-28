@@ -31,7 +31,7 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
   const results=[];
   const language=async (next,delayFocus=false)=>{
     const current=await page.locator('html').getAttribute('lang');
-    const expand=page.getByRole('button',{name:current==='ko'?'사이드바 펼치기':'Expand sidebar',exact:true});
+    const expand=page.getByRole('button',{name:current==='ko'?'탐색기 펼치기':'Expand Explorer',exact:true});
     if(await expand.isVisible())await expand.click();
     // Hold Base UI's actual initial focus on the reproducing narrow-width path (#541).
     if(delayFocus)await page.evaluate(()=>{
@@ -151,13 +151,13 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
   }
   await language('en');
   await page.setViewportSize({width:1440,height:1000});
-  await page.getByRole('button',{name:'Collapse sidebar',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Collapse Explorer',exact:true}).waitFor();
   await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate((element,original)=>element.editor.commands.setContent(original),isolationDocument);
   await withBlockHover(page, async () => {
     for(const width of [1440,1424,1423,1280,1279,1025,1024,768,705,704,640]) {
       await page.setViewportSize({width,height:1000});
       for(const collapsed of [false,true]) {
-        if(collapsed) await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
+        if(collapsed) await page.getByRole('button',{name:'Collapse Explorer',exact:true}).click();
         await page.mouse.move(width-2,2);
         await page.evaluate(()=>{window.scrollTo(0,0);document.activeElement?.blur();});
         const rest=await page.locator('.block-controls').evaluateAll(nodes=>nodes.map(n=>({opacity:getComputedStyle(n).opacity,pointer:getComputedStyle(n).pointerEvents})));
@@ -256,7 +256,7 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
         if(fail||result.sidebarHeader!==33||result.commandCenterDelta>1||(!stacked&&result.header!==40)||
           (stacked&&(result.header<=40||result.actionsTop<result.centerBottom+7)))throw Error(JSON.stringify(result));
         results.push({...result,hoverShift:after-before});
-        if(collapsed)await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+        if(collapsed)await page.getByRole('button',{name:'Expand Explorer',exact:true}).click();
       }
     }
   });
@@ -265,8 +265,8 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
   for(const width of [640]) {
     await page.setViewportSize({width,height:800});
     for(const collapsed of [false,true]) {
-      if(collapsed) await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
-      else if(await page.getByRole('button',{name:'Expand sidebar',exact:true}).count()) await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+      if(collapsed) await page.getByRole('button',{name:'Collapse Explorer',exact:true}).click();
+      else if(await page.getByRole('button',{name:'Expand Explorer',exact:true}).count()) await page.getByRole('button',{name:'Expand Explorer',exact:true}).click();
       await page.evaluate(()=>window.scrollTo(0,0));
       const narrow=await page.evaluate(()=>{
         // Visual/Source is one segmented control: its track is measured as a single control.
@@ -469,7 +469,7 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
       await page.setViewportSize({width,height:900});
       for(const collapsed of [false,true]) {
         const sidebarCollapsed=await page.locator('.sidebar--collapsed').count()>0;
-        if(sidebarCollapsed!==collapsed)await page.getByRole('button',{name:lang==='ko'?(collapsed?'사이드바 접기':'사이드바 펼치기'):(collapsed?'Collapse sidebar':'Expand sidebar'),exact:true}).click();
+        if(sidebarCollapsed!==collapsed)await page.getByRole('button',{name:lang==='ko'?(collapsed?'탐색기 접기':'탐색기 펼치기'):(collapsed?'Collapse Explorer':'Expand Explorer'),exact:true}).click();
         for(const panel of [true,false]) {
           const outline=page.getByRole('button',{name:lang==='ko'?'개요':'Outline',exact:true});
           if((await outline.getAttribute('aria-pressed')==='true')!==panel)await outline.click();

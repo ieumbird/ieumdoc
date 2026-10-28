@@ -3,6 +3,7 @@
 - Status: Implemented
 - Feature sample verification: 2026-10-28 (#528 Core read-model coverage, canonical CLI check/format, Desktop version unit tests, existing Command center browser entry and manual 1440/640px Korean/English captures; packaged execution deferred to CI).
 - Last verified: 2026-10-28 (#637: block Equation editing moves into the document; inline math retains its popover).
+- Explorer naming update: 2026-10-29 (#703: Explorer / 탐색기 replaces the Files panel name; [contract and captures](#explorer-name-703)).
 - Collapsed rail update: 2026-10-28 (#671: Files and shared Settings entry; [contract and captures](#collapsed-rail-files-and-settings-671)).
 - Settings entry update: 2026-10-28 (#669: remove the Settings-only document-settings entry; [contract and captures](#settings-document-entry-removal-669)).
 - Brand title-strip update: 2026-10-28 (#647 owner-approved composition; targeted verification recorded in the PR).
@@ -32,6 +33,30 @@
 - Scope: existing Editor interactions. [Visual Language (current v4.8)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
 
 Historical verification records: [Verification record](#verification-record).
+
+## Explorer name (#703)
+
+The left Sidebar is named **Explorer / 탐색기**. Its heading, empty-region name,
+Command center file-result category and expand/collapse command use this name.
+The expanded control is **Collapse Explorer / 탐색기 접기**; the collapsed rail
+control is **Expand Explorer / 탐색기 펼치기**, for both accessible name and tooltip.
+The shortcut guide contains no Sidebar-specific entry or binding to rename.
+The folder-menu command **Open in File Explorer / 파일 탐색기에서 열기** (#487)
+still names the Windows application and keeps its existing wording.
+Only display strings change: icons, geometry, command IDs, keyboard/focus behavior,
+mounted tree and document semantics remain unchanged. No Core/CLI operation is needed.
+This naming supersedes the Files wording in earlier verification records and captures.
+
+Same-state manual comparison: Windows persistent Chrome through `pnpm browser:test`,
+1440×900, English, light theme/OS, DPR 1, viewport scale 1, default 100% zoom, bundled
+Pretendard after `document.fonts.ready`, technical-document fixture, no opened folder,
+Sidebar expanded, Outline docked, scroll 0, focus blurred, pointer at (1439, 899).
+Before is `a1be38ce063a10bf5068d077e07b8884455967e4`; After is the same worktree with
+this PR's naming changes. Captures are manual review evidence, not pixel assertions.
+
+| Representative expanded state | Before | After |
+| --- | --- | --- |
+| 1440×900 | [Files](assets/explorer-label-703/before-1440.png) | [Explorer](assets/explorer-label-703/after-1440.png) |
 
 ## Folder Explorer menu (#487)
 
@@ -364,10 +389,10 @@ while geometry, keyboard and editor-state checks provide automated coverage.
 
 ## Sidebar and native title bar (#582 / #605)
 
-The approved explorer layout puts only **Files / 파일** and Collapse sidebar in the header.
+The approved explorer layout puts only **Explorer / 탐색기** and Collapse Explorer in the header.
 Each opened folder shows **New document… / 새 문서…** and its More actions
 menu (New folder…, Open folder…, Refresh, Close folder, in that order). There is no additional New document row while
-a folder is open. Empty Files retains Open folder… and New document…; the latter first
+a folder is open. Empty Explorer retains Open folder… and New document…; the latter first
 chooses a folder, then opens the existing filename form. Start and command-center entries
 use the same New document… name. Folder selection and creation semantics are unchanged.
 Cancel returns to the invoking button; if opening the first folder removed that empty-state
@@ -384,14 +409,14 @@ through the two actions to the retained tree stop.
 The first row is one full-width title strip (#647): the existing Desktop SVG icon and
 **IEUMDOC** at the left, existing TopBar controls in the remaining width, and native caption
 buttons at the right in Desktop. HTTP Host uses the same arrangement with zero caption
-reservation and no native window dragging. The brand follows the Files width; collapsing
-Files retains only the icon. The Files icon button (Expand sidebar, #671) stays in the 48px rail on
-the second row, directly below the icon: this preserves its Files-navigation location,
+reservation and no native window dragging. The brand follows the Explorer width; collapsing
+Explorer retains only the icon. The Explorer icon button (Expand Explorer, #671) stays in the 48px rail on
+the second row, directly below the icon: this preserves its Explorer-navigation location,
 28px target, accessible name, aria-expanded and keyboard focus return without making the
-brand an additional action. DOM tab order retains Files controls, TopBar controls, document tabs/content, then
+brand an additional action. DOM tab order retains Explorer controls, TopBar controls, document tabs/content, then
 document navigation; the brand adds no tab stop.
 
-Files / Collapse and the Outline / Tables / Figures tab row begin directly below the title
+Explorer / Collapse and the Outline / Tables / Figures tab row begin directly below the title
 strip, aligned with the document tab row and its bottom boundary. The separate visible
 Outline title row is removed; the panel keeps its accessible Outline heading. Docking,
 width, overlay dismissal and list navigation are unchanged. Below the docking width the
@@ -495,7 +520,7 @@ The shell has three responsibilities: the Sidebar on the left browses opened fol
 
 | Area | Current behavior |
 | --- | --- |
-| Sidebar | Files and Collapse sidebar in the header, followed by file navigation; no duplicate New document row with opened folders (#582). There is no Files / Display switch. The collapsed 48px rail contains a Files icon button at the document-tab row and an icon-only Settings button at the bottom (#671). The Files icon restores file navigation; its accessible name and tooltip remain Expand sidebar (사이드바 펼치기), describing the action rather than only naming the panel. Settings uses the same entry component and screen as the expanded footer, at the same vertical position; Back/Escape returns focus to its opening button. Both rail actions are keyboard reachable, have localized names/tooltips and are Desktop no-drag targets. An always-visible Activity bar and additional panels are future work. Files contains the opened folders (#112, [ADR-0009](../adr/0009-multiple-opened-folders.md)), each its own section in the order opened, or, without any, guidance followed by the browser's recent folders (name, full path in `title`): one click lists that folder like Open folder, without opening a document. User-controlled collapse/expand, with a 48px rail when collapsed. No workspace or placeholder navigation. Each folder heading names its folder (disclosure button and name, full path in `title`; [section visibility](#collapsible-folder-sections-425)) with `+` (New document…) and a `⋯` menu containing New folder…, Open folder…, Refresh and Close folder (removes only that folder; tabs stay open). Open folder… adds a folder; one already open is listed again in place. With no opened folder, the empty Files panel offers Open folder… and New document…. Below each heading is a folder tree; file listing and activation follow [Folder files and image preview](#folder-files-and-image-preview-217). A `.md` file whose leading frontmatter lacks the native marker stays listed in subtle text with its own icon, and its tooltip and accessible description say it is not an IeumDoc document; opening it still shows the refusal and why ([Folder listing](filesystem-host-boundary-v1.md#folder-listing-v1-112)). On explicit active-document path changes, the containing sections and folders above it expand in each opened folder containing it; a document elsewhere adds nothing to the trees. The opened folders' paths are browser preferences: on start they are listed again in order, and one the Host refuses or no longer has is left out quietly. Child-folder expansion is page state only. Root section collapse is an origin-specific preference restored on Reload/Desktop restart; startup document restoration respects it. Opening document settings or collapsing the sidebar retains the mounted tree, its expansion, scroll and keyboard stop, without listing again. The tree takes the remaining height and scrolls by itself; the open document uses the shared selected surface/text with 600 semibold as a non-color cue, without a left marker there and Close folder removes it. Keyboard: Up/Down, Home/End move through visible items; Right expands a folder or moves into it; Left collapses it or moves to the parent; Enter or Space opens a document or toggles a folder. Files does not list the open document separately: the tab row and TopBar name it. |
+| Sidebar | Explorer and Collapse Explorer in the header, followed by file navigation; no duplicate New document row with opened folders (#582). There is no Explorer / Display switch. The collapsed 48px rail contains an Explorer icon button at the document-tab row and an icon-only Settings button at the bottom (#671). The Explorer icon restores file navigation; its accessible name and tooltip remain Expand Explorer (탐색기 펼치기), describing the action rather than only naming the panel. Settings uses the same entry component and screen as the expanded footer, at the same vertical position; Back/Escape returns focus to its opening button. Both rail actions are keyboard reachable, have localized names/tooltips and are Desktop no-drag targets. An always-visible Activity bar and additional panels are future work. Explorer contains the opened folders (#112, [ADR-0009](../adr/0009-multiple-opened-folders.md)), each its own section in the order opened, or, without any, guidance followed by the browser's recent folders (name, full path in `title`): one click lists that folder like Open folder, without opening a document. User-controlled collapse/expand, with a 48px rail when collapsed. No workspace or placeholder navigation. Each folder heading names its folder (disclosure button and name, full path in `title`; [section visibility](#collapsible-folder-sections-425)) with `+` (New document…) and a `⋯` menu containing New folder…, Open folder…, Refresh and Close folder (removes only that folder; tabs stay open). Open folder… adds a folder; one already open is listed again in place. With no opened folder, the empty Explorer panel offers Open folder… and New document…. Below each heading is a folder tree; file listing and activation follow [Folder files and image preview](#folder-files-and-image-preview-217). A `.md` file whose leading frontmatter lacks the native marker stays listed in subtle text with its own icon, and its tooltip and accessible description say it is not an IeumDoc document; opening it still shows the refusal and why ([Folder listing](filesystem-host-boundary-v1.md#folder-listing-v1-112)). On explicit active-document path changes, the containing sections and folders above it expand in each opened folder containing it; a document elsewhere adds nothing to the trees. The opened folders' paths are browser preferences: on start they are listed again in order, and one the Host refuses or no longer has is left out quietly. Child-folder expansion is page state only. Root section collapse is an origin-specific preference restored on Reload/Desktop restart; startup document restoration respects it. Opening document settings or collapsing the sidebar retains the mounted tree, its expansion, scroll and keyboard stop, without listing again. The tree takes the remaining height and scrolls by itself; the open document uses the shared selected surface/text with 600 semibold as a non-color cue, without a left marker there and Close folder removes it. Keyboard: Up/Down, Home/End move through visible items; Right expands a folder or moves into it; Left collapses it or moves to the parent; Enter or Space opens a document or toggles a folder. Explorer does not list the open document separately: the tab row and TopBar name it. |
 | Document settings | Collapsed value summary at the top of the paper, before the title and outside ProseMirror (#580). Expands into grouped field rows for Number headings (H2–H6), Reference style (Default, Concise, Formal, Korean; unmatched values show Custom) with notation previews, and Connect bibliography…. Reuses existing operations, history, dirty indication and Save under the [numbering](heading-numbering-v1.md) and [bibliography](citations-v1.md#connect-and-disconnect-bibliography-files-438) contracts. Command center reveals/expands/focuses it. Field controls disable during pending work; Source/start omit the block and read-only shows only summary. Escape inside collapses and focuses the disclosure; the style menu handles its own Escape first. Bibliography uses the existing connection dialog with return to the row’s Connect button. Expansion is per-tab session only. Opening/collapsing preserves editor instance, selection, history and unapplied drafts. App Settings remains separate and has no document-settings entry (#669). |
 | Document panel | Outline, Tables N and Figures N navigation (#613), with 600 semibold, themed surface and segment shadow for the selected tab, muted inactive labels and reserved semibold label width (#620), titled Outline, with no internal close button (#590). The TopBar Outline toggle opens and closes it. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read with selected background/text and 600 semibold (no left marker, #515); a hidden semibold copy reserves its two-line text extent to prevent selection height jumps. The current item stays inside the list's visible area. The list scrolls by itself and is never written to the document. Table/Figure items reuse the body caption prefix and Core reference template (for example `Table 1. Caption`), including in Korean UI; a missing caption shows only the number. At 1424px and wider the panel is docked and starts open; below 1424px it starts closed and, opened, overlays the document below the sticky header instead of narrowing it, so Save, File actions and the Outline toggle stay usable; Escape closes it and returns focus to the TopBar Outline toggle. The docking width is independent of the 1024px narrow sidebar. Entering the overlay layout always closes it. Returning to docked restores the user's last explicit docked open/closed choice, or opens by default if none exists. Overlay interactions do not overwrite that choice. Open/closed is page memory only and resets on reload; no persistent preference is added. |
 | TopBar | Actual status in the document area on the left; the centered command-center button leads with a search icon and Find documents and commands / 문서·명령 찾기; the document location/name is muted secondary information (full path in its title); the location names the folders from the outermost opened sidebar folder containing the document down, otherwise its own folder. Visual/Source, Wide document and Outline, then Save and File actions (`⋯`) on the right. File actions contains Reload and Copy path (the full path to the clipboard, confirmed by a temporary notice, or an explanatory error where the browser has no Clipboard API); the menu is unavailable without a document or during pending work. Enter/Space opens it, arrows navigate, Escape closes and returns focus. Reload keeps its existing discard confirmation and modal boundary while loading; closing that dialog returns focus to File actions. Wide document is a pressed toggle, remembered in device preferences and available without a document, during pending work and in Source. It changes no Markdown, history or dirty state, and its existing command remains. Outline shows or hides the Document panel (pressed while shown); closing the panel returns focus to it. Sticky while document scrolls. |

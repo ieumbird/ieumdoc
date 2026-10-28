@@ -44,7 +44,7 @@ async page => {
   await page.getByTestId('folder-path').waitFor();
   await page.getByRole('dialog').getByRole('button', {name:'Cancel',exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'detached'});
-  check(await filesNew.evaluate(node => node === document.activeElement), 'Files New lost focus after cancelling location');
+  check(await filesNew.evaluate(node => node === document.activeElement), 'Explorer New lost focus after cancelling location');
   await filesNew.click();
   await page.getByTestId('folder-path').fill(folder.split(sep).slice(0,-1).join(sep) + sep);
   const picker = page.getByRole('dialog');
@@ -59,7 +59,7 @@ async page => {
   check(await page.getByTestId('new-file-name').evaluate(node => node === document.activeElement), 'Folder-to-New handoff lost filename focus');
   await page.keyboard.press('Escape');
   await page.getByRole('dialog').waitFor({state:'detached'});
-  check(await page.getByRole('button', {name:'Collapse sidebar', exact:true}).evaluate(node => node === document.activeElement),
+  check(await page.getByRole('button', {name:'Collapse Explorer', exact:true}).evaluate(node => node === document.activeElement),
     'When first-folder selection removes the empty-state New entry, Cancel must return to the visible Sidebar toggle');
   // The folder action now uses the opened folder without asking for a location again.
   await page.getByTestId('sidebar').getByRole('button', {name:'New document…',exact:true}).click();

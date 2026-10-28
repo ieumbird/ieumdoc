@@ -28,7 +28,7 @@ async (page, { openFolderPicker, openPath, waitForActivePath, reloadDocument, bi
   };
   const sidebar = page.getByTestId('sidebar');
   const chooseFolder = async folder => {
-    const expand = page.getByRole('button', { name: 'Expand sidebar', exact: true });
+    const expand = page.getByRole('button', { name: 'Expand Explorer', exact: true });
     if (await expand.isVisible()) await expand.click();
     await openFolderPicker(page);
     await page.getByTestId('folder-path').fill(folder);
