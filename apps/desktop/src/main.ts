@@ -29,13 +29,17 @@ let readyToShow = false;
 let appearanceReady = false;
 let startupPending = false;
 let appearanceTimer: ReturnType<typeof setTimeout> | undefined;
+let startupTimer: ReturnType<typeof setTimeout> | undefined;
 // Local CSS/IPC normally finishes before mounting. Bound the cosmetic wait after first paint.
 const APPEARANCE_TIMEOUT_MS = 5_000;
+// Allow ten seconds for first paint plus the cosmetic wait, even if paint never arrives.
+const STARTUP_TIMEOUT_MS = 15_000;
 
 function showStartupWindow(reason?: string): void {
   if (!startupPending || !window || window.isDestroyed()) return;
   startupPending = false;
   clearTimeout(appearanceTimer);
+  clearTimeout(startupTimer);
   if (reason) log(`window startup fallback: ${reason}`);
   window.show();
   log("window shown");
@@ -221,6 +225,7 @@ function createWindow(): void {
     },
   });
   window = created;
+  startupTimer = setTimeout(() => showStartupWindow("startup timed out after 15000ms"), STARTUP_TIMEOUT_MS);
   created.once("ready-to-show", () => {
     readyToShow = true;
     showWhenReady();
@@ -259,6 +264,7 @@ function createWindow(): void {
   });
   created.on("closed", () => {
     clearTimeout(appearanceTimer);
+    clearTimeout(startupTimer);
     startupPending = false;
     if (window === created) window = null;
   });

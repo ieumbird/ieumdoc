@@ -1,7 +1,7 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
-- Window startup verification: 2026-10-28 (#643: production-minified renderer bridge matrix, Desktop main lifecycle/strict-IPC unit tests; saved light/flat packaged restart regression is CI-only).
+- Window startup verification: 2026-10-28 (#643 / #644 review: production-minified renderer bridge matrix, Desktop main lifecycle/strict-IPC unit tests including absent first paint; saved light/flat packaged restart regression is CI-only).
 - Version correction verification: 2026-10-28 (#632: `0.0.2-beta.1` published; anonymous assets and withdrawal of both `0.1.0` Beta Releases/assets/remote tags verified; actual GitHub installation/update unverified; [record](../releases/v0.0.2-beta.1.md)).
 - CLI directory cleanup verification: 2026-10-28 (#629: isolated disable/uninstall ownership tests, Desktop typecheck and CI channel-order tests; actual Stable→Beta and NSIS checks run only in disposable Windows CI).
 - CLI integration verification: 2026-10-27 (#604: isolated environment/shim tests, CLI tests/offline package, Editor tests/typecheck/build, persistent-Chrome Settings and layout checks; packaged runtime and real registry/install/update/uninstall checks are required Windows CI, not local execution).
@@ -181,13 +181,19 @@ without a second CSS color parser or changing tokens/design. Both bridge calls
 use the existing sender check, and carry no document data.
 
 Normally the hidden window appears once `ready-to-show` and the first themed background are
-ready. After `ready-to-show`, main waits at most five seconds for appearance: a local CSS/IPC
-cosmetic handshake requires no network, so a missing signal must not hide the app indefinitely.
-Five seconds is a bounded failure allowance, not a startup performance target (the existing
-restart handshake has the same allowance). Timeout or a trusted appearance-handler failure
+ready. Main starts a **15-second absolute startup deadline when the hidden window is created**,
+before loading the renderer. It covers a missing first paint/`ready-to-show`, whether or not
+appearance IPC arrives. First paint also starts the existing five-second appearance wait:
+a local CSS/IPC cosmetic handshake requires no network. The earlier deadline wins; first paint
+never restarts or extends the absolute deadline. Fifteen seconds allows ten seconds for initial
+loading/first paint plus the existing five-second cosmetic allowance. These are bounded failure
+allowances, not startup performance targets (the existing restart handshake also allows five
+seconds). Normal readiness still reveals immediately without waiting for either deadline.
+Timeout or a trusted appearance-handler failure
 reveals the window and logs the cause. Main-frame `did-fail-load`, rejected `loadURL` or renderer
 exit during hidden startup also reveal it and show an error dialog, even before `ready-to-show`.
-The startup gate/timer is consumed once and cancelled on close; subsequent appearance changes
+The startup gate is consumed once and both timers are cancelled on normal readiness, fallback,
+second-instance reveal or close. Late first paint/appearance signals and subsequent appearance changes
 do not reveal a window the user hid. A second launch shows a hidden existing window, restores
 it if minimized and focuses it. Initialization exceptions after `whenReady` are logged, shown
 in an error dialog and terminate with exit code 1 rather than leave a windowless process.

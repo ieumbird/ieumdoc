@@ -71,10 +71,11 @@ async function start(options: { startupError?: boolean; logError?: boolean; load
   const window = windows[0]!;
   const appearance = (color: unknown = "#ffffff", overlay: unknown = { color: "#f6f7f9", symbolColor: "#20242c" }, trusted = true) =>
     handlers.get("desktop:set-window-background")!({ sender: window.webContents, senderFrame: trusted ? window.webContents.mainFrame : {} }, color, overlay);
-  const timeout = () => {
-    assert.equal(timers.size, 1);
-    const { run, ms } = [...timers.values()][0]!;
-    assert.equal(ms, 5_000);
+  const timeout = (ms = 5_000) => {
+    const pending = [...timers.entries()].find(([, timer]) => timer.ms === ms);
+    assert.ok(pending, `a ${ms}ms recovery timer must exist`);
+    const [id, { run }] = pending;
+    timers.delete(id);
     run();
   };
   return { app, window, logs, errors, alerts, timers, appearance, timeout, exits: () => exits, quits: () => quits };
@@ -95,11 +96,43 @@ test("startup waits for paint and appearance in either order; later updates neve
   }
 });
 
+test("startup deadline reveals once without first paint; late signals cannot reveal again", async t => {
+  for (const appearanceFirst of [false, true]) {
+    await t.test(`appearance ${appearanceFirst ? "received" : "missing"}`, async () => {
+      const h = await start();
+      if (appearanceFirst) h.appearance();
+      assert.equal(h.window.shows, 0);
+      h.timeout(15_000);
+      assert.equal(h.window.shows, 1);
+      assert.equal(h.timers.size, 0);
+      assert.match(h.logs.join(""), /startup timed out after 15000ms/);
+      h.window.visible = false;
+      h.window.emit("ready-to-show");
+      h.appearance();
+      assert.equal(h.window.shows, 1);
+      assert.equal(h.window.visible, false);
+      assert.equal(h.timers.size, 0);
+    });
+  }
+});
+
+test("first paint does not extend the absolute startup deadline", async () => {
+  const h = await start();
+  const deadline = [...h.timers.entries()].find(([, timer]) => timer.ms === 15_000);
+  assert.ok(deadline, "the deadline starts before first paint");
+  h.window.emit("ready-to-show");
+  assert.equal(h.timers.get(deadline[0]), deadline[1], "first paint must not replace or restart the deadline");
+  h.timeout(15_000);
+  assert.equal(h.window.shows, 1);
+  assert.equal(h.timers.size, 0, "the fallback also cancels the cosmetic appearance wait");
+});
+
 test("missing or rejected appearance shows the window once and records why, without weakening IPC validation", async () => {
   const missing = await start();
   missing.window.emit("ready-to-show");
   missing.timeout();
   assert.equal(missing.window.shows, 1);
+  assert.equal(missing.timers.size, 0, "the appearance fallback also cancels the absolute deadline");
   assert.match(missing.logs.join(""), /appearance timed out/);
   missing.window.visible = false;
   missing.appearance();
@@ -135,9 +168,8 @@ test("renderer startup failures notify and reveal before paint; subframe failure
   }
 });
 
-test("close cancels the appearance timer; second launch reveals, restores and focuses the existing window", async () => {
+test("close cancels both timers; second launch reveals, restores and focuses the existing window", async () => {
   const h = await start();
-  h.window.emit("ready-to-show");
   h.window.minimized = true;
   h.app.emit("second-instance");
   assert.equal(h.window.visible, true);
@@ -145,13 +177,19 @@ test("close cancels the appearance timer; second launch reveals, restores and fo
   assert.equal(h.window.focused, true);
   assert.equal(h.timers.size, 0);
   h.window.visible = false;
+  h.window.emit("ready-to-show");
+  h.appearance();
+  assert.equal(h.window.shows, 1, "late signals after second launch must not reveal again");
+  assert.equal(h.timers.size, 0);
   h.app.emit("second-instance");
   assert.equal(h.window.shows, 2, "also reveal after the startup gate was consumed");
-  const closed = await start();
-  closed.window.emit("ready-to-show");
-  closed.window.destroyed = true;
-  closed.window.emit("closed");
-  assert.equal(closed.timers.size, 0);
+  for (const paintFirst of [false, true]) {
+    const closed = await start();
+    if (paintFirst) closed.window.emit("ready-to-show");
+    closed.window.destroyed = true;
+    closed.window.emit("closed");
+    assert.equal(closed.timers.size, 0);
+  }
 });
 
 test("startup exceptions are logged, reported and exit; logging failure remains observable on stderr", async () => {
