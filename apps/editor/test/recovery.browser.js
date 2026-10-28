@@ -161,7 +161,8 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
   previewMarkdown = (await (await previewResponse).json()).markdown;
   await diffRegion().waitFor();
   const changeCount = await diffRegion().locator('[data-change-start]').count();
-  check(changeCount >= 3, 'Mixed edits were not separate changes');
+  // Exactly three separated regions: modified title, deleted paragraph, appended paragraph.
+  check(changeCount === 3, 'Mixed edits did not produce the three expected change regions');
   check((await page.getByRole('status').allTextContents()).includes(`${changeCount} changes`), 'Wrong displayed change count');
   check(await diffRegion().locator('[data-kind="removed"]').count() > 0 && await diffRegion().locator('[data-kind="added"]').count() > 0 && await diffRegion().locator('mark').count() > 0,'Missing line/word changes');
   await page.getByRole('button',{name:'Next change',exact:true}).focus(); await page.keyboard.press('Enter');
