@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { SampleDocuments } from "../shared/document-protocol.ts";
 
@@ -9,7 +9,14 @@ export function prepareSampleDocuments(source: string, destination: string): Sam
   if (!existsSync(marker) || readFileSync(marker, "utf8") !== version) {
     rmSync(destination, { recursive: true, force: true });
     mkdirSync(destination, { recursive: true });
-    for (const language of ["ko", "en"]) cpSync(path.join(source, language), path.join(destination, language), { recursive: true });
+    // Electron 44.7 wraps cpSync as an ASAR file extraction, not a directory walk.
+    // Keep the archive reads on the established copyFileSync path.
+    for (const language of ["ko", "en"]) {
+      mkdirSync(path.join(destination, language, "assets"), { recursive: true });
+      for (const file of ["converter-control.md", "references.bib", "assets/current-loop.svg"]) {
+        copyFileSync(path.join(source, language, file), path.join(destination, language, file));
+      }
+    }
     // Mark only a complete copy. A failed copy is retried on the next start.
     writeFileSync(marker, version);
   }

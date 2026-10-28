@@ -50,9 +50,11 @@ test("sample version replaces edited old copies once and preserves same-version 
     assert.equal(fs.existsSync(path.join(copy, "technical-document.md")), false);
     for (const language of ["ko", "en"] as const) {
       const file: string = first.samples[language];
-      assert.equal(fs.readFileSync(file, "utf8"), fs.readFileSync(path.join(dir, "sample", language, "converter-control.md"), "utf8"));
-      assert.ok(fs.existsSync(path.join(path.dirname(file), "assets/current-loop.svg")));
-      assert.ok(fs.existsSync(path.join(path.dirname(file), "references.bib")));
+      const bundled = path.join(dir, "sample", language);
+      for (const relative of fs.readdirSync(bundled, { recursive: true, encoding: "utf8" })) {
+        const source = path.join(bundled, relative);
+        if (fs.statSync(source).isFile()) assert.deepEqual(fs.readFileSync(path.join(path.dirname(file), relative)), fs.readFileSync(source), `copied ${language}/${relative}`);
+      }
       fs.writeFileSync(file, `edited ${language}`);
     }
     assert.deepEqual(firstDocument([], dir, dir), first);

@@ -130,6 +130,11 @@ user data. A missing or different marker replaces the whole `sample-native-v1` f
 user edits to its old contents, then writes the new marker only after both language folders copy
 successfully. The same version preserves all edits; opening a sample does not copy or overwrite it.
 Version `2` replaces the original short sample. Bump the bundled marker when sample contents change.
+Runtime copies use explicit `copyFileSync` reads for the document, bibliography and image in each
+language folder. Electron 44.7's ASAR wrapper extracts a file for `cpSync`, so it cannot copy the
+bundled language directories as directories. The first PR CI hit an installed-start timeout on that
+path; the correction keeps the existing archive-safe file-copy behavior. The unit test compares
+all bundled files against the copied folder, so a new sidecar also requires updating the copy list.
 The older unrelated `sample` directory is untouched. The development Editor uses the same copier
 with a worktree-local `tmp/sample-native-v1` destination; HTTP Host offers no sample.
 
