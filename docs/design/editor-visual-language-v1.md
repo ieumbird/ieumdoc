@@ -1,6 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
+- Pre-save comparison verification: 2026-10-28 (#655 stage 2: shared dry run/Worker review, persistent-browser regressions and [640/1440px bilingual captures](#pre-save-comparison-655)).
 - Save refusal verification: 2026-10-28 (#578 phase 1: real collection/Host refusals, danger block/cell overlays, snapshot invalidation, keyboard reveal and [640/1440px light/dark captures](#save-refusal-highlights-578)).
 - Block outline verification: 2026-10-28 (#469 follow-up: 1440px/640px full outer-edge and inset-stroke comparison, stationary-pointer scroll suppression; [evidence](#typing-and-outline-verification-469)).
 - Last verified: 2026-10-28 (#637: full-column code-style source and draft preview; wider wrapping inline-math popover, with 1440/640px same-state comparison).
@@ -1497,6 +1498,40 @@ keyboard focus and unchanged display-preference/document behavior.
 | Dark / 1440px | [Before](assets/settings-617/before-dark-1440.png) | [After](assets/settings-617/after-dark-1440.png) |
 | Dark / 640px | [Before](assets/settings-617/before-dark-640.png) | [After](assets/settings-617/after-dark-640.png) |
 
+## Pre-save comparison (#655)
+
+The existing File actions menu beside Save contains **Changes before saving / 저장 전 변경 내용 보기**.
+The same named Command center command is available for unsaved applied content or property drafts. There is no
+new permanent TopBar control. Review reuses the recovery comparison width/height tokens, shared
+Dialog, compact Buttons, monospace source, wrapping long lines and line/word difference colors.
+Both color and −/+ cues identify changes; Previous/Next moves keyboard focus to the change.
+At 640px the toolbar wraps inside the dialog. The existing overlay scroll keeps Close reachable.
+The content remains read-only, including failures and external-change warnings.
+
+2026-10-28 verification: Editor tests (330), workspace typecheck/build, `pre-save-diff` and
+`recovery save-session layout-rules quiet-document command-center` browser regressions passed.
+The final bilingual capture-only pass waited for each translated title/menu item before capture;
+the initial development-server HMR instance had produced stale-language images, which are replaced.
+These final screenshots use the same applied heading edit, normalized disk file, 900px height,
+DPR/zoom 1, light theme, fonts ready and checkout-owned persistent Windows Chrome. The Before
+menu temporarily omits only the new menu row, matching the prior menu; it is restored for After
+and regression checks. Product code is `88a2d3704bf3e67fb300ff52b26675b3f47d5864` for both,
+with that explicit Before-only omission. Source review has no prior equivalent screen.
+[Capture metadata, measured bounds and SHA-256 hashes](assets/pre-save-diff-655/capture-metadata.json).
+
+| Language / viewport | Before menu | After menu | Read-only comparison |
+| --- | --- | --- | --- |
+| English / 640px | [Before](assets/pre-save-diff-655/before-en-640.png) | [After](assets/pre-save-diff-655/menu-en-640.png) | [Compare](assets/pre-save-diff-655/comparison-en-640.png) |
+| English / 1440px | [Before](assets/pre-save-diff-655/before-en-1440.png) | [After](assets/pre-save-diff-655/menu-en-1440.png) | [Compare](assets/pre-save-diff-655/comparison-en-1440.png) |
+| Korean / 640px | [Before](assets/pre-save-diff-655/before-ko-640.png) | [After](assets/pre-save-diff-655/menu-ko-640.png) | [Compare](assets/pre-save-diff-655/comparison-ko-640.png) |
+| Korean / 1440px | [Before](assets/pre-save-diff-655/before-ko-1440.png) | [After](assets/pre-save-diff-655/menu-ko-1440.png) | [Compare](assets/pre-save-diff-655/comparison-ko-1440.png) |
+
+The shared Worker large-response check observed a 225ms result and 90ms maximum 10ms-heartbeat
+gap, within the existing <2s / <500ms regression thresholds; word highlighting omission was explicit.
+This controls the Host response and measures the real UI/Worker, not end-to-end large-file Save latency.
+The read-only snapshot keeps file revision, recovery records, editor/selection/Undo availability,
+property drafts and later real Save conflict behavior. Required Desktop packaging stays in CI;
+actual packaged Desktop comparison interaction was not run locally.
 
 ## Settings update cue (#665)
 

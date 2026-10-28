@@ -175,7 +175,7 @@ export function previewRecoveryFile(requestedPath: string, request?: SaveRequest
   }
   if (!request) return { disk };
   try { return { disk, ...previewSession(request) }; }
-  catch (error) { return { disk, error: errorPayload(error, access).error }; }
+  catch (error) { return { disk, ...errorPayload(error, access) }; }
 }
 
 export function saveCurrentDocument(

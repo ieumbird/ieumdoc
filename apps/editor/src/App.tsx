@@ -6,8 +6,11 @@ import { i18n } from "./i18n.ts";
 import { type Operation } from "./operation.ts";
 import { newRecoveryId, recoveryStorage, type RecoveryRecord } from "./recovery-storage.ts";
 import { prepareRecovery } from "./recovery-restore.ts";
+import type { SaveComparison } from "./shell/SaveCompare.tsx";
+import { SaveDisplayError } from "./save-error.ts";
+import { SaveContentError } from "../shared/save-error.ts";
 import { RecoveryList, RecoveryPrompt } from "./shell/Recovery.tsx";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { DocumentEditorHandle } from "./DocumentEditor.tsx";
 import { DocumentTab } from "./DocumentTab.tsx";
 import { DocumentTabs } from "./shell/DocumentTabs.tsx";
@@ -33,7 +36,7 @@ import appIcon from "../../desktop/assets/icon.svg";
 import { CommandCenter } from "./shell/CommandCenter.tsx";
 import { KeyboardShortcutsDialog } from "./shell/KeyboardShortcutsDialog.tsx";
 import type { CommandCenterItem } from "./shell/command-center.ts";
-import { Bookmark, Quote, Columns3, Copy, FileText, FileX, FolderOpen, Keyboard, PanelLeft, PanelRight, RotateCcw, RotateCw, Save, Settings2, SlidersHorizontal, SquareCode, StretchHorizontal } from "lucide-react";
+import { Bookmark, Quote, Columns3, Copy, FileDiff, FileText, FileX, FolderOpen, Keyboard, PanelLeft, PanelRight, RotateCcw, RotateCw, Save, Settings2, SlidersHorizontal, SquareCode, StretchHorizontal } from "lucide-react";
 import type {
   DocumentErrorResponse,
   DocumentFileResponse,
@@ -49,6 +52,8 @@ import type {
 import type { DesktopInfo, RestartCheck } from "../shared/desktop-bridge.ts";
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
+
+const SaveCompare = lazy(() => import("./shell/SaveCompare.tsx"));
 
 // Below the docking width of styles.css the Document panel starts closed and overlays the
 // document; at and above it the panel docks. Independent of the narrow sidebar (64rem).
@@ -92,6 +97,8 @@ export function App() {
   const [folderDialog, setFolderDialog] = useState(false);
   const [newAfterFolder, setNewAfterFolder] = useState(false);
   const folderNewReady = useRef(false);
+  const [saveComparison, setSaveComparison] = useState<SaveComparison | null>(null);
+  const saveComparisonReturnFocus = useRef<HTMLElement | null>(null);
   const [commandQuery, setCommandQuery] = useState<string | null>(null);
   const commandReturnFocus = useRef<HTMLElement | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -221,6 +228,16 @@ export function App() {
   const busy = Boolean(operation || fileOperationPending || session?.busy || continuationPending);
   const switching = Boolean(operation || session?.switching);
   const status = operation || sessionStatus;
+  function compareBeforeSave(returnFocus: HTMLElement | null): void {
+    if (!session || busy || !(documentDirty || draftActive)) return;
+    saveComparisonReturnFocus.current = returnFocus;
+    const submitted = session.editorRef.current?.getDocument();
+    try { setSaveComparison({ path: openedPath, revision: session.acknowledgedRevision, submitted, request: session.savePreviewRequest() }); }
+    catch (cause) {
+      const failure = cause instanceof SaveContentError ? cause : new SaveContentError(messageOf(cause), undefined, { phase: "collect", cause });
+      setSaveComparison({ path: openedPath, revision: session.acknowledgedRevision, submitted, failure: new SaveDisplayError([failure], submitted) });
+    }
+  }
   const save = () => session?.save();
   const showSource = () => session?.showSource();
   const setView = (next: "visual" | "source") => session?.setView(next);
@@ -627,14 +644,14 @@ export function App() {
     if (COMMAND_CENTER_SHORTCUT.matches(event)) {
       event.preventDefault();
       if (globalThis.document.querySelector('[data-slot="dialog-content"]:not(.command-center-dialog)') ||
-          folderDialog || newDialog || newFolderDialog || reloadDialog || openRefusal || continuation || recoveryReview || settingsOpen) return;
+          folderDialog || newDialog || newFolderDialog || reloadDialog || openRefusal || continuation || recoveryReview || saveComparison || settingsOpen) return;
       openCommandCenter("");
       return;
     }
     if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey ||
         (event.key.toLowerCase() !== "s" && event.code !== "KeyS")) return;
     event.preventDefault();
-    if (globalThis.document.querySelector('[data-slot="dialog-content"]') || folderDialog || newDialog || newFolderDialog || reloadDialog || openRefusal || continuation || recoveryReview || settingsOpen) return;
+    if (globalThis.document.querySelector('[data-slot="dialog-content"]') || folderDialog || newDialog || newFolderDialog || reloadDialog || openRefusal || continuation || recoveryReview || saveComparison || settingsOpen) return;
     void save();
   };
   useEffect(() => {
@@ -772,6 +789,9 @@ export function App() {
       keywords: ["refresh folder", "폴더 새로고침"], run: () => folders.refreshRoot(tree.root) })),
     { id: "save", kind: "command", label: i18n.t("Save"), icon: Save, disabled: !document || busy,
       keywords: ["save", "저장"], shortcut: SAVE_SHORTCUT.label, run: () => { void save(); } },
+    { id: "save-comparison", kind: "command", label: i18n.t("Changes before saving"), icon: FileDiff,
+      disabled: !(documentDirty || draftActive) || busy, takesFocus: true, keywords: ["diff compare save preview", "저장 전 변경 내용 보기"],
+      run: () => compareBeforeSave(commandReturnFocus.current) },
     { id: "reload", kind: "command", label: i18n.t("Reload"), icon: RotateCcw, disabled: !document || busy, takesFocus: true,
       keywords: ["reload", "다시 불러오기", "새로고침"], run: () => { void reload(); } },
     { id: "copy-path", kind: "command", label: i18n.t("Copy path"), icon: Copy, disabled: !document || busy,
@@ -883,6 +903,8 @@ export function App() {
             onViewChange={(next) => (next === "source" ? void showSource() : setView("visual"))}
             saveDisabled={!document || busy}
             onSave={() => void save()}
+            onCompare={() => compareBeforeSave(fileActionsToggle.current)}
+            compareDisabled={!(documentDirty || draftActive) || busy}
             onReload={() => void reload()}
             reloadDisabled={!document || busy}
             onCopyPath={() => void copyPath()}
@@ -969,6 +991,8 @@ export function App() {
       <CommandCenter open={commandQuery !== null} initialQuery={commandQuery ?? ""} items={commandItems}
         returnFocus={commandReturnFocus} onClose={() => setCommandQuery(null)} />
       <KeyboardShortcutsDialog open={shortcutsOpen} returnFocus={shortcutsReturnFocus} onClose={() => setShortcutsOpen(false)} />
+      {saveComparison ? <Suspense fallback={null}><SaveCompare comparison={saveComparison}
+        returnFocus={saveComparisonReturnFocus} onClose={() => setSaveComparison(null)} /></Suspense> : null}
       <RecoveryPrompt key={recoveryReview?.record.id ?? "closed"} record={recoveryReview?.record ?? null} reason={recoveryReview?.reason ?? ""}
         onRestore={restoreRecovery} onDelete={async () => { if (recoveryReview) await deleteRecovery(recoveryReview.record.id); setRecoveryReview(null); }}
         onClose={() => setRecoveryReview(null)} />
