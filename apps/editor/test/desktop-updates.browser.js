@@ -484,6 +484,8 @@ async (page, { screenshots = false, openPath }) => {
       if (await expand.isVisible()) await expand.click();
       await page.getByRole('button',{name:language === 'en' ? 'Settings' : '설정',exact:true}).click();
       await dialog.waitFor();
+      check(await dialog.getByRole('button',{name:language === 'en' ? 'Open document settings' : '문서 설정 열기',exact:true}).count() === 0,
+        'Settings offers the removed document settings entry');
       for (const [category, name] of language === 'en'
         ? [['appearance','Appearance & language'],['recovery','Saving & recovery'],['about','About & updates']]
         : [['appearance','표시·언어'],['recovery','저장·복구'],['about','정보·업데이트']]) {
@@ -522,14 +524,15 @@ async (page, { screenshots = false, openPath }) => {
       await page.getByRole('button',{name:language === 'en' ? 'Settings' : '설정',exact:true})
         .and(page.locator(':focus')).waitFor();
       if (width === 1440) {
-        // Settings releases its modal before revealing the inline block, at supported widths.
+        // The remaining Command center entry reveals/focuses the inline block at supported widths.
         for (const closeWidth of [640, 1440]) {
           await page.setViewportSize({width:1440,height:900});
-          await page.getByRole('button',{name:language === 'en' ? 'Settings' : '설정',exact:true}).click();
-          await dialog.waitFor();
+          await page.keyboard.press('Control+Slash');
+          const center = page.getByRole('dialog',{name:language === 'en' ? 'Command center' : '커맨드 센터',exact:true});
+          await center.getByRole('combobox').fill(language === 'en' ? '> Document settings' : '> 문서 설정');
           await page.setViewportSize({width:640,height:900});
-          await dialog.getByRole('button',{name:language === 'en' ? 'Open document settings' : '문서 설정 열기',exact:true}).click();
-          await dialog.waitFor({state:'detached'});
+          await center.getByRole('option',{name:language === 'en' ? 'Document settings…' : '문서 설정…',exact:true}).click();
+          await center.waitFor({state:'detached'});
           const name = language === 'en' ? 'Document settings' : '문서 설정';
           const body = page.getByRole('region',{name,exact:true}).locator('.display-settings');
           const disclosure = page.getByRole('button',{name,exact:true});

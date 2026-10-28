@@ -2,6 +2,7 @@
 
 - Status: Implemented
 - Last verified: 2026-10-28 (#637: block Equation editing moves into the document; inline math retains its popover).
+- Settings entry update: 2026-10-28 (#669: remove the Settings-only document-settings entry; [contract and captures](#settings-document-entry-removal-669)).
 - Brand title-strip update: 2026-10-28 (#647 owner-approved composition; targeted verification recorded in the PR).
 - Previous shell verification: 2026-10-27 (#582 / #605: Editor 315 tests, Desktop 48 tests, typecheck/build and targeted persistent-Chrome regressions; [contract and captures](#sidebar-and-native-title-bar-582--605)).
 - Image rename verification: 2026-10-27 (#504: targeted file-actions browser flow; [1440px/640px save-first guidance comparison](#image-rename-guidance-504)).
@@ -140,8 +141,8 @@ the start screen and Source show no block. Pending work disables field controls,
 including choices in an already-open portaled reference-style menu.
 
 The TopBar Document settings button and its modal are removed. Command center
-`Document settings…` and Settings' Open document settings close their overlay,
-scroll to the block, expand it and focus its disclosure. They retain their existing
+`Document settings…` closes its overlay, scrolls to the block, expands it and focuses
+its disclosure. It retains its existing
 no-document/busy/Source availability. Bibliography opens the existing connection
 dialog from its row and returns focus to that row's Connect button after selection
 or dismissal. The existing References-region connection remains available.
@@ -294,9 +295,9 @@ existing bridge and restart guards. Settings search remains outside the implemen
 Wide document stays in TopBar.
 
 The navigation footer explains that heading numbers, reference style and bibliography
-belong to each document. With an open document, Open document settings closes the
-Settings screen and reveals/focuses the inline block above the title (#580), respecting
-its existing availability. Ordinary Settings dismissal still resolves the original
+belong to each document. Settings has no Open document settings entry (#669).
+The inline block above the document title and Command center's `Document settings…`
+remain the entry points. Settings dismissal resolves the original
 opener or the currently visible Sidebar toggle.
 
 Implementation/verification scope: Editor shell, shared controls and bundled Korean/English
@@ -476,7 +477,7 @@ The shell has three responsibilities: the Sidebar on the left browses opened fol
 | Area | Current behavior |
 | --- | --- |
 | Sidebar | Files and Collapse sidebar in the header, followed by file navigation; no duplicate New document row with opened folders (#582). There is no Files / Display switch. The collapsed rail contains only Expand sidebar, which restores file navigation. Files contains the opened folders (#112, [ADR-0009](../adr/0009-multiple-opened-folders.md)), each its own section in the order opened, or, without any, guidance followed by the browser's recent folders (name, full path in `title`): one click lists that folder like Open folder, without opening a document. User-controlled collapse/expand, with a 48px rail when collapsed. No workspace or placeholder navigation. Each folder heading names its folder (disclosure button and name, full path in `title`; [section visibility](#collapsible-folder-sections-425)) with `+` (New document…) and a `⋯` menu containing New folder…, Open folder…, Refresh and Close folder (removes only that folder; tabs stay open). Open folder… adds a folder; one already open is listed again in place. With no opened folder, the empty Files panel offers Open folder… and New document…. Below each heading is a folder tree; file listing and activation follow [Folder files and image preview](#folder-files-and-image-preview-217). A `.md` file whose leading frontmatter lacks the native marker stays listed in subtle text with its own icon, and its tooltip and accessible description say it is not an IeumDoc document; opening it still shows the refusal and why ([Folder listing](filesystem-host-boundary-v1.md#folder-listing-v1-112)). On explicit active-document path changes, the containing sections and folders above it expand in each opened folder containing it; a document elsewhere adds nothing to the trees. The opened folders' paths are browser preferences: on start they are listed again in order, and one the Host refuses or no longer has is left out quietly. Child-folder expansion is page state only. Root section collapse is an origin-specific preference restored on Reload/Desktop restart; startup document restoration respects it. Opening document settings or collapsing the sidebar retains the mounted tree, its expansion, scroll and keyboard stop, without listing again. The tree takes the remaining height and scrolls by itself; the open document uses the shared selected surface/text with 600 semibold as a non-color cue, without a left marker there and Close folder removes it. Keyboard: Up/Down, Home/End move through visible items; Right expands a folder or moves into it; Left collapses it or moves to the parent; Enter or Space opens a document or toggles a folder. Files does not list the open document separately: the tab row and TopBar name it. |
-| Document settings | Collapsed value summary at the top of the paper, before the title and outside ProseMirror (#580). Expands into grouped field rows for Number headings (H2–H6), Reference style (Default, Concise, Formal, Korean; unmatched values show Custom) with notation previews, and Connect bibliography…. Reuses existing operations, history, dirty indication and Save under the [numbering](heading-numbering-v1.md) and [bibliography](citations-v1.md#connect-and-disconnect-bibliography-files-438) contracts. Command center and Settings reveal/expand/focus it. Field controls disable during pending work; Source/start omit the block and read-only shows only summary. Escape inside collapses and focuses the disclosure; the style menu handles its own Escape first. Bibliography uses the existing connection dialog with return to the row’s Connect button. Expansion is per-tab session only. Opening/collapsing preserves editor instance, selection, history and unapplied drafts. App Settings remains separate. |
+| Document settings | Collapsed value summary at the top of the paper, before the title and outside ProseMirror (#580). Expands into grouped field rows for Number headings (H2–H6), Reference style (Default, Concise, Formal, Korean; unmatched values show Custom) with notation previews, and Connect bibliography…. Reuses existing operations, history, dirty indication and Save under the [numbering](heading-numbering-v1.md) and [bibliography](citations-v1.md#connect-and-disconnect-bibliography-files-438) contracts. Command center reveals/expands/focuses it. Field controls disable during pending work; Source/start omit the block and read-only shows only summary. Escape inside collapses and focuses the disclosure; the style menu handles its own Escape first. Bibliography uses the existing connection dialog with return to the row’s Connect button. Expansion is per-tab session only. Opening/collapsing preserves editor instance, selection, history and unapplied drafts. App Settings remains separate and has no document-settings entry (#669). |
 | Document panel | Outline, Tables N and Figures N navigation (#613), with 600 semibold, themed surface and segment shadow for the selected tab, muted inactive labels and reserved semibold label width (#620), titled Outline, with no internal close button (#590). The TopBar Outline toggle opens and closes it. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read with selected background/text and 600 semibold (no left marker, #515); a hidden semibold copy reserves its two-line text extent to prevent selection height jumps. The current item stays inside the list's visible area. The list scrolls by itself and is never written to the document. Table/Figure items reuse the body caption prefix and Core reference template (for example `Table 1. Caption`), including in Korean UI; a missing caption shows only the number. At 1424px and wider the panel is docked and starts open; below 1424px it starts closed and, opened, overlays the document below the sticky header instead of narrowing it, so Save, File actions and the Outline toggle stay usable; Escape closes it and returns focus to the TopBar Outline toggle. The docking width is independent of the 1024px narrow sidebar. Entering the overlay layout always closes it. Returning to docked restores the user's last explicit docked open/closed choice, or opens by default if none exists. Overlay interactions do not overwrite that choice. Open/closed is page memory only and resets on reload; no persistent preference is added. |
 | TopBar | Actual status in the document area on the left; the centered command-center button leads with a search icon and Find documents and commands / 문서·명령 찾기; the document location/name is muted secondary information (full path in its title); the location names the folders from the outermost opened sidebar folder containing the document down, otherwise its own folder. Visual/Source, Wide document and Outline, then Save and File actions (`⋯`) on the right. File actions contains Reload and Copy path (the full path to the clipboard, confirmed by a temporary notice, or an explanatory error where the browser has no Clipboard API); the menu is unavailable without a document or during pending work. Enter/Space opens it, arrows navigate, Escape closes and returns focus. Reload keeps its existing discard confirmation and modal boundary while loading; closing that dialog returns focus to File actions. Wide document is a pressed toggle, remembered in device preferences and available without a document, during pending work and in Source. It changes no Markdown, history or dirty state, and its existing command remains. Outline shows or hides the Document panel (pressed while shown); closing the panel returns focus to it. Sticky while document scrolls. |
 | Document tabs | A separate row inside the sticky header below TopBar. A pressed-surface track and raised white current tab reuse Visual/Source border-control/shadow/text tokens, without an underline; height and close targets are unchanged (#515). Filename, dirty dot, close button and full-path tooltip; same-named files show the shortest distinguishing parent folder after the name, which stays visible while the name ellipsizes. Only this row scrolls horizontally on narrow screens. Accessible tablist/tab/tabpanel relationships, Left/Right/Home/End switching and Delete to close. Closing selects the right neighbour, else left; an inactive close keeps the current tab. |
@@ -1945,3 +1946,28 @@ content. The review's non-blocking record-disappearance observation was not repr
 flow; no separate recovery defect or cause is asserted. Existing recovery browser regressions
 also pass. Local follow-up: targeted unit tests 79, Editor unit tests 320, workspace typecheck,
 Editor/CLI build, docs checks and Vite image-assets/figure-authoring/file-actions/recovery pass.
+
+## Settings document entry removal (#669)
+
+Settings no longer offers Open document settings. Its navigation footer retains the
+per-document explanation without an empty control container. The document's own
+inline disclosure and Command center entry remain available; this shell-only change
+adds no Core operation or CLI command.
+
+Same-state captures use installed Windows Chrome with the checkout-owned persistent
+profile, English UI, Dark theme, Paper style, DPR 1, 100% zoom and a 900px viewport
+height. The Desktop bridge is the existing browser-test stand-in; no installed-app
+settings or PATH are changed. Before source: `23d178a3c4d19a20cda28991cdb9b911e451a7c8`.
+Manual comparison confirms the footer still contains its explanation at 1440px, and
+at 640px the content moves upward into the space released by the removed button.
+
+| Viewport | Before | After |
+| --- | --- | --- |
+| 1440 x 900 | [Before](assets/settings-doc-link-669/before-1440.png) | [After](assets/settings-doc-link-669/after-1440.png) |
+| 640 x 900 | [Before](assets/settings-doc-link-669/before-640.png) | [After](assets/settings-doc-link-669/after-640.png) |
+
+The existing `desktop-updates` scenario checks entry absence, full-screen bounds,
+category access, overflow and reachable controls in both languages at both widths.
+Its document-settings checks now use Command center and retain disclosure focus,
+resize and Escape coverage. `ui-language` uses the inline disclosure after leaving
+Settings while preserving its draft/history checks.
