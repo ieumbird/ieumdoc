@@ -130,7 +130,7 @@ test("started without a document, it opens none; the sample opens with its figur
       if (await outlineToggle.getAttribute("aria-pressed") === "true") await outlineToggle.click();
       const geometry = await page.evaluate(() => {
         const overlay = (navigator as Navigator & { windowControlsOverlay: { getTitlebarAreaRect(): DOMRect } }).windowControlsOverlay.getTitlebarAreaRect();
-        const controls = [...document.querySelectorAll<HTMLElement>('.top-bar button, .sidebar-header button')];
+        const controls = [...document.querySelectorAll<HTMLElement>('.top-bar button, .document-tab-row button, .sidebar-header button')];
         const header = document.querySelector('.app-titlebar')!.getBoundingClientRect();
         const tabs = document.querySelector('.document-tabs')!.getBoundingClientRect();
         const captionEdgeLines = [...document.querySelectorAll('.app-titlebar, .app-titlebar *')].filter(element => {
