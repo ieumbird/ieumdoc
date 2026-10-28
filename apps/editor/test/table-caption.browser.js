@@ -127,6 +127,151 @@ async (page, { openPath, expect, reloadDocument, screenshots }) => {
     if (await discard.count()) { await discard.click(); await page.getByRole('dialog').waitFor({state:'detached'}); }
   }
   expect(deletionFailures, 'Native repeated Backspace must retain every caption and surrounding content').toEqual([]);
+  // Word deletion and native cut exercise different browser input paths from Backspace.
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  const wordFailures = [];
+  for (let index = 0; index < surfaces.length; index++) {
+    for (const mode of ['word-backward', 'word-forward', 'cut']) {
+      const name = ['table', 'image', 'pending', 'mermaid'][index];
+      const surface = surfaces[index];
+      try {
+        const state = () => editor.evaluate((element, index) => {
+          const instance = element.editor, json = instance.getJSON();
+          const block = index === 0 ? json.content.find(node => node.type === 'table') :
+            json.content.filter(node => node.type === 'figure')[index - 1];
+          const target = index === 0 ? block.content.find(node => node.type === 'tableCaption') : block;
+          const text = (target.content || []).map(node => node.text || '').join('');
+          target.content = [];
+          return {text, other:json};
+        }, index);
+        await leave();
+        const original = await state();
+        await surface.click();
+        await surface.evaluate(element => {
+          window.__deletionEvents = [];
+          element.closest('.document-editor').addEventListener('beforeinput', event => {
+            if (!event.inputType.startsWith('delete')) return;
+            const view = element.closest('.document-editor').editor.view;
+            window.__deletionEvents.push({type:event.inputType, ranges:[...event.getTargetRanges()].map(range => {
+              try { return [view.posAtDOM(range.startContainer,range.startOffset),view.posAtDOM(range.endContainer,range.endOffset)]; }
+              catch { return null; }
+            })});
+          }, {capture:true, once:false, signal: (window.__deletionAbort = new AbortController()).signal});
+        });
+        await page.keyboard.type('alpha beta');
+        await expect(surface).toHaveText('alpha beta');
+        expect((await state()).text).toBe('alpha beta');
+        await page.waitForTimeout(600);
+        const undoTexts = ['alpha beta'];
+        if (mode === 'word-forward') {
+          await setCaret(index);
+          await editor.evaluate(element => element.editor.view.focus());
+        }
+        if (mode === 'cut') {
+          await surface.evaluate(element => {
+            const instance = element.closest('.document-editor').editor;
+            const from = instance.view.posAtDOM(element, 0);
+            instance.commands.setTextSelection({from,to:from + instance.state.doc.resolve(from).parent.content.size});
+            instance.view.focus();
+          });
+          await page.keyboard.press('ControlOrMeta+x');
+          expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('alpha beta');
+        } else {
+          await page.keyboard.press(mode === 'word-backward' ? 'Control+Backspace' : 'Control+Delete');
+          const intermediate = await state();
+          expect(intermediate.text).not.toBe('');
+          expect(intermediate.text).not.toBe('alpha beta');
+          expect(await surface.textContent()).toBe(intermediate.text);
+          undoTexts.push(intermediate.text);
+          await page.keyboard.press(mode === 'word-backward' ? 'Control+Backspace' : 'Control+Delete');
+        }
+        const final = await state();
+        const dom = await surface.count() ? await surface.evaluate(element => ({text:element.textContent,
+          connected:!!element.querySelector('[data-node-view-content-react]')?.isConnected})) : null;
+        if (!dom || !dom.connected || dom.text !== '' || final.text !== '' || JSON.stringify(final.other) !== JSON.stringify(original.other)) {
+          const events = await page.evaluate(() => window.__deletionEvents);
+          throw new Error(`${name} ${mode}: DOM=${JSON.stringify(dom)}, model=${JSON.stringify(final.text)}, surrounding=${JSON.stringify(final.other) === JSON.stringify(original.other)}, events=${JSON.stringify(events)}`);
+        }
+        await page.keyboard.press('ControlOrMeta+z');
+        const undone = await state();
+        expect(undoTexts).toContain(undone.text);
+        expect(undone.other).toEqual(original.other);
+        expect(await surface.textContent()).toBe(undone.text);
+        await page.keyboard.press('ControlOrMeta+Shift+z');
+        const redone = await state();
+        expect(redone.text).toBe('');
+        expect(redone.other).toEqual(original.other);
+        await expect(surface).toHaveText('');
+        await leave();
+        await expect(surface).toHaveAttribute('data-placeholder', index ? 'Enter a figure caption…' : 'Enter a table caption…');
+        expect((await state()).other).toEqual(original.other);
+      } catch (error) {
+        wordFailures.push(`${name} ${mode}: ${error.message}`);
+      }
+      await page.evaluate(() => window.__deletionAbort?.abort());
+      await reloadDocument(page);
+      const discard = page.getByRole('button', {name:'Discard and reload', exact:true});
+      if (await discard.count()) { await discard.click(); await page.getByRole('dialog').waitFor({state:'detached'}); }
+    }
+  }
+  expect(wordFailures, 'Word deletion and cut must preserve every caption and surrounding content').toEqual([]);
+  // Preserve partial/selected edits, paste and actual Chromium composition on each surface.
+  for (let index = 0; index < surfaces.length; index++) {
+    const surface = surfaces[index];
+    const modelText = () => editor.evaluate((element, index) => {
+      const nodes = element.editor.getJSON().content;
+      const block = index === 0 ? nodes.find(node => node.type === 'table').content.find(node => node.type === 'tableCaption') :
+        nodes.filter(node => node.type === 'figure')[index - 1];
+      return (block.content || []).map(node => node.text || '').join('');
+    }, index);
+    const range = (start, end = start) => surface.evaluate((element, {start,end}) => {
+      const instance = element.closest('.document-editor').editor;
+      const from = instance.view.posAtDOM(element, 0);
+      instance.commands.setTextSelection({from:from + start,to:from + end});
+      instance.view.focus();
+    }, {start,end});
+    const matches = async text => {
+      await expect(surface).toHaveText(text);
+      expect(await modelText()).toBe(text);
+      expect(await surface.locator('[data-node-view-content-react]').count()).toBe(1);
+    };
+    await surface.click();
+    await page.keyboard.type('abcde');
+    await range(3);
+    await page.keyboard.press('Backspace');
+    await matches('abde');
+    await page.keyboard.press('Delete');
+    await matches('abe');
+    await range(1,2);
+    await page.keyboard.press('Backspace');
+    await matches('ae');
+    await page.evaluate(() => navigator.clipboard.writeText('X'));
+    await range(2);
+    await page.keyboard.press('ControlOrMeta+v');
+    await matches('aeX');
+    await page.keyboard.press('Backspace');
+    await matches('ae');
+    await range(0,2);
+    await page.keyboard.press('Delete');
+    await matches('');
+    const cdp = await page.context().newCDPSession(page);
+    try {
+      await cdp.send('Input.dispatchKeyEvent', {type:'rawKeyDown', key:'Process', windowsVirtualKeyCode:229, nativeVirtualKeyCode:229});
+      for (const text of ['한','하','ㅎ']) {
+        await cdp.send('Input.imeSetComposition', {text,selectionStart:text.length,selectionEnd:text.length});
+        expect(await editor.evaluate(element => element.editor.view.composing)).toBe(true);
+        expect(await surface.locator('[data-node-view-content-react]').count()).toBe(1);
+      }
+      await cdp.send('Input.dispatchKeyEvent', {type:'rawKeyDown',key:'Backspace',code:'Backspace',windowsVirtualKeyCode:229,nativeVirtualKeyCode:229});
+      await cdp.send('Input.imeSetComposition', {text:'ㅎ',selectionStart:1,selectionEnd:1});
+      await cdp.send('Input.insertText', {text:'ㅎ'});
+      await page.waitForFunction(() => !document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.composing);
+    } finally { await cdp.detach(); }
+    await matches('ㅎ');
+    await reloadDocument(page);
+    const discard = page.getByRole('button', {name:'Discard and reload',exact:true});
+    if (await discard.count()) { await discard.click(); await page.getByRole('dialog').waitFor({state:'detached'}); }
+  }
   await leave();
   for (const language of ['en', 'ko']) {
     await page.evaluate(async language => (await import('/src/i18n.ts')).i18n.changeLanguage(language), language);

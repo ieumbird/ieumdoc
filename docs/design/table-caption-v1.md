@@ -89,12 +89,13 @@ selection, independently of DOM focus. The hint is generated with an empty acces
 alternative; the caption retains its single accessible name. See [visual evidence](editor-visual-language-v1.md#empty-caption-hints-698).
 
 Backspace removes caption text through the normal editor history. At an empty caption's
-start, further Backspace leaves the table and neighboring content unchanged. For the final
-grapheme the Editor uses a ProseMirror deletion transaction: native Chrome deletion had
+start, further Backspace leaves the table and neighboring content unchanged. When a native
+delete input's target range would empty the caption, the Editor uses that range in a
+ProseMirror deletion transaction: native Chrome deletion had
 removed the React-owned content wrapper, leaving its contentDOM detached and, for Figures,
 the model out of sync. The same boundary applies to image, pending and Mermaid captions.
-The `table-caption` browser scenario checks each kind after every repeated key, including
-contentDOM, model, surrounding blocks, Undo/Redo and hint restoration.
+The `table-caption` browser scenario checks repeated Backspace, word deletion and cut for
+each kind, including contentDOM, model, surrounding blocks, Undo/Redo and hint restoration.
 
 The caption stays below the table. Its computed number follows the document's authored
 Table reference template, retaining the existing `. ` separator; without a template,

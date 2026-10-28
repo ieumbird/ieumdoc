@@ -159,19 +159,9 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
       const join = (backward: boolean) => {
         const { state, commands } = this.editor;
         const selection = state.selection;
-        if (this.editor.isEditable && !this.editor.view.composing && selection instanceof TextSelection && selection.empty &&
-            ["figure", "tableCaption"].includes(selection.$from.parent.type.name)) {
-          const { $from } = selection, parent = $from.parent;
-          if (backward && $from.parentOffset === 0) return true;
-          // Chrome can remove the React-owned NodeView wrapper when it natively deletes
-          // the last grapheme. Keep that deletion inside ProseMirror's transaction/history.
-          const atEdge = backward ? $from.parentOffset === parent.content.size : $from.parentOffset === 0;
-          if (atEdge && parent.content.size && parent.content.content.every(node => node.isText) &&
-              Array.from(new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(parent.textContent)).length === 1) {
-            this.editor.view.dispatch(state.tr.delete($from.start(), $from.end()).scrollIntoView());
-            return true;
-          }
-        }
+        if (this.editor.isEditable && !this.editor.view.composing && backward && selection instanceof TextSelection &&
+            selection.empty && selection.$from.parentOffset === 0 &&
+            ["figure", "tableCaption"].includes(selection.$from.parent.type.name)) return true;
         if (state.selection instanceof NodeSelection && state.selection.node.type.name === "table") {
           this.editor.view.dispatch(closeHistory(state.tr).deleteSelection().setMeta(TABLE_DELETE_META, true).scrollIntoView());
           return true;
@@ -334,6 +324,26 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
           node.type.name === "citation" ? inlineContentText([{ kind: "citation", role: node.attrs.role, keys: node.attrs.keys }]) :
           node.type.name === "figure" ? `![${node.attrs.imageAlt}](${node.attrs.imageUrl})` : ""),
         handleDOMEvents: {
+          beforeinput: (view, event) => {
+            if (!this.editor.isEditable || view.composing || event.isComposing || !event.cancelable ||
+                !event.inputType.startsWith("delete")) return false;
+            const ranges = event.getTargetRanges();
+            if (ranges.length !== 1) return false;
+            const range = ranges[0]!;
+            let from: number, to: number;
+            try {
+              from = view.posAtDOM(range.startContainer, range.startOffset);
+              to = view.posAtDOM(range.endContainer, range.endOffset);
+            } catch { return false; }
+            const $from = view.state.doc.resolve(from), $to = view.state.doc.resolve(to);
+            if (!$from.sameParent($to) || !["figure", "tableCaption"].includes($from.parent.type.name) ||
+                $from.parent.content.size === 0 || from !== $from.start() || to !== $from.end()) return false;
+            // Chrome can remove the React-owned wrapper while natively emptying a caption.
+            // Use the browser's exact target range and ProseMirror's normal transaction/history.
+            event.preventDefault();
+            view.dispatch(view.state.tr.delete(from, to).scrollIntoView());
+            return true;
+          },
           keydown: (view, event) => {
             if (!isMacOS() && this.editor.isEditable && !view.composing && event.ctrlKey && !event.metaKey) {
               const shortcut = UNDO_SHORTCUT.matches(event, { opaqueOnly: true }) ? UNDO_SHORTCUT

@@ -42,7 +42,7 @@ do the same. Clearing the text and moving selection away restores it. The hint i
 mode and is never document text, clipboard content, Source or saved Markdown.
 See the [visual verification](editor-visual-language-v1.md#empty-caption-hints-698).
 Repeated Backspace keeps the caption's editable surface and model synchronized; once empty,
-further Backspace does not edit the preceding block. The final grapheme uses the shared
+further Backspace does not edit the preceding block. Deletion that empties a caption uses the shared
 ProseMirror deletion/history boundary described in [Table caption](table-caption-v1.md).
 
 A pending Figure has no image. Its caption and label are optional: an empty Figure, with no image, caption or label, is a valid place reserved for content to come. Alt text requires an image. An image Figure may have neither caption nor label. Supported captions use the existing InlineContent contract. Connecting or removing an image updates the same container and preserves the label and caption. Removing an image with alt text requires clearing the alt text too.
