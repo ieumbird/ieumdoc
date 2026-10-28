@@ -69,7 +69,7 @@ export function imageAssetsPlugin(options: Options): Plugin {
       const $pos = view.state.doc.resolve(position);
       const anchor = $pos.depth > 0 ? $pos.before(1) : Math.min(position, view.state.doc.content.size - view.state.doc.lastChild!.nodeSize);
       const target = view.state.doc.nodeAt(anchor);
-      const emptyFigure = target?.type.name === "figure" && !target.attrs.imageUrl ? target : undefined;
+      const emptyFigure = target?.type.name === "figure" && !target.attrs.imageUrl && target.attrs.mermaidSource == null ? target : undefined;
       view.dispatch(view.state.tr.setMeta(key, { anchor, selectionMoved: false, emptyFigure }));
       created = await host.create(file, documentPath);
       const pending = key.getState(view.state);

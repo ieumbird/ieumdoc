@@ -1726,8 +1726,8 @@ ol.list { list-style: decimal; }
 }
 
 /* The equation source uses the same document-code surface as a code block. */
-.equation .block-properties-form { text-align: left; min-width: 0; }
-.equation-input {
+:is(.equation, .mermaid-figure) .block-properties-form { text-align: left; min-width: 0; }
+.document-source-input {
   display: block;
   width: 100%;
   min-width: 0;
@@ -1744,13 +1744,16 @@ ol.list { list-style: decimal; }
   line-height: var(--line-height-document-code);
 }
 
-.equation-input:focus-visible, .inline-math-input:focus-visible {
+.document-source-input:focus-visible, .inline-math-input:focus-visible {
   border-color: var(--id-color-border-focus);
   outline: none;
   box-shadow: var(--focus-ring);
 }
 
 .equation-preview { min-width: 0; }
+.mermaid-preview { min-width: 0; text-align: center; }
+.mermaid-preview img { max-width: 100%; height: auto; margin-inline: auto; }
+.mermaid-preview [role="status"] { color: var(--id-color-text-muted); font-size: var(--font-size-sm); }
 .equation-preview-error { text-align: left; }
 
 .inline-math-properties { width: var(--layout-inline-math-popover-width); }

@@ -6,6 +6,9 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, type ViteDevServer } from "vite";
 
 export default defineConfig({
+  // Prebundle the lazy renderer without fetching it in the browser until a Figure needs it.
+  // First-use dependency discovery must not reload the development editor and lose drafts.
+  optimizeDeps: { include: ["mermaid"] },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),

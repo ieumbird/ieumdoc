@@ -1,0 +1,164 @@
+// Real scratch-file persistence, explicit drafts, native input dragging and real delayed renders.
+async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument }) => {
+  const origin = page.url().split('/').slice(0, 3).join('/');
+  const initial = await (await page.request.get(origin + '/api/document')).json();
+  const separator = initial.path.includes('\\') ? '\\' : '/';
+  const root = initial.path.split(separator).slice(0, -4).join(separator);
+  const file = [root, 'tmp', 'mermaid-authoring', 'diagram.md'].join(separator);
+  // Hold a real render result after its SVG exists, allowing a later render to finish first.
+  await page.route('**/src/mermaid-render.ts', async route => {
+    const response = await route.fetch();
+    await route.fulfill({response, body: await response.text() + `\n
+      const actualMermaidRender = renderMermaid;
+      renderMermaid = async (...args) => {
+        const result = await actualMermaidRender(...args);
+        if (window.__holdMermaid && args[0].includes('Delayed')) {
+          window.__mermaidHeld = true;
+          await new Promise(resolve => window.__releaseMermaid = resolve);
+        }
+        return result;
+      };\n`});
+  });
+  expect(await page.evaluate(() => performance.getEntriesByType('resource').some(r => r.name.includes('/src/mermaid-render.ts')))).toBe(false);
+  await openPath(page, file);
+  const active = page.locator('[data-document-tab][data-active=true]');
+  const editor = active.locator('.document-editor');
+  const figure = active.locator('[data-content-kind="mermaid"]').first();
+  const field = () => active.getByTestId('mermaid-source');
+  const preview = () => active.getByTestId('mermaid-edit-preview');
+  const rendered = async (locator, text) => {
+    await expect(locator).toHaveAttribute('aria-busy','false');
+    await expect(locator.locator('img')).toBeVisible();
+    expect(decodeURIComponent(await locator.locator('img').getAttribute('src'))).toContain(text);
+  };
+  const model = () => editor.evaluate(el => {
+    const e=el.editor, h=e.state.plugins.find(p=>p.key.startsWith('history$')).getState(e.state);
+    return {doc:e.getJSON(),undo:h.done.eventCount,redo:h.undone.eventCount};
+  });
+  const disk = async () => (await (await page.request.get(`${origin}/document/diagram.md?path=${encodeURIComponent(file)}`)).text()).replaceAll('\r\n','\n');
+  const save = async () => {
+    const response=page.waitForResponse(r=>r.request().method()==='POST' && /\/api\/document(?:\?|$)/.test(r.url()));
+    await page.getByTestId('save').click(); expect((await response).status()).toBe(200);
+  };
+  const edit = async () => {
+    await figure.hover({position:{x:4,y:4}}); await figure.getByRole('button',{name:'Edit figure'}).click();
+    await expect(field()).toBeFocused();
+  };
+  await rendered(figure.getByTestId('mermaid-preview'), '>A<');
+  const refs=active.getByTestId('cross-reference');
+  await expect(refs.nth(0)).toHaveAttribute('data-resolved','true');
+  await expect(refs.nth(1)).toHaveAttribute('data-resolved','true');
+  expect(await refs.allTextContents()).toEqual(['Figure\u00a01','Figure\u00a02']);
+  if (screenshots) {
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(async theme => (await import('/src/theme.ts')).applyTheme(theme), theme);
+      for (const width of [1440, 640]) {
+        await page.setViewportSize({width, height:1000});
+        await page.evaluate(() => document.fonts.ready);
+        await figure.scrollIntoViewIfNeeded();
+        await rendered(figure.getByTestId('mermaid-preview'), '>A<');
+        await page.screenshot({path:`tmp/mermaid-651-after-${theme}-${width}-display.png`});
+        await edit(); await rendered(preview(), '>A<');
+        expect((await field().boundingBox()).width).toBeGreaterThan((await figure.boundingBox()).width-2);
+        expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+        await page.screenshot({path:`tmp/mermaid-651-after-${theme}-${width}-edit.png`});
+        await active.getByTestId('mermaid-cancel').click();
+      }
+    }
+  }
+  await page.setViewportSize({width:1440,height:1000});
+  await page.evaluate(async ()=>(await import('/src/theme.ts')).applyTheme('light'));
+  const opening=await model(), originalDisk=await disk();
+  await figure.getByTestId('mermaid-preview').dblclick(); await expect(field()).toBeFocused();
+  await field().fill('graph LR'); await field().press('End'); await field().press('Enter'); await field().pressSequentially('  A --> C');
+  expect(await field().inputValue()).toBe('graph LR\n  A --> C');
+  const height=(await field().boundingBox()).height;
+  await field().fill('graph LR\n  A-->B\n  B-->C\n  C-->D\n  D-->E\n  E-->F\n  F-->G\n  G-->H');
+  expect((await field().boundingBox()).height).toBeGreaterThan(height);
+  await field().press('Escape'); await waitForEditorFocus(page); expect(await model()).toEqual(opening);
+  await page.context().grantPermissions(['clipboard-read','clipboard-write']);
+  for (const id of ['mermaid-source','mermaid-label']) {
+    await edit(); const input=active.getByTestId(id);
+    await input.fill('alpha beta gamma'); await input.focus(); await input.evaluate(el=>el.setSelectionRange(0,5));
+    // Rendering the now-invalid draft changes preview height. Measure after that real layout
+    // transition, so the pointer still targets the selected native text when dragging begins.
+    await expect(preview()).toHaveAttribute('aria-busy','false');
+    const g=await input.evaluate(el=>{
+      const r=el.getBoundingClientRect(),s=getComputedStyle(el),c=document.createElement('canvas').getContext('2d');c.font=s.font;
+      return {start:r.left+parseFloat(s.borderLeftWidth)+parseFloat(s.paddingLeft)+c.measureText('al').width,
+        end:r.right-parseFloat(s.paddingRight)-5,y:r.top+parseFloat(s.borderTopWidth)+parseFloat(s.paddingTop)+parseFloat(s.lineHeight)/2};
+    });
+    await page.evaluate(()=>{window.__mermaidDrag=[];for(const type of ['dragstart','drop'])document.addEventListener(type,e=>window.__mermaidDrag.push({type,trusted:e.isTrusted}),{capture:true,once:true});});
+    await page.mouse.move(g.start,g.y);await page.mouse.down();await page.mouse.move(g.end,g.y,{steps:12});await page.mouse.up();
+    expect(await input.inputValue()).toBe(' beta gammaalpha');
+    expect(await page.evaluate(()=>window.__mermaidDrag)).toEqual([{type:'dragstart',trusted:true},{type:'drop',trusted:true}]);
+    await page.evaluate(()=>navigator.clipboard.writeText(' PASTE'));await input.press('End');await input.press('ControlOrMeta+v');
+    expect(await input.inputValue()).toBe(' beta gammaalpha PASTE');expect(await model()).toEqual(opening);
+    await active.getByTestId('mermaid-cancel').click();expect(await model()).toEqual(opening);
+  }
+  await edit();await page.evaluate(()=>navigator.clipboard.writeText('graph TD\r\n  Draft --> Next'));
+  await field().press('ControlOrMeta+a');await field().press('ControlOrMeta+v');
+  expect(await field().inputValue()).toBe('graph TD\n  Draft --> Next');
+  await active.getByText('Before.',{exact:true}).click();await expect(field()).toBeVisible();
+  await expect(active.getByTestId('figure-draft-status')).toBeVisible();
+  expect(await page.evaluate(()=>{const e=new Event('beforeunload',{cancelable:true});window.dispatchEvent(e);return e.defaultPrevented;})).toBe(true);
+  await save();expect(await disk()).toBe(originalDisk);
+  await page.getByRole('button',{name:'Source',exact:true}).click();
+  const source=await active.getByTestId('source-view').locator('pre').textContent();
+  expect(source).toContain('graph LR');expect(source).not.toContain('Draft --> Next');
+  await page.getByRole('button',{name:'Visual',exact:true}).click();expect(await field().inputValue()).toBe('graph TD\n  Draft --> Next');
+  await openPath(page,[root,'tmp','mermaid-authoring','other.md'].join(separator));
+  await page.getByRole('tab',{name:'diagram.md, Unsaved changes',exact:true}).click();
+  expect(await field().inputValue()).toBe('graph TD\n  Draft --> Next');
+  for(const source of ['', '\ngraph LR\n  A-->B']) {
+    await field().fill(source);await active.getByTestId('mermaid-apply').click();
+    await expect(active.getByTestId('mermaid-editor').locator('[role="alert"]')).toBeVisible();
+    expect(await field().inputValue()).toBe(source);expect(await model()).toEqual(opening);
+  }
+  await field().fill('graph TD\n  Applied --> Next');await active.getByTestId('mermaid-label').fill('fig-new');
+  const caption=figure.getByTestId('figure-caption-content');
+  await caption.click();await page.keyboard.press('End');await page.keyboard.type(' live');
+  await field().press('ControlOrMeta+Enter');await expect(field()).toHaveCount(0);await waitForEditorFocus(page);
+  await expect(refs.first()).toHaveAttribute('data-resolved','true');await rendered(figure.getByTestId('mermaid-preview'),'Applied');
+  await save();expect(await disk()).toContain('graph TD\n  Applied --> Next');expect(await disk()).toContain('{numref}`fig-new`');
+  expect(await disk()).toContain('Signal flow live');
+  await editor.evaluate(el=>el.editor.commands.undo());await rendered(figure.getByTestId('mermaid-preview'),'>A<');
+  await editor.evaluate(el=>el.editor.commands.redo());await reloadDocument(page);
+  await rendered(figure.getByTestId('mermaid-preview'),'Applied');await edit();expect(await field().inputValue()).toBe('graph TD\n  Applied --> Next');
+  await page.evaluate(()=>{window.__holdMermaid=true;window.__mermaidHeld=false;});await field().fill('graph LR\n  Delayed --> Old');
+  await page.waitForFunction(()=>window.__mermaidHeld);await field().fill('graph LR\n  Latest --> Result');await rendered(preview(),'Latest');
+  await page.evaluate(async ()=>(await import('/src/theme.ts')).applyTheme('dark'));await expect(preview()).toHaveAttribute('data-theme','dark');
+  await rendered(preview(),'Latest');const darkSvg=await preview().locator('img').getAttribute('src');
+  await page.evaluate(async ()=>{window.__holdMermaid=false;window.__releaseMermaid();await new Promise(requestAnimationFrame);});
+  expect(await preview().locator('img').getAttribute('src')).toBe(darkSvg);
+  await page.evaluate(async ()=>(await import('/src/theme.ts')).applyTheme('light'));await rendered(preview(),'Latest');
+  expect(await preview().locator('img').getAttribute('src')).not.toBe(darkSvg);
+  await field().fill('this is not Mermaid');await expect(preview().getByTestId('mermaid-error')).toBeVisible();
+  await active.getByTestId('mermaid-apply').click();await expect(field()).toHaveCount(0);await expect(figure.getByTestId('mermaid-error')).toBeVisible();
+  await save();expect(await disk()).toContain('this is not Mermaid');await reloadDocument(page);await expect(figure.getByTestId('mermaid-error')).toBeVisible();
+  await edit();await field().fill('graph LR\n  Safe["<img src=x onerror=alert(1)>"] --> B\n  click B "javascript:alert(1)"');await rendered(preview(),'Safe');
+  expect(await figure.locator('script,svg,foreignObject').count()).toBe(0);await active.getByTestId('mermaid-cancel').click();
+  await active.getByText('After.',{exact:true}).click();await page.keyboard.press('End');await page.keyboard.press('Enter');await page.keyboard.type('/mermaid');
+  const menu=page.getByRole('menu',{name:'Insert block'});await expect(menu.getByRole('menuitem',{name:'Diagram',exact:true})).toBeVisible();
+  await menu.getByRole('menuitem',{name:'Diagram',exact:true}).click();await expect(field()).toBeFocused();expect(await field().inputValue()).toBe('graph LR\n  A --> B');
+  await active.getByTestId('mermaid-cancel').click();await save();expect((await disk()).match(/\{mermaid\}/g).length).toBe(2);
+  await reloadDocument(page);const diagrams=active.locator('[data-content-kind="mermaid"]');await expect(diagrams).toHaveCount(2);await rendered(diagrams.last().getByTestId('mermaid-preview'),'>A<');
+  await edit();await field().fill('graph LR\n  A --> B');await active.getByTestId('mermaid-apply').click();await expect(field()).toHaveCount(0);
+  await rendered(diagrams.first().getByTestId('mermaid-preview'),'>A<');
+  const urls=await diagrams.locator('[data-testid="mermaid-preview"] img').evaluateAll(imgs=>imgs.map(img=>decodeURIComponent(img.src)));
+  expect(urls.length).toBe(2);
+  const ids=urls.map(svg=>svg.match(/<svg[^>]* id="([^"]+)"/)[1]);expect(ids[0]).not.toBe(ids[1]);
+  const panel=page.getByRole('complementary',{name:'Outline'});
+  if(!await panel.isVisible())await page.getByRole('button',{name:'Outline',exact:true}).click();
+  await panel.getByRole('tab',{name:'Figures 3',exact:true}).click();
+  await expect(panel.getByRole('tabpanel').getByRole('button')).toHaveCount(3);
+  await save();
+  // A rejected lazy import is a block error, while source editing and real Save still work.
+  await page.unroute('**/src/mermaid-render.ts');
+  await page.route('**/src/mermaid-render.ts',route=>route.fulfill({contentType:'application/javascript',body:'throw new Error("Renderer chunk unavailable");'}));
+  await page.reload();await expect(diagrams.first().getByTestId('mermaid-error')).toBeVisible();
+  await edit();await field().fill('graph TD\n  Offline --> Saved');await active.getByTestId('mermaid-apply').click();
+  await expect(field()).toHaveCount(0);await save();expect(await disk()).toContain('Offline --> Saved');
+  expect(await page.locator('body > div[style*="-100000px"]').count()).toBe(0);
+  return {sourceSaved:true,draftsPreserved:true,realDrag:true,themeAndStaleRender:true};
+}

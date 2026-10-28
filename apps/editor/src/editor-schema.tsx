@@ -36,6 +36,7 @@ import { DocumentTitle, TITLE_FIXED, titleKept } from "./document-title.ts";
 import { FootnoteReference } from "./footnote.tsx";
 import { Citation } from "./citation.tsx";
 import { renderEquation } from "./equation-render.ts";
+import { MermaidPreview } from "./mermaid-preview.tsx";
 import { snapshotBlocksByPath } from "./tiptap-edits.ts";
 import {
   DELETED_PATHS_ATTR,
@@ -98,6 +99,7 @@ export function isUnappliedEquationDraft(editing: boolean, draft: string, latex:
 /** An open Figure form is unsaved when changed. */
 export function isUnappliedFigureDraft(editing: boolean, draft: FigureContent, applied: FigureContent): boolean {
   const changed = draft.imageUrl !== applied.imageUrl || draft.imageAlt !== applied.imageAlt ||
+    draft.mermaidSource !== applied.mermaidSource ||
     JSON.stringify(draft.caption) !== JSON.stringify(applied.caption);
   return editing && changed;
 }
@@ -431,6 +433,7 @@ const Figure = Node.create<{ documentPath?: string | (() => string) }>({
       label: hiddenAttr(""),
       imageUrl: hiddenAttr(""),
       imageAlt: hiddenAttr(""),
+      mermaidSource: { default: null, rendered: false },
     });
   },
   parseHTML() {
@@ -1020,7 +1023,13 @@ function figureAttrs(node: ProseMirrorNode): FigureContent {
   return figureContent(node.toJSON() as TiptapJSON);
 }
 
-function FigureView({ node, editor, selected, getPos, view, documentPath: initialDocumentPath, onDraftChange, validateFigure, chooseImage }: ReactNodeViewProps & { documentPath?: string | (() => string); onDraftChange?: DraftListener; validateFigure?: FigureValidator; chooseImage?: ImageChooser }) {
+type FigureViewProps = ReactNodeViewProps & { documentPath?: string | (() => string); onDraftChange?: DraftListener; validateFigure?: FigureValidator; chooseImage?: ImageChooser };
+
+function FigureView(props: FigureViewProps) {
+  return typeof props.node.attrs.mermaidSource === "string" ? <MermaidFigureView {...props} /> : <ImageFigureView {...props} />;
+}
+
+function ImageFigureView({ node, editor, selected, getPos, view, documentPath: initialDocumentPath, onDraftChange, validateFigure, chooseImage }: FigureViewProps) {
   const documentPath = useContext(DocumentPathContext) ?? (typeof initialDocumentPath === "function" ? initialDocumentPath() : initialDocumentPath);
   useTranslation();
   // Core's computed label prefixes the caption; it is never saved.
@@ -1258,6 +1267,136 @@ function FigureView({ node, editor, selected, getPos, view, documentPath: initia
   );
 }
 
+// Keep native text dragging inside form controls; ProseMirror otherwise handles their drop.
+function isolateInputDrag(event: ReactDragEvent<HTMLDivElement>) {
+  if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) event.stopPropagation();
+}
+
+/** Shared by the in-document Equation and Mermaid forms; insertion refocuses the engine first. */
+function useSourceInputFocus(input: RefObject<HTMLTextAreaElement | null>, editing: boolean) {
+  const frame = useRef<number | null>(null);
+  const cancel = () => {
+    if (frame.current !== null) cancelAnimationFrame(frame.current);
+    frame.current = null;
+  };
+  useEffect(() => {
+    if (!editing) return;
+    cancel();
+    frame.current = requestAnimationFrame(() => {
+      frame.current = null;
+      const element = input.current;
+      if (element?.getClientRects().length && !element.closest("form")?.contains(document.activeElement)) element.focus();
+    });
+    return cancel;
+  }, [editing, input]);
+  return cancel;
+}
+
+function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange, validateFigure }: FigureViewProps) {
+  useTranslation();
+  const visible = useEditorVisible();
+  const numbered = useCaptionNumberText(editor, getPos, "figure");
+  const kind = numbered ?? i18n.t("Figure");
+  const applied = figureAttrs(node);
+  const label = String(node.attrs.label ?? "");
+  const sourcePath = String(node.attrs.sourcePath ?? "");
+  const anchor = useRef<HTMLParagraphElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
+  const request = useRef(0);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(applied.mermaidSource!);
+  const [labelDraft, setLabelDraft] = useState(label);
+  const [error, setError] = useMessageState("");
+  const [busy, setBusy] = useState(false);
+  const hasDraft = editing && (draft !== applied.mermaidSource || labelDraft !== label);
+  const cancelFocus = useSourceInputFocus(input, editing);
+  useEffect(() => () => { request.current++; }, []);
+  useEffect(() => {
+    if (!editing) { setDraft(applied.mermaidSource!); setLabelDraft(label); }
+  }, [editing, applied.mermaidSource, label]);
+  useEffect(() => {
+    onDraftChange?.("Figure", sourcePath, hasDraft);
+    return () => onDraftChange?.("Figure", sourcePath, false);
+  }, [sourcePath, hasDraft, onDraftChange]);
+  function beginEdit() {
+    if (!view.editable || editing) return;
+    setDraft(applied.mermaidSource!); setLabelDraft(label); setError(""); setEditing(true);
+  }
+  const [openOnInsert] = useState(() => view.editable && isNewBlockPath(sourcePath));
+  useEffect(() => { if (openOnInsert) beginEdit(); }, [openOnInsert]);
+  usePropertyEntry(anchor, beginEdit);
+  const cancel = () => {
+    request.current++; cancelFocus(); setBusy(false);
+    setDraft(applied.mermaidSource!); setLabelDraft(label); setError(""); setEditing(false);
+    focusBlock(view, getPos);
+  };
+  const apply = async () => {
+    if (!view.editable) return;
+    const position = getPos();
+    const current = typeof position === "number" ? view.state.doc.nodeAt(position) : null;
+    if (!current) return;
+    const caption = figureAttrs(current).caption;
+    const candidate = { ...figureAttrs(current), mermaidSource: draft, caption };
+    const local = labelError(labelDraft) ?? figureContentError(candidate) ??
+      (validateFigure ? undefined : "Figure validation is unavailable.");
+    if (local) { setError(local); return; }
+    const pending = ++request.current;
+    setBusy(true); setError("");
+    let message: string | undefined;
+    try { message = await validateFigure!(candidate, labelDraft); }
+    catch (cause) { message = i18n.t("Figure validation failed: {{reason}}", { reason: cause instanceof Error ? cause.message : String(cause) }); }
+    if (request.current !== pending || editor.isDestroyed) return;
+    setBusy(false);
+    if (message) { setError(message); return; }
+    const latestPosition = getPos();
+    const latest = typeof latestPosition === "number" ? view.state.doc.nodeAt(latestPosition) : null;
+    if (!latest || typeof latestPosition !== "number") return;
+    if (JSON.stringify(figureAttrs(latest).caption) !== JSON.stringify(caption)) {
+      setError({ key: "Caption changed during validation. Apply again." }); return;
+    }
+    const active = document.activeElement;
+    const returnFocus = !view.dom.closest("[hidden]") &&
+      (active === document.body || Boolean(input.current?.closest("form")?.contains(active)));
+    try { view.dispatch(updateFigure(view.state, latestPosition, { mermaidSource: draft, label: labelDraft })); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
+    cancelFocus(); setError(""); setEditing(false);
+    if (returnFocus) focusBlock(view, getPos);
+  };
+  const selectFigure = (event: ReactMouseEvent) => {
+    const position = getPos();
+    if (typeof position !== "number") return;
+    event.preventDefault();
+    view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, position))); view.focus();
+  };
+  return <NodeViewWrapper as="figure" className="figure mermaid-figure" data-block="figure"
+    data-content-kind="mermaid" data-editing={editing} data-selected={selected} data-source-path={sourcePath}>
+    <p ref={anchor} className="block-kind block-metadata" contentEditable={false}>{[kind, label].filter(Boolean).join(" · ")}</p>
+    {hasDraft ? <p className="draft-status" role="status" data-testid="figure-draft-status" contentEditable={false}>
+      {i18n.t("Unapplied changes are not saved. Apply to include them, or Cancel.")}</p> : null}
+    {editing ? visible ? <div contentEditable={false} data-testid="mermaid-properties" onDragStart={isolateInputDrag}
+      onDragEnter={isolateInputDrag} onDragOver={isolateInputDrag} onDragLeave={isolateInputDrag} onDrop={isolateInputDrag} onDragEnd={isolateInputDrag}>
+      <PropertyForm kind={kind} testId="mermaid" error={error} busy={busy} onApply={() => void apply()} onCancel={cancel}>
+        <label className="form-field"><span>{i18n.t("Mermaid source")}</span>
+          <textarea ref={input} className="document-source-input" data-testid="mermaid-source" disabled={busy}
+            value={draft} spellCheck={false} onChange={event => { setDraft(event.target.value.replace(/\r\n?/g, "\n")); setError(""); }} />
+        </label>
+        <MermaidPreview source={draft} draft />
+        <label className="form-field"><span>{i18n.t("Label")}</span>
+          <Input data-testid="mermaid-label" disabled={busy} value={labelDraft} placeholder={i18n.t("None")}
+            onChange={event => { setLabelDraft(event.target.value); setError(""); }} />
+        </label>
+      </PropertyForm>
+    </div> : null : <div contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>
+      <MermaidPreview source={applied.mermaidSource!} />
+    </div>}
+    <figcaption className="caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}>
+      <NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")} />
+    </figcaption>
+    {view.editable && !editing ? <Button className="figure-edit" size="sm" variant="outline" aria-label={i18n.t("Edit figure")}
+      contentEditable={false} onClick={beginEdit}>{i18n.t("Edit")}</Button> : null}
+  </NodeViewWrapper>;
+}
+
 /**
  * Closing properties keeps a text selection inside the block; otherwise it returns a caret just
  * after the block. Use the engine's gap cursor where no adjacent text is available, so the next
@@ -1294,17 +1433,12 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
   const latex = String(node.attrs.latex ?? "");
   const anchor = useRef<HTMLParagraphElement>(null);
   const latexInput = useRef<HTMLTextAreaElement>(null);
-  const focusFrame = useRef<number | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(latex);
   const [labelDraft, setLabelDraft] = useState(label);
   const [error, setError] = useMessageState("");
 
-  const cancelFocus = () => {
-    if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);
-    focusFrame.current = null;
-  };
-  useEffect(() => cancelFocus, []);
+  const cancelFocus = useSourceInputFocus(latexInput, editing);
 
   useEffect(() => {
     if (!editing) {
@@ -1334,17 +1468,6 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
     setError("");
     setEditing(true);
   }
-  useEffect(() => {
-    if (!editing) return;
-    // Schedule after the form mounts and after an insertion refocuses the editor.
-    cancelFocus();
-    focusFrame.current = requestAnimationFrame(() => {
-      focusFrame.current = null;
-      const input = latexInput.current;
-      if (input && input.getClientRects().length && !input.closest('[data-testid="equation-editor"]')?.contains(document.activeElement)) input.focus();
-    });
-    return cancelFocus;
-  }, [editing]);
   usePropertyEntry(anchor, beginEdit);
   const cancel = () => {
     cancelFocus();
@@ -1369,11 +1492,6 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
     setError("");
     setEditing(false);
     focusBlock(view, getPos);
-  };
-
-  // Keep native text dragging inside the form controls; ProseMirror otherwise handles their drop.
-  const isolateInputDrag = (event: ReactDragEvent<HTMLDivElement>) => {
-    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) event.stopPropagation();
   };
 
   return (
@@ -1407,7 +1525,7 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
               <textarea
                 ref={latexInput}
                 aria-label={i18n.t("Equation LaTeX")}
-                className="equation-input"
+                className="equation-input document-source-input"
                 data-testid="equation-latex"
                 value={draft}
                 onChange={(event) => {

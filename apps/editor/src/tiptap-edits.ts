@@ -167,9 +167,10 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
       } else if (block.block === "figure" && block.editable) {
         const label = blockLabel(node);
         if (label !== block.label) labels.push({ path: block.path, from: block.label, to: label });
-        const from = { imageUrl: block.imageUrl, imageAlt: block.imageAlt, caption: captionValue(block.caption.content) };
+        const from = { imageUrl: block.imageUrl, imageAlt: block.imageAlt, caption: captionValue(block.caption.content),
+          ...(block.contentKind === "mermaid" ? { mermaidSource: block.mermaidSource } : {}) };
         const to = figureContent(node);
-        if (to.imageUrl === from.imageUrl && to.imageAlt === from.imageAlt &&
+        if (to.imageUrl === from.imageUrl && to.imageAlt === from.imageAlt && to.mermaidSource === from.mermaidSource &&
             sameInline(figureCaptionContent(to.caption), block.caption.content)) return;
         assertFigureContent(to);
         figures.push({ path: block.path, from, to });
@@ -479,11 +480,13 @@ function insertEdit(node: TiptapJSON): InsertEdit {
 }
 
 export function figureContent(node: TiptapJSON): FigureContent {
-  const { imageUrl, imageAlt } = node.attrs ?? {};
+  const { imageUrl, imageAlt, mermaidSource } = node.attrs ?? {};
   if (typeof imageUrl !== "string" || typeof imageAlt !== "string") {
     throw new Error("figure image URL and alt text must be strings");
   }
-  return { imageUrl, imageAlt, caption: captionValue(paragraphInline(node)) };
+  if (mermaidSource != null && typeof mermaidSource !== "string") throw new Error("figure Mermaid source must be a string");
+  return { imageUrl, imageAlt, caption: captionValue(paragraphInline(node)),
+    ...(typeof mermaidSource === "string" ? { mermaidSource } : {}) };
 }
 
 // Retain the text convenience representation for existing plain-caption clients.

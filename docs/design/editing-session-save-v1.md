@@ -311,6 +311,12 @@ HTTP/Desktop execution details and native-dialog automation limits: [Host persis
 
 ## Applied content and drafts
 
+Mermaid source and label forms register Figure drafts through the same NodeView draft lifecycle.
+Save, Source and tab changes preserve unapplied input and include only applied source; closing
+or reloading uses the existing work-loss guards. Preview loading, syntax errors and theme changes
+do not change document content or history. Applied source is replayed through Core `updateFigure`
+and canonical writing, including caption-only edits, Undo/Redo and reopened documents.
+
 - Empty newly inserted editor paragraphs stay in the session but are omitted from canonical output. New Figures, structurally valid Tables, admonitions, quotes, lists and Equations are saved from insertion, empty or not (#574). Equation Cancel/Escape discards only property drafts and keeps the inserted structure; empty Apply is supported. Empty tables retain their structure, caption and label through Save/Reload, just like existing tables. Filtering is shared by Save collection and dirty comparison. An emptied opening-snapshot paragraph, an empty heading or an invalid table still reports a save error.
 - Equation/Figure/Table/section-label/inline-math drafts are aggregated by kind and opening-snapshot locator (inline math also has a stable per-mounted-form identity, so two drafts in one block stay independent); form values remain owned by their NodeViews. Changed property drafts protect tab closing and all-tabs beforeunload, including changed Figure values while Apply validation is pending. Closing one draft does not clear another, including two kinds at the same locator.
 - Property Apply (button or Ctrl+Enter on Windows/Linux, Cmd+Enter on macOS within the shared properties form) changes the main editor document. Both use the same validation/error path and ignore submission while busy; composition and Shift/Alt-modified shortcuts do not Apply. Unapplied form values survive Save and Source switching; neither operation applies them implicitly. Block notices and a standing message explain that only applied content is included. A remaining draft prevents the `Saved` display.

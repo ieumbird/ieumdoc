@@ -211,6 +211,7 @@ export function saveEdits(
         throw new Error(`figure edit is not allowed at [${figure.path.join(",")}]`);
       }
       if (figure.from?.imageUrl !== block.imageUrl || figure.from.imageAlt !== block.imageAlt ||
+          figure.from.mermaidSource !== block.mermaidSource ||
           JSON.stringify(figureCaptionContent(figure.from.caption)) !== JSON.stringify(block.caption.content)) {
         throw new Error(`figure does not match at [${figure.path.join(",")}]`);
       }
@@ -584,7 +585,9 @@ function figureContent(value: FigureContent | undefined): FigureContent {
       (typeof value.caption !== "string" && !Array.isArray(value.caption))) {
     throw new Error("figure image URL and alt text must be strings; caption must be text or InlineContent");
   }
-  return { imageUrl: value.imageUrl, imageAlt: value.imageAlt, caption: value.caption };
+  if (value.mermaidSource !== undefined && typeof value.mermaidSource !== "string") throw new Error("figure Mermaid source must be a string");
+  return { imageUrl: value.imageUrl, imageAlt: value.imageAlt, caption: value.caption,
+    ...(value.mermaidSource !== undefined ? { mermaidSource: value.mermaidSource } : {}) };
 }
 
 function inlineText(content: InlineContent[]): string {

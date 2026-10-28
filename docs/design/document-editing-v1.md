@@ -206,10 +206,14 @@ A changed document recomputes numbering; source semantics and canonical output a
   switching retain them under the [editing-session contract](editing-session-save-v1.md#applied-content-and-drafts).
   Native text drag/drop and paste within a block Equation source or label field change only
   that draft; they do not create document content or history and Cancel leaves Save unchanged.
+- Mermaid Figures reuse the block Equation's in-document source editing surface and shared
+  PropertyForm, with draft preview, label and explicit Apply/Cancel. Caption editing stays in
+  the document. The [Figure contract](figure-authoring-v1.md#mermaid-editor) defines rendering,
+  source normalization and error handling; the same draft, focus and native input drag rules apply.
 - In any shared properties form (Equation, inline math, Figure, Table or section label),
   Ctrl+Enter on Windows/Linux or Cmd+Enter on macOS submits the same Apply path, including
   validation and errors. Busy forms ignore Apply. Composition and Shift/Alt-modified keys
-  do not Apply; plain Enter inserts a newline in block Equation and Escape cancels.
+  do not Apply; plain Enter inserts a newline in block Equation/Mermaid source and Escape cancels.
   The binding is local to the form; prose Mod-Enter keeps its existing hard break behavior.
 - Applying, cancelling or escaping an inline math form immediately restores the editor caret
   just after the formula, preserving its marks and subsequent typing. Remove keeps the existing

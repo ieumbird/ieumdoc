@@ -132,6 +132,13 @@ export const INSERT_COMMANDS: InsertCommand[] = [
     run: insertFigureAfter,
   },
   {
+    id: "diagram",
+    get label() { return i18n.t("Diagram"); },
+    get group() { return i18n.t("Technical"); },
+    keywords: ["diagram", "mermaid", "flowchart", "다이어그램"],
+    run: insertMermaidAfter,
+  },
+  {
     id: "table",
     get label() { return i18n.t("Table"); },
     get group() { return i18n.t("Technical"); },
@@ -372,6 +379,13 @@ export function insertFigureAfter(state: EditorState, index: number, slash?: Sla
     ...image,
   }, slash);
   return tr.setSelection(TextSelection.create(tr.doc, tr.selection.from + 1));
+}
+
+/** A valid, savable initial diagram; node selection opens its source form on insertion. */
+export function insertMermaidAfter(state: EditorState, index: number, slash?: SlashRange): Transaction {
+  return insertAtomAfter(state, index, "figure", {
+    label: "", imageUrl: "", imageAlt: "", mermaidSource: "graph LR\n  A --> B",
+  }, slash);
 }
 
 /** Apply Figure properties as one Undo event, retaining omitted attributes and caption. */
