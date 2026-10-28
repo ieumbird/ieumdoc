@@ -62,6 +62,71 @@ async (page, { openPath, expect, reloadDocument, screenshots }) => {
     });
   }, index);
   const leave = () => editor.evaluate(element => element.editor.commands.setTextSelection(1));
+  // Exercise native character deletion independently for every caption kind. Keep going
+  // after a failure so the pre-fix run records all four cases on fresh document state.
+  const deletionFailures = [];
+  for (let index = 0; index < surfaces.length; index++) {
+    const name = ['table', 'image', 'pending', 'mermaid'][index];
+    const surface = surfaces[index];
+    try {
+      await leave();
+      const snapshot = () => editor.evaluate((element, index) => {
+        const instance = element.editor, json = instance.getJSON();
+        const block = index === 0 ? json.content.find(node => node.type === 'table') :
+          json.content.filter(node => node.type === 'figure')[index - 1];
+        const target = index === 0 ? block.content.find(node => node.type === 'tableCaption') : block;
+        const text = (target.content || []).map(node => node.text || '').join('');
+        target.content = [];
+        return { text, other: json, offset: instance.state.selection.$head.parentOffset };
+      }, index);
+      const original = await snapshot();
+      await surface.click();
+      await surface.evaluate(element => {
+        window.__captionMutations = [];
+        window.__captionObserver?.disconnect();
+        window.__captionObserver = new MutationObserver(records => {
+          for (const record of records) for (const node of record.removedNodes) {
+            window.__captionMutations.push({target:record.target.nodeName, removed:node.outerHTML || node.textContent});
+          }
+        });
+        window.__captionObserver.observe(element.parentElement, {subtree:true, childList:true, characterData:true});
+      });
+      await page.keyboard.type('Temporary');
+      await expect(surface).toHaveText('Temporary');
+      expect((await snapshot()).text).toBe('Temporary');
+      expect((await snapshot()).offset).toBe(9);
+      // ProseMirror history's normal grouping timeout separates insertion from deletion.
+      await page.waitForTimeout(600);
+      for (let key = 1; key <= 12; key++) {
+        await page.keyboard.press('Backspace');
+        const expected = 'Temporary'.slice(0, Math.max(0, 9 - key));
+        const state = await snapshot();
+        const dom = await surface.count() ? await surface.evaluate(element => ({
+          text:element.textContent, connected:!!element.querySelector('[data-node-view-content-react]')?.isConnected,
+        })) : null;
+        if (!dom || !dom.connected || dom.text !== expected || state.text !== expected || JSON.stringify(state.other) !== JSON.stringify(original.other)) {
+          const mutations = await page.evaluate(() => window.__captionMutations);
+          throw new Error(`${name} Backspace ${key}: expected=${JSON.stringify(expected)}, DOM=${JSON.stringify(dom)}, model=${JSON.stringify(state.text)}, surrounding=${JSON.stringify(state.other) === JSON.stringify(original.other)}, mutations=${JSON.stringify(mutations)}`);
+        }
+      }
+      await page.keyboard.press('ControlOrMeta+z');
+      await expect(surface).toHaveText('Temporary');
+      expect((await snapshot()).text).toBe('Temporary');
+      await page.keyboard.press('ControlOrMeta+Shift+z');
+      await expect(surface).toHaveText('');
+      expect((await snapshot()).text).toBe('');
+      await leave();
+      await expect(surface).toHaveAttribute('data-placeholder', index ? 'Enter a figure caption…' : 'Enter a table caption…');
+      expect((await snapshot()).other).toEqual(original.other);
+    } catch (error) {
+      deletionFailures.push(`${name}: ${error.message}`);
+    }
+    await page.evaluate(() => window.__captionObserver?.disconnect());
+    await reloadDocument(page);
+    const discard = page.getByRole('button', {name:'Discard and reload', exact:true});
+    if (await discard.count()) { await discard.click(); await page.getByRole('dialog').waitFor({state:'detached'}); }
+  }
+  expect(deletionFailures, 'Native repeated Backspace must retain every caption and surrounding content').toEqual([]);
   await leave();
   for (const language of ['en', 'ko']) {
     await page.evaluate(async language => (await import('/src/i18n.ts')).i18n.changeLanguage(language), language);

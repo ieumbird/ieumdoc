@@ -107,6 +107,13 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument
       await page.keyboard.press('ControlOrMeta+c');
       expect(await page.evaluate(() => navigator.clipboard.readText())).not.toContain(hint);
       await caption.click({position:{x:20,y:8}});
+      // One grapheme can span multiple UTF-16 units; deleting it must preserve contentDOM.
+      await page.keyboard.insertText('🧪');
+      await expect(caption).toHaveText('🧪');
+      await page.keyboard.press('Backspace');
+      await page.keyboard.press('Backspace');
+      await expect(caption).toHaveText('');
+      expect(await caption.locator('[data-node-view-content-react]').count()).toBe(1);
       await page.keyboard.type(originalCaptions[index]);
       await expect(caption).not.toHaveAttribute('data-placeholder');
       await expect(caption).toHaveText(originalCaptions[index]);

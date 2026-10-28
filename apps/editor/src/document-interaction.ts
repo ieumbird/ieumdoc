@@ -158,6 +158,20 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
       };
       const join = (backward: boolean) => {
         const { state, commands } = this.editor;
+        const selection = state.selection;
+        if (this.editor.isEditable && !this.editor.view.composing && selection instanceof TextSelection && selection.empty &&
+            ["figure", "tableCaption"].includes(selection.$from.parent.type.name)) {
+          const { $from } = selection, parent = $from.parent;
+          if (backward && $from.parentOffset === 0) return true;
+          // Chrome can remove the React-owned NodeView wrapper when it natively deletes
+          // the last grapheme. Keep that deletion inside ProseMirror's transaction/history.
+          const atEdge = backward ? $from.parentOffset === parent.content.size : $from.parentOffset === 0;
+          if (atEdge && parent.content.size && parent.content.content.every(node => node.isText) &&
+              Array.from(new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(parent.textContent)).length === 1) {
+            this.editor.view.dispatch(state.tr.delete($from.start(), $from.end()).scrollIntoView());
+            return true;
+          }
+        }
         if (state.selection instanceof NodeSelection && state.selection.node.type.name === "table") {
           this.editor.view.dispatch(closeHistory(state.tr).deleteSelection().setMeta(TABLE_DELETE_META, true).scrollIntoView());
           return true;
