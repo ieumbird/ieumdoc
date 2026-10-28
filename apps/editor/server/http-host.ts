@@ -5,6 +5,7 @@ import { isIP } from "node:net";
 import path from "node:path";
 import { handleAssetRequest } from "./asset-api.ts";
 import { handleDocumentRequest } from "./document-api.ts";
+import { handleDrawioRequest, serveDrawioStatic, type DrawioOptions } from "./drawio-api.ts";
 import { SECURITY_HEADERS, serveEditorFile } from "./editor-static.ts";
 import { RootAccess } from "./file-access.ts";
 import { requestQuery } from "./request-query.ts";
@@ -19,6 +20,8 @@ export type HttpHostOptions = {
   port?: number;
   host?: string;
   publicOrigin?: string;
+  /** SPIKE: optional local Draw.io webapp and custom shape libraries. */
+  drawio?: DrawioOptions;
 };
 
 const loopback = (host: string) => host === "::1" || /^127\./.test(host);
@@ -51,6 +54,11 @@ export async function startHttpHost(options: HttpHostOptions) {
   const editorDir = realpathSync(options.editorDir);
   if (!statSync(path.join(editorDir, "index.html")).isFile()) throw new Error("The production Editor build is missing.");
   const key = randomBytes(32);
+  const drawio: DrawioOptions = {
+    webappDir: options.drawio?.webappDir && realpathSync(options.drawio.webappDir),
+    librariesDir: options.drawio?.librariesDir && realpathSync(options.drawio.librariesDir),
+  };
+  if (drawio.webappDir && !statSync(path.join(drawio.webappDir, "index.html")).isFile()) throw new Error("--drawio must be a Draw.io webapp folder with index.html.");
   const origins = new Set<string>();
   const authorities = new Set<string>();
 
@@ -92,11 +100,13 @@ export async function startHttpHost(options: HttpHostOptions) {
       res.setHeader("Content-Security-Policy", "sandbox; default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'");
     }
     if (url.pathname === "/api/asset") return handleAssetRequest(req, res, key, access);
+    if (url.pathname === "/api/drawio") return handleDrawioRequest(req, res, access, drawio);
     if (DOCUMENT_ROUTES.has(url.pathname) || media) {
       return handleDocumentRequest(req, res, () => json(res, 404, "Not found."), access, MAX_JSON_BYTES);
     }
     if (api) return json(res, 404, "Not found.");
     if (req.method !== "GET" && req.method !== "HEAD") return json(res, 405, "Method not allowed.");
+    if (await serveDrawioStatic(req, res, url.pathname, drawio)) return;
     const response = serveEditorFile(editorDir, url.pathname);
     res.statusCode = response.status;
     response.headers.forEach((value, name) => res.setHeader(name, value));

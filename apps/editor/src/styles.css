@@ -2984,3 +2984,34 @@ ol.list { list-style: decimal; }
 
 /* The Table metadata is its object-selection surface; cells retain text editing. */
 .table-block:is(:hover, :focus-within, [data-selected="true"], [data-editing="true"]) > .block-metadata { pointer-events: auto; }
+
+/* SPIKE: the local Draw.io editor covers the window while a diagram is edited. */
+.drawio-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: var(--id-color-surface);
+}
+
+.drawio-frame {
+  grid-row: 2;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.drawio-error {
+  grid-row: 1;
+  padding: var(--space-2) var(--space-4);
+  background: var(--id-color-surface-subtle);
+  color: var(--id-color-danger);
+  font-size: var(--font-size-sm);
+}
+
+.figure-drawio-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}

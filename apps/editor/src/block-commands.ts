@@ -1,4 +1,5 @@
 import { i18n } from "./i18n.ts";
+import { pendingDrawio } from "./drawio-pending.ts";
 import { allocateBlockPath } from "./block-locators.ts";
 import { closeHistory } from "@tiptap/pm/history";
 import type { Fragment } from "@tiptap/pm/model";
@@ -130,6 +131,14 @@ export const INSERT_COMMANDS: InsertCommand[] = [
     get group() { return i18n.t("Technical"); },
     keywords: ["figure", "image", "picture"],
     run: insertFigureAfter,
+  },
+  {
+    // SPIKE: an ordinary Figure whose image is drawn in the Host's local Draw.io.
+    id: "drawio",
+    get label() { return i18n.t("Draw.io diagram"); },
+    get group() { return i18n.t("Technical"); },
+    keywords: ["drawio", "draw.io", "diagram", "schematic"],
+    run: insertDrawioFigureAfter,
   },
   {
     id: "table",
@@ -333,7 +342,7 @@ const KOREAN_SEARCH: Record<string, string[]> = {
   paragraph: ["문단", "텍스트"], "bulleted-list": ["목록", "글머리"], "numbered-list": ["번호", "목록"],
   ...Object.fromEntries(Array.from({ length: 5 }, (_, i) => [`heading-${i + 2}`, ["제목", `제목 ${i + 2}`]])),
   note: ["참고"], warning: ["경고"], quote: ["인용", "인용문"], divider: ["구분선"],
-  code: ["코드"], equation: ["수식"], figure: ["그림", "이미지"], table: ["표"],
+  code: ["코드"], equation: ["수식"], figure: ["그림", "이미지"], drawio: ["다이어그램", "드로우", "도면"], table: ["표"],
   tip: ["팁"], hint: ["힌트"], important: ["중요"], seealso: ["관련"], attention: ["주의"],
   caution: ["주의"], danger: ["위험"], error: ["오류"],
 };
@@ -372,6 +381,14 @@ export function insertFigureAfter(state: EditorState, index: number, slash?: Sla
     ...image,
   }, slash);
   return tr.setSelection(TextSelection.create(tr.doc, tr.selection.from + 1));
+}
+
+/** SPIKE: insert an empty Figure and ask its NodeView to open Draw.io once it mounts. */
+export function insertDrawioFigureAfter(state: EditorState, index: number, slash?: SlashRange): Transaction {
+  const tr = insertFigureAfter(state, index, slash);
+  const figure = tr.selection.$from.node(1);
+  if (figure?.type.name === "figure") pendingDrawio.add(String(figure.attrs.sourcePath ?? ""));
+  return tr;
 }
 
 /** Apply Figure properties as one Undo event, retaining omitted attributes and caption. */

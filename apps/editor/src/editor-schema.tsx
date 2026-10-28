@@ -1,3 +1,4 @@
+import { DrawioEditor, drawioInfo, isDrawioImage, pendingDrawio } from "./drawio.tsx";
 import { updateLabelProperties } from "./label-rename.ts";
 import type { UiMessage } from "./ui-message.ts";
 import { useMessageState } from "./ui-message.ts";
@@ -1031,7 +1032,13 @@ function FigureView({ node, editor, selected, getPos, view, documentPath: initia
   const copied = useRef<ImageChoice | undefined>(undefined);
   const [choosing, setChoosing] = useState(false);
   const applied = figureAttrs(node);
-  const src = resolveFigureSource(applied.imageUrl, documentPath);
+  // SPIKE: a `.drawio.svg` image is edited in the Host's local Draw.io; saving bumps the view's version.
+  const drawio = isDrawioImage(applied.imageUrl);
+  const [drawing, setDrawing] = useState(false);
+  const [drawioAvailable, setDrawioAvailable] = useState(false);
+  const [version, setVersion] = useState(0);
+  const resolved = resolveFigureSource(applied.imageUrl, documentPath);
+  const src = resolved && version ? `${resolved}${resolved.includes("?") ? "&" : "?"}v=${version}` : resolved;
   const [failedSource, setFailedSource] = useState<string>();
   const imageFailed = !!src && failedSource === src;
   const label = String(node.attrs.label ?? "");
@@ -1073,6 +1080,28 @@ function FigureView({ node, editor, selected, getPos, view, documentPath: initia
     });
   }
   usePropertyEntry(anchor, beginEdit);
+  useEffect(() => {
+    let live = true;
+    void drawioInfo().then(value => {
+      if (!live) return;
+      setDrawioAvailable(value.available);
+      if (value.available && pendingDrawio.delete(sourcePath) && editableFigure && documentPath) setDrawing(true);
+    });
+    return () => { live = false; };
+  }, []);
+  const openDrawio = () => {
+    if (!editableFigure || !documentPath || !drawioAvailable) return;
+    setEditing(false);
+    setDrawing(true);
+  };
+  // The first save of a new diagram puts its file in the Figure: one Undo step, like Apply.
+  const drawioSaved = (path: string) => {
+    const position = getPos();
+    const current = typeof position === "number" ? view.state.doc.nodeAt(position) : null;
+    if (!current || typeof position !== "number" || editor.isDestroyed) return;
+    if (figureAttrs(current).imageUrl !== path) view.dispatch(updateFigure(view.state, position, { imageUrl: path }));
+    else setVersion(value => value + 1);
+  };
   const releaseCopy = () => {
     const copy = copied.current;
     copied.current = undefined;
@@ -1209,13 +1238,21 @@ function FigureView({ node, editor, selected, getPos, view, documentPath: initia
       {hasUnappliedDraft ? (
         <p className="draft-status" role="status" data-testid="figure-draft-status" contentEditable={false}>{i18n.t("Unapplied changes are not saved. Apply to include them, or Cancel.")}</p>
       ) : null}
-      {src ? <img key={src} src={src} alt={applied.imageAlt} hidden={imageFailed} data-testid="figure-image" contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}
+      {src ? <img key={src} src={src} alt={applied.imageAlt} hidden={imageFailed} data-testid="figure-image" data-drawio={drawio || undefined} contentEditable={false} onMouseDown={selectFigure} onDoubleClick={drawio && drawioAvailable ? openDrawio : beginEdit}
         onError={() => setFailedSource(src)} onLoad={() => setFailedSource(undefined)} /> : null}
       {imageFailed ? (
         <Notice tone="error" className="figure-image-error" data-testid="figure-image-error" contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>{i18n.t("Image could not be loaded. Check the image path or URL.")}</Notice>
       ) : null}
       {editableFigure && !src ? (
-        <div className="figure-no-content" data-testid="figure-no-content" contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>{i18n.t("No content yet")}</div>
+        <div className="figure-no-content" data-testid="figure-no-content" contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>{i18n.t("No content yet")}
+          {drawioAvailable && documentPath ? (
+            <div className="figure-drawio-actions"><Button type="button" size="sm" variant="outline" data-testid="figure-drawio-new" onClick={openDrawio}>{i18n.t("Draw with Draw.io")}</Button></div>
+          ) : null}
+        </div>
+      ) : null}
+      {drawing && documentPath ? (
+        <DrawioEditor documentPath={documentPath} path={drawio ? applied.imageUrl : undefined} onSaved={drawioSaved}
+          onClose={() => { setDrawing(false); focusBlock(view, getPos); }} />
       ) : null}
       <figcaption className="caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}><NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")} /></figcaption>
       {editableFigure && !editing ? (
@@ -1238,6 +1275,9 @@ function FigureView({ node, editor, selected, getPos, view, documentPath: initia
             <Button ref={chooseButton} type="button" variant="outline" disabled={validating || choosing} onClick={() => void pickImage()}>{i18n.t("Choose…")}</Button>
           </div>
         ) : field("imageUrl", i18n.t("Image"), "figure-image-url")}
+        {drawio && drawioAvailable ? (
+          <Button type="button" variant="outline" data-testid="figure-drawio-edit" disabled={validating} onClick={openDrawio}>{i18n.t("Edit in Draw.io")}</Button>
+        ) : null}
         {field("imageAlt", i18n.t("Alt text"), "figure-alt")}
         <label className="form-field">
           <span>{i18n.t("Label")}</span>

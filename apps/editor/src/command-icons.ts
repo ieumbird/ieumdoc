@@ -1,4 +1,5 @@
 import {
+  Workflow,
   Asterisk,
   AlignLeft,
   AlignCenter,
@@ -54,6 +55,7 @@ const INSERT_ICONS: Record<string, LucideIcon> = {
   "code-block": Code,
   equation: Sigma,
   figure: Image,
+  drawio: Workflow,
   table: Table,
   endnote: Asterisk,
 };

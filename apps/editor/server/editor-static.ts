@@ -12,11 +12,12 @@ const TYPES: Record<string, string> = {
 
 /**
  * Only this origin's scripts and styles run. Inline styles are the editor engine's and KaTeX's;
- * document images can be data/blob URLs while pasted. Nothing frames, embeds or submits elsewhere.
+ * document images can be data/blob URLs while pasted. Only this Host's local Draw.io webapp (SPIKE) is framed;
+ * nothing embeds or submits elsewhere.
  */
 export const CONTENT_SECURITY_POLICY = [
   "default-src 'self'", "script-src 'self'", "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:",
-  "font-src 'self' data:", "connect-src 'self'", "object-src 'none'", "frame-src 'none'", "base-uri 'none'", "form-action 'none'",
+  "font-src 'self' data:", "connect-src 'self'", "object-src 'none'", "frame-src 'self'", "base-uri 'none'", "form-action 'none'",
 ].join("; ");
 
 export const SECURITY_HEADERS = { "Content-Security-Policy": CONTENT_SECURITY_POLICY, "X-Content-Type-Options": "nosniff" };

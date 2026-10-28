@@ -237,7 +237,7 @@ const COMMANDS: CommandSpec[] = [
     name: "serve",
     group: "Serve",
     summary: "Serve the production Editor inside explicitly allowed folders",
-    usage: "ieumdoc serve --root <folder> [--root <folder> ...] [--port <port>] [--host <IP>] [--public-origin <origin>]",
+    usage: "ieumdoc serve --root <folder> [--root <folder> ...] [--port <port>] [--host <IP>] [--public-origin <origin>] [--drawio <webapp folder> [--drawio-libraries <folder>]]",
     details: [
       "At least one existing --root is required. Roots are server filesystem access boundaries,",
       "not a workspace or an initial folder selection. Use Open Folder to choose a root or subfolder.",
@@ -245,6 +245,8 @@ const COMMANDS: CommandSpec[] = [
       "For an access-controlled reverse proxy, set --public-origin to its exact http(s) origin.",
       "Non-loopback binding requires --public-origin and restricted upstream access. No built-in authentication.",
       "Serve at the site root (/); subpath hosting is not supported. Ctrl+C stops the server.",
+      "SPIKE: --drawio serves a local Draw.io webapp folder at /drawio/ for editing *.drawio.svg Figures;",
+      "--drawio-libraries serves its *.xml custom shape libraries to that editor. Nothing is sent to diagrams.net.",
     ],
   },
   {
