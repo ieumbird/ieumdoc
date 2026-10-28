@@ -29,6 +29,17 @@ Bibliography reads reuse the shared stateless Host and existing Root checks thro
 resource errors do not block Markdown Save. The local per-document folder context, HTTP fixed Root
 union, limits and snapshot policy are specified in [Citations v1](citations-v1.md#bibliography-snapshots-and-limited-formatting-unit-b).
 
+## Desktop folder Explorer action (#487)
+
+Desktop alone offers the folder More actions command described in the
+[Desktop contract](desktop-distribution-v1.md#open-folders-in-file-explorer-487).
+Successful root listings through the shared handler register local roots for this action;
+shared HTTP/Vite endpoints gain no OS-launch operation. The main process keeps the current
+opened subset, checks directory type and reuses `RootAccess` to refuse lexical/real-path escape
+and replaced roots before invoking the OS. UNC/device paths are not eligible. This is a Desktop
+OS action, with no document write, Core semantic operation or CLI parity command.
+
+
 ## Purpose
 
 Recovery source review (#655 stage 1) uses a read-only mode of the existing endpoint:

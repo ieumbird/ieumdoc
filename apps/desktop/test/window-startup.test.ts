@@ -7,6 +7,7 @@ import { setImmediate } from "node:timers/promises";
 import { runInNewContext } from "node:vm";
 import { test } from "node:test";
 import { transformSync } from "esbuild";
+import { ExplorerFolders } from "../src/explorer.ts";
 
 const main = new URL("../src/main.ts", import.meta.url);
 const source = transformSync(readFileSync(main, "utf8"), {
@@ -55,6 +56,7 @@ async function start(options: { startupError?: boolean; logError?: boolean; load
     },
     "electron-updater": { autoUpdater: {} }, "js-yaml": {},
     "./host-protocol.ts": { ORIGIN: "ieumdoc://app", SCHEME: "ieumdoc", createProtocolHandler() {} },
+    "./explorer.ts": { ExplorerFolders },
     "./first-document.ts": { firstDocument() {} },
     "./preferences.ts": { readPreferences: () => ({ channel: "beta", postponed: null }) },
     "./updates.ts": { UpdateController: class { channel = "beta"; state = { phase: "idle" }; start() {} stop() {} } },
