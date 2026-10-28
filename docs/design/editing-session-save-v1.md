@@ -369,6 +369,11 @@ DOM/timing assertions, without a readiness poll or reload. A held genuine worker
 checks Delete/Escape within 1s, closing/cancellation, and that its late result cannot replace the next
 comparison. Oversized input checks retain the plaintext copy and all recovery actions. Production HTTP
 recovery also loads the built worker under the Host's existing self-only CSP, without changing headers.
+The development adapter explicitly prebundles the lazy worker's `diff` dependency, as it already does
+for Mermaid, while leaving browser loading lazy. Cold CI initially exposed Vite discovering `diff`
+on the first comparison and reloading the page; its artifact showed the optimizer reload rather than
+a performance-budget failure. The existing recovery regression also runs after a forced cold start
+to ensure opening Compare preserves the review and applied work without that reload.
 
 Historical layout comparisons: [Recovery review layout (#395)](#recovery-review-layout-395).
 
