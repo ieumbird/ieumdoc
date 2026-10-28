@@ -54,7 +54,8 @@ Outline, Find/Command center, save refusal locations (#578), cross references/en
 reveal, list/block movement and scroll preservation retain their existing paths. Block handles
 and local overlay bounds retain their capturing scroll listeners, which receive descendant
 container and horizontal-table scrolling. Portaled Base UI popovers explicitly use the owning viewport as their
-collision boundary and retain the library's anchor/scroll tracking. Native drag edge scrolling uses
+collision boundary, allow the library's sticky shift when resize/scroll moves the anchor out of
+view, and retain its anchor/scroll tracking. Native drag edge scrolling uses
 the document viewport. No per-block scroll listeners or independent editor engine are added.
 
 PageUp/PageDown, Space/Shift+Space and Home/End also scroll the active document when focus is

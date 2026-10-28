@@ -36,6 +36,7 @@ export function BlockProperties({
       <PopoverContent
         anchor={anchor}
         collisionBoundary={documentScrollContainer(anchor.current) ?? undefined}
+        sticky
         side="bottom"
         align="end"
         sideOffset={12}
