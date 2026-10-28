@@ -3010,8 +3010,3 @@ ol.list { list-style: decimal; }
   font-size: var(--font-size-sm);
 }
 
-.figure-drawio-actions {
-  display: flex;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-}

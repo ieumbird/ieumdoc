@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { startHttpHost } from "../server/http-host.ts";
+import { drawioAction } from "../shared/drawio-protocol.ts";
 
 const diagram = (label: string) => `<svg xmlns="http://www.w3.org/2000/svg" content="&lt;mxfile&gt;&lt;diagram&gt;${label}&lt;/diagram&gt;&lt;/mxfile&gt;"><text>${label}</text></svg>`;
 
@@ -45,6 +46,17 @@ test("the local Draw.io webapp and libraries are same-origin frameable with a no
   const { send: plain } = await fixture(t, false);
   assert.equal((await (await plain("/api/drawio")).json()).available, false);
   assert.equal((await plain("/drawio/")).status, 404);
+});
+
+test("the Figure popup offers Create for an empty Figure and Edit only for .drawio.svg images", () => {
+  assert.equal(drawioAction("", true), "create");
+  assert.equal(drawioAction("  ", true), "create");
+  assert.equal(drawioAction("./assets/a.drawio.svg", true), "edit");
+  assert.equal(drawioAction("./assets/A.DRAWIO.SVG?v=2#x", true), "edit");
+  assert.equal(drawioAction("./image.png", true), undefined);
+  assert.equal(drawioAction("./plain.svg", true), undefined);
+  assert.equal(drawioAction("", false), undefined);
+  assert.equal(drawioAction("./assets/a.drawio.svg", false), undefined);
 });
 
 async function fixture(t: TestContext, drawio: boolean) {

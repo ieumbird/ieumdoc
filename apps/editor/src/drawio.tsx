@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import type { DrawioFile, DrawioInfo, DrawioWriteResponse } from "../shared/drawio-protocol.ts";
 import { i18n } from "./i18n.ts";
 
-export { isDrawioImage } from "../shared/drawio-protocol.ts";
+export { drawioAction, isDrawioImage } from "../shared/drawio-protocol.ts";
 
 const api = () => `${import.meta.env.BASE_URL}api/drawio`;
 let info: Promise<DrawioInfo> | undefined;

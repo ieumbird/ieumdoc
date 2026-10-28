@@ -1,4 +1,4 @@
-import { DrawioEditor, drawioInfo, isDrawioImage, pendingDrawio } from "./drawio.tsx";
+import { DrawioEditor, drawioAction, drawioInfo, isDrawioImage, pendingDrawio } from "./drawio.tsx";
 import { updateLabelProperties } from "./label-rename.ts";
 import type { UiMessage } from "./ui-message.ts";
 import { useMessageState } from "./ui-message.ts";
@@ -1032,7 +1032,8 @@ function FigureView({ node, editor, selected, getPos, view, documentPath: initia
   const copied = useRef<ImageChoice | undefined>(undefined);
   const [choosing, setChoosing] = useState(false);
   const applied = figureAttrs(node);
-  // SPIKE: a `.drawio.svg` image is edited in the Host's local Draw.io; saving bumps the view's version.
+  // SPIKE: a `.drawio.svg` image is edited in the Host's local Draw.io from the same properties popup
+  // as any image (double-click → popup → Edit in Draw.io); an empty Figure's popup offers Create with Draw.io.
   const drawio = isDrawioImage(applied.imageUrl);
   const [drawing, setDrawing] = useState(false);
   const [drawioAvailable, setDrawioAvailable] = useState(false);
@@ -1089,6 +1090,7 @@ function FigureView({ node, editor, selected, getPos, view, documentPath: initia
     });
     return () => { live = false; };
   }, []);
+  const drawioActionKind = editableFigure && documentPath ? drawioAction(applied.imageUrl, drawioAvailable) : undefined;
   const openDrawio = () => {
     if (!editableFigure || !documentPath || !drawioAvailable) return;
     setEditing(false);
@@ -1238,17 +1240,13 @@ function FigureView({ node, editor, selected, getPos, view, documentPath: initia
       {hasUnappliedDraft ? (
         <p className="draft-status" role="status" data-testid="figure-draft-status" contentEditable={false}>{i18n.t("Unapplied changes are not saved. Apply to include them, or Cancel.")}</p>
       ) : null}
-      {src ? <img key={src} src={src} alt={applied.imageAlt} hidden={imageFailed} data-testid="figure-image" data-drawio={drawio || undefined} contentEditable={false} onMouseDown={selectFigure} onDoubleClick={drawio && drawioAvailable ? openDrawio : beginEdit}
+      {src ? <img key={src} src={src} alt={applied.imageAlt} hidden={imageFailed} data-testid="figure-image" data-drawio={drawio || undefined} contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}
         onError={() => setFailedSource(src)} onLoad={() => setFailedSource(undefined)} /> : null}
       {imageFailed ? (
         <Notice tone="error" className="figure-image-error" data-testid="figure-image-error" contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>{i18n.t("Image could not be loaded. Check the image path or URL.")}</Notice>
       ) : null}
       {editableFigure && !src ? (
-        <div className="figure-no-content" data-testid="figure-no-content" contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>{i18n.t("No content yet")}
-          {drawioAvailable && documentPath ? (
-            <div className="figure-drawio-actions"><Button type="button" size="sm" variant="outline" data-testid="figure-drawio-new" onClick={openDrawio}>{i18n.t("Draw with Draw.io")}</Button></div>
-          ) : null}
-        </div>
+        <div className="figure-no-content" data-testid="figure-no-content" contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>{i18n.t("No content yet")}</div>
       ) : null}
       {drawing && documentPath ? (
         <DrawioEditor documentPath={documentPath} path={drawio ? applied.imageUrl : undefined} onSaved={drawioSaved}
@@ -1275,8 +1273,10 @@ function FigureView({ node, editor, selected, getPos, view, documentPath: initia
             <Button ref={chooseButton} type="button" variant="outline" disabled={validating || choosing} onClick={() => void pickImage()}>{i18n.t("Choose…")}</Button>
           </div>
         ) : field("imageUrl", i18n.t("Image"), "figure-image-url")}
-        {drawio && drawioAvailable ? (
+        {drawioActionKind === "edit" ? (
           <Button type="button" variant="outline" data-testid="figure-drawio-edit" disabled={validating} onClick={openDrawio}>{i18n.t("Edit in Draw.io")}</Button>
+        ) : drawioActionKind === "create" ? (
+          <Button type="button" variant="outline" data-testid="figure-drawio-new" disabled={validating} onClick={openDrawio}>{i18n.t("Create with Draw.io")}</Button>
         ) : null}
         {field("imageAlt", i18n.t("Alt text"), "figure-alt")}
         <label className="form-field">
