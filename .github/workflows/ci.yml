@@ -22,73 +22,32 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read
-      pull-requests: read
+      actions: read
     outputs:
-      browser: ${{ github.event_name != 'pull_request' || steps.filter.outputs.shared == 'true' || steps.filter.outputs.unknown == 'true' || steps.filter.outputs.browser == 'true' }}
-      http: ${{ github.event_name != 'pull_request' || steps.filter.outputs.shared == 'true' || steps.filter.outputs.unknown == 'true' || steps.filter.outputs.http == 'true' }}
-      desktop: ${{ github.event_name != 'pull_request' || steps.filter.outputs.shared == 'true' || steps.filter.outputs.unknown == 'true' || steps.filter.outputs.desktop == 'true' }}
-      update: ${{ github.event_name != 'pull_request' || steps.filter.outputs.shared == 'true' || steps.filter.outputs.unknown == 'true' || steps.filter.outputs.update == 'true' }}
+      quality: ${{ steps.policy.outputs.quality }}
+      browser: ${{ steps.policy.outputs.browser }}
+      http: ${{ steps.policy.outputs.http }}
+      desktop: ${{ steps.policy.outputs.desktop }}
+      update: ${{ steps.policy.outputs.update }}
+      smartquotes: ${{ steps.policy.outputs.smartquotes }}
+      reused: ${{ steps.policy.outputs.reused }}
     steps:
-      # PR files come from the API; other events always run the full suite.
-      - name: Filter pull request paths
-        if: github.event_name == 'pull_request'
-        id: filter
-        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+      - uses: actions/checkout@v7
         with:
-          predicate-quantifier: some-with-excludes
-          filters: |
-            # Package Markdown may be a fixture or distribution input.
-            browser:
-              - 'apps/editor/**'
-              - 'packages/core/**'
-              - 'packages/file-commit/**'
-            http:
-              - 'packages/cli/**'
-              - 'apps/editor/**'
-              - 'packages/core/**'
-              - 'packages/file-commit/**'
-            desktop:
-              - 'apps/desktop/**'
-              - 'packages/cli/**'
-              - 'apps/editor/**'
-              - 'packages/core/**'
-              - 'packages/file-commit/**'
-            # The install/update e2e drives these Editor update surfaces.
-            update:
-              - 'apps/desktop/**'
-              - 'apps/editor/shared/desktop-bridge.ts'
-              - 'apps/editor/src/shell/SettingsDialog.tsx'
-              - 'apps/editor/src/shell/MessageArea.tsx'
-            shared:
-              - 'package.json'
-              - 'pnpm-lock.yaml'
-              - 'pnpm-workspace.yaml'
-              - 'patches/**'
-              - 'tsconfig*'
-              - '.github/workflows/**'
-              - 'scripts/**'
-            # An inclusion plus exclusions is required by some-with-excludes.
-            # Any file outside ALL known categories forces the full suite.
-            unknown:
-              - '**'
-              - '!docs/**'
-              - '!**/*.md'
-              - '!.github/ISSUE_TEMPLATE/**'
-              - '!packages/cli/**'
-              - '!apps/editor/**'
-              - '!packages/core/**'
-              - '!packages/file-commit/**'
-              - '!apps/desktop/**'
-              - '!package.json'
-              - '!pnpm-lock.yaml'
-              - '!pnpm-workspace.yaml'
-              - '!patches/**'
-              - '!tsconfig*'
-              - '!.github/workflows/**'
-              - '!scripts/**'
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+      - name: Select jobs from the event diff or successful queue run
+        id: policy
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/ci-execution-policy.mjs "$GITHUB_EVENT_NAME" "$GITHUB_EVENT_PATH"
 
   quality:
     name: Core, CLI, Editor, and Desktop quality
+    needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 35
 
@@ -120,7 +79,7 @@ jobs:
         run: node scripts/ci-quality-mode.mjs "$GITHUB_EVENT_NAME" "$GITHUB_EVENT_PATH"
 
       - name: CI quality path classification regressions
-        run: node --test scripts/ci-quality-mode.test.mjs
+        run: node --test scripts/ci-quality-mode.test.mjs scripts/ci-execution-policy.test.mjs
 
       - name: AI commit provenance regressions
         run: node --test scripts/commit-provenance.test.mjs
@@ -135,7 +94,7 @@ jobs:
           pnpm docs:check
 
       - name: Typecheck
-        if: steps.mode.outputs.docs_only != 'true'
+        if: needs.changes.outputs.quality == 'true'
         run: pnpm typecheck
 
       - name: Issue forms and registration checks
@@ -144,11 +103,15 @@ jobs:
           pnpm issues:test
 
       - name: Run Core, CLI, Editor, and Desktop tests
-        if: steps.mode.outputs.docs_only != 'true'
+        if: needs.changes.outputs.quality == 'true'
         run: pnpm test
 
+      - name: Verify the installed smartquotes dependency patch
+        if: needs.changes.outputs.smartquotes == 'true'
+        run: pnpm --filter @ieumdoc/core test:smartquotes
+
       - name: Build Editor for production
-        if: steps.mode.outputs.docs_only != 'true'
+        if: needs.changes.outputs.quality == 'true'
         run: pnpm --filter @ieumdoc/editor build
 
   browser:
@@ -318,6 +281,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - run: pnpm --filter @ieumdoc/desktop test:packaged
       - run: pnpm --filter @ieumdoc/desktop test:uninstall
+        if: needs.changes.outputs.update == 'true'
       - name: Upload development installer
         uses: actions/upload-artifact@v6
         with:
@@ -340,9 +304,51 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  cache-warm:
+    name: Refresh master dependency caches (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.reused == 'true'
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            container:
+              image: mcr.microsoft.com/playwright:v1.64.0-noble
+              options: --ipc=host --init
+              env:
+                PLAYWRIGHT_BROWSERS_PATH: /github/home/.cache/ms-playwright
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 12.5.1
+          cache: true
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - name: Cache Playwright browsers
+        if: runner.os == 'Linux'
+        uses: actions/cache@v6
+        with:
+          path: /github/home/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install pinned Chromium
+        if: runner.os == 'Linux'
+        timeout-minutes: 2
+        run: |
+          pnpm exec playwright install chromium
+          fc-match :lang=ko
+
   quality-and-browser:
     name: Core, CLI, Editor, and browser regressions
-    needs: [changes, quality, browser, desktop, http]
+    needs: [changes, quality, browser, desktop, http, cache-warm]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -359,13 +365,15 @@ jobs:
           BROWSER_SELECTED: ${{ needs.changes.outputs.browser }}
           DESKTOP_SELECTED: ${{ needs.changes.outputs.desktop }}
           HTTP_SELECTED: ${{ needs.changes.outputs.http }}
+          CACHE_SELECTED: ${{ needs.changes.outputs.reused }}
+          CACHE_RESULT: ${{ needs.cache-warm.result }}
         run: |
           if [[ "$CHANGES_RESULT" != "success" || "$QUALITY_RESULT" != "success" ]]; then
             echo "Required checks did not succeed: changes=$CHANGES_RESULT quality=$QUALITY_RESULT"
             exit 1
           fi
           # A selected job must succeed; only a job the path rules left out may be skipped.
-          for check in "browser:$BROWSER_SELECTED:$BROWSER_RESULT" "http:$HTTP_SELECTED:$HTTP_RESULT" "desktop:$DESKTOP_SELECTED:$DESKTOP_RESULT"; do
+          for check in "browser:$BROWSER_SELECTED:$BROWSER_RESULT" "http:$HTTP_SELECTED:$HTTP_RESULT" "desktop:$DESKTOP_SELECTED:$DESKTOP_RESULT" "cache:$CACHE_SELECTED:$CACHE_RESULT"; do
             IFS=: read -r name selected result <<< "$check"
             if [[ "$selected" == "true" && "$result" != "success" ]] || [[ "$selected" != "true" && "$result" != "skipped" ]]; then
               echo "$name: selected=$selected result=$result"

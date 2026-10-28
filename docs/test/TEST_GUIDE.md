@@ -58,9 +58,9 @@ pnpm browser:prepare                       # 수동 검토용 scratch 사본만 
 
 ### CI
 
-CI 선택·필수 성공 조건은 [CONTRIBUTING Verification matrix](../../CONTRIBUTING.md#verification-matrix)와 [ci.yml](../../.github/workflows/ci.yml)을 따른다. quality는 항상 실행하고, PR의 추가 job은 변경 경로에 따라 선택한다. 선택된 job은 성공해야 하며 미선택 job만 skipped를 허용한다. master push는 전체 실행하고, Desktop 설치·업데이트 단계는 별도 `update` 선택 조건을 따른다.
+CI 선택·필수 성공 조건은 [CONTRIBUTING Verification matrix](../../CONTRIBUTING.md#verification-matrix)와 [ci.yml](../../.github/workflows/ci.yml)을 따른다. quality의 정책·문서 검사는 항상 실행한다. PR과 merge group은 같은 변경 경로 규칙을 사용하며 group 전체 base..head diff를 검사한다. 선택된 job은 성공해야 하며 미선택 job만 skipped를 허용한다. master push는 같은 SHA의 성공한 merge_group CI가 확인되면 제품 검사를 생략하고 OS별 의존성·Linux Chromium 캐시를 갱신한다. 성공 기록이나 diff/API 확인이 없으면 전체 실행한다. Desktop 설치·업데이트·삭제는 기존 `update` 선택 조건을 따른다.
 
-문서 전용 PR의 quality는 문서/checker tests·diff/whitespace·issue 정책·AI provenance·CI 경로 분류 회귀를 실행하고 제품 단위 테스트·typecheck·Editor build를 생략한다. 제품·미분류 경로가 섞이거나 master push이면 전체 quality를 실행한다. [경로 분류 테스트](../../scripts/ci-quality-mode.test.mjs)가 docs-only probe를 포함한다. browser가 선택되면 4개 shard의 stable 시나리오 합집합이 전체 목록과 같고 중복이 없어야 한다. 배정은 runner 로그와 기존 browser-fixtures 테스트로 확인한다.
+문서 전용 PR/group의 quality는 문서/checker tests·diff/whitespace·issue 정책·AI provenance·CI 경로 분류 회귀를 실행하고 제품 단위 테스트·typecheck·Editor build를 생략한다. [quality 분류 테스트](../../scripts/ci-quality-mode.test.mjs)와 [실행 정책 테스트](../../scripts/ci-execution-policy.test.mjs)가 event payload와 실제 Git diff를 검사한다. `pnpm --filter @ieumdoc/core test:smartquotes`는 기본 suite 밖의 의존성 패치 검사로 MyST·patch·lockfile·parser 경로 변경 시 실행한다. browser가 선택되면 4개 shard의 stable 시나리오 합집합이 전체 목록과 같고 중복이 없어야 한다. 배정은 runner 로그와 기존 browser-fixtures 테스트로 확인한다.
 
 Playwright가 browser job의 dev server와 browser 수명을 관리하며 실패 진단과 서버 로그를 artifact로 보존한다.
 
