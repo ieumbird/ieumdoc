@@ -485,6 +485,28 @@ muted surface; its preview and number remain inside the document column.
 | Block | [Before](assets/equation-637/before-1440-block.png) / [After](assets/equation-637/after-1440-block.png) | [Before](assets/equation-637/before-640-block.png) / [After](assets/equation-637/after-640-block.png) |
 | Inline | [Before](assets/equation-637/before-1440-inline.png) / [After](assets/equation-637/after-1440-inline.png) | [Before](assets/equation-637/before-640-inline.png) / [After](assets/equation-637/after-640-inline.png) |
 
+### Equation label and empty Figure caption 676-677
+
+Equation metadata and the properties form's accessible kind name follow the
+[document display contract](document-editing-v1.md); the existing formula-side
+number is unchanged. Empty Figure captions share table captions' muted generated
+hint and 8em minimum inline target. Generated hints have an empty accessibility
+alternative, leaving the existing caption name as the single announcement.
+This reuses existing typography, color and dimensions; no new token is needed.
+
+Actual same-state Windows Chrome 156 captures use the checkout-owned persistent
+profile, DPR 1, zoom 1 and bundled Pretendard Variable. Before is `c8debf3`;
+After uses this change on that base. The second Equation is selected with the
+document's `식 (%s)` reference style. Captions are empty in both an image and a
+Mermaid Figure, outside properties. Captures are manual evidence, not assertions.
+
+| State / UI | 640px Before / After | 1440px Before / After |
+| --- | --- | --- |
+| Equation / Korean | [Before](assets/label-caption-676-677/before/equation-676-ko-640.png) / [After](assets/label-caption-676-677/after/equation-676-ko-640.png) | [Before](assets/label-caption-676-677/before/equation-676-ko-1440.png) / [After](assets/label-caption-676-677/after/equation-676-ko-1440.png) |
+| Equation / English | [Before](assets/label-caption-676-677/before/equation-676-en-640.png) / [After](assets/label-caption-676-677/after/equation-676-en-640.png) | [Before](assets/label-caption-676-677/before/equation-676-en-1440.png) / [After](assets/label-caption-676-677/after/equation-676-en-1440.png) |
+| Empty captions / Korean | [Before](assets/label-caption-676-677/before/caption-677-ko-640.png) / [After](assets/label-caption-676-677/after/caption-677-ko-640.png) | [Before](assets/label-caption-676-677/before/caption-677-ko-1440.png) / [After](assets/label-caption-676-677/after/caption-677-ko-1440.png) |
+| Empty captions / English | [Before](assets/label-caption-676-677/before/caption-677-en-640.png) / [After](assets/label-caption-676-677/after/caption-677-en-640.png) | [Before](assets/label-caption-676-677/before/caption-677-en-1440.png) / [After](assets/label-caption-676-677/after/caption-677-en-1440.png) |
+
 ### Reviewing a visual change
 
 A change to the Editor's look or a new visible control states which rule above (or in v1) it follows, or updates this document in the same PR. Compare the same states before and after:

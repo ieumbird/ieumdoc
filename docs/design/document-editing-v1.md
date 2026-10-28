@@ -326,6 +326,14 @@ caption, ArrowUp returns to the last cell, and Enter leaves the table. Whole-tab
 delete and history include the caption. Core `updateTableCaption` and canonical MyST stay
 unchanged; see [Table caption and label](table-caption-v1.md).
 
+Equation block metadata uses Core's document equation reference template (#676),
+for example `식 (2)`. Without an authored template it combines the UI-language
+Equation name with Core's default number text. Without a number it keeps only the
+UI-language name. As for Figures, the properties form's accessible name uses the
+same visible kind text, followed by the localized properties suffix. The number
+beside the rendered formula remains `(2)`. This is display-only; Core semantics
+and CLI operations are unchanged.
+
 A Figure's caption is inline content in the single ProseMirror document, editable
 in place with the existing formatting/clipboard controls. Image/alt/label drafts
 retain Apply/Cancel; the legacy plain-caption field remains available for plain

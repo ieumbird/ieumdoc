@@ -50,6 +50,72 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument
   await expect(refs.nth(0)).toHaveAttribute('data-resolved','true');
   await expect(refs.nth(1)).toHaveAttribute('data-resolved','true');
   expect(await refs.allTextContents()).toEqual(['Figure\u00a01','Figure\u00a02']);
+  // Empty captions share the table hint, but remain ordinary document input.
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  for (const language of ['en', 'ko']) {
+    await page.evaluate(async language => (await import('/src/i18n.ts')).i18n.changeLanguage(language), language);
+    const hint = language === 'ko' ? '그림 캡션' : 'Figure caption';
+    const allFigures = active.locator('[data-block="figure"]');
+    const originalCaptions = ['Signal flow', 'Image caption'];
+    for (let index = 0; index < 2; index++) {
+      const caption = allFigures.nth(index).getByTestId('figure-caption-content');
+      await caption.evaluate(element => {
+        const editor = element.closest('.document-editor').editor;
+        const path = element.closest('[data-block="figure"]').getAttribute('data-source-path');
+        editor.state.doc.forEach((node, pos) => {
+          if (node.type.name === 'figure' && node.attrs.sourcePath === path)
+            editor.commands.setTextSelection({from:pos+1,to:pos+node.nodeSize-1});
+        });
+        editor.view.focus();
+      });
+      await page.keyboard.press('Backspace');
+    }
+    if (screenshots) {
+      for (const width of [1440, 640]) {
+        await page.setViewportSize({width, height:1000});
+        await page.evaluate(() => document.fonts.ready);
+        await allFigures.first().scrollIntoViewIfNeeded();
+        await page.screenshot({path:`tmp/caption-677-${language}-${width}.png`});
+      }
+    }
+    await save();
+    expect(await disk()).not.toContain(hint);
+    await page.getByTestId('view-source').click();
+    expect(await active.getByTestId('source-view').innerText()).not.toContain(hint);
+    await page.getByTestId('view-visual').click();
+    for (let index = 0; index < 2; index++) {
+      const caption = allFigures.nth(index).getByTestId('figure-caption-content');
+      await expect(caption).toHaveAttribute('data-placeholder', hint);
+      await expect(caption).toHaveAccessibleName(hint);
+      const style = await caption.evaluate(element => ({width:element.getBoundingClientRect().width,
+        min:parseFloat(getComputedStyle(element).fontSize)*8, content:getComputedStyle(element,'::before').content,
+        text:element.textContent}));
+      expect(style.width).toBeGreaterThanOrEqual(style.min);
+      expect(style.content).toBe(`"${hint}" / ""`);
+      expect(style.text).toBe('');
+      await page.evaluate(hint => navigator.clipboard.writeText(hint), hint);
+      await allFigures.nth(index).evaluate(element => {
+        const editor = element.closest('.document-editor').editor;
+        const path = element.getAttribute('data-source-path');
+        editor.state.doc.forEach((node, pos) => {
+          if (node.type.name === 'figure' && node.attrs.sourcePath === path) editor.commands.setNodeSelection(pos);
+        });
+        editor.view.focus();
+      });
+      await page.keyboard.press('ControlOrMeta+c');
+      expect(await page.evaluate(() => navigator.clipboard.readText())).not.toContain(hint);
+      await caption.click({position:{x:20,y:8}});
+      await page.keyboard.type(originalCaptions[index]);
+      await expect(caption).not.toHaveAttribute('data-placeholder');
+      await expect(caption).toHaveText(originalCaptions[index]);
+    }
+    await save();
+    expect(await disk()).not.toContain(hint);
+    await page.getByTestId('view-source').click();
+    expect(await active.getByTestId('source-view').innerText()).not.toContain(hint);
+    await page.getByTestId('view-visual').click();
+  }
+  await page.evaluate(async () => (await import('/src/i18n.ts')).i18n.changeLanguage('en'));
   if (screenshots) {
     for (const theme of ['light', 'dark']) {
       await page.evaluate(async theme => (await import('/src/theme.ts')).applyTheme(theme), theme);

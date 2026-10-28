@@ -87,6 +87,35 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   await page.keyboard.press('Backspace');
   await open();
 
+  // Equation metadata and its form name use the document's Core reference template.
+  const secondEquation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').nth(1);
+  await expect(secondEquation.locator('.block-kind')).toHaveText('Equation (2) · eq-b');
+  await page.evaluate(async () => (await import('/src/i18n.ts')).i18n.changeLanguage('ko'));
+  await expect(secondEquation.locator('.block-kind')).toHaveText('수식 (2) · eq-b');
+  await page.evaluate(async () => (await import('/src/i18n.ts')).i18n.changeLanguage('en'));
+  await page.getByRole('button', {name:'Document settings',exact:true}).click();
+  await page.getByRole('button', {name:'Reference style',exact:true}).click();
+  await page.getByRole('menuitemradio', {name:'Korean',exact:true}).click();
+  await page.keyboard.press('Escape');
+  for (const language of ['en','ko']) {
+    await page.evaluate(async language => (await import('/src/i18n.ts')).i18n.changeLanguage(language), language);
+    await secondEquation.getByTestId('equation-preview').click({position:{x:8,y:8}});
+    if (screenshots) {
+      for (const width of [1440,640]) {
+        await page.setViewportSize({width,height:900});
+        await secondEquation.scrollIntoViewIfNeeded();
+        await page.screenshot({path:`tmp/equation-676-${language}-${width}.png`});
+      }
+    }
+    await expect(secondEquation.locator('.block-kind')).toHaveText('식 (2) · eq-b');
+    await secondEquation.getByTestId('equation-preview').dblclick({position:{x:8,y:8}});
+    await expect(secondEquation.getByRole('form', {name:language==='ko'?'식 (2) 속성':'식 (2) properties',exact:true})).toBeVisible();
+    await secondEquation.getByTestId('equation-cancel').click();
+  }
+  await page.evaluate(async () => (await import('/src/i18n.ts')).i18n.changeLanguage('en'));
+  await page.evaluate(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.commands.undo());
+  await expect(secondEquation.locator('.block-kind')).toHaveText('Equation (2) · eq-b');
+
   await page.getByRole('button', {name:'Document settings', exact:true}).click();
   if (screenshots) {
     for (const width of [1280, 640]) {

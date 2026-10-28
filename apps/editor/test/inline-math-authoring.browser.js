@@ -90,7 +90,7 @@ async (page, { openPath, expect, screenshots }) => {
       expect(inputBox.x).toBeGreaterThanOrEqual(0);
       expect(inputBox.x + inputBox.width).toBeLessThanOrEqual(width);
       expect(Math.abs(inputBox.width - blockBox.width)).toBeLessThanOrEqual(2);
-      expect(await equation.getByRole('form', {name:/Equation.*properties/}).count()).toBe(1);
+      expect(await equation.getByRole('form', {name:'Equation (1) properties', exact:true}).count()).toBe(1);
       if (screenshots) {
         await page.mouse.move(width - 2, 2);
         await page.screenshot({path:`tmp/equation-637/${stage}-${width}-block.png`});
