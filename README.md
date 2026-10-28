@@ -8,7 +8,7 @@ Currently available as a Windows Beta. The primary documentation is in Korean.
 표·수식·참조가 있는 기술문서를 시각적으로 작성하고, 사람이 읽을 수 있는 plain-text 파일로 Git에서 관리합니다. Editor와 CLI·자동화는 같은 Core로 문서를 읽고 수정합니다.
 **IeumDoc 네이티브 문서만 열 수 있으며, 일반 Markdown 편집기나 Import 도구는 아닙니다.** Windows x64 Beta 단계이고 Stable은 아직 없습니다. 공개 API와 문서 지원 범위는 바뀔 수 있습니다.
 
-![이음독 데모: 렌더링 화면에서 바로 heading, 수식, 상호참조를 편집하고 저장하는 모습](docs/design/assets/ieumdoc-demo.gif)
+![이음독 데모: 편집 화면에서 직접 입력과 제목 번호·인라인 수식, /수식으로 레이블·번호 (2) 지정, /다이어그램으로 Mermaid 원문 편집·실시간 미리보기·그림 1 캡션, 식 (2)·그림 1 상호참조 삽입, 소스 화면의 MyST 원문 확인](docs/design/assets/ieumdoc-demo.gif)
 
 <a id="windows-desktop"></a>
 
