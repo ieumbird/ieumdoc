@@ -187,15 +187,16 @@ async (page, { openPath, screenshots }) => {
     check(await page.getByTestId('equation-latex').inputValue() === 'x_{language} = 42', 'Language change lost property draft');
     check(await page.getByTestId('equation-apply').innerText() === '적용', 'NodeView did not update language');
     check(await page.getByTestId('status').innerText() === '저장하지 않은 변경 사항', 'Dirty state did not survive');
-    // The screen releases its modal before revealing and focusing the inline settings block.
+    // Document settings remains available from the document after leaving app Settings.
     await settings('ko');
-    await screen.getByRole('button',{name:'문서 설정 열기',exact:true}).click();
-    await screen.waitFor({state:'detached'});
+    check(await screen.getByRole('button',{name:'문서 설정 열기',exact:true}).count() === 0, 'Settings offers the removed document settings entry');
+    await closeSettings();
+    await page.getByRole('button',{name:'문서 설정',exact:true}).click();
     const documentSettings = page.getByRole('region',{name:'문서 설정',exact:true}).locator('.display-settings');
     await documentSettings.waitFor();
     await page.getByRole('button',{name:'문서 설정',exact:true}).and(page.locator(':focus')).waitFor();
     await page.keyboard.press('Escape'); await documentSettings.waitFor({state:'hidden'});
-    check(await page.getByRole('button',{name:'문서 설정',exact:true}).evaluate(n => n === document.activeElement), 'Document settings handoff did not focus its disclosure');
+    check(await page.getByRole('button',{name:'문서 설정',exact:true}).evaluate(n => n === document.activeElement), 'Document settings did not retain disclosure focus');
     await page.getByTestId('equation-apply').click();
     const applied = await snapshot();
     await editor.evaluate(node => node.editor.commands.undo());
