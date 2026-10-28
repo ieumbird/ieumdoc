@@ -3,7 +3,7 @@
 // and checks that display equations and cross-references are unchanged and that an unpreservable
 // source fails closed. The file is a scratch copy under the repository's ignored tmp/ directory;
 // prepare it first (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
-async (page, { openPath, expect }) => {
+async (page, { openPath, expect, screenshots }) => {
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
   await page.unrouteAll();
@@ -74,7 +74,60 @@ async (page, { openPath, expect }) => {
   }
   const result = {};
   await open();
+  {
+    let stage;
+    for (const width of [1440, 640]) {
+      await page.setViewportSize({width, height:900});
+      const equation = editor.locator('[data-block="equation"]').first();
+      await equation.scrollIntoViewIfNeeded();
+      await equation.hover();
+      await equation.getByRole('button', {name:'Edit',exact:true}).click();
+      stage = await equation.getByTestId('equation-editor').count() ? 'after' : 'before';
+      await page.getByTestId('equation-latex').fill('x = a + b\n  = c + d');
+      await page.evaluate(() => document.fonts.ready);
+      const blockBox = await equation.boundingBox();
+      const inputBox = await page.getByTestId('equation-latex').boundingBox();
+      expect(inputBox.x).toBeGreaterThanOrEqual(0);
+      expect(inputBox.x + inputBox.width).toBeLessThanOrEqual(width);
+      expect(Math.abs(inputBox.width - blockBox.width)).toBeLessThanOrEqual(2);
+      expect(await equation.getByRole('form', {name:/Equation.*properties/}).count()).toBe(1);
+      if (screenshots) {
+        await page.mouse.move(width - 2, 2);
+        await page.screenshot({path:`tmp/equation-637/${stage}-${width}-block.png`});
+      }
+      await page.getByTestId('equation-cancel').click();
+      await (await mathNamed('i_d')).dblclick();
+      await page.getByTestId('inline-math-source').fill('i_d + i_q + v_{dc} + x + y + z + a + b + c');
+      const popupBox = await page.getByTestId('inline-math-properties').boundingBox();
+      expect(popupBox.x).toBeGreaterThanOrEqual(0);
+      expect(popupBox.x + popupBox.width).toBeLessThanOrEqual(width);
+      if (screenshots) {
+        await page.mouse.move(width - 2, 2);
+        await page.screenshot({path:`tmp/equation-637/${stage}-${width}-inline.png`});
+      }
+      await page.getByTestId('inline-math-cancel').click();
+    }
+    await page.setViewportSize({width:1280, height:720});
+  }
   const mathTabId = await page.getByRole('tab', {selected:true}).getAttribute('id');
+  // #637: the long source wraps in a wider popover; Enter keeps the prior submit behavior.
+  await (await mathNamed('i_d')).dblclick();
+  const field637 = page.getByTestId('inline-math-source');
+  const popup637 = page.getByTestId('inline-math-properties');
+  await field637.fill('x '.repeat(200));
+  expect(await field637.evaluate(el => el.scrollWidth <= el.clientWidth && el.scrollHeight > el.clientHeight), 'Long source wraps within the field').toBe(true);
+  await field637.fill('first second');
+  await field637.press('Enter');
+  await page.getByTestId('inline-math-editor').waitFor({state:'detached'});
+  expect(await sources()).toContain('first second');
+  await (await mathNamed('first second')).dblclick();
+  expect(await field637.evaluate(el => el.tagName)).toBe('TEXTAREA');
+  expect((await popup637.boundingBox()).width).toBeGreaterThan(320);
+  await field637.fill('first\nsecond');
+  expect(await field637.inputValue()).toBe('first second');
+  await field637.fill('i_d');
+  await page.getByTestId('inline-math-apply').click();
+  await page.getByTestId('inline-math-editor').waitFor({state:'detached'});
   result.mathParagraphEditable = await editor.locator('p.paragraph', {hasText: 'The current is'}).count() === 1;
   result.renderedWithKatex = await editor.getByTestId('inline-math').locator('.katex').count() === 3;
   // {eq} reference paragraphs are editable since cross-reference authoring.
@@ -132,6 +185,7 @@ async (page, { openPath, expect }) => {
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('inline-math-source')).toBeFocused();
   await page.getByTestId('inline-math-source').fill('uncommitted-first');
+  const firstSourceId = await page.getByTestId('inline-math-source').getAttribute('id');
   await (await mathNamed('i_d')).dblclick();
   expect(await page.getByTestId('inline-math-source').inputValue(), 'Re-entry preserves draft').toBe('uncommitted-first');
   await (await mathNamed('v_{dc}')).dblclick();
@@ -173,8 +227,7 @@ async (page, { openPath, expect }) => {
   // Otherwise its late return to Close math.md can receive Enter and reopen this dialog.
   await closeGuard.waitFor({state:'detached'});
   await expect(closeMath).toBeFocused();
-  const firstDraft = forms.filter({has:page.locator('input[value="uncommitted-first"]')});
-  const firstSourceId = await firstDraft.getByTestId('inline-math-source').getAttribute('id');
+  const firstDraft = forms.filter({has:page.locator(`[id="${firstSourceId}"]`)});
   // Both independent popovers may overlap; activate the chosen Cancel by keyboard.
   const cancelFirst = firstDraft.getByTestId('inline-math-cancel');
   await cancelFirst.focus();

@@ -38,8 +38,25 @@ async (page, { openPath }) => {
   });
 
   const changedLatex = `${originalLatex} + 1`;
-  await page.getByRole('button',{name:'Save',exact:true}).click();
   await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
+  await page.getByRole('button',{name:'Edit',exact:true}).click();
+  const block637 = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').first();
+  if (!await block637.evaluate((block) => block.contains(document.querySelector('[data-testid="equation-editor"]')))) {
+    throw new Error('Equation editor must appear in its document block');
+  }
+  const input637 = page.getByTestId('equation-latex');
+  const beforeHeight637 = (await input637.boundingBox()).height;
+  await input637.fill('first');
+  await input637.press('End');
+  await input637.press('Enter');
+  await input637.type('second');
+  if (await input637.inputValue() !== 'first\nsecond') throw new Error('Plain Enter must add a line to the block equation');
+  await input637.fill('a\nb\nc\nd\ne\nf\ng\nh');
+  if ((await input637.boundingBox()).height <= beforeHeight637) throw new Error('Equation input must grow for additional lines');
+  if ((await input637.boundingBox()).width < (await block637.boundingBox()).width - 2) throw new Error('Equation input must use the block width');
+  await page.getByTestId('equation-cancel').click();
+  await page.getByRole('button',{name:'Save',exact:true}).click();
+  await block637.hover({position:{x:4,y:4}});
   await page.getByRole('button',{name:'Edit',exact:true}).click();
   await page.getByTestId('equation-latex').fill(changedLatex);
   const beforeResponse = await page.getByTestId('equation-latex').inputValue();

@@ -90,7 +90,7 @@ async (page, { expect }) => {
         expect(await snapshot(), `${entry} leaves document unchanged`).toEqual(withProbe);
         if (entry === 'double-click') {
           await page.getByTestId('equation-latex').fill('Unapplied double-click');
-          await preview.dblclick({position:{x:8,y:8}});
+          await existingEquation.getByTestId('equation-edit-preview').dblclick({position:{x:8,y:8}});
           expect(await page.getByTestId('equation-latex').inputValue(), 'Already editing keeps the draft').toBe('Unapplied double-click');
         }
         if (close === 'cancel') await page.getByTestId('equation-cancel').click();
