@@ -4,7 +4,7 @@ import { FilePreviewDialog } from "./FilePreviewDialog.tsx";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
-import { Pencil, Trash2, ChevronRight, Ellipsis, File, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelLeftOpen, Plus, RotateCw, Settings, X } from "lucide-react";
+import { Pencil, Trash2, ChevronRight, Ellipsis, File, Files as FilesIcon, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, Plus, RotateCw, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -56,10 +56,12 @@ export function Sidebar({
             variant="ghost"
             size="icon-sm"
             aria-label={open ? i18n.t("Collapse sidebar") : i18n.t("Expand sidebar")}
+            title={open ? i18n.t("Collapse sidebar") : i18n.t("Expand sidebar")}
             aria-expanded={open}
+            aria-controls="sidebar-files"
             onClick={onToggle}
           >
-            {open ? <PanelLeftClose /> : <PanelLeftOpen />}
+            {open ? <PanelLeftClose /> : <FilesIcon />}
           </Button>
         </div>
       </div>
@@ -108,14 +110,23 @@ export function Sidebar({
           </section>
         )}
       </div>
-      {onSettings && open ? (
+      {onSettings ? (
         <div className="sidebar-footer">
-          <Button className="min-w-0 justify-start" size="sm" variant="ghost" onClick={event => onSettings(event.currentTarget)}>
-            <Settings aria-hidden="true" />{i18n.t("Settings")}</Button>
+          <SettingsEntry iconOnly={!open} onOpen={onSettings} />
         </div>
       ) : null}
     </nav>
   );
+}
+
+/** One Settings entry for both sidebar states, including its focus-return target. */
+function SettingsEntry({ iconOnly, onOpen }: { iconOnly: boolean; onOpen(returnFocus: HTMLElement): void }) {
+  return <Button className={iconOnly ? undefined : "min-w-0 justify-start"}
+    size={iconOnly ? "icon-sm" : "sm"} variant="ghost"
+    aria-label={i18n.t("Settings")} title={i18n.t("Settings")}
+    onClick={event => onOpen(event.currentTarget)}>
+    <Settings aria-hidden="true" />{iconOnly ? null : i18n.t("Settings")}
+  </Button>;
 }
 
 type FolderTreeProps = {

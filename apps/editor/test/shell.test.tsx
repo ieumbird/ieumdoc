@@ -437,10 +437,11 @@ test("sidebar without a folder offers only Open folder, and collapses", () => {
   assert.doesNotMatch(open, /sidebar-tools|sidebar-display|aria-label="Display"/);
   assert.match(open, /aria-label="Collapse sidebar"/);
   const collapsed = renderToStaticMarkup(<Sidebar onFileAction={async () => ""} fileActionsDisabled={false} isFileDirty={() => false} open={false} documentPath={PATH} onToggle={noop} onOpenFolder={noop} onSettings={noop} />);
-  assert.match(collapsed, /aria-label="Expand sidebar"/);
+  assert.match(collapsed, /<button\b(?=[^>]*aria-label="Expand sidebar")(?=[^>]*title="Expand sidebar")(?=[^>]*aria-controls="sidebar-files")(?=[^>]*aria-expanded="false")/);
   assert.doesNotMatch(collapsed, /Open file…|IeumDoc/);
   assert.match(collapsed, /id="sidebar-files"[^>]*hidden/);
-  assert.doesNotMatch(collapsed, /sidebar-tools|sidebar-display|aria-label="Display"|aria-label="Settings"/);
+  assert.doesNotMatch(collapsed, /sidebar-tools|sidebar-display|aria-label="Display"/);
+  assert.match(collapsed, /<button\b(?=[^>]*aria-label="Settings")(?=[^>]*title="Settings")/);
 });
 
 test("sidebar folder is a tree under the chosen folder that marks the open document once", () => {
