@@ -70,6 +70,7 @@ export const STABLE_SCENARIOS = [
   "focus-caret",
   "desktop-updates",
   "inline-document-settings",
+  "document-scroll",
 ];
 
 /** Production HTTP has a different startup and filesystem policy; run it against its own Host. */
@@ -103,8 +104,8 @@ export function selectBrowserScenarios(args: readonly string[]): {
       shard: `${index}/${count}`,
     };
   }
-  if (screenshots && (requested.length !== 1 || !["pre-save-diff", "reveal-folder", "save-error", "mermaid-authoring", "image-assets", "inline-math-authoring", "empty-elements", "inline-document-settings", "file-actions", "table-caption", "figure-authoring", "source-view", "cross-reference", "command-center", "file-preview", "ui-language", "quiet-document", "folder-navigation", "desktop-updates", "open-files", "document-tabs", "recovery", "recovery-structure", "footnotes", "citations", "bibliography", "bibliography-connection", ...HTTP_SCENARIOS].includes(requested[0]!))) {
-    throw new Error("Use: pnpm browser:test mermaid-authoring|image-assets|figure-authoring|source-view|quiet-document|folder-navigation|desktop-updates|open-files|document-tabs|footnotes|citations|bibliography|bibliography-connection|http-host --screenshots");
+  if (screenshots && (requested.length !== 1 || !["panel-lists", "pre-save-diff", "reveal-folder", "save-error", "mermaid-authoring", "image-assets", "inline-math-authoring", "empty-elements", "inline-document-settings", "file-actions", "table-caption", "figure-authoring", "source-view", "cross-reference", "command-center", "file-preview", "ui-language", "quiet-document", "folder-navigation", "desktop-updates", "open-files", "document-tabs", "recovery", "recovery-structure", "footnotes", "citations", "bibliography", "bibliography-connection", ...HTTP_SCENARIOS].includes(requested[0]!))) {
+    throw new Error("Use: pnpm browser:test panel-lists|mermaid-authoring|image-assets|figure-authoring|source-view|quiet-document|folder-navigation|desktop-updates|open-files|document-tabs|footnotes|citations|bibliography|bibliography-connection|http-host --screenshots");
   }
   return { scenarios: requested.length ? requested : [...STABLE_SCENARIOS], screenshots };
 }

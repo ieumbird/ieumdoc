@@ -31,7 +31,7 @@ async (page, { openDocument, reloadDocument, expect }) => {
     try {
       await page.waitForFunction(text => document.querySelector('[data-testid="outline"] [aria-current="location"]')?.textContent === text, text, {timeout: 5000});
     } catch {
-      const state = await page.evaluate(() => ({ current: document.querySelector('[data-testid="outline"] [aria-current]')?.textContent, scrollY: window.scrollY, active: document.activeElement?.textContent?.slice(0, 40) }));
+      const state = await page.evaluate(() => ({ current: document.querySelector('[data-testid="outline"] [aria-current]')?.textContent, scrollY: document.querySelector('.document-scroll[data-active="true"]').scrollTop, active: document.activeElement?.textContent?.slice(0, 40) }));
       throw new Error(`${step}: expected ${text} current, got ${JSON.stringify(state)}`);
     }
   };
@@ -72,7 +72,7 @@ async (page, { openDocument, reloadDocument, expect }) => {
   await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => { window.outlineEditorOptions = element.editor.options; });
   // The fixture's ten headings fit the panel. Limit the list so the current mark has to move inside it.
   const limit = await page.addStyleTag({ content: '.document-outline-list { max-height: 80px; }' });
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await page.evaluate(() => document.querySelector('.document-scroll[data-active="true"]').scrollTo(0, document.querySelector('.document-scroll[data-active="true"]').scrollHeight));
   await currentIs('Detail 6', 'after Detail 6');
   const scrollFollowsSection = await current() === 'Detail 6';
   const scrollKeepsEditor = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.options === window.outlineEditorOptions);
@@ -82,9 +82,10 @@ async (page, { openDocument, reloadDocument, expect }) => {
     if (!(list instanceof HTMLElement) || !(item instanceof HTMLElement)) return false;
     const listBox = list.getBoundingClientRect();
     const itemBox = item.getBoundingClientRect();
+    const container = document.querySelector('.document-scroll[data-active="true"]');
     return item.textContent?.trim() === 'Detail 6' && list.scrollTop > 0
       && itemBox.top >= listBox.top - 1 && itemBox.bottom <= listBox.bottom + 1
-      && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2;
+      && container.scrollTop + container.clientHeight >= container.scrollHeight - 2;
   });
   const flushFrames = () => page.evaluate(() => new Promise(resolve => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined)));
@@ -98,7 +99,7 @@ async (page, { openDocument, reloadDocument, expect }) => {
     const itemBox = item.getBoundingClientRect();
     const { from, to } = editor.state.selection;
     return {
-      scrollTop: list.scrollTop, clientHeight: list.clientHeight, scrollY: window.scrollY, from, to,
+      scrollTop: list.scrollTop, clientHeight: list.clientHeight, scrollY: document.querySelector('.document-scroll[data-active="true"]').scrollTop, from, to,
       text: item.textContent?.trim() ?? '',
       visible: itemBox.height > 0 && itemBox.top >= listBox.top - 1 && itemBox.bottom <= listBox.bottom + 1,
       // Content below the viewport. The last heading has none, so a taller list clamps scrollTop.
@@ -112,7 +113,7 @@ async (page, { openDocument, reloadDocument, expect }) => {
       .find(node => node.textContent === 'Section 4');
     const header = document.querySelector('.app-header')?.getBoundingClientRect().bottom ?? 0;
     if (!(heading instanceof HTMLElement)) return;
-    window.scrollTo(0, heading.getBoundingClientRect().top + window.scrollY - header - 8);
+    document.querySelector('.document-scroll[data-active="true"]').scrollTo(0, heading.getBoundingClientRect().top + document.querySelector('.document-scroll[data-active="true"]').scrollTop - header - 8);
   });
   await page.waitForFunction(() => {
     const list = document.querySelector('.document-outline-list');

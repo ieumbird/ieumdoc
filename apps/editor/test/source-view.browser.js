@@ -153,7 +153,7 @@ async (page, { openPath, screenshots }) => {
       await document.fonts.ready;
       document.activeElement?.blur();
       window.getSelection()?.removeAllRanges();
-      window.scrollTo(0, 0);
+      document.querySelector('.document-scroll[data-active="true"]').scrollTo(0, 0);
     });
     await page.mouse.move(width - 2, 2);
     const geometry = await sourceView.locator('pre').evaluate(pre => {

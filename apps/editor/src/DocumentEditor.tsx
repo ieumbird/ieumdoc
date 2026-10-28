@@ -1,4 +1,5 @@
 import { DocumentSettings, type DocumentSettingsHandle } from "./shell/DocumentSettings.tsx";
+import { documentScrollContainer } from "./document-scroll.ts";
 import { ImageRenameContext, imageRenameKey, renameSnapshot, type ImageRenamer } from "./image-rename.ts";
 import type { MediaReplacement } from "../shared/file-operations.ts";
 import { EDITOR_SHORTCUTS, LINK_SHORTCUT } from "./shortcuts.ts";
@@ -168,7 +169,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   onOutlineChangeRef.current = onOutlineChange;
   // A revealed navigation target stays current until the reader scrolls,
   // even when the document ends before it can reach the top of the view.
-  const revealed = useRef<{ index: number; scrollY: number } | null>(null);
+  const revealed = useRef<{ index: number; scrollTop: number } | null>(null);
   const scheduleOutline = useRef(() => {});
   const host = useRef<HTMLElement>(null);
   const [blockMenu, setBlockMenu] = useState<BlockMenu | null>(null);
@@ -383,7 +384,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       const cellElement = cell ? element.querySelectorAll("tr")[cell.row]?.children[cell.column] : undefined;
       (cellElement ?? element).scrollIntoView({ block: "start", inline: "nearest" });
     }
-    revealed.current = { index, scrollY: window.scrollY };
+    revealed.current = { index, scrollTop: documentScrollContainer(editor.view.dom)?.scrollTop ?? 0 };
     scheduleOutline.current();
   }
 
@@ -505,12 +506,15 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   useEffect(() => {
     if (!editor) return;
     if (!visible) return;
+    const viewport = documentScrollContainer(editor.view.dom);
+    if (!viewport) return;
     // Recompute on edits, scrolling and resizing; report only when something changed.
     let reported: DocumentOutline | null = null;
     let frame = 0;
     const report = () => {
       frame = 0;
-      if (revealed.current && Math.abs(window.scrollY - revealed.current.scrollY) > 1) revealed.current = null;
+      if (revealed.current && Math.abs(viewport.scrollTop - revealed.current.scrollTop) > 1) revealed.current = null;
+      const bounds = viewport.getBoundingClientRect();
       // All three lists share the existing reading line, pin and scroll/update/resize lifecycle.
       const track = (items: OutlineItem[]): NavigationList => {
         const tops = items.map(item => {
@@ -518,8 +522,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           return element instanceof HTMLElement ? element.getBoundingClientRect().top : Number.POSITIVE_INFINITY;
         });
         const pinned = revealed.current && items.findIndex(item => item.index === revealed.current!.index);
-        const current = pinned !== null && pinned >= 0 ? pinned : currentOutlineItem(tops, window.innerHeight * 0.3,
-          window.scrollY > 0 && window.scrollY + window.innerHeight >= window.document.documentElement.scrollHeight - 1 ? window.innerHeight : undefined);
+        // Retain the existing physical reading line while excluding chrome from scrolling.
+        const current = pinned !== null && pinned >= 0 ? pinned : currentOutlineItem(tops, bounds.bottom * 0.3,
+          viewport.scrollTop > 0 && viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 1 ? bounds.bottom : undefined);
         return { items, current };
       };
       const next = { ...track(documentOutline(editor.state.doc)),
@@ -535,7 +540,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     scheduleOutline.current = schedule;
     report();
     editor.on("update", edited);
-    window.addEventListener("scroll", schedule, { passive: true });
+    viewport.addEventListener("scroll", schedule, { passive: true });
     window.addEventListener("resize", schedule);
     // A settings disclosure can move headings across the reading line without a scroll/edit.
     const settings = host.current?.querySelector(".document-settings");
@@ -545,7 +550,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       resize.disconnect();
       if (frame) cancelAnimationFrame(frame);
       editor.off("update", edited);
-      window.removeEventListener("scroll", schedule);
+      viewport.removeEventListener("scroll", schedule);
       window.removeEventListener("resize", schedule);
     };
   }, [editor, visible]);

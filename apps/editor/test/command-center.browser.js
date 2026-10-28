@@ -483,7 +483,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   // Resolve the exact named command even when folder paths match the same search words.
   const documentSettings = page.getByRole('region', {name:'Document settings',exact:true}).locator('.display-settings');
   for (const query of ['document settings', '문서 설정']) {
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.evaluate(() => document.querySelector('.document-scroll[data-active="true"]').scrollTo(0, document.querySelector('.document-scroll[data-active="true"]').scrollHeight));
     await run('Document settings…', query);
     await documentSettings.waitFor();
     await page.getByRole('button',{name:'Document settings',exact:true}).and(page.locator(':focus')).waitFor();
@@ -780,7 +780,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     check(await editor().locator('[data-block="figure"]').count() === 2, 'Sample figures were not rendered');
     if (screenshots) for (const width of [1440,640]) {
       await page.setViewportSize({width,height:900});
-      await page.evaluate(async () => { await document.fonts.ready; document.activeElement?.blur(); document.querySelector('.document-column')?.scrollTo(0,0); window.scrollTo(0,0); });
+      await page.evaluate(async () => { await document.fonts.ready; document.activeElement?.blur(); document.querySelector('.document-scroll[data-active="true"] .document-column')?.scrollTo(0,0); document.querySelector('.document-scroll[data-active="true"]').scrollTo(0,0); });
       await page.mouse.move(0,0);
       await page.screenshot({path:`tmp/command-center/sample-${language}-${width}.png`});
       for (const [region,target] of [['image',editor().locator('[data-block="figure"]').first()],['mermaid',editor().getByTestId('mermaid-preview')]]) {
