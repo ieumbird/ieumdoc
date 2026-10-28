@@ -72,9 +72,10 @@ unchanged. CLI and Editor share the Core read model and numbering rule.
 The Editor schema requires exactly one caption after the rows. Native parsing and
 replacement therefore retain the surface even when a range deletion removes everything
 after the final cell while keeping the table. No repair transaction or Undo step is added.
-Previously recorded valid Editor snapshots that omit an empty caption receive the
-same transient surface in both current and saved checkpoints, after lossless validation.
-Restoring does not mutate the stored record or create a false dirty difference.
+Recovery requires that caption child in both checkpoints. The owner ended pre-#577
+snapshot supplementation on 2026-10-29 (#705), following AGENTS.md's exclusion of
+historical-data compatibility. Unsupported records follow the common refusal and
+stored plaintext-copy path in [Editing session and Save](editing-session-save-v1.md).
 
 Whole-table clipboard output retains the empty structural `<caption>` element in HTML
 and the existing trailing block separator (`\n\n`) in plain text. The input hint and
@@ -349,13 +350,11 @@ Figure/equation property entry and Apply/Cancel unification remain outside this 
 The initial HTTP CI run on both Windows and Linux failed because its synthetic
 `insertContentAt` fixture still supplied the former caption attribute; the caption
 was absent before crash/restore. The fixture now supplies the caption child and keeps
-all existing preservation assertions. A separate headless regression passes an actual
-old-schema `RecoveryRecord` through `prepareRecovery`: restore throws
-`Incompatible editor snapshot`, the entire rich record remains unchanged, and its
-plaintext copy includes the unsaved caption, reference label, citation key and cells.
-`App.restoreRecovery` calls this validation before any storage replacement, so the
-failed restore retains the record. This is explicit refusal with readable salvage,
-not automatic structural migration or silent caption loss.
+all existing preservation assertions. The old-schema caption salvage regression and its
+attribute extraction were retired
+by the 2026-10-29 owner decision (#705). Current recovery accepts only the current
+schema; rejected records retain their separately stored plaintext copy. Historical
+#555 verification above does not establish ongoing support for obsolete attributes.
 
 The attempted additional local production-HTTP browser run was stopped before launch
 at `BadPasswordAttempts=6`; its temporary Host was shut down. The subsequent owner

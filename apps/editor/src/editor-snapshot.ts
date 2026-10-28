@@ -1,5 +1,5 @@
 import { referenceTemplatesError } from "@ieumdoc/core/numbering";
-import { Fragment, type Schema } from "@tiptap/pm/model";
+import type { Schema } from "@tiptap/pm/model";
 import { reserveBlockPaths } from "./block-locators.ts";
 import { DELETED_PATHS_ATTR, type TiptapJSON } from "./tiptap-document.ts";
 
@@ -25,24 +25,15 @@ function assertRetained(input: unknown, output: unknown): void {
 export function prepareEditorSnapshot(schema: Schema, opening: TiptapJSON, snapshot: EditorSnapshot): EditorSnapshot {
   function prepare(input: TiptapJSON): TiptapJSON {
     if (input?.type !== "doc") throw new Error("Editor snapshot must contain a doc");
-    const recorded: unknown = input.attrs?.[DELETED_PATHS_ATTR];
-    // Older structureGuard normalization recorded the default empty locator as a
-    // deletion when assigning a new engine block's locator. It addresses no block.
-    // Remove only that proven sentinel; validate every real path and both snapshots.
-    const deleted = Array.isArray(recorded) ? recorded.filter(path => path !== "") : recorded;
+    const deleted: unknown = input.attrs?.[DELETED_PATHS_ATTR];
     const originalPaths = new Set(opening.content?.map(node => String(node.attrs?.sourcePath)));
     if (!Array.isArray(deleted) || !deleted.every(path => typeof path === "string" && originalPaths.has(path))) {
       throw new Error("Invalid editor deletion metadata");
     }
     const json = structuredClone(input);
     delete json.attrs![DELETED_PATHS_ATTR];
-    const parsed = schema.nodeFromJSON(json);
-    assertRetained(json, parsed.toJSON());
-    // Older snapshots may omit the now-required empty caption. Preserve all supplied
-    // fields first, then prepare both checkpoints without an editing transaction.
-    const node = parsed.copy(Fragment.fromArray(parsed.content.content.map(block =>
-      block.type.name === "table" && block.lastChild?.type.name !== "tableCaption"
-        ? block.copy(block.content.append(Fragment.from(schema.nodes.tableCaption.create()))) : block)));
+    const node = schema.nodeFromJSON(json);
+    assertRetained(json, node.toJSON());
     node.check();
     // Most schema attrs have no ProseMirror validator. Reject malformed primitive shapes
     // without checking semantic validity (labels, Unicode, required content, etc.).

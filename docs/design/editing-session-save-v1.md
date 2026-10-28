@@ -1,6 +1,7 @@
 # Editing session and Save v1
 
 - Status: Implemented
+- Recovery support verification: 2026-10-29 (#705: current-schema validation and stored plaintext refusal path; Editor tests and typecheck).
 - Pre-save comparison verification: 2026-10-28 (#655 stage 2: Save parity, read-only state, external revisions, refusal locations and missing files; [visual evidence](editor-visual-language-v1.md#pre-save-comparison-655)).
 - Save refusal verification: 2026-10-28 (#578 phase 2: structured Core codes and bilingual cause/action in the alert and badge; [diagnostic guidance](#diagnostic-guidance-578-phase-2). Phase 1: localized summaries and collapsed original details, block/cell highlighting and keyboard reveal, list-shaped state with conservative submitted-snapshot invalidation; no Host/Core validation policy change).
 - Image rename verification: 2026-10-27 (#504: file-actions browser checks inactive dirty/property-draft refusal, clean active/inactive tabs, Source-to-Visual reload, subsequent Save and other-window revision conflict).
@@ -164,13 +165,18 @@ of supplied fields/marks, opening locators and declared deletion metadata; it th
 canonical collector/writer as a restore gate: empty headings, duplicate labels and invalid Unicode
 can remain applied editor content and still fail Save. Schema-compatible initialization is not a
 claim that arbitrary old/future JSON or inconsistent source/revision/edit checkpoints are recoverable.
-One compatibility exception (#331) removes the empty string from `deletedPaths` in both current and
-saved snapshots, without mutating the record. Earlier engine normalization recorded its temporary
-empty `sourcePath` as a deletion when assigning a new block locator; real title Enter and paragraph
-insertion reproduce that record. The empty string addresses no opening block. All other deletion
-entries, missing deletions, locators, schema content and supplied fields still receive the same checks.
-The producer now excludes this temporary locator from deletion tracking. There is no general
-migration or content repair. The existing Host replay and canonical checks still govern Save.
+The producer excludes temporary empty locators from deletion tracking. The existing Host replay
+and canonical checks still govern Save.
+
+Owner decision (2026-10-29, [#705](https://github.com/ieumbird/ieumdoc/issues/705)) ends
+the #331 and pre-#577 recovery exceptions under [AGENTS.md](../../AGENTS.md)'s rule
+excluding historical-data compatibility unless migration is explicitly requested.
+Empty deletion sentinels, missing table-caption children and former `attrs.caption`
+records are rejected by the common validation path, without repairing either checkpoint.
+The rejection is caught by the recovery review before session or storage replacement;
+other records and open documents remain available. The separately stored plaintext
+copy remains selectable and copyable, verbatim. No old caption-attribute extraction
+or structured migration is provided.
 
 Pending image-less Figures are applied content. Snapshots exclude Undo history, selection/scroll,
 unapplied property drafts, in-flight requests and image binary backups. Autosave remains deferred
@@ -302,8 +308,9 @@ Newly recorded plaintext copies contain readable text, LaTeX, table cells/captio
 image descriptions/paths and link destinations, without generic internal attribute/mark dumps.
 They are content salvage only: no structure, formatting or valid native document is promised, and
 they never enter the official Save path automatically. Previously stored plaintext remains verbatim;
-no heuristic strips bracketed strings from an old copy, since those may be user text. The snapshot
-compatibility exception above can restore affected structured records independently of that old copy.
+no heuristic strips bracketed strings from an old copy, since those may be user text.
+Unsupported snapshots do not regenerate missing text from obsolete attributes; only the
+separately recorded copy and readable current-schema content are covered.
 
 ### Recovery review layout contract
 
