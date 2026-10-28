@@ -1,6 +1,7 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
+- Feature sample verification: 2026-10-28 (#528 localized folders, Core read-model coverage and canonical CLI check/format; Desktop replacement/preservation unit tests and development browser entry/captures; no local packaged Desktop run).
 - Window startup verification: 2026-10-28 (#643 / #644 review: production-minified renderer bridge matrix, Desktop main lifecycle/strict-IPC unit tests including absent first paint; saved light/flat packaged restart regression is CI-only).
 - Version correction verification: 2026-10-28 (#632: `0.0.2-beta.1` published; anonymous assets and withdrawal of both `0.1.0` Beta Releases/assets/remote tags verified; actual GitHub installation/update unverified; [record](../releases/v0.0.2-beta.1.md)).
 - CLI directory cleanup verification: 2026-10-28 (#629: isolated disable/uninstall ownership tests, Desktop typecheck and CI channel-order tests; actual Stable→Beta and NSIS checks run only in disposable Windows CI).
@@ -118,7 +119,30 @@ state and existing Settings layout; the mock does not establish native registry/
 
 ## Native sample
 
-The default bundled sample is copied once to `sample-native-v1` under the user data directory. Existing `sample` directories and modified copies are preserved. The sample follows [Native document support](document-support-v1.md).
+The bundled [converter control design notes](../../apps/editor/samples/en/converter-control.md)
+ship as Korean and English folders, each containing a canonical native `.md`, `assets/` and
+`references.bib`. The current UI language selects the sample when the user chooses **Open sample
+document** on the start screen or in Command center, including when an argument document is open.
+Changing UI language does not translate or replace an already open document.
+
+On startup, Desktop compares the bundled `samples/version` with `sample-native-v1/version` in
+user data. A missing or different marker replaces the whole `sample-native-v1` folder, including
+user edits to its old contents, then writes the new marker only after both language folders copy
+successfully. The same version preserves all edits; opening a sample does not copy or overwrite it.
+Version `2` replaces the original short sample. Bump the bundled marker when sample contents change.
+The older unrelated `sample` directory is untouched. The development Editor uses the same copier
+with a worktree-local `tmp/sample-native-v1` destination; HTTP Host offers no sample.
+
+The samples use only [Native document support](document-support-v1.md). There is no new semantic
+operation or CLI command: CLI `check` and `format` use the existing Core contract. The original
+`apps/editor/document/technical-document.md` remains a regression fixture, not the distributed sample.
+Core read-model feature coverage and canonical round-trip live in the existing Editor browser-fixture
+tests; Desktop first-document unit tests cover initial replacement, version changes and same-version
+preservation of both languages and sidecars. Existing browser Command center checks
+cover the UI entry and live language selection. See [sample capture evidence](editor-ux-shell-v1.md#localized-feature-samples-528).
+
+For #528, packaged Desktop, install/update/uninstall, Edge and fresh-profile probes are intentionally
+not run locally by owner decision. The packaged regression expectations are updated for CI.
 
 ## Start-up document path Unicode (#287)
 
@@ -136,7 +160,7 @@ The native window enforces a minimum width of **640px** (minimum height 480px), 
 
 - App/product name: `IeumDoc`; App ID: `io.github.ieumbird.ieumdoc`; updater cache: `%LOCALAPPDATA%\ieumdoc-updater`; preferences/sample/logs: `%APPDATA%\IeumDoc`. Keep these identities stable after first publication.
 - Windows EXE, NSIS installer/uninstaller, shortcuts and runtime window use the [IeumDoc wing/document icon](app-icon-v1.md). Its SVG source and generated ICO are tracked together; this does not replace previously published Beta assets.
-- The per-user one-click NSIS installer requires no separate Node.js/pnpm/browser installation. Uninstall keeps user data. The Host supplies the first valid existing `.md` command-line file, or start information with a writable sample copied into user data once. Without an accepted argument it supplies no default document; the Editor may still restore tabs. Startup priority and session protection follow [Editing session and Save](editing-session-save-v1.md#tab-navigation-memory-383); if no tabs open, the Editor shows its [start](editor-ux-shell-v1.md#start-without-a-document-174). The sample opens only when chosen, through the same Open path as any file. Opening another argument into an already running instance and OS file association are not implemented.
+- The per-user one-click NSIS installer requires no separate Node.js/pnpm/browser installation. Uninstall keeps user data. The Host supplies the first valid existing `.md` command-line file, or start information with writable samples copied into user data once per bundled sample version. Without an accepted argument it supplies no default document; the Editor may still restore tabs. Startup priority and session protection follow [Editing session and Save](editing-session-save-v1.md#tab-navigation-memory-383); if no tabs open, the Editor shows its [start](editor-ux-shell-v1.md#start-without-a-document-174). The sample opens only when chosen, through the same Open path as any file. Opening another argument into an already running instance and OS file association are not implemented.
 - Electron main owns window lifecycle, protocol, preferences and updater. The sandboxed, isolated renderer has no Node integration; its typed preload exposes only update/settings calls and a restart check. Host/Markdown/file writes never pass through this bridge.
 - IPC accepts only the app's main frame. External navigation/new windows are denied; http(s) links open in the system browser. Static paths are confined to the production build, including symlinks. CSP permits own scripts, own/inline styles needed by the editor/KaTeX, and local/data/blob images; no remote code or frames.
 

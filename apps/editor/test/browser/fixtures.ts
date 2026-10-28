@@ -18,7 +18,7 @@ const DOCUMENT_DIR = path.join(REPOSITORY_ROOT, "apps", "editor", "document");
 const FIXTURE_DIR = fileURLToPath(new URL("./fixtures/", import.meta.url));
 
 /** Committed sources the scratch files are made from. Tests never write these. */
-export const SOURCE_DIRS = [DOCUMENT_DIR, FIXTURE_DIR];
+export const SOURCE_DIRS = [DOCUMENT_DIR, FIXTURE_DIR, path.join(REPOSITORY_ROOT, "apps/editor/samples")];
 
 type ScratchFile = { name: string; create: () => string | Buffer };
 

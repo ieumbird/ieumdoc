@@ -26,8 +26,8 @@ function profile(name: string): string {
   const folder = path.join(work, "profiles", name);
   resetProfiles.add(folder);
   mkdirSync(folder, { recursive: true });
-  for (const file of ["preferences.json", "logs/desktop.log", "logs/desktop.log.old", "sample-native-v1/technical-document.md", "sample-native-v1/diagram.svg"]) {
-    rmSync(path.join(folder, file), { force: true });
+  for (const file of ["preferences.json", "logs/desktop.log", "logs/desktop.log.old", "sample-native-v1"]) {
+    rmSync(path.join(folder, file), { force: true, recursive: true });
   }
   return folder;
 }
@@ -119,9 +119,9 @@ test("started without a document, it opens none; the sample opens with its figur
     assert.equal(await page.locator(".ProseMirror").count(), 0, "nothing opens until the user chooses");
     await page.getByRole("button", { name: "Open sample document", exact: true }).click();
     await page.locator(".ProseMirror h1").first().waitFor();
-    await expect(page).toHaveTitle("technical-document.md — IeumDoc");
+    await expect(page).toHaveTitle("converter-control.md — IeumDoc");
     await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getTitle()),
-      { message: "native taskbar title follows the active file" }).toBe("technical-document.md — IeumDoc");
+      { message: "native taskbar title follows the active file" }).toBe("converter-control.md — IeumDoc");
     for (const width of [1440, 640]) {
       await app.evaluate(({ BrowserWindow }, width) => BrowserWindow.getAllWindows()[0]!.setContentSize(width, 900), width);
       await expect.poll(() => page.evaluate(() => innerWidth)).toBe(width);
@@ -148,10 +148,10 @@ test("started without a document, it opens none; the sample opens with its figur
       assert.equal(geometry.captionEdgeLines, 1, "one separator reaches the actual native caption edge with Outline closed");
       assert.deepEqual(geometry.blocked, [], "controls clear native caption buttons at each supported width");
     }
-    assert.match(await page.getByTestId("current-file").getAttribute("title") ?? "", /[\\/]sample-native-v1[\\/]technical-document\.md$/);
-    assert.equal(await page.locator(".ProseMirror h1").first().innerText(), "Converter Control");
+    assert.match(await page.getByTestId("current-file").getAttribute("title") ?? "", /[\\/]sample-native-v1[\\/]en[\\/]converter-control\.md$/);
+    assert.equal(await page.locator(".ProseMirror h1").first().innerText(), "Current control for a 48 V converter");
     assert.equal(await figuresLoaded(page), true);
-    assert.equal(readFileSync(oldSample, "utf8"), "User-modified legacy sample.\n", "native sample never overwrites old user copies");
+    assert.equal(readFileSync(oldSample, "utf8"), "User-modified legacy sample.\n", "unrelated legacy sample directory is outside the versioned copy");
     assert.equal(await page.evaluate(() => typeof (globalThis as { process?: unknown }).process), "undefined", "the page has no Node.js");
     const foreign = requests.filter((url) => !/^(ieumdoc:\/\/app\/|data:|blob:)/.test(url));
     assert.deepEqual(foreign, [], "every request stays inside the app");

@@ -1,6 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Feature sample verification: 2026-10-28 (#528 Core read-model coverage, canonical CLI check/format, Desktop version unit tests, existing Command center browser entry and manual 1440/640px Korean/English captures; packaged execution deferred to CI).
 - Last verified: 2026-10-28 (#637: block Equation editing moves into the document; inline math retains its popover).
 - Collapsed rail update: 2026-10-28 (#671: Files and shared Settings entry; [contract and captures](#collapsed-rail-files-and-settings-671)).
 - Settings entry update: 2026-10-28 (#669: remove the Settings-only document-settings entry; [contract and captures](#settings-document-entry-removal-669)).
@@ -800,12 +801,12 @@ sample. Choosing a recent folder lists it in the sidebar like Open folder; the s
 a document is chosen in the sidebar. Choosing a folder never discards current edits or drafts;
 choosing another file or New preserves existing sessions under the
 [session protection contract](editing-session-save-v1.md#switching-and-recovery). Open sample document
-opens the Host's writable sample through Open and its checks, with a temporary notice that it is a
-copy in the app's data. The sample is opened only on request. Without a document the TopBar keeps its Find documents and commands action, with `No file opened` only as optional secondary information; Save, File actions and the views
+opens the Host's writable sample for the current UI language through Open and its checks. Its
+temporary notice explains that edits persist until the bundled sample version changes. The sample is opened only on request. Without a document the TopBar keeps its Find documents and commands action, with `No file opened` only as optional secondary information; Save, File actions and the views
 stay unavailable. Document settings is absent; the TopBar local-width toggle remains available. No error is shown. With nothing to lose, the Desktop app's
 update restart check allows the restart unless a document is opening. Closing the last document tab returns here while keeping the folder tree and preferences. Host start
-information is retained; a Host that supplied an initial document instead of start information returns
-to the folder/recent-folder actions without inventing a sample. HTTP offers allowed server folders, filters recent folders to
+information is retained, including localized sample paths supplied alongside a Desktop launch file
+or the development fallback. HTTP offers allowed server folders, filters recent folders to
 those roots and has no sample fallback. The start writes nothing and changes no document
 semantics, so it has no CLI counterpart.
 
@@ -2007,3 +2008,49 @@ focus return. The layout-rules, quiet-document and command-center scenarios reta
 their existing geometry, visual and command/focus protection. Across all eight
 Before/After pairs, pixel differences are confined to the rail (x=17–30); document,
 title strip and right panel pixels are identical.
+
+
+## Localized feature samples (#528)
+
+Desktop and the development Editor offer **Open sample document** on the start screen and in
+Command center. The command is also available with a document open, uses the current UI language
+at dispatch time and preserves existing tabs through ordinary Open. Korean and English notes have
+the same structure and supported features: heading numbering and section references, formatted
+inline content, links and math, nested bullet/ordered lists, code, quote and admonitions, a labeled
+captioned table, numbered equation, asset image and Mermaid Figure, references with authored
+templates, endnote, citation and a local BibTeX bibliography. Most content is a worked, illustrative
+48 V converter current-loop design note, with explicit separation between assumptions and tests.
+The reference book's bibliographic data is verified against its
+[publisher record](https://link.springer.com/book/10.1007/978-3-030-43881-4).
+
+The Host supplies writable copies; [sample distribution](desktop-distribution-v1.md#native-sample)
+defines version replacement. HTTP Host omits the sample command and start offer. Changing UI
+language affects the next selection, not an open document's content or editor state.
+
+Manual capture review uses the existing `command-center --screenshots` path at 1440×900 and
+640×900 with both languages, the checkout-owned persistent Chrome profile and fully loaded
+fonts and image/Mermaid content. The sample feature assertions use Core's read model rather than
+source string matching. No document semantics or supported syntax are extended.
+
+
+| Sample | 1440px | 640px |
+| --- | --- | --- |
+| Korean, title/table | [Capture](assets/feature-samples-528/sample-ko-1440.png) | [Capture](assets/feature-samples-528/sample-ko-640.png) |
+| Korean, image/equation | [Capture](assets/feature-samples-528/sample-ko-1440-image.png) | [Capture](assets/feature-samples-528/sample-ko-640-image.png) |
+| Korean, Mermaid/list | [Capture](assets/feature-samples-528/sample-ko-1440-mermaid.png) | [Capture](assets/feature-samples-528/sample-ko-640-mermaid.png) |
+| English, title/table | [Capture](assets/feature-samples-528/sample-en-1440.png) | [Capture](assets/feature-samples-528/sample-en-640.png) |
+| English, image/equation | [Capture](assets/feature-samples-528/sample-en-1440-image.png) | [Capture](assets/feature-samples-528/sample-en-640-image.png) |
+| English, Mermaid/list | [Capture](assets/feature-samples-528/sample-en-1440-mermaid.png) | [Capture](assets/feature-samples-528/sample-en-640-mermaid.png) |
+
+Manual review confirmed title/paragraph wrapping, table columns, image/equation/caption containment
+and readable Mermaid/list content at both supported widths. Captures retain the pre-existing
+Command center scenario tabs. No shell geometry, typography or token values changed.
+The first new browser assertion incorrectly waited for an inline SVG; Mermaid intentionally renders
+an SVG data-URL image. The assertion was corrected to observe that actual image, without changing
+product behavior or timeout/console criteria. The rerun passed. Windows `BadPasswordAttempts`
+was 4 before the initial launch and 5 afterward; additional runs waited until it returned to 0.
+
+The local `open-files` scenario initially retained the old sample notice text and stopped before
+its later Save-error assertions. Its expected notice is updated to the new version-preservation
+wording. Under the owner's subsequent no-repeat/browser-counter rule, that scenario is not
+repeated locally; the final PR CI must verify the corrected assertion.

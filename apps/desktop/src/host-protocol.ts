@@ -10,7 +10,7 @@ export { CONTENT_SECURITY_POLICY, serveEditorFile } from "../../editor/server/ed
 import { handleAssetRequest } from "../../editor/server/asset-api.ts";
 import { handleDocumentRequest } from "../../editor/server/document-api.ts";
 import { requestQuery } from "../../editor/server/request-query.ts";
-import type { DocumentStartResponse } from "../../editor/shared/document-protocol.ts";
+import type { DocumentStartResponse, SampleDocuments } from "../../editor/shared/document-protocol.ts";
 
 export const SCHEME = "ieumdoc";
 export const ORIGIN = `${SCHEME}://app`;
@@ -46,7 +46,7 @@ export async function callNodeHandler(request: Request, url: URL, handler: Handl
 const notFound = () => new Response(null, { status: 404, headers: SECURITY_HEADERS });
 
 /** What the Editor's first request, which names no document, opens: a document, or none. */
-export type FirstDocument = { document: string } | { sample: string };
+export type FirstDocument = { document?: string; samples?: SampleDocuments };
 
 /**
  * The protocol handler. `first` answers the Editor's first request: the document the app was
@@ -67,13 +67,13 @@ export function createProtocolHandler(editorDir: string, first: FirstDocument, t
     }
     if (DOCUMENT_ROUTES.has(url.pathname) || url.pathname.startsWith("/document/")) {
       if (url.pathname === "/api/document" && request.method === "GET" && !query.get("path")) {
-        if (!("document" in first)) {
-          const start: DocumentStartResponse = { start: true, sample: first.sample };
+        if (!first.document) {
+          const start: DocumentStartResponse = { start: true, samples: first.samples };
           return new Response(JSON.stringify(start), { headers: { ...SECURITY_HEADERS, "Content-Type": "application/json; charset=utf-8" } });
         }
         url.searchParams.set("path", first.document);
       }
-      return callNodeHandler(request, url, (req, res, next) => handleDocumentRequest(req, res, next, LOCAL_FILE_ACCESS, Infinity, trashItem));
+      return callNodeHandler(request, url, (req, res, next) => handleDocumentRequest(req, res, next, LOCAL_FILE_ACCESS, Infinity, trashItem, first.samples));
     }
     if (request.method !== "GET" && request.method !== "HEAD") return new Response(null, { status: 405, headers: SECURITY_HEADERS });
     return serveEditorFile(editorDir, url.pathname);

@@ -19,13 +19,14 @@ mkdirSync(documents);
 const initial = path.join(documents, "first.md");
 writeFileSync(initial, "---\nieumdoc: 1\n---\n\n# First\n\nAlpha.\n");
 writeFileSync(path.join(documents, "diagram.svg"), "<svg xmlns=\"http://www.w3.org/2000/svg\"/>");
-const handle = createProtocolHandler(editorDir, { document: initial });
+const localizedSamples = { ko: path.join(documents, "ko.md"), en: path.join(documents, "en.md") };
+const handle = createProtocolHandler(editorDir, { document: initial, samples: localizedSamples });
 const get = (pathname: string) => handle(new Request(`${ORIGIN}${pathname}`));
 
 test("file deletion uses the validated OS trash adapter and never falls back to permanent deletion", async () => {
   const file = path.join(documents, "trash.txt"); writeFileSync(file, "keep");
   let target = "";
-  const trash = createProtocolHandler(editorDir, { sample: initial }, async file => { target = file; });
+  const trash = createProtocolHandler(editorDir, { samples: { ko: initial, en: initial } }, async file => { target = file; });
   const request = () => new Request(`${ORIGIN}/api/file`, { method: "DELETE", body: JSON.stringify({root:documents, path:file}) });
   assert.equal((await trash(request())).status, 200);
   assert.equal(target, file);
@@ -37,7 +38,7 @@ test("file deletion uses the validated OS trash adapter and never falls back to 
 });
 
 test("folder preview reuses shared validation and SVG isolation without a startup document", async () => {
-  const start = createProtocolHandler(editorDir, { sample: initial });
+  const start = createProtocolHandler(editorDir, { samples: { ko: initial, en: initial } });
   const route = `${ORIGIN}/api/file-preview?${new URLSearchParams({ root: documents, path: path.join(documents, "diagram.svg") })}`;
   for (const method of ["GET", "HEAD"]) {
     const result = await start(new Request(route, { method }));
@@ -80,7 +81,8 @@ test("the first document request opens the initial document through the Host han
   assert.equal((await get("/api/document?%ED%A0%80=x")).status, 400);
   const response = await get("/api/document");
   assert.equal(response.status, 200);
-  const loaded = await response.json() as { path: string; source: string; revision: string };
+  const loaded = await response.json() as { path: string; source: string; revision: string; samples: typeof localizedSamples };
+  assert.deepEqual(loaded.samples, localizedSamples, "launching a file still offers localized samples in Command center");
   assert.equal(loaded.path, initial);
   assert.equal(loaded.source, "---\nieumdoc: 1\n---\n\n# First\n\nAlpha.\n");
   const media = await get(`/document/diagram.svg?path=${encodeURIComponent(initial)}`);
@@ -90,12 +92,12 @@ test("the first document request opens the initial document through the Host han
 });
 
 test("started without a document, the first request opens none and offers the sample", async () => {
-  const sample = path.join(documents, "sample.md");
-  const start = createProtocolHandler(editorDir, { sample });
+  const samples = { ko: path.join(documents, "ko.md"), en: path.join(documents, "en.md") };
+  const start = createProtocolHandler(editorDir, { samples });
   const response = await start(new Request(`${ORIGIN}/api/document`));
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("content-security-policy"), CONTENT_SECURITY_POLICY);
-  assert.deepEqual(await response.json(), { start: true, sample });
+  assert.deepEqual(await response.json(), { start: true, samples });
   const named = await start(new Request(`${ORIGIN}/api/document?path=${encodeURIComponent(initial)}`));
   assert.equal(((await named.json()) as { path: string }).path, initial);
 });

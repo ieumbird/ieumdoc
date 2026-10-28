@@ -103,7 +103,7 @@ async (page, { openDocument }) => {
   await page.unroute('**/api/document');
 
   // Start without a document, then reject the existing sample through real Host admission.
-  await page.route('**/api/document', route => route.fulfill({json:{start:true, sample:rejectedPath}}));
+  await page.route('**/api/document', route => route.fulfill({json:{start:true, samples:{ko:rejectedPath,en:rejectedPath}}}));
   await page.reload();
   const sampleButton = page.getByRole('button', {name:'Open sample document', exact:true});
   await sampleButton.click();

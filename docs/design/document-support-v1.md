@@ -1,6 +1,7 @@
 # Native document support v1
 
 - Status: Implemented
+- Feature sample verification: 2026-10-28 (#528 localized folders, Core read-model coverage and canonical CLI check/format; Desktop replacement/preservation unit tests and development browser entry/captures; no local packaged Desktop run).
 - Mermaid Figure update: 2026-10-28 (#651 PR 1; Core/CLI source/admission/canonical contract; [Figure authoring](figure-authoring-v1.md#mermaid-figures-651-core-and-cli)).
 - Empty structural elements: 2026-10-27 (#574; canonical forms and verification below).
 - Documentation verification: 2026-10-26 (Open protection and implemented Editor label rename compared with the session/reference contracts and current code; no new browser execution).
@@ -135,7 +136,7 @@ defines the scope; the complete semantic guard remains mandatory.
 
 The canonical writer escapes literal `@` where the pinned MyST citation rule would interpret it as a citation, so external MyST parsers also read the saved text literally. Email text such as `a@b.com`, URL contexts and link display text do not gain unnecessary escapes. Semantic text supplied by Core operations (including CLI and Editor edits) is already literal; bracket-shaped text entered through those operations is escaped on write rather than treated as source citation shorthand. Existing semantic fingerprints and round-trip refusal remain mandatory. No new operation or CLI command is needed.
 
-Desktop supplies its native sample in `sample-native-v1` on first use and uses it as the sample target. Existing `sample` folders and user-modified copies are not overwritten. The compatibility notice is in the [v0.0.1-beta.4 release record](../releases/v0.0.1-beta.4.md); published beta.3 history is unchanged. The `ieumdoc` key is an IeumDoc marker. The installed `myst-frontmatter@1.10.1` page validator reports `extra key ignored: ieumdoc` and omits it from its validated output; external MyST frontmatter validation is not the native admission authority.
+Desktop supplies localized native sample folders in `sample-native-v1`, replacing that folder once when the bundled sample version changes and preserving edits within the same version. The [sample distribution contract](desktop-distribution-v1.md#native-sample) defines the owner-authorized replacement and development Editor copy; HTTP Host has no sample offer. The compatibility notice is in the [v0.0.1-beta.4 release record](../releases/v0.0.1-beta.4.md); published beta.3 history is unchanged. The `ieumdoc` key is an IeumDoc marker. The installed `myst-frontmatter@1.10.1` page validator reports `extra key ignored: ieumdoc` and omits it from its validated output; external MyST frontmatter validation is not the native admission authority.
 
 ## Verification
 
