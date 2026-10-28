@@ -1895,3 +1895,38 @@ list and document geometry remain in place. Generated traces/logs stay in `tmp/o
 | --- | --- | --- |
 | 1440 × 900 | [Before](assets/outline-toggle-590/before-1440.png) | [After](assets/outline-toggle-590/after-1440.png) |
 | 390 × 900 | [Before](assets/outline-toggle-590/before-390.png) | [After](assets/outline-toggle-590/after-390.png) |
+
+
+## Figure image filename (#652)
+
+The Figure properties form adds File name (without extension) after Image, using the existing
+shared Input, spacing, Apply/Cancel and inline error surface. It reuses the #504 Host rename,
+other-document protection and notices. Eligibility and failure behavior are specified in
+[Figure file name](document-editing-v1.md#figure-file-name-652); history and checkpoints in
+[Figure-form image rename](editing-session-save-v1.md#figure-form-image-rename-652).
+The Host chooses readable upload defaults without an extra paste dialog, and no CLI surface
+is added because no new semantic operation is introduced.
+
+
+### Filename form verification (#652)
+
+Host unit tests cover sanitized hints, generic-name classification, MIME suffixes, Korean,
+sequence gaps/collisions, Unicode rejection and signed rollback after rename. The existing
+`image-assets` browser scenario covers native clipboard names, original drop names, rename
+refusal without partial properties, saved and just-pasted Figure rename, immediate Undo/Redo
+paths, and Save/Reload. The engine regression separately covers deletion history and a new
+attachment reusing an old filename. The 1440px/640px captures below use the same technical
+sample, local SVG and open properties state; the new field uses existing control geometry.
+
+| Viewport | Before | After |
+| --- | --- | --- |
+| 1440 x 900 | [Before](assets/image-names-652/before-1440.png) | [After](assets/image-names-652/after-1440.png) |
+| 640 x 900 | [Before](assets/image-names-652/before-640.png) | [After](assets/image-names-652/after-640.png) |
+
+Local verification: Editor unit suite (320 passed), final history/block-command regressions
+(36 passed), Host image/file tests (43 passed), workspace typecheck, Editor/CLI production
+builds and docs checks passed. Persistent Chrome `image-assets`, `figure-authoring`,
+`file-actions`, `layout-rules`, `quiet-document` and production `http-host` (including process
+crash recovery) passed. Packaged Desktop and Edge are left to CI. The packaged Desktop asset
+assertion now expects its supplied `paste.png` hint. A transient Vite ResizeObserver notification
+was logged on the last image-assets run; its console/behavior assertions passed.

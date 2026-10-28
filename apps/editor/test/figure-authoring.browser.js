@@ -78,6 +78,16 @@ async (page, { openFolderPicker, openDocument, waitForEditorFocus, expect, scree
 
   try {
     await openScratch();
+    if (screenshots) {
+      await figures.first().getByTestId('figure-image').dblclick();
+      for (const width of [1440, 640]) {
+        await page.setViewportSize({width, height:900});
+        await page.getByTestId('figure-file-name').waitFor();
+        await page.screenshot({path:`tmp/image-names-652/after-${width}.png`, animations:'disabled'});
+      }
+      await page.getByTestId('figure-cancel').click();
+      await page.setViewportSize({width:1440, height:900});
+    }
     const baselineParagraphs = await page.locator('[data-document-tab][data-active=true] [data-block="paragraph"]').count();
 
     const snapshot = () => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.getJSON());

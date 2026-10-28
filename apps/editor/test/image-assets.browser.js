@@ -1,5 +1,5 @@
 // Native PNG clipboard, actual local Host assets, file drop and compensated insertion failure.
-async (page, { openFolderPicker, openPath, openDocument }) => {
+async (page, { openFolderPicker, openPath, openDocument, screenshots }) => {
   await page.unrouteAll();
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
@@ -58,7 +58,7 @@ async (page, { openFolderPicker, openPath, openDocument }) => {
   await page.keyboard.press('Control+v');
   await figures.first().waitFor(); await waitIdle(); await loaded();
   const pasted = (await documentJSON()).content.find(node => node.type === 'figure').attrs.imageUrl;
-  assert(/^\.\/assets\/image-[a-f0-9-]+\.png$/.test(pasted), 'PNG path must be portable and generated');
+  assert(/^\.\/assets\/images-1\.png$/.test(pasted), 'PNG path must be portable and generated');
   assert((await page.request.get(media(pasted))).headers()['content-type'] === 'image/png', 'Host serves the saved PNG');
   await page.keyboard.press('Control+z');
   assert(await figures.count() === 0 && (await documentJSON()).content.some(node => node.content?.[0]?.text === 'typed Alpha.'), 'One Undo removes Figure only');
@@ -95,7 +95,7 @@ async (page, { openFolderPicker, openPath, openDocument }) => {
   const dropped = (await documentJSON()).content;
   const droppedFigure = dropped[dropped.findIndex(node => node.content?.[0]?.text === 'Beta.') + 1];
   assert(droppedFigure?.type === 'figure', 'Drop lands after the pointer block');
-  assert(/^\.\/assets\/image-[a-f0-9-]+\.jpg$/.test(droppedFigure.attrs.imageUrl), 'JPEG keeps its extension');
+  assert(/^\.\/assets\/photo\.jpg$/.test(droppedFigure.attrs.imageUrl), 'JPEG keeps its extension');
   await imageSection.getByRole('treeitem', {name:droppedFigure.attrs.imageUrl.split('/').pop(), exact:true}).waitFor();
   assert(await assetsRow.getAttribute('aria-expanded') === 'true', 'Asset creation refreshes loaded assets without changing expansion');
   result.dropRefreshesLoadedAssets = true;
@@ -211,7 +211,7 @@ async (page, { openFolderPicker, openPath, openDocument }) => {
 
   await editFigure(1);
   const cancelled = await chooseOutside();
-  assert(/^\.\/assets\/image-[a-f0-9-]+\.png$/.test(cancelled), 'An image elsewhere is copied into assets/');
+  assert(cancelled === './assets/photo.png', 'An image elsewhere is copied into assets/');
   assert((await page.request.get(media(cancelled))).status() === 200, 'The copy exists while the form holds it');
   const removed = page.waitForResponse(response => response.url().endsWith('/api/asset') && response.request().method() === 'DELETE');
   await page.getByTestId('figure-cancel').click();
@@ -288,7 +288,7 @@ async (page, { openFolderPicker, openPath, openDocument }) => {
 
   // Paste in a reserved caption and drop on a completely empty frame fill that Figure (#212).
   // Repeat each gesture on its completed Figure: the existing image must never be overwritten.
-  const semanticJSON = value => JSON.stringify(value, (key, item) => key === 'sourcePath' ? undefined : item);
+  const semanticJSON = value => JSON.stringify(value, (key, item) => ['sourcePath', 'imageIdentity'].includes(key) ? undefined : item);
   const caret = () => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => {
     const selection = el.editor.state.selection;
     return {parent:selection.$from.parent.type.name, sourcePath:selection.$from.parent.attrs.sourcePath, from:selection.from, to:selection.to};
@@ -361,6 +361,7 @@ async (page, { openFolderPicker, openPath, openDocument }) => {
     if (gesture === 'paste') assert(pasteCaret.parent === 'figure' && JSON.stringify(filledCaret) === JSON.stringify(pasteCaret), `Paste fill keeps the caret at its original Figure caption position: ${JSON.stringify({before:pasteCaret, after:filledCaret})}`);
     const expected = JSON.parse(JSON.stringify(beforeFill));
     expected.content[index].attrs.imageUrl = filled.content[index].attrs.imageUrl;
+    expected.content[index].attrs.imageIdentity = filled.content[index].attrs.imageIdentity;
     assert(expected.content[index].attrs.imageUrl.startsWith('./assets/'), `${gesture} fills the reserved Figure`);
     assert(JSON.stringify(filled) === JSON.stringify(expected), `${gesture} preserves caption, label and position without inserting a Figure`);
     await historyKey('Control+z');
@@ -389,6 +390,79 @@ async (page, { openFolderPicker, openPath, openDocument }) => {
     assert(semanticJSON(await documentJSON()) === semanticJSON(filled), `Reload retains the filled Figure after ${gesture}`);
   }
   result.fillEmptyFigureAndKeepExistingImage = true;
+
+  // #652: saved-image rename preserves the session and keeps property history independent.
+  await editFigure(0);
+  const oldUrl = await imageField.inputValue();
+  const beforeAlt = await page.getByTestId('figure-alt').inputValue();
+  const beforeLabel = await page.getByTestId('figure-label').inputValue();
+  const filename = page.getByTestId('figure-file-name');
+  await imageField.fill('https://example.invalid/remote.png');
+  assert(await filename.count() === 0, 'An unapplied external Image URL hides File name');
+  await imageField.fill('../outside.png');
+  assert(await filename.count() === 0, 'An outside-folder Image path hides File name');
+  await imageField.fill(oldUrl);
+  await filename.waitFor();
+  await filename.fill('회로도-final');
+  await page.getByTestId('figure-alt').fill('Renamed alt');
+  await page.getByTestId('figure-label').fill('renamed-652');
+  if (screenshots) {
+    for (const width of [1440, 640]) {
+      await page.setViewportSize({width, height:900});
+      await filename.waitFor();
+      await page.screenshot({path:`tmp/image-names-652/rename-${width}.png`, animations:'disabled'});
+    }
+    await page.setViewportSize({width:1440, height:900});
+  }
+  // Host rejection retains every draft and does not partially apply Alt/Label.
+  await page.route('**/api/file', route => route.fulfill({status:400, json:{error:'Rename denied'}}));
+  const priorRename = JSON.stringify(await documentJSON());
+  await page.getByTestId('figure-apply').click();
+  await page.getByTestId('figure-editor').getByText('Rename denied', {exact:true}).waitFor();
+  assert(await filename.inputValue() === '회로도-final' && await page.getByTestId('figure-alt').inputValue() === 'Renamed alt' &&
+    await page.getByTestId('figure-label').inputValue() === 'renamed-652', 'Rename refusal retains all form fields');
+  assert(JSON.stringify(await documentJSON()) === priorRename, 'Rename refusal applies no properties');
+  await page.unroute('**/api/file');
+  await page.getByTestId('figure-apply').click();
+  await page.getByTestId('figure-editor').waitFor({state:'detached'});
+  const renamed = (await documentJSON()).content.find(node => node.type === 'figure').attrs;
+  assert(renamed.imageUrl === './assets/회로도-final.png' && renamed.imageAlt === 'Renamed alt' && renamed.label === 'renamed-652', 'Rename and properties Apply succeed');
+  assert((await page.request.get(media(renamed.imageUrl))).status() === 200 && (await page.request.get(media(oldUrl))).status() === 404, 'Only renamed file exists');
+  await historyKey('Control+z');
+  const undone = (await documentJSON()).content.find(node => node.type === 'figure').attrs;
+  assert(undone.imageUrl === renamed.imageUrl && undone.imageAlt === beforeAlt && undone.label === beforeLabel, 'Undo restores only Alt/Label and retains new path immediately');
+  await historyKey('Control+Shift+z');
+  assert(JSON.stringify((await documentJSON()).content.find(node => node.type === 'figure').attrs) === JSON.stringify(renamed), 'Redo retains new path and reapplies properties immediately');
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
+  await page.getByRole('button', {name:'File actions', exact:true}).click();
+  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  assert((await documentJSON()).content.find(node => node.type === 'figure').attrs.imageUrl === renamed.imageUrl, 'Saved rename survives reopening');
+
+  // A just-pasted unsaved Figure may rename without saving unrelated local work.
+  const figureCountBeforeRename = await figures.count();
+  await select('typed Alpha.');
+  const renameUploadResponse = page.waitForResponse(response => response.url().includes('/api/asset?') && response.status() === 201);
+  await syntheticPaste('');
+  const renameUpload = await (await renameUploadResponse).json();
+  await page.waitForFunction(count => document.querySelectorAll('[data-document-tab][data-active=true] [data-block="figure"]').length === count + 1, figureCountBeforeRename);
+  await waitIdle();
+  const uploadIndex = (await documentJSON()).content.filter(node => node.type === 'figure').findIndex(node => node.attrs.imageUrl === renameUpload.path);
+  await editFigure(uploadIndex);
+  await filename.fill('just-pasted');
+  await page.getByTestId('figure-apply').click();
+  await page.getByTestId('figure-editor').waitFor({state:'detached'});
+  const pastedRename = JSON.stringify(await documentJSON());
+  await historyKey('Control+z');
+  // A filename-only Apply has no history event: Undo removes the insertion.
+  assert(await figures.count() === figureCountBeforeRename, 'Filename-only rename adds no Undo event');
+  await historyKey('Control+Shift+z');
+  assert(JSON.stringify(await documentJSON()) === pastedRename, 'Redo of the earlier insertion restores the renamed URL');
+  assert((await page.request.get(media('./assets/just-pasted.png'))).status() === 200, 'Redo points at an existing image');
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
+  result.imageRenameHistoryAndCheckpoint = true;
 
   // Real document-relative loading, failure feedback and unchanged saved paths (#211).
   const pathsFile = [root, 'tmp', 'image-assets', 'paths.md'].join(separator);
@@ -427,7 +501,9 @@ async (page, { openFolderPicker, openPath, openDocument }) => {
   assert(JSON.stringify((await documentJSON()).content.filter(node => node.type === 'figure').map(node => node.attrs.imageUrl)) === JSON.stringify(expectedPaths), 'Reload retains the original strings');
 
   // Fixing a failed source removes its notice and loads the replacement in the same NodeView.
-  await editFigure(2); await imageField.fill('assets/diagram.svg');
+  await editFigure(2);
+  assert(await filename.count() === 0, 'A missing applied image hides File name');
+  await imageField.fill('assets/diagram.svg');
   await page.getByTestId('figure-apply').click(); await imageField.waitFor({state:'detached'});
   await page.waitForFunction(() => [...document.querySelectorAll('[data-document-tab][data-active=true] [data-testid="figure-image"]')].every(image => image.complete && image.naturalWidth > 0));
   await failure.waitFor({state:'detached'});

@@ -36,7 +36,7 @@ leave an old-path record. There is no data loss; the extra record can be discard
 ### Referenced image rename (#504)
 
 Renaming an image updates its references in saved native documents under the selected opened
-folder through Core and the shared Host. Every dirty referring document tab in the requesting
+folder through Core and the shared Host. For Sidebar rename, every dirty referring document tab in the requesting
 Editor window blocks the operation, including inactive tabs and unapplied property drafts. The
 dialog names the documents and asks to save first; neither image nor documents are written.
 Applied snapshots supplement saved references, so adding a reference only in unsaved work also
@@ -56,6 +56,30 @@ revision conflict**: another window retains its local edits, but its next Save a
 revision is refused after reference rewriting. The current #372 locator-alias limitation remains.
 Image/document commit order and best-effort rollback limits are specified by the
 [Host contract](filesystem-host-boundary-v1.md#referenced-image-rename-504-pr-b).
+
+
+### Figure-form image rename (#652)
+
+The Figure form validates image/alt/label and preflights the existing Core-backed label/reference
+transaction before requesting the #504 Host rename. While the request and clean-tab reloads run,
+a modal busy surface blocks new document input and cancellation. Host refusal leaves every form
+field intact and applies no Alt/Label edits. On success, the initiating session stays mounted:
+only its matching image paths and acknowledged saved-snapshot paths change, with the new Host
+revision. The original opening source/model stays the replay baseline; `base.savedEdits` advances
+to the path-adjusted saved snapshot when the disk revision changed, without acknowledging local
+unsaved content. Other sessions retain #504 protection and reload behavior.
+
+Path retargeting is an `addToHistory: false` engine transaction. A session-local alias map also
+retargets Figures restored from old undo/redo/deletion steps, including successive renames.
+It keys aliases by Figure locator and an Editor-only attachment identity, renewed when the user
+attaches a different image. This prevents a fresh upload/choice reusing an old filename from
+being mistaken for the renamed image. Identity is not Markdown/Core semantics and is excluded
+from applied-content dirty comparison.
+Alt/Label Apply remains a normal independent Undo event. Undo cannot rename the file or resurrect
+an obsolete path. Recovery snapshots contain the current/saved paths; recovery does not persist
+engine history. An incomplete Host rollback follows #504's explicit reload/error handling;
+transport loss can leave an uncertain disk outcome and must be reported, not silently retried.
+No new Core semantic operation or CLI surface is added: #504 owns the file/reference operation.
 
 
 ## Editor ownership

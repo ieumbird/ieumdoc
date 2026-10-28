@@ -18,7 +18,7 @@ const browserHost: AssetHost = {
   async create(file, documentPath) {
     let response: Response, body: AssetResponse & { error?: string };
     try {
-      response = await fetch(`${import.meta.env.BASE_URL}api/asset?path=${encodeURIComponent(documentPath)}`, {
+      response = await fetch(`${import.meta.env.BASE_URL}api/asset?path=${encodeURIComponent(documentPath)}&name=${encodeURIComponent(file.name)}`, {
         method: "POST", headers: { "Content-Type": file.type }, body: file,
       });
       body = await response.json() as AssetResponse & { error?: string };
@@ -88,6 +88,10 @@ export function imageAssetsPlugin(options: Options): Plugin {
       view.dispatch(tr);
       const accepted = view.state.doc.content.content.some(node => node.type.name === "figure" && node.attrs.sourcePath === sourcePath && node.attrs.imageUrl === created!.path);
       if (!accepted) throw new Error("The Figure insertion was rejected; your document is unchanged.");
+      // Insertion commits ownership to the document. No later UI/focus error may roll it back.
+      const committedPath = created.path;
+      created = undefined;
+      options.changed?.(committedPath);
       view.dispatch(closeHistory(view.state.tr).setMeta("addToHistory", false));
       if (!keepSelection) view.focus();
     } catch (error) {

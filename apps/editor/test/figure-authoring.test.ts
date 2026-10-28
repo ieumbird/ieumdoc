@@ -21,6 +21,7 @@ import {
 import { commitDocumentSave, documentRevision } from "../server/document-api.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits, validateFigureRequest } from "../server/document-replay.ts";
+import { imageRenameKey, imageRenamesPlugin } from "../src/image-rename.ts";
 
 const source = nativeSource(readFileSync(
   fileURLToPath(new URL("../../../packages/core/test/fixtures/technical-document.md", import.meta.url)),
@@ -37,6 +38,38 @@ const CHANGED = {
   imageAlt: "Updated block diagram",
   caption: "Updated converter control diagram.",
 };
+
+test("image rename survives property/deletion history while a new attachment may reuse the old name", t => {
+  t.mock.method(crypto, "randomUUID", () => { throw new Error("Unavailable on non-localhost HTTP"); });
+  const schema = getSchema(editorExtensions());
+  let state = EditorState.create({ schema, doc: schema.nodeFromJSON(toTiptapDocument(loadEditableDocument(source))),
+    plugins: [history(), imageRenamesPlugin()] });
+  const dispatch = (tr: typeof state.tr) => { state = state.applyTransaction(tr).state; };
+  const position = () => {
+    let result = -1;
+    state.doc.forEach((node, pos) => { if (node.attrs.sourcePath === FIGURE) result = pos; });
+    return result;
+  };
+  const figure = () => state.doc.nodeAt(position())!;
+  dispatch(updateFigure(state, position(), { imageAlt: "Changed" }));
+  dispatch(state.tr.setMeta(imageRenameKey, [{ from: ORIGINAL.imageUrl, to: "./renamed.svg" }]).setMeta("addToHistory", false));
+  assert.equal(undo(state, dispatch), true);
+  assert.equal(figure().attrs.imageAlt, ORIGINAL.imageAlt);
+  assert.equal(figure().attrs.imageUrl, "./renamed.svg");
+  assert.equal(redo(state, dispatch), true);
+  assert.equal(figure().attrs.imageUrl, "./renamed.svg");
+  const pos = position();
+  dispatch(closeHistory(state.tr).delete(pos, pos + figure().nodeSize));
+  assert.equal(undo(state, dispatch), true);
+  assert.equal(figure().attrs.imageUrl, "./renamed.svg");
+  // The user can select a different file newly created at the old path, even on this Figure.
+  dispatch(updateFigure(state, position(), { imageUrl: ORIGINAL.imageUrl }));
+  assert.equal(figure().attrs.imageUrl, ORIGINAL.imageUrl);
+  assert.equal(undo(state, dispatch), true);
+  assert.equal(figure().attrs.imageUrl, "./renamed.svg");
+  assert.equal(redo(state, dispatch), true);
+  assert.equal(figure().attrs.imageUrl, ORIGINAL.imageUrl);
+});
 
 function clone(value: TiptapJSON): TiptapJSON {
   return JSON.parse(JSON.stringify(value)) as TiptapJSON;

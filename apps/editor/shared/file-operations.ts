@@ -5,8 +5,12 @@ export type RenameFileRequest = FileOperationRequest & {
   /** Dirty tabs in this Editor window. Applied source supplements the disk check;
    * path-only entries include unapplied property drafts. Other windows use Save conflicts. */
   openDocuments?: { path: string; source?: string }[];
+  /** Figure form's own session: only its paths change; unsaved properties stay local. */
+  figureDocument?: { path: string; revision: string; source: string; imageUrl: string };
 };
-export type FileOperationResponse = { path: string; updatedDocuments?: string[]; skippedDocuments?: string[] };
+export type MediaReplacement = { from: string; to: string };
+export type FileOperationResponse = { path: string; updatedDocuments?: string[]; skippedDocuments?: string[];
+  figureDocument?: { revision: string; replacements: MediaReplacement[] } };
 
 /** Shared input feedback; Host remains the authority, including on non-Windows systems. */
 export function validFileStem(name: string): boolean {

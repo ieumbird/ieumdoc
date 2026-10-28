@@ -24,6 +24,7 @@ import { FolderDialog } from "./shell/FolderDialog.tsx";
 import { SettingsDialog, type SettingsCategory } from "./shell/SettingsDialog.tsx";
 import { UnsavedChangesDialog } from "./shell/UnsavedChangesDialog.tsx";
 import type { FileActionHandler } from "./shell/FileActionDialog.tsx";
+import type { ImageRenamer } from "./image-rename.ts";
 import { Sidebar } from "./shell/Sidebar.tsx";
 import { folderChain, knownFolders, useFolderTrees, type FolderTreeState } from "./shell/folder-tree.ts";
 import { childPath, documentLocation, splitDocumentPath, unquotePath } from "./shell/document-path.ts";
@@ -105,6 +106,9 @@ export function App() {
   const [newDirectory, setNewDirectory] = useState("");
   const [newFolderDialog, setNewFolderDialog] = useState(false);
   const [fileOperationPending, setFileOperationPending] = useState(false);
+  const [figureRenamePending, setFigureRenamePending] = useState(false);
+  const renameImageRef = useRef<ImageRenamer | undefined>(undefined);
+  const renameImage = useCallback<ImageRenamer>((...args) => renameImageRef.current!(...args), []);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [tabsRestored, setTabsRestored] = useState(false);
@@ -352,18 +356,26 @@ export function App() {
     setActiveId(next);
     rememberTabs();
   }
-  const fileAction: FileActionHandler = async (action, chosenRoot, entry, name) => {
+  const fileAction = async (action: Parameters<FileActionHandler>[0], chosenRoot: string, entry: FolderEntry, name?: string, figure?: { documentPath: string; imageUrl: string }) => {
     if (operationRef.current || [...sessions.current.values()].some(owner => owner.busyRef.current)) throw new Error(i18n.t("Wait for the current file operation to finish."));
     operationRef.current = true; setFileOperationPending(true);
+    if (figure) setFigureRenamePending(true);
+    const formSession = figure && [...sessions.current.values()].find(owner => owner.openedPath === figure.documentPath);
     const tab = tabs.find(tab => tab.path === entry.path);
     const owner = tab && sessions.current.get(tab.id);
     owner?.suspendRecovery();
     let completed = false;
     try {
-      const root = folders.trees.map(tree => tree.root).filter(root => folderChain(root, entry.path).length > 0).sort((a, b) => a.length - b.length)[0] ?? chosenRoot;
+      if (figure && !formSession) throw new Error("Editor is not ready");
+      const interrupted = (cause: unknown): never => {
+        if (figure) throw new Error(i18n.t("The image rename response was interrupted. Files may have changed. Keep your edits and check the files before Reloading."));
+        throw cause;
+      };
+      const root = figure ? chosenRoot : folders.trees.map(tree => tree.root).filter(root => folderChain(root, entry.path).length > 0).sort((a, b) => a.length - b.length)[0] ?? chosenRoot;
       const openDocuments = [];
       if (action === "rename" && entry.kind === "image") {
         for (const current of sessions.current.values()) {
+          if (current.openedPath === figure?.documentPath) continue;
           if (folderChain(root, current.openedPath).length && current.editorRef.current?.hasUnsavedChanges()) {
             try {
               openDocuments.push({ path: current.openedPath,
@@ -376,14 +388,18 @@ export function App() {
       }
       const response = await fetch(`${import.meta.env.BASE_URL}api/file`, {
         method: action === "delete" ? "DELETE" : "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ root, path: entry.path, ...(action === "rename" ? { name, openDocuments } : {}) }),
-      });
-      const result = await response.json();
+        body: JSON.stringify({ root, path: entry.path, ...(action === "rename" ? { name, openDocuments } : {}),
+          ...(figure && formSession ? { figureDocument: { path: figure.documentPath, imageUrl: figure.imageUrl,
+            revision: formSession.imageRenameRevision(), source: await formSession.appliedSource() } } : {}) }),
+      }).catch(interrupted);
+      const result = await response.json().catch(interrupted);
+      if (response.ok && formSession && result.figureDocument) formSession.acceptImageRename(result.figureDocument);
       if (Array.isArray(result.references)) throw new Error(i18n.t("Save these documents before renaming the image: {{documents}}", { documents: result.references.join(", ") }));
       // The rename dialog remains modal throughout the request and reloads. No tab can
       // accept new input between the dirty check and installing the new disk checkpoint.
       const reloadErrors: string[] = [];
       for (const current of sessions.current.values()) {
+        if (current.openedPath === figure?.documentPath && response.ok) continue;
         if (!result.updatedDocuments?.includes(current.openedPath)) continue;
         const message = await current.load(current.openedPath);
         if (message) reloadErrors.push(`${splitDocumentPath(current.openedPath).name}: ${message}`);
@@ -410,8 +426,16 @@ export function App() {
       return result.path;
     } finally {
       if (!completed) owner?.resumeRecovery();
-      operationRef.current = false; setFileOperationPending(false);
+      operationRef.current = false; setFileOperationPending(false); setFigureRenamePending(false);
     }
+  };
+  renameImageRef.current = async (documentPath, imageUrl, name) => {
+    const { directory } = splitDocumentPath(documentPath);
+    const separator = documentPath.includes("\\") ? "\\" : "/";
+    const path = directory + imageUrl.replace(/^\.\//, "").replaceAll("/", separator);
+    const root = folders.rootOf(documentPath) ?? directory.replace(/[\\/]$/, "");
+    const renamed = await fileAction("rename", root, { path, name: imageUrl.split("/").pop()!, kind: "image" }, name, { documentPath, imageUrl });
+    return `./${renamed.slice(directory.length).replaceAll("\\", "/")}`;
   };
   function closeTab(id: string): void {
     const owner = sessions.current.get(id);
@@ -900,7 +924,7 @@ export function App() {
               })}
             />
           ) : null}
-          {tabs.map(tab => <DocumentTab settingsDisabled={busy} key={tab.id} id={tab.id} file={tab.file} restored={tab.restored} recoveryId={tab.recoveryId} active={tab.id === activeId} report={reportSession} onAssetChange={onAssetChange} />)}
+          {tabs.map(tab => <DocumentTab settingsDisabled={busy} key={tab.id} id={tab.id} file={tab.file} restored={tab.restored} recoveryId={tab.recoveryId} active={tab.id === activeId} report={reportSession} onAssetChange={onAssetChange} renameImage={renameImage} />)}
         </main>
       </div>
       {panelOpen ? (
@@ -980,6 +1004,12 @@ export function App() {
         returnFocus={newFileButton}
         onClose={() => { if (!switching) { setNewDialog(false); folderNewReady.current = false; } }}
       />
+      <Dialog open={figureRenamePending}>
+        <DialogContent showCloseButton={false} finalFocus={false}>
+          <DialogTitle>{i18n.t("Rename file")}</DialogTitle>
+          <DialogDescription>{i18n.t("Wait for the current file operation to finish.")}</DialogDescription>
+        </DialogContent>
+      </Dialog>
       <UnsavedChangesDialog
         open={continuation !== null}
         pending={continuationPending}

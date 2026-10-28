@@ -338,7 +338,7 @@ test("pasting an image writes an asset; Open folder lists the folder and New cre
     assert.equal(readdirSync(path.join(folder, "assets")).filter((name) => name.endsWith(".png")).length, 1);
     await page.keyboard.press("Control+S");
     await saved(page);
-    assert.match(readFileSync(file, "utf8"), /\.\/assets\/image-[^)]+\.png/);
+    assert.match(readFileSync(file, "utf8"), /\.\/assets\/paste\.png/);
 
     await openFolderPicker(page);
     await page.getByTestId("folder-path").fill(folder);

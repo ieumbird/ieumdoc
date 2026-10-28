@@ -7,6 +7,7 @@ import { accessPath, FileAccessError, inside, LOCAL_FILE_ACCESS, RootAccess, typ
 import { loadDocumentFile, MEDIA_TYPES } from "./document-api.ts";
 import { resolveMediaPath } from "./document-path.ts";
 import { readModel } from "./document-replay.ts";
+import { figureMediaPath } from "../shared/figure-media-path.ts";
 
 export class ReferencedImageError extends Error {
   constructor(readonly references: string[]) { super(`Save these documents before renaming the image: ${references.join(", ")}`); }
@@ -48,7 +49,7 @@ export async function deleteFile(request: FileOperationRequest, access: FileAcce
   return { path: file };
 }
 
-function imageReferences(root: string, file: string, destination: string, openDocuments: RenameFileRequest["openDocuments"], access: FileAccess) {
+function imageReferences(root: string, file: string, destination: string, openDocuments: RenameFileRequest["openDocuments"], access: FileAccess, figureDocument?: RenameFileRequest["figureDocument"]) {
   const documents: { loaded: ReturnType<typeof loadDocumentFile>; sources: Set<string> }[] = [];
   const references = new Set<string>(), skipped: string[] = [];
   const image = fs.statSync(file);
@@ -99,21 +100,39 @@ function imageReferences(root: string, file: string, destination: string, openDo
     preflightFileCommit(loaded.path, markdown, loaded.revision);
     return { path: loaded.path, source: loaded.source, revision: loaded.revision, markdown };
   });
-  return { changes, skipped };
+  const replacements = figureDocument ? [...new Set([...inspect(figureDocument.path, readModel(figureDocument.source).document),
+    ...inspect(figureDocument.path, loadDocumentFile(figureDocument.path, access).document)])]
+    .map(from => ({ from, to: `./${path.relative(path.dirname(figureDocument.path), destination).split(path.sep).join("/")}` })) : [];
+  return { changes, skipped, replacements };
 }
 
 export function renameFile(request: RenameFileRequest, access: FileAccess = LOCAL_FILE_ACCESS): FileOperationResponse {
+  const current = request.figureDocument;
+  if (current) {
+    if (typeof current.path !== "string" || typeof current.revision !== "string" || typeof current.source !== "string" || typeof current.imageUrl !== "string") throw new Error("Invalid Figure document snapshot.");
+    assertUnicode(current.path); assertUnicode(current.imageUrl);
+    const loaded = loadDocumentFile(current.path, access);
+    if (loaded.revision !== current.revision) throw new FileChangedError(current.path);
+    // The shared media resolver decides eligibility, including real file and folder boundaries.
+    const relative = figureMediaPath(current.imageUrl);
+    if (!relative) throw new Error("Choose a document-relative image file.");
+    const file = resolveMediaPath(relative, loaded.path, access);
+    request = { ...request, path: file, figureDocument: { ...current, path: loaded.path } };
+  }
   const { root, file, owner } = scope(request, access);
+  if (current && !inside(root, request.figureDocument!.path)) throw new FileAccessError();
   if (typeof request.name !== "string" || !validFileStem(request.name)) throw new Error("Enter a valid file name without an extension or directory path.");
   const extension = path.extname(file);
   const leaf = request.name + extension;
   if (Buffer.byteLength(leaf, "utf8") > 255) throw new Error("The file name is too long.");
   const destination = path.join(path.dirname(file), leaf);
+  if (current) resolveMediaPath(`./${path.relative(path.dirname(request.figureDocument!.path), destination).split(path.sep).map(encodeURIComponent).join("/")}`, request.figureDocument!.path, access);
   if (destination === file) return { path: file };
   // Do not turn a no-extension or hidden entry into a different kind of tree item.
   if (path.extname(leaf) !== extension || leaf.startsWith(".")) throw new Error("The file extension must stay unchanged.");
   if (request.openDocuments !== undefined && !Array.isArray(request.openDocuments)) throw new Error("Invalid open document snapshots.");
-  const plan = MEDIA_TYPES[extension.toLowerCase()] ? imageReferences(root, file, destination, request.openDocuments, access) : { changes: [], skipped: [] };
+  if (current && !MEDIA_TYPES[extension.toLowerCase()]) throw new Error("Choose a local image file.");
+  const plan = MEDIA_TYPES[extension.toLowerCase()] ? imageReferences(root, file, destination, request.openDocuments, access, request.figureDocument) : { changes: [], skipped: [], replacements: [] };
   // Hard-link publication is exclusive on Windows and POSIX, unlike rename which can overwrite.
   // A failed publication leaves the original intact. Unsupported filesystems report the error.
   assertOwner(request, owner, access);
@@ -175,5 +194,7 @@ export function renameFile(request: RenameFileRequest, access: FileAccess = LOCA
       : "Image publication and committed document changes rolled back; external changes preserved."}${cleanupFailures.length
       ? ` Cleanup errors after verified content restoration: ${cleanupFailures.join("; ")}` : ""}`, remaining, plan.skipped);
   }
-  return { path: destination, updatedDocuments: plan.changes.map(change => change.path), skippedDocuments: plan.skipped };
+  const currentChange = current && plan.changes.find(change => change.path === request.figureDocument!.path);
+  return { path: destination, updatedDocuments: plan.changes.map(change => change.path), skippedDocuments: plan.skipped,
+    ...(current ? { figureDocument: { revision: currentChange ? textRevision(currentChange.markdown) : current.revision, replacements: plan.replacements } } : {}) };
 }
