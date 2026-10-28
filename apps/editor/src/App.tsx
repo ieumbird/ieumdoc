@@ -28,6 +28,7 @@ import { Sidebar } from "./shell/Sidebar.tsx";
 import { folderChain, knownFolders, useFolderTrees, type FolderTreeState } from "./shell/folder-tree.ts";
 import { childPath, documentLocation, splitDocumentPath, unquotePath } from "./shell/document-path.ts";
 import { TopBar } from "./shell/TopBar.tsx";
+import appIcon from "../../desktop/assets/icon.svg";
 import { CommandCenter } from "./shell/CommandCenter.tsx";
 import { KeyboardShortcutsDialog } from "./shell/KeyboardShortcutsDialog.tsx";
 import type { CommandCenterItem } from "./shell/command-center.ts";
@@ -85,6 +86,7 @@ export function App() {
   const fileActionsToggle = useRef<HTMLButtonElement>(null);
   const shell = useRef<HTMLDivElement>(null);
   const header = useRef<HTMLDivElement>(null);
+  const titlebar = useRef<HTMLDivElement>(null);
   const [documentWidth, setDocumentWidth] = useState<DocumentWidth>(readDocumentWidth);
   const [folderDialog, setFolderDialog] = useState(false);
   const [newAfterFolder, setNewAfterFolder] = useState(false);
@@ -433,9 +435,14 @@ export function App() {
   // TopBar wraps or a message appears; it never covers Save, File actions or the Outline toggle.
   useEffect(() => {
     const element = header.current;
-    if (!element) return;
-    const observer = new ResizeObserver(() => shell.current?.style.setProperty("--app-header-height", `${element.offsetHeight}px`));
+    const title = titlebar.current;
+    if (!element || !title) return;
+    const observer = new ResizeObserver(() => {
+      shell.current?.style.setProperty("--app-titlebar-height", `${title.offsetHeight}px`);
+      shell.current?.style.setProperty("--app-header-height", `${title.offsetHeight + element.offsetHeight}px`);
+    });
     observer.observe(element);
+    observer.observe(title);
     return () => observer.disconnect();
   }, []);
 
@@ -824,31 +831,37 @@ export function App() {
           void refreshRecovery();
         }}
       />
+      <div className="app-titlebar" ref={titlebar}>
+        <div className="app-brand">
+          <img src={appIcon} alt="IeumDoc" />
+          {sidebarOpen ? <span aria-hidden="true">IEUMDOC</span> : null}
+        </div>
+        <div className="top-bar-container">
+          <TopBar
+            onOpenCommandCenter={() => openCommandCenter()}
+            documentPath={openedPath}
+            wide={documentWidth === "wide"}
+            onToggleWide={toggleDocumentWidth}
+            location={documentLocation(openedPath, folders.rootOf(openedPath))}
+            status={assetPending ? "adding-image" : status}
+            unsaved={documentDirty || draftActive}
+            view={view}
+            viewDisabled={!document || busy}
+            onViewChange={(next) => (next === "source" ? void showSource() : setView("visual"))}
+            saveDisabled={!document || busy}
+            onSave={() => void save()}
+            onReload={() => void reload()}
+            reloadDisabled={!document || busy}
+            onCopyPath={() => void copyPath()}
+            fileActionsRef={fileActionsToggle}
+            outline={panelOpen}
+            onToggleOutline={() => choosePanelOpen(!panelOpen)}
+            outlineToggleRef={outlineToggle}
+          />
+        </div>
+      </div>
       <div className="app-main">
         <div className="app-header" ref={header}>
-          <div className="top-bar-container">
-            <TopBar
-              onOpenCommandCenter={() => openCommandCenter()}
-              documentPath={openedPath}
-              wide={documentWidth === "wide"}
-              onToggleWide={toggleDocumentWidth}
-              location={documentLocation(openedPath, folders.rootOf(openedPath))}
-              status={assetPending ? "adding-image" : status}
-              unsaved={documentDirty || draftActive}
-              view={view}
-              viewDisabled={!document || busy}
-              onViewChange={(next) => (next === "source" ? void showSource() : setView("visual"))}
-              saveDisabled={!document || busy}
-              onSave={() => void save()}
-              onReload={() => void reload()}
-              reloadDisabled={!document || busy}
-              onCopyPath={() => void copyPath()}
-              fileActionsRef={fileActionsToggle}
-              outline={panelOpen}
-              onToggleOutline={() => choosePanelOpen(!panelOpen)}
-              outlineToggleRef={outlineToggle}
-            />
-          </div>
           {tabs.length > 0 ? <DocumentTabs tabs={tabs.map(tab => ({ ...tab,
             dirty: Boolean(sessions.current.get(tab.id)?.documentDirty || sessions.current.get(tab.id)?.draftActive),
           }))} active={activeId} disabled={busy || Boolean(continuation)} onActivate={activateTab} onClose={closeTab} /> : null}

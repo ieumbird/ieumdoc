@@ -2,7 +2,8 @@
 
 - Status: Implemented
 - Last verified: 2026-10-28 (#637: block Equation editing moves into the document; inline math retains its popover).
-- Shell verification: 2026-10-27 (#582 / #605: Editor 315 tests, Desktop 48 tests, typecheck/build and targeted persistent-Chrome regressions; [contract and captures](#sidebar-and-native-title-bar-582--605)).
+- Brand title-strip update: 2026-10-28 (#647 owner-approved composition; targeted verification recorded in the PR).
+- Previous shell verification: 2026-10-27 (#582 / #605: Editor 315 tests, Desktop 48 tests, typecheck/build and targeted persistent-Chrome regressions; [contract and captures](#sidebar-and-native-title-bar-582--605)).
 - Image rename verification: 2026-10-27 (#504: targeted file-actions browser flow; [1440px/640px save-first guidance comparison](#image-rename-guidance-504)).
 - File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
 - Property Apply verification: 2026-10-27 (#576: shared Ctrl/Cmd+Enter submission, validation/busy guards, IME/modifier exclusions and prose hard-break isolation; Editor tests and targeted Windows Chrome browser regressions, with Apple platform emulation rather than native macOS).
@@ -360,27 +361,40 @@ with the full path in `title`. Existing section/disclosure/tree/treeitem semanti
 and #425 collapse memory remain unchanged. Tab order follows the visual order from disclosure
 through the two actions to the retained tree stop.
 
-The shared shell header is 40px at sufficient width. Desktop uses Electron's hidden title
-bar with native Windows caption buttons on the right, while tabs remain below TopBar.
-CSS Window Controls Overlay geometry reserves the native button area in the docked Outline
-header, or in TopBar when Outline is closed/overlaid. Ordinary browser tabs reserve zero
-caption width. Narrow desktop windows retain the existing command/status/action wrapping;
-640px must keep every control reachable and clear of native buttons. Header empty space
-drags the native window; controls use no-drag. Shared UI portal popups, positioners and
-dialog backdrops also use no-drag, including Command Center and Recovery. Dropdown/context
-menus retain Base UI's outside interaction without an added full-screen pointer-catching backdrop;
-dropdown menus are non-modal, so one click can switch menu triggers and successive right-clicks can target different rows.
-While any shared menu is open, the shell headers themselves use no-drag for outside dismissal;
-closing the menu restores header dragging. No pointer events are synthesized or replayed.
-Full-screen Settings excludes its body from dragging and keeps only its 40px header draggable;
-its right inset retains native caption width even below 768px. Sidebar, TopBar, Outline header and Settings
-header share the surface-subtle role, including the native button background; text supplies
-the button symbol role. The existing #598 theme path updates both resolved colors.
+The first row is one full-width title strip (#647): the existing Desktop SVG icon and
+**IEUMDOC** at the left, existing TopBar controls in the remaining width, and native caption
+buttons at the right in Desktop. HTTP Host uses the same arrangement with zero caption
+reservation and no native window dragging. The brand follows the Files width; collapsing
+Files retains only the icon. The existing Expand sidebar button stays in the 48px rail on
+the second row, directly below the icon: this preserves its Files-navigation location,
+28px target, accessible name, aria-expanded and keyboard focus return without making the
+brand an additional action. DOM tab order retains Files controls, TopBar controls, document tabs/content, then
+document navigation; the brand adds no tab stop.
+
+Files / Collapse and the Outline / Tables / Figures tab row begin directly below the title
+strip, aligned with the document tab row and its bottom boundary. The separate visible
+Outline title row is removed; the panel keeps its accessible Outline heading. Docking,
+width, overlay dismissal and list navigation are unchanged. Below the docking width the
+opened panel continues to overlay below the entire measured sticky header, leaving the
+document tabs, messages and title-strip controls usable.
+
+The title strip is 40px at sufficient width. Its TopBar retains the existing command/status/
+action wrapping at narrow widths, including 640px. CSS Window Controls Overlay geometry
+reserves native caption width in the title strip once, independently of Outline state.
+Its single 1px bottom separator spans the full viewport, including the reservation (#635/#636).
+The second-row headers are not drag regions. Title-strip empty space and brand drag the
+native window and retain native double-click maximize; controls use no-drag. Shared UI
+portal popups, positioners and dialog backdrops also use no-drag, including Command Center
+and Recovery. Dropdown/context menus retain Base UI's outside interaction without an added
+full-screen pointer-catching backdrop. While any shared menu is open, the title strip and
+TopBar themselves use no-drag; closing it restores dragging. Full-screen Settings retains
+its own 40px drag header, caption reservation and no-drag body. Existing surface-subtle and
+native caption color synchronization remain unchanged. Native drag/double-click behavior
+requires packaged Desktop verification; browser mocks inspect geometry and CSS boundaries.
 
 The active filename sets `document.title` to `<filename> — IeumDoc`, or `IeumDoc` without
 a document, including tab switches, renames and last-tab closure. Outline retains #590's
-toggle-only close and Escape/focus behavior; its header remains available for a future title
-control, with no new navigation mode here. These changes are interface-only: no Core semantic
+toggle-only close and Escape/focus behavior; its second-row tabs name the navigation choices, with no new navigation mode here. These changes are interface-only: no Core semantic
 operation or CLI parity command is needed.
 
 Local verification (2026-10-27): Editor/Desktop tests, workspace typecheck and Editor build;
@@ -422,6 +436,34 @@ folder-icon/three-button layout; no new functionality is introduced.
 Native drag, double-click
 maximize, maximized spacing, rendered caption colors and taskbar/Alt+Tab presentation need
 manual Windows confirmation; browser bridge/geometry checks do not claim native proof.
+
+### Brand title-strip verification and captures (#647)
+
+Scope: existing shell composition only; no command/menu, document semantic operation or CLI
+surface. Reuse `apps/desktop/assets/icon.svg` through a Vite asset import, without duplicating
+or redesigning it. Completion requires aligned second rows, icon-only collapsed branding,
+preserved keyboard/focus/Files actions and panel behavior, 640px containment, caption
+reservation and portal/menu drag boundaries. Related existing browser scenarios carry the
+geometry, interaction and accessibility checks; packaged Desktop runs in required CI.
+
+Manual Before/After captures use base `5ecc9a985540a16b298082e7693f66ca67800f17`
+and this change in the same worktree, Vite origin `http://127.0.0.1:5277`, installed Windows
+Chrome and the checkout-owned persistent profile. Both use `tmp/quiet-document/quiet-document.md`,
+English UI with Korean/English document content, bundled Pretendard, 900px height, DPR 1,
+zoom 1, scroll 0, blurred focus and pointer outside the document. All fonts/images are loaded.
+A temporary capture-only driver ran through `pnpm browser:test desktop-updates --screenshots`;
+it is not an automated assertion or a maintained scenario. The full matrix, measurements,
+logs and traces remain in ignored `tmp/titlebar-647`; only representative PNG pairs are kept.
+At 640px an opened Outline retains its overlay placement below the whole sticky header;
+second-row alignment applies to the docked panel. Desktop captures simulate 138px caption
+reservation; they do not show or prove native caption-button rendering or native dragging.
+
+| State | 1440px Before / After | 640px Before / After |
+| --- | --- | --- |
+| Both open, Light | [Before](assets/brand-titlebar-647/before-1440-light-both.png) / [After](assets/brand-titlebar-647/after-1440-light-both.png) | [Before](assets/brand-titlebar-647/before-640-light-both.png) / [After](assets/brand-titlebar-647/after-640-light-both.png) |
+| Files collapsed, Dark | [Before](assets/brand-titlebar-647/before-1440-dark-left-collapsed.png) / [After](assets/brand-titlebar-647/after-1440-dark-left-collapsed.png) | [Before](assets/brand-titlebar-647/before-640-dark-left-collapsed.png) / [After](assets/brand-titlebar-647/after-640-dark-left-collapsed.png) |
+| Outline closed, Light | [Before](assets/brand-titlebar-647/before-1440-light-right-closed.png) / [After](assets/brand-titlebar-647/after-1440-light-right-closed.png) | [Before](assets/brand-titlebar-647/before-640-light-right-closed.png) / [After](assets/brand-titlebar-647/after-640-light-right-closed.png) |
+| Desktop reservation, Dark | [Before](assets/brand-titlebar-647/before-1440-dark-desktop.png) / [After](assets/brand-titlebar-647/after-1440-dark-desktop.png) | [Before](assets/brand-titlebar-647/before-640-dark-desktop.png) / [After](assets/brand-titlebar-647/after-640-dark-desktop.png) |
 
 ## Structure
 
@@ -551,9 +593,9 @@ Folder navigation changes no document meaning, so this removal adds no Core oper
 
 ## Document navigation lists (#613)
 
-The Outline panel keeps its title and 40px drag header. Immediately below it, a full-width
-row shares the document-tab height and offers Outline, Tables N and Figures N. The row
-reuses the Visual/Source Button and segmented-control tokens, outside the drag header.
+The Outline panel retains an accessible heading. Its first visible row, aligned with the document tabs (#647), is a full-width
+row that shares the document-tab height and offers Outline, Tables N and Figures N. The row
+reuses the Visual/Source Button and segmented-control tokens, outside the title-strip drag region.
 It works in both docked and overlay layouts, independently of native caption-button space.
 
 The segments are keyboard-accessible tabs linked to their panels; only the selected list

@@ -127,3 +127,21 @@ Entry placement is superseded by the [2026-10-27 explorer amendment](#amendment-
 - This is interface composition, with no new Core operation or CLI command. The current
   [shell contract](../design/editor-ux-shell-v1.md#sidebar-and-native-title-bar-582--605) defines
   focus return and the related #605 native title-bar integration.
+
+## Amendment 2026-10-28: Shared brand title strip (#647)
+
+- Status: Accepted. The owner approved the composition in [#647](https://github.com/ieumbird/ieumdoc/issues/647) (2026-10-28).
+- Refine the #582/#605 shell composition: the first row spans all columns, with the existing
+  Desktop SVG icon and IEUMDOC at the left, existing TopBar controls in the remaining width,
+  and Desktop-only native caption reservation at the right. HTTP Host shares the arrangement.
+- Files / Collapse and Outline / Tables / Figures move to the document-tab row, with aligned
+  boundaries. The separate visible Outline title row is replaced by its existing accessible
+  heading. Collapsing Files leaves the icon and the existing Expand action in the second-row
+  rail; brand is not an additional action. Preserve tree/actions, focus, panel widths/docking,
+  title-strip drag/double-click, no-drag controls/portals, open-menu exclusion and continuous
+  separator through the native reservation.
+- This supersedes only the title-bar composition described with the explorer amendment.
+  It changes interface layout, with no Core semantic operation, CLI command, Host or persistence
+  change; no new architecture decision is needed. Current geometry and focus rules are in the
+  [shell contract](../design/editor-ux-shell-v1.md#sidebar-and-native-title-bar-582--605) and
+  [Layout Rules](../design/editor-layout-rules-v1.md#alignment-and-ownership).

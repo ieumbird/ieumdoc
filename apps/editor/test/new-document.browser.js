@@ -99,7 +99,8 @@ async page => {
       const header = document.querySelector('.app-header').getBoundingClientRect();
       const column = getComputedStyle(document.querySelector('.document-column'));
       const style = getComputedStyle(paper);
-      return {height:bounds.height, minimum:innerHeight-header.height-parseFloat(column.paddingTop)-parseFloat(column.paddingBottom),
+      const titlebar = document.querySelector('.app-titlebar').getBoundingClientRect();
+      return {height:bounds.height, minimum:innerHeight-titlebar.height-header.height-parseFloat(column.paddingTop)-parseFloat(column.paddingBottom),
         paper:style.backgroundColor, canvas:getComputedStyle(document.documentElement).backgroundColor,
         frame:style.boxShadow, overflow:document.documentElement.scrollWidth>innerWidth};
     });

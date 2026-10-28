@@ -145,20 +145,20 @@ async (page, { openDocument, expect }) => {
           const segment = nav.querySelector('.view-toggle');
           const box = panel.getBoundingClientRect();
           return { headerHeight: header.getBoundingClientRect().height, navHeight: nav.getBoundingClientRect().height,
-            adjacent: Math.abs(header.getBoundingClientRect().bottom - nav.getBoundingClientRect().top) < 1,
+            adjacent: Math.abs(panel.getBoundingClientRect().top + parseFloat(getComputedStyle(panel).borderTopWidth) - nav.getBoundingClientRect().top) < 0.5,
             headerDrag: getComputedStyle(header).getPropertyValue('app-region'), segmentDrag: getComputedStyle(segment).getPropertyValue('app-region'),
             fits: box.left >= 0 && box.right <= innerWidth && panel.scrollWidth <= panel.clientWidth,
             buttonsFit: [...nav.querySelectorAll('button')].every(button => button.scrollWidth <= button.clientWidth),
           };
         });
-        expect(geometry).toMatchObject({ headerHeight: 40, navHeight: 32, adjacent: true, headerDrag: 'drag', segmentDrag: 'none', fits: true, buttonsFit: true });
+        expect(geometry).toMatchObject({ headerHeight: 33, navHeight: 33, adjacent: true, headerDrag: 'none', segmentDrag: 'none', fits: true, buttonsFit: true });
       }
     }
   }
-  // English segments still fit with caption-button space reserved only on the header.
+  // English segments retain the full panel width; the title strip owns caption reservation.
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.evaluate(() => document.documentElement.style.setProperty('--window-controls-width', '138px'));
-  await expect.poll(() => panel.locator('.document-panel-header').evaluate(header => getComputedStyle(header).paddingRight)).toBe('138px');
+  await expect.poll(() => panel.locator('.document-panel-header').evaluate(header => getComputedStyle(header).paddingRight)).toBe('12px');
   expect(await panel.locator('.document-panel-navigation').evaluate(nav => nav.scrollWidth <= nav.clientWidth)).toBe(true);
   await page.evaluate(() => document.documentElement.style.removeProperty('--window-controls-width'));
 
