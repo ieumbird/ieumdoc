@@ -57,7 +57,7 @@ export default function SourceCompare({ load, recovery = false }: { load(signal:
     {error ? <p role="alert">{i18n.t("Comparison unavailable: {{reason}}", { reason: error })}</p> : null}
     {error ? <Button size="sm" variant="secondary" onClick={() => setAttempt(attempt + 1)}>{i18n.t("Retry comparison")}</Button> : null}
     {result?.changed ? <p role="status">{i18n.t(recovery ? "The file changed after this record. Comparing with the current disk file." : "The file changed outside IeumDoc. Comparing with the current disk file; Save will still report a conflict.")}</p> : null}
-    {result?.missing ? <p role="status">{i18n.t(recovery ? "File missing. All recovered content is shown as added." : "File missing. All content Save would write is shown as added.")}</p> : null}
+    <MissingFileNotice result={result} diff={diff} recovery={recovery} />
     {result?.fallback ? <p role="status">{i18n.t("Plaintext comparison instead of Save preview: {{reason}}", { reason: result.fallback })}</p> : null}
     {diff ? <>
       {diff.wordsOmitted ? <p role="status">{i18n.t("Word highlighting omitted to keep comparison responsive.")}</p> : null}
@@ -83,4 +83,14 @@ export default function SourceCompare({ load, recovery = false }: { load(signal:
       </div>
     </> : null}
   </section>;
+}
+
+/** A missing file is independent of whether the comparison could finish. */
+export function MissingFileNotice({ result, diff, recovery = false }: {
+  result?: Comparison; diff?: RecoveryDiff; recovery?: boolean;
+}) {
+  if (!result?.missing) return null;
+  return <p role="status">{i18n.t(diff && !result.failure
+    ? recovery ? "File missing. All recovered content is shown as added." : "File missing. All content Save would write is shown as added."
+    : "File missing.")}</p>;
 }

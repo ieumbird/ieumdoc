@@ -657,7 +657,9 @@ the user to narrow the changes rather than pointing at a nonexistent recovery-co
 
 The dialog compares the captured applied state with disk at request time. An external revision
 mismatch is explicitly reported; it never acknowledges the new disk version, and Save still
-conflicts. An absent file is reported and the preview is shown as additions. Preview refusal
+conflicts. An absent file is always reported; the notice says all content is shown as additions only
+after a successful diff. Pending calculation or preview/comparison failure retains only the missing-file
+fact alongside any failure reason. Preview refusal
 shows the original reason and existing Save location/guidance via `SaveDisplayError`; structured
 Host failure metadata is preserved by the existing preview response. No empty successful diff
 or alternate serialization is shown on refusal. The read-only dialog contains navigation,
