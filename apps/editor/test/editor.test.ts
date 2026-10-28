@@ -45,7 +45,7 @@ import { commitDocumentSave, createDocumentFile, createFolder, documentRevision,
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
 import { SaveContentError } from "../shared/save-error.ts";
-import { SaveDisplayError, saveErrorMessage } from "../src/save-error.ts";
+import { SaveDisplayError, saveErrorBadge, saveErrorMessage } from "../src/save-error.ts";
 import { RootAccess } from "../server/file-access.ts";
 import { readFilePreview } from "../server/document-api.ts";
 
@@ -2432,4 +2432,57 @@ test("Recovery preview uses Save bytes without changing disk, acknowledgement, o
     await new Promise<void>(resolve => server.close(() => resolve()));
     rmSync(dir, {recursive:true,force:true});
   }
+});
+
+
+test("save diagnostic guidance and badges use codes in both languages and retain original details", async () => {
+  const { i18n } = await import("../src/i18n.ts");
+  const { DocumentDiagnosticError } = await import("@ieumdoc/core");
+  const cases = {
+    "native-marker": ["Open an IeumDoc", "이음독 문서를"],
+    "native-metadata": ["Check document frontmatter", "설정을 확인"],
+    "native-content": ["Remove or replace", "지우거나 바꾸세요"],
+    "invalid-structure": ["report technical details", "오류를 알려"],
+    "invalid-operation": ["review technical details", "세부 정보를 확인"],
+    "unsupported-content": ["Remove or replace", "지우거나 바꾸세요"],
+    "empty-content": ["Enter text or delete", "입력하거나 블록을 삭제"],
+    "round-trip-mismatch": ["Simplify or replace", "단순하게 바꾸거나"],
+    "serialization-failed": ["report technical details", "오류를 알려"],
+    "invalid-unicode": ["re-enter", "다시 입력"],
+    "invalid-label": ["Change it", "라벨을 바꾸세요"],
+    "label-conflict": ["different label", "다른 라벨"],
+    "invalid-reference": ["plain text", "일반 텍스트"],
+    "invalid-footnote": ["one non-empty definition", "정의를 하나씩"],
+    "line-break": ["Remove the line breaks", "줄바꿈을 지우세요"],
+    "table-cell-whitespace": ["Trim this cell", "앞뒤 공백을 지우세요"],
+    "table-shape": ["match cell counts", "셀 수와 열 정렬"],
+    "invalid-figure": ["Check image", "이미지·대체 텍스트"],
+  } as const;
+  try {
+    for (const [code, expected] of Object.entries(cases)) {
+      const cause = new DocumentDiagnosticError(code as import("@ieumdoc/core").WriteIssueCode, "Original diagnostic.");
+      const failure = new SaveContentError("Original diagnostic.", undefined, { cause, block: { index: 0, type: "table" } });
+      const display = new SaveDisplayError([failure]);
+      assert.equal(failure.code, code);
+      assert.equal(display.locations[0].code, code);
+      for (const [index, language] of ["en", "ko"].entries()) {
+        await i18n.changeLanguage(language);
+        assert.ok(display.summary.includes(expected[index]), display.summary);
+        assert.match(saveErrorBadge(failure.code), /→/);
+        assert.ok(saveErrorBadge(failure.code).startsWith(language === "ko" ? "저장 불가: " : "Cannot save: "));
+        assert.doesNotMatch(display.summary, /Original diagnostic/);
+        assert.match(display.details, /Original diagnostic/);
+      }
+    }
+    const unknown = new SaveDisplayError([new SaveContentError("empty heading cannot be saved", undefined, { code: "future-code" as never })]);
+    assert.match(unknown.summary, /기술적 세부 정보/);
+    assert.equal(saveErrorBadge("future-code"), "저장 불가");
+    assert.equal(saveErrorBadge(), "저장 불가");
+    const fileFailure = new SaveDisplayError([new SaveContentError("File error.", undefined, {
+      phase: "file", code: "empty-content", block: {index:0, type:"table"},
+    })]);
+    assert.match(fileFailure.summary, /파일 경로와 쓰기 권한/);
+    assert.equal(fileFailure.locations[0].code, undefined);
+
+  } finally { await i18n.changeLanguage("en"); }
 });

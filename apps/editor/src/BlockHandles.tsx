@@ -8,7 +8,7 @@ import { endnoteLabel } from "./endnotes.ts";
 import { editorTitleIndex, TITLE_FIXED } from "./document-title.ts";
 import { Button } from "@/components/ui/button.tsx";
 import { GripVertical, Plus } from "lucide-react";
-import type { SaveErrorLocation } from "./save-error.ts";
+import { saveErrorBadge, type SaveErrorLocation } from "./save-error.ts";
 
 type BlockHandlesProps = {
   editor: Editor;
@@ -276,7 +276,7 @@ export const BlockHandles = memo(function BlockHandles({ editor, saveLocations, 
         <div className="block-save-error" data-testid="block-save-error" data-block-index={location.index}
           style={{top: `calc(${block.top}px - var(--space-block-hover-block))`,
             height: `calc(${block.height}px + 2 * var(--space-block-hover-block))`}}>
-          <span className="block-save-error-badge">{i18n.t("Cannot save")}</span>
+          <span className="block-save-error-badge">{saveErrorBadge(location.code, location.type)}</span>
         </div>
         {block.cell ? <div className="cell-save-error" data-testid="cell-save-error" aria-label={i18n.t("Cannot save")}
           style={block.cell} /> : null}

@@ -3,7 +3,7 @@ import { DocumentWriteError } from "../write-error.ts";
 /** Check every string field, including labels, URLs, options and metadata, before writing. */
 export function assertUnicode(value: unknown, path: number[] = []): void {
   if (typeof value === "string") {
-    if (/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(value)) throw new DocumentWriteError("Invalid Unicode: unpaired surrogate", {
+    if (/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(value)) throw new DocumentWriteError("Invalid Unicode: unpaired surrogate", { code: "invalid-unicode",
       action: "Replace the unpaired surrogate with a valid Unicode character before saving.",
       ...(path.length ? { path } : {}),
     });

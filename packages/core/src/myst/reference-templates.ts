@@ -1,3 +1,4 @@
+import { DocumentDiagnosticError } from "../write-error.ts";
 import { isMap, isScalar } from "yaml";
 import { NUMBERED_KINDS, referenceTemplatesError, type ReferenceTemplates, type ReferenceTemplateUpdate } from "../numbering.ts";
 import { FRONT_MATTER_FIELD } from "./parse.ts";
@@ -27,7 +28,7 @@ export function getReferenceTemplates(document: MystDocument): ReferenceTemplate
 /** Omitted keys stay unchanged; null removes a template and restores its default. */
 export function updateReferenceTemplates(document: MystDocument, templates: ReferenceTemplateUpdate): MystDocument {
   const error = referenceTemplatesError(templates, true);
-  if (error) throw new Error(error);
+  if (error) throw new DocumentDiagnosticError("native-metadata", error);
   const next = cloneDocument(document);
   const { node, yaml } = metadata(next);
   let changed = false;
