@@ -74,5 +74,62 @@ async (page, { openPath, expect }) => {
     expect(print.last).toBeLessThanOrEqual(print.pageHeight);
     expect(print.top).toBe(0);
   } finally { await page.emulateMedia({media:'screen'}); }
-  return {keyboard:true, wheel:true, dragAutoScroll:true, source:true, print:true};
+  // The #694 follow-up requires the native scrollbar below chrome, while the title-strip
+  // boundary reaches the window edge. Capture these same measured states for manual review.
+  await openPath(page, [root, 'tmp', 'quiet-document', 'quiet-document.md'].join(sep));
+  const captures = [], geometry = [];
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate(theme => localStorage.setItem('ieumdoc.theme', theme), theme);
+    await page.reload();
+    await expect(page.getByTestId('status')).toHaveAttribute('data-operation', 'ready');
+    for (const width of [1440, 640]) {
+      await page.setViewportSize({width, height:900});
+      if (width === 640) await page.getByTestId('document-panel').waitFor({state:'detached'});
+      for (const sidebar of ['open', 'closed']) {
+        const expand = page.getByRole('button', {name:'Expand sidebar', exact:true});
+        if ((sidebar === 'open') === await expand.isVisible()) {
+          await page.getByRole('button', {name:sidebar === 'open' ? 'Expand sidebar' : 'Collapse sidebar', exact:true}).click();
+        }
+        for (const panel of ['closed', 'open']) {
+          const toggle = page.getByRole('button', {name:'Outline', exact:true});
+          if ((await toggle.getAttribute('aria-pressed') === 'true') !== (panel === 'open')) await toggle.click();
+          await page.evaluate(async () => {
+            await document.fonts.ready;
+            await Promise.all([...document.querySelectorAll('.document img[src]')].map(img => img.decode()));
+            document.activeElement?.blur();
+          });
+          await page.mouse.move(0, 0);
+          for (const position of ['top', 'scrolled']) {
+            await viewport.evaluate(async (node, position) => {
+              node.scrollTop = position === 'top' ? 0 : 420;
+              await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            }, position);
+            const measured = await viewport.evaluate(node => {
+              const box = node.getBoundingClientRect();
+              const header = document.querySelector('.app-header').getBoundingClientRect();
+              const title = document.querySelector('.app-titlebar');
+              const titleBox = title.getBoundingClientRect();
+              return {top:box.top, bottom:box.bottom, right:box.right, headerBottom:header.bottom,
+                titleRight:titleBox.right, titleBorder:parseFloat(getComputedStyle(title).borderBottomWidth),
+                rootScroll:window.scrollY, rootHeight:document.documentElement.scrollHeight,
+                width:innerWidth, height:innerHeight, scrollbar:node.offsetWidth-node.clientWidth};
+            });
+            expect(measured.top, 'Scrollbar must start below tabs/messages').toBe(measured.headerBottom);
+            expect(measured.bottom).toBe(measured.height);
+            expect(measured.right).toBe(measured.width);
+            expect(measured.titleRight, 'Title-strip boundary must reach the window controls edge').toBe(measured.width);
+            expect(measured.titleBorder).toBeGreaterThan(0);
+            expect(measured.rootScroll).toBe(0);
+            expect(measured.rootHeight).toBeLessThanOrEqual(measured.height);
+            const name = `after-${theme}-${width}-${sidebar}-${panel}-${position}`;
+            const path = `tmp/document-scroll-capture/${name}.png`;
+            await page.screenshot({path}); captures.push(path);
+            geometry.push({name, ...measured});
+          }
+        }
+      }
+    }
+  }
+  return {keyboard:true, wheel:true, dragAutoScroll:true, source:true, print:true, captures, geometry,
+    userAgent:await page.evaluate(() => navigator.userAgent)};
 }

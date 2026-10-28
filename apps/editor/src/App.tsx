@@ -484,7 +484,7 @@ export function App() {
     return () => observer.disconnect();
   }, []);
 
-  // Reserve exactly the native scrollbar's width for the shell, as window scrolling did.
+  // Reserve the native scrollbar's width below the full-width title strip.
   // Content observation catches overflow changes without adding any scroll listener.
   useLayoutEffect(() => {
     const viewport = documentScrollContainer();

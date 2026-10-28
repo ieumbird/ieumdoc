@@ -28,10 +28,10 @@ button {
   --shell-sidebar: var(--layout-sidebar-width);
   --shell-panel: var(--layout-document-panel-width);
   display: grid;
-  grid-template-columns: var(--shell-sidebar) minmax(0, 1fr) var(--shell-panel);
+  grid-template-columns: var(--shell-sidebar) minmax(0, 1fr) calc(var(--shell-panel) + var(--document-scrollbar-width, 0px));
   grid-template-rows: auto 1fr;
   height: 100dvh;
-  width: calc(100% - var(--document-scrollbar-width, 0px));
+  width: 100%;
 }
 
 .app-shell--collapsed {
@@ -135,7 +135,7 @@ button {
   font-size: var(--font-size-sm);
   line-height: var(--line-height-label);
   color: var(--id-color-text-muted);
-  scroll-margin-top: calc(var(--app-header-height, var(--layout-header-row)) + var(--space-4));
+  scroll-margin-top: var(--space-4);
 }
 .document-settings .document-settings-summary {
   display: flex;
@@ -386,6 +386,7 @@ button {
 /* The document panel mirrors the sidebar on the right: sticky and scrolling by itself. */
 .document-panel {
   z-index: 1;
+  margin-right: var(--document-scrollbar-width, 0px);
   grid-column: 3;
   grid-row: 2;
   position: sticky;
@@ -404,6 +405,7 @@ button {
  * starts below the sticky header (measured by the App), so Save, File actions and the Outline toggle
  * stay visible and usable. */
 .document-panel--overlay {
+  margin-right: 0;
   position: fixed;
   top: var(--app-header-height, var(--layout-header-row));
   right: var(--document-scrollbar-width, 0px);
@@ -526,7 +528,7 @@ button {
 /* A navigation target clears the sticky header, including React's Figure wrapper. */
 .document-editor > *,
 .document-editor :is(td, th) {
-  scroll-margin-top: calc(var(--app-header-height, var(--layout-header-row)) + var(--space-8));
+  scroll-margin-top: var(--space-8);
 }
 
 /* The document column fills the remaining height, so the area below the document is clickable. */
@@ -539,15 +541,15 @@ button {
   min-height: 0;
 }
 
-/* Each mounted tab keeps its native scroll position, including while hidden. The viewport
- * spans the window so its native scrollbar stays at the right edge; only its content is
- * inset between the independent Sidebar/Document panel. Header space scrolls under chrome
- * just as it did with window scrolling. */
+/* Each mounted tab keeps its native scroll position, including while hidden. Its viewport
+ * starts below tabs/messages; the native scrollbar stays at the window's right edge only
+ * below that line. Insets keep content between the independent Sidebar/Document panel. */
 .document-scroll {
   position: fixed;
   inset: 0;
+  top: var(--app-header-height, var(--layout-header-row));
   overflow-y: auto;
-  padding: var(--app-header-height, var(--layout-header-row)) var(--shell-panel) 0 var(--shell-sidebar);
+  padding: 0 var(--shell-panel) 0 var(--shell-sidebar);
 }
 .document-scroll[hidden] { display: none; }
 .document-stage { flex: 1; min-height: 0; }

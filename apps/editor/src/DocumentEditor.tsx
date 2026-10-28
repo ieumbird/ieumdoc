@@ -522,7 +522,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           return element instanceof HTMLElement ? element.getBoundingClientRect().top : Number.POSITIVE_INFINITY;
         });
         const pinned = revealed.current && items.findIndex(item => item.index === revealed.current!.index);
-        const current = pinned !== null && pinned >= 0 ? pinned : currentOutlineItem(tops, bounds.top + viewport.clientHeight * 0.3,
+        // Retain the existing physical reading line while excluding chrome from scrolling.
+        const current = pinned !== null && pinned >= 0 ? pinned : currentOutlineItem(tops, bounds.bottom * 0.3,
           viewport.scrollTop > 0 && viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 1 ? bounds.bottom : undefined);
         return { items, current };
       };

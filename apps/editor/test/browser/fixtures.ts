@@ -133,7 +133,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       // Keep the existing quiet-document-long.md -> quiet-document.md keyboard neighbors.
       { name: "korean-wrap.md", create: () => fixture("quiet-document-wrap.md").create() },
       { name: "아주-긴-파일명-very-long-technical-document-name-for-visual-review.md", create: () => fixture("quiet-document-long.md").create() }],
-    scenarios: ["layout-rules", "quiet-document", "visual-states"],
+    scenarios: ["layout-rules", "quiet-document", "visual-states", "document-scroll"],
   },
   "reference-save-reload": { files: technical, scenarios: ["reference-save-reload", "ui-language"] },
   "bibliography": { files: [

@@ -42,9 +42,13 @@ and Source share the tab's viewport. No scroll position is persisted across appl
 `documentScrollContainer` is the single lookup for the owning viewport; shell actions can use
 the active surface, including the document start surface. There are no editor groups or new commands.
 
-The viewport spans the window to keep its native scrollbar at the right edge. Its content keeps
+The viewport spans the window width **below the measured tabs/messages header** to keep its
+native scrollbar at the right edge only in the document area (#694 follow-up). The root does
+not scroll; the title strip and its bottom boundary extend across the whole window, including
+the native window-controls reservation. Its content keeps
 the existing Sidebar/Document panel insets, centered column, paper dimensions and measured
-header clearance. The shell reserves the viewport's actual native scrollbar width, observed on
+header clearance. The shell reserves the viewport's actual native scrollbar width only below
+the full-width title strip, observed on
 viewport/content resize without a scroll listener. Sidebar and Outline retain their independent
 scrolling. Only the visible Visual editor subscribes to document scrolling for Outline/Tables/Figures;
 the same reading line, reveal pin and bottom-of-document behavior are retained.
@@ -67,10 +71,15 @@ active document in normal flow. Hidden tabs remain hidden.
 ### Scroll migration verification
 
 Before is master `a1be38ce063a10bf5068d077e07b8884455967e4`; After is this phase-0 implementation.
-The persistent Chrome runner captured the same clean `tmp/quiet-document/quiet-document.md`,
+The persistent Chrome runner captured the clean Before `tmp/quiet-document/quiet-document.md`,
 English, Pretendard loaded, 900px height, at scroll top and 420px, in light/dark themes,
 1440/640px widths and all four Sidebar/Outline open/closed combinations. Full 32-pair evidence
-is in [the asset directory](assets/document-scroll-488/). Representative top pairs:
+is in [the asset directory](assets/document-scroll-488/). The final After capture is collected
+by the Linux CI geometry matrix because the five local browser runs were already used when
+the scrollbar/header completion criteria were extended. Cross-platform rasterization differs;
+the geometry assertions verify that the scrollbar begins at the header bottom, ends at the
+viewport bottom, and the title-strip border reaches the full window width at both sizes and
+all captured states, while the root remains unscrolled. Representative top pairs:
 
 | Theme / width | Sidebar open, Outline open | Sidebar closed, Outline closed |
 | --- | --- | --- |
@@ -105,7 +114,9 @@ Browser assertions migrated without changing their tolerances or retry/timeout/s
 
 The new `document-scroll` boundary scenario checks shell-focus reading keys, native Source
 PageDown, wheel/drag edge scrolling, stationary shell chrome, zero window scroll, right-edge
-viewport and unclipped full-document print flow. The existing 4-shard CI suite is the full
+viewport, scrollbar restricted below tabs/messages, full-width title-strip border, and unclipped
+full-document print flow. Its measured 32-state matrix also produces the CI captures without
+a separate capture-only tour. The existing 4-shard CI suite is the full
 regression gate. Local packaged Desktop, install/update/uninstall and Edge/profile probes are
 excluded from this task's validation scope.
 
