@@ -439,6 +439,38 @@ New/More actions stay in place. See [section behavior and evidence](editor-ux-sh
 
 Historical comparison evidence is preserved in the [visual review](editor-visual-refinement-v1-review.md#subsequent-visual-evidence).
 
+### Mermaid Figure editing (#651)
+
+Mermaid uses the Equation source field's full-width, auto-growing code surface, typography,
+focus ring and existing spacing. Draft preview follows the source, with label and shared
+Cancel/Apply below it. The caption remains directly editable beneath the diagram/form.
+At rest diagrams use the image Figure placement and caption numbering. SVG images fit the
+column; errors use the shared Notice. Preview follows the effective light/dark theme.
+
+### Mermaid comparison and verification
+
+Base `21272899aba88b192037cf86320010feab073927` (PR #653 merged) and the #651 Editor change use the same scratch document,
+`graph LR` / `  A --> B`, caption, sidebar and English UI. Windows Chrome used the checkout-owned
+persistent profile, 100% zoom / DPR 1, bundled Pretendard and fonts ready, at 1440×1000 and
+640×1000. Before shows the previous pending-content surface and image properties; After shows
+the diagram and in-document Mermaid properties. Full-page PNGs are 50–83KB each; large browser
+traces/logs stay in ignored `tmp/`. After captures come from
+`pnpm browser:test mermaid-authoring --screenshots` before regression edits the fixture.
+
+| Theme / state | 1440 before / after | 640 before / after |
+| --- | --- | --- |
+| light / display | [Before](assets/mermaid-651/before-light-1440-display.png) / [After](assets/mermaid-651/after-light-1440-display.png) | [Before](assets/mermaid-651/before-light-640-display.png) / [After](assets/mermaid-651/after-light-640-display.png) |
+| light / edit | [Before](assets/mermaid-651/before-light-1440-edit.png) / [After](assets/mermaid-651/after-light-1440-edit.png) | [Before](assets/mermaid-651/before-light-640-edit.png) / [After](assets/mermaid-651/after-light-640-edit.png) |
+| dark / display | [Before](assets/mermaid-651/before-dark-1440-display.png) / [After](assets/mermaid-651/after-dark-1440-display.png) | [Before](assets/mermaid-651/before-dark-640-display.png) / [After](assets/mermaid-651/after-dark-640-display.png) |
+| dark / edit | [Before](assets/mermaid-651/before-dark-1440-edit.png) / [After](assets/mermaid-651/after-dark-1440-edit.png) | [Before](assets/mermaid-651/before-dark-640-edit.png) / [After](assets/mermaid-651/after-dark-640-edit.png) |
+
+Editor tests, full typecheck/build/docs checks and the Mermaid, Equation, Figure, property-draft,
+block-move, layout-rules and quiet-document browser regressions passed locally. Mermaid checks
+real Save/reopen, explicit drafts through Source/tabs, Core rejection, caption/label/reference
+preservation, native drag/paste, stale render completion, light/dark changes, multiple IDs,
+syntax failure and rejected lazy import with editing/Save still available. Native OS IME,
+Edge and packaged Desktop were not run locally; required CI covers the package boundary.
+
 ### Equation editing comparison (#637)
 
 The same `math.md` scratch document, draft text, English light theme, bundled Pretendard,

@@ -25,6 +25,7 @@ import {
   Heading5,
   Heading6,
   Image,
+  Workflow,
   Info,
   List,
   ListOrdered,
@@ -54,6 +55,7 @@ const INSERT_ICONS: Record<string, LucideIcon> = {
   "code-block": Code,
   equation: Sigma,
   figure: Image,
+  diagram: Workflow,
   table: Table,
   endnote: Asterisk,
 };

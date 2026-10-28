@@ -49,7 +49,8 @@ export function toTiptapBlock(block: EditableBlock): TiptapJSON {
     case "quote": return { type: "quote", attrs, content: paragraphContent(block.content) };
     case "footnote": return { type: "footnoteDefinition", attrs: { ...attrs, label: block.label }, content: paragraphContent(block.content) };
     case "divider": return { type: "divider", attrs };
-    case "figure": return { type: "figure", attrs: { ...attrs, label: block.label, imageUrl: block.imageUrl, imageAlt: block.imageAlt }, content: paragraphContent(block.caption.content) };
+    case "figure": return { type: "figure", attrs: { ...attrs, label: block.label, imageUrl: block.imageUrl, imageAlt: block.imageAlt,
+      ...(block.contentKind === "mermaid" ? { mermaidSource: block.mermaidSource } : {}) }, content: paragraphContent(block.caption.content) };
     case "equation": return { type: "equation", attrs: { ...attrs, latex: block.latex, label: block.label } };
     case "code": return { type: "codeBlock", attrs: { ...attrs, language: block.language }, content: block.code ? [{ type: "text", text: block.code }] : [] };
     case "list": { const node = listNode(block); return { ...node, attrs: { ...node.attrs, ...attrs } }; }

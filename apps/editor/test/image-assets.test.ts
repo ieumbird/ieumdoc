@@ -13,7 +13,7 @@ import { EditorState, Plugin, TextSelection } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 import { editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { imageAssetsPlugin } from "../src/image-assets.ts";
-import { insertFigureAfter, updateFigure } from "../src/block-commands.ts";
+import { insertFigureAfter, insertMermaidAfter, updateFigure } from "../src/block-commands.ts";
 import { collectSupportedEdits, toTiptapDocument } from "../src/tiptap-document.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
@@ -499,6 +499,23 @@ test("image paste fills a pending Figure without moving its caption caret, as on
   assert.equal(e.view.state.selection.$from.parent, e.view.state.doc.nodeAt(position));
   assert.equal(undo(e.view.state, tr => e.view.dispatch(tr)), true);
   assert.deepEqual(e.view.state.doc.toJSON(), before.doc.toJSON(), "One Undo restores the pending Figure and its caption");
+});
+
+test("image paste beside a Mermaid Figure inserts an image without replacing its source", async t => {
+  const { doc } = fixture(t);
+  const errors: string[] = [];
+  const e = imageEditor(doc, reason => errors.push(reason), {
+    create: async () => ({ path: "./assets/image.png", rollbackToken: "receipt" }),
+    rollback: async () => { throw new Error("Accepted insertion must not roll back"); },
+  });
+  e.view.dispatch(insertMermaidAfter(e.view.state, 0));
+  const position = e.view.state.selection.from;
+  const mermaid = e.view.state.doc.nodeAt(position)!;
+  e.paste(); await e.finished();
+  assert.deepEqual(errors, []);
+  assert.ok(e.view.state.doc.nodeAt(position)?.eq(mermaid));
+  assert.equal(e.view.state.doc.nodeAt(position + mermaid.nodeSize)?.attrs.imageUrl, "./assets/image.png");
+  e.destroy();
 });
 
 test("rejected Figure insertion rolls back its created asset and retains the document", async t => {

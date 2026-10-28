@@ -7,7 +7,7 @@ import { getSchema } from "@tiptap/core";
 import { closeHistory, history, redo, undo } from "@tiptap/pm/history";
 import { EditorState } from "@tiptap/pm/state";
 import { canonicalWriteError, parse, serialize, type FigureContent, type EditableDocument } from "@ieumdoc/core";
-import { deleteBlock, insertFigureAfter, updateFigure } from "../src/block-commands.ts";
+import { deleteBlock, insertFigureAfter, insertMermaidAfter, updateFigure } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, isUnappliedFigureDraft, structureGuardPlugin } from "../src/editor-schema.tsx";
 import {
   appliedDocument,
@@ -21,6 +21,7 @@ import {
 import { commitDocumentSave, documentRevision } from "../server/document-api.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits, validateFigureRequest } from "../server/document-replay.ts";
+import { normalizeMermaidSource } from "../src/mermaid-source.ts";
 import { imageRenameKey, imageRenamesPlugin } from "../src/image-rename.ts";
 
 const source = nativeSource(readFileSync(
@@ -45,6 +46,9 @@ test("image rename survives property/deletion history while a new attachment may
   let state = EditorState.create({ schema, doc: schema.nodeFromJSON(toTiptapDocument(loadEditableDocument(source))),
     plugins: [history(), imageRenamesPlugin()] });
   const dispatch = (tr: typeof state.tr) => { state = state.applyTransaction(tr).state; };
+  dispatch(insertMermaidAfter(state, 0));
+  const diagram = () => state.doc.content.content.find(node => typeof node.attrs.mermaidSource === "string")!.toJSON();
+  const originalDiagram = diagram();
   const position = () => {
     let result = -1;
     state.doc.forEach((node, pos) => { if (node.attrs.sourcePath === FIGURE) result = pos; });
@@ -53,6 +57,7 @@ test("image rename survives property/deletion history while a new attachment may
   const figure = () => state.doc.nodeAt(position())!;
   dispatch(updateFigure(state, position(), { imageAlt: "Changed" }));
   dispatch(state.tr.setMeta(imageRenameKey, [{ from: ORIGINAL.imageUrl, to: "./renamed.svg" }]).setMeta("addToHistory", false));
+  assert.deepEqual(diagram(), originalDiagram, "Image retargeting leaves a neighboring Mermaid Figure unchanged");
   assert.equal(undo(state, dispatch), true);
   assert.equal(figure().attrs.imageAlt, ORIGINAL.imageAlt);
   assert.equal(figure().attrs.imageUrl, "./renamed.svg");
@@ -75,6 +80,7 @@ test("image rename survives property/deletion history while a new attachment may
   assert.equal(figure().attrs.imageUrl, "./renamed.svg", "Renaming the new file must not retarget the old attachment's history");
   assert.equal(redo(state, dispatch), true);
   assert.equal(figure().attrs.imageUrl, "./second-file.svg");
+  assert.deepEqual(diagram(), originalDiagram, "Image rename/history never attaches an image to a Mermaid Figure");
 });
 
 function clone(value: TiptapJSON): TiptapJSON {
@@ -426,4 +432,57 @@ test("existing Editor Figure caption save replay preserves admitted Mermaid sour
   assert.ok(figure.block === "figure");
   assert.equal(figure.mermaidSource, "graph LR\n  A --> B");
   assert.equal(figure.caption.text, "After"); assert.equal(figure.label, "fig-flow");
+  // Source changes travel through projection, collection, Host validation and Core replay too.
+  const value = blockAt(projected, "1");
+  value.attrs!.mermaidSource = "sequenceDiagram\n  Alice->>Bob: Hello";
+  const changed = collectSupportedEdits(document, projected);
+  assert.equal(changed.figures?.[0].from.mermaidSource, "graph LR\n  A --> B");
+  assert.equal(validateFigureRequest({ ...changed.figures![0].to, label: "fig-flow" }), undefined);
+  const reopened = loadEditableDocument(saveEdits(markdown, changed).markdown).blocks[0];
+  assert.ok(reopened.block === "figure");
+  assert.equal(reopened.mermaidSource, value.attrs!.mermaidSource);
+  assert.equal(reopened.caption.text, "After");
+  const stale = structuredClone(changed);
+  stale.figures![0].from.mermaidSource = "graph TD; Changed";
+  assert.throws(() => saveEdits(markdown, stale), /figure does not match/);
+});
+
+test("Mermaid Apply cleanup matches MyST reading while preserving authored indentation and interior whitespace", () => {
+  const expected = "  graph LR \t\n    A --> B  \n \t\n    B --> C";
+  const sources = [expected + "\n", " \t\n\n" + expected, "\n" + expected + "\t \n \t\n",
+    "\r\n" + expected.replaceAll("\n", "\r\n") + "\t\r\n", "\u00a0\n" + expected + "\u00a0"];
+  for (const source of sources) {
+    const normalized = normalizeMermaidSource(source);
+    assert.equal(normalized, expected);
+    const original = nativeSource(":::{figure}\n\n```{mermaid}\n" + source + "\n```\n:::\n");
+    const read = loadEditableDocument(original).blocks[0];
+    assert.ok(read.block === "figure");
+    assert.equal(normalized, read.mermaidSource);
+    assert.equal(validateFigureRequest({ imageUrl: "", imageAlt: "", caption: "", mermaidSource: normalized }), undefined);
+  }
+  assert.equal(normalizeMermaidSource(" \t\r\n \n"), "");
+  assert.match(validateFigureRequest({ imageUrl: "", imageAlt: "", caption: "", mermaidSource: "" }) ?? "", /non-empty/);
+});
+
+test("Diagram insertion and source Apply retain one-step history and canonical Save replay", () => {
+  const markdown = nativeSource("Intro\n");
+  const editable = loadEditableDocument(markdown);
+  let { state } = editorState(markdown);
+  state = state.apply(insertMermaidAfter(state, 0));
+  const position = figurePosition(state);
+  assert.equal(state.selection.from, position);
+  const inserted = collectSupportedEdits(editable, editorDocumentJSON(state));
+  assert.equal(inserted.inserts?.[0].block, "figure");
+  assert.ok(saveEdits(markdown, inserted).markdown.includes("graph LR\n  A --> B"));
+  state = state.apply(updateFigure(state, position, { mermaidSource: "graph TD\n  B --> C", label: "fig-new" }));
+  const applied = collectSupportedEdits(editable, editorDocumentJSON(state));
+  const reloaded = loadEditableDocument(saveEdits(markdown, applied).markdown).blocks[1];
+  assert.ok(reloaded.block === "figure");
+  assert.equal(reloaded.mermaidSource, "graph TD\n  B --> C"); assert.equal(reloaded.label, "fig-new");
+  state = step(state, undo);
+  assert.deepEqual(collectSupportedEdits(editable, editorDocumentJSON(state)), inserted);
+  state = step(state, redo);
+  assert.deepEqual(collectSupportedEdits(editable, editorDocumentJSON(state)), applied);
+  assert.equal(isUnappliedFigureDraft(true, { imageUrl: "", imageAlt: "", caption: "", mermaidSource: "draft" },
+    { imageUrl: "", imageAlt: "", caption: "", mermaidSource: "applied" }), true);
 });

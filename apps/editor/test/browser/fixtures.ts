@@ -31,6 +31,11 @@ const technical = [document("technical-document.md"), document("diagram.svg")];
 
 /** Scratch directory under `tmp/` → the files a fresh copy holds, and the scenarios using it. */
 export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: string[] }> = {
+  "mermaid-authoring": { files: [
+    { name: "diagram.md", create: () => nativeSource('# Mermaid figures\n\nBefore.\n\n:::{figure}\n:name: fig-flow\n\n```{mermaid}\ngraph LR\n  A --> B\n```\n\nSignal flow\n:::\n\n:::{figure} ./diagram.svg\n:name: fig-image\n\nImage caption\n:::\n\nSee {numref}`fig-flow` and {numref}`fig-image`.\n\nAfter.\n') },
+    { name: "other.md", create: () => nativeSource("# Other tab\n\nOther document.\n") },
+    document("diagram.svg"),
+  ], scenarios: ["mermaid-authoring"] },
   "empty-elements": { files: [{ name: "empty.md", create: () => nativeSource("# Empty elements\n\n```{math}\nx\n```\n\nWrite here.\n") }], scenarios: ["empty-elements"] },
   "inline-document-settings": { files: [{ name: "short.md", create: () => nativeSource(
     "# Short settings\n\n## Section\n\nFirst paragraph.\n\n| Name | Value |\n| --- | --- |\n| A | 1 |\n") }], scenarios: ["inline-document-settings"] },

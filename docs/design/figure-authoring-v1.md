@@ -1,7 +1,7 @@
 # Figure authoring v1
 
 - Status: Implemented
-- Mermaid Core/CLI update: 2026-10-28 (#651 PR 1; source/admission/canonical round-trip and thin CLI; Editor authoring/rendering remains PR 2).
+- Mermaid update: 2026-10-28 (#651: Core/CLI source semantics and Editor in-document authoring/rendering).
 - Media reference verification: 2026-10-27 (#504: simultaneous exact source replacement, canonical preservation/refusal, CLI dry-run/batch/revision conflicts, real Host rename and Editor reload).
 - Property-entry update: 2026-10-27 (#557: shared selection/Enter/double-click and explicit property drafts; see [Continuous editing](document-editing-v1.md#continuous-editing)).
 - Active image preview verification: 2026-10-26 (#480: Figure browser preview/race/focus/overflow checks and [same-state manual captures](folder-picker-v1.md#active-image-preview-480); Editor tests/typecheck/build).
@@ -12,11 +12,11 @@
 - CLI insertion verification: 2026-10-15 (#280 `--at end` before endnotes; Core/CLI tests).
 - Property-focus verification: 2026-10-15 (#275 actual Apply click/Enter/Cancel/Escape reproduction, shared safe caret restoration, unchanged-caption caret/typing and formatted Save/Reload browser regressions).
 - Last verified: 2026-10-14 (#212: empty-Figure paste/drop fill, existing-image insertion, single Undo/Redo and real-file Save → Reload in `image-assets`; changed-target cancellation/rollback in Editor tests. #211 / PR #229: normal media separators and standalone dot-segment transport in Editor path-table tests; Host traversal rejection, actual image loading/failure and unchanged Save → Reload paths in Editor tests and `image-assets`; Choose… image selection and existing pending Figure regressions).
-- Scope: empty, pending, image and Mermaid Figures in Core/CLI; image authoring in Editor, under [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md), [Document support](document-support-v1.md) and [Editing session and Save](editing-session-save-v1.md).
+- Scope: empty, pending, image and Mermaid Figures in Core/CLI; image and Mermaid authoring in Editor, under [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md), [Document support](document-support-v1.md) and [Editing session and Save](editing-session-save-v1.md).
 
 ## Scope and completion
 
-The MVP keeps the existing MyST Figure container and image authoring UI. Completion requires real-file Save → Reload with caption, label and reference preserved, then image connection and another Save → Reload. Core owns persistence validity; CLI and Editor use the same operations. No new Media model, Editor Mermaid authoring/rendering, upload workflow, autosave or export pipeline is introduced.
+The MVP keeps the existing MyST Figure container and image authoring UI, adding in-document Mermaid source editing. Completion requires real-file Save → Reload with source, caption, label and reference preserved. Core owns persistence validity; CLI and Editor use the same operations. No new Media model, upload workflow, autosave or export pipeline is introduced.
 
 Verification covers Core canonical round-trip and fail-closed cases, CLI writes and failure without writes, Editor session collection/history, and browser insertion, Apply/Cancel, Source, Save acknowledgement and existing image authoring.
 
@@ -90,9 +90,43 @@ graph LR
 
 This extends the detailed support syntax allowed by ADR-0006 and keeps Core-owned canonical
 writes under ADR-0002; it changes neither architectural decision and needs no new ADR.
-Editor Mermaid editing and preview are deferred to PR 2. This PR does not add an Editor menu,
-source form or renderer; the existing Figure projection has no diagram preview. Core-backed
-caption updates preserve the diagram source, and image attachment is refused by Core.
+Editor uses the same Core-backed Figure operations for source, caption and label changes.
+Image attachment to Mermaid is refused; the image properties form stays separate.
+
+### Mermaid Editor
+
+The shared block insertion menu offers **Diagram** (Mermaid), with `graph LR` and `  A --> B`
+as its initial source, and opens editing immediately. The insertion is one undo step and already
+savable; Cancel keeps the inserted Figure. At rest the rendered diagram, number and directly
+editable caption use the same placement as image Figures, including Outline and references.
+
+Edit, selected-node Enter and diagram double-click open a full-column code-style textarea,
+debounced draft preview, label and shared explicit Apply/Cancel actions. Plain Enter adds a
+line; Ctrl/Cmd+Enter applies and Escape cancels. Outside click, blur and selection movement
+retain the form. Source/label drag events stay inside native controls. Apply validates through
+Core, retains rejected input/reason and preserves the live caption. A rejected Apply restores
+keyboard editing after the busy inputs re-enable, unless focus moved outside the form or to
+another tab while validation was pending. Apply/Cancel return the block caret; late validation
+never steals focus from another location. Read-only views cannot edit.
+CRLF/CR input becomes LF in the textarea. Before Apply, Editor removes leading whitespace-only
+lines and trims whitespace from the end of the whole source, matching MyST directive reading.
+This includes trailing blank lines and the last content line's trailing whitespace. It does not
+trim each line: the first non-empty line's indentation, interior blank lines (including their
+spaces/tabs), and other lines' trailing whitespace remain literal. Validation/commit use this
+normalized candidate; a rejected Apply retains the original draft. Core stays strict and does
+not normalize operation input. Whitespace-only source is still rejected. Mermaid syntax errors
+affect preview, not document validity: opaque source can still be applied and saved.
+
+Mermaid is lazy-loaded only for a visible Mermaid Figure. Previews debounce for 250ms; stale
+results and unmounted/hidden views cannot overwrite current results. Rendering is serialized
+around Mermaid's global configuration, with a unique render ID per request. Effective light/dark
+theme changes rerender applied and draft previews. Loading/render errors stay inside the block;
+source editing, Apply and Save remain available. Rendering uses `securityLevel: "strict"`,
+disables automatic/error DOM rendering, and displays the returned SVG as an image data URL,
+without injecting SVG/HTML or binding diagram callbacks into the Editor DOM. Mermaid's own
+temporary measuring container is owned and removed after each request. All renderer code and
+diagram chunks ship locally; no diagram service receives source. Ordinary `mermaid` code blocks
+remain code blocks. Conversion, alternative formats, alt text and diagram export are excluded.
 
 ## Editor session states
 
@@ -107,7 +141,8 @@ Closing properties retains a text selection inside the caption, otherwise return
 a text/gap caret after the Figure ([Continuous editing](document-editing-v1.md#continuous-editing)).
 Apply changes attributes without replacing an unchanged caption, preserving its
 caret and formatting. Captions are edited directly in the document, with the shared inline formatting tools.
-The properties form contains image path, eligible local file name, alt text and label. Apply always validates
+The image properties form contains image path, eligible local file name, alt text and label;
+Mermaid properties contain only diagram source and label. Apply always validates
 and preserves the live caption; it never replaces caption content.
 Figure validation that completes after the user moves elsewhere does not take focus back.
 
@@ -116,7 +151,7 @@ Figure validation that completes after the user moves elsewhere does not take fo
 | Pending Figure | `/figure` and `+` insert an empty Figure; caption or label may be added later. Shows `No content yet`, normal metadata and caption. | Included from insertion; Reload restores a Figure with no image. |
 | Completed image Figure | Valid image attached; existing image behavior. | Included. |
 
-Insertion is one undo step and opens no form: the caret starts in the new Figure's caption, so a caption can be typed at once or the Figure left empty. Pasting an image with the caret in an image-free Figure's caption, or dropping an image on that Figure, fills its image using the same properties update as Apply, preserving its label, caption and document position. Caption and label may both be empty. Paste/drop on a Figure that already has an image, or on any other block, inserts a new image Figure after the target; it never overwrites an existing image. If the empty target Figure is deleted or changed while upload is pending, including another image being attached, completion cancels without changing the document and rolls back the created asset through the existing upload cancellation path. Read-only and concurrent-upload rejection rules remain in force.
+Pending/image Figure insertion is one undo step and opens no form: the caret starts in the new Figure's caption, so a caption can be typed at once or the Figure left empty. Pasting an image with the caret in an image-free Figure's caption, or dropping an image on that Figure, fills its image using the same properties update as Apply, preserving its label, caption and document position. Caption and label may both be empty. Paste/drop on a Figure that already has an image, or on any other block, inserts a new image Figure after the target; it never overwrites an existing image. If the empty target Figure is deleted or changed while upload is pending, including another image being attached, completion cancels without changing the document and rolls back the created asset through the existing upload cancellation path. Read-only and concurrent-upload rejection rules remain in force.
 
 Filling an empty Figure preserves the caret at its current caption position and is one undo step: Undo restores that empty Figure, while Undo removes a newly inserted Figure. Both results persist through Save → Reload. Apply → Save → Undo → Save writes the Figure as it was before Apply, and Redo → Save writes the applied value again. Save preserves this history and the opening-snapshot replay contract. Deleting and undoing a Figure restores its attributes, including after saving the deletion. No new Core operation or CLI command is needed: filling reuses the existing Figure update path, already available as `update-figure --image`.
 
