@@ -243,15 +243,20 @@ async (page, { screenshots = false, openPath }) => {
       captionFailures.push({width, settings:geometry});
     await page.keyboard.press('Escape');
     await settingsScreen.waitFor({state:'detached'});
-    // A short 640px window puts the Command Center's search inside the wrapped drag rectangle.
+    // A short 640px window retains the single title row and reachable portal search (#695).
     await page.setViewportSize({width, height:480});
     await page.keyboard.press('Control+Slash');
     const center = page.getByRole('dialog', {name:'Command center', exact:true});
     await inspectOverlay(center, 'command-center');
     const search = center.getByRole('combobox');
     if (width === 640) {
-      const overlap = await search.evaluate(node => node.getBoundingClientRect().top < document.querySelector('.top-bar').getBoundingClientRect().bottom);
-      check(overlap, 'Narrow-window search no longer exercises the wrapped drag area');
+      const placement = await search.evaluate(node => {
+        const title = document.querySelector('.app-titlebar').getBoundingClientRect(), r = node.getBoundingClientRect();
+        return {titleHeight:title.height, belowTitle:r.top>=title.bottom,
+          reachable:node.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2))};
+      });
+      check(placement.titleHeight === 40 && placement.belowTitle && placement.reachable,
+        'Narrow-window portal search must remain reachable below the fixed title row');
     }
     await search.click(); await search.fill('> settings');
     check(await search.inputValue() === '> settings', 'Portal search did not accept pointer focus and typing');
