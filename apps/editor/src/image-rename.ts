@@ -33,6 +33,9 @@ export function imageRenamesPlugin(): Plugin<RenameState> {
         for (const { from, to } of (tr.getMeta(imageRenameKey) ?? []) as MediaReplacement[]) {
           for (const [key, urls] of seen) {
             if (!urls.has(from)) continue;
+            // A retired spelling can now belong to a different file. Only attachments
+            // still targeting this spelling participate in this rename.
+            if ((aliases.get(key)?.get(from) ?? from) !== from) continue;
             const next = aliases.get(key) ?? new Map<string, string>();
             for (const [old, target] of next) if (target === from) next.set(old, to);
             next.set(from, to); urls.add(to); aliases.set(key, next);

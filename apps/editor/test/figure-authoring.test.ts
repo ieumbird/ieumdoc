@@ -69,6 +69,12 @@ test("image rename survives property/deletion history while a new attachment may
   assert.equal(figure().attrs.imageUrl, "./renamed.svg");
   assert.equal(redo(state, dispatch), true);
   assert.equal(figure().attrs.imageUrl, ORIGINAL.imageUrl);
+  dispatch(state.tr.setMeta(imageRenameKey, [{ from: ORIGINAL.imageUrl, to: "./second-file.svg" }]).setMeta("addToHistory", false));
+  assert.equal(figure().attrs.imageUrl, "./second-file.svg");
+  assert.equal(undo(state, dispatch), true);
+  assert.equal(figure().attrs.imageUrl, "./renamed.svg", "Renaming the new file must not retarget the old attachment's history");
+  assert.equal(redo(state, dispatch), true);
+  assert.equal(figure().attrs.imageUrl, "./second-file.svg");
 });
 
 function clone(value: TiptapJSON): TiptapJSON {
