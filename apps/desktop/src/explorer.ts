@@ -17,19 +17,22 @@ function localDirectory(value: unknown): string {
 
 /** Only roots successfully listed by this Desktop Host can become opened roots. */
 export class ExplorerFolders {
-  private readonly listed = new Map<string, RootAccess>();
+  private readonly listed = new Map<string, RootAccess | null>();
   private opened: RootAccess[] = [];
 
   listedRoot(root: string): void {
-    localDirectory(root);
-    this.listed.set(root, new RootAccess([root]));
+    // A successfully browsed UNC/unavailable root stays browseable but cannot launch the OS.
+    try {
+      localDirectory(root);
+      this.listed.set(root, new RootAccess([root]));
+    } catch { this.listed.set(root, null); }
   }
 
   setOpened(roots: unknown): void {
     if (!Array.isArray(roots) || !roots.every(root => typeof root === "string" && this.listed.has(root))) {
       throw new Error("Unknown opened folders.");
     }
-    this.opened = roots.map(root => this.listed.get(root)!);
+    this.opened = roots.map(root => this.listed.get(root)!).filter((root): root is RootAccess => root !== null);
   }
 
   async open(value: unknown, openPath: (folder: string) => Promise<string>): Promise<void> {

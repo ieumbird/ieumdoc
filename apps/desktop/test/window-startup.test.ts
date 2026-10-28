@@ -80,7 +80,10 @@ async function start(options: { startupError?: boolean; logError?: boolean; load
     timers.delete(id);
     run();
   };
-  return { app, window, logs, errors, alerts, timers, appearance, timeout, exits: () => exits, quits: () => quits };
+  const invoke = (channel: string, args: unknown[], trusted = true) => handlers.get(channel)!({
+    sender: window.webContents, senderFrame: trusted ? window.webContents.mainFrame : {},
+  }, ...args);
+  return { app, window, logs, errors, alerts, timers, appearance, timeout, invoke, exits: () => exits, quits: () => quits };
 }
 
 test("startup waits for paint and appearance in either order; later updates never reveal a hidden window", async () => {
@@ -205,4 +208,14 @@ test("startup exceptions are logged, reported and exit; logging failure remains 
   const second = await start({ lock: false });
   assert.equal(second.quits(), 1);
   assert.equal(second.logs.length, 0, "a secondary process exits before startup/log creation");
+});
+
+
+test("Explorer IPC rejects untrusted senders and invalid roots/paths through main's real wiring", async () => {
+  const h = await start();
+  for (const channel of ["desktop:opened-folders", "desktop:open-folder"]) {
+    assert.throws(() => h.invoke(channel, [null], false), /Untrusted sender/);
+  }
+  assert.throws(() => h.invoke("desktop:opened-folders", [["unlisted-root"]]), /Unknown opened folders/);
+  await assert.rejects(async () => h.invoke("desktop:open-folder", [null]), /Invalid local folder path/);
 });

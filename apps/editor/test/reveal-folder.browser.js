@@ -40,9 +40,12 @@ async (page, { openFolderPicker, screenshots = false, expect }) => {
   }
   await action.click();
   await expect.poll(() => page.evaluate(() => window.__explorer.calls)).toEqual([root]);
+  const child = folder.getByRole('treeitem', {name:'guides', exact:true});
+  const expanded = await child.getAttribute('aria-expanded');
   await folder.getByRole('button', {name:'More actions for guides', exact:true}).click();
   await action.click();
   await expect.poll(() => page.evaluate(() => window.__explorer.calls)).toEqual([root, root + sep + 'guides']);
+  await expect(child).toHaveAttribute('aria-expanded', expanded);
   await page.evaluate(() => { window.__explorer.fail = true; });
   await folder.getByRole('button', {name:'More actions', exact:true}).click(); await action.click();
   await expect(page.getByText('Could not open the folder in File Explorer. Check that it still exists and is accessible.', {exact:true})).toBeVisible();

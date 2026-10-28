@@ -20,7 +20,8 @@ test("Explorer only opens existing directories in currently opened, Host-listed 
     assert.throws(() => folders.setOpened([root]), /Unknown/);
     const handler = createProtocolHandler(temp, { sample: "" }, undefined, root => folders.listedRoot(root));
     assert.equal((await handler(new Request(`${ORIGIN}/api/folder?root=${encodeURIComponent(root)}`))).status, 200);
-    folders.setOpened([root]);
+    folders.listedRoot("//server/share");
+    folders.setOpened([root, "//server/share"]);
     await folders.open(root, open); await folders.open(child, open);
     assert.deepEqual(calls, [root, child]);
     for (const target of [outside, path.join(root, "..", "outside"), file, path.join(root, "missing"),

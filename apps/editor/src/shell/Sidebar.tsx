@@ -248,6 +248,7 @@ function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, docu
               tabIndex={entry.path === tabStop ? 0 : -1}
               title={description ? `${entry.path}\n${description}` : entry.path}
               aria-description={description}
+              aria-label={folder ? entry.name : undefined}
               aria-level={item.depth + 1}
               aria-posinset={item.position}
               aria-setsize={item.size}
