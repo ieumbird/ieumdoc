@@ -327,7 +327,11 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
           beforeinput: (view, event) => {
             if (!this.editor.isEditable || view.composing || event.isComposing || !event.cancelable ||
                 !event.inputType.startsWith("delete")) return false;
-            const ranges = event.getTargetRanges();
+            let ranges: StaticRange[];
+            try {
+              if (typeof event.getTargetRanges !== "function") return false;
+              ranges = event.getTargetRanges();
+            } catch { return false; }
             if (ranges.length !== 1) return false;
             const range = ranges[0]!;
             let from: number, to: number;
