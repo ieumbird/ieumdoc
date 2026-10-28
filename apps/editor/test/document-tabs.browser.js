@@ -258,7 +258,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
   await page.evaluate(() => window.scrollTo(0, 420));
   const beforeA = await editor().evaluate(n => ({json:JSON.stringify(n.editor.getJSON()), selection:n.editor.state.selection.toJSON(), y:scrollY}));
   await openPath(page, b);
-  check(!await page.getByTestId('equation-editor').count(), 'A hidden property portal is still mounted');
+  check(!await page.getByTestId('equation-editor').count(), 'A hidden Equation form is still mounted');
   await editor().evaluate(n => {
     window.tabEditorB = n.editor;
     n.editor.commands.insertContentAt(1, 'B independent ');

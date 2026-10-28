@@ -1700,41 +1700,50 @@ ol.list { list-style: decimal; }
   visibility: visible;
 }
 
-/* Error previews keep the Notice's semantic surface, text and border. */
-.equation-input,
-.equation-preview:not(.ui-notice--error) {
-  width: 100%;
-  box-sizing: border-box;
-  padding: var(--space-3);
-  border: var(--border-width) solid var(--id-color-border);
-  border-radius: var(--id-radius-md);
-  background: var(--id-color-surface);
-  color: var(--id-color-text);
-  font: inherit;
-}
-
+/* The equation source uses the same document-code surface as a code block. */
+.equation .block-properties-form { text-align: left; min-width: 0; }
 .equation-input {
-  border-color: var(--id-color-border-control);
-  min-height: 5rem;
-  resize: vertical;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--layout-equation-input-min-height);
+  field-sizing: content;
+  resize: none;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--id-color-border);
+  border-radius: var(--id-radius-sm);
+  background: var(--id-color-surface-muted);
+  color: var(--id-color-text);
   font-family: var(--font-family-mono);
+  font-size: var(--font-size-document-code);
+  line-height: var(--line-height-document-code);
 }
 
-.equation-input:focus {
+.equation-input:focus-visible, .inline-math-input:focus-visible {
   border-color: var(--id-color-border-focus);
   outline: none;
   box-shadow: var(--focus-ring);
 }
 
-.equation-preview {
-  margin: 0;
-  min-height: 2.5rem;
-  overflow-x: auto;
-}
+.equation-preview { min-width: 0; }
+.equation-preview-error { text-align: left; }
 
-.equation-preview-error {
-  text-align: left;
+.inline-math-properties { width: var(--layout-inline-math-popover-width); }
+.inline-math-input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--layout-inline-math-input-min-height);
+  resize: vertical;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--id-color-border-control);
+  border-radius: var(--id-radius-md);
+  background: var(--id-color-surface);
+  color: var(--id-color-text);
+  font: inherit;
+  overflow-wrap: anywhere;
 }
+.inline-math-input[aria-invalid="true"] { border-color: var(--id-color-danger); }
 
 .form-actions {
   display: flex;
@@ -2381,7 +2390,7 @@ ol.list { list-style: decimal; }
   }
 }
 
-/* Equation and Figure properties share one panel and form. */
+/* Property forms share spacing and actions in the document and popovers. */
 .block-properties-form {
   display: grid;
   gap: var(--space-3);

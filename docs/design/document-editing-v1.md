@@ -1,6 +1,7 @@
 # Continuous document editing v1
 
 - Status: Implemented
+- Last verified: 2026-10-28 (#637: in-document block equation form, native input drag/paste isolation and wider wrapping inline math form; targeted Editor and browser checks and same-state 1440/640px captures).
 - Property Apply verification: 2026-10-27 (#576: shared Ctrl/Cmd+Enter submission, validation/busy guards, IME/modifier exclusions and prose hard-break isolation; Editor tests and targeted Windows Chrome browser regressions, with Apple platform emulation rather than native macOS).
 - Code-language verification: 2026-10-28 (#645: selection-only menu, common grammar choices, preserved unlisted values, typeahead, language/body Undo/Redo and exact disk Save/Reload; [verification](#code-language-selection-verification-645)).
 - Native focus selection: 2026-10-26 (#542: restore the retained selection before the observer can accept Chromium's native focus caret; real-click Command center and held-check browser regressions. #502 remains separate).
@@ -9,7 +10,7 @@
 - Double-click verification: 2026-10-26 (#470: equation-insertion checks display-formula entry through Edit, LaTeX-field focus, Cancel/Escape caret restoration, unchanged document and Undo/Redo, and an existing draft; the new entry assertion failed before the change).
 - Inline math focus verification: 2026-10-26 (#460: Apply/Escape immediately restore editor focus and the caret after the formula; inline-math-authoring checks subsequent typing and Undo, alongside equation-insertion, equation-node-selection-typing, inline-math-split and property-drafts browser regressions).
 - Equation-end verification: 2026-10-25 (#436: `/Equation` at the document end → Apply → Enter/ArrowDown/Control+End or direct typing; the end gap cursor and explicit node selection both reach following prose. Browser regression also checks Chromium composition and disk Save/Reload; native OS IME is not tested).
-- Last verified: 2026-10-25 (#429 document-end shortcuts, including integration with #431/#433/#432: Editor 281/281, typecheck/build, focus-caret, continuous-editing and table-authoring browser regressions; final Figure/table, delayed focus check, native Shift selection and Apple keymap emulation on Windows Chrome; native macOS not tested).
+- Previous verification: 2026-10-25 (#429 document-end shortcuts, including integration with #431/#433/#432: Editor 281/281, typecheck/build, focus-caret, continuous-editing and table-authoring browser regressions; final Figure/table, delayed focus check, native Shift selection and Apple keymap emulation on Windows Chrome; native macOS not tested).
 - Table Tab verification: 2026-10-25 (#430 last-cell Tab row addition, including integration with #431/#433: Editor 281/281, typecheck/build, table-authoring and continuous-editing browser regressions including first-cell focus, typing, one-step Undo and disk Save/Reload).
 - Whole-document Undo verification: 2026-10-25 (#427: saved/new/applied/local-asset Figures, Backspace/Delete and Undo/Redo; figure-authoring, image-assets and atom-boundaries browser regressions; Editor 280/280, typecheck/build).
 - Previous verification: 2026-10-24 (#387 atom boundary selection: Editor 273/273, typecheck/build, six browser scenarios including the 48-case keyboard matrix, visible selection, deletion, Undo/Redo and disk Save/Reload).
@@ -196,14 +197,19 @@ A changed document recomputes numbering; source semantics and canonical output a
   in-place editing. Their read-only state and the ownership of their formatting and insertion
   tools are specified in [Endnotes](footnotes-v1.md#editor).
 - Opening properties changes neither document nor history; re-entry preserves the current
-  draft and error. A newly inserted empty Equation still opens automatically. Inline math
-  uses the shared BlockProperties form with explicit Apply, Cancel and Escape. Outside
+  draft and error. A newly inserted empty Equation still opens automatically. Block Equation
+  edits in its document position: a full-column, auto-growing code-style LaTeX field, draft
+  preview with computed number, label and actions. Inline math uses a wider BlockProperties
+  popover with a wrapping multiline field; pasted line breaks become spaces and plain Enter
+  submits as before. Both forms use explicit Apply, Cancel and Escape. Outside
   click, blur and selection movement neither apply nor discard drafts. Save/Source and tab
   switching retain them under the [editing-session contract](editing-session-save-v1.md#applied-content-and-drafts).
+  Native text drag/drop and paste within a block Equation source or label field change only
+  that draft; they do not create document content or history and Cancel leaves Save unchanged.
 - In any shared properties form (Equation, inline math, Figure, Table or section label),
   Ctrl+Enter on Windows/Linux or Cmd+Enter on macOS submits the same Apply path, including
   validation and errors. Busy forms ignore Apply. Composition and Shift/Alt-modified keys
-  do not Apply; plain textarea Enter and Escape retain their newline/Cancel behavior.
+  do not Apply; plain Enter inserts a newline in block Equation and Escape cancels.
   The binding is local to the form; prose Mod-Enter keeps its existing hard break behavior.
 - Applying, cancelling or escaping an inline math form immediately restores the editor caret
   just after the formula, preserving its marks and subsequent typing. Remove keeps the existing
@@ -505,7 +511,9 @@ existing useEditorState hook, disables menu choices and guards the existing upda
 The popup explicitly uses its localized menu name instead of the trigger's current-value name.
 Editor tests (317), workspace typecheck, production Editor build, `code-highlighting`,
 `layout-rules`, `quiet-document`, docs and whitespace checks pass locally. The build retains
-a separate deferred code-languages grammar chunk (139.88 kB). Native Windows IME, Edge and
+a separate deferred code-languages grammar chunk (139.88 kB). Master `15ef77e` (#640)
+was integrated without conflicts; the same targeted checks pass on the combined tree.
+Native Windows IME, Edge and
 packaged Desktop were not tested locally; their existing CI/manual boundaries are unchanged.
 
 Manual Before/After uses base `c71063faac8357880c079c03fa7577da1b0cb188`, the same scratch

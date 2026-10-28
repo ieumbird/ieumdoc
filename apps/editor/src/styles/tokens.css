@@ -67,6 +67,10 @@
   /* Inline math size relative to its text. KaTeX's own 1.21em stands out beside Pretendard;
    * display equations keep it. */
   --math-inline-size: 1.1em;
+  /* Equation editing: minimum source heights and the inline properties preferred width. */
+  --layout-equation-input-min-height: 5rem;
+  --layout-inline-math-input-min-height: 4rem;
+  --layout-inline-math-popover-width: 36rem;
   /* Shared reference/citation underline distance, including unchecked citations. */
   --reference-underline-offset: 3px;
 
