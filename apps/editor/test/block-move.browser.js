@@ -30,6 +30,7 @@ async (page, { openPath, withBlockHover }) => {
     const cancel = window.cancelAnimationFrame;
     const callbacks = new Map();
     let scheduled = 0;
+    window.openingFramesScheduled = () => scheduled;
     window.requestAnimationFrame = callback => {
       scheduled++;
       const id = native.call(window, () => {});
@@ -44,10 +45,14 @@ async (page, { openPath, withBlockHover }) => {
       window.requestAnimationFrame = native;
       window.cancelAnimationFrame = cancel;
       delete window.releaseOpeningFrames;
+      delete window.openingFramesScheduled;
       callbacks.forEach(callback => callback(performance.now()));
       return scheduled;
     };
   });
+  // The form's DOM can commit before its passive opening-focus effect schedules rAF.
+  // Establish the pending frame before sending the interaction that must cancel it.
+  const waitForOpeningFrame = () => page.waitForFunction(() => window.openingFramesScheduled() > 0);
   // Delay the opening frame, as a busy renderer can, while a user opens another surface.
   // Release the real callbacks only after the menu owns focus; inspect immediately afterwards.
   for (const [folder, document, blockSelector, editName, fieldId, cancelId, draft] of [
@@ -62,6 +67,8 @@ async (page, { openPath, withBlockHover }) => {
     await holdOpeningFrames();
     try {
       await block.getByRole('button', {name:editName, exact:true}).click();
+      await page.getByTestId(fieldId).waitFor();
+      await waitForOpeningFrame();
       await page.getByTestId(fieldId).fill(draft);
       await page.getByRole('button', {name: /^Move (equation|figure) block/}).first().click();
       const menu = page.getByRole('menu', {name:'Block actions', exact:true});
@@ -71,6 +78,7 @@ async (page, { openPath, withBlockHover }) => {
       await page.keyboard.press('Escape');
       if (await menu.count() || await page.getByTestId(fieldId).inputValue() !== draft) throw new Error('Menu Escape discarded the property draft');
       await page.getByTestId(cancelId).click();
+      await page.getByTestId(fieldId).waitFor({state:'detached'});
     } finally {
       await page.evaluate(() => window.releaseOpeningFrames?.());
     }
@@ -95,6 +103,7 @@ async (page, { openPath, withBlockHover }) => {
         else await block.getByRole('button', {name:editName, exact:true}).click();
         const field = page.getByTestId(fieldId);
         await field.waitFor();
+        await waitForOpeningFrame();
         const originalDraft = await field.inputValue();
         let openingFocus = await page.evaluateHandle(() => document.activeElement);
         if (movement === 'tab-out' || movement === 'tab-out-keyboard') {
@@ -148,6 +157,7 @@ async (page, { openPath, withBlockHover }) => {
           await page.keyboard.press('ControlOrMeta+z');
         }
         await page.getByTestId(cancelId).click();
+        await field.waitFor({state:'detached'});
       } finally {
         await page.evaluate(() => window.releaseOpeningFrames?.());
       }
@@ -377,6 +387,9 @@ async (page, { openPath, withBlockHover }) => {
     await block.hover();
     await block.getByRole('button', {name:'Edit', exact:true}).click();
     await page.getByTestId('equation-latex').fill('x + BoundaryDraft');
+    // Programmatic handle.focus() is deliberately not a user cancellation signal.
+    // Let entry focus finish before preparing this keyboard-menu scenario.
+    await page.getByTestId('equation-latex').and(page.locator(':focus')).waitFor();
     const index = name === 'Move up' ? 1 : await editor.evaluate(node => node.editor.state.doc.childCount - 1);
     const menu = await openBlockMenu(index);
     const item = menu.getByRole('menuitem', {name, exact:true});
