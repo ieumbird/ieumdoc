@@ -1514,3 +1514,12 @@ This controls the Host response and measures the real UI/Worker, not end-to-end 
 The read-only snapshot keeps file revision, recovery records, editor/selection/Undo availability,
 property drafts and later real Save conflict behavior. Required Desktop packaging stays in CI;
 actual packaged Desktop comparison interaction was not run locally.
+
+## Settings update cue (#665)
+
+The unseen-version dot uses the shared interaction accent and the existing Settings icon slot,
+including the collapsed rail. A localized version tooltip and a new-version accessible button name
+accompany the 8px dot. The direct About destination highlights update actions with the existing
+selected-surface color, interaction outline and control radius. It does not flash or animate.
+The top update banner and Later control are removed; ordinary Settings entry remains unchanged.
+See the [current update contract and before/after evidence](desktop-distribution-v1.md#settings-update-cue-verification-665).

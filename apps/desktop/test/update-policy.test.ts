@@ -63,18 +63,18 @@ test("preferences follow the installed channel by default and preserve a saved c
     const installs = [["0.0.1", "stable"], ["0.0.1-beta.1", "beta"]] as const;
     for (const [version, channel] of installs) {
       rmSync(file, { force: true });
-      assert.deepEqual(readPreferences(file, version), { channel, postponed: null }, `first launch of ${version}`);
+      assert.deepEqual(readPreferences(file, version), { channel, seenUpdate: null }, `first launch of ${version}`);
       writeFileSync(file, "{ not json");
-      assert.deepEqual(readPreferences(file, version), { channel, postponed: null }, `damaged preferences on ${version}`);
-      writeFileSync(file, JSON.stringify({ channel: "nightly", postponed: "../x" }));
-      assert.deepEqual(readPreferences(file, version), { channel, postponed: null }, `invalid channel on ${version}`);
-      writeFileSync(file, JSON.stringify({ postponed: "0.0.1-beta.2" }));
-      assert.deepEqual(readPreferences(file, version), { channel, postponed: "0.0.1-beta.2" }, `missing channel on ${version}`);
+      assert.deepEqual(readPreferences(file, version), { channel, seenUpdate: null }, `damaged preferences on ${version}`);
+      writeFileSync(file, JSON.stringify({ channel: "nightly", seenUpdate: "../x" }));
+      assert.deepEqual(readPreferences(file, version), { channel, seenUpdate: null }, `invalid channel on ${version}`);
+      writeFileSync(file, JSON.stringify({ seenUpdate: "0.0.1-beta.2" }));
+      assert.deepEqual(readPreferences(file, version), { channel, seenUpdate: "0.0.1-beta.2" }, `missing channel on ${version}`);
     }
     for (const channel of ["stable", "beta"] as const) {
-      writePreferences(file, { channel, postponed: "0.0.1-beta.2" });
+      writePreferences(file, { channel, seenUpdate: "0.0.1-beta.2" });
       for (const [version] of installs) {
-        assert.deepEqual(readPreferences(file, version), { channel, postponed: "0.0.1-beta.2" }, `saved ${channel} on ${version}`);
+        assert.deepEqual(readPreferences(file, version), { channel, seenUpdate: "0.0.1-beta.2" }, `saved ${channel} on ${version}`);
       }
     }
     assert.equal(parseChannel("beta"), "beta");

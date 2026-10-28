@@ -28,7 +28,7 @@ const bridge: DesktopBridge = {
   checkForUpdates: () => ipcRenderer.invoke("desktop:check"),
   downloadUpdate: () => ipcRenderer.invoke("desktop:download"),
   installUpdate: () => ipcRenderer.invoke("desktop:install"),
-  postponeUpdate: (version) => ipcRenderer.invoke("desktop:postpone", version),
+  markUpdateSeen: (version) => ipcRenderer.invoke("desktop:seen-update", version),
   openReleaseNotes: (version) => ipcRenderer.invoke("desktop:release-notes", version),
   onUpdateState(listener) {
     const handler = (_event: unknown, state: UpdateState) => listener(state);
