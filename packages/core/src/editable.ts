@@ -93,13 +93,15 @@ export type EditableBlock =
       block: "figure";
       path: NodePath;
       label: string;
-      /** What the Figure shows: "none" for a pending Figure, or "image" for an image Figure. */
+      /** What the Figure shows: "none", "image" or "mermaid" for supported Figures. */
       contentKind: FigureContentKind;
-      /** The image the Figure shows at its top level, if any; empty for a pending Figure. */
+      /** The image the Figure shows at its top level, if any; empty for pending and Mermaid Figures. */
       imageUrl: string;
       imageAlt: string;
+      /** Opaque diagram source, present only when contentKind is mermaid. */
+      mermaidSource?: string;
       caption: EditableCaption;
-      /** True when Figure v1 authoring can replace image, alt text and caption without flattening content. */
+      /** True when Core Figure operations can update supported properties without flattening content. */
       editable: true;
     }
   | {
@@ -233,6 +235,7 @@ function figureBlock(node: MystNode, path: NodePath): EditableBlock {
     path,
     label: nodeLabel(node),
     contentKind: figureContentKind(node),
+    ...(supported.mermaidSource !== undefined ? { mermaidSource: supported.mermaidSource } : {}),
     imageUrl: typeof image?.url === "string" ? image.url : "",
     imageAlt: typeof image?.alt === "string" ? image.alt : "",
     caption: {

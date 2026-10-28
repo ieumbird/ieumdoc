@@ -152,7 +152,7 @@ const OFFSET_NOTE = [
   "Edits that cannot preserve paragraph semantics in canonical Markdown are rejected.",
 ];
 const FIGURE_NOTE = [
-  "Without an image (no --image, or an empty one) the Figure is pending: it has no content yet.",
+  "Without an image or Mermaid source the Figure is pending: it has no content yet.",
   "Caption and label are optional. Alt text needs an image. An empty --alt or --caption removes that property.",
   "Use --caption for text or --caption-content for Core InlineContent JSON; they are mutually exclusive.",
   "Values that cannot round-trip through canonical Markdown are rejected.",
@@ -485,12 +485,13 @@ const COMMANDS: CommandSpec[] = [
     name: "insert-figure",
     group: "Edit — insert blocks",
     summary: "Insert a Figure block at a top-level index",
-    usage: "ieumdoc insert-figure <file> --at <index|end> [--image <url>] [--alt <text>] [--caption <text> | --caption-content <json>] [--label <label>]",
+    usage: "ieumdoc insert-figure <file> --at <index|end> [--image <url> | --mermaid <source>] [--alt <text>] [--caption <text> | --caption-content <json>] [--label <label>]",
     details: [
       "Insert a Figure block at a top-level index.",
       ...FIGURE_NOTE,
       "--label sets the new Figure's label in the same write, under update-label's rules.",
       "Connect an image to a pending Figure later with update-figure --image.",
+      "--mermaid inserts an opaque Mermaid source instead of an image; no alt text or conversion.",
     ],
   },
   {
@@ -505,12 +506,13 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "update-figure",
     group: "Edit — text and content",
-    summary: "Update a Figure's image, alt text, or caption through Core",
-    usage: "ieumdoc update-figure <file> --path <indexes> [--image <url>] [--alt <text>] [--caption <text> | --caption-content <json>]",
+    summary: "Update a Figure's image, Mermaid source, alt text, or caption through Core",
+    usage: "ieumdoc update-figure <file> --path <indexes> [--image <url> | --mermaid <source>] [--alt <text>] [--caption <text> | --caption-content <json>]",
     details: [
       "Update one top-level Figure through Core. Omitted properties are unchanged.",
       ...FIGURE_NOTE,
       "The Figure label is preserved; change it with update-label.",
+      "--mermaid replaces source only on an existing Mermaid Figure. Mermaid syntax is not validated.",
       "--image \"\" removes the image; the caption and label stay. Remove its alt text with --alt \"\".",
       ...PATH_NOTE,
     ],
@@ -1056,6 +1058,7 @@ function changeFor(command: string, flags: string[]): Change {
         const inserted = insertFigure(document, at, {
           imageUrl: optionalFlag(flags, "--image") ?? "",
           imageAlt: optionalFlag(flags, "--alt") ?? "",
+          mermaidSource: optionalFlag(flags, "--mermaid"),
           caption: captionInput(flags) ?? "",
         });
         return label.length > 0 ? updateLabel(inserted, [at], label) : inserted;
@@ -1069,10 +1072,11 @@ function changeFor(command: string, flags: string[]): Change {
       const changes = {
         imageUrl: optionalFlag(flags, "--image"),
         imageAlt: optionalFlag(flags, "--alt"),
+        mermaidSource: optionalFlag(flags, "--mermaid"),
         caption: captionInput(flags),
       };
       if (Object.values(changes).every((value) => value === undefined)) {
-        throw new Error("update-figure requires --image, --alt, --caption, or --caption-content");
+        throw new Error("update-figure requires --image, --mermaid, --alt, --caption, or --caption-content");
       }
       return (document) => updateFigure(document, pathFlag(flags), changes);
     }
@@ -1366,8 +1370,8 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "update-heading-level": ["--path", "--from", "--to"],
   "convert-block": ["--path", "--to", "--level"],
   "insert-equation": ["--at", "--latex", "--label"],
-  "insert-figure": ["--at", "--image", "--alt", "--caption", "--caption-content", "--label"],
-  "update-figure": ["--path", "--image", "--alt", "--caption", "--caption-content"],
+  "insert-figure": ["--at", "--image", "--mermaid", "--alt", "--caption", "--caption-content", "--label"],
+  "update-figure": ["--path", "--image", "--mermaid", "--alt", "--caption", "--caption-content"],
   "update-media-references": ["--from", "--to"],
   "insert-table": ["--at", "--cells", "--align", "--caption", "--caption-content", "--label"],
   "insert-list": ["--at", "--list"],
@@ -1538,6 +1542,7 @@ function machineBlock(block: EditableBlock): MachineNode[] {
         editable: block.editable,
         label: block.label,
         contentKind: block.contentKind,
+        ...(block.mermaidSource !== undefined ? { mermaidSource: block.mermaidSource } : {}),
         imageUrl: block.imageUrl,
         imageAlt: block.imageAlt,
       },
@@ -1614,7 +1619,7 @@ function formatBlock(block: EditableBlock): string[] {
   if (block.block === "figure") {
     const captionPath = formatPath(block.caption.path);
     return [
-      `${path} figure figureEditable=${block.editable} label=${quote(block.label)} image=${quote(block.imageUrl)} alt=${quote(block.imageAlt)} content=${block.contentKind}`,
+      `${path} figure figureEditable=${block.editable} label=${quote(block.label)} image=${quote(block.imageUrl)} alt=${quote(block.imageAlt)} content=${block.contentKind}${block.mermaidSource !== undefined ? ` mermaid=${quote(block.mermaidSource)}` : ""}`,
       `  ${captionPath} caption textEditable=${block.caption.editable} text=${quote(block.caption.text)}`,
     ];
   }

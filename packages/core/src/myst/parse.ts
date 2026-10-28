@@ -5,6 +5,7 @@ import {
 } from "myst-transforms";
 import { VFile } from "vfile";
 import { locateFootnotes } from "./footnote.ts";
+import { retainMermaidOptions } from "./figure.ts";
 import { retainTableSource } from "./table.ts";
 import { type MystDocument } from "./tree.ts";
 import { assertUnicode } from "./unicode.ts";
@@ -41,6 +42,7 @@ export function parse(source: string): MystDocument {
   const document = mystParse(text, { ...OPTIONS, vfile: file }) as MystDocument;
   markFrontMatter(document, text);
   retainTableSource(document, file);
+  retainMermaidOptions(document, file);
   liftMystDirectivesAndRolesTransform(document);
   containerChildrenTransform(document, new VFile());
   locateFootnotes(document, text, OPTIONS);

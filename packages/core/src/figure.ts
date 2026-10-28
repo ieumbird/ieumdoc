@@ -1,7 +1,9 @@
-/** Editable Figure v1 properties. The label is preserved, never authored here. */
+/** Editor-neutral Figure properties. The label is preserved, never authored here. */
 export type FigureContent = {
-  /** Empty means the Figure has no content yet (a pending Figure): no image is written. */
+  /** Empty means no image; without Mermaid source this is a pending Figure. */
   imageUrl: string;
+  /** Present only for a Mermaid Figure. Source is opaque to Core; image fields must be empty. */
+  mermaidSource?: string;
   /** Empty means no alt text. */
   imageAlt: string;
   /** Plain text or supported inline content; empty means no caption. */
@@ -25,6 +27,13 @@ export function figureContentError(figure: FigureContent): string | undefined {
   if (typeof figure?.imageUrl !== "string" || typeof figure.imageAlt !== "string" ||
       (typeof figure.caption !== "string" && !Array.isArray(figure.caption))) {
     return "Figure image URL and alt text must be strings; caption must be text or InlineContent.";
+  }
+  if (figure.mermaidSource !== undefined) {
+    if (typeof figure.mermaidSource !== "string" || !figure.mermaidSource.trim()) {
+      return "Figure Mermaid source must be a non-empty string.";
+    }
+    if (figure.imageUrl || figure.imageAlt) return "A Mermaid Figure cannot have an image or alt text.";
+    return undefined;
   }
   if (figure.imageUrl.length === 0) {
     return figure.imageAlt.length > 0 ? "A Figure without an image cannot have alt text." : undefined;
