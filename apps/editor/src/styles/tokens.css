@@ -40,6 +40,8 @@
   /* Read-only file preview: preferred dialog width and image height cap within the viewport. */
   --layout-file-preview-width: 48rem;
   --layout-file-preview-image-max-height: 60dvh;
+  --layout-recovery-compare-width: 72rem;
+  --layout-recovery-diff-max-height: 42vh;
   /* Command center: preferred trigger/popup widths and result-list height before scrolling. */
   --layout-command-center-width: 28rem;
   --layout-command-center-popup-width: 36rem;

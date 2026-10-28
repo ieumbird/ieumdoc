@@ -346,13 +346,15 @@ paths outside allowed Roots. The pre-existing recovery tab assertion was scoped 
 tablist (including hidden document tabs under the modal), excluding Sidebar tabs.
 
 Captures use the same mixed-edit record and selected region, 900px height, DPR 1, zoom 1,
-Pretendard UI and Consolas source. The former prompt captures are baseline context; the four
+Pretendard UI and Consolas source. Collapsed prompt Before/After uses the same visible path/review
+state (record text is collapsed). The four
 comparison captures are the same state across viewport/theme. The browser also asserts horizontal
 content bounds and footer button bounds at both supported widths.
 
 | Review | 640px | 1440px |
 | --- | --- | --- |
-| Former prompt (baseline) | [Before](../reviews/assets/recovery-source-diff-655/prompt-640.png) | [Before](../reviews/assets/recovery-source-diff-655/prompt-1440.png) |
+| Former prompt (baseline `23d178a`) | [Before](../reviews/assets/recovery-source-diff-655/prompt-640.png) | [Before](../reviews/assets/recovery-source-diff-655/prompt-1440.png) |
+| Collapsed prompt, with Compare | [After](../reviews/assets/recovery-source-diff-655/review-after-640.png) | [After](../reviews/assets/recovery-source-diff-655/review-after-1440.png) |
 | Source comparison, light | [Capture](../reviews/assets/recovery-source-diff-655/comparison-640-light.png) | [Capture](../reviews/assets/recovery-source-diff-655/comparison-1440-light.png) |
 | Source comparison, dark | [Capture](../reviews/assets/recovery-source-diff-655/comparison-640-dark.png) | [Capture](../reviews/assets/recovery-source-diff-655/comparison-1440-dark.png) |
 

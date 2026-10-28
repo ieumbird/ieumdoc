@@ -2995,11 +2995,11 @@ ol.list { list-style: decimal; }
 .bibliography-choices > button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* Recovery source review: wrap source so both columns of line numbers stay visible at 640px. */
-.recovery-prompt-comparing[data-slot="dialog-content"] { width: min(72rem, calc(100% - 2rem)); max-width: calc(100% - 2rem); }
+.recovery-prompt-comparing[data-slot="dialog-content"] { width: min(var(--layout-recovery-compare-width), calc(100% - 2rem)); max-width: calc(100% - 2rem); }
 .recovery-comparison { display: grid; gap: var(--space-2); min-width: 0; }
 .recovery-comparison p { overflow-wrap: anywhere; color: var(--id-color-text-muted); }
 .recovery-diff-toolbar { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
-.recovery-diff { max-height: 42vh; overflow: auto; border: 1px solid var(--id-color-border); border-radius: var(--radius-sm); font-family: var(--font-family-mono); font-size: var(--font-size-xs); }
+.recovery-diff { max-height: var(--layout-recovery-diff-max-height); overflow: auto; border: 1px solid var(--id-color-border); border-radius: var(--radius-sm); font-family: var(--font-family-mono); font-size: var(--font-size-xs); }
 .recovery-diff-line { display: grid; grid-template-columns: 4ch 4ch 2ch minmax(0, 1fr); gap: var(--space-1); padding-inline: var(--space-2); min-height: 1.5em; }
 .recovery-diff-line code { font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
 .recovery-diff-number { text-align: right; color: var(--id-color-text-muted); user-select: none; }
