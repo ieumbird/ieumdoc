@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { SaveDisplayError, SaveErrorLocation } from "../save-error.ts";
 import { Button } from "@/components/ui/button.tsx";
 import { Notice } from "../ui/primitives.tsx";
 
@@ -11,6 +12,7 @@ export type UpdateNotice = { text: string; action: string; onAction(): void; onL
 
 type MessageAreaProps = {
   error: string;
+  saveError?: { failure: SaveDisplayError; locations: readonly SaveErrorLocation[]; onReveal(index: number): void };
   notice: string;
   noticeAction?: (() => void) | null;
   /** Standing condition of the open document (e.g. it cannot be saved); not dismissible. */
@@ -28,7 +30,7 @@ type MessageAreaProps = {
  * Warnings stay while their condition holds; errors stay until dismissed or resolved;
  * notices expire.
  */
-export function MessageArea({ error, notice, noticeAction = null, warning = "", draftNotice = "", documentNotice = "", update = null, onDismissError, onNoticeExpired }: MessageAreaProps) {
+export function MessageArea({ error, saveError, notice, noticeAction = null, warning = "", draftNotice = "", documentNotice = "", update = null, onDismissError, onNoticeExpired }: MessageAreaProps) {
   useTranslation();
   useEffect(() => {
     if (!notice) return;
@@ -47,7 +49,7 @@ export function MessageArea({ error, notice, noticeAction = null, warning = "", 
       ) : null}
       {error ? (
         <Notice tone="error" className="message" data-testid="error">
-          <span className="message-text">{error}</span>
+          {saveError ? <SaveErrorContent {...saveError} /> : <span className="message-text">{error}</span>}
           <Button variant="ghost" size="icon-sm" className="message-dismiss" aria-label={i18n.t("Dismiss error")} onClick={onDismissError}>×</Button>
         </Notice>
       ) : null}
@@ -68,4 +70,27 @@ export function MessageArea({ error, notice, noticeAction = null, warning = "", 
       ) : null}
     </div>
   );
+}
+
+function SaveErrorContent({ failure, locations, onReveal }: NonNullable<MessageAreaProps["saveError"]>) {
+  const [current, setCurrent] = useState(0);
+  const details = useRef<HTMLDetailsElement>(null);
+  useLayoutEffect(() => { setCurrent(0); if (details.current) details.current.open = false; }, [failure]);
+  const active = Math.min(current, Math.max(0, locations.length - 1));
+  const move = (index: number) => { setCurrent(index); onReveal(index); };
+  return <div className="save-error-content">
+    <span className="message-text">{failure.summary}</span>
+    {locations.length ? <span className="message-actions">
+      <Button variant="ghost" size="sm" onClick={() => move(active)}>{i18n.t("Go to problem")}</Button>
+      {locations.length > 1 ? <>
+        <Button variant="ghost" size="sm" aria-label={i18n.t("Previous problem")} onClick={() => move((active + locations.length - 1) % locations.length)}>←</Button>
+        <span>{active + 1} / {locations.length}</span>
+        <Button variant="ghost" size="sm" aria-label={i18n.t("Next problem")} onClick={() => move((active + 1) % locations.length)}>→</Button>
+      </> : null}
+    </span> : failure.locations.length ? <span className="message-text">{i18n.t("The document changed. Save again to locate the problem.")}</span> : null}
+    <details ref={details} className="save-error-details">
+      <summary>{i18n.t("Technical details")}</summary>
+      <p>{failure.details}</p>
+    </details>
+  </div>;
 }

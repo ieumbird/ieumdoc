@@ -45,7 +45,7 @@ import { commitDocumentSave, createDocumentFile, createFolder, documentRevision,
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
 import { SaveContentError } from "../shared/save-error.ts";
-import { saveErrorMessage } from "../src/save-error.ts";
+import { SaveDisplayError, saveErrorMessage } from "../src/save-error.ts";
 import { RootAccess } from "../server/file-access.ts";
 import { readFilePreview } from "../server/document-api.ts";
 
@@ -1532,6 +1532,15 @@ test("save error locations follow submitted split blocks and moved table cells",
   assert.match(unknown, /^Document:/);
   assert.match(unknown, /report this error/);
   assert.doesNotMatch(unknown, /Block \d/);
+  const failures = new SaveDisplayError([
+    new SaveContentError("split failed", { path: [1], part: 1 }),
+    new SaveContentError("cell failed", { path: [2, 1, 1], part: 0 }),
+    new SaveContentError("document failure", undefined, { phase: "serialize" }),
+  ], submitted);
+  assert.deepEqual(failures.locations, [{ index: 1, type: "paragraph" }, { index: 2, type: "table", cell: { row: 0, column: 0 } }]);
+  assert.match(failures.details, /split failed/);
+  assert.match(failures.details, /cell failed/);
+  assert.doesNotMatch(failures.summary, /split failed|cell failed/);
 });
 
 

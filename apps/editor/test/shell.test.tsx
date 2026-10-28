@@ -14,6 +14,8 @@ import { DisplaySettings } from "../src/shell/DisplaySettings.tsx";
 import { DocumentSettings } from "../src/shell/DocumentSettings.tsx";
 import { documentLocation, splitDocumentPath, unquotePath } from "../src/shell/document-path.ts";
 import { MessageArea } from "../src/shell/MessageArea.tsx";
+import { SaveDisplayError } from "../src/save-error.ts";
+import { SaveContentError } from "../shared/save-error.ts";
 import { NewDialog } from "../src/shell/NewDialog.tsx";
 import { Sidebar } from "../src/shell/Sidebar.tsx";
 import { TopBar } from "../src/shell/TopBar.tsx";
@@ -650,6 +652,29 @@ test("message area keeps the writeability warning without a dismiss control", ()
   assert.match(html, /role="status"/);
   assert.match(html, />Cannot save: reason</);
   assert.doesNotMatch(html, /Dismiss/);
+});
+
+test("save failures expose a list of navigation targets and collapsed unchanged technical details", async () => {
+  const failure = new SaveDisplayError([
+    new SaveContentError("Original Core reason.", undefined, { block: { index: 0, type: "table" }, action: "Original action." }),
+    new SaveContentError("Another reason.", undefined, { block: { index: 2, type: "heading" } }),
+  ]);
+  try {
+    await i18n.changeLanguage("ko");
+    const html = renderToStaticMarkup(<MessageArea error={failure.message} notice=""
+      saveError={{ failure, locations: failure.locations, onReveal: noop }} onDismissError={noop} onNoticeExpired={noop} />);
+    assert.match(html, /\(표\)/);
+    assert.match(html, /\(제목\)/);
+    assert.match(html, /문제 위치로 이동/);
+    assert.match(html, /aria-label="이전 문제"/);
+    assert.match(html, /aria-label="다음 문제"/);
+    assert.match(html, /<details[^>]*><summary>기술적 세부 정보<\/summary><p>Original Core reason\. Original action\./);
+    assert.doesNotMatch(html, /<details[^>]*\bopen/);
+    const stale = renderToStaticMarkup(<MessageArea error={failure.message} notice=""
+      saveError={{ failure, locations: [], onReveal: noop }} onDismissError={noop} onNoticeExpired={noop} />);
+    assert.match(stale, /문서가 변경되었습니다/);
+    assert.doesNotMatch(stale, /문제 위치로 이동|aria-label="다음 문제"/);
+  } finally { await i18n.changeLanguage("en"); }
 });
 
 test("New dialog renders nothing while closed", () => {
