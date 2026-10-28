@@ -52,7 +52,7 @@ async (page, { openPath, screenshots }) => {
     await page.getByTestId('equation-latex').fill('x_{language} = 42');
     const before = await snapshot();
     const tabCount = await page.getByRole('tab').count();
-    const scrollBefore = await page.evaluate(() => scrollY);
+    const scrollBefore = await page.evaluate(() => document.querySelector('.document-scroll[data-active="true"]').scrollTop);
     await settings('en');
     const screen = page.getByTestId('settings-dialog');
     await page.waitForFunction(() => document.activeElement?.textContent === 'Back to document');
@@ -172,7 +172,7 @@ async (page, { openPath, screenshots }) => {
     check(await page.locator('html').getAttribute('lang') === 'ko', 'Page language did not update');
     if (screenshots) await page.screenshot({ path: 'tmp/256/settings-ko.png' });
     await closeSettings();
-    check(await page.evaluate(() => scrollY) === scrollBefore, 'Settings changed document scroll');
+    check(await page.evaluate(() => document.querySelector('.document-scroll[data-active="true"]').scrollTop) === scrollBefore, 'Settings changed document scroll');
     await page.getByTestId('folder').first().getByRole('button', {name:'더 많은 작업', exact:true}).click();
     await page.getByRole('menuitem', {name:'폴더 열기…', exact:true}).waitFor();
     await page.getByRole('menu').and(page.locator(':focus-within')).waitFor();

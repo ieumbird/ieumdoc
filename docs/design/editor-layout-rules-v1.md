@@ -1,6 +1,7 @@
 # Editor Layout Rules v1
 
 - Status: Implemented
+- Document scroll verification: 2026-10-29 (#488 phase 0 and #694 header follow-up; [viewport geometry and captures](editor-ux-shell-v1.md#document-scroll-container-488-phase-0)).
 - Brand title-strip update: 2026-10-28 (#647; title strip spans all columns, side headers align with document tabs).
 - Block outline verification: 2026-10-28 (#469 follow-up: shared expanded selection/hover rectangle and inset stroke; [measurements and captures](editor-visual-language-v1.md#typing-and-outline-verification-469)).
 - Save refusal geometry: 2026-10-28 (#578 phase 1: error overlays reuse the same measured block extent and inset stroke, paint above selection/hover within a locally isolated document below the sticky header, and add no document padding/border; [contract and captures](editor-visual-language-v1.md#save-refusal-highlights-578)).
@@ -70,6 +71,16 @@ Desktop reserves native caption-button width using CSS `env(titlebar-area-x)` an
 interactive descendants are no-drag. No fixed caption-button width is used in production.
 
 ## Controls and spacing
+
+Document scrolling belongs to the active tab's viewport below the measured tabs/messages
+header (#488 phase 0, #694 follow-up). Its native scrollbar stays at the window's right edge
+only below that header. The DOM title-strip border spans the viewport, removing the root
+scrollbar interruption; scrollbar width is reserved only in the lower layout. Native window-control
+overlay height, Settings gutter and native pixel verification remain in [#694](https://github.com/ieumbird/ieumdoc/issues/694).
+Navigation clearance is
+the viewport's top plus the target's scroll margin, preserving the existing physical header
+clearance. Sidebar and Outline retain their independent scroll regions. See the
+[scroll contract and measured captures](editor-ux-shell-v1.md#document-scroll-container-488-phase-0).
 
 - Dedicated Settings (#594) covers the viewport with a 48px minimum header, the existing
   240px sidebar width and a bounded 680px content column (`--layout-settings-content-width`).

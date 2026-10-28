@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { i18n } from "./i18n.ts";
 import { useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
 import { useEditorVisible } from "./editor-visibility.ts";
+import { documentScrollContainer } from "./document-scroll.ts";
 import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { PROPERTY_APPLY_SHORTCUT } from "./shortcuts.ts";
@@ -34,6 +35,8 @@ export function BlockProperties({
     <Popover open={open}>
       <PopoverContent
         anchor={anchor}
+        collisionBoundary={documentScrollContainer(anchor.current) ?? undefined}
+        sticky
         side="bottom"
         align="end"
         sideOffset={12}

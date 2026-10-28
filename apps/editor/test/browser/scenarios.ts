@@ -70,6 +70,7 @@ export const STABLE_SCENARIOS = [
   "focus-caret",
   "desktop-updates",
   "inline-document-settings",
+  "document-scroll",
 ];
 
 /** Production HTTP has a different startup and filesystem policy; run it against its own Host. */

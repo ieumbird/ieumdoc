@@ -26,19 +26,21 @@ export const DocumentTab = memo(function DocumentTab({ settingsDisabled, id, fil
   useLayoutEffect(() => { report(id, session); });
   useLayoutEffect(() => () => report(id, null), [id, report]);
   return (
-    <div role="tabpanel" id={`panel-${id}`} aria-labelledby={`tab-${id}`} hidden={!active} inert={!active}
+    <div className="document-scroll" role="tabpanel" id={`panel-${id}`} aria-labelledby={`tab-${id}`} hidden={!active} inert={!active}
       data-document-tab={id} data-active={active ? "true" : "false"}>
-      {session.view === "source" ? (
-        <article className="document source-view" data-testid="source-view" aria-label={i18n.t("Markdown source")}>
-          <pre className="source-view-text"><SourceLines markdown={session.sourceMarkdown} /></pre>
-        </article>
-      ) : null}
-      <div hidden={session.view === "source"}>
-        <EditorVisibility value={active && session.view === "visual"}>
-          <DocumentEditor key={session.editorGeneration} ref={session.editorRef}
-            settingsExpanded={settingsExpanded} onSettingsExpandedChange={setSettingsExpanded} settingsDisabled={settingsDisabled || session.busy}
-            document={session.document} bibliography={session.bibliography} initialSnapshot={session.initialEditorSnapshot} documentPath={session.openedPath} {...session.editorCallbacks} />
-        </EditorVisibility>
+      <div className="document-column">
+        {session.view === "source" ? (
+          <article className="document source-view" data-testid="source-view" aria-label={i18n.t("Markdown source")}>
+            <pre className="source-view-text"><SourceLines markdown={session.sourceMarkdown} /></pre>
+          </article>
+        ) : null}
+        <div hidden={session.view === "source"}>
+          <EditorVisibility value={active && session.view === "visual"}>
+            <DocumentEditor key={session.editorGeneration} ref={session.editorRef}
+              settingsExpanded={settingsExpanded} onSettingsExpandedChange={setSettingsExpanded} settingsDisabled={settingsDisabled || session.busy}
+              document={session.document} bibliography={session.bibliography} initialSnapshot={session.initialEditorSnapshot} documentPath={session.openedPath} {...session.editorCallbacks} />
+          </EditorVisibility>
+        </div>
       </div>
     </div>
   );
