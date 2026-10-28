@@ -78,6 +78,8 @@ export type DocumentEditorHandle = {
   /** Live applied-content comparison with the acknowledged snapshot; excludes property drafts. */
   hasDocumentChanges(): boolean;
   hasUnsavedChanges(): boolean;
+  /** SPIKE (AI Q&A): the document's visible text and the selected text, unsaved edits included. */
+  aiContext(): { text: string; selection: string };
   /** Reveal a heading, table or figure in the Visual document view. */
   revealItem(item: OutlineItem): void;
   /** A click below the document places the caret at its end; returns whether it did. */
@@ -375,6 +377,12 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         return activeDrafts.current.size > 0 || hasDocumentChanges();
       },
       hasDocumentChanges,
+      aiContext() {
+        if (!editor) return { text: "", selection: "" };
+        const { doc, selection } = editor.state;
+        return { text: doc.textBetween(0, doc.content.size, "\n\n", " "),
+          selection: selection.empty ? "" : doc.textBetween(selection.from, selection.to, "\n\n", " ") };
+      },
       revealItem(item) {
         // Source-to-Visual navigation is deferred; a later tab switch must not steal focus/scroll.
         if (!editor || editor.view.dom.closest("[hidden]")) return;

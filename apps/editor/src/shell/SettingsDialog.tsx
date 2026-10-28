@@ -2,7 +2,8 @@ import { useMessageState } from "../ui-message.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, FileText, Info, Palette, History } from "lucide-react";
+import { ArrowLeft, FileText, Info, Palette, History, Sparkles } from "lucide-react";
+import type { AiStatus } from "../ai.ts";
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog.tsx";
 import type { CliIntegrationState, DesktopBridge, DesktopInfo, OfferedUpdate, ReleaseChannel, UpdateState } from "../../shared/desktop-bridge.ts";
@@ -52,7 +53,37 @@ export function updateStatusText(info: DesktopInfo): string {
   }
 }
 
-export type SettingsCategory = "appearance" | "recovery" | "about";
+export type SettingsCategory = "appearance" | "recovery" | "about" | "ai";
+
+/** SPIKE: Codex CLI status for the AI Q&A panel. Never shows credentials. */
+function AiSettings({ status, onRefresh }: { status: AiStatus | null; onRefresh(): Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const ready = status?.enabled ? status : null;
+  const yes = (value: boolean | null | undefined) => value === null || value === undefined ? i18n.t("Unknown") : value ? i18n.t("Yes") : i18n.t("No");
+  const method = ready?.authMethod === "chatgpt" ? i18n.t("ChatGPT account") : ready?.authMethod === "apiKey" ? i18n.t("API key")
+    : ready?.authMethod === "other" ? i18n.t("Other") : "";
+  return <section className="settings-group" aria-labelledby="settings-ai" data-testid="ai-settings">
+    <h3 id="settings-ai" className="settings-group-heading">{i18n.t("Codex CLI")}</h3>
+    <dl className="settings-facts settings-section">
+      <dt>{i18n.t("Installed")}</dt>
+      <dd data-testid="ai-installed">{!status ? i18n.t("Loading…") : ready ? (ready.installed ? `${i18n.t("Yes")} · ${ready.version}` : i18n.t("No")) : "—"}</dd>
+      <dt>{i18n.t("Logged in")}</dt>
+      <dd data-testid="ai-login">{ready?.installed ? (ready.loggedIn ? `${i18n.t("Yes")} · ${method}` : i18n.t("No")) : "—"}</dd>
+      <dt>{i18n.t("Model")}</dt>
+      <dd data-testid="ai-model">{ready ? `${ready.modelLabel} (${ready.model}) · ${i18n.t("Available")}: ${yes(ready.modelAvailable)}` : "—"}</dd>
+    </dl>
+    {status && !status.enabled ? <Notice tone="info">{i18n.t("AI is not enabled on this Host. Start it with ieumdoc serve --ai.")}</Notice>
+      : ready && !ready.installed ? <Notice tone="info">{i18n.t("Install Codex CLI on the Host: npm i -g @openai/codex")}</Notice>
+      : ready && !ready.loggedIn ? <Notice tone="info">{i18n.t("Run codex login in a terminal on the Host, then refresh.")}</Notice>
+      : ready && ready.modelAvailable === false ? <Notice tone="error">{i18n.t("The {{model}} model is not available to this Codex account. IeumDoc does not use other models.", { model: ready.modelLabel })}</Notice>
+      : null}
+    {ready?.problem ? <Notice tone="error">{ready.problem}</Notice> : null}
+    <p className="settings-status">{i18n.t("IeumDoc uses only the {{model}} model, read-only. Questions and document text are sent to OpenAI through your Codex account.", { model: ready?.modelLabel ?? "GPT Luna" })}</p>
+    <div className="settings-actions">
+      <Button size="sm" variant="secondary" disabled={busy} onClick={() => { setBusy(true); void onRefresh().finally(() => setBusy(false)); }}>{i18n.t("Refresh status")}</Button>
+    </div>
+  </section>;
+}
 
 function CliSettings({ desktop }: { desktop: DesktopBridge }) {
   const [state, setState] = useState<CliIntegrationState | null>(null);
@@ -115,10 +146,13 @@ type SettingsDialogProps = {
   /** Resolve the opener or its current visible replacement when Settings closes. */
   returnFocus(): HTMLElement | true;
   onClose(): void;
+  /** SPIKE: AI (Codex) status; the AI category appears when the Host enabled AI. */
+  aiStatus?: AiStatus | null;
+  onRefreshAi?(): Promise<void>;
 };
 
 /** Shared local recovery settings; About and update controls require the Desktop bridge. */
-export function SettingsDialog({ open, category, onCategoryChange, documentName, unsaved, documentSettingsDisabled, documentSettingsHint, onDocumentSettings, desktop, info, onInfo, onInstall, returnFocus, onClose, recoveryCount = 0, recoveryProblem: storageProblem, onClearRecovery }: SettingsDialogProps) {
+export function SettingsDialog({ open, category, onCategoryChange, documentName, unsaved, documentSettingsDisabled, documentSettingsHint, onDocumentSettings, desktop, info, onInfo, onInstall, returnFocus, onClose, aiStatus = null, onRefreshAi = async () => {}, recoveryCount = 0, recoveryProblem: storageProblem, onClearRecovery }: SettingsDialogProps) {
   useTranslation();
   const backButton = useRef<HTMLButtonElement>(null);
   const connectDocumentSettings = useRef(false);
@@ -146,6 +180,7 @@ export function SettingsDialog({ open, category, onCategoryChange, documentName,
   const categories = [
     { id: "appearance", label: i18n.t("Appearance & language"), icon: Palette },
     { id: "recovery", label: i18n.t("Saving & recovery"), icon: History },
+    ...(aiStatus?.enabled ? [{ id: "ai" as const, label: i18n.t("AI (Codex)"), icon: Sparkles }] : []),
     ...(desktop ? [{ id: "about" as const, label: i18n.t("About & updates"), icon: Info }] : []),
   ] as const;
 
@@ -192,6 +227,7 @@ export function SettingsDialog({ open, category, onCategoryChange, documentName,
                 <h2 id={`settings-category-${category}`}>{categories.find(item => item.id === category)?.label}</h2>
                 <p>{category === "appearance" ? i18n.t("How IeumDoc looks on this device.")
                   : category === "recovery" ? i18n.t("Local recovery keeps applied edits on this device.")
+                  : category === "ai" ? i18n.t("Ask questions about the opened folder with the Codex CLI on the Host.")
                   : i18n.t("Version and how IeumDoc Desktop receives updates.")}</p>
               </header>
               {category === "appearance" ? <>
@@ -290,6 +326,7 @@ export function SettingsDialog({ open, category, onCategoryChange, documentName,
                   }} />
                 {recoveryProblem ? <p role="alert">{recoveryProblem}</p> : null}
               </section> : null}
+              {category === "ai" ? <AiSettings status={aiStatus} onRefresh={onRefreshAi} /> : null}
               {category === "about" && info && desktop ? (
                 <section className="settings-group" aria-labelledby="settings-about">
                   <h3 id="settings-about" className="settings-group-heading">{i18n.t("About")}</h3>

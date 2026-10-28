@@ -3,6 +3,7 @@ import { realpathSync, statSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { isIP } from "node:net";
 import path from "node:path";
+import { AiHost, handleAiRequest } from "./ai/ai-api.ts";
 import { handleAssetRequest } from "./asset-api.ts";
 import { handleDocumentRequest } from "./document-api.ts";
 import { SECURITY_HEADERS, serveEditorFile } from "./editor-static.ts";
@@ -19,6 +20,8 @@ export type HttpHostOptions = {
   port?: number;
   host?: string;
   publicOrigin?: string;
+  /** SPIKE: enable `/api/ai/*` over the local Codex CLI (`ieumdoc serve --ai`). */
+  ai?: boolean;
 };
 
 const loopback = (host: string) => host === "::1" || /^127\./.test(host);
@@ -51,6 +54,7 @@ export async function startHttpHost(options: HttpHostOptions) {
   const editorDir = realpathSync(options.editorDir);
   if (!statSync(path.join(editorDir, "index.html")).isFile()) throw new Error("The production Editor build is missing.");
   const key = randomBytes(32);
+  const ai = options.ai ? new AiHost(access) : null;
   const origins = new Set<string>();
   const authorities = new Set<string>();
 
@@ -91,6 +95,7 @@ export async function startHttpHost(options: HttpHostOptions) {
       // User-controlled SVG/HTML must never execute with the application's origin authority.
       res.setHeader("Content-Security-Policy", "sandbox; default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'");
     }
+    if (url.pathname.startsWith("/api/ai/")) return handleAiRequest(req, res, url.pathname, ai);
     if (url.pathname === "/api/asset") return handleAssetRequest(req, res, key, access);
     if (DOCUMENT_ROUTES.has(url.pathname) || media) {
       return handleDocumentRequest(req, res, () => json(res, 404, "Not found."), access, MAX_JSON_BYTES);
@@ -131,6 +136,7 @@ export async function startHttpHost(options: HttpHostOptions) {
     roots: access.roots,
     url: external ?? `http://${authority(host, address.port)}`,
     async close(): Promise<void> {
+      ai?.close();
       if (!server.listening) return;
       const forced = setTimeout(() => server.closeAllConnections(), 5_000);
       forced.unref();

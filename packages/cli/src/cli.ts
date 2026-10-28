@@ -237,7 +237,7 @@ const COMMANDS: CommandSpec[] = [
     name: "serve",
     group: "Serve",
     summary: "Serve the production Editor inside explicitly allowed folders",
-    usage: "ieumdoc serve --root <folder> [--root <folder> ...] [--port <port>] [--host <IP>] [--public-origin <origin>]",
+    usage: "ieumdoc serve --root <folder> [--root <folder> ...] [--port <port>] [--host <IP>] [--public-origin <origin>] [--ai]",
     details: [
       "At least one existing --root is required. Roots are server filesystem access boundaries,",
       "not a workspace or an initial folder selection. Use Open Folder to choose a root or subfolder.",
@@ -245,6 +245,7 @@ const COMMANDS: CommandSpec[] = [
       "For an access-controlled reverse proxy, set --public-origin to its exact http(s) origin.",
       "Non-loopback binding requires --public-origin and restricted upstream access. No built-in authentication.",
       "Serve at the site root (/); subpath hosting is not supported. Ctrl+C stops the server.",
+      "--ai (spike) enables the AI Q&A panel through the local Codex CLI (`codex app-server`); run `codex login` first.",
     ],
   },
   {

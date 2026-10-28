@@ -16,6 +16,8 @@ import { type DocumentSession, type DocumentSessionSnapshot } from "./useDocumen
 import { messageOf, NativeOpenError, requestDocument } from "./document-session.ts";
 import { readDocumentWidth, readOpenTabs, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, writeOpenTabs, type DocumentWidth } from "./preferences.ts";
 import { DocumentPanel } from "./shell/DocumentPanel.tsx";
+import { AiPanel } from "./shell/AiPanel.tsx";
+import { joinDocumentPath, readAiStatus, type AiStatus } from "./ai.ts";
 import { DocumentStart } from "./shell/DocumentStart.tsx";
 import productMark from "../../desktop/assets/icon.svg?url";
 import { MessageArea } from "./shell/MessageArea.tsx";
@@ -82,7 +84,18 @@ export function App() {
     if (!panelOverlay) dockedPanelOpen.current = open;
     setPanelOpen(open);
   };
+  // SPIKE: the right panel shows the outline or the AI Q&A panel (`ieumdoc serve --ai`).
+  const [panelView, setPanelView] = useState<"outline" | "ai">("outline");
+  const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
+  const refreshAi = async () => setAiStatus(await readAiStatus());
+  useEffect(() => { void refreshAi(); }, []);
+  const togglePanelView = (next: "outline" | "ai") => {
+    if (panelOpen && panelView === next) return choosePanelOpen(false);
+    setPanelView(next);
+    choosePanelOpen(true);
+  };
   const outlineToggle = useRef<HTMLButtonElement>(null);
+  const aiToggle = useRef<HTMLButtonElement>(null);
   const fileActionsToggle = useRef<HTMLButtonElement>(null);
   const shell = useRef<HTMLDivElement>(null);
   const header = useRef<HTMLDivElement>(null);
@@ -584,6 +597,31 @@ export function App() {
     return message === "";
   }
 
+  /** SPIKE: AI questions cover the opened folder, or the document's own folder when none is open. */
+  function aiRoot(): string {
+    return folders.rootOf(openedPath) ?? folders.roots[0] ?? (openedPath ? splitDocumentPath(openedPath).directory : "");
+  }
+
+  /** SPIKE: an AI answer citation opens its document, then reveals the cited heading when found. */
+  async function openCitation(relative: string, anchor: string) {
+    const root = aiRoot();
+    if (!root) return;
+    const path = joinDocumentPath(root, relative);
+    if (!await openFolderDocument(path)) return;
+    const wanted = anchor.replace(/^#/, "").trim().toLowerCase();
+    if (!wanted) return;
+    const same = (value: string) => value.replace(/\\/g, "/") === path.replace(/\\/g, "/");
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const owner = [...sessions.current.values()].find(item => same(item.openedPath ?? ""));
+      const items = owner?.outlineStore?.get().items ?? [];
+      const slug = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
+      const item = items.find(entry => entry.text.toLowerCase() === wanted) ?? items.find(entry => slug(entry.text) === slug(wanted))
+        ?? items.find(entry => entry.text.toLowerCase().includes(wanted));
+      if (item) return owner?.revealItem(item);
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  }
+
   // Startup tab restoration lists/reveals child folders but respects remembered section collapse.
   // Only an explicit navigation (rememberVersion) expands and remembers containing sections.
   useEffect(() => {
@@ -854,9 +892,12 @@ export function App() {
             reloadDisabled={!document || busy}
             onCopyPath={() => void copyPath()}
             fileActionsRef={fileActionsToggle}
-            outline={panelOpen}
-            onToggleOutline={() => choosePanelOpen(!panelOpen)}
+            outline={panelOpen && panelView === "outline"}
+            onToggleOutline={() => togglePanelView("outline")}
             outlineToggleRef={outlineToggle}
+            ai={panelOpen && panelView === "ai"}
+            onToggleAi={aiStatus?.enabled ? () => togglePanelView("ai") : undefined}
+            aiToggleRef={aiToggle}
           />
         </div>
       </div>
@@ -903,7 +944,19 @@ export function App() {
           {tabs.map(tab => <DocumentTab settingsDisabled={busy} key={tab.id} id={tab.id} file={tab.file} restored={tab.restored} recoveryId={tab.recoveryId} active={tab.id === activeId} report={reportSession} onAssetChange={onAssetChange} />)}
         </main>
       </div>
-      {panelOpen ? (
+      {panelOpen && panelView === "ai" ? (
+        <AiPanel
+          overlay={panelOverlay}
+          status={aiStatus}
+          session={activeId ?? "none"}
+          root={aiRoot()}
+          path={openedPath}
+          context={() => editorRef.current?.aiContext?.() ?? { text: "", selection: "" }}
+          onOpenCitation={(path, anchor) => void openCitation(path, anchor)}
+          onSettings={() => { setSettingsCategory("ai"); setSettingsOpen(true); }}
+          onClose={() => { choosePanelOpen(false); aiToggle.current?.focus(); }}
+        />
+      ) : panelOpen ? (
         <DocumentPanel
           overlay={panelOverlay}
           outline={document ? outlineStore : undefined}
@@ -933,6 +986,8 @@ export function App() {
           onInstall={installUpdate}
           returnFocus={() => shellReturnFocus(settingsReturnFocus.current)}
           onClose={() => setSettingsOpen(false)}
+          aiStatus={aiStatus}
+          onRefreshAi={refreshAi}
         />
       <CommandCenter open={commandQuery !== null} initialQuery={commandQuery ?? ""} items={commandItems}
         returnFocus={commandReturnFocus} onClose={() => setCommandQuery(null)} />

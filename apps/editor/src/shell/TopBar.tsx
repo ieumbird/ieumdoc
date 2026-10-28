@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { operationText, type Operation } from "../operation.ts";
 import { useLayoutEffect, useRef, useState, type Ref } from "react";
-import { Copy, Ellipsis, LoaderCircle, PanelRight, RotateCcw, Search, StretchHorizontal } from "lucide-react";
+import { Copy, Ellipsis, LoaderCircle, PanelRight, RotateCcw, Search, Sparkles, StretchHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -34,6 +34,10 @@ type TopBarProps = {
   outline?: boolean;
   onToggleOutline?(): void;
   outlineToggleRef?: Ref<HTMLButtonElement>;
+  /** SPIKE: whether the AI Q&A panel is shown; the toggle appears only when the Host enabled AI. */
+  ai?: boolean;
+  onToggleAi?(): void;
+  aiToggleRef?: Ref<HTMLButtonElement>;
 };
 
 /**
@@ -48,7 +52,7 @@ export function TopBar({
   onOpenCommandCenter, documentPath, wide, onToggleWide,
   location = [], status, unsaved = false, view, viewDisabled, onViewChange, saveDisabled,
   onSave, onReload, reloadDisabled, onCopyPath, fileActionsRef,
-  outline, onToggleOutline, outlineToggleRef,
+  outline, onToggleOutline, outlineToggleRef, ai, onToggleAi, aiToggleRef,
 }: TopBarProps) {
   useTranslation();
   const { name } = splitDocumentPath(documentPath);
@@ -148,6 +152,12 @@ export function TopBar({
             <Button ref={outlineToggleRef} type="button" size="icon-sm" variant="ghost" className="top-bar-toggle" aria-label={i18n.t("Outline")}
               title={i18n.t("Outline")} aria-pressed={outline} onClick={onToggleOutline}>
               <PanelRight aria-hidden="true" />
+            </Button>
+          ) : null}
+          {onToggleAi ? (
+            <Button ref={aiToggleRef} type="button" size="icon-sm" variant="ghost" className="top-bar-toggle" aria-label={i18n.t("Ask AI")}
+              title={i18n.t("Ask AI")} aria-pressed={ai} onClick={onToggleAi} data-testid="ai-toggle">
+              <Sparkles aria-hidden="true" />
             </Button>
           ) : null}
         </div>

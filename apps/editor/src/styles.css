@@ -431,6 +431,21 @@ button {
 .document-panel-navigation .view-toggle { width: 100%; }
 .document-panel-navigation .view-toggle-option { flex: 1; min-width: 0; padding-inline: var(--space-1); }
 
+/* SPIKE: AI Q&A panel (`ieumdoc serve --ai`). */
+.ai-panel-title { margin: 0; font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
+.ai-panel-model { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-size-xs); color: var(--id-color-text-muted); }
+.ai-panel-messages { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-4); padding-block: var(--space-3); }
+.ai-panel-empty, .ai-activity { margin: 0; font-size: var(--font-size-xs); color: var(--id-color-text-muted); }
+.ai-panel-setup { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+.ai-panel-setup p { margin: 0; }
+.ai-turn { display: flex; flex-direction: column; gap: var(--space-2); }
+.ai-question { align-self: flex-end; max-width: 90%; margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--id-color-surface-pressed); white-space: pre-wrap; font-size: var(--font-size-sm); }
+.ai-answer { font-size: var(--font-size-sm); line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ai-thinking { color: var(--id-color-text-muted); }
+.ai-citation { color: var(--id-color-accent); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.ai-panel-form { display: flex; align-items: flex-end; gap: var(--space-2); padding-top: var(--space-2); border-top: var(--border-width) solid var(--id-color-border); }
+.ai-panel-input { flex: 1; min-width: 0; resize: none; padding: var(--space-2); border: var(--border-width) solid var(--id-color-border); border-radius: var(--radius-md); background: var(--id-color-surface); color: inherit; font: inherit; font-size: var(--font-size-sm); }
+
 /* The outline takes the panel's remaining height and scrolls by itself. */
 .document-outline {
   display: flex;
