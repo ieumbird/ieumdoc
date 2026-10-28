@@ -68,15 +68,34 @@ export type FolderTreesAction =
   | { type: "closeRoot"; root: string }
   | (Exclude<FolderTreeAction, { type: "openRoot" | "closeRoot" }> & { root: string });
 
-/** Opened folders in the order they were opened. Opening one already open relists it in place. */
+/** Non-overlapping roots. A wider root takes the first absorbed section's place. */
 export function folderTreesReducer(trees: readonly FolderTreeState[], action: FolderTreesAction): FolderTreeState[] {
   if (action.type === "openRoot") {
     const { listing } = action;
-    if (!trees.some(tree => tree.root === listing.root)) return [...trees, folderTreeReducer(null, action)!];
-    return trees.map(tree => tree.root === listing.root ? { ...tree, nodes: new Map(tree.nodes).set(listing.path, listing) } : tree);
+    const parent = trees.find(tree => containsFolder(tree.root, listing.root));
+    if (parent) return trees.map(tree => tree === parent
+      ? { ...tree, nodes: new Map(tree.nodes).set(listing.path, { ...listing, root: tree.root }) } : tree);
+    const absorbed = trees.filter(tree => containsFolder(listing.root, tree.root));
+    const next = folderTreeReducer(null, action)!;
+    const nodes = new Map(next.nodes);
+    const expanded = new Set(next.expanded);
+    for (const tree of absorbed) {
+      for (const [path, node] of tree.nodes) nodes.set(path, { ...node, root: listing.root });
+      for (const path of tree.expanded) expanded.add(path);
+      for (const path of folderChain(listing.root, tree.root)) if (path !== listing.root) expanded.add(path);
+      if (tree.sectionExpanded) expanded.add(tree.root);
+    }
+    const merged = { ...next, nodes, expanded };
+    if (!absorbed.length) return [...trees, merged];
+    return trees.flatMap(tree => tree === absorbed[0] ? [merged] : absorbed.includes(tree) ? [] : [tree]);
   }
   if (action.type === "closeRoot") return trees.filter(tree => tree.root !== action.root);
   return trees.map(tree => tree.root === action.root ? folderTreeReducer(tree, action) ?? tree : tree);
+}
+
+/** Host-resolved paths compare literally, including case (#372); require a separator boundary. */
+export function containsFolder(root: string, path: string): boolean {
+  return root === path || folderChain(root, path).length > 0;
 }
 
 /**
@@ -168,9 +187,14 @@ export function treeKey(items: TreeItem[], index: number, key: string, expanded:
 
 /** Opened folders with their Host requests. `request` lists one level of a folder inside an opened one. */
 export function useFolderTrees(request: (root: string, path?: string) => Promise<FolderResponse>, onError: (message: string) => void) {
-  const [trees, dispatch] = useReducer(folderTreesReducer, []);
+  const [trees, reduce] = useReducer(folderTreesReducer, []);
   const latest = useRef(trees);
   latest.current = trees;
+  // Async Open completions can share a render. Resolve their containment against every prior action.
+  const dispatch = (action: FolderTreesAction) => {
+    latest.current = folderTreesReducer(latest.current, action);
+    reduce(action);
+  };
   const requests = useRef(0);
   const roots = trees.map(tree => tree.root);
   // Compare path values in the effect dependencies, independently of tree listing/expansion state.
@@ -194,6 +218,7 @@ export function useFolderTrees(request: (root: string, path?: string) => Promise
           // A user's Open/Close of this Host path takes precedence over its older restoration.
           if (!cancelled && !userChangedRoots.current.has(listing.root)) {
             dispatch({ type: "openRoot", listing, sectionExpanded: !collapsed.has(listing.root) });
+            loadMissingBranches();
           }
         } catch { /* Moved, removed or refused folders are left out quietly. */ }
       }
@@ -229,6 +254,13 @@ export function useFolderTrees(request: (root: string, path?: string) => Promise
     );
   };
 
+  // Absorption transfers loaded children; only missing intermediate folders need new listings.
+  const loadMissingBranches = () => {
+    for (const tree of latest.current) for (const path of tree.expanded) {
+      if (!tree.nodes.has(path) && !tree.pending.has(path)) load(tree.root, path);
+    }
+  };
+
   // Expands the folders above a document or folder inside an opened folder and lists them again (the
   // opened folder too unless it was just listed). A document elsewhere changes nothing.
   const show = (root: string, itemPath: string, listRoot: boolean) => {
@@ -246,11 +278,18 @@ export function useFolderTrees(request: (root: string, path?: string) => Promise
     rootOf: (itemPath: string) => containingRoot(roots, itemPath),
     /** Adds a folder (or relists one already open), opened down to the open document when it is inside. */
     open(listing: FolderResponse, documentPath: string) {
+      const parent = latest.current.find(tree => containsFolder(tree.root, listing.root));
       if (!restored) userChangedRoots.current.add(listing.root);
       dispatch({ type: "openRoot", listing });
       rememberFolders();
       rememberSections();
-      show(listing.root, documentPath, false);
+      if (parent && parent.root !== listing.root) {
+        dispatch({ type: "setSectionExpanded", root: parent.root, expanded: true });
+        dispatch({ type: "expand", root: parent.root, path: listing.root });
+        show(parent.root, listing.root, true);
+      } else show(listing.root, documentPath, false);
+      loadMissingBranches();
+      return parent && parent.root !== listing.root ? parent.root : undefined;
     },
     close(root: string) {
       if (!restored) userChangedRoots.current.add(root);

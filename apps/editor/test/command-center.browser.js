@@ -235,7 +235,9 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     await page.getByTestId('folder-path').fill(path + sep);
     await page.getByTestId('folder-open').click();
     await page.getByRole('dialog').waitFor({state:'detached'});
-    await page.locator(`[data-testid="folder"][data-root="${path.replaceAll('\\','\\\\')}"]`).waitFor({state:'attached'});
+    const root = page.locator(`[data-testid="folder"][data-root=${JSON.stringify(path)}]`);
+    const child = page.locator(`[role="treeitem"][data-path=${JSON.stringify(path)}]`);
+    await root.or(child).waitFor({state:'attached'});
   };
   const folderPath = file('').slice(0,-1);
   await openFolder(folderPath);
@@ -298,10 +300,13 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await open('guide.md');
   check(await center().getByRole('option',{name:'guide.md',exact:true}).count() === 1, 'Restoring the parent entry lost its collapsed child cache');
   await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
-  // Overlapping opened roots must not duplicate the same cached file.
+  // Opening a loaded child reveals it in the existing section; search still lists each file once.
   await openFolder([folderPath,'alpha'].join(sep));
+  check(await page.getByTestId('folder').count() === 1 &&
+    await folder.getByRole('treeitem',{name:'alpha',exact:true}).getAttribute('aria-expanded') === 'true',
+    'Opening a child must reveal it without adding a root section');
   await open('guide.md');
-  check(await center().getByRole('option',{name:'guide.md',exact:true}).count() === 1, 'Overlapping roots duplicated a document');
+  check(await center().getByRole('option',{name:'guide.md',exact:true}).count() === 1, 'Contained folder navigation duplicated a document');
   await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
 
   // Ensure settings search matches a Refresh folder path on every checkout and OS.

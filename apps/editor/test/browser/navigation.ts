@@ -24,8 +24,8 @@ export async function openDocument(page: Page, file: string): Promise<void> {
   await page.getByTestId("folder-path").fill(path.dirname(file));
   await page.getByTestId("folder-open").click();
   await page.getByRole("dialog", { name: "Open folder", exact: true }).waitFor({ state: "detached" });
-  const folder = sidebar.locator(`[data-testid="folder"][data-root=${JSON.stringify(path.dirname(file))}]`);
-  await folder.getByRole("treeitem", { name: path.basename(file), exact: true }).click();
+  // The chosen directory may now live inside an already-open ancestor (#702).
+  await sidebar.locator(`[role="treeitem"][data-path=${JSON.stringify(file)}]`).click();
 }
 
 /** Wait for Reload's modal/menu focus handoff; callers still answer dirty-tab confirmation. */

@@ -1,6 +1,7 @@
 # Filesystem Host Boundary v1
 
 - Status: Implemented
+- Non-overlapping roots verification: 2026-10-29 (#702: Editor 338 unit tests, typecheck/build; persistent Chrome folder-navigation/memory, layout-rules, quiet-document, document-tabs, editor-shell and reveal-folder; [behavior and captures](editor-ux-shell-v1.md#non-overlapping-opened-folders-702)).
 - Post-replacement cleanup verification: 2026-10-27 (PR #609 review P1: four regressions failed before the fix; Host/HTTP 26, Editor 313, shared file-commit 4 passed / 2 platform skips, dedicated-port file-actions browser passed; shared file-commit behavior unchanged).
 - Referenced image rename verification: 2026-10-27 (#504 PR B: Core/CLI/Host tests, file-actions browser dirty/draft protection and clean-tab reload, other-window Save conflict, production HTTP Save/Reload/recovery; rollback failures use real temporary files with injected I/O errors).
 - File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
@@ -311,7 +312,7 @@ Get-Content -Raw -Encoding utf8 "<임시 폴더>/operations.json" | pnpm ieumdoc
 
 ### Folder listing v1 (#112)
 
-사용자가 `Open folder…` 대화상자에서 folder 경로 하나를 고르면 Host가 그 folder를 한 단계씩 list하고, Sidebar는 이를 tree로 보여 주며 문서를 연다. [ADR-0009](../adr/0009-multiple-opened-folders.md)에 따라 Sidebar는 열어 둔 folder 여러 개를 순서대로 각자의 tree로 보여 주며, Open folder…는 목록에 추가한다. Workspace가 아니다. 열어 둔 folder의 경로 목록과 최근에 성공적으로 연 folder 경로는 Browser preference로만 기억하고 Host나 파일에 저장하지 않는다. 폴더 섹션 접힘은 같은 origin의 Browser preference로 root 경로만 기억한다(#425). 하위 폴더 펼침과 listing은 페이지 상태다.
+사용자가 `Open folder…` 대화상자에서 folder 경로 하나를 고르면 Host가 그 folder를 한 단계씩 list하고, Sidebar는 이를 tree로 보여 주며 문서를 연다. [ADR-0009](../adr/0009-multiple-opened-folders.md)에 따라 Sidebar는 열어 둔 folder 여러 개를 순서대로 각자의 tree로 보여 주며, Open folder…는 포함 관계가 없는 root를 추가한다. #702에 따라 하위 폴더는 기존 상위 tree에서 펼쳐 선택하고, 상위 폴더는 기존 하위 섹션을 첫 흡수 위치에서 대체하며 펼침 상태를 가능한 만큼 옮긴다. 최근 Open과 시작 복원도 같은 포함 관계 규칙을 적용한다. 포함 관계는 기존 Host 정규화 결과의 문자열과 경로 구분자 경계로 비교하며 대소문자·junction·symlink·UNC 정책을 추가하지 않는다(#372 보류). Workspace가 아니다. 열어 둔 folder의 경로 목록과 최근에 성공적으로 연 folder 경로는 Browser preference로만 기억하고 Host나 파일에 저장하지 않는다. 폴더 섹션 접힘은 같은 origin의 Browser preference로 root 경로만 기억한다(#425). 하위 폴더 펼침과 listing은 페이지 상태다.
 
 - `GET /api/folder?root=<선택한 folder>&path=<그 안의 folder, 생략 시 root>`는 `{ root, path, parent?, entries }`를 돌려준다. `entries`는 `{ name, kind: "folder" | "document" | "image" | "file", path, native? }`이고 sub-folder 먼저, 그다음 이름순(숫자 인식)이다. `native`는 문서 항목에만 있으며, 파일 앞부분(최대 4KB)의 leading frontmatter에 native 표식 `ieumdoc: 1`이 있는지를 Core의 `hasNativeMarker`로 판정한 값이다. 파일을 읽을 수 없으면 생략한다. 이는 Sidebar가 열 수 없는 파일을 미리 구분해 보여 주기 위한 표시일 뿐 admission이 아니다. 표식이 있어도 열 때 Core가 metadata와 내용을 검증해 거부할 수 있다. `parent`는 root보다 아래일 때만 있다. 현재 Sidebar tree는 `parent`를 쓰지 않지만 API 계약은 그대로다.
 

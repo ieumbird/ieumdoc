@@ -30,6 +30,8 @@ type SidebarProps = {
   onNewFolder?(root: string, button: HTMLButtonElement): void;
   /** The opened folders, in order, each a tree of the folders listed so far. */
   folders?: FolderTreeState[];
+  focusFolder?: string | null;
+  onFolderFocused?(): void;
   onToggleFolder?(root: string, path: string): void;
   onToggleSection?(root: string): void;
   onOpenDocument?(path: string): void;
@@ -44,7 +46,7 @@ type SidebarProps = {
 /** File navigation stays mounted when collapsed. Outline remains independent on the right. */
 export function Sidebar({
   onFileAction, fileActionsDisabled, isFileDirty, open, documentPath, onToggle, toggleRef, onOpenFolder, onNewDocument, recent = [], onOpenRecent, onNew, onNewFolder,
-  folders = [], onToggleFolder, onToggleSection, onOpenDocument, onCloseFolder, onRefreshFolder, onRevealFolder, onSettings, updateVersion,
+  folders = [], focusFolder, onFolderFocused, onToggleFolder, onToggleSection, onOpenDocument, onCloseFolder, onRefreshFolder, onRevealFolder, onSettings, updateVersion,
 }: SidebarProps) {
   useTranslation();
   return (
@@ -74,6 +76,8 @@ export function Sidebar({
             key={tree.root}
             onFileAction={onFileAction} fileActionsDisabled={fileActionsDisabled} isFileDirty={isFileDirty}
             tree={tree}
+            focusFolder={focusFolder}
+            onFolderFocused={onFolderFocused}
             documentPath={documentPath}
             onToggleFolder={path => onToggleFolder?.(tree.root, path)}
             onToggleSection={() => onToggleSection?.(tree.root)}
@@ -140,6 +144,8 @@ type FolderTreeProps = {
   fileActionsDisabled: boolean;
   isFileDirty(path: string): boolean;
   tree: FolderTreeState;
+  focusFolder?: string | null;
+  onFolderFocused?(): void;
   documentPath: string;
   onToggleFolder(path: string): void;
   onToggleSection(): void;
@@ -153,7 +159,7 @@ type FolderTreeProps = {
 };
 
 /** One opened folder as a tree: folders expand in place, documents open. */
-function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, documentPath, onToggleFolder, onToggleSection, onOpenDocument, onNew, onNewFolder, onOpenFolder, onRevealFolder, onRefresh, onClose }: FolderTreeProps) {
+function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, focusFolder, onFolderFocused, documentPath, onToggleFolder, onToggleSection, onOpenDocument, onNew, onNewFolder, onOpenFolder, onRevealFolder, onRefresh, onClose }: FolderTreeProps) {
   useTranslation();
   const treeId = useId();
   const section = useRef<HTMLElement>(null);
@@ -167,6 +173,14 @@ function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, docu
   const toggleName = i18n.t(tree.sectionExpanded ? "Collapse folder {{name}}" : "Expand folder {{name}}", { name: folderName });
   const items = visibleTreeItems(tree);
   const rows = useRef(new Map<string, HTMLLIElement>());
+  useLayoutEffect(() => {
+    const target = focusFolder && tree.sectionExpanded ? rows.current.get(focusFolder) : undefined;
+    if (target) {
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({ block: "nearest" });
+      onFolderFocused?.();
+    }
+  }, [focusFolder, tree, onFolderFocused]);
   useLayoutEffect(() => {
     if (pendingFocus.current && !fileAction) {
       const target = rows.current.get(pendingFocus.current);
@@ -248,6 +262,7 @@ function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, docu
               role="treeitem"
               className={`sidebar-tree-item${folder && onRevealFolder ? " sidebar-tree-item--actions" : ""}`}
               data-foreign={foreign || undefined}
+              data-path={entry.path}
               style={{ "--tree-depth": item.depth + 1 } as CSSProperties}
               tabIndex={entry.path === tabStop ? 0 : -1}
               title={description ? `${entry.path}\n${description}` : entry.path}
@@ -257,6 +272,7 @@ function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, docu
               aria-posinset={item.position}
               aria-setsize={item.size}
               aria-expanded={folder ? expanded : undefined}
+              aria-selected={folder ? entry.path === focused : undefined}
               aria-current={!folder && entry.path === documentPath ? "page" : undefined}
               onFocus={() => setFocused(entry.path)}
               onClick={() => activate(item)}

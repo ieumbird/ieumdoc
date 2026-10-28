@@ -6,8 +6,8 @@ async (page, { openFolderPicker, openPath, waitForActivePath }) => {
   const sep = defaultPath.includes('\\') ? '\\' : '/';
   const root = defaultPath.split(sep).slice(0, -4).join(sep);
   const a = [root, 'tmp', 'folder-navigation'].join(sep);
-  const b = [a, 'guides'].join(sep);
-  const c = [a, '자료'].join(sep);
+  const b = [root, 'tmp', 'folder-memory-b'].join(sep);
+  const c = [root, 'tmp', 'folder-memory-c'].join(sep);
   const failures = [];
   const check = (condition, message) => { if (!condition) failures.push(message); };
   const same = (actual, expected) => JSON.stringify(actual) === JSON.stringify(expected);
@@ -384,27 +384,32 @@ async (page, { openFolderPicker, openPath, waitForActivePath }) => {
   check(await page.evaluate(() => window.folderPreferenceWrites) > 0,
     'An explicit same-list Open did not write the current paths');
 
-  // Overlapping trees keep separate Sidebar sections, but each New destination appears once.
-  // The first opened tree supplies the label, regardless of whether it is the parent or child.
-  for (const saved of [[a, b], [b, a]]) {
+  // Nested saved roots are reduced in either order, with no duplicate New destination.
+  const nested = [a, 'guides'].join(sep);
+  for (const saved of [[a, nested], [nested, a]]) {
     await seed(saved);
-    await waitRoots(saved);
+    await waitRoots([a]);
+    // Wait for the last saved path's Host response and restoration without changing preferences.
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await checkMemory(saved, 'Restoration only reduces the live list');
     for (const kind of ['file', 'folder']) {
       await section(a).getByRole('button', {name:kind === 'file' ? 'New document…' : 'More actions', exact:true}).click();
       if (kind === 'folder') await page.getByRole('menuitem', {name:'New folder…', exact:true}).click();
       const select = page.getByTestId(`new-${kind}-directory`);
       const options = await select.locator('option').evaluateAll(nodes => nodes.map(node => ({path:node.value, label:node.textContent})));
-      check(new Set(options.map(option => option.path)).size === options.length, `New ${kind} has duplicate destinations: ${JSON.stringify(options)}`);
-      const expectedLabel = saved[0] === a ? ['folder-navigation', 'guides'].join(sep) : 'guides';
-      check(options.find(option => option.path === b)?.label === expectedLabel, `New ${kind} must retain the first tree's label`);
-      await select.selectOption(b);
-      check(await select.inputValue() === b, `New ${kind} must select the unique nested destination`);
+      check(new Set(options.map(option => option.path)).size === options.length, 'New destinations must be unique after nested restoration');
+      check(options.find(option => option.path === nested)?.label === ['folder-navigation', 'guides'].join(sep), 'Destination uses its surviving root label');
+      await select.selectOption(nested);
       await page.getByRole('dialog').getByRole('button', {name:'Cancel', exact:true}).click();
       await page.getByRole('dialog').waitFor({state:'detached'});
     }
+    await startOpen(a);
+    await page.getByRole('dialog').waitFor({state:'detached'});
+    await checkMemory([a], 'Explicit navigation remembers the reduced roots');
+    await reload([a]);
   }
   if (failures.length) throw new Error(failures.join('\n'));
   return {responseOrders:true, closeDuringRestoration:true, closeDuringOpen:true, samePathCloseWins:true,
     concurrentRecentOpens:true, recentStorageUnavailable:true, treeUpdatesDoNotWrite:true, explicitOpenRemembers:true, crossTabPreference:true,
-    failedRestoration:true, reload:true, uniqueDestinations:true};
+    failedRestoration:true, reload:true, uniqueDestinations:true, nestedRestoration:true};
 }

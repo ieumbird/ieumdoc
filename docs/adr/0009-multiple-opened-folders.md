@@ -1,6 +1,7 @@
 # ADR-0009: 사이드바에 여러 폴더 열기
 
 - Status: Accepted
+- Non-overlapping roots verification: 2026-10-29 (#702: Editor 338 unit tests, typecheck/build; persistent Chrome folder-navigation/memory, layout-rules, quiet-document, document-tabs, editor-shell and reveal-folder; [behavior and captures](../design/editor-ux-shell-v1.md#non-overlapping-opened-folders-702)).
 - Last verified: 2026-10-25 (#425 owner persistence decision: Editor tests/typecheck/build, folder-memory/navigation/command-center/document-tabs/editor-shell/quiet-document; [restoration evidence](../design/editor-ux-shell-v1.md#section-persistence-decision-and-verification-2026-10-25)).
 - Previous verification: 2026-10-25 (#425: collapsible folder sections; Editor tests/typecheck/build, folder-navigation/folder-memory/command-center/editor-shell/layout-rules/ui-language/quiet-document and [desktop/phone captures](../design/editor-ux-shell-v1.md#section-disclosure-verification-and-captures)).
 - Previous verification: 2026-10-24 (#385: Sidebar header entry, Close-only folder menus; folder-navigation browser check, Editor tests/typecheck/build and same-state desktop/phone captures; [evidence](../design/editor-ux-shell-v1.md#sidebar-open-folder-entry-385)).
@@ -18,6 +19,8 @@
 
 ## Decision
 
+The overlapping-root and unconditional append decisions in section 1 are superseded by the
+[2026-10-29 amendment](#amendment-2026-10-29-non-overlapping-roots-702).
 The original 2026-10-23 decision below is retained. The folder-menu Open folder entry in section 1 is superseded by the [2026-10-24 amendment](#amendment-2026-10-24-open-folder-entry-385).
 Section 2's no-expansion-persistence rule is narrowed only for opened-root section collapse by the
 [2026-10-25 persistence amendment](#amendment-2026-10-25-remember-collapsed-folder-sections-425);
@@ -145,3 +148,31 @@ Entry placement is superseded by the [2026-10-27 explorer amendment](#amendment-
   change; no new architecture decision is needed. Current geometry and focus rules are in the
   [shell contract](../design/editor-ux-shell-v1.md#sidebar-and-native-title-bar-582--605) and
   [Layout Rules](../design/editor-layout-rules-v1.md#alignment-and-ownership).
+
+## Amendment 2026-10-29: Non-overlapping roots (#702)
+
+- Status: Accepted. The [owner decision on #702](https://github.com/ieumbird/ieumdoc/issues/702#issuecomment-6482705677)
+  replaces section 1's rule that nested/overlapping folders each have their own section, and narrows
+  its unconditional append rule. Retain the original decision, date and historical verification
+  under [documentation governance](../contributing/documentation-governance.md#update-rules).
+- Opened roots must not contain one another. Opening a descendant adds no section: expand its
+  existing ancestor section and the path through the requested folder, select that row and scroll
+  it into view. Explain in Korean/English that it is already inside the named opened folder.
+- Opening an ancestor absorbs all descendant sections at the first absorbed section's position.
+  Transfer loaded listings and child expansion where possible; a previously expanded section
+  becomes an expanded child folder, a collapsed one stays collapsed. Fill missing intermediate
+  folders through existing one-level listings. Unrelated sections retain their order. Path-based tabs, edits and history survive.
+- Recent-folder Open and saved-root restoration apply the same containment reduction. Startup
+  restoration stays quiet, retains the surviving root's remembered section visibility and does
+  not rewrite preferences; the next explicit navigation writes the reduced current roots.
+- Compare Host-normalized path strings with separator boundaries, using the existing identity
+  policy. Do not fold case or introduce realpath resolution in the Editor: Windows case identity
+  remains deferred in [#372](https://github.com/ieumbird/ieumdoc/issues/372); junction, symlink and
+  UNC handling follow existing Host results and access checks.
+- Reason: duplicate files in separate trees make active-document indication, file operations,
+  New destinations ([#367](https://github.com/ieumbird/ieumdoc/issues/367)), future AI reference
+  scope and the tab's folder context ambiguous. A later need for deep-folder shortcuts should
+  be considered separately, rather than reopening nested sections.
+- This changes Editor navigation state only. No Workspace, Core semantic operation, CLI surface
+  or Host normalization change. Sidebar renaming belongs to #703. Current behavior and evidence
+  are in [the shell contract](../design/editor-ux-shell-v1.md#non-overlapping-opened-folders-702).

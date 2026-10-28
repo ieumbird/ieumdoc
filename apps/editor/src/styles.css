@@ -503,6 +503,7 @@ button {
 }
 
 .sidebar-tree-item[aria-current="page"],
+.sidebar-tree-item[aria-selected="true"],
 .document-outline-item[aria-current="location"] {
   background: var(--id-color-surface-selected);
   color: var(--id-color-text-selected);
@@ -510,6 +511,7 @@ button {
 }
 
 .sidebar-tree-item[aria-current="page"]:hover,
+.sidebar-tree-item[aria-selected="true"]:hover,
 .document-outline-item[aria-current="location"]:hover {
   background: var(--id-color-surface-selected-hover);
 }
