@@ -78,9 +78,11 @@ interactive descendants are no-drag. No fixed caption-button width is used in pr
   `--layout-settings-control-width` (240px) and existing 32px control tokens. Content uses
   the 64px inline/32px block spacing scale; below 768px the named category list stacks above
   content with 24px content insets and single-column rows. The body scrolls inside the
-  viewport, leaving Back reachable. While mounted, a fixed root background continues the Settings header's
-  surface/border colors into the gutter retained by Base UI scroll lock. The lock remains
-  active; no document or shell geometry changes underneath it.
+  viewport, leaving Back reachable. After Base UI locks scrolling, Settings removes its
+  reserved viewport gutter and compensates the body with the measured gap so the popup's
+  header reaches the window edge while document width/height/scroll position stay unchanged.
+  Resize removes/reapplies this compensation around Base UI's relock; `open=false` restores
+  the original styles before unlock. The normal document root scrollbar remains unchanged.
   Accent choices (#617) use one row of six 20px circles (compact control size minus
   space-2), 28px radio targets with 8px between circles. Only the current color name appears to
   the right, in 12/16px muted text with an 8px gap. This fits the 240px control axis

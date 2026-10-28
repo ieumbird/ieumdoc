@@ -5,6 +5,7 @@
 :root {
   /* Native caption-button geometry, zero in ordinary browser tabs. */
   --window-controls-width: max(0px, calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw)));
+  --settings-gutter: 0px; /* Measured modal gutter compensation, not a user preference. */
   color: var(--id-color-text);
   background: var(--id-color-canvas);
   font-family: var(--font-family-sans);
@@ -847,15 +848,10 @@ body:has(.ui-portal [role="menu"]) :is(.app-titlebar, .top-bar, .settings-topbar
 }
 
 /* Settings retains the mounted document shell behind an opaque full-screen modal boundary. */
-:root:has(.settings-screen) {
-  /* Base UI's stable viewport gutter paints the root background, outside the popup.
-   * Continue Settings' surfaces and separator there without removing the scroll lock
-   * or resizing the document underneath. Anchor to the viewport even after scrolling. */
-  background: linear-gradient(to bottom,
-    var(--id-color-surface-subtle) 0 calc(var(--layout-header-row) - var(--border-width)),
-    var(--id-color-border) 0 var(--layout-header-row),
-    var(--id-color-surface) 0) fixed;
-}
+/* Base UI keeps its inline lock; the scoped override expands only the fixed modal viewport.
+ * Body padding preserves the document layout that was present before opening Settings. */
+:root[data-settings-gutter] { scrollbar-gutter: auto !important; }
+:root[data-settings-gutter] body { padding-right: var(--settings-gutter); }
 
 .settings-screen[data-slot="dialog-content"] {
   inset: 0;

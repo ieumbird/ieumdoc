@@ -1,7 +1,7 @@
 import { useMessageState } from "../ui-message.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowLeft, FileText, Info, Palette, History } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog.tsx";
@@ -119,6 +119,50 @@ type SettingsDialogProps = {
 export function SettingsDialog({ open, highlightUpdate = false, category, onCategoryChange, documentName, unsaved, desktop, info, onInfo, onInstall, returnFocus, onClose, recoveryCount = 0, recoveryProblem: storageProblem, onClearRecovery }: SettingsDialogProps) {
   useTranslation();
   const backButton = useRef<HTMLButtonElement>(null);
+  const [popup, setPopup] = useState<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (!open || !popup) return;
+    const root = document.documentElement, body = document.body;
+    let resizing = false, resizeFrame = 0;
+    const clear = () => {
+      root.removeAttribute("data-settings-gutter");
+      root.style.removeProperty("--settings-gutter");
+    };
+    const sync = () => {
+      if (resizing) return;
+      // Wait for Base UI's lock; do not change its scrollbar feature probe or inline styles.
+      const locked = [getComputedStyle(root).overflowY, getComputedStyle(body).overflowY].includes("hidden");
+      const stable = root.style.scrollbarGutter.includes("stable");
+      if (root.hasAttribute("data-settings-gutter")) {
+        if (!locked || !stable) clear();
+        return;
+      }
+      if (!locked || !stable) return;
+      const gap = innerWidth - popup.getBoundingClientRect().right;
+      if (gap <= 0) return;
+      const padding = parseFloat(getComputedStyle(body).paddingRight) || 0;
+      // One attribute changes both properties together: the fixed popup expands, while
+      // the document keeps its original width/height/scroll position beneath Settings.
+      root.style.setProperty("--settings-gutter", `${padding + gap}px`);
+      root.setAttribute("data-settings-gutter", "");
+    };
+    const resize = () => {
+      resizing = true;
+      clear();
+      cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => { resizing = false; sync(); });
+    };
+    const observer = new MutationObserver(sync);
+    for (const element of [root, body]) observer.observe(element, { attributes: true, attributeFilter: ["style"] });
+    window.addEventListener("resize", resize);
+    sync();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", resize);
+      cancelAnimationFrame(resizeFrame);
+      clear(); // open=false cleanup precedes Base UI's deferred unlock, even during exit.
+    };
+  }, [open, popup]);
   const [clearConfirm, setClearConfirm] = useState(false);
   const clearButton = useRef<HTMLButtonElement>(null);
   const [clearing, setClearing] = useState(false);
@@ -147,7 +191,7 @@ export function SettingsDialog({ open, highlightUpdate = false, category, onCate
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) close(); }}>
-      <DialogContent className="settings-screen" data-testid="settings-dialog" showCloseButton={false}
+      <DialogContent ref={setPopup} className="settings-screen" data-testid="settings-dialog" showCloseButton={false}
         initialFocus={backButton} finalFocus={returnFocus}>
         <header className="settings-topbar">
           <Button ref={backButton} data-testid="settings-back" variant="ghost" size="sm" onClick={close}>

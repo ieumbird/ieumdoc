@@ -123,6 +123,8 @@ test("started without a document, it opens none; the sample opens with its figur
     await expect(page).toHaveTitle("converter-control.md — IeumDoc");
     await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getTitle()),
       { message: "native taskbar title follows the active file" }).toBe("converter-control.md — IeumDoc");
+    assert.equal(await figuresLoaded(page), true);
+    await page.evaluate(async () => { await document.fonts.ready; await Promise.all([...document.images].map(image => image.decode())); });
     for (const width of [1440, 640]) {
       await app.evaluate(({ BrowserWindow }, width) => BrowserWindow.getAllWindows()[0]!.setContentSize(width, 900), width);
       await expect.poll(() => page.evaluate(() => innerWidth)).toBe(width);
@@ -157,6 +159,17 @@ test("started without a document, it opens none; the sample opens with its figur
       try { await captionPixels(app, page, path.join(work, "caption-pixels", name), surface, oldHeight); }
       catch (error) { captionFailures.push(new Error(`${name}: ${String(error)}`, { cause: error })); }
     };
+    const shellLayout = () => page.evaluate(() => {
+      const rect = document.querySelector(".app-shell")!.getBoundingClientRect();
+      return { width: rect.width, height: rect.height, scrollY, headerUsableWidth: document.querySelector(".app-titlebar .top-bar")!.getBoundingClientRect().width,
+        rootStyle: document.documentElement.style.cssText, bodyStyle: document.body.style.cssText };
+    });
+    const sameDocument = async (expected: Awaited<ReturnType<typeof shellLayout>>, restored = false) => {
+      const actual = await shellLayout();
+      assert.deepEqual([actual.width, actual.height, actual.scrollY, actual.headerUsableWidth], [expected.width, expected.height, expected.scrollY, expected.headerUsableWidth], "Settings preserves document geometry, header content width and scroll position");
+      if (restored) assert.deepEqual([actual.rootStyle, actual.bodyStyle], [expected.rootStyle, expected.bodyStyle], "Settings and Base UI restore the original inline styles");
+    };
+    const unlocked = () => page.waitForFunction(() => ![getComputedStyle(document.documentElement).overflowY, getComputedStyle(document.body).overflowY].includes("hidden"));
     for (const state of [{ width: 1440, outline: false }, { width: 1440, outline: true },
       { width: 640, outline: false }, { width: 0, outline: true }]) {
       await app.evaluate(({ BrowserWindow, screen }, width) => {
@@ -172,10 +185,10 @@ test("started without a document, it opens none; the sample opens with its figur
       const toggle = page.getByRole("button", { name: "Outline", exact: true });
       if (await toggle.getAttribute("aria-pressed") !== String(state.outline)) await toggle.click();
       for (const theme of ["light", "dark"]) {
-        const documentScroll = await page.evaluate(() => {
+        await page.evaluate(() => {
           window.scrollTo(0, Math.min(200, Math.max(0, document.documentElement.scrollHeight - innerHeight)));
-          return scrollY;
         });
+        const before = await shellLayout();
         await page.getByRole("button", { name: "Settings", exact: true }).click();
         await expect(page.getByTestId("settings-back")).toBeFocused();
         await page.getByTestId("theme").selectOption(theme);
@@ -190,18 +203,61 @@ test("started without a document, it opens none; the sample opens with its figur
         const name = `${state.width || "maximized"}-${theme}-${state.outline ? "open" : "closed"}`;
         await inspectCaption(`${name}-settings`, "settings",
           state.width === 1440 && theme === "light" && !state.outline);
+        await sameDocument(before);
         await page.mouse.wheel(0, 300);
         await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-        assert.equal(await page.evaluate(() => scrollY), documentScroll, "Settings retains the page scroll lock even away from the document's top");
+        assert.equal(await page.evaluate(() => scrollY), before.scrollY, "Settings retains the page scroll lock even away from the document's top");
+        let closingLayout = before;
+        if (state.width === 1440 && theme === "light" && !state.outline) {
+          // A nested modal shares Base UI's lock; cancelling it must keep Settings compensated.
+          await page.getByRole("button", { name: "Saving & recovery", exact: true }).click();
+          await page.getByRole("button", { name: "Clear all recovery records…", exact: true }).click();
+          const nested = page.getByRole("dialog", { name: "Delete all recovery records?", exact: true });
+          await nested.getByRole("button", { name: "Cancel", exact: true }).click();
+          await nested.waitFor({ state: "detached" });
+          await sameDocument(before);
+          await page.getByRole("button", { name: "Appearance & language", exact: true }).click();
+          // Resize while Settings is open, then compare with the actual closed document at
+          // that viewport. Browser scroll anchoring during a resize is distinct from drift on close.
+          await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.maximize());
+          await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isMaximized())).toBe(true);
+          await inspectCaption("open-resize-maximized-settings", "settings");
+          const maximized = await shellLayout();
+          await page.keyboard.press("Escape");
+          await page.getByTestId("settings-dialog").waitFor({ state: "detached" });
+          await unlocked();
+          await sameDocument({ ...maximized, rootStyle: before.rootStyle, bodyStyle: before.bodyStyle }, true);
+          await page.getByRole("button", { name: "Settings", exact: true }).click();
+          await expect(page.getByTestId("settings-back")).toBeFocused();
+          await sameDocument(maximized);
+          await app.evaluate(({ BrowserWindow, screen }) => {
+            const window = BrowserWindow.getAllWindows()[0]!;
+            window.unmaximize(); window.setContentSize(1440, 900);
+            const area = screen.getPrimaryDisplay().workArea, bounds = window.getBounds();
+            window.setPosition(area.x + area.width - bounds.width - 16, area.y + 16);
+          });
+          await expect.poll(() => page.evaluate(() => innerWidth)).toBe(1440);
+          await inspectCaption("open-resize-restored-settings", "settings");
+          closingLayout = { ...await shellLayout(), rootStyle: before.rootStyle, bodyStyle: before.bodyStyle };
+          assert.deepEqual([closingLayout.width, closingLayout.height], [before.width, before.height], "restore returns the original document layout");
+        }
         await page.keyboard.press("Escape");
         await page.getByTestId("settings-dialog").waitFor({ state: "detached" });
+        await unlocked();
+        await sameDocument(closingLayout, true);
         await inspectCaption(`${name}-document`, "document");
+        if (state.width === 1440 && theme === "light" && !state.outline) {
+          await page.getByRole("button", { name: "Settings", exact: true }).click();
+          await page.getByTestId("settings-back").click();
+          await page.getByTestId("settings-dialog").waitFor({ state: "detached" });
+          await unlocked();
+          await sameDocument(closingLayout, true);
+        }
       }
     }
     if (captionFailures.length) throw new AggregateError(captionFailures, "Native caption pixel regressions (all captures retained)");
     assert.match(await page.getByTestId("current-file").getAttribute("title") ?? "", /[\\/]sample-native-v1[\\/]en[\\/]converter-control\.md$/);
     assert.equal(await page.locator(".ProseMirror h1").first().innerText(), "Current control for a 48 V converter");
-    assert.equal(await figuresLoaded(page), true);
     assert.equal(readFileSync(oldSample, "utf8"), "User-modified legacy sample.\n", "unrelated legacy sample directory is outside the versioned copy");
     assert.equal(await page.evaluate(() => typeof (globalThis as { process?: unknown }).process), "undefined", "the page has no Node.js");
     const foreign = requests.filter((url) => !/^(ieumdoc:\/\/app\/|data:|blob:)/.test(url));

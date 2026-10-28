@@ -226,10 +226,17 @@ commands and theme colors retain Electron behavior; the native painted/hit regio
 pixel earlier, before the web border. CSS drag/no-drag and env-based width reservation stay
 unchanged. Outline is below this strip after #647, including when docked.
 
-Base UI's modal scroll lock retains a stable root scrollbar gutter outside
-the popup's paint. While Settings is mounted, a viewport-fixed root background continues
-the same surface/header/border tokens into that gutter. The lock itself and underlying
-document geometry and scroll container are unchanged. The document strip still ends before the root
+Base UI's modal scroll lock retains a stable viewport scrollbar gutter outside the popup's
+paint. Windows OS probes confirm that this area accepts a solid canvas color, but clips
+background images and fixed DOM paint; a gradient cannot extend the separator into it.
+After Base UI acquires its lock, Settings temporarily removes only that reserved gutter
+and compensates with the measured gap in body padding. A single scoped attribute applies
+both CSS changes together, preserving the document's width, height and scroll position.
+Base UI's inline overflow/gutter styles remain its own; Settings does not implement scroll
+locking. On resize the compensation is removed before Base UI probes/relocks, then measured
+again. Cleanup follows `open=false`, before Base UI's deferred unlock, including quick close
+and nested dialogs. The original document styles and root scrollbar return on close.
+The document strip still ends before the root
 scrollbar: that remaining gutter belongs to #488 phase 0, not the overlay correction.
 
 The cause is established from Electron's [overlay height/color API](https://www.electronjs.org/docs/latest/api/base-window#winsettitlebaroverlayoptions-windows-linux)
@@ -245,7 +252,9 @@ Packaged CI checks actual Window Controls Overlay visibility/geometry at 1440px 
 control exclusion from drag and BrowserWindow title. It also uses Win32 `ClientToScreen` and
 `System.Drawing.Graphics.CopyFromScreen` to sample the OS-composed separator below all three
 caption buttons, in document/Settings, light/dark, 1440px with docked Outline open/closed,
-640px, and maximized states. A reference pixel outside the buttons checks screen-coordinate
+640px, and maximized states, plus maximize/restore while Settings remains open. It checks
+document width/height/scroll position and original inline styles through close, resize,
+quick reopen/close and a nested confirmation. A reference pixel outside the buttons checks screen-coordinate
 alignment; a negative control restores the old 40px height on light Settings and must cover
 the line before the fix is restored. Captures/measurements are uploaded as `desktop-caption-pixels`,
 including failures. A missing foreground window, unavailable screen, or wrong reference color
