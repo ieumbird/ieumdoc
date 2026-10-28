@@ -23,6 +23,7 @@ async (page, { openPath, reloadDocument, assertSavedSource, expect }) => {
   let assetStarted;
   const uploading = new Promise(resolve => { assetStarted=resolve; });
   let requested=0;
+  let commonNames;
   await page.route('**/src/code-languages.ts*', async route => { requested++; await gate; await route.continue(); });
   await page.route('**/api/asset?*', async route => { const response=await route.fetch(); assetStarted(); await assetGate; await route.fulfill({response}); });
   try {
@@ -54,15 +55,26 @@ async (page, { openPath, reloadDocument, assertSavedSource, expect }) => {
     await page.keyboard.press('ControlOrMeta+Shift+z');
     check((await code.locator('pre').innerText()).includes('+ 2'), 'Grammar completion lost Redo');
     await code.hover();
-    await code.getByTestId('code-language').fill('unknown-language');
+    await code.evaluate(n => {
+      const editor=n.closest('.document-editor').editor;
+      const tr=editor.state.tr;
+      editor.state.doc.descendants((node,pos) => {
+        if (node.type.name === 'codeBlock') tr.setNodeMarkup(pos, undefined, {...node.attrs,language:'unknown-language'});
+      });
+      editor.view.dispatch(tr);
+    });
+    await expect(code.getByTestId('code-language')).toHaveText('unknown-language');
     check(await code.locator('pre span').count() === 0, 'Unknown language did not use plain fallback');
-    await code.getByTestId('code-language').fill('javascript');
+    await code.getByTestId('code-language').click();
+    await page.getByRole('menuitemradio', {name:'javascript',exact:true}).click();
+    await page.getByRole('menu').waitFor({state:'detached'});
     await code.locator('.hljs-keyword').waitFor();
     const languages = await page.evaluate(async () => {
       const lowlight=document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.extensionManager.extensions.find(extension => extension.name === 'codeBlock').options.lowlight;
       const {common}=await import('/src/code-languages.ts');
       return {actual:lowlight.listLanguages().sort(),expected:Object.keys(common).sort()};
     });
+    commonNames = languages.expected;
     check(JSON.stringify(languages.actual) === JSON.stringify(languages.expected), 'Deferred registration changed language set: '+JSON.stringify(languages));
     // Measure actual highlighted text, including each role used by the grammar, in both themes.
     await code.evaluate(n => {
@@ -104,74 +116,59 @@ async (page, { openPath, reloadDocument, assertSavedSource, expect }) => {
     });
     await code.locator('pre').click(); await page.keyboard.press('End'); await page.keyboard.type(' plain');
     check(await code.locator('pre span').count() === 0 && (await code.locator('pre').innerText()).endsWith(' plain'), 'Load failure prevented plain editing');
-    check(await code.getByTestId('code-language').inputValue() === 'js', 'Load failure changed language');
+    check((await code.getByTestId('code-language').textContent()) === 'js', 'Load failure changed language');
     await page.keyboard.press('ControlOrMeta+z');
     check(!(await code.locator('pre').innerText()).endsWith(' plain'), 'Load failure lost Undo');
   } finally { await page.unroute('**/src/code-languages.ts*'); }
 
-  // The existing field remains free text; its adjacent shared menu is keyboard reachable.
-  const language = code.getByTestId('code-language');
-  const picker = code.getByRole('button', {name:'Choose code language', exact:true});
+  // Existing arbitrary fence names stay literal until an explicit selection.
+  const picker = code.getByTestId('code-language');
+  const menu = page.getByRole('menu', {name:'Choose code language',exact:true});
   const engineLanguage = () => code.evaluate(element => {
     const editor = element.closest('.document-editor').editor;
     return editor.state.doc.content.content.find(node => node.type.name === 'codeBlock').attrs.language;
   });
-  const expectLanguage = value => expect.poll(() => code.evaluate(element => ({
-    input: element.querySelector('[data-testid="code-language"]').value,
-    engine: element.closest('.document-editor').editor.state.doc.content.content.find(node => node.type.name === 'codeBlock').attrs.language,
-  })), {message:'Language input and document must reflect the selected language'}).toEqual({input:value,engine:value});
-  await language.focus(); await page.keyboard.press('Tab');
-  check(await picker.evaluate(element => element === document.activeElement), 'Tab did not reach the language list');
-  await page.keyboard.press('Enter');
-  const menu = page.getByRole('menu', {name:'Choose code language',exact:true});
-  await menu.waitFor();
-  // Visibility precedes Base UI's frame-scheduled initial focus. Send keys only once
-  // the menu owns them, then wait for the intended item before confirming it.
-  await expect(menu.getByRole('menuitem',{name:'Plain text',exact:true})).toBeFocused();
-  await page.keyboard.press('End');
-  await expect(menu.getByRole('menuitem',{name:'rust',exact:true})).toBeFocused();
-  await page.keyboard.press('Enter');
+  const expectLanguage = async value => {
+    await expect(picker).toHaveText(value || 'Plain text');
+    check(await engineLanguage() === value, 'Selected language and engine differ');
+  };
+  check(await picker.count() === 1 && await code.locator('input').count() === 0, 'Language must have one selection trigger and no text input');
+  await expectLanguage('js');
+  const beforeMenu = await snapshot();
+  await picker.focus(); await page.keyboard.press('Enter'); await menu.waitFor();
+  await expect(menu.getByRole('menuitemradio',{name:'Plain text',exact:true})).toBeFocused();
+  await expect(menu.getByRole('menuitemradio',{name:'js',exact:true})).toHaveAttribute('aria-checked','true');
+  const choices = await menu.getByRole('menuitemradio').allTextContents();
+  check(commonNames.filter(name => name !== 'plaintext').every(name => choices.some(text => text.trim() === name)), 'Menu is missing a common grammar');
+  check(!choices.some(text => text.trim() === 'plaintext') && new Set(choices).size === choices.length, 'Menu duplicates a plain-text choice or language');
+  check(choices.some(text => text.trim() === 'html') && choices.some(text => text.trim() === 'powershell'), 'Menu lost existing choices');
+  await page.keyboard.press('Escape'); await menu.waitFor({state:'detached'});
+  check(await snapshot() === beforeMenu, 'Opening/dismissing the menu changed the document or history');
+  await picker.click(); await menu.getByRole('menuitemradio',{name:'js',exact:true}).click();
   await menu.waitFor({state:'detached'});
-  await expectLanguage('rust');
+  check(await snapshot() === beforeMenu, 'Choosing the current unlisted value changed the document or history');
   await expect(picker).toBeFocused();
+  await page.keyboard.press('Enter'); await menu.waitFor();
+  await expect(menu.getByRole('menuitemradio',{name:'Plain text',exact:true})).toBeFocused();
+  await page.keyboard.type('rust');
+  await expect(menu.getByRole('menuitemradio',{name:'rust',exact:true})).toBeFocused();
+  await page.keyboard.press('Enter'); await menu.waitFor({state:'detached'});
+  await expectLanguage('rust'); await expect(picker).toBeFocused();
   await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.commands.undo());
-  check(await language.inputValue() === await engineLanguage() && await engineLanguage() !== 'rust', 'Language Undo did not synchronize the input');
+  await expectLanguage('js');
   await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.commands.redo());
-  check(await language.inputValue() === 'rust', 'Language Redo did not synchronize the input');
-  await picker.click(); await menu.waitFor(); await page.keyboard.press('Escape');
-  await menu.waitFor({state:'detached'});
-  check(await menu.count() === 0 && await language.inputValue() === 'rust', 'Escape changed the language');
-  await language.fill('custom-language');
-  check(await engineLanguage() === 'custom-language', 'Unlisted language was rejected');
-  await language.fill(' x y`z ');
-  check(await language.inputValue() === 'xyz' && await engineLanguage() === 'xyz', 'Fence-name filtering changed');
-  await picker.click(); await menu.waitFor(); await page.getByRole('menuitem',{name:'Plain text',exact:true}).click();
-  await menu.waitFor({state:'detached'});
-  await expectLanguage('');
+  await expectLanguage('rust');
+  await picker.click(); await menu.waitFor();
+  await expect(menu.getByRole('menuitemradio',{name:'rust',exact:true})).toHaveAttribute('aria-checked','true');
+  await menu.getByRole('menuitemradio',{name:'Plain text',exact:true}).click();
+  await menu.waitFor({state:'detached'}); await expectLanguage('');
+  await picker.click(); await menu.getByRole('menuitemradio',{name:'python-repl',exact:true}).click();
+  await menu.waitFor({state:'detached'}); await expectLanguage('python-repl');
 
-  // Chromium creates real composing ranges. Assert each update immediately, so a later
-  // commit, poll or reload cannot mask the stale controlled-value restoration from #527.
+  // Code-body composition remains engine-owned; the removed language input has no IME state.
   const cdp = await page.context().newCDPSession(page);
   const compose = text => cdp.send('Input.imeSetComposition',{text,selectionStart:text.length,selectionEnd:text.length});
   try {
-    await language.focus();
-    for (const text of ['ㅎ','한','한글']) {
-      await compose(text);
-      check(await language.inputValue() === text, 'Language composition duplicated or lost '+text);
-      check(await engineLanguage() === '', 'Intermediate composition changed the document language');
-    }
-    // IME confirmation must not open or select from the adjacent menu.
-    await language.dispatchEvent('keydown',{key:'Enter',keyCode:229,isComposing:true,bubbles:true});
-    await cdp.send('Input.insertText',{text:'한글'});
-    check(await language.inputValue() === '한글' && await engineLanguage() === '한글', 'Language composition commit duplicated input');
-    check(await menu.count() === 0, 'IME confirmation opened the language menu');
-    await compose('취소'); await compose('');
-    check(await language.inputValue() === '한글' && await engineLanguage() === '한글', 'Cancelled composition changed the language');
-    await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.commands.undo());
-    check(await language.inputValue() === await engineLanguage() && await engineLanguage() !== '한글', 'Language composition Undo failed');
-    await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.commands.redo());
-    check(await language.inputValue() === '한글', 'Language composition Redo failed');
-
     await code.locator('pre').click(); await page.keyboard.press('End');
     const beforeComposition = await code.locator('pre').textContent();
     await compose('ㅎ'); await compose('한글'); await cdp.send('Input.insertText',{text:'한글'});
@@ -184,11 +181,15 @@ async (page, { openPath, reloadDocument, assertSavedSource, expect }) => {
   const originalSource = (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json()).source;
   await page.getByRole('button',{name:'Save',exact:true}).click();
   await page.locator('[data-testid="status"]:is([data-operation="saved"], [data-operation="save-failed"])').waitFor();
-  check(await page.getByTestId('status').getAttribute('data-operation') === 'saved', 'Code composition Save failed');
+  check(await page.getByTestId('status').getAttribute('data-operation') === 'saved', 'Code language Save failed');
   const disk = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json();
-  check(disk.source.includes('```한글\nconst value = 1;한글\n```'), 'Save did not preserve the composed language and code');
-  await assertSavedSource(disk.source, originalSource.replace('```js\nconst value = 1;', '```한글\nconst value = 1;한글'), 'Composition Save changed other document content');
+  check(disk.source.includes('```python-repl\nconst value = 1;한글\n```'), 'Save did not preserve the selected language and code');
+  await assertSavedSource(disk.source, originalSource.replace('```js\nconst value = 1;', '```python-repl\nconst value = 1;한글'), 'Language Save changed other document content');
   await reloadDocument(page); await ready();
-  check(await language.inputValue() === '한글' && await code.locator('pre').textContent() === 'const value = 1;한글', 'Reload lost composed input');
-  return {deferred:true,languageSet:true,unknownFallback:true,failedFallback:true,history:true,languageMenu:true,customLanguage:true,compositionCommitCancel:true,bodyCompositionUndoRedo:true,compositionSaveReload:true};
+  check(await picker.textContent() === 'python-repl' && await code.locator('pre').textContent() === 'const value = 1;한글', 'Reload lost composed input');
+  await code.evaluate(n => n.closest('.document-editor').editor.setEditable(false));
+  await expect(picker).toBeDisabled();
+  await picker.focus(); await page.keyboard.press('Enter');
+  check(await menu.count() === 0, 'Read-only code opened the language menu');
+  return {deferred:true,languageSet:true,unknownFallback:true,failedFallback:true,history:true,languageMenu:true,unlistedLanguage:true,readOnly:true,bodyCompositionUndoRedo:true,languageSaveReload:true};
 }

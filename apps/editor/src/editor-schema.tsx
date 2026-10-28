@@ -1542,6 +1542,7 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
 
 function CodeBlockView({ node, editor, updateAttributes }: ReactNodeViewProps) {
   useTranslation();
+  const editable = useEditorState({ editor, selector: ({ editor: current }) => current.isEditable });
   return (
     <NodeViewWrapper
       as="div"
@@ -1549,8 +1550,8 @@ function CodeBlockView({ node, editor, updateAttributes }: ReactNodeViewProps) {
       data-block="code"
       data-source-path={String(node.attrs.sourcePath ?? "")}
     >
-      <CodeLanguageInput language={String(node.attrs.language ?? "")} readOnly={!editor.isEditable}
-        onChange={(language) => updateAttributes({ language })} />
+      <CodeLanguageInput language={String(node.attrs.language ?? "")} readOnly={!editable}
+        onChange={(language) => { if (editor.isEditable) updateAttributes({ language }); }} />
       <pre><NodeViewContent<"code"> as="code" /></pre>
     </NodeViewWrapper>
   );

@@ -2,7 +2,7 @@
 
 - Status: Implemented
 - Property Apply verification: 2026-10-27 (#576: shared Ctrl/Cmd+Enter submission, validation/busy guards, IME/modifier exclusions and prose hard-break isolation; Editor tests and targeted Windows Chrome browser regressions, with Apple platform emulation rather than native macOS).
-- Code-language verification: 2026-10-26 (#499/#527: shared language menu, free text, Chromium composition commit/cancel and language/body Undo/Redo, exact disk Save/Reload; [evidence and limits](#code-language-input-verification-499527)).
+- Code-language verification: 2026-10-28 (#645: selection-only menu, common grammar choices, preserved unlisted values, typeahead, language/body Undo/Redo and exact disk Save/Reload; [verification](#code-language-selection-verification-645)).
 - Native focus selection: 2026-10-26 (#542: restore the retained selection before the observer can accept Chromium's native focus caret; real-click Command center and held-check browser regressions. #502 remains separate).
 - Selection-race scope: 2026-10-26 (#489: citation-form focus, closing Reload focus and empty-title pointer selection. The separate table selection investigation is #502. Per-scenario evidence and the #421/#416 boundary are recorded in the [test guide](../test/README.md#focus-and-selection-race-investigation-489)).
 - Body-heading verification: 2026-10-26 (#472: Editor 287/287, typecheck/build, docs check; new-document, structural-block-authoring, document-title, basic-blocks and markdown-input browser regressions with the worktree's persistent Chrome profile. New insertion/menu unit assertions and browser insert/H2 promotion regressions failed on unchanged implementation before the fix).
@@ -90,20 +90,25 @@ Runner-owned servers and browser contexts are closed after each execution.
 
 Highlighting is display-only and keeps the existing lowlight common language set. Its grammars load when a code block first exists, without changing document, selection or history. Empty/unregistered languages or a grammar load failure keep literal editable code and its language; language edits still use the existing Core code operation and canonical fence. The deferred chunk reduces the initial entry, not total deployment size.
 
-The code-language field has an adjacent language-menu button (#499). A short, curated list
-of common technical-document languages and Plain text is available by clicking the button
-or reaching it with Tab and pressing Enter/Space. The existing shared DropdownMenu owns
-arrow-key navigation, Enter selection, Escape dismissal and focus return. Unlisted names
-can still be typed directly into the field, and an empty language remains
-valid input; suggestions do not define the supported syntax-highlighting set. The field
-keeps its 28px shared Input geometry and the list uses existing overlay/selection tokens.
-Language edits use the existing Core operation; this Editor-only input interaction adds
-no Core semantics, storage format or CLI command.
+The code-language control is a single 28px compact outlined dropdown button (#645),
+showing the current literal language or localized Plain text for an empty fence.
+This supersedes #499/#527's direct-input decision. The shared DropdownMenu owns Tab/Enter/Space
+entry, arrow navigation, typeahead while open, Enter selection, Escape dismissal and focus return.
+Radio items expose the current choice through a check mark and `aria-checked`.
+Read-only documents disable the trigger.
 
-The field mirrors input locally before NodeView attributes update (#527). Composition
-updates remain local until commit, so React does not restore a stale attribute value into
-the browser's composing range. Engine-driven language changes (including Undo/Redo) still
-update the field. Code-body composition remains ProseMirror-owned.
+Plain text (empty language) is first, followed by the original 16 choices and the remaining
+lowlight common grammar names. The static metadata lives only in `code-language-options.ts`,
+without importing the deferred grammar module. `plaintext` is represented by Plain text;
+`html`/`xml` and `bash`/`shell` remain distinct literal fence choices. No aliases are normalized.
+An unlisted value from a file or CLI (including `js`, `mermaid`, `toml` or literal `plaintext`)
+is shown unchanged in the trigger and as a checked menu item. Opening/dismissing the menu
+or choosing the current item changes no document data. Only selecting another value edits it.
+
+Language changes and Undo/Redo use the existing Core operation and editor history.
+Core and CLI continue to accept arbitrary language names. This Editor-only selection interaction
+adds no Core semantics, storage format or CLI command. The removed text field has no local
+composition state; code-body composition remains ProseMirror-owned.
 
 ## Continuous editing
 
@@ -442,6 +447,10 @@ Automated composition events exercise the browser input lifecycle, not an OS IME
 
 ### Code-language input verification (#499/#527)
 
+Historical evidence: #645 supersedes the free-text input and its composition handling.
+The measurements and captures below describe the former control. Current behavior is
+defined in [Code highlighting](#code-highlighting) and verified below.
+
 On baseline `ff37a32e273dfad90bde84a9c30e2a28ec5e3af3`, CDP updates `ㅎ` → `한글`
 and `Input.insertText(한글)` produced `ㅎ한글한글` in the language field. An independent
 native input outside the editor and the code body both produced `한글` once. Tracking
@@ -481,6 +490,35 @@ native IME behavior. [Protocol, setter evidence, environment and hashes](assets/
 | --- | --- | --- | --- |
 | 1440px | [PNG](assets/code-language-499/before-1440.png) | [PNG](assets/code-language-499/after-1440.png) | [PNG](assets/code-language-499/menu-1440.png) |
 | 390px | [PNG](assets/code-language-499/before-390.png) | [PNG](assets/code-language-499/after-390.png) | [PNG](assets/code-language-499/menu-390.png) |
+
+### Code-language selection verification (#645)
+
+The existing `code-highlighting` scenario now verifies the selection-only control, all
+common grammar names except the deliberately merged `plaintext` choice, retained html and
+powershell, the checked unlisted `js` value, no document/history change on menu dismissal,
+Base UI typeahead to rust, selection and Undo/Redo, empty language and python-repl selection,
+code-body composition Undo/Redo and exact canonical disk Save/Reload. The language-input
+composition/filtering tests were removed with that input. Deferred/failed grammar loading,
+unknown-language fallback and theme contrast remain covered. The read-only transition test
+exposed a stale NodeView editability snapshot; CodeBlockView now subscribes through the
+existing useEditorState hook, disables menu choices and guards the existing update callback.
+The popup explicitly uses its localized menu name instead of the trigger's current-value name.
+Editor tests (317), workspace typecheck, production Editor build, `code-highlighting`,
+`layout-rules`, `quiet-document`, docs and whitespace checks pass locally. The build retains
+a separate deferred code-languages grammar chunk (139.88 kB). Native Windows IME, Edge and
+packaged Desktop were not tested locally; their existing CI/manual boundaries are unchanged.
+
+Manual Before/After uses base `c71063faac8357880c079c03fa7577da1b0cb188`, the same scratch
+`tmp/code-highlighting/code.md`, English, bundled Pretendard, persistent Windows Chrome,
+1440×900 / 640×900, DPR/zoom 1, scroll top, language `js`, unchanged code body and pointer
+at (0,0) for the closed control. Open-menu images follow a physical trigger click.
+Only these representative PNGs are retained; generated traces/logs and the temporary
+capture driver remain outside Git. These are manual visual evidence, not pixel gates.
+
+| Width | Trigger Before / After | Menu Before / After |
+| --- | --- | --- |
+| 1440px | [Before](assets/code-language-645/before-1440-trigger.png) / [After](assets/code-language-645/after-1440-trigger.png) | [Before](assets/code-language-645/before-1440-menu.png) / [After](assets/code-language-645/after-1440-menu.png) |
+| 640px | [Before](assets/code-language-645/before-640-trigger.png) / [After](assets/code-language-645/after-640-trigger.png) | [Before](assets/code-language-645/before-640-menu.png) / [After](assets/code-language-645/after-640-menu.png) |
 
 `atom-boundaries` (#387) exercises real Backspace/Delete across six adjacent block
 kinds and four caret block kinds. It checks the first key's selection/document,
