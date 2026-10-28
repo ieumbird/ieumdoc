@@ -238,6 +238,28 @@ Editor Host Save와 CLI의 파일 수정 명령은 기존 Markdown 파일을 같
 - 각 원소의 입력 검증·옵션 해석·Core operation·validate/serialize·단계별 재파싱 오류에만 stderr에 `operation <1-based index> (<command>): <원래 오류>; nothing was written`을 출력한다. 최초 원본 read/parse·revision 확인과 최종 커밋 오류는 특정 operation에 연결하지 않고 prefix 없이 단건 명령과 동일한 메시지를 출력한다. 커밋 충돌도 기존 `... changed after it was read; nothing was written`을 유지한다. JSON 전체 파싱과 최상위 옵션 오류도 prefix 없이 원래 메시지를 출력한다. 실패 시 stdout은 비어 있다.
 - 실제 쓰기 성공 시 text 모드는 출력이 없다. `--format json`은 stdout 한 줄에 `{"ok":true,"command":"apply-batch","applied":N,"revision":"<커밋한 내용의 textRevision>"}`을 출력한다. 단건 변경 명령 출력은 유지한다. 별도 후속 요청 전에는 `inspect`로 새 revision과 경로를 함께 얻는다.
 
+**배치 사용 예제:** 아래 예제는 저장소 밖의 기존 임시 폴더에 아직 없는 `document.md`를 만들고, H1 제목만 추가한 상태에서 시작합니다. 명령은 저장소 루트에서 실행하며, `<임시 폴더>`는 실제 절대 경로로 바꿉니다.
+
+```bash
+pnpm ieumdoc create "<임시 폴더>/document.md"
+pnpm ieumdoc insert-heading "<임시 폴더>/document.md" --at end --level 1 --text "Example document"
+pnpm ieumdoc inspect "<임시 폴더>/document.md" --format json
+```
+
+이 상태의 Core snapshot은 metadata가 인덱스 0, H1 제목이 경로 `[1]`이며 다른 본문은 없습니다. 다음 두 작업은 H2를 끝(인덱스 2)에 삽입한 뒤 그 heading을 수정합니다. 제목은 첫 본문 위치에 유지합니다. 같은 임시 폴더의 `operations.json`에 저장합니다.
+
+```json
+[
+  { "command": "insert-heading", "at": "end", "level": 2, "text": "Method" },
+  { "command": "update-heading", "path": "2", "content": [{ "kind": "text", "text": "Verified method" }] }
+]
+```
+
+```bash
+pnpm ieumdoc apply-batch "<임시 폴더>/document.md" --operations "<임시 폴더>/operations.json" --if-revision <위 inspect에서 얻은 revision> --format json
+pnpm ieumdoc check "<임시 폴더>/document.md"
+```
+
 ### CLI dry run (#292)
 
 - `apply-batch`와 모든 단건 문서 변경 명령(`format` 포함)은 값 없는 `--dry-run`을 받는다. Core operation, 구조 검증, canonical serialize와 배치 단계별 재파싱은 실제 쓰기와 같은 경로다. `--if-revision`도 원본에 대해 동일하게 확인한다. 옵션·operation·round-trip/writeability 실패는 실제 실행과 같은 메시지와 exit 1을 유지하며 stdout은 비어 있다. 배치의 operation prefix 규칙도 동일하다.
