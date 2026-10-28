@@ -167,6 +167,10 @@ test("started without a document, it opens none; the sample opens with its figur
       const toggle = page.getByRole("button", { name: "Outline", exact: true });
       if (await toggle.getAttribute("aria-pressed") !== String(state.outline)) await toggle.click();
       for (const theme of ["light", "dark"]) {
+        const documentScroll = await page.evaluate(() => {
+          window.scrollTo(0, Math.min(200, Math.max(0, document.documentElement.scrollHeight - innerHeight)));
+          return scrollY;
+        });
         await page.getByRole("button", { name: "Settings", exact: true }).click();
         await expect(page.getByTestId("settings-back")).toBeFocused();
         await page.getByTestId("theme").selectOption(theme);
@@ -179,11 +183,14 @@ test("started without a document, it opens none; the sample opens with its figur
           });
         });
         const name = `${state.width || "maximized"}-${theme}-${state.outline ? "open" : "closed"}`;
-        await captionPixels(app, page, path.join(work, "caption-pixels", `${name}-settings`), ".settings-topbar",
+        await captionPixels(app, page, path.join(work, "caption-pixels", `${name}-settings`), "settings",
           state.width === 1440 && theme === "light" && !state.outline);
+        await page.mouse.wheel(0, 300);
+        await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+        assert.equal(await page.evaluate(() => scrollY), documentScroll, "Settings retains the page scroll lock even away from the document's top");
         await page.keyboard.press("Escape");
         await page.getByTestId("settings-dialog").waitFor({ state: "detached" });
-        await captionPixels(app, page, path.join(work, "caption-pixels", `${name}-document`), ".app-titlebar");
+        await captionPixels(app, page, path.join(work, "caption-pixels", `${name}-document`), "document");
       }
     }
     assert.match(await page.getByTestId("current-file").getAttribute("title") ?? "", /[\\/]sample-native-v1[\\/]en[\\/]converter-control\.md$/);

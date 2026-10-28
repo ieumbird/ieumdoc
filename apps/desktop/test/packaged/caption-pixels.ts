@@ -6,29 +6,38 @@ import { fileURLToPath } from "node:url";
 import { expect, type ElectronApplication, type Page } from "@playwright/test";
 
 /** OS-composed pixels, never webContents.capturePage (which omits native Views). */
-export async function captionPixels(app: ElectronApplication, page: Page, output: string, selector: string, proveOldHeight = false) {
+export async function captionPixels(app: ElectronApplication, page: Page, output: string, surface: "settings" | "document", proveOldHeight = false) {
   await app.evaluate(({ BrowserWindow }) => { const window = BrowserWindow.getAllWindows()[0]!; window.show(); window.focus(); });
   await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isFocused())).toBe(true);
   await page.mouse.move(300, 200); // Native hover paint must not affect the rest-state sample.
-  const geometry = await page.evaluate(async selector => {
+  const geometry = await page.evaluate(async surface => {
     await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-    const row = document.querySelector(selector)!;
+    const row = document.querySelector(surface === "settings" ? ".settings-topbar" : ".app-titlebar")!;
     const rect = row.getBoundingClientRect(), style = getComputedStyle(row);
     const overlay = (navigator as Navigator & { windowControlsOverlay: { getTitlebarAreaRect(): DOMRect } }).windowControlsOverlay.getTitlebarAreaRect();
     const root = getComputedStyle(document.documentElement);
     // Resolve rem/calc through layout; parseFloat(--layout-header-row) would read 2.5, not 40px.
     const probe = document.createElement("div");
+    probe.style.position = "fixed"; // Measuring a token must not create page overflow.
     probe.style.height = "calc(var(--layout-header-row) - var(--border-width))";
     document.body.append(probe);
     const expectedOverlay = probe.getBoundingClientRect().height;
     probe.remove();
-    return { width: innerWidth, height: innerHeight, bottom: rect.bottom, border: parseFloat(style.borderBottomWidth),
+    return { surface, width: innerWidth, height: innerHeight, rowRight: rect.right, rootClientWidth: document.documentElement.clientWidth,
+      scrollLock: [getComputedStyle(document.documentElement).overflowY, getComputedStyle(document.body).overflowY],
+      bottom: rect.bottom, border: parseFloat(style.borderBottomWidth),
       rgb: style.borderBottomColor.match(/\d+/g)!.slice(0, 3).map(Number), captionLeft: overlay.right,
       overlayHeight: overlay.height, expectedOverlay, tokenBorder: parseFloat(root.getPropertyValue("--border-width")) };
-  }, selector);
+  }, surface);
   assert.equal(geometry.border, geometry.tokenBorder);
   assert.equal(geometry.overlayHeight, geometry.expectedOverlay, "native height follows the header content box, excluding its border");
   assert.ok(geometry.captionLeft > 8 && geometry.captionLeft < geometry.width - 30);
+  if (surface === "settings") {
+    assert.equal(geometry.rowRight, geometry.width, "Settings covers the scroll-lock gutter without changing the root scroll container");
+    assert.ok(geometry.scrollLock.includes("hidden"), "Base UI retains the underlying page scroll lock");
+  } else {
+    assert.equal(geometry.rowRight, geometry.rootClientWidth, "document strip ends at the current root scrollbar; #488 owns that gutter");
+  }
   const handle = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getNativeWindowHandle().readBigUInt64LE().toString());
   mkdirSync(path.dirname(output), { recursive: true });
   const sample = (suffix: string) => {
@@ -53,5 +62,15 @@ export async function captionPixels(app: ElectronApplication, page: Page, output
       await expect.poll(() => page.evaluate(() => (navigator as Navigator & { windowControlsOverlay: { getTitlebarAreaRect(): DOMRect } }).windowControlsOverlay.getTitlebarAreaRect().height)).toBe(geometry.expectedOverlay);
     }
   }
-  assert.deepEqual(sample("").mismatches, [], "the painted separator is continuous below all three native caption buttons");
+  const result = sample("");
+  // #694 owner scope: keep the document's existing root scrollbar, record all its pixels,
+  // and require the native overlay not to obscure the separator in the web content area.
+  // Settings has no exception: its separator must reach the full window edge.
+  const allowedGutterStart = surface === "document" ? geometry.rootClientWidth : geometry.width;
+  const blocked = result.mismatches.filter(x => x < allowedGutterStart);
+  writeFileSync(`${output}-summary.json`, JSON.stringify({ surface, rootGutter: geometry.width - geometry.rootClientWidth,
+    sampled: result.sampled, mismatches: result.mismatches.length, gutterMismatches: result.mismatches.length - blocked.length,
+    overlayMismatches: blocked.length, rootGutterFollowUp: surface === "document" ? "#488 phase 0" : null }, null, 2));
+  assert.deepEqual(blocked, [], surface === "settings" ? "Settings separator reaches the full native caption edge"
+    : "native paint leaves the document separator visible up to the existing root scrollbar (#488)");
 }

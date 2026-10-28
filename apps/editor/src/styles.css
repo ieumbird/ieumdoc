@@ -847,9 +847,20 @@ body:has(.ui-portal [role="menu"]) :is(.app-titlebar, .top-bar, .settings-topbar
 }
 
 /* Settings retains the mounted document shell behind an opaque full-screen modal boundary. */
+:root:has(.settings-screen) {
+  /* Base UI's stable viewport gutter paints the root background, outside the popup.
+   * Continue Settings' surfaces and separator there without removing the scroll lock
+   * or resizing the document underneath. Anchor to the viewport even after scrolling. */
+  background: linear-gradient(to bottom,
+    var(--id-color-surface-subtle) 0 calc(var(--layout-header-row) - var(--border-width)),
+    var(--id-color-border) 0 var(--layout-header-row),
+    var(--id-color-surface) 0) fixed;
+}
+
 .settings-screen[data-slot="dialog-content"] {
   inset: 0;
-  width: 100%;
+  /* Native caption reservation is measured against the viewport, including the gutter. */
+  width: 100vw;
   height: 100dvh;
   max-width: none;
   max-height: none;

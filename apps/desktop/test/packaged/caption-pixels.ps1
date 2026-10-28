@@ -47,7 +47,7 @@ try {
     for ($x = $left; $x -lt $right; $x++) {
         $pixel = $bitmap.GetPixel($x, $y)
         if ("$($pixel.R),$($pixel.G),$($pixel.B)" -ne $expected) {
-            $mismatches += $x
+            $mismatches += [Math]::Floor(($x + $cropX) / $scale)
         }
     }
     [ordered]@{ scale = $scale; origin = @{ x = $origin.X; y = $origin.Y }; y = $y

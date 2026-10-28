@@ -226,6 +226,13 @@ commands and theme colors retain Electron behavior; the native painted/hit regio
 pixel earlier, before the web border. CSS drag/no-drag and env-based width reservation stay
 unchanged. Outline is below this strip after #647, including when docked.
 
+Settings uses `100vw` for its fixed full-screen popup, aligning caption reservation with
+the viewport. Base UI's modal scroll lock retains a stable root scrollbar gutter outside
+the popup's paint. While Settings is mounted, a viewport-fixed root background continues
+the same surface/header/border tokens into that gutter. The lock itself and underlying
+document geometry and scroll container are unchanged. The document strip still ends before the root
+scrollbar: that remaining gutter belongs to #488 phase 0, not the overlay correction.
+
 The cause is established from Electron's [overlay height/color API](https://www.electronjs.org/docs/latest/api/base-window#winsettitlebaroverlayoptions-windows-linux)
 and its pinned [WinFrameView layout](https://github.com/electron/electron/blob/v44.7.0/shell/browser/ui/views/win_frame_view.cc)
 and [opaque caption background](https://github.com/electron/electron/blob/v44.7.0/shell/browser/ui/views/win_caption_button_container.cc):
@@ -244,6 +251,11 @@ alignment; a negative control restores the old 40px height on light Settings and
 the line before the fix is restored. Captures/measurements are uploaded as `desktop-caption-pixels`,
 including failures. A missing foreground window, unavailable screen, or wrong reference color
 fails the test rather than substituting renderer screenshots or skipping the assertion.
+Settings must pass through the full caption edge. Document captures record all sampled
+pixels, but the mandatory overlay assertion stops at the measured root client width;
+only pixels in the actual root scrollbar gutter are reported separately for #488 phase 0.
+The JSON summaries distinguish overlay and gutter mismatches instead of declaring the
+document's whole viewport separator fixed.
 Local checks use persistent Chrome with
 the bridge and representative caption-width geometry, including long filenames in Settings
 and portal overlays over the wrapped header at 640×480; they do not launch packaged Desktop.
