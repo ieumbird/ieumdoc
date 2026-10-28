@@ -65,7 +65,7 @@ export function captionPrefixText(numbered: string): string {
 }
 
 /** Core caption text follows both the current number and document template changes. */
-export function useCaptionNumberText(editor: Editor, getPos: () => number | undefined, kind: "figure" | "table"): string | undefined {
+export function useCaptionNumberText(editor: Editor, getPos: () => number | undefined, kind: NumberedKind): string | undefined {
   return useEditorState({
     editor,
     selector: ({ editor: current }) => {
@@ -73,7 +73,12 @@ export function useCaptionNumberText(editor: Editor, getPos: () => number | unde
       if (!current || typeof pos !== "number") return undefined;
       const doc = current.state.doc;
       const number = blockNumberAt(doc, pos, kind);
-      return number === undefined ? undefined : captionNumberText(kind, number, doc.attrs.referenceTemplates);
+      if (number === undefined) return undefined;
+      if (kind === "equation") {
+        const text = referenceNumberText(kind, number, doc.attrs.referenceTemplates);
+        return doc.attrs.referenceTemplates?.equation === undefined ? `${i18n.t("Equation")} ${text}` : text;
+      }
+      return captionNumberText(kind, number, doc.attrs.referenceTemplates);
     },
   }) ?? undefined;
 }

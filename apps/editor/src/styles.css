@@ -3037,9 +3037,9 @@ ol.list { list-style: decimal; }
 .table-grid:has(.table-caption) { padding-bottom: 0; }
 .table > table { width: 100%; border-collapse: collapse; }
 .table-caption { caption-side: bottom; text-align: left; padding-top: 44px; }
-.table-caption .caption [data-placeholder] { display: inline-block; min-width: 8em; }
-.table-caption [data-placeholder]::before {
-  content: attr(data-placeholder);
+.caption[data-number] [data-placeholder], .caption [data-placeholder] { display: inline-block; min-width: 8em; }
+.caption [data-placeholder]::before {
+  content: attr(data-placeholder) / "";
   float: left;
   height: 0;
   color: var(--id-color-text-muted);
