@@ -19,7 +19,7 @@ import { imageAssets } from "./image-assets.ts";
 import { figureMediaPath } from "../shared/figure-media-path.ts";
 import { MarkdownInputRules } from "./markdown-input-rules.ts";
 import StarterKit from "@tiptap/starter-kit";
-import { createContext, useContext, useEffect, useId, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
+import { createContext, useContext, useEffect, useId, useRef, useState, type DragEvent as ReactDragEvent, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
 import { isAdmonitionVariant, type EditableBlock, type FigureContent, type InlineContent } from "@ieumdoc/core";
 import { figureContentError } from "@ieumdoc/core/figure";
 import { headingNumbers, type HeadingNumbering } from "@ieumdoc/core/numbering";
@@ -27,7 +27,8 @@ import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { labelError, labelKey, targetLabelError } from "@ieumdoc/core/label";
 import { Input } from "@/components/ui/input.tsx";
 import { CodeLanguageInput } from "./code-language-input.tsx";
-import { BlockProperties } from "./block-properties.tsx";
+import { BlockProperties, PropertyForm } from "./block-properties.tsx";
+import { useEditorVisible } from "./editor-visibility.ts";
 import { ADMONITION_LABELS, admonitionTone, updateFigure } from "./block-commands.ts";
 import { CrossReference, captionPrefixText, useBlockNumber, useCaptionNumberText } from "./cross-reference.tsx";
 import { Endnotes, canEditEndnoteAt, endnoteAt, endnoteEditingKey, endnoteEditorToken, revealReference, useEndnoteNumber } from "./endnotes.ts";
@@ -1286,6 +1287,7 @@ export function resolveFigureSource(imageUrl: string, documentPath?: string | ((
 
 function EquationView({ node, editor, selected, getPos, view, onDraftChange }: ReactNodeViewProps & { onDraftChange?: DraftListener }) {
   useTranslation();
+  const visible = useEditorVisible();
   const label = String(node.attrs.label ?? "");
   const number = useBlockNumber(editor, getPos, "equation");
   const kind = number === undefined ? i18n.t("Equation") : `Equation (${number})`;
@@ -1331,14 +1333,18 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
     setLabelDraft(label);
     setError("");
     setEditing(true);
-    // After the panel renders and after an insert command refocuses the editor.
+  }
+  useEffect(() => {
+    if (!editing) return;
+    // Schedule after the form mounts and after an insertion refocuses the editor.
     cancelFocus();
     focusFrame.current = requestAnimationFrame(() => {
       focusFrame.current = null;
       const input = latexInput.current;
       if (input && input.getClientRects().length && !input.closest('[data-testid="equation-editor"]')?.contains(document.activeElement)) input.focus();
     });
-  }
+    return cancelFocus;
+  }, [editing]);
   usePropertyEntry(anchor, beginEdit);
   const cancel = () => {
     cancelFocus();
@@ -1365,6 +1371,11 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
     focusBlock(view, getPos);
   };
 
+  // Keep native text dragging inside the form controls; ProseMirror otherwise handles their drop.
+  const isolateInputDrag = (event: ReactDragEvent<HTMLDivElement>) => {
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) event.stopPropagation();
+  };
+
   return (
     <NodeViewWrapper
       className="equation"
@@ -1378,52 +1389,52 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
       {hasUnappliedDraft ? (
         <p className="draft-status" role="status" data-testid="equation-draft-status">{i18n.t("Unapplied changes are not saved. Apply to include them, or Cancel.")}</p>
       ) : null}
-      {/* The computed number sits right of the formula, as MyST renders it; it is never saved. */}
-      <div className="equation-row">
-        {latex.length === 0 ? <div className="equation-math empty-equation" data-testid="equation-empty" onDoubleClick={beginEdit}>{i18n.t("Enter an equation")}</div> : <EquationFormula className="equation-math" latex={latex} testId="equation-preview" onDoubleClick={beginEdit} />}
-        {number === undefined ? null : <span className="equation-number" data-testid="equation-number">({number})</span>}
-      </div>
-      {view.editable && !editing ? (
-        <Button className="equation-edit" size="sm" variant="outline" onClick={beginEdit}>{i18n.t("Edit")}</Button>
+      {!editing ? (
+        <>
+          {/* The computed number sits right of the formula, as MyST renders it; it is never saved. */}
+          <div className="equation-row">
+            {latex.length === 0 ? <div className="equation-math empty-equation" data-testid="equation-empty" onDoubleClick={beginEdit}>{i18n.t("Enter an equation")}</div> : <EquationFormula className="equation-math" latex={latex} testId="equation-preview" onDoubleClick={beginEdit} />}
+            {number === undefined ? null : <span className="equation-number" data-testid="equation-number">({number})</span>}
+          </div>
+          {view.editable ? <Button className="equation-edit" size="sm" variant="outline" onClick={beginEdit}>{i18n.t("Edit")}</Button> : null}
+        </>
+      ) : visible ? (
+        <div data-testid="equation-properties" onDragStart={isolateInputDrag} onDragEnter={isolateInputDrag}
+          onDragOver={isolateInputDrag} onDragLeave={isolateInputDrag} onDrop={isolateInputDrag} onDragEnd={isolateInputDrag}>
+          <PropertyForm kind={kind} testId="equation" error={error} onApply={apply} onCancel={cancel}>
+            <label className="form-field">
+              <span>LaTeX</span>
+              <textarea
+                ref={latexInput}
+                aria-label={i18n.t("Equation LaTeX")}
+                className="equation-input"
+                data-testid="equation-latex"
+                value={draft}
+                onChange={(event) => {
+                  setDraft(event.target.value);
+                  setError("");
+                }}
+              />
+            </label>
+            <div className="equation-row">
+              <EquationFormula className="equation-math equation-preview" latex={draft} testId="equation-edit-preview" />
+              {number === undefined ? null : <span className="equation-number" data-testid="equation-number">({number})</span>}
+            </div>
+            <label className="form-field">
+              <span>{i18n.t("Label")}</span>
+              <Input
+                data-testid="equation-label"
+                value={labelDraft}
+                placeholder={i18n.t("None")}
+                onChange={(event) => {
+                  setLabelDraft(event.target.value);
+                  setError("");
+                }}
+              />
+            </label>
+          </PropertyForm>
+        </div>
       ) : null}
-      <BlockProperties
-        anchor={anchor}
-        initialFocus={latexInput}
-        kind={kind}
-        testId="equation"
-        open={editing}
-        error={error}
-        onApply={apply}
-        onCancel={cancel}
-      >
-        <label className="form-field">
-          <span>LaTeX</span>
-          <textarea
-            ref={latexInput}
-            aria-label={i18n.t("Equation LaTeX")}
-            className="equation-input"
-            data-testid="equation-latex"
-            value={draft}
-            onChange={(event) => {
-              setDraft(event.target.value);
-              setError("");
-            }}
-          />
-        </label>
-        <EquationFormula className="equation-preview" latex={draft} testId="equation-edit-preview" />
-        <label className="form-field">
-          <span>{i18n.t("Label")}</span>
-          <Input
-            data-testid="equation-label"
-            value={labelDraft}
-            placeholder={i18n.t("None")}
-            onChange={(event) => {
-              setLabelDraft(event.target.value);
-              setError("");
-            }}
-          />
-        </label>
-      </BlockProperties>
     </NodeViewWrapper>
   );
 }
@@ -1452,7 +1463,7 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
   useTranslation();
   const formId = useId();
   const anchor = useRef<HTMLSpanElement>(null);
-  const input = useRef<HTMLInputElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
   const value = String(node.attrs.value ?? "");
   const [editing, setEditing] = useState(false);
   const canEdit = useEditorState({ editor, selector: ({ editor: current }) => {
@@ -1517,18 +1528,25 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
         onDoubleClick={open}
         {...(rendered.html ? { dangerouslySetInnerHTML: { __html: rendered.html } } : { children: `$${value}$` })}
       />
-      <BlockProperties anchor={anchor} initialFocus={input} kind={i18n.t("Inline math")} testId="inline-math"
+      <BlockProperties anchor={anchor} initialFocus={input} kind={i18n.t("Inline math")} testId="inline-math" className="inline-math-properties"
         endnoteOwner={endnoteOwner ? { label: endnoteOwner, editor: endnoteEditorToken(editor) } : undefined}
         open={editing} error={error} busy={!canEdit} onApply={apply} onCancel={close}>
           <label className="form-label" htmlFor={formId}>LaTeX</label>
-          <Input
+          <textarea
             id={formId}
             ref={input}
+            className="inline-math-input"
             aria-label="LaTeX"
             data-testid="inline-math-source"
             value={draft}
             disabled={!canEdit}
             aria-invalid={error ? true : undefined}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.ctrlKey && !event.metaKey && !event.nativeEvent.isComposing) {
+                event.preventDefault();
+                event.currentTarget.form?.requestSubmit();
+              }
+            }}
             onChange={(event) => {
               setDraft(event.target.value.replace(/[\r\n]+/g, " "));
               setError("");

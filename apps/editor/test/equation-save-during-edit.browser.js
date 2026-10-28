@@ -38,8 +38,25 @@ async (page, { openPath }) => {
   });
 
   const changedLatex = `${originalLatex} + 1`;
-  await page.getByRole('button',{name:'Save',exact:true}).click();
   await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
+  await page.getByRole('button',{name:'Edit',exact:true}).click();
+  const block637 = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').first();
+  if (!await block637.evaluate((block) => block.contains(document.querySelector('[data-testid="equation-editor"]')))) {
+    throw new Error('Equation editor must appear in its document block');
+  }
+  const input637 = page.getByTestId('equation-latex');
+  const beforeHeight637 = (await input637.boundingBox()).height;
+  await input637.fill('first');
+  await input637.press('End');
+  await input637.press('Enter');
+  await input637.type('second');
+  if (await input637.inputValue() !== 'first\nsecond') throw new Error('Plain Enter must add a line to the block equation');
+  await input637.fill('a\nb\nc\nd\ne\nf\ng\nh');
+  if ((await input637.boundingBox()).height <= beforeHeight637) throw new Error('Equation input must grow for additional lines');
+  if ((await input637.boundingBox()).width < (await block637.boundingBox()).width - 2) throw new Error('Equation input must use the block width');
+  await page.getByTestId('equation-cancel').click();
+  await page.getByRole('button',{name:'Save',exact:true}).click();
+  await block637.hover({position:{x:4,y:4}});
   await page.getByRole('button',{name:'Edit',exact:true}).click();
   await page.getByTestId('equation-latex').fill(changedLatex);
   const beforeResponse = await page.getByTestId('equation-latex').inputValue();
@@ -91,12 +108,14 @@ async (page, { openPath }) => {
 
   await page.unroute('**/api/document');
   await appliedTyping();
+  await inputDragIsolation();
   return {
     draftRetained: afterResponse === changedLatex,
     editUiRetained: editorDuringDraft === 1,
     appliedAndReloaded: true,
     canceledAndReloaded: reloadedCanceled === originalLatex,
     appliedTypingAndPersistence: true,
+    inputDragIsolation: true,
   };
 
   async function appliedTyping() {
@@ -196,6 +215,77 @@ async (page, { openPath }) => {
         throw new Error(`${file}: Reload lost equation, prose or reference`);
       }
     }
+  }
+
+  async function inputDragIsolation() {
+    const sep = loaded.path.includes('\\') ? '\\' : '/';
+    const root = loaded.path.split(sep).slice(0, -4).join(sep);
+    const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
+    const state = () => editor.evaluate(element => {
+      const e = element.editor;
+      const history = e.state.plugins.find(plugin => plugin.key.startsWith('history$')).getState(e.state);
+      return {doc: JSON.stringify(e.getJSON()), blocks: e.state.doc.childCount,
+        undo: history.done.eventCount, redo: history.undone.eventCount};
+    });
+    const problems = [];
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+    for (const [fieldName, file] of [['equation-latex', 'math.md'], ['equation-label', 'middle.md']]) {
+      const path = [root, 'tmp', 'equation-editing', file].join(sep);
+      await openPath(page, path);
+      const disk = async () => (await (await page.request.get(`${origin}/document/${file}?path=${encodeURIComponent(path)}`)).text()).replaceAll('\r\n', '\n');
+      const original = await disk();
+      const equation = editor.locator('[data-block="equation"]').first();
+      await equation.hover();
+      await equation.getByRole('button', {name:'Edit', exact:true}).click();
+      const field = page.getByTestId(fieldName);
+      await field.fill('alpha beta gamma');
+      await field.focus();
+      await field.evaluate(element => element.setSelectionRange(0, 5));
+      const before = await state();
+      const geometry = await field.evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        context.font = style.font;
+        const left = rect.left + parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft);
+        const y = rect.top + parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop) + parseFloat(style.lineHeight) / 2;
+        return {start: left + context.measureText('al').width, end: rect.right - parseFloat(style.borderRightWidth) - parseFloat(style.paddingRight) - 4, y};
+      });
+      await page.evaluate(() => {
+        window.equationDragEvents = [];
+        for (const type of ['dragstart', 'drop']) document.addEventListener(type, event => {
+          window.equationDragEvents.push({type, trusted:event.isTrusted, target:event.target.getAttribute('data-testid')});
+        }, {capture:true, once:true});
+      });
+      await page.mouse.move(geometry.start, geometry.y);
+      await page.mouse.down();
+      await page.mouse.move(geometry.end, geometry.y, {steps:12});
+      await page.mouse.up();
+      const events = await page.evaluate(() => window.equationDragEvents);
+      const after = await state();
+      const draft = await field.inputValue();
+      await page.evaluate(() => navigator.clipboard.writeText(' PASTE'));
+      await field.focus();
+      await field.press('End');
+      await field.press('ControlOrMeta+v');
+      const pasted = await field.inputValue();
+      const afterPaste = await state();
+      await page.getByTestId('equation-cancel').click();
+      const afterCancel = await state();
+      const response = page.waitForResponse(res => res.request().method() === 'POST' && /\/api\/document(?:\?|$)/.test(res.url()));
+      await page.getByTestId('save').click();
+      const status = (await response).status();
+      const saved = await disk();
+      if (!events.some(e => e.type === 'dragstart' && e.trusted && e.target === fieldName) ||
+          !events.some(e => e.type === 'drop' && e.trusted && e.target === fieldName) ||
+          draft !== ' beta gammaalpha' || pasted !== ' beta gammaalpha PASTE' ||
+          JSON.stringify(after) !== JSON.stringify(before) || JSON.stringify(afterPaste) !== JSON.stringify(before) ||
+          JSON.stringify(afterCancel) !== JSON.stringify(before) || status !== 200 || saved !== original) {
+        problems.push({fieldName, events, draft, pasted, before, after, afterPaste, afterCancel, status, savedUnchanged:saved === original});
+      }
+    }
+    if (problems.length) throw new Error('Equation native input drag/paste isolation failed: ' + JSON.stringify(problems));
   }
 
   function clone(value) {

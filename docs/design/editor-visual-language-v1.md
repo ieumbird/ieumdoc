@@ -1,6 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
+- Last verified: 2026-10-28 (#637: full-column code-style source and draft preview; wider wrapping inline-math popover, with 1440/640px same-state comparison).
 - Segment verification: 2026-10-27 (#620: semibold/surface/shadow selection and quiet Command Center border; [checks and Before/After](#quiet-segments-and-command-center-620)).
 - File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
 - Theme verification: 2026-10-27 (#595: System/Light/Dark, six dark accents, independent paper roles, live preferences and native appearance bridge; [values, contrast and captures](#system-light-and-dark-595)).
@@ -9,7 +10,7 @@
 - Type-scale verification: 2026-10-27 ([#558](https://github.com/ieumbird/ieumdoc/issues/558): Editor tests, typecheck/build, layout-rules and quiet-document pass; 1440px 15/16px manual comparison remains pending because the Windows account failure counter reached the owner stop threshold of 6).
 - Accent verification: 2026-10-27 (#559: six local accent presets, shared interaction/selection/number colors and neutral information states; [contract and contrast results](#single-accent-presets-559)).
 - Table handle verification: 2026-10-26 (#517: B2 transparent-rest line handles with S4 neutral current/open states, accessible address names/tooltips, keyboard discovery and touch fallback; [verification and actual Before/After](table-interaction-v1.md#light-handle-verification-and-comparison)).
-- Last verified: 2026-10-26 (#515 P1/P3 owner review correction: contrast-qualified tab edges, 600 list cue and stable Outline row extent; targeted regressions and [1440/390px comparison](editor-visual-language-v1.md#selection-cue-review-correction-515)).
+- Previous verification: 2026-10-26 (#515 P1/P3 owner review correction: contrast-qualified tab edges, 600 list cue and stable Outline row extent; targeted regressions and [1440/390px comparison](editor-visual-language-v1.md#selection-cue-review-correction-515)).
 - Previous verification: 2026-10-26 (#515: owner A1 raised tab groups and background-only current lists; targeted browser regressions, Editor tests/typecheck/build and [1440/390px manual comparison](editor-visual-language-v1.md#selection-expression-verification-515)).
 - Previous verification: 2026-10-26 (#506: Korean eojeol wrapping with oversized-token fallback; [verification and same-state 1440px/375px captures](#korean-document-wrapping-506)).
 - Menu verification: 2026-10-26 (#516: unified action icons/row metrics, destructive token colors, layout-rules/quiet-document regressions and [1440px manual pairs](editor-ux-shell-v1.md#unified-action-menus-516)).
@@ -197,7 +198,7 @@ The following base values describe Light; [Dark overrides](#system-light-and-dar
 | Callout | Body uses document stack and body size/line spacing (17/28.9px); variant title keeps UI stack, 14/21px and semibold weight. A 3px kind-colored side bar and its surface, no outline; informational, caution and danger kinds |
 | Endnote definition | One region after the body in first-reference order. 16/24px document type and normal text color; baseline number in a 24px inset, returning to the invoking reference. Subtle rule and 12/16px `미주` label at the start, 8px internal gaps and 24px separation from the body. Each definition is one supported paragraph edited in place; unsupported definitions reject native admission. An endnote's gutter has no `+` and its handle opens block actions without dragging. Placement and Save follow [Endnotes](footnotes-v1.md). |
 | Figure / Equation | Transparent at rest; authoring metadata takes no space, hidden at rest and shown on hover/focus/selection/editing at 12/16px in the gap above the block, right-aligned and clear of the hover outline; caption unchanged. Selected/editing outline uses the interaction role. |
-| Editing surfaces | White popovers/dialogs, subtle Equation form surface, shared border/radius/shadow; 32px inputs, 28px form actions, explicit labels and errors |
+| Editing surfaces | White popovers/dialogs with shared border/radius/shadow; block Equation uses the code-block surface in the document, inline math uses a wider wrapping popover; 32px inputs, 28px form actions, explicit labels and errors |
 
 The owner decision in [#558](https://github.com/ieumbird/ieumdoc/issues/558) treats callout content as body prose and raises table content to 15/22px while retaining its UI font for dense columns. Captions remain secondary information at 14/20px; H5/H6 retain their existing sizes. Callout bodies consume the existing document font, size and line-height tokens; table size and line height use the existing document-table tokens. Cell padding, minimum width, grid and table tool reservations are unchanged; reservation design belongs to [#518](https://github.com/ieumbird/ieumdoc/issues/518). This changes presentation only, so no Core operation or CLI surface is needed.
 
@@ -436,6 +437,20 @@ New/More actions stay in place. See [section behavior and evidence](editor-ux-sh
 | Authoring metadata | Section labels (`(label)=`) follow the Figure/Equation metadata rule: hidden and inert at rest, out of layout (no space between blocks), shown with their heading on hover, focus or selection. Clicking the shown label edits it. |
 
 Historical comparison evidence is preserved in the [visual review](editor-visual-refinement-v1-review.md#subsequent-visual-evidence).
+
+### Equation editing comparison (#637)
+
+The same `math.md` scratch document, draft text, English light theme, bundled Pretendard,
+Windows Chrome persistent profile, DPR/zoom 1 and 1440×900 / 640×900 viewports were used
+before and after. The base was `c7a92f0a6ecaaff51aa0af390b8fef55dccaf033`. Captures
+come from `pnpm browser:test inline-math-authoring --screenshots`; traces and logs remain
+in ignored `tmp/`. The block source follows the existing code-block typography, border and
+muted surface; its preview and number remain inside the document column.
+
+| View | 1440 before / after | 640 before / after |
+| --- | --- | --- |
+| Block | [Before](assets/equation-637/before-1440-block.png) / [After](assets/equation-637/after-1440-block.png) | [Before](assets/equation-637/before-640-block.png) / [After](assets/equation-637/after-640-block.png) |
+| Inline | [Before](assets/equation-637/before-1440-inline.png) / [After](assets/equation-637/after-1440-inline.png) | [Before](assets/equation-637/before-640-inline.png) / [After](assets/equation-637/after-640-inline.png) |
 
 ### Reviewing a visual change
 
@@ -766,7 +781,8 @@ Shared Settings/Local recovery and Desktop About reuse the existing dialog, Butt
 | Slash menu | Focus stays in editor; arrows select; Escape dismisses query UI. |
 | Gutter command menu | Button opening focuses first item; Escape closes; return to connected opening control when no other focus has been chosen. |
 | Selection toolbar | Pointer actions preserve editor text selection. Tab from a text selection enters its first button when no table or list Tab applies; the toolbar stays while focus is in it. Escape, or Shift+Tab from the first button, returns to the editor with the same selection. Leaving both hides it. |
-| Link / inline math / reference | Input/select receives focus; existing blur dismissal and Escape close are retained; explicit close returns to editor. |
+| Link / reference | Input/select receives focus; existing blur dismissal and Escape close are retained; explicit close returns to editor. |
+| Inline math | The wrapping source field receives focus; outside focus retains the draft. Apply, Cancel or Escape returns the caret after the formula. |
 | Figure | Selection keeps editor focus; explicit Edit autofocuses Image. Outside/selection dismissal never closes a draft. Explicit Apply/Cancel or existing Escape in its form completes it. |
 | Equation | Inline source form and preview; existing Apply/Cancel/Escape semantics. |
 | Properties (Figure, Equation, Table, inline math, section label) | Actions read Cancel, then Apply (primary last), like dialogs. Edit, double-click or selected Enter focuses the first field. Apply/Cancel/Escape return focus to the editor: a text selection inside the block stays, otherwise a collapsed text/gap caret follows it; inline math returns the caret after the formula. Cancel of a never-applied Equation leaves the caret in the text before it. A Figure Apply whose validation finishes after focus has moved elsewhere does not take it back. |
@@ -1194,9 +1210,9 @@ and the automated font-weight geometry checks.
 
 Visible Table metadata accepts a single click to node-select the Table and a double-click
 to open its Label properties. It stays hidden and inert at rest, with unchanged geometry.
-Cells and the caption retain text selection. Figure and math properties use the existing
-shared BlockProperties surface, dimensions, spacing and focus treatments; inline math now
-uses that same explicit Apply/Cancel form. See [Continuous editing](document-editing-v1.md#continuous-editing).
+Cells and the caption retain text selection. At #557 Figure and math properties used the then-shared
+BlockProperties surface, dimensions, spacing and focus treatments; inline math then
+used that same explicit Apply/Cancel form. See [Continuous editing](document-editing-v1.md#continuous-editing).
 
 ### Property form comparison
 

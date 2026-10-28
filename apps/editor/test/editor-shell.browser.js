@@ -199,7 +199,7 @@ async page => {
     await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
     await page.getByRole('button',{name:'Edit',exact:true}).click();
     await page.getByTestId('equation-latex').fill('x + 2');
-    // Hover beside the open Equation properties, which align to the right edge and may cover the middle.
+    // Hover the table while the Equation draft remains open.
     await page.locator('[data-document-tab][data-active=true] [data-block="table"]').hover({position:{x:8,y:8}});
     await page.getByRole('button',{name:'Move table block 15'}).click();
     const blockMenu = page.getByRole('menu',{name:'Block actions'});
