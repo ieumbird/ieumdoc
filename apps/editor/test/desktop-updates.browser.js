@@ -158,9 +158,11 @@ async (page, { screenshots = false, openPath }) => {
               const borderColor = getComputedStyle(document.querySelector('.document-tabs')).borderBottomColor;
               const continuous = Array.from({length:Math.ceil(header.width)}, (_, i) => header.left + i + 0.5)
                 .filter(x => x < header.right).every(x => lines.filter(line => line.left <= x && line.right > x && line.bottom === tabs.top && line.thickness === 1 && line.color === borderColor).length === 1);
-              const blocked = [...document.querySelectorAll('.app-titlebar button, .sidebar-header button, .sidebar-footer button, .document-panel-header button')].filter(node => {
+              const blocked = [...document.querySelectorAll('.app-titlebar button, .top-bar button, .sidebar-header button, .sidebar-footer button, .document-panel-header button')].filter(node => {
                 const r = node.getBoundingClientRect();
-                return r.width && (r.right > innerWidth || (r.top < 40 && r.right > innerWidth - reserved) || getComputedStyle(node).getPropertyValue('app-region') !== 'no-drag');
+                // Preserve the former follow-up's checks even for hidden header controls.
+                const checked = r.width || node.matches('.top-bar button, .sidebar-header button');
+                return checked && (r.right > innerWidth || (r.top < 40 && r.right > innerWidth - reserved) || getComputedStyle(node).getPropertyValue('app-region') !== 'no-drag');
               }).map(node => node.getAttribute('aria-label') || node.textContent);
               const panel = document.querySelector('.document-panel--overlay');
               const usableWidth = document.querySelector('.top-bar').getBoundingClientRect().width;
@@ -223,15 +225,6 @@ async (page, { screenshots = false, openPath }) => {
     await page.setViewportSize({width, height:900});
     // Representative caption width; production uses the native CSS environment, never this value.
     await page.evaluate(() => document.documentElement.style.setProperty('--window-controls-width', '138px'));
-    for (const collapsed of [false, true]) {
-      if (collapsed) await page.getByRole('button', {name:'Collapse sidebar', exact:true}).click();
-      const blocked = await page.evaluate(() => [...document.querySelectorAll('.top-bar button, .sidebar-header button')].filter(button => {
-        const rect = button.getBoundingClientRect();
-        return rect.right > innerWidth || (rect.top < 40 && rect.right > innerWidth - 138) || getComputedStyle(button).getPropertyValue('app-region') !== 'no-drag';
-      }).map(button => button.getAttribute('aria-label') || button.textContent));
-      check(blocked.length === 0, `Caption controls overlap at ${width}px: ${blocked}`);
-      if (collapsed) await page.getByRole('button', {name:'Expand sidebar', exact:true}).click();
-    }
     await page.getByRole('button', {name:'Settings', exact:true}).click();
     const settingsScreen = page.getByTestId('settings-dialog');
     await settingsScreen.waitFor();

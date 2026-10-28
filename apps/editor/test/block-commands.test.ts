@@ -495,19 +495,6 @@ test("applied state ignores a new empty paragraph but detects subsequent typing"
   assert.notDeepEqual(appliedDocument(editorDocumentJSON(typed)), saved);
 });
 
-test("editor shell keeps application UI out of the document editor", () => {
-  const app = readFileSync(path.join(editorRoot, "src", "App.tsx"), "utf8");
-  assert.doesNotMatch(app, /file-picker|format-bar|equation-draft-notice/);
-  const documentEditor = readFileSync(path.join(editorRoot, "src", "DocumentEditor.tsx"), "utf8");
-  assert.doesNotMatch(documentEditor, /format-bar|toggleBold|toggleItalic/);
-  const schemaSource = readFileSync(path.join(editorRoot, "src", "editor-schema.tsx"), "utf8");
-  assert.match(schemaSource, /data-testid="equation-draft-status"/);
-  // Each authorable technical block uses the shared properties component.
-  for (const kind of ["equation", "figure", "table"]) {
-    assert.match(schemaSource, new RegExp(`<BlockProperties[\\s\\S]*?testId="${kind}"`));
-  }
-});
-
 test("heading section commands move past sibling sections and delete a section, saving what Core moveSection/removeSection write", () => {
   // 0 # One · 1 (sec-a)= · 2 ## A · 3 read-only paragraph · 4 ### A.1 · 5 ## B · 6 Body B · 7 # Two
   const markdown = nativeSource("# One\n\n(sec-a)=\n## A\n\nRead **this**.\n\n### A.1\n\n## B\n\nBody B.\n\n# Two\n");

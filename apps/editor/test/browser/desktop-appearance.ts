@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import type { Page } from "@playwright/test";
 import { build } from "vite";
-import { ACCENT_COLORS, PAGE_BACKGROUNDS, THEMES } from "../../src/preferences.ts";
+import { PAGE_BACKGROUNDS, THEMES } from "../../src/preferences.ts";
 import { REPOSITORY_ROOT } from "./fixtures.ts";
 
 type AppearanceWindow = Window & {
@@ -42,9 +42,11 @@ export async function verifyBuiltAppearance(parent: Page): Promise<void> {
     });
     await page.goto(new URL("/__appearance/index.html", parent.url()).href);
     await page.waitForFunction(() => !!(window as unknown as AppearanceWindow).theme);
+    // visual-tokens.test.ts checks that all accents resolve the same native roles.
+    const accent = "blue";
     for (const colorScheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme });
-      for (const theme of THEMES) for (const background of PAGE_BACKGROUNDS) for (const accent of ACCENT_COLORS) {
+      for (const theme of THEMES) for (const background of PAGE_BACKGROUNDS) {
         const actual = await page.evaluate(async ({ theme, background, accent }) => {
           const state = window as unknown as AppearanceWindow;
           document.documentElement.dataset.accent = accent;
