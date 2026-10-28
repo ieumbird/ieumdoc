@@ -1,48 +1,32 @@
-import { ChevronDown } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Menu } from "@base-ui/react/menu";
+import { Check, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button.tsx";
-import { Input } from "@/components/ui/input.tsx";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
-
-// Suggestions only: arbitrary fence names and the existing highlighting set remain supported.
-const languages = ["", "javascript", "typescript", "python", "bash", "powershell", "json", "yaml",
-  "html", "css", "sql", "c", "cpp", "csharp", "java", "go", "rust"];
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, MENU_ITEM_CLASS } from "@/components/ui/dropdown-menu.tsx";
+import { codeLanguageOptions } from "./code-language-options.ts";
 
 export function CodeLanguageInput({ language, readOnly, onChange }: {
   language: string; readOnly: boolean; onChange: (language: string) => void;
 }) {
   const { t } = useTranslation();
-  // NodeView props arrive after React's controlled-input restoration. Mirror edits in the
-  // same event, or restoring the old attribute value breaks Chromium's composing range.
-  // Composition stays local until commit; the document does not own its intermediate text.
-  const [input, setInput] = useState(language);
-  const composing = useRef(false);
-  useEffect(() => setInput(language), [language]);
-  const change = (value: string) => {
-    const next = value.replace(/[\s`]/g, "");
-    setInput(next);
-    if (next !== language) onChange(next);
-  };
+  const options = codeLanguageOptions.includes(language) ? codeLanguageOptions : [...codeLanguageOptions, language];
+  const label = language || t("Plain text");
   return (
     <div className="code-language-control" contentEditable={false}>
-      <Input className="code-language" data-testid="code-language" value={input} readOnly={readOnly}
-        aria-label={t("Code language")} placeholder={t("Language")} spellCheck={false} autoComplete="off"
-        onChange={(event) => {
-          if (composing.current) setInput(event.target.value);
-          else change(event.target.value);
-        }}
-        onCompositionStart={() => { composing.current = true; }}
-        onCompositionEnd={(event) => { composing.current = false; change(event.currentTarget.value); }} />
       <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" />} className="code-language-trigger"
-          aria-label={t("Choose code language")} disabled={readOnly}>
-          <ChevronDown aria-hidden="true" />
+        <DropdownMenuTrigger render={<Button variant="outline" size="sm" />} className="code-language"
+          data-testid="code-language" aria-label={t("Code language: {{language}}", { language: label })}
+          title={label} disabled={readOnly}>
+          <span className="code-language-label">{label}</span><ChevronDown aria-hidden="true" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="code-language-popup" align="end">
-          {languages.map(item => <DropdownMenuItem key={item} onClick={() => change(item)}>
-            {item || t("Plain text")}
-          </DropdownMenuItem>)}
+        <DropdownMenuContent className="code-language-popup" align="start" aria-labelledby={undefined} aria-label={t("Choose code language")}>
+          <Menu.RadioGroup disabled={readOnly} value={language} onValueChange={value => { if (value !== language) onChange(value as string); }}>
+            {options.map(item => <Menu.RadioItem key={item} value={item} closeOnClick className={MENU_ITEM_CLASS}
+              label={item || t("Plain text")}>
+              <Check aria-hidden="true" className={item === language ? "" : "invisible"} />
+              {item || t("Plain text")}
+            </Menu.RadioItem>)}
+          </Menu.RadioGroup>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
