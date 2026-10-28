@@ -27,14 +27,23 @@ const preferencesFile = () => path.join(app.getPath("userData"), "preferences.js
 let window: BrowserWindow | null = null;
 let readyToShow = false;
 let appearanceReady = false;
+let startupPending = false;
+let appearanceTimer: ReturnType<typeof setTimeout> | undefined;
+// Local CSS/IPC normally finishes before mounting. Bound the cosmetic wait after first paint.
+const APPEARANCE_TIMEOUT_MS = 5_000;
+
+function showStartupWindow(reason?: string): void {
+  if (!startupPending || !window || window.isDestroyed()) return;
+  startupPending = false;
+  clearTimeout(appearanceTimer);
+  if (reason) log(`window startup fallback: ${reason}`);
+  window.show();
+  log("window shown");
+}
 
 function showWhenReady(): void {
-  if (readyToShow && appearanceReady && window) {
-    // Consume the startup gate: a later OS/theme update must not reveal a hidden window.
-    readyToShow = false;
-    window.show();
-    log("window shown");
-  }
+  // Consume the startup gate: a later OS/theme update must not reveal a hidden window.
+  if (readyToShow && appearanceReady) showStartupWindow();
 }
 let preferences: Preferences;
 let updates: UpdateController;
@@ -49,8 +58,9 @@ function log(message: string): void {
     mkdirSync(directory, { recursive: true });
     if (existsSync(file) && statSync(file).size > 1_000_000) renameSync(file, `${file}.old`);
     appendFileSync(file, `${new Date().toISOString()} ${message}\n`);
-  } catch {
-    // Logging never stops the app.
+  } catch (error) {
+    // Logging never stops the app, but a missing file must not erase its diagnostic too.
+    console.error("Could not write Desktop log:", error, message);
   }
 }
 
@@ -159,13 +169,19 @@ function registerIpc(): void {
     return nativeTheme.shouldUseDarkColors;
   });
   handle("desktop:set-window-background", (color, overlay) => {
-    const colors = overlay as { color?: unknown; symbolColor?: unknown } | null;
-    const valid = (value: unknown): value is string => typeof value === "string" && /^#[\da-f]{6}$/i.test(value);
-    if (!valid(color) || !valid(colors?.color) || !valid(colors?.symbolColor)) throw new Error("Invalid window appearance.");
-    window?.setBackgroundColor(color);
-    window?.setTitleBarOverlay({ color: colors.color, symbolColor: colors.symbolColor });
-    appearanceReady = true;
-    showWhenReady();
+    try {
+      const colors = overlay as { color?: unknown; symbolColor?: unknown } | null;
+      const valid = (value: unknown): value is string => typeof value === "string" && /^#[\da-f]{6}$/i.test(value);
+      if (!valid(color) || !valid(colors?.color) || !valid(colors?.symbolColor)) throw new Error("Invalid window appearance.");
+      window?.setBackgroundColor(color);
+      window?.setTitleBarOverlay({ color: colors.color, symbolColor: colors.symbolColor });
+      appearanceReady = true;
+      showWhenReady();
+    } catch (error) {
+      log(`window appearance failed: ${String(error)}`);
+      showStartupWindow("window appearance failed");
+      throw error;
+    }
   });
   handle("desktop:set-channel", async (value) => {
     if (value !== "stable" && value !== "beta") throw new Error("Unknown release channel.");
@@ -193,6 +209,7 @@ function registerIpc(): void {
 function createWindow(): void {
   readyToShow = false;
   appearanceReady = false;
+  startupPending = true;
   const created = new BrowserWindow({
     width: 1400, height: 900, minWidth: 640, minHeight: 480, title: "IeumDoc", show: false,
     titleBarStyle: "hidden", titleBarOverlay: { height: 40 },
@@ -207,7 +224,17 @@ function createWindow(): void {
   created.once("ready-to-show", () => {
     readyToShow = true;
     showWhenReady();
+    if (startupPending) appearanceTimer = setTimeout(() => showStartupWindow("appearance timed out after 5000ms"), APPEARANCE_TIMEOUT_MS);
   });
+  const failed = (reason: string) => {
+    if (!startupPending) return;
+    showStartupWindow(reason);
+    dialog.showErrorBox("IeumDoc", `The editor could not start.\n${reason}`);
+  };
+  created.webContents.on("did-fail-load", (_event, code, description, _url, isMainFrame) => {
+    if (isMainFrame) failed(`renderer load failed (${code}): ${description}`);
+  });
+  created.webContents.on("render-process-gone", (_event, details) => failed(`renderer exited: ${details.reason} (${details.exitCode})`));
   // The Editor's beforeunload asks before losing work; Electron needs the question shown here.
   created.webContents.on("will-prevent-unload", (event) => {
     if (installing) {
@@ -231,9 +258,11 @@ function createWindow(): void {
     if (!url.startsWith(`${ORIGIN}/`)) event.preventDefault();
   });
   created.on("closed", () => {
+    clearTimeout(appearanceTimer);
+    startupPending = false;
     if (window === created) window = null;
   });
-  void created.loadURL(`${ORIGIN}/index.html`);
+  void created.loadURL(`${ORIGIN}/index.html`).catch(error => failed(`renderer load failed: ${String(error)}`));
 }
 
 if (!app.requestSingleInstanceLock()) {
@@ -244,12 +273,17 @@ if (!app.requestSingleInstanceLock()) {
   app.on("second-instance", () => {
     if (!window) return;
     if (window.isMinimized()) window.restore();
+    if (!window.isVisible()) {
+      if (startupPending) showStartupWindow("second instance requested the hidden window");
+      else window.show();
+    }
     window.focus();
   });
   app.on("web-contents-created", (_event, contents) => {
     contents.on("will-attach-webview", (event) => event.preventDefault());
   });
   app.whenReady().then(() => {
+    log(`starting ${app.getVersion()}`);
     session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
     session.defaultSession.setPermissionCheckHandler(() => false);
     preferences = readPreferences(preferencesFile(), app.getVersion());
@@ -289,6 +323,13 @@ if (!app.requestSingleInstanceLock()) {
     log(`started ${app.getVersion()} (${preferences.channel}); ${unsupported ?? "updates on"}`);
     createWindow();
     updates.start();
+  }).catch(error => {
+    log(`startup failed: ${String(error)}`);
+    try {
+      dialog.showErrorBox("IeumDoc", `IeumDoc could not start.\n${String(error)}`);
+    } finally {
+      app.exit(1);
+    }
   });
   app.on("window-all-closed", () => {
     updates?.stop();

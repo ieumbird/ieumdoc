@@ -1,6 +1,7 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
+- Window startup verification: 2026-10-28 (#643: production-minified renderer bridge matrix, Desktop main lifecycle/strict-IPC unit tests; saved light/flat packaged restart regression is CI-only).
 - Version correction verification: 2026-10-28 (#632: `0.0.2-beta.1` published; anonymous assets and withdrawal of both `0.1.0` Beta Releases/assets/remote tags verified; actual GitHub installation/update unverified; [record](../releases/v0.0.2-beta.1.md)).
 - CLI directory cleanup verification: 2026-10-28 (#629: isolated disable/uninstall ownership tests, Desktop typecheck and CI channel-order tests; actual Stable→Beta and NSIS checks run only in disposable Windows CI).
 - CLI integration verification: 2026-10-27 (#604: isolated environment/shim tests, CLI tests/offline package, Editor tests/typecheck/build, persistent-Chrome Settings and layout checks; packaged runtime and real registry/install/update/uninstall checks are required Windows CI, not local execution).
@@ -173,17 +174,40 @@ renderer media query. Returning from an explicit theme to System resolves the na
 answer before applying the final renderer theme. Live OS changes update System immediately.
 The renderer passes resolved `canvas`, `surface-subtle` and `text` CSS roles to
 `setWindowBackground`; main applies the canvas and titleBarOverlay background/symbol colors,
-validates all three colors and stores no theme or color preference. Both bridge calls
+validates all three colors as strict `#rrggbb` and stores no theme or color preference.
+The renderer uses a one-pixel browser canvas to interpret each opaque CSS role and read its
+sRGB bytes as six-digit hex. This handles production minification (`#ffffff` → `#fff`)
+without a second CSS color parser or changing tokens/design. Both bridge calls
 use the existing sender check, and carry no document data.
 
-The hidden window appears only once `ready-to-show` and the first themed background are
-ready. The small external `theme-init.js` sets the renderer's initial theme and native
+Normally the hidden window appears once `ready-to-show` and the first themed background are
+ready. After `ready-to-show`, main waits at most five seconds for appearance: a local CSS/IPC
+cosmetic handshake requires no network, so a missing signal must not hide the app indefinitely.
+Five seconds is a bounded failure allowance, not a startup performance target (the existing
+restart handshake has the same allowance). Timeout or a trusted appearance-handler failure
+reveals the window and logs the cause. Main-frame `did-fail-load`, rejected `loadURL` or renderer
+exit during hidden startup also reveal it and show an error dialog, even before `ready-to-show`.
+The startup gate/timer is consumed once and cancelled on close; subsequent appearance changes
+do not reveal a window the user hid. A second launch shows a hidden existing window, restores
+it if minimized and focuses it. Initialization exceptions after `whenReady` are logged, shown
+in an error dialog and terminate with exit code 1 rather than leave a windowless process.
+
+The small external `theme-init.js` sets the renderer's initial theme and native
 color scheme before the application bundle, without weakening the self-only script CSP.
 Styles then own `color-scheme`. No window-background color literal is duplicated in main.
 The packaged argument/Save/restart regression also checks explicit/System native source,
 effective renderer/native agreement, background and profile restoration. This packaged
 verification runs in CI; local checks use Desktop unit/type checks and the browser bridge
 regression. Native OS theme-change automation is not claimed.
+
+Main writes `starting <version>` to `userData/logs/desktop.log` before initialization and
+retains the detailed `started` entry before window creation. A secondary process that loses
+the single-instance lock exits before these entries. Failures before main/ready handling can
+also precede file logging. Directory creation, rotation or append failure can prevent a log
+file; these errors now go to stderr with the intended message instead of being silently
+discarded. The #643 problem PC's missing folder was not attributable to a specific one of
+these paths from available evidence; an appearance rejection itself happens after startup
+logging. No alternate userData location or speculative filesystem repair is introduced.
 
 ## Channels and versions
 
