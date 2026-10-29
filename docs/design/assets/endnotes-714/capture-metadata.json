@@ -1,6 +1,6 @@
 {
   "baseline": "7f6ba127803ad456f57b7c2d8688e638cf6040cb",
-  "after": "PR implementation; product source hashes below",
+  "after": "6c09f84f4a8137d40dae9484d8b49db4d09906c6; original visual implementation and product source hashes below. Later selected-preview input-policy changes do not alter these resting/editing views.",
   "browser": "Chrome 156.0.8078.49, Windows persistent checkout profile",
   "viewports": [
     "1440x900",

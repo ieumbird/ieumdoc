@@ -9,7 +9,7 @@
 - Body-heading verification: 2026-10-26 (#472: Editor 287/287, typecheck/build, docs check; new-document, structural-block-authoring, document-title, basic-blocks and markdown-input browser regressions with the worktree's persistent Chrome profile. New insertion/menu unit assertions and browser insert/H2 promotion regressions failed on unchanged implementation before the fix).
 - Double-click verification: 2026-10-26 (#470: equation-insertion checks display-formula entry through Edit, LaTeX-field focus, Cancel/Escape caret restoration, unchanged document and Undo/Redo, and an existing draft; the new entry assertion failed before the change).
 - Inline math focus verification: 2026-10-26 (#460: Apply/Escape immediately restore editor focus and the caret after the formula; inline-math-authoring checks subsequent typing and Undo, alongside equation-insertion, equation-node-selection-typing, inline-math-split and property-drafts browser regressions).
-- Equation-end verification: 2026-10-25 (#436: `/Equation` at the document end → Apply → Enter/ArrowDown/Control+End or direct typing; the end gap cursor and explicit node selection both reach following prose. Browser regression also checks Chromium composition and disk Save/Reload; native OS IME is not tested).
+- Previous Equation-end verification: 2026-10-25 (#436: `/Equation` at the document end → Apply → Enter/ArrowDown/Control+End or direct typing; the end gap cursor and explicit node selection both reached following prose. #714 supersedes explicit node-selected typing with the input-ignore policy below; gap-cursor input and the other key commands are unchanged. Browser regression also checks Chromium composition and disk Save/Reload; native OS IME is not tested).
 - Previous verification: 2026-10-25 (#429 document-end shortcuts, including integration with #431/#433/#432: Editor 281/281, typecheck/build, focus-caret, continuous-editing and table-authoring browser regressions; final Figure/table, delayed focus check, native Shift selection and Apple keymap emulation on Windows Chrome; native macOS not tested).
 - Table Tab verification: 2026-10-25 (#430 last-cell Tab row addition, including integration with #431/#433: Editor 281/281, typecheck/build, table-authoring and continuous-editing browser regressions including first-cell focus, typing, one-step Undo and disk Save/Reload).
 - Whole-document Undo verification: 2026-10-25 (#427: saved/new/applied/local-asset Figures, Backspace/Delete and Undo/Redo; figure-authoring, image-assets and atom-boundaries browser regressions; Editor 280/280, typecheck/build).
@@ -236,19 +236,20 @@ A changed document recomputes numbering; source semantics and canonical output a
   focus move adds no document content or history event. Subsequent typing edits
   that text or creates prose at the gap; it does not replace the applied block or
   lose its reference target. Section-label properties return to the following
-  heading, keeping the label directly before it. Typing a printable character
-  while an Equation is explicitly node-selected does not replace it: a new
-  paragraph is created below (as at the gap after the block) and the
-  typed text goes there. An initial IME keydown (`Process`/229) prepares that
-  paragraph before composition starts; subsequent composition updates and
-  commit/cancellation remain engine-owned. Cancellation may leave an empty
-  session paragraph, which canonical Save omits. Accepted clipboard slices also
+  heading, keeping the label directly before it. Ordinary character input and IME
+  composition on a node-selected Equation, image/Mermaid Figure or read-only endnote
+  are ignored (#714 owner decision). They do not replace the block or caption,
+  create a paragraph or add a history step, with or without an initial `Process`/229
+  keydown. The shared selected-preview composition rejection aborts the native range
+  without entering engine composition; clicking another text surface permits normal
+  input again. This policy changes no Enter, arrow, Delete/Backspace or clipboard
+  commands. Accepted clipboard slices still
   go below a node-selected Equation, in one undoable transaction, retaining the
   existing unsupported-content and duplicate-label checks. An accepted empty slice
   is consumed without changing the Equation, label, selection or history, and
   without creating a paragraph. Backspace/Delete on a node-selected Equation still use
-  the engine's normal deletion. Explicitly selecting other nodes still uses
-  normal engine replacement behavior.
+  the engine's normal deletion. Other node kinds retain normal engine replacement
+  behavior.
 - The adapter repairs session locators after engine edits. New blocks and
   heading/paragraph conversions use existing Core insert/remove operations;
   missing source blocks become explicit deletions. Unsupported blocks reject
@@ -575,25 +576,32 @@ then `selectNodeBackward`; Delete runs `deleteSelection`, `deleteCurrentNode`,
 fallback therefore deletes before the selection fallback. The higher-priority
 Markdown input-rule undo and the existing list/empty-block commands remain intact.
 
-`equation-node-selection-typing` covers actual preview selection, ASCII typing,
+`equation-node-selection-typing` covers actual preview selection and ignored ASCII
+typing and CDP composition commit/cancel, with and without an initial IME keydown
+and with repeated `Process` keys. These inputs leave the full document, Equation/label,
+rendered text and history unchanged, without adding a paragraph. A real body click
+then permits ordinary composition and English input. The scenario also retains
 single/multiline plain-text clipboard paste, duplicate-label paste refusal,
-comment-only HTML paste as an empty-slice no-op with Undo/Redo preservation, an
-initial CDP IME keydown followed by `imeSetComposition` updates and commit/cancel,
-ordinary paragraph composition, Undo/Redo, original Equation/label and surrounding
-content preservation, real disk Save/Reload, and explicit Backspace/Delete.
-The CDP path models the keyboard-before-composition ordering described in
+comment-only HTML paste as an empty-slice no-op with Undo/Redo preservation, real disk
+Save/Reload and explicit Backspace/Delete. The Process-first path models the ordering in
 [UI Events](https://www.w3.org/TR/uievents/#events-composition-key-events).
-It does not verify a Windows Korean OS IME or candidate selection. Input methods
-that start composition without a preceding `Process`/229 keydown are rejected on
+It does not verify a Windows Korean OS IME or candidate selection. Composition input,
+with or without a preceding `Process`/229 keydown, is rejected on
 selected Equation, image/Mermaid Figure and read-only endnote previews by the shared
 `rejectPreviewComposition` handler at `compositionstart` and `compositionupdate`.
 It aborts the native range by blurring the editor and temporarily making its native
 input target noneditable. The next animation frame restores engine editability and
-returns focus only if focus is still on the document body. This keydown-less path
-does not create an adjacent paragraph; `footnotes` and `mermaid-authoring` cover its
-protection and subsequent input. Manual Windows Korean IME review remains: select the
-Equation preview, type and commit `한글`, cancel another composition, then check
-single input, Equation/label, Undo/Redo and Save/Reload.
+returns focus only if focus is still on the document body. A late native completion or
+empty cancellation cannot change that preview or turn its engine selection into a text
+caret. Explicit pointer interaction, focus elsewhere or a non-Process keyboard command
+releases this temporary guard; clipboard commands do so even without a keyboard event.
+Other keymaps and editable fields retain their behavior.
+Neither input path creates
+an adjacent paragraph; `footnotes` and `mermaid-authoring` cover the same protection
+and subsequent body input. Manual Windows Korean IME review remains: select the
+Equation preview, type and commit `한글`, cancel another composition, and verify no
+document change or new paragraph; then click prose and check normal single input,
+Equation/label preservation, Undo/Redo and Save/Reload.
 
 PR #314 review baseline (`3afb44f`): real clipboard paste of `Paste314` replaced
 the selected `eq-power` Equation (`P = VI \\cos \\varphi`) with a paragraph and
@@ -603,9 +611,9 @@ initial 229 keydown, retained the Equation but appended `한글` to the precedin
 failed on that original implementation. During investigation, moving the caret
 at `compositionstart` or routing through gapcursor's `beforeinput` produced
 `ㅎ한글`: Chromium restarted its composing range after the first update. These
-approaches were discarded. The final adapter prepares the caret at the initial
-IME keydown, before that range exists; it does not implement composition text
-handling. In pinned `prosemirror-view` 1.42.4, `input.ts` invokes custom DOM
+approaches were discarded. The #314 adapter prepared the caret at the initial
+IME keydown, before that range existed; #714's input-ignore policy now supersedes
+that placement. In pinned `prosemirror-view` 1.42.4, `input.ts` invokes custom DOM
 handlers before its own keydown handler skips key code 229, while `domchange.ts`
 can invoke `handleTextInput` during composition. Tiptap remains pinned at 3.31.3.
 
@@ -616,7 +624,7 @@ The HTML parser produced a non-null empty Slice; returning false delegated it
 to `doPaste`'s default `replaceSelection`. The regression failed on that HEAD.
 The handler now consumes this accepted empty slice without dispatching. The same
 real paste pipeline is tested with existing undo and redo history, preserving
-the full document, selection, focus and the original typing Undo/Redo steps.
+the full document, selection, focus and the existing paste Undo/Redo steps.
 
 
 ### Figure file name (#652)

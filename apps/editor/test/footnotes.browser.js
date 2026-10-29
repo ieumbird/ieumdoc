@@ -671,6 +671,8 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
           e.view.focus();
         });
         assert(await editor.evaluate(element => element.editor.state.selection.node?.attrs.label) === 'x', `${via}: expected the selected read-only definition`);
+        await page.keyboard.type('Ignored');
+        assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === beforeComposition, `${via}: ordinary typing changed the document`);
         if (processKey) await input.send('Input.dispatchKeyEvent', {type:'rawKeyDown', key:'Process', windowsVirtualKeyCode:229, nativeVirtualKeyCode:229});
         await compose('ㅎ'); await compose('하'); await compose('한글');
         await input.send('Input.insertText', {text:'한글'});
@@ -679,17 +681,10 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
           return el.isContentEditable && el.editor.view.hasFocus() && !el.editor.view.composing;
         });
         assert(await note.getAttribute('aria-readonly') === 'true' && await note.locator('p').innerText() === beforeCompositionText, `${via}: composition changed the read-only text`);
-        if (processKey) {
-          assert(await editor.evaluate(element => element.editor.state.selection.$from.parent.textContent) === '한글', `${via}: composing text must occur exactly once in body space`);
-          await page.keyboard.type('Z');
-          assert(await editor.evaluate(element => element.editor.state.selection.$from.parent.textContent) === '한글Z', `${via}: subsequent input stopped`);
-          await page.keyboard.press('Control+z');
-        } else {
-          assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === beforeComposition, `${via}: direct composition changed the document`);
-          await page.keyboard.press('ArrowDown');
-          assert(await editor.evaluate(element => element.editor.state.selection.node?.attrs.label) === 'y', `${via}: composition left keyboard navigation blocked`);
-        }
+        await page.keyboard.type('Z');
         assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === beforeComposition, `${via}: retained input or damaged a definition`);
+        await page.keyboard.press('ArrowDown');
+        assert(await editor.evaluate(element => element.editor.state.selection.node?.attrs.label) === 'y', `${via}: composition left keyboard navigation blocked`);
       }
     }
     // The direct composition path must leave the native input service usable as well.
