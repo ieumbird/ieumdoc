@@ -77,6 +77,9 @@ async (page, { openPath, withBlockHover }) => {
       if (!await menu.evaluate(node => node.contains(document.activeElement))) throw new Error(`${fieldId} stole menu focus after its delayed opening frame`);
       await page.keyboard.press('Escape');
       if (await menu.count() || await page.getByTestId(fieldId).inputValue() !== draft) throw new Error('Menu Escape discarded the property draft');
+      // Finish the asynchronous Mermaid preview before cleanup clicks: its height changes
+      // can move Cancel between pointer down/up. Keep the focus assertions above immediate.
+      if (fieldId === 'mermaid-source') await page.locator('[data-testid="mermaid-edit-preview"][aria-busy="false"]').waitFor();
       await page.getByTestId(cancelId).click();
       await page.getByTestId(fieldId).waitFor({state:'detached'});
     } finally {
@@ -158,6 +161,7 @@ async (page, { openPath, withBlockHover }) => {
           if (!(await prose.innerText()).includes('FocusDestinationProbe') || await field.inputValue() !== originalDraft) throw new Error(`${fieldId} took subsequent prose typing`);
           await page.keyboard.press('ControlOrMeta+z');
         }
+        if (fieldId === 'mermaid-source') await page.locator('[data-testid="mermaid-edit-preview"][aria-busy="false"]').waitFor();
         await page.getByTestId(cancelId).click();
         await field.waitFor({state:'detached'});
       } finally {
