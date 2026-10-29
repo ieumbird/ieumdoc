@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -44,12 +44,21 @@ test("embedded pictures are copied, and resources outside the input folder are r
       body: { self_ref: "#/body", label: "unspecified", children: [{ $ref: "#/pictures/0" }] },
       pictures: [{ self_ref: "#/pictures/0", label: "picture", parent: { $ref: "#/body" }, children: [],
         image: { uri: `data:image/png;base64,${png.toString("base64")}`, mimetype: "image/png", dpi: 72, size: { width: 1, height: 1 } } }] };
-    const input = path.join(root, "input.json");
+    const sourceFolder = path.join(root, "source");
+    mkdirSync(sourceFolder);
+    const input = path.join(sourceFolder, "input.json");
     writeFileSync(input, JSON.stringify(source));
     const output = path.join(root, "embedded");
     const converted = convertDoclingFile(input, output);
     assert.equal(converted.map.items.find(x => x.self_ref === "#/pictures/0")!.status, "converted");
     assert.deepEqual(readFileSync(path.join(output, "assets", readdirSync(path.join(output, "assets"))[0])), png);
+    const absolute = path.join(sourceFolder, "contained.png");
+    writeFileSync(absolute, png);
+    source.pictures[0].image.uri = absolute;
+    writeFileSync(input, JSON.stringify(source));
+    const local = convertDoclingFile(input, path.join(root, "absolute"));
+    assert.equal(local.map.items.find(x => x.self_ref === "#/pictures/0")!.status, "converted");
+    writeFileSync(path.join(root, "outside.png"), png);
     source.pictures[0].image.uri = "../outside.png";
     writeFileSync(input, JSON.stringify(source));
     const unavailable = convertDoclingFile(input, path.join(root, "outside"));

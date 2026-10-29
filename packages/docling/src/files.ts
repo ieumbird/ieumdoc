@@ -24,7 +24,7 @@ export function convertDoclingFile(input: string, output: string): Conversion {
         if (!match) throw new Error("Unsupported embedded image");
         bytes = Buffer.from(match[2], "base64");
       } else {
-        if (/^[a-z]+:/iu.test(image.uri) && !image.uri.startsWith("file:")) throw new Error("Only local or embedded images are read");
+        if (/^[a-z]+:/iu.test(image.uri) && !image.uri.startsWith("file:") && !path.isAbsolute(image.uri)) throw new Error("Only local or embedded images are read");
         const location = image.uri.startsWith("file:") ? fileURLToPath(image.uri) : path.resolve(sourceRoot, image.uri);
         const resolved = realpathSync(location);
         const relative = path.relative(sourceRoot, resolved);
