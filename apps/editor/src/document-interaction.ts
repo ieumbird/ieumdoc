@@ -1,5 +1,5 @@
 import type { UiMessage } from "./ui-message.ts";
-import { inlineContentText } from "@ieumdoc/core";
+import { footnoteDefinitionsMarkdown, inlineContentText, planFootnotePaste, type FootnoteDefinition } from "@ieumdoc/core";
 import { labelKey } from "@ieumdoc/core/label";
 import { Extension, isMacOS } from "@tiptap/core";
 import { splitBlockAs } from "@tiptap/pm/commands";
@@ -14,6 +14,55 @@ import { normalizeExternalHTML, type ExternalHTML } from "./external-html.ts";
 import { freshBlockPath, TABLE_CELL_SOURCE_ATTR } from "./tiptap-document.ts";
 import { REDO_SHORTCUT, UNDO_SHORTCUT } from "./shortcuts.ts";
 import { canEditEndnoteAt } from "./endnotes.ts";
+import { fromTiptapContent, toTiptapContent } from "./tiptap-inline.ts";
+
+const FOOTNOTES_ATTR = "data-ieumdoc-footnotes";
+
+function referenceLabels(fragment: Fragment): string[] {
+  const labels = new Set<string>();
+  fragment.descendants(node => { if (node.type.name === "footnoteReference") labels.add(String(node.attrs.label)); });
+  return [...labels];
+}
+
+function definitionsOf(doc: PMNode): FootnoteDefinition[] {
+  const definitions: FootnoteDefinition[] = [];
+  doc.forEach(node => {
+    if (node.type.name === "footnoteDefinition") definitions.push({ label: String(node.attrs.label),
+      content: fromTiptapContent({ type: "doc", content: [{ type: "paragraph", content: node.toJSON().content }] }) });
+  });
+  return definitions;
+}
+
+/** Capture every selected reference's definition before a cut can delete anything. */
+export function clipboardFootnotes(doc: PMNode, slice: Slice): FootnoteDefinition[] {
+  const definitions = definitionsOf(doc);
+  return referenceLabels(slice.content).map(label => {
+    const definition = definitions.find(note => note.label === label);
+    if (!definition) throw new Error("The selected endnote has no definition.");
+    return definition;
+  });
+}
+
+/** Apply Core's clipboard plan only to the incoming slice, then insert missing definitions
+ * with fresh session locators in the same transaction as the paste. */
+export function pasteFootnotes(state: EditorState, slice: Slice, incoming: FootnoteDefinition[], tr = closeHistory(state.tr)): Transaction {
+  const references = referenceLabels(slice.content);
+  if (!references.length) return tr.replaceSelection(slice);
+  if (references.some(label => !incoming.some(note => note.label === label))) throw new Error("Clipboard endnote definition is missing.");
+  const existing = definitionsOf(state.doc);
+  const labels = [...referenceLabels(state.doc.content), ...existing.map(note => note.label)];
+  const plan = planFootnotePaste(labels, existing, incoming.filter(note => references.includes(note.label)));
+  const rename = new Map(plan.labels.map(item => [item.from, item.to]));
+  const copy = (node: PMNode): PMNode => node.isText ? node : node.type.create(
+    node.type.name === "footnoteReference" ? { ...node.attrs, label: rename.get(String(node.attrs.label)) ?? node.attrs.label } : node.attrs,
+    Fragment.fromArray(node.content.content.map(copy)), node.marks);
+  tr.replaceSelection(new Slice(Fragment.fromArray(slice.content.content.map(copy)), slice.openStart, slice.openEnd));
+  for (const note of plan.definitions) {
+    const content = state.schema.nodeFromJSON(toTiptapContent(note.content)).firstChild!.content;
+    tr.insert(tr.doc.content.size, state.schema.nodes.footnoteDefinition.create({ label: note.label, sourcePath: freshBlockPath() }, content));
+  }
+  return tr;
+}
 
 const TYPES = new Set(["paragraph", "heading", "admonition", "quote", "divider", "equation", "figure", "table", "tableRow", "tableCell", "tableCaption", "bulletList", "orderedList", "listItem", "codeBlock", "text", "hardBreak", "inlineMath", "crossReference", "footnoteReference", "citation"]);
 const COPY_RESTRICTION = "This selection cannot be copied losslessly. Use Source to copy its original Markdown. The selection is kept.";
@@ -312,7 +361,28 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
       let external = false;
       // Shown once the engine's paste transaction is applied; the structure guard may still refuse it.
       let pastedNotice: string | undefined;
+      let pastedFootnotes: FootnoteDefinition[] = [];
       const fail = (message: UiMessage) => { reject(message); return true; };
+      const copyWithFootnotes = (view: EditorView, event: ClipboardEvent, cut: boolean): boolean => {
+        const slice = view.state.selection.content();
+        const restriction: UiMessage = { key: cut ? CUT_RESTRICTION : COPY_RESTRICTION };
+        if (!slice.content.content.every(portable)) { event.preventDefault(); return fail(restriction); }
+        if (!referenceLabels(slice.content).length) return false;
+        event.preventDefault();
+        try {
+          const notes = clipboardFootnotes(view.state.doc, slice);
+          const markdown = footnoteDefinitionsMarkdown(notes);
+          const { dom, text } = view.serializeForClipboard(slice);
+          if (!event.clipboardData || !dom.firstElementChild) throw new Error("Clipboard unavailable");
+          dom.firstElementChild.setAttribute(FOOTNOTES_ATTR, JSON.stringify(notes));
+          event.clipboardData.setData("text/html", dom.innerHTML);
+          const plain = `${text}\n\n${markdown}`;
+          event.clipboardData.setData("text/plain", plain);
+          if (event.clipboardData.getData("text/html") !== dom.innerHTML || event.clipboardData.getData("text/plain") !== plain) throw new Error("Clipboard write failed");
+          if (cut && view.editable) view.dispatch(closeHistory(view.state.tr).deleteSelection().scrollIntoView().setMeta("uiEvent", "cut"));
+          return true;
+        } catch { return fail(restriction); }
+      };
       // A selected block has no native text caret. Keep the DOM read-only for that
       // selection, while the engine remains editable for explicit keymaps/clipboard.
       const syncPreviewInput = (view: EditorView) => {
@@ -443,22 +513,33 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
           compositionstart: rejectPreviewComposition,
           compositionupdate: rejectPreviewComposition,
           copy: (view, event) => {
-            if (view.state.selection.content().content.content.every(portable)) return false;
-            event.preventDefault(); return fail({ key: COPY_RESTRICTION });
+            return copyWithFootnotes(view, event, false);
           },
           cut: (view, event) => {
-            if (view.state.selection.content().content.content.every(portable)) return false;
-            event.preventDefault(); return fail({ key: CUT_RESTRICTION });
+            return copyWithFootnotes(view, event, true);
           },
         },
         // IeumDoc's typed clipboard is pasted as is; other HTML is normalized to supported structure first.
         transformPastedHTML: html => {
+          pastedFootnotes = [];
           external = !isInternalClipboard(html);
           pasted = external ? normalizeExternalHTML(html) : { html, error: internalPasteError(html, schema) };
+          if (!external) {
+            try {
+              const value = new DOMParser().parseFromString(html, "text/html").querySelector(`[${FOOTNOTES_ATTR}]`)?.getAttribute(FOOTNOTES_ATTR);
+              if (value) {
+                const notes: unknown = JSON.parse(value);
+                if (!Array.isArray(notes)) throw new Error("Invalid footnotes");
+                footnoteDefinitionsMarkdown(notes);
+                pastedFootnotes = notes;
+              }
+            } catch { pasted.error = { key: "This clipboard content cannot be preserved. Nothing was pasted; your clipboard and selection are kept." }; }
+          }
           return pasted.html;
         },
         transformPasted: slice => freshSlice(external ? closeExternalSlice(slice) : slice),
         handleDrop: (_view, _event, _slice, moved) => {
+          pastedFootnotes = [];
           const { error, notice } = moved ? {} : pasted ?? {};
           pasted = undefined;
           external = false;
@@ -472,6 +553,8 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
           return !!text && selectedPreview(view.state);
         },
         handlePaste: (view, event, slice) => {
+          const notes = pastedFootnotes;
+          pastedFootnotes = [];
           const { error, notice } = event.clipboardData?.getData("text/html") ? pasted ?? {} : {};
           pasted = undefined;
           external = false;
@@ -488,7 +571,10 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
           const besideEquation = selection instanceof NodeSelection && selection.node.type.name === "equation";
           // Consume empty accepted content: delegating a non-null empty Slice deletes the selection.
           if (besideEquation && !slice.size) return true;
-          const tr = (besideEquation ? paragraphBeside(view.state, true) : view.state.tr).replaceSelection(slice);
+          let tr: Transaction;
+          try {
+            tr = pasteFootnotes(view.state, slice, notes, besideEquation ? paragraphBeside(view.state, true) : closeHistory(view.state.tr));
+          } catch { return fail({ key: "This clipboard content cannot be preserved. Nothing was pasted; your clipboard and selection are kept." }); }
           const labels = new Set<string>();
           let duplicate = false;
           tr.doc.forEach(node => {
@@ -499,7 +585,7 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
           });
           if (duplicate) return fail({ key: "Pasting would duplicate a Figure or Equation label. Cut the original to move it, or give it a distinct label before copying. Nothing was pasted; the clipboard is kept." });
           pastedNotice = notice;
-          if (besideEquation) {
+          if (besideEquation || notes.length || referenceLabels(slice.content).length) {
             view.dispatch(tr.scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"));
             return true;
           }

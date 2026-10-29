@@ -623,7 +623,7 @@ test("ieumdoc help exits successfully", () => {
       "Edit — text and content": ["insert-hard-break", "replace-text", "update-heading", "update-admonition-variant", "update-quote", "update-figure", "update-media-references", "update-list", "update-code-block", "update-node-text", "update-equation-latex"],
       "Edit — structure": ["split-paragraph", "merge-paragraph", "update-heading-level", "convert-block", "remove-block", "move-block", "move-section", "remove-section"],
       "Edit — tables": ["insert-table", "insert-table-row", "insert-table-column", "remove-table-row", "remove-table-column", "move-table-row", "move-table-column", "update-table-alignment", "update-table-caption", "update-table-cell"],
-      "Edit — labels, footnotes and numbering": ["insert-citation", "insert-footnote", "insert-target", "remove-citation", "update-bibliography", "update-citation", "update-enumerator", "update-footnote", "update-heading-numbering", "update-label", "update-reference-templates", "update-title"],
+      "Edit — labels, footnotes and numbering": ["insert-citation", "insert-footnote", "insert-target", "remove-citation", "remove-footnote", "update-bibliography", "update-citation", "update-enumerator", "update-footnote", "update-heading-numbering", "update-label", "update-reference-templates", "update-title"],
       "Format": ["format"],
       "Serve": ["serve"],
     };
@@ -690,7 +690,7 @@ test("command help is available from help and --help", () => {
       /Use update-node-text instead when/, /it also substitutes within individual text nodes/,
       /whole block.*structured --content.*update-heading or update-quote/,
       /paragraph.*apply-batch.*insert-block --content.*first.*then remove-block/i,
-      /intermediate step.*writable.*footnote references.*--dry-run/],
+      /Intermediate steps.*ordinary write checks.*footnote cleanup.*batch completion.*--dry-run/],
     "update-heading": [/entire.*content.*Heading/i, /Use update-node-text instead when/],
     "update-quote": [/entire.*content.*Quote/i, /Use update-node-text instead when/],
     "update-node-text": [/Substitute text at a known Core NodePath/, /Use update-heading or update-quote instead when replacing the entire/],
@@ -732,7 +732,8 @@ test("command help is available from help and --help", () => {
   const batch = run(["help", "apply-batch"]);
   assert.equal(batch.status, 0);
   assert.equal(run(["apply-batch", "--help"]).stdout, batch.stdout);
-  assert.match(batch.stdout, /preceding step's canonical, reparsed snapshot; no automatic tracking/);
+  assert.match(batch.stdout, /preceding step's canonical placement snapshot; no automatic tracking/);
+  assert.match(batch.stdout, /Footnote cleanup waits for the completed batch/);
   assert.match(batch.stdout, /operation <1-based index>/);
   assert.match(batch.stdout, /objects\/arrays/);
   assert.match(batch.stdout, /stdin with -/);
@@ -922,9 +923,9 @@ test("CLI writes endnotes after the body as Core and Editor Save do, and leaves 
       "[^b]: First note.\n\n[^a]: Second note.\n");
     assert.equal(readFileSync(file, "utf8"), moved);
     const orphaning = run(["remove-section", file, "--at", "4"]);
-    assert.equal(orphaning.status, 1);
-    assert.match(orphaning.stderr, /\[\^a\] with no reference/);
-    assert.equal(readFileSync(file, "utf8"), moved);
+    assert.equal(orphaning.status, 0, orphaning.stderr);
+    assert.equal(readFileSync(file, "utf8"), nativeSource("# Document\n\n## Section B\n\nAnother paragraph[^b].\n\n[^b]: First note.\n"));
+    writeFileSync(file, moved);
     assert.equal(run(["remove-section", file, "--at", "2"]).status, 0);
     assert.equal(readFileSync(file, "utf8"), nativeSource("# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n[^b]: First note.\n\n[^a]: Second note.\n"));
 
@@ -932,6 +933,32 @@ test("CLI writes endnotes after the body as Core and Editor Save do, and leaves 
     writeFileSync(file, invalid);
     assert.equal(run(["format", file]).status, 1);
     assert.equal(readFileSync(file, "utf8"), invalid);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("CLI footnote deletion and batch completion retain definitions across a temporary last-reference removal", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-endnote-lifecycle-"));
+  const file = path.join(dir, "document.md"), operations = path.join(dir, "operations.json");
+  const original = nativeSource("## From[^a]\n\n## To\n\n[^a]: **Keep** $x$.\n");
+  try {
+    writeFileSync(file, original);
+    writeFileSync(operations, JSON.stringify([
+      { command: "update-heading", path: "1", text: "From" },
+      { command: "update-heading", path: "2", content: [{ kind: "text", text: "To" }, { kind: "footnote", label: "a" }] },
+    ]));
+    const moved = run(["apply-batch", file, "--operations", operations]);
+    assert.equal(moved.status, 0, moved.stderr);
+    assert.equal(readFileSync(file, "utf8"), nativeSource("## From\n\n## To[^a]\n\n[^a]: **Keep** $x$.\n"));
+    const preserved = readFileSync(file);
+    assert.equal(run(["remove-footnote", file, "--path", "1"]).status, 1);
+    assert.deepEqual(readFileSync(file), preserved);
+    const removed = run(["remove-footnote", file, "--path", "3"]);
+    assert.equal(removed.status, 0, removed.stderr);
+    assert.equal(readFileSync(file, "utf8"), nativeSource("## From\n\n## To\n"));
+    writeFileSync(file, original);
+    const last = run(["update-heading", file, "--path", "1", "--text", "From"]);
+    assert.equal(last.status, 0, last.stderr);
+    assert.equal(readFileSync(file, "utf8"), nativeSource("## From\n\n## To\n"));
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

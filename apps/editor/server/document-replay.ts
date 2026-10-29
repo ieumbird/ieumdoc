@@ -25,6 +25,7 @@ import {
   insertParagraph,
   parse,
   removeBlock,
+  reconcileEndnotes,
   serialize,
   splitParagraph,
   mergeParagraphWithPrevious,
@@ -95,7 +96,8 @@ export function saveEdits(
   source: string,
   edits: SupportedEdits,
 ): { markdown: string } {
-  let document = parse(source);
+  const original = parse(source);
+  let document = original;
   const editable = getEditableDocument(document);
   for (const edit of edits.headings ?? []) {
     const target = { path: [edit.path[0]], part: 0 };
@@ -531,6 +533,7 @@ export function saveEdits(
   }
   let markdown: string;
   try {
+    document = reconcileEndnotes(original, document);
     validateStructure(document);
     markdown = serialize(document);
   } catch (error) {
