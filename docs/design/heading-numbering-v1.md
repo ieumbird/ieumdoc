@@ -1,6 +1,7 @@
 # Heading numbering v1
 
 - Status: Implemented
+- Contract cross-check: 2026-10-30 (#777 inventory; Figure segmented controls distinguished from the remaining empty-input forms, without changing numbering behavior).
 - Title/body contract update: 2026-10-29 (#722; H1–H6 body numbering, frontmatter-only unnumbered title, installed MyST transform boundary below).
 - Fixed numbering: 2026-10-29 (#720 Core/CLI and Editor property entry, warning display and Save/Reload).
 - Document settings verification: 2026-10-27 (#580: inline settings, per-tab expansion, notation previews and existing document operations; [integration, checks and captures](editor-ux-shell-v1.md#document-settings-placement-554)).
@@ -22,7 +23,7 @@ H1–H6. See [document title](document-editing-v1.md#document-title-255).
 
 `updateHeadingNumbering(document, enabled)` updates only heading settings in native frontmatter with the existing YAML library, preserving reference templates and other admitted metadata. `HeadingNumbering` and `headingNumbers` expose the editor-neutral display rule. Editor headings and Outline call the same rule; one ProseMirror document attribute participates in Undo/Redo. Save applies the Core operation without changing snapshot paths. Metadata is hidden from the body, never inserted as an editor block.
 
-In the inline Document settings block above the title (#580), Number headings belongs to Saved in this document. The block starts collapsed; the command center or Settings link expands and focuses it. It is disabled without a document, during pending work and in Source. Wide document is a separate TopBar toggle and device preference. Source is read-only. Supported top-level headings advance counters; unsupported nested structures never enter a native document.
+In the inline Document settings block above the title (#580), Number headings belongs to Saved in this document. The block starts collapsed; the command center expands and focuses it. It is disabled without a document, during pending work and in Source. Wide document is a separate TopBar toggle and device preference. Source is read-only. Supported top-level headings advance counters; unsupported nested structures never enter a native document.
 
 CLI: `ieumdoc update-heading-numbering <file> --enabled true|false`. `inspect --format json` reports computed `headingNumber` values. Figure/equation numbering is independent.
 
@@ -100,11 +101,17 @@ Editor projects the authored attribute through its real schema, uses Core number
 and preserves it through existing Core save operations. New locators from typed Cut/Paste,
 drop/copy or duplicate normalization carry the enumerator in `InsertEdit`; Host replay calls
 Core `updateEnumerator` after insertion, including image/pending/Mermaid Figures, tables and
-equations. Image/pending Figure, Mermaid Figure, table and equation property forms expose
-**Number** after Label, with **Automatic** as the empty placeholder and a short explanation.
-Input is a string draft, included in existing dirty/work-loss protection; only Apply changes
-the engine attribute, in the same Undo step as the other properties. Cancel/Escape keeps the
-applied value. Empty input clears the fixed number. Save collects snapshot-relative changes
+equations. All numbered-block forms expose **Number** after Label. Image/pending and Mermaid
+metadata use Automatic/Fixed segments, revealing an input only for Fixed, under
+[Figure properties #757](figure-authoring-v1.md#anchored-figure-properties-757).
+Table, block Equation and Mermaid source still use an input with **Automatic** as its empty
+placeholder and a short explanation. This remaining difference is tracked in
+[#776](https://github.com/ieumbird/ieumdoc/issues/776), pending the owner's target decision in
+[#777](https://github.com/ieumbird/ieumdoc/issues/777).
+Input is a string draft, included in existing dirty/work-loss protection. Explicit Apply or
+Figure Done/valid outside pointer completion changes the engine attribute in the same Undo
+step as the other properties. Cancel/Escape keeps the applied value. Empty input clears the
+fixed number, including an empty Fixed field in the current Figure UI. Save collects snapshot-relative changes
 and Host replay calls Core `updateEnumerator`; no numbering semantics are implemented in UI.
 
 The Editor adapts the live applied blocks (including inserted ones) to Core `numberingReport`.
