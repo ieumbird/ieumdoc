@@ -2,6 +2,7 @@
 
 - Status: Implemented
 - Explicit edit controls: 2026-10-29 (#714 / #715: button-only entry, Apply/Cancel, read-only IME protection and localized region label).
+- Triple-click editing: 2026-10-29 (#735: reuse the caption/code textblock selection handler for editable definition gaps).
 - Read-only interaction verification: 2026-10-27 (#579: explicit in-place editing and transient tool ownership).
 - Code/endnote save verification: 2026-10-24 (#393: Core paragraph/list intermediate snapshots with code update/insert, missing-definition final-write refusals, and Editor Save replay regression).
 - Nested authoring verification: 2026-10-24 (#377: Core list/Figure incomplete-operation and final-write refusal regressions; Editor slash tests and `citation-authoring` insertion/Save → Reload, with Endnote absent from definitions).
@@ -92,6 +93,8 @@ The Editor presents the Core order; it does not keep a source order of its own.
 - **Sections**: a heading's section never includes the endnotes. Delete section keeps them, and is refused with a notice naming the endnote when the section holds its last reference; the reader deletes that endnote first. Move section leaves them after the body.
 - **Opening a file written otherwise**: the Host reports `endnotesInPlace`. When false, a notice says that Save writes the endnotes after the body in first-reference order, keeping labels and text. Opening writes nothing and the document is not dirty; Save stays available, Source shows the Markdown Save writes, and the notice ends with the first successful Save.
 
+- While a definition is explicitly being edited, triple-clicking its body or the wrapper gaps beside the body selects only that definition's inline content. Typing, Backspace, Delete and paste replace that selection without leaving editing or changing another definition. The shared caption/code textblock mousedown handler prevents native selection from crossing the next definition's boundary; number navigation, inline controls and Apply/Cancel retain their own interactions. Read-only selection and input protection are unchanged. This is Editor-only interaction, with no Core or CLI operation.
+
 ### Endnotes presentation
 
 All top-level definitions follow the body in the one editor state. The first has a subtle 1px rule, a 12/16px muted label (`Endnotes` in English / `미주` in Korean), and 24px space from the body; subsequent definitions have an 8px gap. Text keeps the 16px font and 1.5 line-height (24px), normal document text color and baseline number in a 24px inset. Inline reference chips stay superscript. The localized region label is display only: it is not a heading, an Outline entry, selected text or Markdown. Whole-definition copying keeps the existing lossless-copy restriction; Source remains available for copying actual Markdown.
@@ -111,6 +114,7 @@ All top-level definitions follow the body in the one editor state. The first has
 
 ## Verification
 
+- `caption-selection` covers editable endnote body text, empty body space and both wrapper gaps (left of the body and before the action controls), each with native triple-click followed by typing, Backspace, Delete or system-clipboard paste. It checks the exact body selection, retained edit mode, resulting content and the entire surrounding document, including the next definition. The gap coordinates are hit-tested against the editable wrapper. Existing caption cases click the generated number prefix at its measured position, including centered Figures.
 - Core tests (`footnote.test.ts`, `endnote.test.ts`, `section.test.ts`) cover projection and placement of supported definitions, scattered source placement, idempotence, reference order changes, references within body formatting and repeated body references, rich one-paragraph definition edits, insertion and labels, empty/reference-containing definition edit refusals, duplicate/unreferenced definitions and incomplete write refusals, and sections that hold no endnotes. `native.test.ts` covers public admission of supported footnotes and rejection of multiple-paragraph definitions.
 - `footnote.test.ts` also covers source-only missing-reference warnings, escaped/canonical literal text, exact label matching, body/container locations with BOM and LF/CRLF, non-text exclusions, unchanged AST and allowed idempotent writes. `reference.test.ts` extends these checks to full/collapsed links and images, code delimiter lengths, ordinary prose, URL/escape exclusions and shared location mapping. CLI tests cover check text/JSON integration without writes, original-source warnings on successful single/batch writes with unchanged stdout and escaped bytes, and no additional warnings on refusal.
 - CLI tests cover writes through `format` and section commands with endnotes, `check` placement notes, and refused writes that leave the file's bytes intact.
