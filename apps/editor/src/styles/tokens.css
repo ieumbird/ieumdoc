@@ -78,7 +78,8 @@
   --layout-inline-math-popover-width: 36rem;
   /* Figure metadata popover and its image thumbnail. */
   --layout-figure-popover-width: 32.5rem;
-  --size-figure-property-thumbnail: 3rem;
+  --size-figure-property-thumbnail-max-width: 10rem;
+  --size-figure-property-thumbnail-max-height: 6rem;
   --space-figure-popover-gap: 8px;
   /* Shared reference/citation underline distance, including unchecked citations. */
   --reference-underline-offset: 3px;

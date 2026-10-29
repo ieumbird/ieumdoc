@@ -43,7 +43,17 @@ export function FigureProperties({ anchor, kind, testId, open, busy, choosing, e
     // pointer click completes metadata; focus/keyboard navigation alone does not.
     if (details.reason === "outside-press" && !busy && details.event instanceof MouseEvent && details.event.detail > 0) onApply(true);
   }}>
-    <PopoverContent anchor={() => anchor.current?.closest("figure") ?? null}
+    <PopoverContent anchor={() => {
+      const figure = anchor.current?.closest("figure");
+      if (!figure) return null;
+      // Metadata is positioned above the Figure's layout box. Include it when
+      // flipping above, keeping the same horizontal document axis.
+      return { contextElement: figure, getBoundingClientRect: () => {
+        const rect = figure.getBoundingClientRect();
+        const top = Math.min(rect.top, anchor.current?.getBoundingClientRect().top ?? rect.top);
+        return new DOMRect(rect.left, top, rect.width, rect.bottom - top);
+      } };
+    }}
       collisionBoundary={bounds}
       side="bottom" align="start" sideOffset={() => anchor.current
         ? parseFloat(getComputedStyle(anchor.current).getPropertyValue("--space-figure-popover-gap")) : 0}

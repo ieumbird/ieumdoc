@@ -1,0 +1,676 @@
+{
+  "base": "b43978ac",
+  "after": "Initial capture: 72041c94; four files refreshed by the letterbox correction described below",
+  "origin": "http://127.0.0.1:5760",
+  "platform": "Windows installed Chrome; checkout-owned persistent profile",
+  "viewportHeights": 900,
+  "dpr": 1,
+  "zoom": 1,
+  "fonts": "bundled Pretendard; document.fonts.ready",
+  "fixture": "mermaid-authoring/diagram.md; 16 plain context paragraphs added before/after figures; no disk writes",
+  "collection": "one successful persistent run; clean base product files restored for Before, then final product files restored for After; temporary source-ready export removed afterward",
+  "states": [
+    {
+      "name": "before-light-image-1440",
+      "bounds": {
+        "x": 344,
+        "y": 382,
+        "width": 520,
+        "height": 290
+      },
+      "metadata": {
+        "top": 128.71875,
+        "bottom": 144.71875
+      },
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "dpr": 1,
+      "theme": "light",
+      "scroll": 999
+    },
+    {
+      "name": "before-advanced-1440",
+      "bounds": {
+        "x": 344,
+        "y": 489,
+        "width": 520,
+        "height": 354
+      },
+      "metadata": {
+        "top": 235.765625,
+        "bottom": 251.765625
+      },
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "dpr": 1,
+      "theme": "light",
+      "scroll": 999
+    },
+    {
+      "name": "before-light-mermaid-1440",
+      "bounds": {
+        "x": 344,
+        "y": 333,
+        "width": 520,
+        "height": 170
+      },
+      "metadata": {
+        "top": 128.921875,
+        "bottom": 144.921875
+      },
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "dpr": 1,
+      "theme": "light",
+      "scroll": 915
+    },
+    {
+      "name": "before-light-image-640",
+      "bounds": {
+        "x": 205,
+        "y": 408,
+        "width": 430,
+        "height": 290
+      },
+      "metadata": {
+        "top": 684.625,
+        "bottom": 700.625
+      },
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "dpr": 1,
+      "theme": "light",
+      "scroll": 921
+    },
+    {
+      "name": "before-ko-fixed-warning-640",
+      "bounds": {
+        "x": 205,
+        "y": 262,
+        "width": 430,
+        "height": 436
+      },
+      "metadata": {
+        "top": 684.625,
+        "bottom": 700.625
+      },
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "dpr": 1,
+      "theme": "light",
+      "scroll": 1035,
+      "notice": {
+        "size": "14px",
+        "line": "20px"
+      }
+    },
+    {
+      "name": "before-light-mermaid-640",
+      "bounds": {
+        "x": 205,
+        "y": 572,
+        "width": 430,
+        "height": 170
+      },
+      "metadata": {
+        "top": 729.171875,
+        "bottom": 745.171875
+      },
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "dpr": 1,
+      "theme": "light",
+      "scroll": 761
+    },
+    {
+      "name": "before-dark-image-1440",
+      "bounds": {
+        "x": 344,
+        "y": 382,
+        "width": 520,
+        "height": 290
+      },
+      "metadata": {
+        "top": 128.765625,
+        "bottom": 144.765625
+      },
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "dpr": 1,
+      "theme": "dark",
+      "scroll": 1106
+    },
+    {
+      "name": "before-dark-mermaid-1440",
+      "bounds": {
+        "x": 344,
+        "y": 333,
+        "width": 520,
+        "height": 170
+      },
+      "metadata": {
+        "top": 128.921875,
+        "bottom": 144.921875
+      },
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "dpr": 1,
+      "theme": "dark",
+      "scroll": 915
+    },
+    {
+      "name": "before-dark-image-640",
+      "bounds": {
+        "x": 205,
+        "y": 408,
+        "width": 430,
+        "height": 290
+      },
+      "metadata": {
+        "top": 684.625,
+        "bottom": 700.625
+      },
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "dpr": 1,
+      "theme": "dark",
+      "scroll": 921
+    },
+    {
+      "name": "before-dark-mermaid-640",
+      "bounds": {
+        "x": 205,
+        "y": 572,
+        "width": 430,
+        "height": 170
+      },
+      "metadata": {
+        "top": 729.171875,
+        "bottom": 745.171875
+      },
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "dpr": 1,
+      "theme": "dark",
+      "scroll": 761
+    },
+    {
+      "name": "after-light-image-1440",
+      "bounds": {
+        "x": 344,
+        "y": 382,
+        "width": 520,
+        "height": 346
+      },
+      "metadata": {
+        "top": 128.765625,
+        "bottom": 144.765625
+      },
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "dpr": 1,
+      "theme": "light",
+      "scroll": 1106
+    },
+    {
+      "name": "after-advanced-1440",
+      "bounds": {
+        "x": 344,
+        "y": 382,
+        "width": 520,
+        "height": 410
+      },
+      "metadata": {
+        "top": 128.765625,
+        "bottom": 144.765625
+      },
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "dpr": 1,
+      "theme": "light",
+      "scroll": 1106
+    },
+    {
+      "name": "after-light-mermaid-1440",
+      "bounds": {
+        "x": 344,
+        "y": 333,
+        "width": 520,
+        "height": 238
+      },
+      "metadata": {
+        "top": 128.921875,
+        "bottom": 144.921875
+      },
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "dpr": 1,
+      "theme": "light",
+      "scroll": 915
+    },
+    {
+      "name": "after-light-image-640",
+      "bounds": {
+        "x": 205,
+        "y": 331,
+        "width": 430,
+        "height": 346
+      },
+      "metadata": {
+        "top": 684.625,
+        "bottom": 700.625
+      },
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "dpr": 1,
+      "theme": "light",
+      "scroll": 921
+    },
+    {
+      "name": "after-ko-fixed-warning-640",
+      "bounds": {
+        "x": 205,
+        "y": 205,
+        "width": 430,
+        "height": 472
+      },
+      "metadata": {
+        "top": 684.625,
+        "bottom": 700.625
+      },
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "dpr": 1,
+      "theme": "light",
+      "scroll": 1035,
+      "notice": {
+        "size": "14px",
+        "line": "20px"
+      }
+    },
+    {
+      "name": "after-light-mermaid-640",
+      "bounds": {
+        "x": 205,
+        "y": 483,
+        "width": 430,
+        "height": 238
+      },
+      "metadata": {
+        "top": 729.171875,
+        "bottom": 745.171875
+      },
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "dpr": 1,
+      "theme": "light",
+      "scroll": 761
+    },
+    {
+      "name": "after-dark-image-1440",
+      "bounds": {
+        "x": 344,
+        "y": 382,
+        "width": 520,
+        "height": 346
+      },
+      "metadata": {
+        "top": 128.765625,
+        "bottom": 144.765625
+      },
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "dpr": 1,
+      "theme": "dark",
+      "scroll": 1106
+    },
+    {
+      "name": "after-dark-mermaid-1440",
+      "bounds": {
+        "x": 344,
+        "y": 333,
+        "width": 520,
+        "height": 238
+      },
+      "metadata": {
+        "top": 128.921875,
+        "bottom": 144.921875
+      },
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "dpr": 1,
+      "theme": "dark",
+      "scroll": 915
+    },
+    {
+      "name": "after-dark-image-640",
+      "bounds": {
+        "x": 205,
+        "y": 331,
+        "width": 430,
+        "height": 346
+      },
+      "metadata": {
+        "top": 684.625,
+        "bottom": 700.625
+      },
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "dpr": 1,
+      "theme": "dark",
+      "scroll": 921
+    },
+    {
+      "name": "after-dark-mermaid-640",
+      "bounds": {
+        "x": 205,
+        "y": 483,
+        "width": 430,
+        "height": 238
+      },
+      "metadata": {
+        "top": 729.171875,
+        "bottom": 745.171875
+      },
+      "padding": [
+        "16px",
+        "16px",
+        "16px",
+        "16px"
+      ],
+      "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+      "dpr": 1,
+      "theme": "dark",
+      "scroll": 761
+    }
+  ],
+  "pngHashes": {
+    "after-advanced-1440.png": "dbea4816919a8b0b2992ba3d5d5bcd347ace91254aa23be9e12049681e2acd54",
+    "after-dark-image-1440-detail.png": "8a0f8405162e200b5347d848d790440c4af8fe10b487637fa738233ffa51c945",
+    "after-dark-image-1440.png": "83c4022c32c29354d49a9366c7d35cd8dbc5b6defbdc36b24585877a69f975cb",
+    "after-dark-image-640-detail.png": "f2332b520db2d0d5dd3d544d0bbdd1cb5a99042bd9a3c08217152443e3f9a404",
+    "after-dark-image-640.png": "b90649bb3a5b0abf67f56d32fa550451567186873df1c8e252c02422b8c56763",
+    "after-dark-mermaid-1440-detail.png": "9d2dc1eb240dc9044742f3df0cca3397c31e094505048882c4a97fa682c8b520",
+    "after-dark-mermaid-1440.png": "127b096bbbdfd00f8a1661ad670cd1b8f4688d00b5d93ebe93975ac239758611",
+    "after-dark-mermaid-640-detail.png": "52556a36c2a73d85d2f060ee09d532a95c81ff3825aa2f4832442b21a727a25d",
+    "after-dark-mermaid-640.png": "83f144ac8f221f8ff8cfe566736d6313692725780ac872156344fabd9676cbc6",
+    "after-input-focus.png": "dbd494da014f436bdfc9772f283bb236678a06838140c973afec3b06f05a0146",
+    "after-input-hover.png": "b598054e9511404ef548e1293cc45803f579ee17b5ea27a9320efb26986d628d",
+    "after-ko-fixed-warning-640.png": "00c77b2fc4923c9e1d6d728ae76d55fe2c77df0d3693945486df588c02cff5d1",
+    "after-light-image-1440-detail.png": "dfffe477eb2fde25bbb2a57767db0f045d81aaa1447a035546806c77d0664fc9",
+    "after-light-image-1440.png": "2bab29b962c90ee12e96ea3a850cb0535866ea7f68045e98c48be87f8d828d97",
+    "after-light-image-640-detail.png": "c9de17d3cd948777527fc2c6da0c16f400fbaff34d59de59dff539da994c029a",
+    "after-light-image-640.png": "eac8f67fd49ccb4279014fd74f4b4a85833a31e73273bfad3eb3e20957673c74",
+    "after-light-mermaid-1440-detail.png": "66d8cc5391c2575b1ce835a27604adea365d66157606e59b0b8dcdb2720b95ba",
+    "after-light-mermaid-1440.png": "c0b7656aa20b9c8360b8acb49dfb20d3368a3f72519a4e20d07e1d056be04328",
+    "after-light-mermaid-640-detail.png": "dfb7b85f7c4a976303fdc2285bfb699be64f77dabef23f19c4d344945414662d",
+    "after-light-mermaid-640.png": "7fe31917fbe51a53b18f071c41795cc47c1aa9f21d7db76eca8a1c3f5f9c98fd",
+    "after-segment.png": "deb3e5828933b5ce5e550ff108ad4a4bf85223bfc134b90216a42c69ea2b4c0c",
+    "before-advanced-1440.png": "eaf245e5f660ff68a0c15a5b5e060c19403c3fdab9fca62e1ae47873a2931972",
+    "before-dark-image-1440-detail.png": "79684d7c8fc4db96760b939f6ca48a71765e1a26df300bbb36eb4cb43a3c7ef6",
+    "before-dark-image-1440.png": "2775c8d91968d00dd35685fcbfdc508a893c4ee32607cf3328c482ad92bd9006",
+    "before-dark-image-640-detail.png": "56312b938d673ba2266244cbb37e0cf9b06b949f1c87a97a7492ed57a283ae9e",
+    "before-dark-image-640.png": "19b1246980e8698b18c11fd907d16fbcec1058c067d242e173f5bb6de4112a2b",
+    "before-dark-mermaid-1440-detail.png": "ff90216975fc7eec87476fbd24254b2d1f7ca9a4f70e73ffe5808856f6099e7b",
+    "before-dark-mermaid-1440.png": "4580d9984d0827b88ce8faa148d9d8d1d2c2e27223f0fff0fee1dc57f459e519",
+    "before-dark-mermaid-640-detail.png": "cdb4f0466f71134d193ab19b1d63e4b2b09773ed0e1bd92c9d67916aacda6775",
+    "before-dark-mermaid-640.png": "38f15ed4ca5fdf64a9cabee884dbec1267e1ac675bd4eda0d9911c848d47399e",
+    "before-input-focus.png": "5ef823f131f79f7889707b48b298cee9c17a30fc7800c9c909ac6e2c5e5d0880",
+    "before-input-hover.png": "cb608c2b364bf3eb195415f40a749fc0a7177be276cd5f78c3e7c0baa453e5cd",
+    "before-ko-fixed-warning-640.png": "f5799aeb6e49251059189247f7a2c46a7caaa23a1b7c2caac029ae8f7780d695",
+    "before-light-image-1440-detail.png": "e1936ced2b05b41f052742ca654d388bbd190c510627175ec0d17e6316c85ea4",
+    "before-light-image-1440.png": "a23147755829cd11bc0b1df5165ee7640f207812f263173444a985b91119822c",
+    "before-light-image-640-detail.png": "89368bcae09c6413a51dc494d269b62d985efcfe184b1541618c306c92db54a9",
+    "before-light-image-640.png": "cca4ea3f37bc8ee075300b53f92e39ae51c3342d0febc5bc481d94550726fbbe",
+    "before-light-mermaid-1440-detail.png": "cf8882a56ef9a38253ff599c6ceca2ec82a26b87598e8fc34d00c915d8b54ee5",
+    "before-light-mermaid-1440.png": "7f54bb1f3ffc8c1cdf2820c61982c022022e2b851ca7404b83cc9e383c5e63fe",
+    "before-light-mermaid-640-detail.png": "62a2a9783935bba66becdb76e4870585fa9292e9237f7188bacb9ddf8f5ea51d",
+    "before-light-mermaid-640.png": "e5752b9dede6eb9f53868b1d20cd0e96b4163ea6026e37c8abeadc6452df631a",
+    "before-segment.png": "f963cf1a07e8d6529abe31d45431878e5b1048a610cbd9aed1fc63a9461354a9"
+  },
+  "statesMeaning": "Initial 72041c94 capture measurements. For files refreshed by letterboxCorrection, use its state measurements.",
+  "initialSourceHashes": {
+    "document-interaction.ts": "f0bbb0fbd648dde90bce2ab411bcc124a6bb915b43fd316d0d0fe4fcadf2dcd8",
+    "editor-schema.tsx": "9d179b74fe9eeaa159d35c3b8997faac5e8386bccfc8e89f775cb63506b8f4cf",
+    "figure-properties.tsx": "1dcfba988fb5cb0e41acce12387d8edd5b95478c0071fc809328bdba19c6c0ca",
+    "numbering-properties.tsx": "c1ced7b24e506a3adede48266b7ed021389167259f0e0d42aa797791d49fa89d",
+    "styles.css": "f8084124bda91521ac5f85837a89e8c92e19547b7473e21451d0af6ff54ccc7f",
+    "styles/tokens.css": "8a4288ca73b3cd37840cf89d0b8f90b113b159ae532e7193220ca819d9952882",
+    "locales.ts": "d0a65d4ea89249bec9e5610002a3dc711800f0040d9952f8de1047965053ceaf"
+  },
+  "letterboxCorrection": {
+    "baseline": "72041c942ca4e9e710e842dbbf37185b1608881e",
+    "after": "this follow-up commit; source hashes below",
+    "collection": "one successful persistent Windows Chrome execution, 1440/640 x 900, DPR/zoom 1, same context fixture; only the four owner-requested files refreshed",
+    "states": [
+      {
+        "name": "after-light-image-1440-detail",
+        "theme": "light",
+        "dpr": 1,
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "image": {
+          "width": 160,
+          "height": 52.78125,
+          "naturalWidth": 560,
+          "naturalHeight": 180,
+          "borders": [
+            "1px",
+            "1px",
+            "1px",
+            "1px"
+          ],
+          "maxWidth": "160px",
+          "maxHeight": "96px",
+          "radius": "4px"
+        },
+        "wrapper": {
+          "width": 160,
+          "height": 52.78125,
+          "background": "rgba(0, 0, 0, 0)"
+        },
+        "bounds": {
+          "x": 344,
+          "y": 489,
+          "width": 520,
+          "height": 302.78125
+        }
+      },
+      {
+        "name": "after-dark-image-1440-detail",
+        "theme": "dark",
+        "dpr": 1,
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "image": {
+          "width": 160,
+          "height": 52.78125,
+          "naturalWidth": 560,
+          "naturalHeight": 180,
+          "borders": [
+            "1px",
+            "1px",
+            "1px",
+            "1px"
+          ],
+          "maxWidth": "160px",
+          "maxHeight": "96px",
+          "radius": "4px"
+        },
+        "wrapper": {
+          "width": 160,
+          "height": 52.78125,
+          "background": "rgba(0, 0, 0, 0)"
+        },
+        "bounds": {
+          "x": 344,
+          "y": 382,
+          "width": 520,
+          "height": 302.78125
+        }
+      },
+      {
+        "name": "after-light-mermaid-640",
+        "theme": "light",
+        "dpr": 1,
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "image": {
+          "width": 159.9375,
+          "height": 30.078125,
+          "naturalWidth": 300,
+          "naturalHeight": 53,
+          "borders": [
+            "1px",
+            "1px",
+            "1px",
+            "1px"
+          ],
+          "maxWidth": "160px",
+          "maxHeight": "96px",
+          "radius": "4px"
+        },
+        "wrapper": {
+          "width": 160,
+          "height": 30.078125,
+          "background": "rgba(0, 0, 0, 0)"
+        },
+        "bounds": {
+          "x": 205,
+          "y": 549,
+          "width": 430,
+          "height": 172.078125
+        }
+      },
+      {
+        "name": "after-ko-fixed-warning-640",
+        "theme": "light",
+        "dpr": 1,
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "image": {
+          "width": 160,
+          "height": 52.78125,
+          "naturalWidth": 560,
+          "naturalHeight": 180,
+          "borders": [
+            "1px",
+            "1px",
+            "1px",
+            "1px"
+          ],
+          "maxWidth": "160px",
+          "maxHeight": "96px",
+          "radius": "4px"
+        },
+        "wrapper": {
+          "width": 160,
+          "height": 52.78125,
+          "background": "rgba(0, 0, 0, 0)"
+        },
+        "bounds": {
+          "x": 205,
+          "y": 248,
+          "width": 430,
+          "height": 428.78125
+        }
+      }
+    ],
+    "sourceHashes": {
+      "styles.css": "25e078c7b2badcca8caf77762a31769a98227ce6037aab70dbdb609929a51575",
+      "styles/tokens.css": "bbc91e7c016795cca1974fac50044c24460bfd3401ecd0fdb02c2f42927aa664",
+      "editor-schema.tsx": "9d179b74fe9eeaa159d35c3b8997faac5e8386bccfc8e89f775cb63506b8f4cf"
+    }
+  }
+}

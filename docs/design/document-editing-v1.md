@@ -691,7 +691,11 @@ caret. The engine's logical editability remains enabled for existing keymaps and
 commands; native range-extension navigation uses the engine/browser's existing selection
 path. Explicit property-close commands enable native input before asking the engine
 for their caret/gap cursor, even when the editor root already has focus.
-A real text-surface click lets the browser place an editable caret, and explicit engine
+A real text-surface click completes engine focus before enabling native input (#760), so
+Tiptap's focus-only transaction cannot restore the preview's read-only root before that
+click places its caret. This also covers entry from Figure/Equation properties and read-only
+endnotes; table properties retain their existing explicit draft lifecycle. A real text-surface
+click lets the browser place an editable caret, and explicit engine
 navigation likewise restores normal native typing. No key-specific composition release,
 blur or animation-frame focus restoration is used. Neither input path creates
 an adjacent paragraph; `footnotes` and `mermaid-authoring` cover the same protection

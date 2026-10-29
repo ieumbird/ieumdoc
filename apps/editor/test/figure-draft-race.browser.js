@@ -1,5 +1,5 @@
 // Focused Issue #21 regression. Prepare tmp/figure-authoring first with `pnpm browser:prepare`.
-async (page, { openPath }) => {
+async (page, { openPath, expect, reloadDocument }) => {
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const origin = page.url().split('/').slice(0, 3).join('/');
@@ -174,5 +174,85 @@ async (page, { openPath }) => {
     if (await figure.locator('img').getAttribute('alt') !== 'Applied in hidden owner') throw new Error('Figure completion was lost by its retained owner');
     result.hiddenValidationRetainsOwnerAndFocus = true;
   } finally { releaseHidden(); await page.unroute('**/api/figure-validation'); }
+  // #760: focus from properties must not re-disable the native typing surface
+  // between mousedown and the browser placing its caret. Use one physical click,
+  // then immediate input at an interior text offset, with no polling or focus fixup.
+  const pointerFile = [root, 'tmp', 'figure-authoring', 'pointer.md'].join(separator);
+  await openPath(page, pointerFile);
+  await page.setViewportSize({width:1440,height:1200});
+  const active = page.locator('[data-document-tab][data-active=true]');
+  const engine = active.locator('.document-editor');
+  const prose = engine.locator('p.paragraph').filter({hasText:'target paragraph.'});
+  const snapshot = () => engine.evaluate(el => el.editor.getJSON());
+  const image = active.locator('figure:not([data-content-kind="mermaid"])');
+  const diagram = active.locator('[data-content-kind="mermaid"]');
+  const equation = active.locator('[data-block="equation"]');
+  const table = active.locator('[data-block="table"]');
+  const note = active.getByTestId('footnote-definition');
+  result.pointerCases = [];
+  for (const kind of ['image', 'mermaid', 'equation', 'table', 'endnote']) {
+    const before = await snapshot();
+    const beforeText = await prose.textContent();
+    const prefix = kind === 'image' ? 'figure' : 'mermaid-property';
+    let release, started;
+    const gate = new Promise(resolve => { release = resolve; });
+    const requested = new Promise(resolve => { started = resolve; });
+    const hold = async route => { started(); await gate; await route.continue(); };
+    if (kind === 'image' || kind === 'mermaid') {
+      await (kind === 'image' ? image.getByTestId('figure-image') : diagram.getByTestId('mermaid-preview')).dblclick();
+      await page.getByTestId(`${prefix}-label`).fill(`pointer-${kind}`);
+      await page.route('**/api/figure-validation', hold);
+    } else if (kind === 'equation') {
+      await equation.getByTestId('equation-preview').dblclick();
+      await page.getByTestId('equation-latex').fill('x=2');
+    } else if (kind === 'table') {
+      await table.hover(); await table.getByRole('button', {name:'Edit table',exact:true}).click();
+      await page.getByTestId('table-label').fill('pointer-table');
+    } else {
+      await note.hover(); await note.getByTestId('endnote-edit').click();
+    }
+    try {
+      await prose.scrollIntoViewIfNeeded();
+      const point = await prose.evaluate(el => {
+        const text = el.firstChild, range = document.createRange();
+        range.setStart(text, 7); range.setEnd(text, 8);
+        const rect = range.getBoundingClientRect();
+        return {x:rect.left, y:rect.top+rect.height/2, pos:el.closest('.document-editor').editor.view.posAtDOM(text,7)};
+      });
+      expect(await prose.evaluate((el,p) => el.contains(document.elementFromPoint(p.x,p.y)),point), `${kind}: click must hit the prose, clear of its overlay`).toBe(true);
+      await page.mouse.click(point.x, point.y);
+      const caret = await engine.evaluate(el => ({selection:el.editor.state.selection.toJSON(),focus:el.editor.view.hasFocus()}));
+      expect(caret, `${kind}: first click must place the exact interior caret`).toEqual({selection:{type:'text',anchor:point.pos,head:point.pos},focus:true});
+      const typed = `Typed${kind}`;
+      await page.keyboard.type(typed);
+      expect(await prose.textContent()).toBe(beforeText.slice(0,7)+typed+beforeText.slice(7));
+      if (kind === 'image' || kind === 'mermaid') {
+        await requested;
+        release();
+        await page.getByTestId(`${prefix}-editor`).waitFor({state:'detached'});
+        await page.unroute('**/api/figure-validation', hold);
+        const after = await snapshot();
+        // Metadata applies after the input; each remains its own Undo step.
+        await page.keyboard.press('ControlOrMeta+z');
+        expect(await prose.textContent()).toContain(typed);
+        await page.keyboard.press('ControlOrMeta+z');
+        expect(await snapshot()).toEqual(before);
+        await page.keyboard.press('ControlOrMeta+Shift+z');
+        await page.keyboard.press('ControlOrMeta+Shift+z');
+        expect(await snapshot()).toEqual(after);
+      } else if (kind !== 'endnote') {
+        // These explicit forms retain their draft on outside interaction.
+        expect(await page.getByTestId(`${kind}-editor`).count()).toBe(1);
+        await page.getByTestId(`${kind}-cancel`).click();
+      } else expect(await note.getAttribute('aria-readonly')).toBe('true');
+      result.pointerCases.push(kind);
+    } finally { release(); await page.unroute('**/api/figure-validation', hold); }
+  }
+  const final = await snapshot();
+  const saved = page.waitForResponse(r => r.request().method() === 'POST' && /\/api\/document(?:\?|$)/.test(r.url()));
+  await page.getByTestId('save').click(); expect((await saved).status()).toBe(200);
+  await reloadDocument(page);
+  expect(await snapshot()).toEqual(final);
+  result.pointerSaveReload = true;
   return result;
 }
