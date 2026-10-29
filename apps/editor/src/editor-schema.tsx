@@ -198,11 +198,20 @@ const SourcedBulletList = BulletList.extend({
 
 const SourcedOrderedList = OrderedList.extend({
   addAttributes() {
-    // The Markdown list start number only; HTML list types have no Markdown form.
     return blockAttrs({
       start: {
         default: 1,
         parseHTML: (element) => element.hasAttribute("start") ? Number.parseInt(element.getAttribute("start") ?? "", 10) : 1,
+      },
+      style: {
+        default: "decimal",
+        parseHTML: element => element.getAttribute("data-list-style") ?? "decimal",
+        renderHTML: attributes => ({ "data-list-style": attributes.style }),
+      },
+      delimiter: {
+        default: ".",
+        parseHTML: element => element.getAttribute("data-list-delimiter") ?? ".",
+        renderHTML: attributes => ({ "data-list-delimiter": attributes.delimiter }),
       },
     });
   },

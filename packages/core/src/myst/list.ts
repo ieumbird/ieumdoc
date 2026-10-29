@@ -1,8 +1,8 @@
 import { structuralInlineContent, inlineContentToNodes, projectInlineContent } from "../inline.ts";
-import type { ListContent, ListItemContent } from "../list.ts";
+import { LIST_STYLES, type ListContent, type ListItemContent } from "../list.ts";
 import type { MystNode } from "./tree.ts";
 
-const LIST_FIELDS = new Set(["type", "ordered", "start", "spread", "children", "position"]);
+const LIST_FIELDS = new Set(["type", "ordered", "start", "style", "delimiter", "spread", "children", "position"]);
 const ITEM_FIELDS = new Set(["type", "spread", "children", "position"]);
 const PARAGRAPH_FIELDS = new Set(["type", "children", "position"]);
 
@@ -19,6 +19,8 @@ export function supportedListContent(node: MystNode): ListContent | undefined {
     return undefined;
   }
   if (node.ordered ? !Number.isInteger(node.start) : node.start !== undefined) return undefined;
+  if (node.ordered ? !LIST_STYLES.includes(node.style) || ![".", ")"].includes(node.delimiter)
+    : node.style !== undefined || node.delimiter !== undefined) return undefined;
   const children = node.children ?? [];
   if (children.length === 0) return undefined;
   const items: ListItemContent[] = [];
@@ -34,7 +36,9 @@ export function supportedListContent(node: MystNode): ListContent | undefined {
     if (nested !== undefined && !list) return undefined;
     items.push(list ? { content, list } : { content });
   }
-  return node.ordered ? { ordered: true, start: node.start, items } : { ordered: false, items };
+  return node.ordered ? { ordered: true, start: node.start,
+    ...(node.style !== "decimal" ? { style: node.style } : {}),
+    ...(node.delimiter !== "." ? { delimiter: node.delimiter } : {}), items } : { ordered: false, items };
 }
 
 /** The MyST structure myst-parser produces for a Markdown list of this content. */
@@ -42,7 +46,7 @@ export function createListNode(list: ListContent): MystNode {
   return {
     type: "list",
     ordered: list.ordered,
-    ...(list.ordered ? { start: list.start ?? 1 } : {}),
+    ...(list.ordered ? { start: list.start ?? 1, style: list.style ?? "decimal", delimiter: list.delimiter ?? "." } : {}),
     spread: false,
     children: list.items.map((item) => ({
       type: "listItem",

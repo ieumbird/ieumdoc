@@ -2013,7 +2013,7 @@ test("CLI inserts and updates lists through Core and rejects invalid lists witho
     const inserted = {
       ordered: false,
       items: [
-        { content: [{ kind: "strong", children: text("Check") }, { kind: "text", text: " wiring" }], list: { ordered: true, start: 1, items: [{ content: text("Input") }] } },
+        { content: [{ kind: "strong", children: text("Check") }, { kind: "text", text: " wiring" }], list: { ordered: true, start: 1, style: "lower-roman", delimiter: ")", items: [{ content: text("Input") }] } },
         { content: text("Power on") },
       ],
     };
@@ -2025,11 +2025,15 @@ test("CLI inserts and updates lists through Core and rejects invalid lists witho
     assert.deepEqual(node, { path: [2], type: "list", ...inserted });
 
     // The inspected shape is the update input.
-    const updated = { ordered: true, start: 3, items: node.items };
+    const updated = { ordered: true, start: 3, style: "lower-alpha", delimiter: ")", items: node.items };
     const update = run(["update-list", file, "--path", "2", "--list", JSON.stringify(updated)]);
     assert.equal(update.status, 0, update.stderr);
     const saved = readFileSync(file, "utf8");
-    assert.equal(saved, nativeSource("# Steps\n\n3.  **Check** wiring\n\n    1.  Input\n4.  Power on\n"));
+    assert.equal(saved, nativeSource("# Steps\n\n{style=lower-alpha}\n3)  **Check** wiring\n\n    {style=lower-roman}\n    1)  Input\n4)  Power on\n"));
+    const after = run(["inspect", file, "--format", "json"]);
+    assert.deepEqual(JSON.parse(after.stdout).nodes[1], { path: [2], type: "list", ...updated });
+    assert.match(run(["inspect", file]).stdout, /style=lower-alpha delimiter="\)"/);
+    assert.match(run(["inspect", file]).stdout, /style=lower-roman/);
     assert.equal(serialize(parse(saved)), saved);
 
     const valid = JSON.stringify({ ordered: false, items: [{ content: text("x") }] });

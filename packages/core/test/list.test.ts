@@ -184,3 +184,42 @@ test("canonical writer preserves adjacent list siblings inside a list item witho
     assert.throws(() => core.parse(`---\nieumdoc: 1\n---\n\n${markdown}`), /unsupported|not supported/i);
   }
 });
+
+test("all ordered formats preserve style, delimiter, starts, nesting and adjacent boundaries", () => {
+  for (const style of core.LIST_STYLES) for (const delimiter of [".", ")"] as const) {
+    const nested: ListContent = { ordered: true, start: 4, style: "upper-roman", delimiter: ")", items: [{ content: text("Nested") }] };
+    const list: ListContent = { ordered: true, start: 3, style, delimiter, items: [{ content: text("First"), list: nested }, { content: [] }] };
+    let document = core.insertList(core.createDocument(), 1, list);
+    document = core.insertList(document, 2, { ordered: true, start: 7, delimiter, items: [{ content: text("Default style") }] });
+    document = core.insertList(document, 3, list);
+    const before = core.getEditableDocument(document);
+    const markdown = core.serialize(document);
+    assert.doesNotMatch(markdown, /<!--/);
+    assert.match(markdown, /\{style=decimal\}/, "default style separates same-delimiter siblings");
+    assert.deepEqual(core.getEditableDocument(core.parse(markdown)), before);
+    assert.equal(core.serialize(core.parse(markdown)), markdown);
+    const updated = core.updateList(document, [2], { ...list, start: 9 });
+    const block = core.getEditableDocument(core.parse(core.serialize(updated))).blocks[1];
+    assert.ok(block.block === "list");
+    assert.equal(block.style ?? "decimal", style);
+    assert.equal(block.delimiter ?? ".", delimiter);
+    assert.equal(block.start, 9);
+  }
+});
+
+test("ordered format validation refuses invalid input and every format field remains semantic", () => {
+  const list: ListContent = { ordered: true, items: [{ content: text("Item") }] };
+  const document = core.insertList(core.createDocument(), 1, list);
+  const before = core.serialize(document);
+  for (const invalid of [{ ...list, style: "armenian" }, { ...list, delimiter: ":" },
+    { ...list, ordered: false, style: "decimal" }, { ...list, ordered: false, delimiter: "." }]) {
+    assert.throws(() => core.updateList(document, [1], invalid as ListContent), /style and delimiter/);
+    assert.equal(core.serialize(document), before);
+  }
+  const raw = parse("{style=lower-alpha}\n3) Item\n");
+  assert.equal(raw.children[0].style, "lower-alpha");
+  assert.equal(raw.children[0].delimiter, ")");
+  // The complete fingerprint must refuse a field the writer cannot preserve.
+  raw.children[0].delimiter = ":";
+  assert.throws(() => serialize(raw), /serializer failed|semantic|bulletOrdered/);
+});

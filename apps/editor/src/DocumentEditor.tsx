@@ -18,6 +18,7 @@ import {
   BLOCK_COMMANDS,
   TABLE_DELETE_META,
   blockCommandGroup,
+  changeListFormat,
   filterInsertCommands,
   formattableSelection,
   INSERT_COMMANDS,
@@ -40,7 +41,7 @@ import { REFERENCE_STYLES, type ReferenceStyle } from "./reference-style.ts";
 import type { ReferenceTemplates } from "@ieumdoc/core/numbering";
 import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
 import { labelKey } from "@ieumdoc/core/label";
-import type { EditableDocument } from "@ieumdoc/core";
+import { LIST_STYLES, type EditableDocument, type ListStyle, type ListDelimiter } from "@ieumdoc/core";
 import {
   DocumentPathContext,
   createEditorExtensions,
@@ -56,7 +57,7 @@ import { documentEnd, runHistoryShortcut } from "./document-interaction.ts";
 import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 import type { SaveErrorLocation } from "./save-error.ts";
 
-type BlockMenu = { kind: "insert" | "block"; index: number; top: number };
+type BlockMenu = { kind: "insert" | "block" | "list-format"; index: number; top: number };
 
 /** An insert command or reference item as the insert menu shows it: grouped, with its icon. */
 function insertMenuItem(item: { id: string; label: string; group: string; hint?: string }): CommandMenuItem {
@@ -607,6 +608,10 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     editor.view.focus();
   };
   const runBlockCommand = (id: string, index: number) => {
+    if (id === "list-format") {
+      setBlockMenu(menu => menu ? { ...menu, kind: "list-format" } : null);
+      return;
+    }
     const command = BLOCK_COMMANDS.find(command => command.id === id);
     setBlockMenu(null);
     if (!command?.enabled(editor.state, index)) return;
@@ -792,7 +797,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         <CommandMenu
           key={`block-${blockMenu.index}`}
           label={i18n.t("Block actions")}
-          items={BLOCK_COMMANDS.filter(command => (command.applies?.(editor.state, blockMenu.index) ?? true) &&
+          items={[...(editor.state.doc.child(blockMenu.index).type.name === "orderedList"
+            ? [{ id: "list-format", label: i18n.t("List format"), group: i18n.t("Lists"), icon: insertCommandIcon("numbered-list") }] : []),
+            ...BLOCK_COMMANDS.filter(command => (command.applies?.(editor.state, blockMenu.index) ?? true) &&
             (editorTitleIndex(editor.state.doc) === blockMenu.index ||
               command.id !== `heading-level-${editor.state.doc.child(blockMenu.index).attrs.level}`)).map(command => ({
             id: command.id,
@@ -805,11 +812,40 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
               // Fixed blocks stay fixed; an actionable draft takes priority over a boundary.
               ? blockMoveBlockedHint(editor.state, blockMenu.index) ?? moveBlockedHint(blockMenu.index) ??
                 command.rejection?.(editor.state, blockMenu.index) : undefined,
-          }))}
+          }))]}
           focusOnOpen
           style={blockMenuStyle}
           onSelect={id => runBlockCommand(id, blockMenu.index)}
           onClose={() => setBlockMenu(null)}
+        />
+      ) : null}
+      {blockMenu?.kind === "list-format" && blockMenuStyle ? (
+        <CommandMenu
+          key={`list-format-${blockMenu.index}`}
+          label={i18n.t("List format")}
+          items={LIST_STYLES.flatMap((style, index) => ([".", ")"] as const).map(delimiter => ({
+            id: `${style}:${delimiter}`,
+            label: `${["1", "a", "A", "i", "I"][index]}${delimiter}`,
+            checked: editor.state.doc.child(blockMenu.index).attrs.style === style &&
+              editor.state.doc.child(blockMenu.index).attrs.delimiter === delimiter,
+          })))}
+          focusOnOpen
+          style={blockMenuStyle}
+          onSelect={id => {
+            const [style, delimiter] = id.split(":") as [ListStyle, ListDelimiter];
+            const index = blockMenu.index;
+            setBlockMenu(null);
+            const list = editor.state.doc.child(index);
+            if (list.attrs.style !== style || list.attrs.delimiter !== delimiter) {
+              editor.view.dispatch(changeListFormat(editor.state, index, style, delimiter));
+            }
+            editor.view.focus();
+          }}
+          onClose={() => {
+            const index = blockMenu.index;
+            setBlockMenu(null);
+            host.current?.querySelectorAll<HTMLElement>(".block-handle")[index]?.focus();
+          }}
         />
       ) : null}
     </article>

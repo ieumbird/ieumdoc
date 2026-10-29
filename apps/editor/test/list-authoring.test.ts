@@ -6,9 +6,11 @@ import path from "node:path";
 import test from "node:test";
 import { getSchema } from "@tiptap/core";
 import { liftListItem, sinkListItem, splitListItem } from "@tiptap/pm/schema-list";
+import { history, undo, redo } from "@tiptap/pm/history";
+import { joinBackward } from "@tiptap/pm/commands";
 import { EditorState, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { parse, serialize, type InlineContent } from "@ieumdoc/core";
-import { deleteBlock, insertListAfter } from "../src/block-commands.ts";
+import { changeListFormat, deleteBlock, insertListAfter } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { appliedDocument, collectSupportedEdits, toTiptapDocument } from "../src/tiptap-document.ts";
 import { documentRevision, saveDocumentFile } from "../server/document-api.ts";
@@ -23,7 +25,7 @@ function editorState(markdown: string) {
   const state = EditorState.create({
     schema,
     doc: schema.nodeFromJSON(baseline),
-    plugins: [structureGuardPlugin(baseline, () => assert.fail("a representable list edit was rejected"))],
+    plugins: [structureGuardPlugin(baseline, () => assert.fail("a representable list edit was rejected")), history()],
   });
   return { editable, state };
 }
@@ -125,4 +127,30 @@ test("new lists and empty items save from insertion", () => {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("list format targets the handle's list in one Undo and survives item editing", () => {
+  const { editable, state: initial } = editorState(nativeSource("{style=lower-alpha}\n3) First\n\n   {style=upper-roman}\n   2. Nested\n4) Second\n\nBetween\n\n7. Other\n"));
+  // The caret is in another list; the handle's explicit index still owns the change.
+  let state = caretAfter(initial, "Other");
+  state = state.apply(changeListFormat(state, 0, "lower-roman", "."));
+  assert.equal(state.doc.child(0).attrs.style, "lower-roman");
+  assert.equal(state.doc.child(2).attrs.style, "decimal");
+  assert.equal(state.doc.child(0).firstChild!.lastChild!.attrs.style, "upper-roman");
+  state = run(state, undo);
+  assert.ok(state.doc.eq(initial.doc), "one Undo restores the full original list");
+  state = run(state, redo);
+  state = run(caretAfter(state, "Second"), splitListItem(state.schema.nodes.listItem));
+  state = state.apply(state.tr.insertText("Added"));
+  // Backspace at the new item's start merges it into the previous item.
+  state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, state.selection.from - "Added".length)));
+  state = run(state, joinBackward);
+  assert.equal(state.doc.child(0).childCount, 2);
+  const edits = collectSupportedEdits(editable, editorDocumentJSON(state));
+  assert.ok(edits.lists);
+  assert.equal(edits.lists[0].list.style, "lower-roman");
+  assert.equal(edits.lists[0].list.delimiter ?? ".", ".");
+  assert.equal(edits.lists[0].list.start, 3);
+  assert.equal(edits.lists[0].list.items[0].list!.style, "upper-roman");
+  assert.equal(edits.lists[0].list.items[0].list!.start, 2);
 });
