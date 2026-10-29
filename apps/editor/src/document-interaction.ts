@@ -77,12 +77,21 @@ function closeExternalSlice(slice: Slice): Slice {
 
 function paragraphBeside(state: EditorState, after: boolean): Transaction {
   const { $from } = state.selection;
-  const pos = state.selection instanceof NodeSelection
+  let pos = state.selection instanceof NodeSelection
     ? (after ? state.selection.to : state.selection.from)
     : (after ? $from.after(1) : $from.before(1));
+  if (state.selection instanceof NodeSelection && state.selection.node.type.name === "footnoteDefinition") {
+    state.doc.forEach((node, at) => { if (node.type.name === "footnoteDefinition") pos = Math.min(pos, at); });
+  }
   const node = state.schema.nodes.paragraph.create({ sourcePath: freshBlockPath() });
   const tr = state.tr.insert(pos, node);
   return tr.setSelection(TextSelection.create(tr.doc, pos + 1)).scrollIntoView();
+}
+
+/** A selected preview has no text caret; input belongs beside it, never in its caption/content. */
+function selectedPreview(state: EditorState): boolean {
+  return state.selection instanceof NodeSelection &&
+    ["equation", "figure", "footnoteDefinition"].includes(state.selection.node.type.name);
 }
 
 /** The caret goes to the end of a final paragraph. After any other final block, it goes to a new empty paragraph. */
@@ -281,6 +290,20 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
       // Shown once the engine's paste transaction is applied; the structure guard may still refuse it.
       let pastedNotice: string | undefined;
       const fail = (message: UiMessage) => { reject(message); return true; };
+      const rejectPreviewComposition = (view: EditorView) => {
+        if (!selectedPreview(view.state)) return false;
+        // Without Process keydown the native range already targets the preview.
+        // Make that native target noneditable until Chromium finishes this input task;
+        // moving its selection here would duplicate text or leave a live native range.
+        view.dom.blur();
+        view.dom.contentEditable = "false";
+        requestAnimationFrame(() => {
+          if (view.isDestroyed) return;
+          view.dom.contentEditable = String(view.editable);
+          if (view.editable && view.dom.ownerDocument.activeElement === view.dom.ownerDocument.body) view.focus();
+        });
+        return true;
+      };
       return [new Plugin({
         view: view => {
           // Chromium may send native/menu clipboard events to the body when a
@@ -360,16 +383,17 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
                 return true;
               }
             }
-            const { selection } = view.state;
             // prosemirror-view ignores IME keydown (229). Prepare the text caret before
             // Chromium establishes its composition range; moving it at compositionstart
             // or beforeinput can abort that range and duplicate the first composing text.
             if (!view.composing && (event.keyCode === 229 || event.key === "Process") &&
-                selection instanceof NodeSelection && selection.node.type.name === "equation") {
+                selectedPreview(view.state)) {
               view.dispatch(paragraphBeside(view.state, true));
             }
             return false;
           },
+          compositionstart: rejectPreviewComposition,
+          compositionupdate: rejectPreviewComposition,
           copy: (view, event) => {
             if (view.state.selection.content().content.content.every(portable)) return false;
             event.preventDefault(); return fail({ key: COPY_RESTRICTION });
@@ -394,14 +418,15 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
           pastedNotice = notice;
           return false;
         },
-        // A node-selected Equation is an atom with no caret. Engine replacement would destroy it
-        // and any label target; match Enter and put the typed character in a new paragraph below.
+        // Selected previews have no text caret. Keep their content/targets and place ordinary
+        // text beside them; a read-only endnote accepts ordinary typing only after explicit Edit.
         handleTextInput(view, _from, _to, text) {
           const { state } = view;
           const { selection } = state;
-          if (!(selection instanceof NodeSelection) || selection.node.type.name !== "equation" || !text) {
+          if (!selectedPreview(state) || !text) {
             return false;
           }
+          if (selection instanceof NodeSelection && selection.node.type.name === "footnoteDefinition") return true;
           const tr = paragraphBeside(state, true);
           view.dispatch(tr.insertText(text, tr.selection.from).scrollIntoView());
           return true;

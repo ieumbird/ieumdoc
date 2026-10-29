@@ -1,0 +1,63 @@
+{
+  "baseline": "7f6ba127803ad456f57b7c2d8688e638cf6040cb",
+  "after": "PR implementation; product source hashes below",
+  "browser": "Chrome 156.0.8078.49, Windows persistent checkout profile",
+  "viewports": [
+    "1440x900",
+    "640x900"
+  ],
+  "scale": "DPR 1, 100% zoom",
+  "fonts": "Bundled Pretendard; Playwright screenshot waits for fonts",
+  "state": "tmp/footnotes/footnotes.md; first definition b; rest unfocused / edit caret at end; English UI",
+  "controls": "Shared Button sm outline Edit/Cancel and primary Apply; endnote Edit remains visible as explicitly requested",
+  "sourceHashes": {
+    "apps/editor/src/DocumentEditor.tsx": "1a18ae9810108b04b7115ad054155f0d2b9481c95c04bad5165c838d15b97741",
+    "apps/editor/src/document-interaction.ts": "f3f7faada53b036cf928cd6c3521e022e7952d701475d03c392382e46a1449de",
+    "apps/editor/src/editor-schema.tsx": "1b6df0e16a332e565bad4fc1bec407be3ba4dde62fa14c1b38c92545831018f8",
+    "apps/editor/src/endnotes.ts": "18f94058adea9f4569f19e957a0b608d7f5aa37f45219a7269f3caf2c10d72ed",
+    "apps/editor/src/locales.ts": "9c031e14d045eec5f51f894f97651cb70f9fba58f567001e8057c635665d20e4",
+    "apps/editor/src/styles.css": "127636a20255349ac8370a7b8895b4a470d475e62664c5b1dce39d2a3f71d1b5"
+  },
+  "images": [
+    {
+      "file": "docs/design/assets/endnotes-714/after/edit-1440.png",
+      "bytes": 75039,
+      "sha256": "a75920cbf8d5f9014abd05d0894f6b985f81734659b93c4552f6124531df4d51"
+    },
+    {
+      "file": "docs/design/assets/endnotes-714/after/edit-640.png",
+      "bytes": 62547,
+      "sha256": "b5754aa7dcd57e425648e0748777cc57821e88ff93d1b8440222a1f26dd75309"
+    },
+    {
+      "file": "docs/design/assets/endnotes-714/after/rest-1440.png",
+      "bytes": 72200,
+      "sha256": "e36c94acdd52184d1b19712da740aa517f4514c79d11a79a82d2d8bedc0ac0b4"
+    },
+    {
+      "file": "docs/design/assets/endnotes-714/after/rest-640.png",
+      "bytes": 60017,
+      "sha256": "8c2318a630b99b4fcc8814ad1fcb06c2f8d05895807531a6c1a11985c6bea3ff"
+    },
+    {
+      "file": "docs/design/assets/endnotes-714/before/edit-1440.png",
+      "bytes": 70604,
+      "sha256": "edc16179cab05bfc87849cfaf520b8a8c37a16f7fdc78e217e26bd990848dc2f"
+    },
+    {
+      "file": "docs/design/assets/endnotes-714/before/edit-640.png",
+      "bytes": 58731,
+      "sha256": "e6e82e1caa872e398347cb289255d1744787f7b475a6a9991be002cbe6236a66"
+    },
+    {
+      "file": "docs/design/assets/endnotes-714/before/rest-1440.png",
+      "bytes": 69584,
+      "sha256": "b0a4611576a6ee34d87e452f0e06339e9e81a8993ac30cc72e4dfb00e10bcfa4"
+    },
+    {
+      "file": "docs/design/assets/endnotes-714/before/rest-640.png",
+      "bytes": 57758,
+      "sha256": "7763f8072ccfb7634e5c5380931be949097c9efddd1c04fb755d115c03224488"
+    }
+  ]
+}

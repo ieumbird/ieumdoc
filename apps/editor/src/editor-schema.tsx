@@ -32,7 +32,7 @@ import { BlockProperties, PropertyForm } from "./block-properties.tsx";
 import { useEditorVisible } from "./editor-visibility.ts";
 import { ADMONITION_LABELS, admonitionTone, updateFigure } from "./block-commands.ts";
 import { CrossReference, captionPrefixText, useBlockNumber, useCaptionNumberText } from "./cross-reference.tsx";
-import { Endnotes, canEditEndnoteAt, endnoteAt, endnoteEditingKey, endnoteEditorToken, revealReference, useEndnoteNumber } from "./endnotes.ts";
+import { Endnotes, canEditEndnoteAt, cancelEndnoteEditing, endnoteAt, endnoteEditingKey, endnoteEditorToken, revealReference, useEndnoteNumber } from "./endnotes.ts";
 import { DocumentTitle, TITLE_FIXED, titleKept } from "./document-title.ts";
 import { FootnoteReference } from "./footnote.tsx";
 import { Citation } from "./citation.tsx";
@@ -352,12 +352,21 @@ const FootnoteDefinition = Node.create({
 });
 
 function FootnoteDefinitionView({ node, editor, getPos, selected }: ReactNodeViewProps) {
+  useTranslation();
   const label = String(node.attrs.label ?? "");
-  const editing = useEditorState({ editor, selector: ({ editor: current }) => !!current && endnoteEditingKey.getState(current.state) === label });
+  const editing = useEditorState({ editor, selector: ({ editor: current }) => !!current && endnoteEditingKey.getState(current.state)?.label === label });
   const begin = () => {
     const pos = getPos();
     if (typeof pos !== "number" || !editor.isEditable) return;
     editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, pos + node.nodeSize - 1)).setMeta(endnoteEditingKey, label));
+    editor.view.focus();
+  };
+  const finish = (cancel: boolean) => {
+    const pos = getPos();
+    if (typeof pos !== "number") return;
+    const tr = cancel ? cancelEndnoteEditing(editor.state) : editor.state.tr
+      .setSelection(NodeSelection.create(editor.state.doc, pos)).setMeta(endnoteEditingKey, null);
+    if (tr) editor.view.dispatch(tr);
     editor.view.focus();
   };
   return (
@@ -371,26 +380,28 @@ function FootnoteDefinitionView({ node, editor, getPos, selected }: ReactNodeVie
       data-editing={String(editing)}
       data-endnote-owner={label}
       data-endnote-editor={endnoteEditorToken(editor)}
+      data-endnotes-heading={i18n.t("Endnotes")}
       role="textbox"
       aria-label={`${i18n.t("Endnote")} ${useEndnoteNumber(editor, label) ?? label}`}
       aria-readonly={!editing}
       aria-multiline="true"
       data-source-path={String(node.attrs.sourcePath ?? "")}
       onMouseDown={(event: ReactMouseEvent) => {
-        if (editing || event.button !== 0 || (event.target as HTMLElement).closest("[data-testid=footnote-number], [data-testid=cross-reference], [data-citation], [data-testid=inline-math]")) return;
+        if (editing || event.button !== 0 || (event.target as HTMLElement).closest("button, [data-testid=footnote-number], [data-testid=cross-reference], [data-citation], [data-testid=inline-math]")) return;
         const pos = getPos();
         if (typeof pos !== "number") return;
         event.preventDefault();
         editor.view.dispatch(editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, pos)));
         editor.view.focus();
       }}
-      onDoubleClick={(event: ReactMouseEvent) => {
-        if ((event.target as HTMLElement).closest("[data-testid=footnote-number], [data-testid=cross-reference], [data-citation], [data-testid=inline-math]")) return;
-        event.preventDefault();
-        begin();
-      }}
     >
       <EndnoteNumber editor={editor} label={label} />
+      {editor.isEditable ? <div className="endnote-actions" contentEditable={false}>
+        {editing ? <>
+          <Button size="sm" variant="outline" data-testid="endnote-cancel" onClick={() => finish(true)}>{i18n.t("Cancel")}</Button>
+          <Button size="sm" data-testid="endnote-apply" onClick={() => finish(false)}>{i18n.t("Apply")}</Button>
+        </> : <Button size="sm" variant="outline" data-testid="endnote-edit" onClick={begin}>{i18n.t("Edit")}</Button>}
+      </div> : null}
       <NodeViewContent<"p"> as="p" className="footnote-definition-body" />
     </NodeViewWrapper>
   );
