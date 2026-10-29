@@ -4,7 +4,8 @@ import { useMessageState } from "./ui-message.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "./i18n.ts";
 import { allocateBlockPath } from "./block-locators.ts";
-import { Extension, Node, type Attribute, type Editor, type Extensions } from "@tiptap/core";
+import { Extension, Node, type Mark, type Attribute, type Editor, type Extensions } from "@tiptap/core";
+import { isRelativeImageLink } from "./image-link.ts";
 import { BulletList, ListItem, ListKeymap, OrderedList } from "@tiptap/extension-list";
 import { Code } from "@tiptap/extension-code";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
@@ -883,6 +884,20 @@ const ParagraphMerge = Extension.create({
   },
 });
 
+// Keep StarterKit's link behavior and URI validation; only add native Tab access
+// to image links. Rendering this through the mark avoids DOMObserver reparsing.
+const PreviewStarterKit = StarterKit.extend({
+  addExtensions() {
+    return this.parent!().map(extension => extension.name !== "link" ? extension : (extension as Mark).extend({
+      renderHTML(props) {
+        const spec = this.parent!(props) as [string, Record<string, unknown>, number];
+        if (isRelativeImageLink(String(props.HTMLAttributes.href ?? ""))) spec[1] = { ...spec[1], tabindex: "0" };
+        return spec;
+      },
+    }));
+  },
+});
+
 export function editorExtensions(
   onDraftChange?: DraftListener,
   documentPath?: string | (() => string),
@@ -891,7 +906,7 @@ export function editorExtensions(
   chooseImage?: ImageChooser,
 ): Extensions {
   return [
-    StarterKit.configure({
+    PreviewStarterKit.configure({
       blockquote: false,
       bulletList: false,
       code: false,

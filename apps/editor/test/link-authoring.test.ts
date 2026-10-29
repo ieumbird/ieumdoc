@@ -1,5 +1,7 @@
 import { nativeSource } from "./helpers/document.ts";
 import { externalLinkUrl } from "../src/link-opening.ts";
+import { isRelativeImageLink } from "../src/image-link.ts";
+import { MEDIA_TYPES } from "../server/document-api.ts";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -17,6 +19,20 @@ import { saveEdits } from "../server/document-replay.ts";
 
 const source = nativeSource("See [OpenAI](https://openai.com) for **bold [docs](https://a.example/docs) text**.\n");
 const text = (value: string): InlineContent => ({ kind: "text", text: value });
+
+test("image link previews accept Figure Host formats only on relative paths", () => {
+  for (const extension of Object.keys(MEDIA_TYPES)) {
+    for (const prefix of ["", "./", "../assets/", "한글 폴더/"]) {
+      assert.equal(isRelativeImageLink(`${prefix}image${extension.toUpperCase()}`), true);
+    }
+    for (const prefix of ["https://example.com/", "http://example.com/", "//example.com/", "/", "file:///", "C:\\", "\\\\server\\", "data:", "custom:"]) {
+      assert.equal(isRelativeImageLink(`${prefix}image${extension}`), false);
+    }
+  }
+  for (const value of ["", "readme.md", "image.tiff", "#image.png", "image.png?query", "image.png#fragment"]) {
+    assert.equal(isRelativeImageLink(value), false, value);
+  }
+});
 
 test("opening links accepts only complete absolute http(s) URLs, independently of authoring", () => {
   for (const value of ["./other.md", "#section", "//example.com", "mailto:a@example.com", "file:///a.md",
