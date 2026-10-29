@@ -354,7 +354,7 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   await figureEdit.locator('..').hover({position:{x:4,y:4}});
   await figureEdit.click();
   await expect(page.getByRole('dialog', {name:'그림 1 properties', exact:true})).toBeVisible();
-  await page.getByTestId('figure-cancel').click();
+  await page.getByTestId('figure-alt').press('Escape');
   await active.locator('[data-block="table"]').hover();
   await active.getByRole('button', {name:'Edit table', exact:true}).click();
   await expect(page.getByRole('dialog', {name:'표 1 properties', exact:true})).toBeVisible();

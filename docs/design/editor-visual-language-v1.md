@@ -502,6 +502,18 @@ New/More actions stay in place. See [section behavior and evidence](editor-ux-sh
 
 Historical comparison evidence is preserved in the [visual review](editor-visual-refinement-v1-review.md#subsequent-visual-evidence).
 
+### Figure metadata popover (#757)
+
+Image/pending and Mermaid metadata use the same anchored surface at wide and 640px widths.
+Fields have transparent rest borders and show the shared hover/focus boundaries. Automatic/Fixed
+reuse the quiet raised-segment expression; Fixed alone reveals its number input. There is one
+Done action and no repeated title, path summary, caption input or section heading. Advanced starts
+collapsed except for retained filename drafts/errors and contains explicit Rename. Image replacement
+and Mermaid source entry are explicit actions; the latter opens the unchanged full-column source
+editor after metadata validation. Conditional errors/warnings/draft notices remain visible.
+Width, thumbnail size and anchor gap use the new adjustable tokens in `tokens.css`.
+See [interaction and bounds](figure-authoring-v1.md#anchored-figure-properties-757).
+
 ### Mermaid Figure editing (#651)
 
 Mermaid uses the Equation source field's full-width, auto-growing code surface, typography,

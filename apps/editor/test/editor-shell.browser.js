@@ -195,7 +195,7 @@ async page => {
     await settings.click();
     await page.keyboard.press('Escape'); await settingsDialog.waitFor({state:'hidden'});
     result.settingsKeepsFigureForm = await page.getByTestId('figure-editor').isVisible();
-    await page.getByTestId('figure-cancel').click();
+    await page.getByTestId('figure-alt').press('Escape');
 
     // `+` inserts through the shared insert menu.
     await paragraph.hover();

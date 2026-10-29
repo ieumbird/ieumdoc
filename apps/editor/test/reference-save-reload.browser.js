@@ -111,6 +111,8 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
       editor.view.focus();
     }, label);
     await page.keyboard.press('Enter');
+    if ((kind === 'figure' || kind === 'mermaid-property') && !await page.getByTestId(`${kind}-enumerator`).isVisible())
+      await page.getByTestId(`${kind}-editor`).getByRole('button', {name:'Fixed',exact:true}).click();
     await page.getByTestId(`${kind}-enumerator`).waitFor();
   };
   const applyNumber = async (label, kind, value) => {
@@ -127,14 +129,15 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
   // Number-only input is a property draft: Cancel preserves applied state; Apply is undoable.
   for (const [label, kind, previous, value] of [
     ['fixed-image','figure','17','18'], ['fixed-table','table','A.3','A.4'],
-    ['fixed-equation','equation','4-2','5-1'], ['fixed-diagram','mermaid','B.2','C.2'],
+    ['fixed-equation','equation','4-2','5-1'], ['fixed-diagram','mermaid-property','B.2','C.2'],
   ]) {
     await edit(label, kind);
     expect(await page.getByTestId(`${kind}-enumerator`).inputValue()).toBe(previous);
     await page.getByTestId(`${kind}-enumerator`).fill('discard');
     await expect(page.getByTestId('draft-notice')).toBeVisible();
     expect((await attrs(label)).enumerator).toBe(previous);
-    await page.getByTestId(`${kind}-cancel`).click();
+    if (kind === 'figure' || kind === 'mermaid-property') await page.getByTestId(kind === 'figure' ? 'figure-alt' : 'mermaid-property-label').press('Escape');
+    else await page.getByTestId(`${kind}-cancel`).click();
     await page.getByTestId(`${kind}-editor`).waitFor({state:'detached'});
     expect((await attrs(label)).enumerator).toBe(previous);
     await applyNumber(label, kind, value);
@@ -156,17 +159,17 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
   await edit('fixed-table','table');
   expect(await page.getByTestId('numbering-block-warning').innerText()).toContain('Missing fixed number');
   await page.getByTestId('table-cancel').click();
-  await applyNumber('fixed-diagram','mermaid','18');
-  await edit('fixed-diagram','mermaid');
+  await applyNumber('fixed-diagram','mermaid-property','18');
+  await edit('fixed-diagram','mermaid-property');
   expect(await page.getByTestId('numbering-block-warning').innerText()).toContain('18 is duplicated');
-  await page.getByTestId('mermaid-cancel').click();
+  await page.getByTestId('mermaid-property-label').press('Escape');
   expect(await active.getByTestId('numbering-warnings').innerText()).toContain('Saving is allowed');
   await save();
   await reloadDocument(page);
   expect(await active.getByTestId('numbering-warnings').innerText()).toContain('Numbering warnings: 3.');
   expect((await attrs('fixed-table')).enumerator).toBeNull();
   expect((await attrs('fixed-diagram')).enumerator).toBe('18');
-  for (const [label, kind] of [['fixed-image','figure'],['fixed-diagram','mermaid'],['fixed-equation','equation']]) await applyNumber(label,kind,'');
+  for (const [label, kind] of [['fixed-image','figure'],['fixed-diagram','mermaid-property'],['fixed-equation','equation']]) await applyNumber(label,kind,'');
   expect(await active.getByTestId('numbering-warnings').count()).toBe(0);
   await save();
   await reloadDocument(page);
