@@ -132,25 +132,57 @@ export function convertDoclingDocument(input: string, options: ConversionOptions
         const data = x.data;
         if (!data || data.num_rows < 1 || data.num_cols < 1) throw new Error("Empty table");
         if (data.num_rows * data.num_cols > 100000) throw new Error("Table exceeds conversion cell limit");
-        if (data.table_cells.some(c => (c.row_span ?? 1) !== 1 || (c.col_span ?? 1) !== 1 || c.row_header || c.row_section || c.fillable)) throw new Error("Merged cells, row/section headers or form cells have no native table equivalent");
+        if (data.table_cells.some(c => c.fillable)) throw new Error("Fillable form cells have no native table equivalent");
         const rows: string[][] = Array.from({ length: data.num_rows }, () => Array(data.num_cols).fill(""));
         const occupied = new Set<string>();
+        const headerRows = new Set<number>();
+        let mergedCells = 0, mergedPositions = 0;
         for (const cell of data.table_cells) {
           const r = cell.start_row_offset_idx, c = cell.start_col_offset_idx;
-          if (!Number.isInteger(r) || !Number.isInteger(c) || r < 0 || c < 0 || r >= data.num_rows || c >= data.num_cols ||
-              cell.end_row_offset_idx !== r + 1 || cell.end_col_offset_idx !== c + 1 || occupied.has(`${r},${c}`)) throw new Error("Invalid/overlapping table cell coordinates");
-          if (cell.column_header && r !== 0) throw new Error("Multiple or nonleading table header rows have no native equivalent");
-          occupied.add(`${r},${c}`); rows[r][c] = clean(cell.text);
+          const endRow = cell.end_row_offset_idx, endCol = cell.end_col_offset_idx;
+          if (![r, c, endRow, endCol].every(Number.isInteger) || r < 0 || c < 0 || endRow > data.num_rows || endCol > data.num_cols ||
+              endRow <= r || endCol <= c || endRow - r !== (cell.row_span ?? 1) || endCol - c !== (cell.col_span ?? 1)) {
+            throw new Error("Invalid/overlapping table cell coordinates or inconsistent spans");
+          }
+          if (endRow - r > 1 || endCol - c > 1) { mergedCells++; mergedPositions += (endRow - r) * (endCol - c); }
+          for (let row = r; row < endRow; row++) {
+            if (cell.column_header) headerRows.add(row);
+            for (let col = c; col < endCol; col++) {
+              const key = `${row},${col}`;
+              if (occupied.has(key)) throw new Error("Invalid/overlapping table cell coordinates");
+              occupied.add(key); rows[row][col] = clean(cell.text);
+            }
+          }
         }
-        if (data.table_cells.some(c => c.column_header) && data.table_cells.some(c => c.start_row_offset_idx === 0 && clean(c.text) && !c.column_header)) {
-          throw new Error("Partial header row has no native table equivalent");
+        const notes: string[] = [];
+        if (mergedCells) notes.push(`Flattened ${mergedCells} merged source cells across ${mergedPositions} grid positions; repeated text in every covered position.`);
+        let headerCount = 0;
+        while (headerRows.has(headerCount)) headerCount++;
+        if (headerCount > 1) {
+          const header = Array.from({ length: data.num_cols }, (_, col) => {
+            const parts: string[] = [];
+            for (let row = 0; row < headerCount; row++) {
+              const value = rows[row][col];
+              if (value && value !== parts.at(-1)) parts.push(value);
+            }
+            return parts.join(" / ");
+          });
+          rows.splice(0, headerCount, header);
+          notes.push(`Combined ${headerCount} leading column header rows into one using " / "; consecutive repeated labels appear once.`);
         }
-        if (!data.table_cells.some(c => c.column_header)) { rows.unshift(Array(data.num_cols).fill("")); entry(x).notes.push("Headerless source table: inserted empty native header row."); }
+        if (!headerCount) { rows.unshift(Array(data.num_cols).fill("")); notes.push("Headerless source table: inserted empty native header row."); }
+        if (data.table_cells.some(c => c.start_row_offset_idx < headerCount && clean(c.text) && !c.column_header)) notes.push("Partial column header rows: retained all cell text in the native header.");
+        const nonleadingHeaders = [...headerRows].filter(row => row >= headerCount).length;
+        if (nonleadingHeaders) notes.push(`Retained ${nonleadingHeaders} nonleading column header rows as ordinary body cells.`);
+        const rowHeaders = data.table_cells.filter(c => c.row_header).length, rowSections = data.table_cells.filter(c => c.row_section).length;
+        if (rowHeaders) notes.push(`Converted ${rowHeaders} row header cells to ordinary cells.`);
+        if (rowSections) notes.push(`Converted ${rowSections} row section cells to ordinary cells.`);
         const caption = [...captions(x), ...noteCalls(x)];
         const target = add(x, "table", (d, at) => {
           const next = insertTable(d, at, rows.map(row => row.map(text => [{ kind: "text", text }])));
           return caption.length ? updateTableCaption(next, [at], caption) : next;
         });
+        entry(x).notes.push(...notes);
         for (const c of related(x, "captions")) { emitted.add(c.self_ref); mark(c, [{ ...target, role: "caption" }]); }
         for (const child of children(x)) emit(child);
         for (const note of related(x, "footnotes")) if (!pendingNotes.has(note.self_ref)) emit(note, true);
