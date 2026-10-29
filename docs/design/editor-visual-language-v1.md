@@ -256,7 +256,7 @@ The following base values describe Light; [Dark overrides](#system-light-and-dar
 | Body | Shared sans stack (below); 17px / 28.9px, 400; 16px paragraph gap |
 | H1–H6 | Same document stack, 700; 34/45.9, 24/32.4, 20/27, 18/24.3, 16/21.6, 14/18.9px; 32px before / 12px after; first block has no top margin |
 | UI | Same shared sans stack; 14/20px labels/controls, 12/16px metadata and status |
-| Caption | UI stack, 14/20px; caption gap 8px |
+| Caption | UI stack, 14/20px; Figure and Table share the adjustable `--space-document-caption` gap (8px by default). Table actions follow the caption, clear of its text and input surface. |
 | Table | UI stack, 15/22px; cells 8px × 12px, 112px minimum width, light visible grid |
 | Callout | Body uses document stack and body size/line spacing (17/28.9px); variant title keeps UI stack, 14/21px and semibold weight. A 3px kind-colored side bar and its surface, no outline; informational, caution and danger kinds |
 | Endnote definition | One region after the body in first-reference order. 16/24px document type and normal text color; baseline number in a 24px inset, returning to the invoking reference. Subtle rule and 12/16px `미주` label at the start, 8px internal gaps and 24px separation from the body. Each definition is one supported paragraph edited in place; unsupported definitions reject native admission. An endnote's gutter has no `+` and its handle opens block actions without dragging. Placement and Save follow [Endnotes](footnotes-v1.md). |

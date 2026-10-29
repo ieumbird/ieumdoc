@@ -1629,7 +1629,7 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
 }
 /* The table starts on the text axis. Rows never scroll sideways, so their handles and Append row
  * live in a layer outside the scroller, left of the axis; column handles scroll with the columns. */
-.table-grid { position: relative; min-width: 100%; width: max-content; padding: var(--size-table-handle-gutter) var(--size-table-handle-gutter) 44px 0; box-sizing: border-box; }
+.table-grid { position: relative; min-width: 100%; width: max-content; padding: var(--size-table-handle-gutter) var(--size-table-handle-gutter) calc(var(--size-control-compact) + 2 * var(--space-2)) 0; box-sizing: border-box; }
 .table-row-layer {
   position: absolute;
   top: 0;
@@ -3090,9 +3090,10 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
 
 
 /* The engine table owns its caption; native caption layout keeps it below the grid. */
-.table-grid:has(.table-caption) { padding-bottom: 0; }
 .table > table { width: 100%; border-collapse: collapse; }
-.table-caption { caption-side: bottom; text-align: left; padding-top: 44px; }
+.table-caption { caption-side: bottom; text-align: left; padding-top: var(--space-document-caption); }
+/* Native caption padding owns the shared gap; its inner Figure-style caption adds none. */
+.table-caption .caption { margin-top: 0; }
 .caption[data-number] [data-empty-caption], .caption [data-empty-caption] { display: inline-block; min-width: 8em; }
 .caption [data-placeholder]::before {
   content: attr(data-placeholder) / "";
