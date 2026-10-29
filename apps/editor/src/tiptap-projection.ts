@@ -26,7 +26,8 @@ export function pathKey(path: NodePath): string {
 export function toTiptapDocument(document: EditableDocument): TiptapJSON {
   return {
     type: "doc",
-    ...(document.headingNumbering || document.referenceTemplates ? { attrs: {
+    ...(document.title !== undefined || document.headingNumbering || document.referenceTemplates ? { attrs: {
+      ...(document.title !== undefined ? { title: document.title } : {}),
       ...(document.headingNumbering ? { headingNumbering: document.headingNumbering } : {}),
       ...(document.referenceTemplates ? { referenceTemplates: document.referenceTemplates } : {}),
     } } : {}),

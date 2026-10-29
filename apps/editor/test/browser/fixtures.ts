@@ -38,7 +38,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       ":::{figure} ./diagram.svg\n:name: fig-single\n\nSingle caption gamma\n:::\n\n" +
       ":::{table} Table caption delta\n:name: tbl-a\n\n| Header |\n| --- |\n| Cell text |\n:::\n\nAfter table.\n\n" +
       ":::{figure}\n:name: fig-mermaid\n\n```{mermaid}\ngraph LR\n  A --> B\n```\n\nMermaid caption epsilon\n:::\n\n" +
-      ":::{figure}\n:name: fig-pending\n\nPending caption zeta\n:::\n\nAfter pending.\n\n```text\nCode alpha\n```\n\nAfter code.\n") },
+      ":::{figure}\n:name: fig-pending\n\nPending caption zeta\n:::\n\nAfter pending.\n\n```text\nCode alpha\n```\n\nAfter code.[^note-a][^note-b]\n\n[^note-a]: First endnote alpha.\n\n[^note-b]: Second endnote beta.\n") },
     document("diagram.svg"),
   ], scenarios: ["caption-selection"] },
   "caption-placeholder": { files: [
@@ -166,6 +166,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "block-move": { files: [...technical, { name: "draft-boundaries.md", create: () => nativeSource(
     "# Draft boundaries\n\n```{math}\nx = 1\n```\n\nBetween the equations.\n\n```{math}\ny = 2\n```\n") }], scenarios: ["block-move"] },
   "document-title": { files: [...technical,
+    { name: "chapter.md", create: () => '---\nieumdoc: 1\ntitle: IEEE 1547 · Chapter 7\nnumbering:\n  headings: true\n  title: false\n---\n\n(clause-7)=\n# Power quality\n\n## Detail\n\nSee {ref}`clause-7`.\n\n# Next clause\n\nBody.\n' },
     { name: "untitled.md", create: () => nativeSource("Lead paragraph.\n\n## Part\n\nBody.\n") },
     { name: "untitled-empty.md", create: () => nativeSource("Lead paragraph.\n") }], scenarios: ["document-title"] },
   "table-authoring": { files: [fixture("tables.md")], scenarios: ["table-authoring", "table-caption", "save-error"] },

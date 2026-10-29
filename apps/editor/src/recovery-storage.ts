@@ -250,6 +250,7 @@ export function recoveryText(snapshot: DocumentSessionSnapshot): string {
     const string = (value: unknown) => typeof value === "string" ? value : "";
     const separator = type === "doc" ? "\n\n" : type === "table" || type === "bulletList" || type === "orderedList" || type === "listItem" ? "\n" : type === "tableRow" ? "\t" : "";
     let text = string(node.text) || (Array.isArray(node.content) ? node.content.map(visit).join(separator) : "");
+    if (type === "doc") text = [string(attrs.title), text].filter(Boolean).join("\n\n");
     if (type === "hardBreak") text = "\n";
     if (type === "equation") text = string(attrs.latex);
     if (type === "inlineMath") text = string(attrs.value);

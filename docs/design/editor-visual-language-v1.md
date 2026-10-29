@@ -280,7 +280,7 @@ Colors originate in the Adjustable values of `styles/tokens.css`. `--id-color-ac
 | `surface-selected`, `surface-selected-hover`, `text-selected` | Chosen preset's two light surfaces and darker accent (`accent-hover`); current navigation, active command choice, text selection and on TopBar toggle icons. Blue defaults: `#e9f0ff`, `#e1eaff`, `#2449a6`. |
 | `surface-pressed` | `#e3e7ee`: neutral persistent menu-open/pressed face and tab-group track; an open ghost control shows only this face, without a border |
 | `text`, `text-muted`, `text-subtle` | `#20242c`, `#545c68`, `#606874`: main text, secondary labels, metadata; subtle remains readable on hover surfaces |
-| `document-heading-number` | Aliases the chosen `interaction` accent: generated H2–H6 and non-current Outline numbers. All presets meet 4.5:1 on white/panel/selected surfaces, including the 18/16/14px H4–H6 sizes. Current Outline numbers inherit `text-selected`. Heading text keeps its normal color. [Display-only contract](heading-numbering-v1.md#generated-number-color-511--503). |
+| `document-heading-number` | Aliases the chosen `interaction` accent: generated H1–H6 and non-current Outline numbers. All presets meet 4.5:1 on white/panel/selected surfaces, including the 18/16/14px H4–H6 sizes. Current Outline numbers inherit `text-selected`. Heading text keeps its normal color. [Display-only contract](heading-numbering-v1.md#generated-number-color-511--503). |
 | `border`, `border-subtle`, `border-strong` | Structural separators, paper edge, and stronger content rules; these are not input identification |
 | `border-control` | `#7b8390` in Light: recognizable fields, selects and outlined input-like controls retain at least 3:1 against adjacent faces. Selected segments and the Command Center trigger do not use this boundary (#620); segments use 600 semibold, `surface` and `--shadow-segment`, while Command Center uses `surface-subtle` and the structural `border`. |
 | `interaction`, `interaction-soft` | Chosen preset's accent (Blue default `#315fd4`) for indicator/focus and an alias to `surface-selected`; no separate copied selection palette |
@@ -451,7 +451,7 @@ the shared independent ring. Image-picker selection and preview retain their exi
 
 ## Document title (#255)
 
-A document without a title shows Add a title above its first block in the H1 type (34/45.9px bold, document font) and the subtle text color, with no box at rest; hover darkens it to muted text and keyboard focus shows the 2px ring. It sits above the editable content rather than inside it, so it never takes the caret and is never document content. An empty title shows `Title` in the same subtle color, like the empty-document hint. The title's handle keeps the ordinary handle look; its tooltip explains that the title stays at the top.
+The plain frontmatter title input sits above the editable body, using the document font and H1 type (34/45.9px bold). Its empty Add a title placeholder uses subtle text; text uses the document text color. It has no box at rest and a focus ring when keyboard focused. It visually wraps long single-line values without adding stored line breaks. Enter/Shift+Enter enters the body; pasted line separators become spaces under the existing single-line input convention. The input is metadata, has no block handle, and is excluded from Outline. Body H1 retains ordinary heading controls. The title's value and Undo/Redo are owned by the same ProseMirror document attribute; [title semantics](document-editing-v1.md#document-title-255) define Save and empty input.
 
 ## Empty document start (#133)
 
@@ -863,7 +863,7 @@ verification reruns the Editor tests, typecheck/build/docs and the six targeted 
   | H1–H6 sizes (H1 also controls the title slot) | `--font-size-document-h1`, `--font-size-document-h2`, `--font-size-document-h3`, `--font-size-document-h4`, `--font-size-document-h5`, `--font-size-document-h6` |
   | Heading/title-slot weight and line spacing | `--font-weight-document-heading`, `--line-height-document-heading` |
   | Heading margins (title slot uses the after gap) | `--space-document-heading-before`, `--space-document-heading-after` |
-  | Generated H2–H6 and non-current Outline number color (#559) | `--id-color-document-heading-number` aliases `--id-color-interaction`; current Outline numbers retain the selected color. No number/title gap style is added; the existing single space stays unchanged. |
+  | Generated H1–H6 and non-current Outline number color (#559) | `--id-color-document-heading-number` aliases `--id-color-interaction`; current Outline numbers retain the selected color. No number/title gap style is added; the existing single space stays unchanged. |
   | Top-level paragraph, list, quote, equation, code, figure, table and admonition gap | `--space-document-block` |
   | List/quote indentation | `--space-document-list-indent`, `--space-document-quote-indent` |
   | Quote/admonition left accent rule | `--size-document-side-rule` |

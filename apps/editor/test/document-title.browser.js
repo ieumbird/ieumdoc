@@ -1,147 +1,109 @@
-// Run with pnpm browser:test document-title (prepare is automatic).
-// The document title (#255) in scratch copies: the leading H1 is the title, its handle does not
-// drag, changes that would push it down are refused with a notice, Enter in it continues below it,
-// a document without one offers Add a title, and a title left empty goes away again. Scratch files
-// live under the repository's ignored tmp/ directory.
-async (page, { openPath }) => {
+// pnpm browser:test document-title --screenshots
+// Metadata title input, shared history, real Save/Source/Reload, and leading H1 sections.
+async (page, { openPath, reloadDocument, expect, screenshots, waitForEditorFocus }) => {
   await page.unrouteAll();
-  await page.setViewportSize({width: 1280, height: 1000});
-  await page.reload();
-  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-  const origin = page.url().split('/').slice(0, 3).join('/');
-  const defaultPath = (await (await page.request.get(`${origin}/api/document`)).json()).path;
-  const separator = defaultPath.includes('\\') ? '\\' : '/';
-  const root = defaultPath.split(separator).slice(0, -4).join(separator);
-  const scratch = name => [root, 'tmp', 'document-title', name].join(separator);
-  const read = async name => (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(scratch(name))}`)).json()).source;
-  const check = (ok, message) => { if (!ok) throw new Error(message); };
-  const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-  const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
-  const blocks = () => editor.evaluate(node => { const out = []; node.editor.state.doc.forEach(child => out.push(`${child.type.name}${child.attrs.level ?? ''}:${child.textContent}`)); return out; });
-  const caretBlock = () => editor.evaluate(node => node.editor.state.selection.$from.index(0));
-  const result = {};
+  await page.setViewportSize({width:1440,height:900});
+  const origin = page.url().split('/').slice(0,3).join('/');
+  const initial = await (await page.request.get(`${origin}/api/document`)).json();
+  const sep = initial.path.includes('\\') ? '\\' : '/';
+  const scratch = name => [...initial.path.split(sep).slice(0,-4), 'tmp', 'document-title', name].join(sep);
+  const active = page.locator('[data-document-tab][data-active=true]');
+  const editor = active.locator('.document-editor');
+  const title = active.getByRole('textbox', {name:'Title',exact:true});
+  const read = async name => (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(scratch(name))}`)).json());
+  const save = async () => {
+    await page.keyboard.press('Control+s');
+    const status = page.getByTestId('status');
+    await page.locator('[data-testid="status"]:is([data-operation="saved"],[data-operation="save-failed"])').waitFor();
+    await expect(status, await page.locator('body').innerText()).toHaveAttribute('data-operation','saved');
+  };
+  const capture = async suffix => {
+    if (!screenshots) return;
+    await page.evaluate(() => document.fonts.ready);
+    for (const width of [1440,640]) {
+      await page.setViewportSize({width,height:900});
+      await expect(title).toBeVisible();
+      await page.screenshot({path:`tmp/722-${suffix}-${width}.png`});
+    }
+    await page.setViewportSize({width:1440,height:900});
+  };
 
+  // Same original source as the Before capture: H1 stays body, with an empty title input.
   await openPath(page, scratch('technical-document.md'));
-  const title = page.locator('[data-document-tab][data-active=true] [data-document-title="true"]');
-  result.titleMarked = await title.count() === 1 && (await title.innerText()).trim() === 'Converter Control';
-  const original = await blocks();
+  await expect(title).toHaveValue('');
+  await expect(editor.locator('h1')).toHaveText('Converter Control');
+  await expect(editor.locator('[data-document-title]')).toHaveCount(0);
+  await editor.locator('h1').hover();
+  await expect(page.getByRole('button', {name:'Move heading block 1',exact:true})).toHaveAttribute('draggable','true');
+  await page.mouse.move(0,0);
+  await capture('after-existing');
 
-  // The title's handle does not drag and says why.
-  await title.hover({position:{x:4, y:4}});
-  const handle = page.getByRole('button', {name:'Move heading block 1', exact:true});
-  result.handleFixed = await handle.getAttribute('draggable') === 'false' && (await handle.getAttribute('title')).includes('title stays at the top');
-  await handle.click();
-  const titleLevel = page.getByRole('menuitem', {name:'Change to Heading 1', exact:true});
-  result.titleMenuKeepsH1 = await titleLevel.count() === 1 && await titleLevel.isDisabled();
-  await page.getByRole('menuitem', {name:'Change to Heading 2', exact:true}).click();
-  check((await blocks())[0] === 'heading2:Converter Control', 'Explicit title level change was refused');
-  await editor.evaluate(node => node.editor.view.focus());
+  await openPath(page, scratch('chapter.md'));
+  await expect(title).toHaveValue('IEEE 1547 · Chapter 7');
+  const opening = (await read('chapter.md')).document;
+  await expect(editor.locator('h1').first()).toHaveAttribute('data-heading-number','1');
+  await expect(editor.locator('h2')).toHaveAttribute('data-heading-number','1.1');
+  const outline = page.getByTestId('outline');
+  if (!await outline.isVisible()) await page.getByRole('button', {name:'Outline',exact:true}).click();
+  await expect(outline).not.toContainText('IEEE 1547');
+  await expect(outline).toContainText('1 Power quality');
+  await capture('after-authored');
+
+  await title.fill('Updated chapter title');
+  await expect(page.getByTestId('status')).toHaveAttribute('title','Unsaved changes');
   await page.keyboard.press('Control+z');
-  check(JSON.stringify(await blocks()) === JSON.stringify(original), 'Undo did not restore the explicitly changed title');
-
-  // An engine change that would put a block above the title, or move the title, is refused.
-  for (const change of ['insert', 'move']) {
-    await editor.evaluate((node, change) => {
-      const {state, view} = node.editor;
-      const {paragraph} = state.schema.nodes;
-      const second = state.doc.child(0).nodeSize;
-      const tr = change === 'insert' ? state.tr.insert(0, paragraph.create(null, state.schema.text('Above.')))
-        : state.tr.delete(second, second + state.doc.child(1).nodeSize).insert(0, state.doc.child(1));
-      view.dispatch(tr);
-    }, change);
-    check(JSON.stringify(await blocks()) === JSON.stringify(original), `Title ${change} was not refused`);
-  }
-  result.guardRefuses = await page.getByTestId('notice').filter({hasText:'The title stays at the top of the document.'}).count() === 1;
-
-  // Enter at the start of the title opens a paragraph below it; in the middle, the rest goes below.
-  // The caret is placed directly: caret keys right after a click can lag the engine selection.
-  // Tiptap may apply focus a frame later; wait until the engine has it before typing.
-  const caretAt = async offset => {
-    await editor.evaluate((node, offset) => node.editor.chain().focus().setTextSelection(1 + offset).run(), offset);
-    await editor.evaluate((node, offset) => new Promise(resolve => {
-      const ready = () => node.editor.view.hasFocus() && node.editor.state.selection.$from.depth === 1 &&
-        node.editor.state.selection.$from.index(0) === 0 && node.editor.state.selection.$from.parentOffset === offset;
-      const wait = () => ready() ? resolve() : requestAnimationFrame(wait);
-      wait();
-    }), offset);
-  };
-  await caretAt(0);
+  await expect(title).toHaveValue('IEEE 1547 · Chapter 7');
+  await page.keyboard.press('Control+Shift+z');
+  await expect(title).toHaveValue('Updated chapter title');
+  // Enter enters existing body text, retaining its H1 and content.
   await page.keyboard.press('Enter');
-  const atStart = await blocks();
-  result.enterAtStart = atStart[0] === 'heading1:Converter Control' && atStart[1] === 'paragraph:' && await caretBlock() === 1;
-  await page.keyboard.press('Control+z');
-  check(JSON.stringify(await blocks()) === JSON.stringify(original), 'Undo did not restore the title');
-  await caretAt('Converter'.length);
-  await page.keyboard.press('Enter');
-  const split = await blocks();
-  result.enterSplitsBelow = split[0] === 'heading1:Converter' && split[1] === 'paragraph: Control' && await caretBlock() === 1;
-  await page.keyboard.press('Control+z');
-  check(JSON.stringify(await blocks()) === JSON.stringify(original), 'Undo did not restore the split title');
+  await waitForEditorFocus(page);
+  await expect(editor.locator('h1').first()).toHaveText('Power quality');
+  await save();
+  const changed = await read('chapter.md');
+  expect(changed.document.title).toBe('Updated chapter title');
+  expect(changed.document.blocks).toEqual(opening.blocks);
+  expect(changed.source).toContain('title: Updated chapter title');
+  expect(changed.source).not.toContain('# Updated chapter title');
 
-  // Without a title, Add a title starts one at the top; typing and Save write it as the leading H1.
-  await openPath(page, scratch('untitled.md'));
-  const add = page.locator('[data-document-tab][data-active=true]').getByRole('button', {name:'Add a title', exact:true});
-  await add.click();
-  const empty = page.locator('[data-document-tab][data-active=true] [data-document-title="true"]');
-  await empty.waitFor();
-  result.emptyTitlePlaceholder = await empty.getAttribute('data-title-placeholder') === 'Title' && await caretBlock() === 0 &&
-    await empty.evaluate(node => getComputedStyle(node, '::before').content) === '"Title"';
-  await page.keyboard.type('Field notes');
-  await page.keyboard.press('Control+s');
-  await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({state:'attached'});
-  result.titleSaved = (await read('untitled.md')).startsWith('---\nieumdoc: 1\n---\n\n# Field notes\n\nLead paragraph.\n');
-  result.addHidden = await add.count() === 0;
+  await page.getByRole('button', {name:'Source',exact:true}).click();
+  await expect(active.getByTestId('source-view')).toContainText('title: Updated chapter title');
+  await page.getByRole('button', {name:'Visual',exact:true}).click();
+  await reloadDocument(page);
+  await expect(title).toHaveValue('Updated chapter title');
+  await title.fill('');
+  await save();
+  const cleared = await read('chapter.md');
+  expect(cleared.document.title).toBe('');
+  expect(cleared.document.blocks).toEqual(opening.blocks);
+  await reloadDocument(page);
+  await expect(title).toHaveValue('');
+  await expect(editor.locator('h1').first()).toHaveText('Power quality');
 
-  // A title left empty goes away once the caret leaves it, leaving the document unchanged.
-  await openPath(page, scratch('untitled-empty.md'));
-  const addEmpty = page.locator('[data-document-tab][data-active=true]').getByRole('button', {name:'Add a title', exact:true});
-  // #489: hold the engine's post-focus check until the user has clicked the paragraph,
-  // before selectionchange reads that native caret. A busy renderer can deliver this order.
-  await editor.evaluate(node => {
-    const view = node.editor.view;
-    const focus = view.focus;
-    view.focus = function (...args) {
-      const schedule = window.setTimeout;
-      window.setTimeout = (callback, ms, ...rest) => {
-        if (ms === 20) { window.titleFocusCheck = callback; return 0; }
-        return schedule(callback, ms, ...rest);
-      };
-      try { return focus.apply(this, args); }
-      finally { window.setTimeout = schedule; view.focus = focus; }
-    };
-  });
-  await addEmpty.click();
-  await page.locator('[data-document-tab][data-active=true] [data-document-title="true"]').waitFor();
-  await editor.evaluate(node => {
-    if (!window.titleFocusCheck) throw Error('Expected the post-focus selection check');
-    const release = event => {
-      if (!node.contains(event.target) || !event.target.closest('.paragraph')) return;
-      document.removeEventListener('mouseup', release, true);
-      window.titleFocusCheck();
-      window.titleFocusCheck = null;
-    };
-    document.addEventListener('mouseup', release, true);
-  });
-  // Clicking the paragraph, where it now sits below the new title, moves the caret out of it.
-  const lead = await page.locator('[data-document-tab][data-active=true] .paragraph').first().boundingBox();
-  await page.mouse.click(lead.x + 20, lead.y + lead.height / 2);
-  await page.locator('[data-document-tab][data-active=true] [data-document-title="true"]').waitFor({state:'detached', timeout:2000}).catch(() => {});
-  const emptyTitleState = {
-    titleCount: await page.locator('[data-document-tab][data-active=true] [data-document-title="true"]').count(),
-    addVisible: await addEmpty.isVisible(),
-    firstBlock: (await blocks())[0],
-    status: await page.getByTestId('status').innerText(),
-  };
-  const emptyTitleChecks = {
-    noTitle: emptyTitleState.titleCount === 0,
-    addVisible: emptyTitleState.addVisible,
-    leadParagraph: emptyTitleState.firstBlock === 'paragraph:Lead paragraph.',
-    noUnsaved: !emptyTitleState.status.includes('Unsaved'),
-  };
-  result.emptyTitleRemoved = Object.values(emptyTitleChecks).every(Boolean);
-  check(result.emptyTitleRemoved, `emptyTitleRemoved failed: ${Object.entries(emptyTitleChecks).filter(([, ok]) => !ok).map(([name]) => name).join(', ')} ${JSON.stringify(emptyTitleState)}`);
-
-  const failed = Object.entries(result).filter(([, ok]) => !ok).map(([name]) => name);
-  if (failed.length) throw new Error(`Document title checks failed: ${failed.join(', ')} ${JSON.stringify(result)}`);
-  return result;
+  // The labeled leading H1 moves with its section and remains a reference target.
+  await editor.locator('h1').first().hover();
+  await page.getByRole('button', {name:'Move heading block 2',exact:true}).click();
+  await page.getByRole('menuitem', {name:'Move section down',exact:true}).click();
+  await expect(editor.locator('h1').first()).toHaveText('Next clause');
+  await expect(editor.locator('h1').last()).toHaveAttribute('data-heading-number','2');
+  await expect(editor.locator('[data-label="clause-7"] .cross-reference-chip')).toHaveText('§ 2');
+  await save();
+  await reloadDocument(page);
+  await expect(editor.locator('h1').first()).toHaveText('Next clause');
+  await expect(title).toHaveValue('');
+  // Single-line input follows the existing inline-math convention: pasted line separators become spaces.
+  await page.context().grantPermissions(['clipboard-read','clipboard-write']);
+  await title.focus();
+  await page.evaluate(() => navigator.clipboard.writeText('  first\r\nsecond\u0085third\u2028fourth\u2029last  '));
+  await page.keyboard.press('Control+v');
+  await expect(title).toHaveValue('  first second third fourth last  ');
+  await page.keyboard.press('Shift+Enter');
+  await waitForEditorFocus(page);
+  await expect(title).toHaveValue('  first second third fourth last  ');
+  await save();
+  expect((await read('chapter.md')).document.title).toBe('  first second third fourth last  ');
+  await reloadDocument(page);
+  await expect(title).toHaveValue('  first second third fourth last  ');
+  return {singleLinePaste:true, plainMetadataTitle:true, noImplicitPromotion:true, history:true, enterKeepsBody:true,
+    sourceSaveReload:true, emptyTitle:true, movableLeadingH1:true, coreNumbersAndReference:true};
 }

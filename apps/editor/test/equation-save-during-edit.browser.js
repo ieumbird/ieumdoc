@@ -1,4 +1,4 @@
-// Run with pnpm exec playwright-cli run-code --filename=apps/editor/test/equation-save-during-edit.browser.js.
+// Run with pnpm browser:test equation-save-during-edit.
 // Delayed-save drafts, then real scratch-file Apply/typing/history/Source/Save/Reload.
 async (page, { openPath }) => {
   await page.unroute('**/api/document');
@@ -239,6 +239,8 @@ async (page, { openPath }) => {
       await equation.getByRole('button', {name:'Edit', exact:true}).click();
       const field = page.getByTestId(fieldName);
       await field.fill('alpha beta gamma');
+      // The title area can put the label below the viewport; establish a real pointer target.
+      await field.scrollIntoViewIfNeeded();
       await field.focus();
       await field.evaluate(element => element.setSelectionRange(0, 5));
       const before = await state();

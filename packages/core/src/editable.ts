@@ -1,6 +1,7 @@
 import type { NodePath } from "./document.ts";
 import { figureCaptionContent } from "./figure.ts";
 import { figureContentKind, supportedFigureContent, type FigureContentKind } from "./myst/figure.ts";
+import { getDocumentTitle } from "./myst/title.ts";
 import { getHeadingNumbering } from "./myst/heading-numbering.ts";
 import type { HeadingNumbering, ReferenceTemplates } from "./numbering.ts";
 import { getReferenceTemplates } from "./myst/reference-templates.ts";
@@ -139,6 +140,7 @@ export type EditableBlock =
 
 
 export type EditableDocument = {
+  title?: string;
   referenceTemplates?: ReferenceTemplates;
   blocks: EditableBlock[];
   headingNumbering?: HeadingNumbering;
@@ -148,7 +150,8 @@ export function getEditableDocument(document: MystDocument): EditableDocument {
   const blocks = document.children.flatMap((node, index) => node[FRONT_MATTER_FIELD] === true ? [] : [toBlock(node, [index])]);
   const headingNumbering = getHeadingNumbering(document);
   const referenceTemplates = getReferenceTemplates(document);
-  return { blocks, ...(Object.keys(referenceTemplates).length ? { referenceTemplates } : {}), ...(headingNumbering ? { headingNumbering } : {}) };
+  const title = getDocumentTitle(document);
+  return { blocks, ...(title !== undefined ? { title } : {}), ...(Object.keys(referenceTemplates).length ? { referenceTemplates } : {}), ...(headingNumbering ? { headingNumbering } : {}) };
 }
 
 function toBlock(node: MystNode, path: NodePath): EditableBlock {

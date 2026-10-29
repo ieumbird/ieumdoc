@@ -250,7 +250,10 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
   if (changedSettings && settings !== null && JSON.stringify(settings) !== JSON.stringify(defaultHeadingNumbering(true))) {
     throw new Error("unsupported heading numbering settings");
   }
+  const title = next.attrs?.title ?? null;
+  if (title !== null && typeof title !== "string") throw new Error("document title must be a string");
   return {
+    ...(title !== (document.title ?? null) ? { title } : {}),
     ...(changedSettings ? { headingNumbering: settings !== null } : {}),
     ...(changedTemplates ? { referenceTemplates: Object.fromEntries(NUMBERED_KINDS.map(kind => [kind, templates?.[kind] ?? null])) } : {}),
     ...(next.attrs?.bibliography !== null && next.attrs?.bibliography !== undefined ? { bibliography: next.attrs.bibliography as string[] } : {}),
@@ -290,6 +293,7 @@ export function isSessionPlaceholder(node: TiptapJSON): boolean {
  * Use schema-normalized input on both sides; paths remain opening-snapshot locators. */
 export function appliedDocument(document: TiptapJSON): TiptapJSON {
   const attrs = {
+    ...(document.attrs?.title !== null && document.attrs?.title !== undefined ? { title: document.attrs.title } : {}),
     ...(document.attrs?.headingNumbering ? { headingNumbering: document.attrs.headingNumbering } : {}),
     ...(document.attrs?.referenceTemplates && Object.keys(document.attrs.referenceTemplates).length ? { referenceTemplates: document.attrs.referenceTemplates } : {}),
     ...(document.attrs?.bibliography !== null && document.attrs?.bibliography !== undefined ? { bibliography: document.attrs.bibliography } : {}),

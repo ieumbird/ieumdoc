@@ -21,9 +21,9 @@ export type HeadingNumbering = {
   enumerators: (string | null)[];
 };
 
-/** Default authoring policy: H1 is a title; H2–H6 are numbered sections. */
+/** Default authoring policy: H1–H6 are numbered body sections. */
 export function defaultHeadingNumbering(enabled: boolean): HeadingNumbering | null {
-  return enabled ? { enabled: [false, true, true, true, true, true], counts: [0, 0, 0, 0, 0, 0], offset: -1,
+  return enabled ? { enabled: [true, true, true, true, true, true], counts: [0, 0, 0, 0, 0, 0], offset: 0,
     enumerators: [null, null, null, null, null, null] } : null;
 }
 
@@ -43,6 +43,11 @@ export function headingNumbers(blocks: { block: string; level?: number }[], sett
     if (block.block === "heading") return increment(block.level ?? 1);
     return undefined;
   });
+}
+
+/** Section references share heading counters; with numbers off, retain the heading's name. */
+export function sectionReferenceText(title: string, number?: string): string {
+  return `§ ${number ?? title}`;
 }
 
 /**

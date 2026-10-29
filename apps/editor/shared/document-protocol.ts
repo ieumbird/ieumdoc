@@ -125,9 +125,11 @@ export type InsertEdit =
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
 
 export type SupportedEdits = {
+  /** Plain frontmatter title; null removes the optional field. */
+  title?: string | null;
   /** Staged document-relative declarations; [] removes the optional field through Core. */
   bibliography?: string[];
-  /** Default document policy: H1 title, numbered H2-H6; false disables heading numbers. */
+  /** Default document policy: numbered H1-H6 body sections; false disables heading numbers. */
   headingNumbering?: boolean;
   referenceTemplates?: import("@ieumdoc/core").ReferenceTemplateUpdate;
   order?: OrderItem[];

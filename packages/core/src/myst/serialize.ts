@@ -129,7 +129,8 @@ function prepareWriter(tree: MystDocument, blockPaths: number[][]): string {
         throw new SemanticLossError(`Block ${index + 1}: front matter must be closed and remain at the start of the document`, {
           code: "native-metadata", path, action: "Close the front matter with --- and keep it at the start of the file, then Reload." });
       }
-      prefix = `---\n${String(node.value ?? "")}\n---\n\n`;
+      const yaml = String(node.value ?? "");
+      prefix = `---\n${yaml}${yaml && !yaml.endsWith("\n") ? "\n" : ""}---\n\n`;
     }
     // myst-to-md chooses its image directive by key presence, even for undefined
     // attributes emitted by myst-parser. Absent values must stay absent.

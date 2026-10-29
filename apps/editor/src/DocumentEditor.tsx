@@ -29,7 +29,7 @@ import {
 } from "./block-commands.ts";
 import { BlockHandles } from "./BlockHandles.tsx";
 import { blockMoveBlockedHint } from "./block-reorder.ts";
-import { addTitle, editorTitleIndex } from "./document-title.ts";
+import { DocumentTitle } from "./document-title.tsx";
 import { CommandMenu, type CommandMenuItem } from "./CommandMenu.tsx";
 import { insertCommandIcon, blockCommandAppearance } from "./command-icons.ts";
 import { insertReference, referenceCommandItems, referenceOfCommand, ReferenceForm, referencesBrokenByDeletion, referenceTargets, isResolved, type ReferenceTarget } from "./cross-reference.tsx";
@@ -695,12 +695,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         onExpandedChange={value => onSettingsExpandedChange?.(value)} disabled={settingsDisabled}
         onToggleHeadingNumbering={toggleHeadingNumbering} onReferenceStyleChange={setReferenceStyle}
         onConnectBibliography={target => bibliographyControls.current?.connect(target)} /> : null}
-      {/* Outside the editable content, so it never takes the caret or reads as document text (#255). */}
       <NumberingNotice editor={editor} />
-      {editor.isEditable && editorTitleIndex(editor.state.doc) === undefined ? (
-        <button type="button" className="document-title-slot" onMouseDown={event => event.preventDefault()}
-          onClick={() => addTitle(editor.view)}>{i18n.t("Add a title")}</button>
-      ) : null}
+      <DocumentTitle editor={editor} />
       <DocumentPathContext.Provider value={documentPath}><ImageRenameContext.Provider value={renameImage}><BibliographyContent ref={bibliographyControls} editor={editor} bibliography={bibliography} documentPath={documentPath}><EditorContent editor={editor} /></BibliographyContent></ImageRenameContext.Provider></DocumentPathContext.Provider>
       {visible ? <BlockHandles
         editor={editor}
@@ -802,8 +798,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           items={[...(editor.state.doc.child(blockMenu.index).type.name === "orderedList"
             ? [{ id: "list-format", label: i18n.t("List format"), group: i18n.t("Lists"), icon: insertCommandIcon("numbered-list") }] : []),
             ...BLOCK_COMMANDS.filter(command => (command.applies?.(editor.state, blockMenu.index) ?? true) &&
-            (editorTitleIndex(editor.state.doc) === blockMenu.index ||
-              command.id !== `heading-level-${editor.state.doc.child(blockMenu.index).attrs.level}`)).map(command => ({
+              command.id !== `heading-level-${editor.state.doc.child(blockMenu.index).attrs.level}`).map(command => ({
             id: command.id,
             label: command.label,
             group: blockCommandGroup(command.id),

@@ -1,7 +1,7 @@
 import { assertPersistentParagraph } from "./myst/paragraph.ts";
 import { type NodePath } from "./document.ts";
 import { getEditableDocument } from "./editable.ts";
-import { sectionBoundaries, sectionMarker, sectionRange, titleHeading } from "./section.ts";
+import { sectionBoundaries, sectionMarker, sectionRange } from "./section.ts";
 import {
   assertInlineContent,
   sameInlineContent,
@@ -68,12 +68,8 @@ export function replaceText(document: MystDocument, from: string, to: string): M
   return finishTextEdit(document, next, block);
 }
 
-/**
- * Move a top-level block. The document title stays first (#255) unless `checkTitle` is false, which
- * only a caller that checks the rule itself against its own starting snapshot may pass: Editor Save
- * replays a final order through intermediate orders no one sees.
- */
-export function moveBlock(document: MystDocument, fromIndex: number, toIndex: number, { checkTitle = true }: { checkTitle?: boolean } = {}): MystDocument {
+/** Move one top-level body block, independently of document metadata. */
+export function moveBlock(document: MystDocument, fromIndex: number, toIndex: number): MystDocument {
   assertBodyIndex(document, fromIndex);
   assertBodyIndex(document, toIndex);
   const next = cloneDocument(document);
@@ -87,9 +83,6 @@ export function moveBlock(document: MystDocument, fromIndex: number, toIndex: nu
   if (!Number.isInteger(toIndex) || toIndex < 0 || toIndex >= blocks.length) {
     throw new DocumentDiagnosticError("invalid-operation", `moveBlock toIndex out of range: ${toIndex}`);
   }
-  const title = checkTitle ? documentTitle(document) : undefined;
-  if (title !== undefined && fromIndex <= title && fromIndex !== toIndex) throw new DocumentDiagnosticError("invalid-operation", `block ${fromIndex} is the document title or its label: ${TITLE_FIXED}`);
-  if (title !== undefined && fromIndex !== toIndex) assertAfterTitle(document, toIndex, "move");
   const [block] = blocks.splice(fromIndex, 1);
   blocks.splice(toIndex, 0, block);
   assertCanonicalBlockBoundaries(next);
@@ -110,9 +103,6 @@ export function moveSection(document: MystDocument, heading: number, to: number)
     throw new DocumentDiagnosticError("invalid-operation", `a section moves to the start of a section or the end of the document: ${to}`);
   }
   if (to > start && to < end) throw new DocumentDiagnosticError("invalid-operation", "a section cannot move into itself");
-  const title = documentTitle(document);
-  if (title !== undefined && heading === title) throw new DocumentDiagnosticError("invalid-operation", `the section of block ${heading} opens with the document title: ${TITLE_FIXED}`);
-  assertAfterTitle(document, to, "move");
   const inSection = sectionContent(document, start, end);
   const next = cloneDocument(document);
   const moved = next.children.filter((_, index) => inSection(index));
@@ -224,25 +214,8 @@ export function insertBlock(document: MystDocument, index: number, block: MystNo
   if (!Number.isInteger(index) || index < 0 || index > blocks.length) {
     throw new DocumentDiagnosticError("invalid-operation", `insertBlock index out of range: ${index}`);
   }
-  // Only the title's own label targets go before it.
-  if (block.type !== "mystTarget") assertAfterTitle(document, index, "insert");
   blocks.splice(index, 0, structuredClone(block));
   return next;
-}
-
-const TITLE_FIXED = "the document title stays first and cannot be moved";
-
-/** The title's heading index; the body starts after the metadata block when there is one. */
-function documentTitle(document: MystDocument): number | undefined {
-  return titleHeading(sectionMarkers(document), document.children[0]?.[FRONT_MATTER_FIELD] === true ? 1 : 0);
-}
-
-/** Refuse placing a block at or before the title (#255). */
-function assertAfterTitle(document: MystDocument, index: number, action: "insert" | "move"): void {
-  const title = documentTitle(document);
-  if (title !== undefined && index <= title) {
-    throw new DocumentDiagnosticError("invalid-operation", `${action === "insert" ? "insert" : "move"} after the document title at block ${title}: ${TITLE_FIXED}`);
-  }
 }
 
 export function insertParagraph(document: MystDocument, index: number, text: string | InlineContent[]): MystDocument {

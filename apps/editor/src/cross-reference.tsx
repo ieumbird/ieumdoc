@@ -9,7 +9,7 @@ import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { useEditorVisible } from "./editor-visibility.ts";
 import type { ReferenceRole } from "@ieumdoc/core";
 import { labelKey, resolveLabelReference, targetLabelError } from "@ieumdoc/core/label";
-import { referenceNumberText, captionNumberText, type ReferenceTemplates, blockTargets, targetNumbers, type NumberedKind, type NumberedTargets } from "@ieumdoc/core/numbering";
+import { referenceNumberText, captionNumberText, headingNumbers, sectionReferenceText, type ReferenceTemplates, blockTargets, targetNumbers, type NumberedKind, type NumberedTargets } from "@ieumdoc/core/numbering";
 import { Button } from "@/components/ui/button.tsx";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 import { tableCaption } from "./tiptap-edits.ts";
@@ -108,11 +108,14 @@ function labeledHeading(doc: ProseMirrorNode, index: number): number | undefined
 export function referenceTargets(doc: ProseMirrorNode): ReferenceTarget[] {
   const numbers = blockNumbers(doc);
   const targets: ReferenceTarget[] = [];
+  const blocks: { block: string; level?: number }[] = [];
+  doc.forEach(node => blocks.push({ block: node.type.name, level: node.attrs.level }));
+  const sections = headingNumbers(blocks, doc.attrs.headingNumbering);
   doc.forEach((node, _pos, index) => {
     const label = String(node.attrs.label ?? "");
     if (node.type.name === "labelTarget") {
       const heading = labeledHeading(doc, index);
-      if (label.length > 0 && heading !== undefined) targets.push({ role: "ref", label, title: headingText(doc.child(heading)) });
+      if (label.length > 0 && heading !== undefined) targets.push({ role: "ref", label, title: headingText(doc.child(heading)), ...(sections[heading] ? { number: sections[heading] } : {}) });
       return;
     }
     const role: ReferenceRole | undefined = node.type.name === "equation" ? "eq" : ["figure", "table"].includes(node.type.name) ? "numref" : undefined;
@@ -213,7 +216,7 @@ export function referenceDisplay(targets: ReferenceTarget[], role: ReferenceRole
   const kindName = target?.kind === "table" ? i18n.t("Table") : KIND[role];
   // A resolved reference shows its target's computed number or a section's heading text, as MyST renders it.
   const kind = target.kind ?? (role === "eq" ? "equation" : "figure");
-  const text = role === "ref" ? `§ ${target.title ?? label}` : target.number !== undefined
+  const text = role === "ref" ? sectionReferenceText(target.title ?? label, target.number === undefined ? undefined : String(target.number)) : target.number !== undefined
     ? referenceNumberText(kind, target.number, target.template === undefined ? undefined : { [kind]: target.template }) : label;
   return { text, resolved: true, kindName };
 }

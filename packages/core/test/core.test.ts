@@ -134,7 +134,7 @@ test("Core preserves separate lists when reordering makes them adjacent", () => 
 
 test("Core preserves canonical semantics when reordering paragraph, heading, figure, and equation blocks", () => {
   const document = parse(technicalSource);
-  // The leading H1 is the document title and stays first, so blocks move to just after it.
+  // Reorder individual body blocks around the first H1 section.
   for (const type of ["paragraph", "heading", "container", "math"]) {
     const index = document.children.findIndex((node, position) =>
       position > 1 && node.type === type && (type !== "container" || node.kind === "figure"),

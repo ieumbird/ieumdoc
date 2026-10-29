@@ -210,8 +210,8 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
         // Selected text keeps its toolbar Tab; only an editable top-level heading caret changes level.
         if (!this.editor.isEditable || !selection.empty || $from.depth !== 1 || $from.parent.type.name !== "heading") return false;
         const level = Number($from.parent.attrs.level) + (backward ? -1 : 1);
-        if (level >= 2 && level <= 6) view.dispatch(changeHeadingLevel(state, $from.index(0), level));
-        // Body headings stop at H2; existing H1 and H6 boundaries also retain focus.
+        if (level >= 1 && level <= 6) view.dispatch(changeHeadingLevel(state, $from.index(0), level));
+        // H1 and H6 boundaries retain focus.
         return true;
       };
       const join = (backward: boolean) => {
