@@ -28,7 +28,7 @@ async (page, { openFolderPicker, screenshots = false, fileActionsRoot, expect, r
   const metadata = [];
   for (const width of [1440, 640]) {
     await page.setViewportSize({width, height:900});
-    const expand = page.getByRole('button', {name:'Expand sidebar', exact:true});
+    const expand = page.getByRole('button', {name:'Expand Explorer', exact:true});
     if (await expand.isVisible()) await expand.click();
     await page.emulateMedia({colorScheme:width === 640 ? 'dark' : 'light'});
     await expect(page.locator('html')).toHaveAttribute('data-theme',width === 640 ? 'dark' : 'light');

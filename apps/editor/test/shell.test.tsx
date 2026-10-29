@@ -431,7 +431,7 @@ test("document path splits for display without changing the address", () => {
 
 test("sidebar without a folder offers only Open folder, and collapses", () => {
   const open = renderToStaticMarkup(<Sidebar onFileAction={async () => ""} fileActionsDisabled={false} isFileDirty={() => false} open documentPath={PATH} onToggle={noop} onOpenFolder={noop} />);
-  assert.match(open, />Files</);
+  assert.match(open, />Explorer</);
   assert.match(open, /<button\b(?=[^>]*aria-label="Open folder…")(?=[^>]*title="Open folder…")/);
   assert.doesNotMatch(open, /Open file…/);
   assert.doesNotMatch(open, /data-testid="folder"/);
@@ -439,9 +439,9 @@ test("sidebar without a folder offers only Open folder, and collapses", () => {
   assert.doesNotMatch(open, />New</);
   assert.doesNotMatch(open, /aria-current/);
   assert.doesNotMatch(open, /sidebar-tools|sidebar-display|aria-label="Display"/);
-  assert.match(open, /aria-label="Collapse sidebar"/);
+  assert.match(open, /aria-label="Collapse Explorer"/);
   const collapsed = renderToStaticMarkup(<Sidebar onFileAction={async () => ""} fileActionsDisabled={false} isFileDirty={() => false} open={false} documentPath={PATH} onToggle={noop} onOpenFolder={noop} onSettings={noop} />);
-  assert.match(collapsed, /<button\b(?=[^>]*aria-label="Expand sidebar")(?=[^>]*title="Expand sidebar")(?=[^>]*aria-controls="sidebar-files")(?=[^>]*aria-expanded="false")/);
+  assert.match(collapsed, /<button\b(?=[^>]*aria-label="Expand Explorer")(?=[^>]*title="Expand Explorer")(?=[^>]*aria-controls="sidebar-files")(?=[^>]*aria-expanded="false")/);
   assert.doesNotMatch(collapsed, /Open file…|IeumDoc/);
   assert.match(collapsed, /id="sidebar-files"[^>]*hidden/);
   assert.doesNotMatch(collapsed, /sidebar-tools|sidebar-display|aria-label="Display"/);

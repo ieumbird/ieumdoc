@@ -52,15 +52,15 @@ export function Sidebar({
   return (
     <nav className={`sidebar${open ? "" : " sidebar--collapsed"}`} aria-label={i18n.t("Application")} data-testid="sidebar">
       <div className="sidebar-header">
-        {open ? <span className="product">{i18n.t("Files")}</span> : null}
+        {open ? <span className="product">{i18n.t("Explorer")}</span> : null}
         <div className="sidebar-header-actions">
           <Button
             ref={toggleRef}
             className="sidebar-collapse"
             variant="ghost"
             size="icon-sm"
-            aria-label={open ? i18n.t("Collapse sidebar") : i18n.t("Expand sidebar")}
-            title={open ? i18n.t("Collapse sidebar") : i18n.t("Expand sidebar")}
+            aria-label={open ? i18n.t("Collapse Explorer") : i18n.t("Expand Explorer")}
+            title={open ? i18n.t("Collapse Explorer") : i18n.t("Expand Explorer")}
             aria-expanded={open}
             aria-controls="sidebar-files"
             onClick={onToggle}
@@ -90,7 +90,7 @@ export function Sidebar({
             onClose={() => onCloseFolder?.(tree.root)}
           />
         )) : (
-          <section className="sidebar-empty" aria-label={i18n.t("Files")} data-testid="sidebar-empty">
+          <section className="sidebar-empty" aria-label={i18n.t("Explorer")} data-testid="sidebar-empty">
             <p className="sidebar-empty-text">{i18n.t("Open a folder to browse its files and create documents.")}</p>
             <Button type="button" size="sm" variant="ghost" className="w-full justify-start"
               aria-label={i18n.t("Open folder…")} title={i18n.t("Open folder…")}

@@ -18,7 +18,7 @@ export async function openFolderPicker(page: Page, language = "en"): Promise<voi
 export async function openDocument(page: Page, file: string): Promise<void> {
   const sidebar = page.getByTestId("sidebar");
   // Expand the Sidebar through its rail when the caller has collapsed it.
-  const expand = page.getByRole("button", { name: "Expand sidebar", exact: true });
+  const expand = page.getByRole("button", { name: "Expand Explorer", exact: true });
   if (await expand.isVisible()) await expand.click();
   await openFolderPicker(page);
   await page.getByTestId("folder-path").fill(path.dirname(file));
