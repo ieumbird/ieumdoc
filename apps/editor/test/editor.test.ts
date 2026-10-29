@@ -2150,17 +2150,6 @@ test("Equation edits participate in editor undo and redo", () => {
 });
 
 
-test("canonical reorder that adds a separator block fails before persistence", () => {
-  const markdown = nativeSource("- A\n\nMiddle\n\n- B");
-  let writes = 0;
-  assert.throws(() => commitDocumentSave(() => markdown, () => writes++, {
-    revision: documentRevision(markdown),
-    order: [{path:[1],part:0},{path:[3],part:0},{path:[2],part:0}],
-  }), /changed block boundaries/);
-  assert.equal(writes, 0);
-});
-
-
 test("restored deletion metadata survives engine initialization and acknowledged Save replay", () => {
   const openingSource = nativeSource("# Title\n\nKeep\n\nDelete\n");
   const model = loadEditableDocument(openingSource);

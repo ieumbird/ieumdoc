@@ -1,4 +1,5 @@
 import { DocumentSettings, type DocumentSettingsHandle } from "./shell/DocumentSettings.tsx";
+import { NumberingNotice } from "./numbering-properties.tsx";
 import { documentScrollContainer } from "./document-scroll.ts";
 import { handleLinkClick, handleLinkMouseDown } from "./link-opening.ts";
 import { ImageRenameContext, imageRenameKey, renameSnapshot, type ImageRenamer } from "./image-rename.ts";
@@ -689,6 +690,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         onExpandedChange={value => onSettingsExpandedChange?.(value)} disabled={settingsDisabled}
         onToggleHeadingNumbering={toggleHeadingNumbering} onReferenceStyleChange={setReferenceStyle}
         onConnectBibliography={target => bibliographyControls.current?.connect(target)} /> : null}
+      <NumberingNotice editor={editor} />
       <DocumentTitle editor={editor} />
       <DocumentPathContext.Provider value={documentPath}><ImageRenameContext.Provider value={renameImage}><BibliographyContent ref={bibliographyControls} editor={editor} bibliography={bibliography} documentPath={documentPath}><EditorContent editor={editor} /></BibliographyContent></ImageRenameContext.Provider></DocumentPathContext.Provider>
       {visible ? <BlockHandles

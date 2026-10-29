@@ -1,0 +1,26 @@
+diff --git a/dist/index.js b/dist/index.js
+index 66fa25c52a0d15ee520c6446009321a29782612c..baca84133c15b8f2b6312eb71454e12f73598a81 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -25,6 +25,8 @@ export function writeMd(file, node, frontmatter) {
+     const options = {
+         fences: true,
+         rule: '-',
++        bulletOther: '-',
++        bulletOrderedOther: ')',
+         handlers: {
+             ...handlers,
+             ...unsupported,
+diff --git a/src/index.ts b/src/index.ts
+index 97e785259f6c2d9cf55c9ea572f412a677a7ebc8..e10e5434d5aac9fb3dd6a1eb736244b684184346 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -32,6 +32,8 @@ export function writeMd(file: VFile, node: Root, frontmatter?: PageFrontmatter)
+   const options: Options = {
+     fences: true,
+     rule: '-',
++    bulletOther: '-',
++    bulletOrderedOther: ')',
+     handlers: {
+       ...handlers,
+       ...unsupported,

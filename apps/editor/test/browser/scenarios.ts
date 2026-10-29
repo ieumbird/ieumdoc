@@ -41,6 +41,7 @@ export const STABLE_SCENARIOS = [
   "table-cell-editing",
   "table-authoring",
   "table-caption",
+  "caption-selection",
   "link-authoring",
   "inline-math-authoring",
   "inline-math-split",

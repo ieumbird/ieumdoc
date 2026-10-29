@@ -92,6 +92,13 @@ Runner-owned servers and browser contexts are closed after each execution.
 
 Highlighting is display-only and keeps the existing lowlight common language set. Its grammars load when a code block first exists, without changing document, selection or history. Empty/unregistered languages or a grammar load failure keep literal editable code and its language; language edits still use the existing Core code operation and canonical fence. The deferred chunk reduces the initial entry, not total deployment size.
 
+Triple-clicking the code body's `<pre>` padding or blank line area selects only the code
+textblock, matching engine-handled text clicks (#724). The same editable-wrapper boundary
+as Figure/Table captions otherwise allowed native selection into the next paragraph.
+The shared mousedown handler prevents that default selection; subsequent typing/deletion
+preserves neighboring blocks. Code-language controls and normal code drag selection
+retain their existing behavior. `caption-selection` covers this shared failure path.
+
 The code-language control is a single 28px compact outlined dropdown button (#645),
 showing the current literal language or localized Plain text for an empty fence.
 This supersedes #499/#527's direct-input decision. The shared DropdownMenu owns Tab/Enter/Space

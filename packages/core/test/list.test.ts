@@ -139,8 +139,6 @@ test("public Core rejects invalid list edits without mutating the source", () =>
     () => insertList(document, 1, { ordered: true, start: -1, items: [item] }),
     () => insertList(document, 1, { ordered: false, items: [{ content: text("a\n\nb") }] }),
     () => insertList(document, 5, { ordered: false, items: [item] }),
-    // Adjacent bullet lists would reload as one list.
-    () => insertList(document, 2, { ordered: false, items: [item] }),
     () => updateList(document, [1], { ordered: false, items: [{ content: text("b"), list: { ordered: false, items: [] } }] }),
     () => updateList(document, [0], { ordered: false, items: [item] }),
     () => updateList(document, [1, 0], { ordered: false, items: [item] }),
@@ -152,4 +150,37 @@ test("public Core rejects invalid list edits without mutating the source", () =>
   }
   const task = parse("- [ ] task\n");
   assert.throws(() => updateList(task, [0], { ordered: false, items: [item] }), /not editable/);
+});
+
+test("native adjacent lists retain boundaries, numbering, nesting and content on canonical reopen", () => {
+  const lists: ListContent[] = [
+    { ordered: true, start: 0, items: [{ content: text("Zero") }, { content: text("Next") }] },
+    { ordered: true, start: 7, items: [{ content: [{ kind: "strong", children: text("Seven") }], list: nestedList }] },
+    { ordered: false, items: [{ content: [] }, { content: text("Bullet"), list: nestedList }] },
+  ];
+  for (const first of lists) for (const second of lists) {
+    // Three siblings also exercise switching back to the original marker.
+    const expected = [first, second, first];
+    let document = core.createDocument();
+    for (const [index, list] of expected.entries()) document = core.insertList(document, index + 1, list);
+    const markdown = core.serialize(document);
+    assert.doesNotMatch(markdown, /<!--/);
+    assert.deepEqual(core.getEditableDocument(core.parse(markdown)).blocks,
+      expected.map((list, index) => ({ block: "list", path: [index + 1], ...list })));
+    assert.equal(core.serialize(document), markdown);
+    assert.equal(core.serialize(core.parse(markdown)), markdown);
+  }
+});
+
+test("canonical writer preserves adjacent list siblings inside a list item without HTML", () => {
+  // Multiple nested siblings are outside List v1 admission; the internal writer
+  // must still preserve their full semantics rather than introduce HTML nodes.
+  for (const markers of [["1.", "7)", "0."], ["*", "-", "*"], ["1.", "*", "7."]]) {
+    const document = parse(`* Parent\n\n${markers.map((marker, index) => `  ${marker} Child ${index}`).join("\n\n")}\n`);
+    const markdown = serialize(document);
+    assert.doesNotMatch(markdown, /<!--/);
+    assert.equal(parse(markdown).children[0].children?.[0].children?.filter(node => node.type === "list").length, 3);
+    assert.equal(serialize(parse(markdown)), markdown);
+    assert.throws(() => core.parse(`---\nieumdoc: 1\n---\n\n${markdown}`), /unsupported|not supported/i);
+  }
 });

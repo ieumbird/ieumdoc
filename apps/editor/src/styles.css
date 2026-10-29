@@ -172,7 +172,7 @@ button {
 .document-settings-control input:focus-visible { outline: none; box-shadow: var(--focus-ring-inset); }
 .document-settings-control button { max-width: 100%; white-space: normal; height: auto; min-height: var(--size-control-compact); }
 .document-settings-group:disabled { color: var(--id-color-text-subtle); }
-.display-hint { margin: 0; color: var(--id-color-text-subtle); font-size: var(--font-size-xs); line-height: var(--line-height-meta); overflow-wrap: anywhere; }
+.display-hint, .form-hint { margin: 0; color: var(--id-color-text-subtle); font-size: var(--font-size-xs); line-height: var(--line-height-meta); overflow-wrap: anywhere; }
 .document-settings-option {
   display: flex; align-items: center; gap: var(--space-2);
   min-height: var(--size-control); padding: var(--space-1) var(--space-2);

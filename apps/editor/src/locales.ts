@@ -1,5 +1,11 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Number": "Number",
+  "Automatic": "Automatic",
+  "Enter a fixed number; leave empty for automatic numbering.": "Enter a fixed number; leave empty for automatic numbering.",
+  "Missing fixed number in a fixed-number document. Saving is allowed.": "Missing fixed number in a fixed-number document. Saving is allowed.",
+  "Fixed number {{number}} is duplicated for this kind. Saving is allowed.": "Fixed number {{number}} is duplicated for this kind. Saving is allowed.",
+  "Numbering warnings: {{count}}. Review Number in block properties for missing or duplicate fixed numbers. Saving is allowed.": "Numbering warnings: {{count}}. Review Number in block properties for missing or duplicate fixed numbers. Saving is allowed.",
   "Open log folder": "Open log folder",
   "Could not open the log folder.": "Could not open the log folder.",
   "Open to the right": "Open to the right",
@@ -670,6 +676,12 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Number": "번호",
+  "Automatic": "자동",
+  "Enter a fixed number; leave empty for automatic numbering.": "고정 번호를 입력하세요. 비워 두면 자동 번호를 사용합니다.",
+  "Missing fixed number in a fixed-number document. Saving is allowed.": "고정 번호 문서에서 번호가 빠져 있습니다. 저장할 수 있습니다.",
+  "Fixed number {{number}} is duplicated for this kind. Saving is allowed.": "같은 종류에 고정 번호 {{number}}이(가) 중복됩니다. 저장할 수 있습니다.",
+  "Numbering warnings: {{count}}. Review Number in block properties for missing or duplicate fixed numbers. Saving is allowed.": "번호 경고 {{count}}개. 블록 속성의 번호에서 누락되거나 중복된 고정 번호를 확인하세요. 저장할 수 있습니다.",
   "Open log folder": "로그 폴더 열기",
   "Could not open the log folder.": "로그 폴더를 열지 못했습니다.",
   "Open to the right": "오른쪽에 열기",

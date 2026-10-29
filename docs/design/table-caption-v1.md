@@ -24,7 +24,7 @@ comparable real-product Before/After images. No new Core operation or CLI comman
 the existing `updateTableCaption` operation already owns the persistent semantics.
 
 - Status: Implemented
-- Fixed numbering: 2026-10-29 (#720 Core/CLI); [shared number contract](heading-numbering-v1.md#fixed-numbers-720).
+- Fixed numbering: 2026-10-29 (#720 Core/CLI and Editor property controls/warnings); [shared number contract](heading-numbering-v1.md#fixed-numbers-720).
 - Empty-caption surface (#577): every editable table exposes its inline caption without
   an Add caption action. An empty surface uses the caption typography and a muted
   italic `Enter a table caption…` / `표 캡션을 입력하세요...` hint while the ProseMirror
@@ -67,13 +67,19 @@ Label retains reference text but makes references to that removed target unresol
 The Editor uses Core numbering, without a separate prospective-number rule.
 
 Hover a table and choose Edit (the pencil below the grid, beside Table actions, which
-also offers Edit label). The properties form contains only Label; Apply/Cancel and
-unsaved-draft protection apply to that field. It preserves the live caption, including
+also offers Edit label). The properties form contains Label and Number; Apply/Cancel and
+unsaved-draft protection apply to both fields. It preserves the live caption, including
 edits made while properties are open. The inline caret surface is present below every
 editable table, including after clearing and reopening. No Add caption button is needed.
 Read-only captions retain existing content and official numbers, like Figure captions,
 but omit the editable empty-input hint. Save omits empty caption content. Cell and row coordinates remain
 unchanged. CLI and Editor share the Core read model and numbering rule.
+Table properties expose Number after Label (#720), with the shared automatic placeholder
+and empty-to-clear rule. Number-only drafts participate in unsaved-work protection;
+Apply changes label and number in one engine transaction and Save replays Core
+`updateEnumerator`. Cancel/Escape keeps the applied value. The field shows Core's applicable
+missing/duplicate warning; the document Notice also reports warnings. Neither prevents Save.
+See the [shared fixed-number Editor contract](heading-numbering-v1.md#fixed-numbers-720).
 The Editor schema requires exactly one caption after the rows. Native parsing and
 replacement therefore retain the surface even when a range deletion removes everything
 after the final cell while keeping the table. No repair transaction or Undo step is added.
@@ -99,6 +105,15 @@ removed the React-owned content wrapper, leaving its contentDOM detached and, fo
 the model out of sync. The same boundary applies to image, pending and Mermaid captions.
 The `table-caption` browser scenario checks repeated Backspace, word deletion and cut for
 each kind, including contentDOM, model, surrounding blocks, Undo/Redo and hint restoration.
+
+Triple-clicking anywhere on the caption line, including its generated number and blank
+space after the text, selects only the caption's inline content (#724). Typing or deleting
+then preserves the grid and neighboring blocks. The shared Figure/Table mousedown
+handler prevents native selection from crossing contentDOM's caption boundary, while
+retaining ProseMirror's text-click handling and ordinary drag selection. The
+`caption-selection` browser scenario checks native triple clicks and subsequent input
+at text, text-end, right-blank and number positions, including consecutive Figures,
+Figure before table, table before paragraph, Mermaid and pending Figures.
 
 The caption stays below the table. Its computed number follows the document's authored
 Table reference template, retaining the existing `. ` separator; without a template,
@@ -167,6 +182,7 @@ does elsewhere; internal MyST serializer tests do not establish native input sup
 Extend fail-first public Core and CLI regressions to inherited option names, YAML
 options and alternate table directives, with BOM/CRLF byte preservation and supported
 input controls. Verify Core/CLI, typecheck, docs and all PR CI checks.
+
 
 ## Cell code and math preservation (#622)
 

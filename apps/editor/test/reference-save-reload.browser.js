@@ -3,7 +3,7 @@
 // stays a semantic reference and `[](#...)` fragment links stay ordinary links (issue #12).
 // The file is a scratch copy under the repository's ignored tmp/ directory; prepare it first
 // (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
-async (page, { openPath, openDocument }) => {
+async (page, { openPath, openDocument, reloadDocument, expect }) => {
   await page.unrouteAll();
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
@@ -59,7 +59,7 @@ async (page, { openPath, openDocument }) => {
     equation: await active.getByTestId('equation-number').innerText(),
     references: await active.locator('p.paragraph').filter({hasText:'See Figure'}).innerText(),
   });
-  const expected = { captions: ['Figure 17', 'Table A.3', 'Figure B.2'], equation: '(4-2)',
+  let expected = { captions: ['Figure 17', 'Table A.3', 'Figure B.2'], equation: '(4-2)',
     references: 'See Figure\u00a017, Table\u00a0A.3, (4-2) and Figure\u00a0B.2.' };
   const assertFixedState = async () => {
     const state = await fixedState();
@@ -103,6 +103,104 @@ async (page, { openPath, openDocument }) => {
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await openPath(page, fixedPath);
   await assertFixedState();
+  const attrs = label => engine.evaluate((element, label) => element.editor.getJSON().content.find(node => node.attrs?.label === label)?.attrs, label);
+  const edit = async (label, kind) => {
+    await engine.evaluate((element, label) => {
+      const editor = element.editor;
+      editor.state.doc.forEach((node, pos) => { if (node.attrs.label === label) editor.commands.setNodeSelection(pos); });
+      editor.view.focus();
+    }, label);
+    await page.keyboard.press('Enter');
+    await page.getByTestId(`${kind}-enumerator`).waitFor();
+  };
+  const applyNumber = async (label, kind, value) => {
+    await edit(label, kind);
+    await page.getByTestId(`${kind}-enumerator`).fill(value);
+    await page.getByTestId(`${kind}-apply`).click();
+    await page.getByTestId(`${kind}-editor`).waitFor({state:'detached'});
+    expect((await attrs(label)).enumerator).toBe(value || null);
+  };
+  const save = async () => {
+    await page.getByTestId('save').click();
+    await page.locator('[data-testid="status"][data-operation="saved"]').waitFor();
+  };
+  // Number-only input is a property draft: Cancel preserves applied state; Apply is undoable.
+  for (const [label, kind, previous, value] of [
+    ['fixed-image','figure','17','18'], ['fixed-table','table','A.3','A.4'],
+    ['fixed-equation','equation','4-2','5-1'], ['fixed-diagram','mermaid','B.2','C.2'],
+  ]) {
+    await edit(label, kind);
+    expect(await page.getByTestId(`${kind}-enumerator`).inputValue()).toBe(previous);
+    await page.getByTestId(`${kind}-enumerator`).fill('discard');
+    await expect(page.getByTestId('draft-notice')).toBeVisible();
+    expect((await attrs(label)).enumerator).toBe(previous);
+    await page.getByTestId(`${kind}-cancel`).click();
+    await page.getByTestId(`${kind}-editor`).waitFor({state:'detached'});
+    expect((await attrs(label)).enumerator).toBe(previous);
+    await applyNumber(label, kind, value);
+    if (kind === 'figure') {
+      await engine.evaluate(element => element.editor.commands.undo());
+      expect((await attrs(label)).enumerator).toBe(previous);
+      await engine.evaluate(element => element.editor.commands.redo());
+      expect((await attrs(label)).enumerator).toBe(value);
+    }
+  }
+  expected = {captions:['Figure 18','Table A.4','Figure C.2'], equation:'(5-1)',
+    references:'See Figure\u00a018, Table\u00a0A.4, (5-1) and Figure\u00a0C.2.'};
+  await assertFixedState();
+  await save();
+  await reloadDocument(page);
+  await assertFixedState();
+  // The Core report supplies missing/duplicate warnings; neither disables Save.
+  await applyNumber('fixed-table','table','');
+  await edit('fixed-table','table');
+  expect(await page.getByTestId('numbering-block-warning').innerText()).toContain('Missing fixed number');
+  await page.getByTestId('table-cancel').click();
+  await applyNumber('fixed-diagram','mermaid','18');
+  await edit('fixed-diagram','mermaid');
+  expect(await page.getByTestId('numbering-block-warning').innerText()).toContain('18 is duplicated');
+  await page.getByTestId('mermaid-cancel').click();
+  expect(await active.getByTestId('numbering-warnings').innerText()).toContain('Saving is allowed');
+  await save();
+  await reloadDocument(page);
+  expect(await active.getByTestId('numbering-warnings').innerText()).toContain('Numbering warnings: 3.');
+  expect((await attrs('fixed-table')).enumerator).toBeNull();
+  expect((await attrs('fixed-diagram')).enumerator).toBe('18');
+  for (const [label, kind] of [['fixed-image','figure'],['fixed-diagram','mermaid'],['fixed-equation','equation']]) await applyNumber(label,kind,'');
+  expect(await active.getByTestId('numbering-warnings').count()).toBe(0);
+  await save();
+  await reloadDocument(page);
+  expect(await active.getByTestId('numbering-warnings').count()).toBe(0);
+  expect(await active.getByTestId('equation-number').innerText()).toBe('(1)');
+  // Empty fixed equations can Apply; the existing final-save error path must explain both remedies.
+  const emptyPath = [root,'tmp','reference-save-reload','empty-fixed.md'].join(separator);
+  await openPath(page,emptyPath);
+  await active.locator('[data-block="equation"]').hover();
+  await active.locator('[data-block="equation"]').getByRole('button',{name:'Edit',exact:true}).click();
+  await page.getByTestId('equation-editor').getByTestId('equation-enumerator').fill('E.1');
+  await page.getByTestId('equation-apply').click();
+  await page.getByTestId('equation-editor').waitFor({state:'detached'});
+  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await page.getByTestId('ui-language').selectOption('ko');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+  const readEmpty = async () => (await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(emptyPath)}`)).json()).source;
+  const emptyBefore = await readEmpty();
+  await page.getByTestId('save').click();
+  await page.locator('[data-testid="status"][data-operation="save-failed"]').waitFor();
+  expect(await page.getByTestId('error').innerText()).toContain('수식 내용을 입력하거나 고정 번호를 해제');
+  expect(await readEmpty()).toBe(emptyBefore);
+  await active.locator('[data-block="equation"]').hover();
+  await active.locator('[data-block="equation"]').getByRole('button',{name:'편집',exact:true}).click();
+  await page.getByTestId('equation-editor').getByTestId('equation-enumerator').fill('');
+  await page.getByTestId('equation-apply').click();
+  await page.getByTestId('equation-editor').waitFor({state:'detached'});
+  await save();
+  await page.getByRole('button',{name:'설정',exact:true}).click();
+  await page.getByTestId('ui-language').selectOption('en');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+  result.numberEntryDraftsAndWarnings = true;
   result.fixedNumbersSavedAndReloaded = true;
   result.fixedNumbersCutPastedSavedAndReloaded = true;
   return result;

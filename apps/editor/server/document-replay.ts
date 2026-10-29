@@ -286,6 +286,18 @@ export function saveEdits(
       document = editAt(target, () => updateTableCaption(document, edit.path, edit.content));
     });
   }
+  for (const edit of edits.enumerators ?? []) {
+    const target = { path: edit.path, part: 0 };
+    editAt(target, () => {
+      assertPath(edit.path, "fixed number");
+      const block = blockAt(editable, edit.path);
+      if (edit.path.length !== 1 || !(block?.block === "equation" || block?.block === "table" || block?.block === "figure") ||
+          edit.from !== (block.enumerator ?? "") || typeof edit.to !== "string") {
+        throw new Error("fixed number does not match its target");
+      }
+      document = updateEnumerator(document, edit.path, edit.to);
+    });
+  }
   const labels = edits.labels ?? [];
   for (const edit of labels) {
     assertPath(edit.path, "label");
@@ -350,6 +362,7 @@ export function saveEdits(
     ...(edits.tables ?? []).map(edit => edit.path),
     ...(edits.tableCaptions ?? []).map(edit => edit.path),
     ...labels.map(edit => edit.path),
+    ...(edits.enumerators ?? []).map(edit => edit.path),
     ...groups.flatMap(group => group.paths),
   ].map(path => path.join(",")));
   const deleted = new Set<string>();
