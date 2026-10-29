@@ -125,6 +125,19 @@ export const footnoteNumbers = firstReferenceNumbers;
  * definition, and the footnote references it holds in document order. */
 export type EndnoteBlock = { definition?: string; references: readonly string[] };
 
+/** Reconcile a completed user edit, never an intermediate replay step. A deleted definition
+ * removes all its references; a definition whose last reference disappeared is removed too.
+ * Moves are judged from the entire resulting document, including nested inline surfaces. */
+export function planEndnoteLifecycle(before: readonly EndnoteBlock[], after: readonly EndnoteBlock[]): {
+  removeDefinitions: string[]; removeReferences: string[];
+} {
+  const defined = new Set(after.flatMap(block => block.definition === undefined ? [] : [block.definition]));
+  const removeReferences = [...new Set(before.flatMap(block => block.definition !== undefined && !defined.has(block.definition) ? [block.definition] : []))];
+  const removed = new Set(removeReferences);
+  const referenced = new Set(after.flatMap(block => block.definition === undefined ? block.references.filter(label => !removed.has(label)) : []));
+  return { removeReferences, removeDefinitions: [...defined].filter(label => !referenced.has(label)) };
+}
+
 /**
  * Endnote order, the one placement policy of footnote definitions: body blocks first, as they
  * are, then the definitions in the order of the first reference to each. Native admission
@@ -148,8 +161,8 @@ export function endnoteOrder(blocks: readonly EndnoteBlock[]): number[] {
 
 /**
  * Labels of the definitions that some block references now and none would once the blocks
- * `removed` selects are gone. Canonical write refuses an unreferenced definition, so a
- * structural removal names them before it runs rather than leaving them for Save.
+ * `removed` selects are gone. Kept as a structural query; completed edits apply
+ * planEndnoteLifecycle to clean these definitions instead of refusing the edit.
  */
 export function orphanedEndnotes(blocks: readonly EndnoteBlock[], removed: (index: number) => boolean): string[] {
   const before = new Set(blocks.flatMap(block => block.references));

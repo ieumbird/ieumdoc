@@ -88,9 +88,6 @@ const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
   "admonition-authoring": [
     {status: 400, pathname: "/api/document", minimum: 1, description: "rejected unpreservable admonition edit"},
   ],
-  "footnotes": [
-    {status: 400, pathname: "/api/document", minimum: 1, description: "rejected save that would drop an unreferenced footnote"},
-  ],
   "folder-navigation": [
     {status: 400, pathname: "/api/document", minimum: 1, description: "folder New refuses to overwrite an existing document"},
     {status: 400, pathname: "/api/folder", minimum: 1, description: "a missing folder or file cannot be opened as a folder, and New folder rejects reserved or existing names"},

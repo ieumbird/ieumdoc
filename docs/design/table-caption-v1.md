@@ -59,6 +59,14 @@ same inline controls as Figure captions and prose. A table owns its caption: mov
 deleting the table includes its caption, and Undo/Redo restores them together. ArrowDown
 from the final grid row enters the caption; ArrowUp from its first line returns to the
 last cell. Enter leaves the table. Emptying a caption removes its persistent content.
+
+The grid-to-caption gap uses the same adjustable `--space-document-caption` as Figures
+(#721). Native caption padding owns that gap; the inner caption adds no second margin.
+Edit, Table actions, Delete and Append row stay together below the caption, including
+the empty input surface, with token-derived control clearance. They do not occupy the
+caption gap or cover its text/click targets. Horizontal scrolling and row/column handle
+placement retain the [Table interaction](table-interaction-v1.md) contract.
+
 Every empty caption surface shows its official `Table N.` and, while the selection is outside,
 the input hint. Filling or
 clearing the caption or Label never changes the table's kind or number, nor the numbers
@@ -66,7 +74,7 @@ of later tables. References to a retained Label therefore keep their number. Cle
 Label retains reference text but makes references to that removed target unresolved.
 The Editor uses Core numbering, without a separate prospective-number rule.
 
-Hover a table and choose Edit (the pencil below the grid, beside Table actions, which
+Hover a table and choose Edit (the pencil below the caption, beside Table actions, which
 also offers Edit label). The properties form contains Label and Number; Apply/Cancel and
 unsaved-draft protection apply to both fields. It preserves the live caption, including
 edits made while properties are open. The inline caret surface is present below every
@@ -208,6 +216,34 @@ whitespace checks pass. Prose/caption output remains byte-identical in its regre
 The existing Host file-save regression also replaces its former pipe refusal with
 an actual file write, native reopen and byte-identical second save, retaining all
 malformed-input refusals. Editor 316/316, Editor typecheck and production build pass.
+
+## Shared caption gap (#721)
+
+The former 44px came from the bottom tool reservation introduced in `86ad8f31`;
+`f443766c` moved it into native caption padding. Reducing that padding alone would
+put Edit/Table actions/Delete over the caption. The bottom tools now measure the
+native table including its caption, with their reserved space after it. This retains
+the existing below-table action bar beside Append row rather than covering cells or
+caption input. Row handles and horizontal-scroll geometry are unchanged.
+
+The existing `table-caption` browser scenario compares real Table and image Figure
+gaps at 1440/640px, both with the default token and an overridden shared value, and
+checks caption/tool separation and containment. `table-authoring` checks bottom-tool
+clearance alongside its existing explicit targets, selection, row/column operations,
+horizontal scrolling (now at 640px), history and Save/Reload. `caption-selection`
+retains #724 / PR #733's native triple-click and neighboring-content protection.
+
+Same-state manual captures use baseline `a5c1c702` and the #721 working tree, the same
+scratch `caption-placeholder/captions.md`, checkout-owned persistent Windows Chrome
+profile and Vite origin `http://127.0.0.1:5721`. Both use light English UI, loaded
+bundled fonts/images, DPR 1, 100% zoom, scroll top and a hovered table. The empty Table
+and Figure captions show their retained number/hint and the bottom controls together.
+Generated traces and logs stay under ignored `tmp/`.
+
+| Viewport | Before | After |
+| --- | --- | --- |
+| 1440×1000 | [PNG](assets/table-caption-gap-721/before-1440.png) | [PNG](assets/table-caption-gap-721/after-1440.png) |
+| 640×1000 | [PNG](assets/table-caption-gap-721/before-640.png) | [PNG](assets/table-caption-gap-721/after-640.png) |
 
 ## All-table numbering verification (#584)
 

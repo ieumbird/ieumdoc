@@ -396,7 +396,11 @@ function FootnoteDefinitionView({ node, editor, getPos, selected }: ReactNodeVie
       aria-multiline="true"
       data-source-path={String(node.attrs.sourcePath ?? "")}
       onMouseDown={(event: ReactMouseEvent) => {
-        if (editing || event.button !== 0 || (event.target as HTMLElement).closest("button, [data-testid=footnote-number], [data-testid=cross-reference], [data-citation], [data-testid=inline-math]")) return;
+        if (event.button !== 0 || (event.target as HTMLElement).closest("button, [data-testid=footnote-number], [data-testid=cross-reference], [data-citation], [data-testid=inline-math]")) return;
+        if (editing) {
+          if (event.detail === 3) handleTextblockMouseDown(event, { editor, node, getPos });
+          return;
+        }
         const pos = getPos();
         if (typeof pos !== "number") return;
         event.preventDefault();

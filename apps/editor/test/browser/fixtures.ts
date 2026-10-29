@@ -38,7 +38,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       ":::{figure} ./diagram.svg\n:name: fig-single\n\nSingle caption gamma\n:::\n\n" +
       ":::{table} Table caption delta\n:name: tbl-a\n\n| Header |\n| --- |\n| Cell text |\n:::\n\nAfter table.\n\n" +
       ":::{figure}\n:name: fig-mermaid\n\n```{mermaid}\ngraph LR\n  A --> B\n```\n\nMermaid caption epsilon\n:::\n\n" +
-      ":::{figure}\n:name: fig-pending\n\nPending caption zeta\n:::\n\nAfter pending.\n\n```text\nCode alpha\n```\n\nAfter code.\n") },
+      ":::{figure}\n:name: fig-pending\n\nPending caption zeta\n:::\n\nAfter pending.\n\n```text\nCode alpha\n```\n\nAfter code.[^note-a][^note-b]\n\n[^note-a]: First endnote alpha.\n\n[^note-b]: Second endnote beta.\n") },
     document("diagram.svg"),
   ], scenarios: ["caption-selection"] },
   "caption-placeholder": { files: [

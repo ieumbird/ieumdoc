@@ -74,7 +74,9 @@ export function TableTools({ editor, node, getPos, grid, rowLayer, onEdit, hidde
         const rect = row.getBoundingClientRect();
         return { top: rect.top - origin.top, height: rect.height };
       });
-      const next = { columns, rows, right: bounds.right - origin.left, bottom: (table.rows[table.rows.length - 1]?.getBoundingClientRect().bottom ?? bounds.bottom) - origin.top };
+      // Native table bounds include its caption. Keep bottom actions after the entire
+      // caption, including wrapped text and the editable empty surface.
+      const next = { columns, rows, right: bounds.right - origin.left, bottom: bounds.bottom - origin.top };
       setGeometry(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
     };
     const observer = new ResizeObserver(measure);
@@ -124,11 +126,11 @@ export function TableTools({ editor, node, getPos, grid, rowLayer, onEdit, hidde
         title={i18n.t("Row {{row}} actions{{header}}", { row: i + 1, header: i === 0 ? i18n.t(" (header)") : "" })} aria-pressed={row === i} aria-haspopup="menu"
         aria-expanded={menu?.kind === "row" && target.row === i}
         style={{ top: `calc(${cell.top + cell.height / 2}px - var(--size-control-compact) / 2)` }} onClick={event => open(event.currentTarget, "row", { row: i, column: current?.column ?? 0 })}><Minus size={16} className="rotate-90" aria-hidden="true" /></Button>)}
-      <Button variant="table-handle" size="sm" type="button" className="table-extend" aria-label={i18n.t("Append row")} style={{ left: 0, top: geometry.bottom + 8 }}
+      <Button variant="table-handle" size="sm" type="button" className="table-extend" aria-label={i18n.t("Append row")} style={{ left: 0, top: `calc(${geometry.bottom}px + var(--space-2))` }}
         onClick={() => run("table-row", { row: tableRowCount(node) - 1, column: current?.column ?? 0 })}><Plus size={16} /></Button>
     </div>, rowLayer.current)}
-    <div className="table-action-bar" style={{ top: geometry.bottom + 8, left: 0, width: geometry.right }}>
-      {/* Caption and label: with the other table-level actions, below the table rather than above it. */}
+    <div className="table-action-bar" style={{ top: `calc(${geometry.bottom}px + var(--space-2))`, left: 0, width: geometry.right }}>
+      {/* Keep table-level actions beside Append row, below both grid and caption. */}
       <Button variant="table-handle" size="sm" type="button" aria-label={i18n.t("Edit table")} title={i18n.t("Edit label")} onClick={onEdit}><Pencil size={16} /></Button>
       <Button variant="table-handle" size="sm" type="button" aria-label={i18n.t("Table actions")} aria-haspopup="menu" aria-expanded={menu?.kind === "table"}
         onClick={event => open(event.currentTarget, "table", current ?? { row: 0, column: 0 })}><MoreHorizontal size={16} /></Button>

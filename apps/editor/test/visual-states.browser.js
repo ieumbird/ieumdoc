@@ -357,13 +357,14 @@ async (page, { withBlockHover, reloadDocument, recoveryRecords, expect }) => {
   await page.evaluate(() => { document.documentElement.dataset.accent = 'blue'; });
   check(contrasts.every(c => c.ratio >= c.min), `Contrast failure: ${JSON.stringify(contrasts.filter(c => c.ratio < c.min))}`);
   // The approved non-color cue may change glyph widths. It must not jump these rows vertically,
-  // remove Explorer ellipsis, exceed Outline's two-line clamp or overflow the real menu at either width.
+  // remove Explorer ellipsis, wrap Outline text or overflow the real menu at either width.
   const weightGeometry = [];
   const rows = async (selector, kind) => {
     const measured = await page.locator(selector).evaluateAll((nodes, kind) => {
       const snapshot = () => nodes.map(n => { const c=getComputedStyle(n),r=n.getBoundingClientRect();
         return {y:r.y,height:r.height,overflow:n.scrollWidth>n.clientWidth,lineHeight:parseFloat(c.lineHeight),
-          clamp:getComputedStyle(n.querySelector('.document-outline-copy')??n).webkitLineClamp,ellipsis:n.querySelector('.sidebar-tree-name') ? getComputedStyle(n.querySelector('.sidebar-tree-name')).textOverflow : null}; });
+          singleLine:n.querySelector('.document-outline-copy')?.getBoundingClientRect().height===parseFloat(c.lineHeight),
+          ellipsis:getComputedStyle(n.querySelector('.document-outline-copy,.sidebar-tree-name')??n).textOverflow}; });
       const styles=nodes.map(n=>n.style.fontWeight);
       try {
         nodes.forEach(n=>n.style.fontWeight='400'); const normal=snapshot();
@@ -371,7 +372,7 @@ async (page, { withBlockHover, reloadDocument, recoveryRecords, expect }) => {
       } finally { nodes.forEach((n,i)=>n.style.fontWeight=styles[i]); }
     }, kind);
     check(measured.normal.length > 0 && measured.current.every((r,i)=>!r.overflow && r.height===measured.normal[i].height && r.y===measured.normal[i].y &&
-      (kind!=='outline'||r.clamp==='2'&&r.height<=2*r.lineHeight+8) && (kind!=='files'||r.ellipsis==='ellipsis')),
+      (kind!=='outline'||r.singleLine&&r.ellipsis==='ellipsis') && (kind!=='files'||r.ellipsis==='ellipsis')),
       `Semibold must retain ${kind} row height/bounds ${JSON.stringify(measured)}`);
     return measured;
   };

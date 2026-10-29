@@ -43,3 +43,5 @@ Signal **flow** through the system.
 
 A very long figure caption with enough words to wrap across more than two lines in the document navigation panel without widening the panel.
 :::
+
+### A long section heading that remains fully accessible while the navigation panel limits its visible text
