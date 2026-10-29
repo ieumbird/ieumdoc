@@ -8,7 +8,7 @@ import { sectionMarker, sectionRange, titleHeading, type SectionMarker } from "@
 import { isNewBlockPath } from "./tiptap-document.ts";
 import { referenceNumberText, NUMBERED_KINDS, type ReferenceTemplates } from "@ieumdoc/core/numbering";
 import { addSectionLabel, hasSectionLabel } from "./cross-reference.tsx";
-import { endnoteLabel, orphanedEndnoteNumbers } from "./endnotes.ts";
+import { endnoteLabel } from "./endnotes.ts";
 import { updateLabelProperties } from "./label-rename.ts";
 import { editorTitleIndex } from "./document-title.ts";
 import { blockMoveTarget, blockMoveBlockedHint, reorderBlock } from "./block-reorder.ts";
@@ -292,7 +292,6 @@ export const BLOCK_COMMANDS: BlockCommand[] = [
     get label() { return i18n.t("Delete section"); },
     applies: isSectionHeading,
     enabled: (state, index) => isSectionHeading(state, index) && !wholeDocumentSection(state, index),
-    rejection: sectionDeleteRejection,
     run: deleteSection,
   },
   ...([-1, 1] as const).map((by): BlockCommand => ({
@@ -897,15 +896,6 @@ const wholeDocumentSection = (state: EditorState, index: number) => {
 /** Whether the block at `at` is content of the section range: endnotes are in no section. */
 const sectionContent = (state: EditorState, { start, end }: { start: number; end: number }) =>
   (at: number) => at >= start && at < end && endnoteLabel(state.doc.child(at)) === undefined;
-
-/** Why the section at `index` cannot be deleted: it holds the last reference to an endnote,
- * which Save would refuse to keep. The reader deletes that endnote first, explicitly. */
-function sectionDeleteRejection(state: EditorState, index: number): string | undefined {
-  if (!isSectionHeading(state, index)) return undefined;
-  const orphaned = orphanedEndnoteNumbers(state.doc, sectionContent(state, sectionRange(sectionMarkers(state.doc), index)));
-  return orphaned.length === 0 ? undefined
-    : i18n.t("This section holds the last reference to endnote {{labels}}. Delete the endnote first, or move its reference out of the section. Your document is unchanged.", { labels: orphaned.join(", ") });
-}
 
 /** Remove the section at `index`: its label targets, content and deeper sections. Endnotes stay. */
 export function deleteSection(state: EditorState, index: number): Transaction {

@@ -36,6 +36,9 @@ import {
   parse,
   removeBlock,
   removeSection,
+  reconcileEndnotes,
+  placeEndnotes,
+  removeFootnote,
   sectionMarker,
   sectionRange,
   blockTargets,
@@ -190,14 +193,15 @@ const COMMANDS: CommandSpec[] = [
       "Top-level insertions accept at: \"end\", resolved by Core before endnotes on each step's snapshot.",
       "Table row/column positions, removal positions and move destinations remain numeric.",
       "insert-equation accepts label; insert-table accepts caption or caption-content and label, as in single edits.",
-      "Paths and indexes use the preceding step's canonical, reparsed snapshot; no automatic tracking.",
+      "Paths and indexes use the preceding step's canonical placement snapshot; no automatic tracking.",
       BODY_INDEX_NOTE,
-      "Each step applies Core, validates and canonically serializes, then parses again for the next step.",
+      "Each step applies Core, validates ordinary write checks and places endnotes for the next step.",
+      "Footnote cleanup waits for the completed batch, so temporarily moving its last reference retains its definition.",
       "--if-revision checks the original once, before Core operations (64 lowercase hexadecimal characters).",
       "Without --dry-run, only the final result is committed, against the original revision. Any failure exits 1 without writing.",
       "Step errors: operation <1-based index> (<command>): <original error>; nothing was written.",
-      "Only step input/options, Core, validation, serialization and reparsing errors have that prefix.",
-      "Batch-wide errors (original read/parse, revision and commit) keep single-command messages without a prefix.",
+      "Only step input/options, Core, validation and intermediate placement errors have that prefix.",
+      "Batch-wide errors (original read/parse, revision, final validation and commit) keep single-command messages without a prefix.",
       "Without --dry-run, JSON success: {\"ok\":true,\"command\":\"apply-batch\",\"applied\":N,\"revision\":\"<result revision>\"}.",
       "Without --dry-run, text success prints nothing. Run inspect again for paths before a later request.",
       ...DRY_RUN_NOTE,
@@ -338,7 +342,7 @@ const COMMANDS: CommandSpec[] = [
       "Use update-node-text instead when you know the path; it also substitutes within individual text nodes.",
       "For formatted content, replace the whole block with structured --content: update-heading or update-quote.",
       "For a paragraph in apply-batch, insert-block --content for the new paragraph first, then remove-block on the old one.",
-      "Each intermediate step must be writable (e.g. keep footnote references); check first with --dry-run."],
+      "Intermediate steps keep ordinary write checks; footnote cleanup waits for batch completion. Check first with --dry-run."],
   },
   {
     name: "insert-block",
@@ -433,6 +437,13 @@ const COMMANDS: CommandSpec[] = [
       "Offset may be 0 or the content length.",
       ...PATH_NOTE,
     ],
+  },
+  {
+    name: "remove-footnote",
+    group: "Edit — labels, footnotes and numbering",
+    summary: "Remove a footnote definition and all its references",
+    usage: "ieumdoc remove-footnote <file> --path <index>",
+    details: ["Remove one definition and every reference to its label through Core.", ...PATH_NOTE],
   },
   {
     name: "update-footnote",
@@ -978,7 +989,7 @@ function checkDocument(document: Document, file: string, format: OutputFormat, p
 type Change = (document: Document) => Document;
 
 /** Share flag interpretation and Core operations between single edits and batch steps. */
-function changeFor(command: string, flags: string[]): Change {
+function changeFor(command: string, flags: string[], deferEndnotes = false): Change {
   switch (command) {
     case "insert-hard-break":
     case "split-paragraph": {
@@ -1039,6 +1050,7 @@ function changeFor(command: string, flags: string[]): Change {
     case "update-footnote": {
       return (document) => updateFootnoteDefinition(document, pathFlag(flags), textOrContent(flags));
     }
+    case "remove-footnote": return document => removeFootnote(document, pathFlag(flags));
     case "insert-divider": {
       return (document) => insertDivider(document, insertionIndex(document, flags));
     }
@@ -1189,7 +1201,7 @@ function changeFor(command: string, flags: string[]): Change {
       return (document) => moveSection(document, intFlag(flags, "--from"), intFlag(flags, "--to"));
     }
     case "remove-section": {
-      return (document) => removeSection(document, intFlag(flags, "--at"));
+      return (document) => removeSection(document, intFlag(flags, "--at"), { deferEndnotes });
     }
     case "move-block": {
       return (document) => moveBlock(document, intFlag(flags, "--from"), intFlag(flags, "--to"));
@@ -1227,7 +1239,7 @@ function changeFor(command: string, flags: string[]): Change {
 }
 
 function serializeChange(document: Document, change: Change): string {
-  const changed = change(document);
+  const changed = reconcileEndnotes(document, change(document));
   validateStructure(changed);
   return serialize(changed);
 }
@@ -1282,7 +1294,7 @@ function batchChange(operation: unknown): Change {
     }
     tokens.push(name, json && typeof value !== "string" ? JSON.stringify(value) : String(value));
   }
-  return changeFor(command, parseCommandArgs(command, ["batch-document", ...tokens]).flags);
+  return changeFor(command, parseCommandArgs(command, ["batch-document", ...tokens]).flags, true);
 }
 
 function applyBatch(file: string, operationsFile: string, ifRevision: string | undefined) {
@@ -1298,21 +1310,22 @@ function applyBatch(file: string, operationsFile: string, ifRevision: string | u
   if (ifRevision !== undefined && ifRevision !== revision) {
     throw new Error("revision mismatch; run inspect again; nothing was written");
   }
-  let document = parse(source);
+  const original = parse(source);
+  let document = original;
   const references = unresolvedReferences(document);
-  let result = source;
   for (let index = 0; index < operations.length; index += 1) {
     const operation = operations[index];
     try {
-      result = serializeChange(document, batchChange(operation));
-      // Single CLI calls reparse canonical output: endnotes and locators can move here.
-      document = parse(result);
+      document = batchChange(operation)(document);
+      validateStructure(document);
+      document = placeEndnotes(document);
     } catch (error) {
       const command = operation !== null && typeof operation === "object" && "command" in operation
         && typeof operation.command === "string" ? operation.command : "<unknown>";
       throw new Error(`operation ${index + 1} (${command}): ${error instanceof Error ? error.message : String(error)}; nothing was written`, { cause: error });
     }
   }
+  const result = serializeChange(original, () => document);
   return { markdown: result, revision, applied: operations.length, references };
 }
 
@@ -1388,6 +1401,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "update-quote": ["--path", "--text", "--content"],
   "insert-footnote": ["--path", "--offset", "--text", "--content"],
   "update-footnote": ["--path", "--text", "--content"],
+  "remove-footnote": ["--path"],
   "update-bibliography": ["--paths"],
   "insert-citation": ["--path", "--offset", "--role", "--keys"],
   "update-citation": ["--path", "--offset", "--role", "--keys"],

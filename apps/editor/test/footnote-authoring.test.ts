@@ -4,7 +4,7 @@ import test from "node:test";
 import { getSchema } from "@tiptap/core";
 import { history, undo, redo } from "@tiptap/pm/history";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { AllSelection, EditorState, TextSelection, type Transaction } from "@tiptap/pm/state";
+import { AllSelection, EditorState, NodeSelection, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { parse, serialize } from "@ieumdoc/core";
 import { BLOCK_COMMANDS, deleteBlock } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
@@ -15,6 +15,7 @@ import { saveEdits } from "../server/document-replay.ts";
 import { SaveContentError } from "../shared/save-error.ts";
 import { SaveDisplayError, saveErrorBadge } from "../src/save-error.ts";
 import { i18n } from "../src/i18n.ts";
+import { clipboardFootnotes, pasteFootnotes } from "../src/document-interaction.ts";
 
 const schema = getSchema(editorExtensions());
 
@@ -45,6 +46,48 @@ const run = (state: EditorState, command: (state: EditorState, dispatch: (tr: Tr
   assert.ok(command(state, tr => { next = state.apply(tr); }));
   return next;
 };
+
+test("reference cut/paste preserves definitions, fresh locators and one-event Undo at each boundary", () => {
+  const before = engine(source);
+  let pos = 0;
+  before.doc.descendants((node, at) => { if (node.type.name === "footnoteReference" && node.attrs.label === "a") pos = at; });
+  const selected = before.apply(before.tr.setSelection(NodeSelection.create(before.doc, pos)));
+  const slice = selected.selection.content();
+  const notes = clipboardFootnotes(selected.doc, slice);
+  const cut = selected.apply(selected.tr.deleteSelection());
+  assert.ok(!labels(cut.doc).includes("a"));
+  assert.ok(run(cut, undo).doc.eq(before.doc));
+  const destination = cut.apply(cut.tr.setSelection(TextSelection.create(cut.doc, pos)));
+  const pasted = destination.apply(pasteFootnotes(destination, slice, notes));
+  assert.ok(labels(pasted.doc).includes("a"));
+  const restored = pasted.doc.content.content.find(node => endnoteLabel(node) === "a")!;
+  assert.equal(restored.textContent, "Short note.");
+  assert.notEqual(restored.attrs.sourcePath, before.doc.child(2).attrs.sourcePath);
+  assert.ok(run(pasted, undo).doc.eq(cut.doc), "one Undo removes pasted reference and restored definition");
+  const saved = saveEdits(source, collectSupportedEdits(loadEditableDocument(source), editorDocumentJSON(pasted))).markdown;
+  assert.equal(serialize(parse(saved)), saved);
+  assert.throws(() => pasteFootnotes(destination, slice, []), /definition is missing/);
+  const conflict = [{ label: "a", content: [{ kind: "text" as const, text: "Incoming." }] }];
+  const target = selected.apply(pasteFootnotes(selected, slice, conflict));
+  assert.equal(target.doc.nodeAt(pos)!.attrs.label, "1");
+  assert.equal(target.doc.content.content.find(node => endnoteLabel(node) === "a")?.textContent, undefined, "replacing the last original reference removes its old definition");
+  assert.equal(target.doc.content.content.find(node => endnoteLabel(node) === "1")?.textContent, "Incoming.");
+});
+
+test("deleting a definition removes repeated references together and Host replay retains moved definitions", () => {
+  const markdown = nativeSource("First[^a].\n\nSecond[^a].\n\n[^a]: Note.\n");
+  const state = engine(markdown);
+  const deleted = state.apply(deleteBlock(state, 2));
+  assert.equal(deleted.doc.textContent, "First.Second.");
+  assert.ok(run(deleted, undo).doc.eq(state.doc));
+  const editable = loadEditableDocument(markdown);
+  const final = toTiptapDocument(editable);
+  final.content![0].content = [{ type: "text", text: "First." }];
+  final.content![1].content!.push({ type: "footnoteReference", attrs: { label: "a" } });
+  const saved = saveEdits(markdown, collectSupportedEdits(editable, final)).markdown;
+  assert.ok(saved.includes("[^a]: Note."));
+  assert.equal(serialize(parse(saved)), saved);
+});
 
 test("read-only definitions reject destination changes, including mark steps, while editing and block deletion remain undoable", () => {
   const projection = toTiptapDocument(loadEditableDocument(source));
@@ -177,17 +220,16 @@ test("placement waits while a draft is open and resumes when it closes", () => {
   assert.deepEqual(labels(waiting.apply(waiting.tr.setMeta("endnoteDraftClosed", true)).doc), ["heading", "paragraph", "paragraph", "a", "b"]);
 });
 
-test("sections hold no endnotes: deleting keeps them, refuses an orphan, and moving leaves them after the body", () => {
+test("section deletion cleans unused endnotes and moving leaves definitions after the body", () => {
   const placed = nativeSource("# Doc\n\n## A\n\nFirst[^b] and[^a].\n\n## B\n\nAnother[^b].\n\n[^b]: First note.\n\n[^a]: Second note.\n");
   const command = (id: string) => BLOCK_COMMANDS.find(command => command.id === id)!;
   const state = engine(placed);
   // 0 # Doc · 1 ## A · 2 First · 3 ## B · 4 Another · 5 [^b] · 6 [^a]
-  assert.equal(command("section-delete").rejection!(state, 3), undefined);
   const deleted = state.apply(command("section-delete").run(state, 3));
   assert.deepEqual(labels(deleted.doc), ["heading", "heading", "paragraph", "b", "a"]);
-  // Section A holds the only reference to [^a], endnote 2; deleting the last section kept the endnotes.
-  assert.match(command("section-delete").rejection!(state, 1) ?? "", /last reference to endnote 2\b/);
-  assert.match(command("section-delete").rejection!(deleted, 1) ?? "", /endnote 1, 2\b/);
+  const withoutA = state.apply(command("section-delete").run(state, 1));
+  assert.deepEqual(labels(withoutA.doc), ["heading", "heading", "paragraph", "b"]);
+  assert.ok(run(withoutA, undo).doc.eq(state.doc));
   const moved = state.apply(command("section-down").run(state, 1));
   assert.deepEqual(labels(moved.doc), ["heading", "heading", "paragraph", "heading", "paragraph", "b", "a"]);
   assert.equal(moved.doc.child(1).textContent, "B");
@@ -257,13 +299,9 @@ test("an empty definition and a changed label are refused before Save", async ()
       filled.content![noteIndex].content = [{type:"text", text:"Restored note."}];
       assert.ok(saveEdits(source, collectSupportedEdits(editable, filled)).markdown.includes("Restored note."));
       const state = EditorState.create({schema, doc:schema.nodeFromJSON(submitted),
-        plugins:[structureGuardPlugin(baseline, () => assert.fail("supported removal refused"))]});
+        plugins:[structureGuardPlugin(baseline, () => assert.fail("supported removal refused")), endnotesPlugin()]});
       const removed = editorDocumentJSON(state.apply(deleteBlock(state, noteIndex)));
-      assert.throws(() => saveEdits(source, collectSupportedEdits(editable, removed)), error => {
-        assert.ok(error instanceof SaveContentError);
-        assert.equal(error.code, "invalid-footnote");
-        return true;
-      });
+      assert.ok(!saveEdits(source, collectSupportedEdits(editable, removed)).markdown.includes(`[^${label}]`));
       for (const block of removed.content!) {
         block.content = block.content?.filter(node => node.type !== "footnoteReference" || node.attrs?.label !== label);
       }

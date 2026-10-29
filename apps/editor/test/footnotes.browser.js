@@ -326,7 +326,7 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   assert(JSON.stringify(await texts(chips)) === '["1","2","3"]', 'Reloaded chips after insertion');
   result.insertedSaveReload = true;
 
-  // Removing the only reference to [^b] would make MyST drop its definition.
+  // Last-reference deletion and definition cleanup share one Undo event and Save/Reload.
   await editor.locator('p.paragraph', {hasText:'First claim'}).click({position:{x:4, y:8}});
   await page.keyboard.press('Home');
   for (let step = 0; step < 'First claim'.length; step++) await page.keyboard.press('ArrowRight');
@@ -336,24 +336,58 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.node?.type.name === 'footnoteReference');
   await page.keyboard.press('Backspace');
   assert(JSON.stringify(await chips.evaluateAll(nodes => nodes.map(node => node.dataset.label))) === '["a","1"]', 'Chip not removed');
-  await save.click();
-  await page.getByText('Save failed', {exact:true}).filter({visible:true}).waitFor();
-  await page.getByTestId('error').getByText('Technical details', {exact:true}).click();
-  assert(/\[\^b\] has no reference/.test(await page.getByTestId('error').innerText()), 'Refusal reason missing: ' + await page.getByTestId('error').innerText());
-  assert(await read() === inserted, 'Refused save wrote the file');
-  result.unreferencedDefinitionRefused = true;
-
-  // The rejected edit is real unsaved work, including its unreferenced definition. Finish it
-  // explicitly before the next fixture; a page reload alone legitimately offers its recovery.
-  const rejectedDocument = await editor.evaluate(element => element.editor.getJSON());
-  await expect.poll(async () => (await recoveryRecords(page)).filter(record => record.path === file)
-    .map(record => record.snapshot.editor.editorDocument.content)).toContainEqual(rejectedDocument.content);
+  assert(await editor.locator('[data-testid="footnote-definition"][data-label="b"]').count() === 0, 'Last reference left its definition');
+  await page.keyboard.press('Control+z');
+  assert(await editor.locator('[data-testid="footnote-definition"][data-label="b"]').count() === 1 && await editor.locator('[data-testid="footnote-reference"][data-label="b"]').count() === 1, 'One Undo must restore reference and definition');
+  await page.keyboard.press('Control+Shift+z');
+  await save.click(); await saved();
+  const withoutB = await read();
+  assert(!withoutB.includes('[^b]'), 'Save retained deleted reference or definition');
   await reloadDocument(page);
-  await page.getByRole('button', {name:'Discard and reload', exact:true}).click();
   await ready();
-  assert(JSON.stringify(await chips.evaluateAll(nodes => nodes.map(node => node.dataset.label))) === '["b","a","1"]', 'Discard did not restore saved references');
-  assert(await read() === inserted, 'Discard and reload wrote the file');
-  await expect.poll(async () => (await recoveryRecords(page)).some(record => record.path === file)).toBe(false);
+  assert(await editor.locator('[data-testid="footnote-definition"][data-label="b"]').count() === 0, 'Reload restored the deleted definition');
+  result.lastReferenceLifecycle = true;
+
+  // Native clipboard cut preserves the definition before deletion; pasting restores it atomically.
+  const selectReference = label => editor.evaluate((element, label) => {
+    const { state, view } = element.editor;
+    let pos;
+    state.doc.descendants((node, at) => { if (node.type.name === 'footnoteReference' && node.attrs.label === label) pos ??= at; });
+    element.editor.commands.setNodeSelection(pos);
+    view.focus();
+  }, label);
+  await selectReference('a');
+  assert(await editor.evaluate(element => {
+    const before = element.editor.state.doc;
+    const data = new DataTransfer();
+    data.setData = () => { throw new Error('clipboard unavailable'); };
+    element.dispatchEvent(new ClipboardEvent('cut', {clipboardData:data, bubbles:true, cancelable:true}));
+    return element.editor.state.doc.eq(before);
+  }), 'Failed clipboard capture must cancel the entire cut');
+  await page.keyboard.press('Control+x');
+  assert(await editor.locator('[data-testid="footnote-definition"][data-label="a"]').count() === 0, 'Cut did not clean the last reference definition');
+  const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+  assert(clipboardText.includes('[^a]') && clipboardText.includes('[^a]:'), 'Plain clipboard lost reference or definition Markdown');
+  await page.keyboard.press('Control+v');
+  assert(await editor.locator('[data-testid="footnote-definition"][data-label="a"]').count() === 1, 'Paste did not restore the cut definition');
+  await page.keyboard.press('Control+z');
+  assert(await editor.locator('[data-testid="footnote-definition"][data-label="a"]').count() === 0, 'One Undo must remove pasted reference and definition');
+  await page.keyboard.press('Control+z');
+  assert(await editor.locator('[data-testid="footnote-definition"][data-label="a"]').count() === 1, 'One Undo must restore the cut reference and definition');
+  await selectReference('a');
+  await page.keyboard.press('Control+x');
+  await page.keyboard.press('Control+v');
+  await save.click(); await saved();
+  assert(await read() === withoutB, 'Cut/paste within the document changed definition content');
+  await reloadDocument(page); await ready();
+  assert(await editor.locator('[data-testid="footnote-definition"][data-label="a"]').count() === 1, 'Reload lost the clipboard-restored definition');
+  await editor.locator('[data-testid="footnote-definition"][data-label="a"] p').click();
+  await page.keyboard.press('Backspace');
+  assert(await editor.locator('[data-testid="footnote-reference"][data-label="a"]').count() === 0 && await editor.locator('[data-testid="footnote-definition"][data-label="a"]').count() === 0, 'Definition deletion must remove its body references');
+  await page.keyboard.press('Control+z');
+  assert(await editor.locator('[data-testid="footnote-reference"][data-label="a"]').count() === 1 && await editor.locator('[data-testid="footnote-definition"][data-label="a"]').count() === 1, 'One Undo must restore deleted definition and references');
+  await save.click(); await saved();
+  result.clipboardLifecycle = true;
 
   // One trailing region, from definitions written in three places.
   await page.reload();
@@ -586,8 +620,10 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   };
   assert(await order() === 'heading heading paragraph heading paragraph b a', `Sections order: ${await order()}`);
   await headingAction('Section A', 'Delete section');
-  assert(/last reference to endnote 2\b/.test(await page.getByTestId('notice').innerText()), 'Orphaning section delete not explained');
-  assert(await order() === 'heading heading paragraph heading paragraph b a', 'Refused section delete changed the document');
+  assert(await order() === 'heading heading paragraph b', 'Section deletion left its unreferenced definition');
+  await editor.evaluate(element => element.editor.commands.focus());
+  await page.keyboard.press('Control+z');
+  assert(await order() === 'heading heading paragraph heading paragraph b a', 'One Undo must restore section and definition');
   await headingAction('Section A', 'Move section down');
   assert(await order() === 'heading heading paragraph heading paragraph b a' &&
     await editor.evaluate(element => element.editor.state.doc.child(1).textContent === 'Section B'), 'Section move took endnotes');

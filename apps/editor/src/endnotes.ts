@@ -4,7 +4,7 @@ import { closeHistory, isHistoryTransaction } from "@tiptap/pm/history";
 import type { Fragment, Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey, Selection, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { useEditorState } from "@tiptap/react";
-import { endnoteOrder, footnoteNumbers, nextFootnoteLabel, orphanedEndnotes, type EndnoteBlock } from "@ieumdoc/core/numbering";
+import { endnoteOrder, footnoteNumbers, nextFootnoteLabel, planEndnoteLifecycle, type EndnoteBlock } from "@ieumdoc/core/numbering";
 import { LABEL_PROPERTIES_META } from "./label-rename.ts";
 
 /**
@@ -85,17 +85,10 @@ function endnotePlacement(doc: ProseMirrorNode): number[] | undefined {
   return order.every((index, at) => index === at) ? undefined : order;
 }
 
-/**
- * Labels of the endnotes that removing the top-level blocks `removed` selects would leave with no
- * reference, as numbers the reader sees. Save refuses such a document.
- */
-export function orphanedEndnoteNumbers(doc: ProseMirrorNode, removed: (index: number) => boolean): string[] {
-  return orphanedEndnotes(endnoteBlocks(doc), removed).map(label => String(endnoteNumber(doc, label) ?? `[^${label}]`));
-}
-
 type ReturnPoint = { label: string; pos: number };
 const returnPointKey = new PluginKey<ReturnPoint | null>("endnoteReturn");
 const ORDER_META = "endnoteOrder";
+const LIFECYCLE_META = "endnoteLifecycle";
 
 /** Ephemeral editor interaction, never a document attribute or history event. */
 export const endnoteEditingKey = new PluginKey<{ label: string; initial: Fragment } | null>("endnoteEditing");
@@ -161,7 +154,7 @@ export function endnoteEditingPlugin(): Plugin<{ label: string; initial: Fragmen
       },
     },
     filterTransaction(tr, state) {
-      if (!tr.docChanged || isHistoryTransaction(tr) || tr.getMeta(ORDER_META) || tr.getMeta("blockCommand") ||
+      if (!tr.docChanged || isHistoryTransaction(tr) || tr.getMeta(ORDER_META) || tr.getMeta(LIFECYCLE_META) || tr.getMeta("blockCommand") ||
           tr.getMeta(LABEL_PROPERTIES_META)) return true;
       // A whole-document selection alone says nothing about a drop or targeted
       // transaction. Composition can first normalize AllSelection to text positions
@@ -169,6 +162,13 @@ export function endnoteEditingPlugin(): Plugin<{ label: string; initial: Fragmen
       // the last block's closing boundary. Restrict that case to composition input.
       const { selection, doc } = state;
       const uiEvent = tr.getMeta("uiEvent");
+      if (selection instanceof NodeSelection && selection.node.type.name === "footnoteDefinition" && uiEvent !== "drop") {
+        let deletesSelected = false;
+        tr.steps[0]?.getMap().forEach((from, to, newFrom, newTo) => {
+          if (from === selection.from && to === selection.to && newFrom === newTo) deletesSelected = true;
+        });
+        if (deletesSelected) return true;
+      }
       const wholeSelection = selection.from === 0 && selection.to === doc.content.size;
       const wholeComposition = !selection.empty && selection.from === 1 && selection.to === doc.content.size - 1 &&
         tr.getMeta("composition") !== undefined && uiEvent !== "paste";
@@ -256,8 +256,24 @@ export function endnotesPlugin(canOrder: () => boolean = () => true): Plugin<Ret
           ? { ...point, pos: mapped.pos } : null;
       },
     },
-    appendTransaction(transactions, _old, state) {
-      if (!transactions.some(tr => tr.docChanged || tr.getMeta(ENDNOTE_DRAFT_CLOSED)) || !canOrder()) return null;
+    appendTransaction(transactions, old, state) {
+      if (!transactions.some(tr => tr.docChanged || tr.getMeta(ENDNOTE_DRAFT_CLOSED))) return null;
+      const plan = planEndnoteLifecycle(endnoteBlocks(old.doc), endnoteBlocks(state.doc));
+      const definitions = new Set(plan.removeDefinitions), references = new Set(plan.removeReferences);
+      const removed: { from: number; to: number }[] = [];
+      state.doc.descendants((node, pos) => {
+        if (node.type.name === "footnoteDefinition" && definitions.has(String(node.attrs.label)) ||
+            node.type.name === "footnoteReference" && references.has(String(node.attrs.label))) {
+          removed.push({ from: pos, to: pos + node.nodeSize });
+          return false;
+        }
+      });
+      if (removed.length) {
+        const tr = state.tr;
+        for (const range of removed.reverse()) tr.delete(range.from, range.to);
+        return tr.setMeta(LIFECYCLE_META, true);
+      }
+      if (!canOrder()) return null;
       const order = endnotePlacement(state.doc);
       if (!order) return null;
       // Replace only the span whose blocks move; blocks outside it keep their views.

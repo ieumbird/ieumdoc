@@ -30,7 +30,7 @@ test("endnotes are in no section: the last section ends with the body, and the b
   const inBody = moveBlock(parse("## A\n\nOne[^n].\n\n### B\n\nTwo[^n].\n\n[^n]: Note.\n"), 4, 2);
   assert.equal(serialize(removeSection(inBody, 3)), "## A\n\nOne[^n].\n\n[^n]: Note.\n");
   assert.equal(serialize(moveSection(inBody, 3, 0)), "### B\n\nTwo[^n].\n\n## A\n\nOne[^n].\n\n[^n]: Note.\n");
-  assert.throws(() => removeSection(removeSection(inBody, 3), 0), /footnote \[\^n\] with no reference/);
+  assert.equal(serialize(removeSection(removeSection(inBody, 3), 0)), "\n");
 });
 
 test("moveSection moves a heading with its targets, content and subsections", () => {
