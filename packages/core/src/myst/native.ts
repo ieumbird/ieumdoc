@@ -17,6 +17,7 @@ import { tableCellContent, tableOf, tableCaptionParagraph, isNativeTableSource }
 import type { MystDocument, MystNode } from "./tree.ts";
 import { NUMBERED_KINDS, referenceTemplatesError, type NumberedKind } from "../numbering.ts";
 import { referenceTemplateValue } from "./reference-templates.ts";
+import { getDocumentTitle } from "./title.ts";
 import { declaredBibliography } from "./citation.ts";
 
 export type NativeDocumentErrorCode = "native-marker" | "native-metadata" | "native-content";
@@ -61,9 +62,9 @@ function metadata(document: MystDocument): void {
   const marker = yaml.get("ieumdoc", true);
   if (!isScalar(marker) || marker.value !== 1) throw new NativeDocumentError("native-marker", "Unsupported native document marker; expected YAML number ieumdoc: 1", [0], 1);
   for (const pair of yaml.contents.items) {
-    if (!isScalar(pair.key) || !["ieumdoc", "numbering", "bibliography"].includes(String(pair.key.value))) throw new NativeDocumentError("native-metadata", "Native frontmatter supports only ieumdoc, numbering and bibliography", [0], 1);
+    if (!isScalar(pair.key) || !["ieumdoc", "title", "numbering", "bibliography"].includes(String(pair.key.value))) throw new NativeDocumentError("native-metadata", "Native frontmatter supports only ieumdoc, title, numbering and bibliography", [0], 1);
   }
-  try { declaredBibliography(document); }
+  try { getDocumentTitle(document); declaredBibliography(document); }
   catch (error) { throw new NativeDocumentError("native-metadata", (error as Error).message, [0], 1); }
   if (yaml.has("numbering")) {
     const numbering = yaml.get("numbering", true);

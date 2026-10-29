@@ -1,6 +1,7 @@
 # Heading numbering v1
 
 - Status: Implemented
+- Title/body contract update: 2026-10-29 (#722; H1–H6 body numbering, frontmatter-only unnumbered title, installed MyST transform boundary below).
 - Fixed numbering: 2026-10-29 (#720 Core/CLI, Native round-trip and Editor attribute preservation; editing controls and warning UI are a separate PR).
 - Document settings verification: 2026-10-27 (#580: inline settings, per-tab expansion, notation previews and existing document operations; [integration, checks and captures](editor-ux-shell-v1.md#document-settings-placement-554)).
 - Accent verification: 2026-10-27 (#559: generated heading/Outline numbers share the local accent; all presets checked by the token contrast and existing Outline browser tests).
@@ -11,12 +12,13 @@
 - Previous verification: 2026-10-14 (#232 native metadata contract).
 - Scope: Core-owned settings and Editor/CLI projection; [Native document support](document-support-v1.md).
 
-Core persists `numbering.headings: boolean` and `numbering.title: false` alongside the mandatory `ieumdoc: 1` marker. Omitted numbering means off. H1 is unnumbered (the leading one is [the document title](document-editing-v1.md#document-title-255), which stays first); H2–H6 use the default section counter policy. Heading text never contains generated numbers. Custom heading starts, prefixes and per-level settings are rejected at admission. Numbered reference templates follow the separate contract below.
-
-The Editor offers only H2–H6 for body heading insertion/conversion and stops
-Shift+Tab promotion at H2 (#472). This authoring choice leaves numbering, the
-title flow, existing body H1 content and Core/CLI's valid H1 support unchanged;
-see [document title and body authoring](document-editing-v1.md#document-title-255).
+Core persists `numbering.headings: boolean` and `numbering.title: false` alongside
+`ieumdoc: 1`. Omitted numbering remains off. The optional frontmatter `title` is
+unnumbered. All body headings H1–H6 use the Core section counter policy: H1 `1`,
+H2 `1.1`, through H6, advancing/resetting by document order. Heading text never
+contains generated numbers. Custom starts, prefixes and per-level settings are
+rejected at admission. Editor insert/conversion menus and Tab/Shift+Tab cover
+H1–H6. See [document title](document-editing-v1.md#document-title-255).
 
 `updateHeadingNumbering(document, enabled)` updates only heading settings in native frontmatter with the existing YAML library, preserving reference templates and other admitted metadata. `HeadingNumbering` and `headingNumbers` expose the editor-neutral display rule. Editor headings and Outline call the same rule; one ProseMirror document attribute participates in Undo/Redo. Save applies the Core operation without changing snapshot paths. Metadata is hidden from the body, never inserted as an editor block.
 
@@ -24,7 +26,31 @@ In the inline Document settings block above the title (#580), Number headings be
 
 CLI: `ieumdoc update-heading-numbering <file> --enabled true|false`. `inspect --format json` reports computed `headingNumber` values. Figure/equation numbering is independent.
 
-Verification covers Core default-policy equivalence to MyST, native metadata writes, CLI edits, Editor path retention, Outline agreement, Undo/Redo and Save → Reload.
+Verification covers Core logical counters and the observed difference from MyST output defaults, native metadata writes, CLI edits, Editor path retention, Outline agreement, Undo/Redo and Save → Reload.
+
+## MyST title and output boundary (#722)
+
+Installed versions: `myst-parser 1.7.4`, `myst-to-md 1.0.17`,
+`myst-transforms 1.3.51`, `myst-frontmatter 1.10.1`. Core parses and writes native
+frontmatter without calling MyST `getFrontmatter` or `headingDepthTransform`.
+Regression checks execute these installed APIs on disposable copies:
+
+- Parser/writer preserve frontmatter title and body H1/H2 levels, including when
+  title equals the first H1, and when title is absent. Core never infers a title.
+- `getFrontmatter` infers the first heading as title when title is absent/empty;
+  by default it removes a matching leading H1. `keepTitleNode: true` prevents
+  removal, but does not prevent inference. Its default title extraction is
+  therefore unsuitable for Native opening semantics.
+- `headingDepthTransform` does nothing without `firstDepth`. With `firstDepth: 2`
+  it maps a disposable H1/H2 output tree to H2/H3. That output decision never
+  rewrites stored body levels. No new export/build pipeline is introduced.
+- Raw MyST `enumerateTargetsTransform` with `headings: true, title: false`
+  excludes H1 and numbers H2 `1`. Frontmatter `title` alone does not fix that
+  output policy. Native Core intentionally counts logical H1 as `1`, H2 as
+  `1.1`; Editor, Outline, CLI inspect and section references use `headingNumbers`
+  rather than running MyST's output transform. General MyST build compatibility
+  is not claimed; a future output adapter must explicitly preserve title/body
+  roles and map its output counters/heading placement.
 
 ## Fixed numbers (#720)
 
@@ -85,7 +111,7 @@ active file and ready state, retaining immediate value assertions afterward.
 
 ## Generated number color (#511 / #503)
 
-When Number headings is on, H2–H6 generated numbers and non-current Outline numbers
+When Number headings is on, H1–H6 generated numbers and non-current Outline numbers
 use `--id-color-document-heading-number`, an alias of the user's chosen interaction
 accent (#559 supersedes #511's separate teal). Its values and derivatives live only
 in the Adjustable values of `styles/tokens.css`. All six validated presets exceed

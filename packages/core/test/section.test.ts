@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { sectionBoundaries, sectionMarker, sectionRange, titleHeading, type SectionMarker } from "../src/section.ts";
+import { sectionBoundaries, sectionMarker, sectionRange, type SectionMarker } from "../src/section.ts";
 import { getEditableDocument, insertParagraph, insertTarget, moveBlock, moveSection, parse, removeBlock, removeSection, serialize } from "./core-internal.ts";
 
 // 0 Preamble · 1 # One · 2 Intro · 3 (sec-a)= · 4 ## A · 5 Body A · 6 ### A.1 · 7 Deep · 8 ## B · 9 Body B · 10 # Two · 11 End
@@ -47,31 +47,13 @@ test("moveSection moves a heading with its targets, content and subsections", ()
   assert.equal(serialize(moveSection(document, 4, 8)), serialize(document));
 });
 
-test("a leading level-1 heading, after only its label targets, is the document title", () => {
-  assert.equal(titleHeading([1, null, 2]), 0);
-  assert.equal(titleHeading([null, "target", "target", 1, null], 1), 3);
-  for (const markers of [[null, 1], [2, 1], ["target", null, 1], [], ["endnote"]] as SectionMarker[][]) {
-    assert.equal(titleHeading(markers), undefined, JSON.stringify(markers));
-  }
-});
-
-test("the document title stays first: it does not move and nothing else goes before it", () => {
-  // 0 # Title · 1 Intro · 2 ## S · 3 Body
-  const document = parse("# Title\n\nIntro.\n\n## S\n\nBody.\n");
+test("leading H1 is an ordinary section that can move, accept preceding content and keep its label", () => {
+  const document = parse("(top)=\n# One\n\nIntro.\n\n# Two\n\nBody.\n");
   const before = structuredClone(document);
-  for (const refused of [() => moveBlock(document, 0, 2), () => moveBlock(document, 1, 0), () => moveSection(document, 0, 4),
-    () => moveSection(document, 2, 0), () => insertParagraph(document, 0, "Above.")]) {
-    assert.throws(refused, /document title stays first/);
-  }
+  assert.equal(serialize(moveSection(document, 1, 5)), "# Two\n\nBody.\n\n(top)=\n\n# One\n\nIntro.\n");
+  assert.equal(serialize(moveBlock(document, 1, 4)), "(top)=\n\nIntro.\n\n# Two\n\nBody.\n\n# One\n");
+  assert.equal(serialize(insertParagraph(document, 0, "Above.")), "Above.\n\n(top)=\n\n# One\n\nIntro.\n\n# Two\n\nBody.\n");
   assert.deepEqual(document, before);
-  // Its own label target may go before it; blocks move and insert after it; it can still be removed.
-  assert.equal(serialize(insertTarget(document, 0, "top")), "(top)=\n\n# Title\n\nIntro.\n\n## S\n\nBody.\n");
-  assert.throws(() => moveBlock(insertTarget(document, 0, "top"), 0, 2), /document title stays first/);
-  assert.equal(serialize(moveBlock(document, 3, 1)), "# Title\n\nBody.\n\nIntro.\n\n## S\n");
-  assert.equal(serialize(insertParagraph(removeBlock(document, 0), 0, "Lead.")), "Lead.\n\nIntro.\n\n## S\n\nBody.\n");
-  // Without a leading level-1 heading there is no title, so a heading may move to the top and become it.
-  const untitled = parse("Lead.\n\n# Later\n");
-  assert.equal(serialize(moveBlock(untitled, 1, 0)), "# Later\n\nLead.\n");
 });
 
 test("removeSection removes a heading with its targets, content and subsections", () => {

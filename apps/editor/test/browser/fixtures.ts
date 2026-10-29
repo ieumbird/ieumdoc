@@ -156,6 +156,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "block-move": { files: [...technical, { name: "draft-boundaries.md", create: () => nativeSource(
     "# Draft boundaries\n\n```{math}\nx = 1\n```\n\nBetween the equations.\n\n```{math}\ny = 2\n```\n") }], scenarios: ["block-move"] },
   "document-title": { files: [...technical,
+    { name: "chapter.md", create: () => '---\nieumdoc: 1\ntitle: IEEE 1547 · Chapter 7\nnumbering:\n  headings: true\n  title: false\n---\n\n(clause-7)=\n# Power quality\n\n## Detail\n\nSee {ref}`clause-7`.\n\n# Next clause\n\nBody.\n' },
     { name: "untitled.md", create: () => nativeSource("Lead paragraph.\n\n## Part\n\nBody.\n") },
     { name: "untitled-empty.md", create: () => nativeSource("Lead paragraph.\n") }], scenarios: ["document-title"] },
   "table-authoring": { files: [fixture("tables.md")], scenarios: ["table-authoring", "table-caption", "save-error"] },

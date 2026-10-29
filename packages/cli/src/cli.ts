@@ -62,6 +62,7 @@ import {
   updateTableCell,
   updateTableCaption,
   updateHeadingNumbering,
+  updateDocumentTitle,
   updateReferenceTemplates,
   referenceNumberText,
   captionNumberText,
@@ -74,6 +75,7 @@ import {
   citationReport,
   inlineContentText as inlineText,
   headingNumbers,
+  sectionReferenceText,
   updateTableColumnAlignment,
   updateList,
   updateCodeBlock,
@@ -706,11 +708,18 @@ const COMMANDS: CommandSpec[] = [
     details: ["Templates contain %s (or {number}). Omitted kinds are unchanged. --reset restores MyST defaults; it cannot also set the same kind."],
   },
   {
+    name: "update-title",
+    group: "Edit — labels, footnotes and numbering",
+    summary: "Set or remove the plain frontmatter document title through Core",
+    usage: "ieumdoc update-title <file> (--text <text> | --remove)",
+    details: ["An empty --text stores an empty title. --remove deletes the field. Body headings and labels are unchanged."],
+  },
+  {
     name: "update-heading-numbering",
     group: "Edit — labels, footnotes and numbering",
     summary: "Enable or disable document heading numbers through Core",
     usage: "ieumdoc update-heading-numbering <file> --enabled <true|false>",
-    details: ["H1 remains a title; H2-H6 are numbered automatically. Only numbering settings are written, never heading text."],
+    details: ["H1-H6 are numbered body sections. Only numbering settings are written, never heading text."],
   },
   {
     name: "update-table-caption",
@@ -1167,6 +1176,10 @@ function changeFor(command: string, flags: string[]): Change {
       if (!Object.keys(templates).length) throw new Error("provide a template or --reset");
       return document => updateReferenceTemplates(document, templates);
     }
+    case "update-title": {
+      if (flags.includes("--text") === flags.includes("--remove")) throw new Error("choose --text or --remove");
+      return document => updateDocumentTitle(document, flags.includes("--remove") ? null : flag(flags, "--text"));
+    }
     case "update-heading-numbering": {
       const enabled = flag(flags, "--enabled");
       if (enabled !== "true" && enabled !== "false") throw new Error("--enabled must be true or false");
@@ -1278,6 +1291,11 @@ function batchChange(operation: unknown): Change {
     if (json ? value === null || !["object", "string"].includes(typeof value)
       : !["string", "number", "boolean"].includes(typeof value)) {
       throw new Error(`${name} must be ${json ? "an object, array or string" : "a string, number or boolean"}`);
+    }
+    if (name === "--remove") {
+      if (value !== true) throw new Error("remove must be true");
+      tokens.push(name);
+      continue;
     }
     tokens.push(name, json && typeof value !== "string" ? JSON.stringify(value) : String(value));
   }
@@ -1411,6 +1429,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "update-table-alignment": ["--path", "--column", "--align"],
   "insert-table-column": ["--path", "--at"],
   "update-heading-numbering": ["--enabled"],
+  "update-title": ["--text", "--remove"],
   "update-reference-templates": ["--figure", "--table", "--equation", "--reset"],
   "update-table-caption": ["--path", "--text", "--content"],
   "update-table-cell": ["--path", "--text", "--content"],
@@ -1454,7 +1473,7 @@ function parseCommandArgs(command: string, args: string[]): ParsedArgs {
     }
     seen.add(token);
     flags.push(token);
-    if (token === "--dry-run") continue;
+    if (token === "--dry-run" || token === "--remove") continue;
 
     const value = tokens[index + 1];
     if (value === undefined || value.startsWith("--")) {
@@ -1484,7 +1503,7 @@ function parseCommandArgs(command: string, args: string[]): ParsedArgs {
 function inspectFile(file: string, bibliographyRoot?: string): string {
   const document = parse(readFile(file));
   const editable = getEditableDocument(document);
-  return `${formatInspect(editable)}\n${formatNumbering(numberingReport(editable.blocks))}${formatCitations(resourceReport(document, file, bibliographyRoot))}`;
+  return `title: ${editable.title === undefined ? "absent" : quote(editable.title)}\n${formatInspect(editable)}\n${formatNumbering(numberingReport(editable.blocks))}${formatCitations(resourceReport(document, file, bibliographyRoot))}`;
 }
 
 function inspectFileJson(file: string, bibliographyRoot?: string): string {
@@ -1495,6 +1514,7 @@ function inspectFileJson(file: string, bibliographyRoot?: string): string {
     ok: true,
     command: "inspect",
     revision: textRevision(source),
+    title: editable.title ?? null,
     nodes: machineNodes(editable),
     numbering: numberingReport(editable.blocks),
     citations: resourceReport(document, file, bibliographyRoot),
@@ -1546,6 +1566,7 @@ function machineNodes(document: EditableDocument): MachineNode[] {
     return [{
       ...first,
       ...("enumerator" in block && block.enumerator !== undefined ? { enumerator: block.enumerator } : {}),
+      ...(block.block === "heading" ? { referenceText: sectionReferenceText(block.text, headings[index]) } : {}),
       ...(headings[index] ? { headingNumber: headings[index] } : {}),
       ...(typeof markers[index] === "number" ? { section: snapshotSection(document, index) } : {}),
       ...(Object.keys(numbers[index]).length > 0 ? { numbers: numbers[index] } : {}),

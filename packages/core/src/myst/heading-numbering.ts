@@ -5,7 +5,7 @@ import { cloneDocument, type MystDocument } from "./tree.ts";
 import { serializeFor } from "./serialize.ts";
 import { metadata } from "./metadata.ts";
 
-/** Native v1 has one numbering policy: H1 title, H2-H6 sections. */
+/** Native v1 has one numbering policy: H1-H6 body sections. */
 export function getHeadingNumbering(document: MystDocument): HeadingNumbering | undefined {
   // Internal fragment projections have no document settings.
   if (document.children[0]?.[FRONT_MATTER_FIELD] !== true) return undefined;

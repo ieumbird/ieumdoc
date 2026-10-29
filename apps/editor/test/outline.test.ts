@@ -1,3 +1,5 @@
+import { EditorState } from "@tiptap/pm/state";
+import { history, undo, redo } from "@tiptap/pm/history";
 import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -20,7 +22,7 @@ test("the outline lists top-level headings in order", () => {
   const numbered = toTiptapDocument(loadEditableDocument(markdown));
   numbered.attrs = { headingNumbering: defaultHeadingNumbering(true)! };
   assert.deepEqual(documentOutline(schema.nodeFromJSON(numbered)).map(item => [item.number, item.text]), [
-    [undefined, "Title"], ["1", "1 Plain section"], ["1.1", "1.1 Formatted section"], ["2", "2 Last"],
+    ["1", "1 Title"], ["1.1", "1.1 Plain section"], ["1.1.1", "1.1.1 Formatted section"], ["1.2", "1.2 Last"],
   ]);
 });
 
@@ -43,7 +45,7 @@ test("heading numbering follows the single document state and saves as Core meta
   const json = toTiptapDocument(opening);
   json.attrs = { headingNumbering: defaultHeadingNumbering(true)! };
   const doc = schema.nodeFromJSON(json);
-  assert.deepEqual(documentOutline(doc).map(item => item.text), ["Title", "1 First", "1.1 Detail"]);
+  assert.deepEqual(documentOutline(doc).map(item => item.text), ["1 Title", "1.1 First", "1.1.1 Detail"]);
   const edits = collectSupportedEdits(opening, doc.toJSON() as TiptapJSON);
   assert.equal(edits.headingNumbering, true);
   const saved = saveEdits(source, edits);
@@ -69,4 +71,25 @@ test("navigation targets use the current native captions and Core caption number
   json.attrs = { ...json.attrs, referenceTemplates: { table: "표 %s", figure: "그림 %s" } };
   assert.deepEqual(documentTargets(schema.nodeFromJSON(json), "table").map(item => item.text), ["표 1. Results", "표 2"]);
   assert.deepEqual(documentTargets(schema.nodeFromJSON(json), "figure").map(item => item.text), ["그림 1. Flow chart.", "그림 2"]);
+});
+
+test("title metadata uses shared engine history and Save without entering body or Outline", () => {
+  const source = "---\nieumdoc: 1\ntitle: Opening title\n---\n\n# First\n\n## Detail\n";
+  const opening = loadEditableDocument(source);
+  const schema = getSchema(editorExtensions());
+  let state = EditorState.create({ schema, doc: schema.nodeFromJSON(toTiptapDocument(opening)), plugins: [history()] });
+  const body = state.doc.content;
+  state = state.apply(state.tr.setDocAttribute("title", "Changed title"));
+  assert.equal(state.doc.content, body);
+  assert.deepEqual(documentOutline(state.doc).map(item => item.text), ["First", "Detail"]);
+  assert.deepEqual(collectSupportedEdits(opening, state.doc.toJSON()), { title: "Changed title", headings: [], paragraphs: [] });
+  const saved = saveEdits(source, collectSupportedEdits(opening, state.doc.toJSON()));
+  assert.equal(loadEditableDocument(saved.markdown).title, "Changed title");
+  assert.deepEqual(loadEditableDocument(saved.markdown).blocks, opening.blocks);
+  assert.ok(undo(state, tr => { state = state.apply(tr); }));
+  assert.equal(state.doc.attrs.title, "Opening title");
+  assert.ok(redo(state, tr => { state = state.apply(tr); }));
+  assert.equal(state.doc.attrs.title, "Changed title");
+  state = state.apply(state.tr.setDocAttribute("title", null));
+  assert.equal(loadEditableDocument(saveEdits(source, collectSupportedEdits(opening, state.doc.toJSON())).markdown).title, undefined);
 });
