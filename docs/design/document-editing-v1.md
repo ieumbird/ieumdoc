@@ -599,7 +599,8 @@ or a late empty cancellation has no editable block range to replace. A focused r
 root also retains the engine's block selection when Chromium proposes a default title
 caret. The engine's logical editability remains enabled for existing keymaps and clipboard
 commands; native range-extension navigation uses the engine/browser's existing selection
-path. Explicit properties retain their normal inputs and gap-cursor restoration.
+path. Explicit property-close commands enable native input before asking the engine
+for their caret/gap cursor, even when the editor root already has focus.
 A real text-surface click lets the browser place an editable caret, and explicit engine
 navigation likewise restores normal native typing. No key-specific composition release,
 blur or animation-frame focus restoration is used. Neither input path creates

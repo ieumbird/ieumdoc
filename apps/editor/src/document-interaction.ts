@@ -336,7 +336,7 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
         },
         props: {
         // A native focus caret cannot turn a read-only block selection into title text.
-        // Property commands run outside the root and still delegate to the engine's gap cursor.
+        // Property navigation enables native input before delegating to the engine's gap cursor.
         createSelectionBetween: (view, anchor, head) => anchor.pos === head.pos && view.hasFocus() &&
           !view.dom.isContentEditable && selectedPreview(view.state) ? view.state.selection : null,
         clipboardSerializer: new DOMSerializer(serializers, DOMSerializer.marksFromSchema(schema)),

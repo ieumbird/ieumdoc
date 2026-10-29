@@ -1517,6 +1517,8 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
  * input cannot replace the whole block. Selection changes add no history or document edits.
  */
 function focusBlock(view: ReactNodeViewProps["view"], getPos: ReactNodeViewProps["getPos"]): void {
+  // This is explicit property navigation, not native caret normalization on a preview.
+  view.dom.contentEditable = String(view.editable);
   const position = getPos();
   const node = typeof position === "number" ? view.state.doc.nodeAt(position) : null;
   const current = view.state.selection;
