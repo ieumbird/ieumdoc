@@ -223,6 +223,7 @@ async (page, { openFolderPicker, openDocument, waitForEditorFocus, expect, scree
           const track=el.querySelector('.view-toggle'), input=el.querySelector('[data-testid="figure-label"]');
           const box=el.querySelector('.figure-property-thumbnail'), image=box.querySelector('img');
           const b=box.getBoundingClientRect(), i=image.getBoundingClientRect(), style=getComputedStyle(el);
+          const imageStyle=getComputedStyle(image);
           return {
             segmentOffsets:[...track.querySelectorAll('button')].map(button => {
               const range=document.createRange(); range.selectNodeContents(button.querySelector('.view-toggle-label') ?? button);
@@ -231,6 +232,10 @@ async (page, { openFolderPicker, openDocument, waitForEditorFocus, expect, scree
             rowOffset:center(track.getBoundingClientRect())-center(input.getBoundingClientRect()),
             empty:[...el.querySelectorAll('input')].filter(n => !n.value && n.getClientRects().length).map(n => ({placeholder:n.placeholder, background:getComputedStyle(n).backgroundColor,surface:style.backgroundColor})),
             thumbnail:{box:rect(box),image:rect(image),ratio:image.naturalWidth/image.naturalHeight,
+              contentWidth:i.width-parseFloat(imageStyle.borderLeftWidth)-parseFloat(imageStyle.borderRightWidth),
+              contentHeight:i.height-parseFloat(imageStyle.borderTopWidth)-parseFloat(imageStyle.borderBottomWidth),
+              maxWidth:parseFloat(imageStyle.maxWidth),maxHeight:parseFloat(imageStyle.maxHeight),
+              background:getComputedStyle(box).backgroundColor,
               fits:i.left>=b.left && i.right<=b.right && i.top>=b.top && i.bottom<=b.bottom,
               offset:center(b)-center(el.querySelector('[data-testid="figure-replace"]').getBoundingClientRect())},
             disclosure:el.querySelector('summary svg')?.tagName,
@@ -245,10 +250,25 @@ async (page, { openFolderPicker, openDocument, waitForEditorFocus, expect, scree
           expect(empty.background).not.toBe('rgba(0, 0, 0, 0)');
         }
         expect(controls.thumbnail.fits).toBe(true);
-        expect(controls.thumbnail.image.width/controls.thumbnail.image.height).toBeCloseTo(controls.thumbnail.ratio,1);
+        expect(controls.thumbnail.background).toBe('rgba(0, 0, 0, 0)');
+        expect(Math.abs(controls.thumbnail.box.height-controls.thumbnail.image.height)).toBeLessThanOrEqual(1);
+        expect(Math.abs(controls.thumbnail.box.width-controls.thumbnail.image.width)).toBeLessThanOrEqual(1);
+        expect(controls.thumbnail.image.width).toBeLessThanOrEqual(controls.thumbnail.maxWidth);
+        expect(controls.thumbnail.image.height).toBeLessThanOrEqual(controls.thumbnail.maxHeight);
+        expect(controls.thumbnail.contentWidth/controls.thumbnail.contentHeight).toBeCloseTo(controls.thumbnail.ratio,1);
         expect(Math.abs(controls.thumbnail.offset)).toBeLessThanOrEqual(1);
         expect(controls.disclosure).toBe('svg');
         expect(new Set(controls.padding).size).toBe(1);
+        const closedGap=await popup.evaluate(el => {
+          const summary=el.querySelector('summary'), r=summary.getBoundingClientRect();
+          const labelBottom=r.top+(r.height+parseFloat(getComputedStyle(summary).lineHeight))/2;
+          return el.querySelector('.form-actions').getBoundingClientRect().top-labelBottom;
+        });
+        await popup.locator('summary').click();
+        const openGap=await popup.evaluate(el => el.querySelector('.form-actions').getBoundingClientRect().top-
+          el.querySelector('[data-testid="figure-file-name"]').getBoundingClientRect().bottom);
+        expect(Math.abs(openGap-closedGap), 'Expanded filename and collapsed disclosure have equal visible clearance before Done').toBeLessThanOrEqual(1);
+        await popup.locator('summary').click();
         // Revealing the third Number row must not stretch the neighboring Label field.
         const labelHeight=await page.getByTestId('figure-label').evaluate(el => el.getBoundingClientRect().height);
         await popup.getByRole('button',{name:'Fixed',exact:true}).click();

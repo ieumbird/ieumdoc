@@ -2583,17 +2583,22 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
 .figure-properties [data-slot="input"]:focus-visible { border-color: var(--id-color-border-focus); }
 .figure-property-media { display: flex; align-items: center; gap: var(--space-3); }
 .figure-property-thumbnail {
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
   flex: none;
-  width: var(--size-figure-property-thumbnail);
-  height: var(--size-figure-property-thumbnail);
-  overflow: hidden;
-  border-radius: var(--id-radius-sm);
-  background: var(--id-color-surface-subtle);
 }
-.figure-property-thumbnail img { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; }
-.figure-property-thumbnail .mermaid-preview { display: flex; align-items: center; justify-content: center; margin: 0; min-height: 0; width: 100%; height: 100%; }
+.figure-property-thumbnail img {
+  display: block;
+  max-width: var(--size-figure-property-thumbnail-max-width);
+  max-height: var(--size-figure-property-thumbnail-max-height);
+  width: auto;
+  height: auto;
+  border: var(--border-width) solid var(--id-color-border-subtle);
+  border-radius: var(--id-radius-sm);
+}
+/* Mermaid SVGs use percentage width; provide a width reference, leaving height intrinsic. */
+.figure-property-thumbnail .mermaid-preview { width: var(--size-figure-property-thumbnail-max-width); margin: 0; min-height: 0; }
+.figure-property-thumbnail .mermaid-preview img { margin: 0; }
 .figure-property-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: var(--space-3); }
 .figure-number-field .view-toggle { width: fit-content; height: var(--size-control); align-items: center; }
 .figure-properties details > summary {
@@ -2609,6 +2614,8 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
 .figure-properties details > summary svg { width: var(--size-icon-slot); height: var(--size-icon-slot); }
 .figure-properties details[open] > summary svg { transform: rotate(90deg); }
 .figure-properties details[open] > summary { margin-bottom: var(--space-2); }
+/* Match the collapsed disclosure's label-line clearance above Done. */
+.figure-properties details[open] { padding-bottom: var(--space-1); }
 .figure-properties .ui-notice { margin: 0; font-size: var(--font-size-sm); line-height: var(--line-height-label); }
 
 .block-popover-note {

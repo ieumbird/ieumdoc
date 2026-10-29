@@ -273,9 +273,11 @@ Number uses Automatic/Fixed segments, with an input only for Fixed. Empty fixed 
 fixed number as before. Core warning Notices appear only when needed. Fields have transparent
 rest borders, a subtle surface fill and empty-value placeholders, with hover/focus boundaries.
 The Number track matches the neighboring input height, and visible segment labels share the
-hidden width-reserving labels' grid cell. Both media kinds use contained, centered thumbnails
-on a subtle surface with the content radius and compact actions in the same column. Advanced
+hidden width-reserving labels' grid cell. Both media kinds use intrinsic-ratio previews within
+adjustable maximum width/height, without a fixed box or letterbox fill. The image itself has
+a subtle structural border and content radius; compact actions remain vertically centered. Advanced
 uses a native keyboard-accessible disclosure with the shared chevron and compact target.
+Its expanded filename row retains the collapsed label-line clearance above Done.
 Form rows use the shared 12px gap and equal 16px outer padding; warnings/errors use UI 14/20
 type without an extra bottom margin. Number warnings stay in the Number column. Above placement
 includes the absolute metadata line in the anchor. There is no repeated title, path summary, caption field
@@ -320,7 +322,7 @@ uses the existing segment markup; toolbar Visual/Source CSS is unchanged. Relati
 cover text/button centers, Label/Number height/centers, contained image aspect ratio, media-action
 alignment, visible empty fields, SVG disclosure, notice typography and metadata clearance.
 
-Same-state manual captures use base `b43978ac` and this PR, 1440/640 × 900, Light/Dark,
+Initial same-state manual captures use base `b43978ac` and `72041c94`, 1440/640 × 900, Light/Dark,
 bundled Pretendard, DPR/zoom 1 and one successful persistent Windows Chrome run. Sixteen
 plain context paragraphs before/after the existing Mermaid/image fixture permit controlled
 placement. Wide samples open below and narrow samples above; following prose may be covered.
@@ -328,6 +330,22 @@ The temporary collector verifies actual final thumbnail markup after switching s
 waits for image decoding/fonts and changes Korean through Settings. Earlier development captures
 were discarded. Captures are manual evidence, separate from automated assertions.
 [State measurements, source hashes and PNG hashes](assets/figure-properties-760/capture-metadata.json).
+
+Owner review replaced the square thumbnail with intrinsic-ratio previews bounded by 10rem × 6rem
+tokens. Only the following four files were refreshed in one persistent run, with the same fixture,
+fonts, viewport height and theme/language controls. Other captures retain the initial `72041c94`
+appearance. Each image now owns its subtle border/content radius; its surrounding area is
+transparent and has no fixed height. Mermaid's percentage-width SVG receives a maximum-width
+reference while height remains intrinsic. Relationship assertions compare content-box aspect
+ratio, maximum bounds and the absence of wrapper letterbox height. Advanced's expanded filename
+row also receives the collapsed disclosure's label-line clearance before Done, verified at both widths.
+
+| Current follow-up state | Capture |
+| --- | --- |
+| Light image / 1440 / detail | [PNG](assets/figure-properties-760/after-light-image-1440-detail.png) |
+| Dark image / 1440 / detail | [PNG](assets/figure-properties-760/after-dark-image-1440-detail.png) |
+| Light Mermaid / 640 | [PNG](assets/figure-properties-760/after-light-mermaid-640.png) |
+| Korean Fixed + warning / 640 | [PNG](assets/figure-properties-760/after-ko-fixed-warning-640.png) |
 
 | State | Before | After |
 | --- | --- | --- |
