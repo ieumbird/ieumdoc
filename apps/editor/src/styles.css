@@ -557,6 +557,28 @@ button {
 .document-scroll[hidden] { display: none; }
 .document-stage { flex: 1; min-height: 0; }
 
+/* Group headers and viewports share the same equal columns. Tabs remain under their
+ * original React parent when moved, retaining the editor, drafts and native scroll. */
+.editor-group-headers { display: flex; min-width: 0; }
+.editor-group-headers > section { flex: 1; min-width: 0; }
+.editor-group-headers > section + section { border-left: var(--border-width) solid var(--id-color-border); }
+.app-shell--split { --document-scrollbar-width: 0px !important; }
+.app-shell--split .document-scroll {
+  --editor-group-width: calc((100vw - var(--shell-sidebar) - var(--shell-panel) - var(--border-width)) / 2);
+  left: calc(var(--shell-sidebar) + var(--editor-group-index) * (var(--editor-group-width) + var(--border-width)));
+  right: auto;
+  width: var(--editor-group-width);
+  padding: 0;
+}
+.app-shell--split .document-scroll[data-group-index="1"] {
+  box-shadow: calc(-1 * var(--border-width)) 0 var(--id-color-border);
+}
+.app-shell--split .document {
+  --layout-document-inline-padding: var(--space-4);
+  --layout-document-block-padding: var(--layout-document-block-padding-narrow);
+}
+.app-shell--split [data-focused="true"] .document-tab-row { background: var(--id-color-surface-selected); }
+
 .app-header {
   position: sticky;
   top: var(--app-titlebar-height, var(--layout-header-row));
@@ -2109,8 +2131,8 @@ ol.list { list-style: decimal; }
   font-weight: 400;
   font-style: normal;
   line-height: var(--line-height-label);
-  max-width: calc(100vw - var(--space-4));
-  max-height: calc(100dvh - var(--app-header-height, var(--layout-header-row)) - var(--space-4));
+  max-width: var(--overlay-max-width, calc(100vw - var(--space-4)));
+  max-height: var(--overlay-max-height, calc(100dvh - var(--app-header-height, var(--layout-header-row)) - var(--space-4)));
   overflow: auto;
   translate: var(--overlay-shift-x, 0px) var(--overlay-shift-y, 0px);
 }
@@ -3099,5 +3121,7 @@ ol.list { list-style: decimal; }
   .app-shell { display: block; width: auto; height: auto; }
   .app-titlebar, .sidebar, .app-header, .document-panel { display: none; }
   .document-scroll { position: static; overflow: visible; padding: 0; }
+  .document-scroll[data-active="false"] { display: none; }
+  .app-shell--split .document-scroll { width: auto; padding: 0; }
   .document-column, .app-shell--wide .document-column { max-width: none; min-height: 0; padding: 0; }
 }

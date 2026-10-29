@@ -1,6 +1,7 @@
 # Editor Layout Rules v1
 
 - Status: Implemented
+- Editor groups verification: 2026-10-29 (#488 phase 1; 440px minimum per group, fixed equal columns, narrow merging and [1440/640px evidence](editor-ux-shell-v1.md#two-editor-groups-488-phase-1)).
 - Tab-row actions update: 2026-10-29 (#695; [contract and evidence](editor-ux-shell-v1.md#title-strip-and-tab-row-actions-695)).
 - Document scroll verification: 2026-10-29 (#488 phase 0 and #694 header follow-up; [viewport geometry and captures](editor-ux-shell-v1.md#document-scroll-container-488-phase-0)).
 - Brand title-strip update: 2026-10-28 (#647; title strip spans all columns, side headers align with document tabs).
@@ -34,6 +35,17 @@
 [ADR-0010](../adr/0010-supported-viewport-and-input.md) defines a minimum viewport width of **640px**, with keyboard and pointer input. Viewports below 640px and touch-only entry are outside support and verification. Existing no-hover fallbacks may remain without creating a touch requirement.
 
 ## Alignment and ownership
+
+- Editor groups (#488 phase 1) use equal fixed columns with a 1px structural divider.
+  Each needs 440px, the existing 640px supported viewport less the 200px narrow Explorer.
+  Available document area must therefore reach 881px before splitting. A narrower
+  area merges groups without unmounting tabs or losing their editing/scroll state.
+  Split paper uses the existing 80px starting gutter and 16px narrow trailing inset;
+  each native scrollbar belongs to its group. The shared title strip stays 40px;
+  both tab rows stay 32px plus the boundary. See the [group contract](editor-ux-shell-v1.md#two-editor-groups-488-phase-1).
+  Floating editor controls fit and cap their size to the owning group's client viewport,
+  excluding the native scrollbar, with the existing 8px edge inset. Overlay and viewport
+  resize/scroll recompute placement; one group retains its previous window bounds.
 
 - The bottom Settings icon carries an 8px update dot in the same icon slot in both expanded Sidebar and collapsed rail (#665), without changing button targets or footer placement. Dot activation opens About & updates; its update actions receive an inset accent outline and selected-surface background. See the [update contract and captures](desktop-distribution-v1.md#settings-update-cue-verification-665).
 

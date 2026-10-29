@@ -4,7 +4,7 @@ import { FilePreviewDialog } from "./FilePreviewDialog.tsx";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
-import { Pencil, Trash2, ChevronRight, Ellipsis, File, Files as FilesIcon, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, Plus, RotateCw, Settings, X } from "lucide-react";
+import { Pencil, Trash2, ChevronRight, Ellipsis, File, Files as FilesIcon, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelRightOpen, Plus, RotateCw, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
@@ -35,6 +35,8 @@ type SidebarProps = {
   onToggleFolder?(root: string, path: string): void;
   onToggleSection?(root: string): void;
   onOpenDocument?(path: string): void;
+  onOpenRight?(path: string): void;
+  openRightDisabled?: boolean;
   onCloseFolder?(root: string): void;
   onRefreshFolder?(root: string): void;
   onRevealFolder?(path: string): void;
@@ -46,7 +48,7 @@ type SidebarProps = {
 /** File navigation stays mounted when collapsed. Outline remains independent on the right. */
 export function Sidebar({
   onFileAction, fileActionsDisabled, isFileDirty, open, documentPath, onToggle, toggleRef, onOpenFolder, onNewDocument, recent = [], onOpenRecent, onNew, onNewFolder,
-  folders = [], focusFolder, onFolderFocused, onToggleFolder, onToggleSection, onOpenDocument, onCloseFolder, onRefreshFolder, onRevealFolder, onSettings, updateVersion,
+  folders = [], focusFolder, onFolderFocused, onToggleFolder, onToggleSection, onOpenDocument, onOpenRight, openRightDisabled, onCloseFolder, onRefreshFolder, onRevealFolder, onSettings, updateVersion,
 }: SidebarProps) {
   useTranslation();
   return (
@@ -82,6 +84,7 @@ export function Sidebar({
             onToggleFolder={path => onToggleFolder?.(tree.root, path)}
             onToggleSection={() => onToggleSection?.(tree.root)}
             onOpenDocument={path => onOpenDocument?.(path)}
+            onOpenRight={onOpenRight} openRightDisabled={openRightDisabled}
             onNew={button => onNew?.(tree.root, button)}
             onNewFolder={button => onNewFolder?.(tree.root, button)}
             onOpenFolder={onOpenFolder}
@@ -150,6 +153,8 @@ type FolderTreeProps = {
   onToggleFolder(path: string): void;
   onToggleSection(): void;
   onOpenDocument(path: string): void;
+  onOpenRight?(path: string): void;
+  openRightDisabled?: boolean;
   onNew(button: HTMLButtonElement): void;
   onNewFolder(button: HTMLButtonElement): void;
   onOpenFolder(returnFocus: HTMLElement | null): void;
@@ -159,7 +164,7 @@ type FolderTreeProps = {
 };
 
 /** One opened folder as a tree: folders expand in place, documents open. */
-function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, focusFolder, onFolderFocused, documentPath, onToggleFolder, onToggleSection, onOpenDocument, onNew, onNewFolder, onOpenFolder, onRevealFolder, onRefresh, onClose }: FolderTreeProps) {
+function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, focusFolder, onFolderFocused, documentPath, onToggleFolder, onToggleSection, onOpenDocument, onOpenRight, openRightDisabled, onNew, onNewFolder, onOpenFolder, onRevealFolder, onRefresh, onClose }: FolderTreeProps) {
   useTranslation();
   const treeId = useId();
   const section = useRef<HTMLElement>(null);
@@ -296,6 +301,7 @@ function FolderTree({ onFileAction, fileActionsDisabled, isFileDirty, tree, focu
             setFileAction({ action, item });
           };
           const actions: ContextMenuAction[] = [
+            ...(entry.kind === "document" && onOpenRight ? [{ id: "open-right", label: i18n.t("Open to the right"), icon: <PanelRightOpen aria-hidden="true" />, disabled: openRightDisabled, run: () => onOpenRight(entry.path) }] : []),
             { id: "rename", label: i18n.t("Rename…"), icon: <Pencil aria-hidden="true" />, run: () => choose("rename") },
             { id: "delete", label: i18n.t("Delete file…"), icon: <Trash2 aria-hidden="true" />, danger: true, run: () => choose("delete") },
           ];
