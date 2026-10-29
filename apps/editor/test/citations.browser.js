@@ -29,7 +29,7 @@ async (page, { openPath, reloadDocument, screenshots, assertSavedSource }) => {
     });
     assert(await chips.count() === 9, 'All inline citations, including table caption and endnote, must display');
     assert(JSON.stringify(await chips.allTextContents()) === JSON.stringify(['[1]', '[2]', '[1]', '[2], [3]', '[3], [1]', '[2], [1]', '[5]', '[4]', '[6]']), 'Displayed numbers must match the Core content order');
-    assert((await chips.first().getAttribute('title')).includes('Alpha') && (await chips.first().getAttribute('title')).includes('could not be verified'), 'Exact keys and unverified status must be available');
+    assert((await chips.first().getAttribute('aria-label')).includes('Alpha') && (await chips.first().getAttribute('aria-label')).includes('could not be verified'), 'Exact keys and unverified status must be available');
     assert(await editor.locator('[data-citation][data-resolved]').count() === 0, 'Citation must not claim resource resolution');
     await assertSavedSource((await read()).source, before, 'Open must not write');
     const original = await semantic();
@@ -56,7 +56,7 @@ async (page, { openPath, reloadDocument, screenshots, assertSavedSource }) => {
     });
     await page.keyboard.press('Control+v');
     assert(await chips.count() === 9, 'Typed clipboard must move rather than lose or duplicate the citation');
-    assert(await chips.first().textContent() === '[1]' && (await chips.first().getAttribute('title')).includes('Beta'), 'Numbers must update when first citation order changes');
+    assert(await chips.first().textContent() === '[1]' && (await chips.first().getAttribute('aria-label')).includes('Beta'), 'Numbers must update when first citation order changes');
     const moved = await semantic();
     await page.keyboard.press('Control+z');
     assert(await chips.count() === 8, 'Paste must be one undoable transaction');
@@ -70,7 +70,7 @@ async (page, { openPath, reloadDocument, screenshots, assertSavedSource }) => {
     await reloadDocument(page); await ready();
     assert(await editor.getByText('Literal @kim and [@literal] stay text.', { exact: true }).count() === 1, 'Literal @ and bracket text must survive Save and Reload');
     assert(await semantic() === moved, 'Reload must retain role, exact keys, group order and marks');
-    assert(await chips.first().textContent() === '[1]' && (await chips.first().getAttribute('title')).includes('Beta'), 'Reload numbers must match edited order');
+    assert(await chips.first().textContent() === '[1]' && (await chips.first().getAttribute('aria-label')).includes('Beta'), 'Reload numbers must match edited order');
     await page.getByRole('button', { name: 'Save', exact: true }).click(); await saved();
     await assertSavedSource((await read()).source, written.source, 'Repeated Save must be canonical and stable');
 
@@ -124,8 +124,8 @@ async (page, { openPath, reloadDocument, screenshots, assertSavedSource }) => {
     await page.getByTestId('ui-language').selectOption('ko');
     await page.keyboard.press('Escape');
     await page.getByTestId('settings-dialog').waitFor({ state: 'detached' });
-    assert((await chips.first().getAttribute('title')).includes('참고문헌을 확인할 수 없음'), 'Korean citation status missing');
-    assert((await editor.locator('[data-testid="table-caption"] [data-citation] > span').getAttribute('title')).includes('참고문헌'), 'Table caption citation must translate too');
+    assert((await chips.first().getAttribute('aria-label')).includes('참고문헌을 확인할 수 없음'), 'Korean citation status missing');
+    assert((await editor.locator('[data-testid="table-caption"] [data-citation] > span').getAttribute('aria-label')).includes('참고문헌'), 'Table caption citation must translate too');
     assert(await semantic() === moved, 'Language changes must not change citations');
 
     if (screenshots) {

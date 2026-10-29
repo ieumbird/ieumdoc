@@ -209,6 +209,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   },
   "table-cell-editing": { files: [...technical, fixture("mixed-table.md")], scenarios: ["table-cell-editing"] },
   "link-authoring": { files: [fixture("links.md")], scenarios: ["link-authoring"] },
+  "reference-preview": { files: [fixture("reference-preview.md"), { name: "refs.bib", create: bibliography }, document("diagram.svg")], scenarios: ["reference-preview"] },
   "image-link-preview": { files: [
     document("diagram.svg"),
     { name: "broken.png", create: () => "not an image" },

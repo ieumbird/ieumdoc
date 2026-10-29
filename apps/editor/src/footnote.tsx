@@ -50,7 +50,7 @@ function FootnoteReferenceView({ node, editor, selected, getPos }: ReactNodeView
       data-testid="footnote-reference"
       data-label={label}
     >
-      <sup className="cross-reference-chip" title={status} aria-label={status} onClick={() => revealEndnote(editor, label, getPos())}>
+      <sup className="cross-reference-chip" aria-label={status} onClick={() => revealEndnote(editor, label, getPos())}>
         {number ?? label}
       </sup>
     </NodeViewWrapper>

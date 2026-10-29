@@ -1,5 +1,5 @@
 import type { Editor, EditorEvents } from "@tiptap/core";
-import { TextSelection } from "@tiptap/pm/state";
+import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 import { useEffect, useLayoutEffect, useState, type CSSProperties, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { documentScrollContainer } from "./document-scroll.ts";
@@ -7,13 +7,14 @@ import { useEditorVisible } from "./editor-visibility.ts";
 import { resolveFigureSource } from "./editor-schema.tsx";
 import { isRelativeImageLink } from "./image-link.ts";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
+import { ReferencePreviewContent } from "./ReferencePreviewContent.tsx";
 
 /** Reading aid outside ProseMirror content: no transaction, selection or focus transfer. */
-export function ImageLinkPreview({ editor, host, documentPath }: {
+export function ReadingPreview({ editor, host, documentPath }: {
   editor: Editor; host: RefObject<HTMLElement | null>; documentPath?: string;
 }) {
   const visible = useEditorVisible();
-  const [anchor, setAnchor] = useState<HTMLAnchorElement | null>(null);
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [style, setStyle] = useState<CSSProperties>({});
   const bounds = useOverlayBounds<HTMLDivElement>(!!anchor);
 
@@ -24,27 +25,39 @@ export function ImageLinkPreview({ editor, host, documentPath }: {
     let lastPointer: { x: number; y: number } | undefined;
     const close = () => setAnchor(null);
     const input = () => { editing = true; close(); };
-    const link = (target: EventTarget | null) => {
-      const candidate = target instanceof Element ? target.closest<HTMLAnchorElement>("a[href]") : null;
-      return candidate && dom.contains(candidate) && isRelativeImageLink(candidate.getAttribute("href")!) ? candidate : null;
+    const targetAnchor = (target: EventTarget | null) => {
+      const candidate = target instanceof Element ? target.closest<HTMLElement>("a[href], .footnote-reference, [data-citation]") : null;
+      return candidate && dom.contains(candidate) &&
+        (candidate.matches(".footnote-reference, [data-citation]") || isRelativeImageLink(candidate.getAttribute("href")!)) &&
+        !(target instanceof Element && target.closest("button, form")) ? candidate : null;
     };
     const move = (event: PointerEvent) => {
       // DOM replacement during typing can generate hover events under a stationary
       // pointer. Resume reading only when the user actually moves it (#744 review).
       if (!event.isTrusted || lastPointer?.x === event.clientX && lastPointer.y === event.clientY) return;
       lastPointer = { x: event.clientX, y: event.clientY };
-      if (!event.buttons && !editor.view.composing) { editing = false; setAnchor(link(event.target)); }
+      if (!event.buttons && !editor.view.composing) { editing = false; setAnchor(targetAnchor(event.target)); }
     };
     const out = (event: PointerEvent) => {
-      if (link(event.target) !== link(event.relatedTarget)) close();
+      if (targetAnchor(event.target) !== targetAnchor(event.relatedTarget)) close();
     };
     const caret = () => {
       const { selection } = editor.state;
+      if (editing || !editor.isFocused || editor.view.composing) { close(); return; }
+      const isReference = (node: typeof selection.$from.nodeAfter) => node && ["footnoteReference", "citation"].includes(node.type.name);
+      const position = selection instanceof NodeSelection && isReference(selection.node) ? selection.from
+        : selection instanceof TextSelection && selection.empty ? isReference(selection.$from.nodeAfter) ? selection.from
+          : isReference(selection.$from.nodeBefore) ? selection.from - selection.$from.nodeBefore!.nodeSize : undefined : undefined;
+      if (position !== undefined) {
+        const node = editor.view.nodeDOM(position);
+        const chip = node instanceof Element ? node.querySelector<HTMLElement>(".footnote-reference, [data-citation]") : null;
+        setAnchor(chip); return;
+      }
       const mark = selection.$from.marks().find(mark => mark.type.name === "link");
-      if (editing || !editor.isFocused || editor.view.composing || !(selection instanceof TextSelection) ||
+      if (!(selection instanceof TextSelection) ||
           !selection.empty || !mark || !isRelativeImageLink(mark.attrs.href)) { close(); return; }
       const { node } = editor.view.domAtPos(selection.from);
-      setAnchor(link(node instanceof Element ? node : node.parentElement));
+      setAnchor(targetAnchor(node instanceof Element ? node : node.parentElement));
     };
     const selection = ({ transaction }: EditorEvents["selectionUpdate"]) => {
       if (transaction.docChanged) input();
@@ -100,7 +113,7 @@ export function ImageLinkPreview({ editor, host, documentPath }: {
         setAnchor(null); return;
       }
       const origin = host.current!.getBoundingClientRect();
-      setStyle({ left: rect.left - origin.left, top: rect.bottom - origin.top + 4 });
+      setStyle({ left: rect.left - origin.left, top: `calc(${rect.bottom - origin.top}px + var(--space-1))` });
     };
     position();
     window.addEventListener("scroll", position, true);
@@ -112,9 +125,11 @@ export function ImageLinkPreview({ editor, host, documentPath }: {
   }, [anchor, host, visible]);
 
   if (!visible || !anchor) return null;
-  const src = resolveFigureSource(anchor.getAttribute("href")!, documentPath);
-  return <div ref={bounds} role="tooltip" className="image-link-preview" style={style} data-testid="image-link-preview">
-    <PreviewImage key={src} src={src} label={anchor.textContent ?? ""} />
+  const image = anchor.matches("a[href]");
+  const src = image ? resolveFigureSource(anchor.getAttribute("href")!, documentPath) : "";
+  return <div ref={bounds} role="tooltip" contentEditable={false} className={`reading-preview ${image ? "image-link-preview" : "reference-preview"}`} style={style} data-testid={image ? "image-link-preview" : "reference-preview"}>
+    {image ? <PreviewImage key={src} src={src} label={anchor.textContent ?? ""} />
+      : <ReferencePreviewContent editor={editor} anchor={anchor} />}
   </div>;
 }
 
