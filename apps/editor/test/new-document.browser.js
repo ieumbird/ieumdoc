@@ -114,7 +114,7 @@ async page => {
     getComputedStyle(element).pointerEvents !== 'none'), 'The first insert action is hidden at rest');
   await insert.click();
   await page.getByRole('menuitem', {name:'Heading 2', exact:true}).waitFor();
-  check(await page.getByRole('menuitem', {name:'Heading 1', exact:true}).count() === 0, 'Body insert menu offers H1');
+  check(await page.getByRole('menuitem', {name:'Heading 1', exact:true}).count() === 1, 'Body insert menu must offer H1');
   await page.keyboard.press('Escape');
   // Clicking well below the one-line editor must still put the caret in the document.
   const paper = await page.locator('[data-document-tab][data-active=true] .document').boundingBox();
@@ -122,7 +122,7 @@ async page => {
   check(await focused(), 'The empty paper below the text did not focus the editor');
   await page.keyboard.type('/');
   await page.getByRole('menuitem', {name:'Heading 2', exact:true}).waitFor();
-  check(await page.getByRole('menuitem', {name:'Heading 1', exact:true}).count() === 0, 'Body slash menu offers H1');
+  check(await page.getByRole('menuitem', {name:'Heading 1', exact:true}).count() === 1, 'Body slash menu must offer H1');
   await page.keyboard.press('Escape');
   await page.keyboard.press('Backspace');
   check(await hint(), 'Dismissing and deleting the slash did not restore the hint');
@@ -201,8 +201,8 @@ async page => {
   await page.getByRole('dialog', {name:'New document'}).getByRole('button', {name:'Create',exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'detached'}); await ready();
   check((await page.getByTestId('current-file').getAttribute('title')).endsWith('second-document.md') && await focused(), 'New did not create/focus its tab');
-  // Add a title must reuse the empty starting block, so Enter leaves only one writing paragraph (#437).
-  await page.locator('[data-document-tab][data-active=true]').getByRole('button', {name:'Add a title',exact:true}).click();
+  // Metadata title Enter enters the existing writing paragraph without adding a body heading.
+  await page.locator('[data-document-tab][data-active=true]').getByRole('textbox', {name:'Title',exact:true}).click();
   await page.keyboard.type('Field notes');
   await page.keyboard.press('Enter');
   const titleEnter = await editor.evaluate(el => {
@@ -212,15 +212,15 @@ async page => {
       caret:selection.$from.index(0), offset:selection.$from.parentOffset,
       focused:el.editor.view.hasFocus()};
   });
-  check(JSON.stringify(titleEnter.blocks) === JSON.stringify([['heading','Field notes'],['paragraph','']]) &&
-    titleEnter.dom.join('|') === 'H1|P' && titleEnter.caret === 1 && titleEnter.offset === 0 && titleEnter.focused,
+  check(JSON.stringify(titleEnter.blocks) === JSON.stringify([['paragraph','']]) &&
+    titleEnter.dom.join('|') === 'P' && titleEnter.caret === 0 && titleEnter.offset === 0 && titleEnter.focused,
     `Title Enter must leave one empty paragraph and its caret: ${JSON.stringify(titleEnter)}`);
   await page.keyboard.type('First paragraph');
   await page.keyboard.press('Control+s');
   await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({state:'attached'});
   const secondFile = [folder, 'second-document.md'].join(sep);
   const titleSaved = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(secondFile)}`)).json();
-  check(titleSaved.source === '---\nieumdoc: 1\n---\n\n# Field notes\n\nFirst paragraph\n',
+  check(titleSaved.source === '---\nieumdoc: 1\ntitle: Field notes\n---\n\nFirst paragraph\n',
     'Title Enter did not save the title and the paragraph entered at its caret');
   check((await read()).source === diskBeforeNew, 'New silently saved the first document');
   await page.getByRole('tab', {name:'new-document.md, Unsaved changes',exact:true}).click();

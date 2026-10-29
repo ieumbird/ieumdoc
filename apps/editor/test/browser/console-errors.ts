@@ -10,6 +10,9 @@ type ExpectedConsoleErrorRule = {
 };
 
 const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
+  "reference-save-reload": [
+    {status:400, pathname:"/api/document", minimum:1, description:"final Save refuses a fixed number on an empty equation"},
+  ],
   "pre-save-diff": [
     {status:409, pathname:"/api/document", minimum:1, description:"comparison preserves the acknowledged revision and Save still conflicts"},
   ],

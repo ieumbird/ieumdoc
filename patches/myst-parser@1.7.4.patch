@@ -1,0 +1,74 @@
+diff --git a/dist/fromMarkdown.d.ts b/dist/fromMarkdown.d.ts
+index 5389480b2f762d7d3fc88979ba05047923fefdd0..a949afe33babbde45fef8f32586981ab49434bfe 100644
+--- a/dist/fromMarkdown.d.ts
++++ b/dist/fromMarkdown.d.ts
+@@ -22,6 +22,7 @@ export type AllOptions = {
+     vfile: VFile;
+     markdownit: MarkdownIt.Options;
+     extensions: {
++        attrs_block?: boolean;
+         smartquotes?: boolean;
+         colonFences?: boolean;
+         frontmatter?: boolean;
+diff --git a/dist/list-style.js b/dist/list-style.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..964ffb76e42ac5d437ee4c67d81a5c841dbb80d1
+--- /dev/null
++++ b/dist/list-style.js
+@@ -0,0 +1,25 @@
++// Local MyST attrs_block subset: the five Python MyST ordered-list styles (#734).
++// Reuse markdown-it's existing list rule; do not parse list bodies ourselves.
++import listRule from 'markdown-it/lib/rules_block/list.js';
++const styles = 'decimal|lower-alpha|upper-alpha|lower-roman|upper-roman';
++const attribute = new RegExp(`^\\{style=(?:(${styles})|"(${styles})")\\}[\\t ]*$`);
++export function listStylePlugin(md) {
++  md.block.ruler.before('list', 'list_style', (state, start, end, silent) => {
++    if (state.sCount[start] - state.blkIndent >= 4) return false;
++    const line = state.src.slice(state.bMarks[start] + state.tShift[start], state.eMarks[start]);
++    const match = attribute.exec(line);
++    if (!match) return false;
++    let next = start + 1;
++    while (next < end && state.isEmpty(next)) next++;
++    if (next >= end || state.sCount[next] !== state.sCount[start]) return false;
++    const body = state.src.slice(state.bMarks[next] + state.tShift[next], state.eMarks[next]);
++    if (!/^\d{1,9}[.)](?:\s|$)/.test(body)) return false;
++    const index = state.tokens.length;
++    if (!listRule(state, next, end, silent)) return false;
++    if (!silent) {
++      state.tokens[index].attrSet('style', match[1] ?? match[2]);
++      state.tokens[index].map[0] = start;
++    }
++    return true;
++  }, {alt: ['paragraph', 'reference', 'blockquote']});
++}
+diff --git a/dist/myst.js b/dist/myst.js
+index 616f80d64a4416d560136b43e62951fb72966de5..6ae55df6d92b11703ad7ff900d7602949442d58f 100644
+--- a/dist/myst.js
++++ b/dist/myst.js
+@@ -1,4 +1,5 @@
+ import MarkdownIt from 'markdown-it';
++import { listStylePlugin } from './list-style.js';
+ import { defaultDirectives } from 'myst-directives';
+ import { defaultRoles } from 'myst-roles';
+ import { VFile } from 'vfile';
+@@ -77,6 +78,7 @@ export function createTokenizer(opts) {
+         tokenizer.use(deflistPlugin);
+     if (extensions.tasklist)
+         tokenizer.use(tasklistPlugin);
++    if (extensions.attrs_block) tokenizer.use(listStylePlugin);
+     return tokenizer;
+ }
+ export function mystParse(content, opts) {
+diff --git a/dist/tokensToMyst.js b/dist/tokensToMyst.js
+index 7b31a24e09b8e7447e74540a0f6ac9f4833c1bb2..8776b6521852eef1eedf0d98b88ed40914b365fd 100644
+--- a/dist/tokensToMyst.js
++++ b/dist/tokensToMyst.js
+@@ -98,6 +98,8 @@ const defaultMdast = {
+             const start = Number(tokens[index + 1]?.info);
+             return {
+                 ordered: true,
++                style: token.attrGet("style") ?? "decimal",
++                delimiter: token.markup,
+                 start: isNaN(start) || !info ? 1 : start,
+                 spread: false,
+             };

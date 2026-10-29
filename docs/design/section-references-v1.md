@@ -1,6 +1,7 @@
 # Section references v1
 
 - Status: Implemented
+- Title/body numbering update: 2026-10-29 (#722; frontmatter title is not a reference target; numbered H1–H6 sections use the shared Core counters).
 - Reference keyword verification: 2026-10-26 (#458 / #459: Editor unit regressions for kind-specific keywords, generic reference searches, empty queries and unrelated queries).
 - Deletion feedback verification: 2026-10-24 (#375; Core/Editor tests, cross-reference including caption-only references and both UI languages, section-reference and table-authoring browser scenarios; [same-state captures](#deletion-feedback-evidence-375)).
 - Editor label rename verification: 2026-10-24 (#374; Core plan/Editor collection, replay and atomic Undo/Redo regressions; browser label-authoring, cross-reference, table-authoring, section-reference and property-drafts).
@@ -61,7 +62,7 @@ Core's section rule already counts targets before a heading as part of that sect
 - Matching labeled targets keep document order, followed by matching unlabeled headings, in the shared References group. The existing scrollable slash menu and keyboard navigation handle all results; there is no separate ranking or result cap.
 - This search/display change is Editor interaction only: it adds no persistent document operation or CLI command.
 - A heading's block menu adds a label without a reference.
-- A reference chip shows `§` and the heading text, as MyST renders `{ref}`, and goes to the heading.
+- A section reference chip shows Core `sectionReferenceText`: `§ <computed number>` when heading numbering is enabled, otherwise `§ <heading text>`. It goes to the same labeled body heading. Numbers use Core `headingNumbers` for H1–H6 and update after moves/level changes; CLI inspect exposes the same `referenceText` on headings. The frontmatter document title is never a target.
 - Save expresses labels with the existing insert, delete, order and label edits, and reference changes with final inline-content edits. Host replay does not opt into another reference rewrite: a reference edited manually after Apply must retain its final target. Non-section labels are cleared before their final assignment so successive accepted renames (including a temporary label used to exchange labels) can replay from the opening snapshot. A section target is renamed, never cleared first; exchanging its opening label with another block in one Save remains refused.
 - Label property Apply and slash-menu insertion retain their existing draft/transaction behavior; document-wide collisions are reported by the existing Save error UI with Core's reason and correction. The `sec-<slug>` generator avoids explicit labels; a collision with another heading's implicit ID is refused on Save. Save replay inserts new targets at their following block (after creating new headings) so the same-heading exception also works in the Editor.
 

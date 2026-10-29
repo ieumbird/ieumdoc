@@ -1,13 +1,17 @@
 # Native document support v1
 
 - Status: Implemented
+- Title update: 2026-10-29 (#722; optional single-line plain frontmatter title, no leading-H1 title inference; marker stays `ieumdoc: 1`).
+- Fixed numbering: 2026-10-29 (#720 Core/CLI; [numbering contract](heading-numbering-v1.md#fixed-numbers-720)).
 - Feature sample verification: 2026-10-28 (#528 localized folders, Core read-model coverage and canonical CLI check/format; Desktop replacement/preservation unit tests and development browser entry/captures; no local packaged Desktop run).
 - Save diagnostics: 2026-10-28 (#578 phase 2; stable Core codes, CLI JSON pass-through and bilingual Editor guidance; [inventory](#save-diagnostic-codes-578-phase-2)).
 - Mermaid Figure update: 2026-10-28 (#651 PR 1; Core/CLI source/admission/canonical contract; [Figure authoring](figure-authoring-v1.md#mermaid-figures-651-core-and-cli)).
 - Empty structural elements: 2026-10-27 (#574; canonical forms and verification below).
 - Documentation verification: 2026-10-26 (Open protection and implemented Editor label rename compared with the session/reference contracts and current code; no new browser execution).
 - CLI insertion verification: 2026-10-15 (#280 Core body-end and CLI single/batch insertion tests; one-write and unchanged-file refusal).
-- Last verified: 2026-10-24 (#366 citation-only and footnote-only list admission, update and canonical reopen; Core list regressions).
+- Last verified: 2026-10-29 (#734 all ten ordered formats, adjacency/nesting and stable reopen; Core/CLI/Editor suites, Python MyST cross-check and browser menu/Undo/clipboard/Save→Reload).
+- Previous verification: 2026-10-29 (#730 adjacent-list canonical boundaries, numbering/content preservation and stable reopen; Core regressions and Editor paragraph deletion through Host Save).
+- Previous verification: 2026-10-24 (#366 citation-only and footnote-only list admission, update and canonical reopen; Core list regressions).
 - Previous verification: 2026-10-22 (#332 citation roles and bibliography declarations; Core/CLI/Editor tests and browser Save → Reload, detailed in [Citations](citations-v1.md)).
 - Previous verification: 2026-10-20 (#328: literal @ admission, canonical escaping and bracket shorthand refusal; Core/CLI tests and Editor save-path code inspection).
 - Previous verification: 2026-10-19 (#255: the leading level-1 heading is the document title and stays first in Core operations; admission and format unchanged).
@@ -23,17 +27,25 @@ Public `parse(source)` accepts an IeumDoc native document. It validates the mark
 
 HTML recognition remains enabled so unsupported HTML is refused instead of silently admitted as literal text. Public source diagnostics reach the URL recognizer even though automatic linkification is off. The [Parser security boundary](parser-security-v1.md) records the pinned URL/inline HTML backports, public API verification and removal conditions.
 
-A native file starts with closed YAML frontmatter containing the numeric marker `ieumdoc: 1`. Missing markers, strings, unsupported versions, duplicate keys and invalid YAML are rejected. Only `ieumdoc`, optional `numbering` and optional `bibliography` are allowed. `numbering` accepts `headings: boolean`, `title: false`, and the [reference templates](heading-numbering-v1.md#reference-templates-445) for `figure`, `table` and `equation` (template string or template-only object); unknown keys and other per-kind options remain rejected. Omitting heading settings disables heading numbering; omitting a reference template uses its MyST default. `bibliography` is a non-empty sequence of relative `.bib` paths under the [citation declaration contract](citations-v1.md#bibliography-declaration-and-readiness); no resource is read. Arbitrary metadata, custom starts and per-level settings are unsupported. Heading prefixes remain unsupported. Accepted YAML comments and spelling survive body edits. Metadata never appears as an editable body block, but remains part of the Core snapshot: the first body block has path `[1]`.
+A native file starts with closed YAML frontmatter containing the numeric marker `ieumdoc: 1`. Missing markers, strings, unsupported versions, duplicate keys and invalid YAML are rejected. Only `ieumdoc`, optional single-line plain-string `title`, optional `numbering` and optional `bibliography` are allowed. `title` supports empty and single-line plain strings, preserving surrounding spaces and all accepted characters exactly. Line separators (LF/CR, VT/FF, NEL, U+2028/U+2029), YAML block scalar title syntax (`|`/`>` and their chomping variants), nonstrings, inline formatting and math are explicitly refused by operations, admission and final writes with `native-metadata` and single-line guidance; none are flattened. An absent title stays absent even when the body starts with H1. `numbering` accepts `headings: boolean`, `title: false`, and the [reference templates](heading-numbering-v1.md#reference-templates-445) for `figure`, `table` and `equation` (template string or template-only object); unknown keys and other per-kind options remain rejected. Omitting heading settings disables heading numbering; omitting a reference template uses its MyST default. `bibliography` is a non-empty sequence of relative `.bib` paths under the [citation declaration contract](citations-v1.md#bibliography-declaration-and-readiness); no resource is read. Arbitrary metadata, custom starts and per-level settings are unsupported. Heading prefixes remain unsupported. Accepted YAML comments and spelling survive body edits. Metadata never appears as an editable body block, but remains part of the Core snapshot: the first body block has path `[1]`.
 
 ```markdown
 ---
 ieumdoc: 1
+title: My document
 ---
 
-# My document
+# First section
 
 Body text.
 ```
+
+Frontmatter retains the final YAML line terminator before its closing delimiter.
+This matters beyond title: supported reference templates can contain block scalar
+strings with meaningful trailing spaces/newlines. Parse and all metadata writes
+preserve them independently of key order. Metadata edits retain the YAML library's
+complete serialization; they do not trim scalar content. Canonical output still
+uses LF and remains byte-identical on a second write.
 
 `createDocument()` returns the minimal native document with no body blocks. An empty document, an empty Figure/table/admonition/quote/list item/equation and an unresolved cross-reference are permitted authoring states. Footnotes retain their existing completeness and write rules; see [Endnotes](footnotes-v1.md). A marker alone does not certify that the body is supported.
 
@@ -45,10 +57,10 @@ Support is decided from Core semantic structure and existing authoring helpers, 
 | --- | --- |
 | Headings | H1–H6, non-empty supported inline content, no line breaks or additional attributes. |
 | Paragraphs and inline content | Text, strong/emphasis/delete/code, ordinary links with non-empty content, inline math, supported subscript/superscript, footnote references, `{eq}`, `{numref}`, `{ref}` without custom display text, and explicit `{cite}`, `{cite:t}`, `{cite:p}` keys/groups. Existing inline nesting/round-trip restrictions apply. Distinct adjacent links with identical targets are unsupported. |
-| Equation | Display math value (including empty) and optional label; empty equations use dollar fences, filled equations use `{math}`. A label must preserve its identity in the chosen notation. No enumeration overrides or arbitrary attributes. |
-| Figure | Empty/pending, one image or one option-free non-empty `mermaid` directive, optional container label and one supported inline caption. Alt text requires an image. Mermaid source is opaque; no syntax validation or image ↔ Mermaid conversion. No legends, subfigures, mixed content or extra directive/image/Mermaid attributes. |
-| Table | Rectangular GFM grid with a header row, supported inline cells without line breaks, column alignment; optional supported table caption and label. Only plain GFM and the exact `{table}` directive are accepted. Its options may contain only `name` / `label`, and any MyST VFile diagnostic within the directive's source range causes refusal, including duplicate/unknown options in colon-line or YAML syntax. `{csv-table}`, `{list-table}` and other table directives are refused with or without caption/Label. Every table is numbered and canonically saved as `{table}`, including without caption or label. No merged cells, legends or extra directive attributes. |
-| List | Ordered or unordered lists with supported paragraph content and supported nested lists; existing start and nesting rules. A list retains at least one item. Each item may be empty, including a parent with only a nested list, or contain supported inline content such as text, a citation, footnote reference, math, code or semantic reference. This applies at every nesting level. Insert/update operations normalize whitespace-only content to empty content as described below. No tasks or arbitrary nested blocks. |
+| Equation | Display math value (including empty), optional label and fixed `:enumerator:` string. Empty equations use dollar fences, filled equations use `{math}`. A label must preserve its identity in the chosen notation. Empty equations with a fixed number are permitted only as an intermediate operation state, and refused at final canonical write. No `:enumerated: false` or arbitrary attributes. |
+| Figure | Empty/pending, one image or one option-free non-empty `mermaid` directive, optional container label, fixed `:enumerator:` string and one supported inline caption. Mermaid numbering belongs only to the outer `{figure}`. Alt text requires an image. Mermaid source is opaque; no syntax validation or image ↔ Mermaid conversion. No legends, subfigures, mixed content or extra directive/image/Mermaid attributes. |
+| Table | Rectangular GFM grid with a header row, supported inline cells without line breaks, column alignment; optional supported table caption, label and fixed number. Only plain GFM and the exact `{table}` directive are accepted. Its options may contain only `name` / `label` and `enumerator`, and any MyST VFile diagnostic within the directive's source range causes refusal, including duplicate/unknown options in colon-line or YAML syntax. `{csv-table}`, `{list-table}` and other table directives are refused with or without caption/Label. Every table is numbered and canonically saved as `{table}`, including without caption or label. No merged cells, legends or extra directive attributes. |
+| List | Ordered or unordered lists with supported paragraph content and supported nested lists; existing start and nesting rules. Ordered lists preserve style and delimiter under the [ordered format contract](#ordered-list-formats-734). A list retains at least one item. Each item may be empty, including a parent with only a nested list, or contain supported inline content such as text, a citation, footnote reference, math, code or semantic reference. This applies at every nesting level. Insert/update operations normalize whitespace-only content to empty content as described below. No tasks or arbitrary nested blocks. |
 | Code | Plain fenced code with the existing language contract; no captioned/directive variants. |
 | Quote, divider, admonition | An empty quote or one supported paragraph; thematic break; all standard admonition kinds with an empty body or one supported paragraph. No custom titles/options or additional nested blocks. |
 | Footnote and target | One non-empty supported paragraph per definition, no footnote references inside definitions; citations and document references are supported. Label targets and semantic references follow their existing contracts. |
@@ -105,6 +117,16 @@ These writes fail with a located write error instructing the user to enter conte
 remove the label, or choose a compatible label. The original file remains unchanged.
 All equations retain the existing official number, including when empty.
 
+An empty equation may retain an authored fixed number during editing operations. Only final
+canonical write refuses it with `fixed-number-unrepresentable` and asks the author to enter
+equation content or clear the fixed number. MyST 1.7.4 rejects an empty `{math}` body, while
+`$$` has no directive options. No dummy LaTeX or parser extension is used. An empty equation
+without an enumerator remains savable, including in a fixed document (a nonblocking missing-number
+warning). Editor Number input follows the existing property draft/Apply/Cancel contract;
+the existing Save error path presents the content-or-clear guidance in English and Korean.
+Numbering consistency warnings are displayed separately and never disable Save.
+The [fixed-number contract](heading-numbering-v1.md#fixed-numbers-720) defines the distinction.
+
 Existing CLI input paths share Core's rules, including empty `--text`, `--latex` and
 list content arrays. No new empty-element commands are added: the existing operations
 already express these states. Migration and stored-data compatibility are out of scope.
@@ -114,7 +136,7 @@ already express these states. Migration and stored-data compatibility are out of
 - Label rename (#216): `update-label --update-references true` calls Core `updateLabel` with `{ updateReferences: true }` for an existing Equation/Figure/Table/section label. It atomically updates only references previously resolved to that target, preserving display content and refusing conflicts or meaning changes; omission/`false` keeps references untouched. Single edits and `apply-batch` share this option. [Section references](section-references-v1.md#opt-in-label-rename-with-references-216) defines resolution, implicit heading IDs and refusals. The implemented [Editor entry point](section-references-v1.md#editor) uses this Core opt-in for non-empty label renames. Native admission is unchanged.
 - Equation authoring: `insert-equation <file> --at <index|end> --latex <latex> [--label <label>]` composes Core `insertEquation` and `updateLabel` in one edit and one file replacement. Empty LaTeX is supported; the shared [label collision rules](section-references-v1.md#core), including implicit heading IDs, apply; failures preserve the original. Single commands and `apply-batch` share this contract (#280).
 - Top-level body insertions accept CLI `--at end`, resolved by Core `bodyEndIndex(document)` before trailing endnote definitions. Without endnotes it is after the last body block; a new empty native document returns 1. Numeric positions, including the metadata refusal below, retain their existing rules. The command scope and batch behavior are in [CLI batch application](filesystem-host-boundary-v1.md#cli-batch-application-215).
-- The [document title](document-editing-v1.md#document-title-255) is the leading level-1 heading, kept first by Core moves and insertions; admission and the Markdown form are unchanged.
+- The [document title](document-editing-v1.md#document-title-255) is optional frontmatter `title`, exposed by `EditableDocument.title` and changed through Core `updateDocumentTitle` / CLI `update-title`. It has no label/reference. Every H1–H6 is a body section; no positional title restrictions or implicit promotion apply.
 - Body operations reject top-level index `0` and paths starting with `0` at Core operation time: `block 0 is the document metadata; body blocks start at 1`. This includes insertion, movement, removal and section operations. Metadata stays at snapshot index `0`; body indices and paths are not renumbered for interfaces. Single CLI edits and Editor receive the same Core guidance; `apply-batch` wraps it as `operation N (command): <reason>; nothing was written`. Refusal preserves original file bytes and never falls through to marker or round-trip errors.
 - Core native errors keep `native-marker`, `native-metadata`, `native-content`. All explicit write validation guards also carry a stable `WriteIssueCode` through `canonicalWriteIssue` / `writeIssueOf`, alongside the original English reason, action and snapshot path/source line where identified. Unknown exceptions have no code. The [diagnostic inventory](#save-diagnostic-codes-578-phase-2) defines the code families.
 - CLI `ieumdoc create <file>` exclusively creates a new `.md` file in an existing directory. It never overwrites or creates parent directories. `check` returns a failing exit code for rejected files; JSON failures contain `ok: false`, `validation.valid: false` and `error` diagnostics, without a document model. `inspect`, `format` and editing commands use the same admission and preserve rejected file bytes.
@@ -143,7 +165,7 @@ both whole-document and operation-specific round-trip comparisons:
 | `native-metadata` | Invalid YAML, unsupported metadata, numbering or reference templates. |
 | `native-content` | Unsupported native blocks, attributes, inline nesting and citation shorthand. |
 | `invalid-structure` | Invalid root, missing node type, invalid children array. |
-| `invalid-operation` | Wrong operation argument/type, path/index/offset, stale value, illegal title/order or structural operation. |
+| `invalid-operation` | Wrong operation argument/type, path/index/offset, stale value, illegal block order or structural operation. |
 | `unsupported-content` | Unsupported inline kinds/formatting, block shapes, list/code/citation content and writer diagnostics. |
 | `empty-content` | Required paragraph/heading/endnote text is empty, or a split would create an empty persistent paragraph. |
 | `round-trip-mismatch` | Fingerprint loss, operation content/canonical instability, or changed block boundaries. |
@@ -157,10 +179,15 @@ both whole-document and operation-specific round-trip comparisons:
 | `table-cell-whitespace` | Leading/trailing cell whitespace. |
 | `table-shape` | Missing columns, ragged grid or invalid column alignment. |
 | `invalid-figure` | Invalid image/alt/Mermaid/caption property combination. |
+| `fixed-number-unrepresentable` | Final write of an empty equation retaining a fixed number; enter equation content or clear the fixed number. |
 
 Read-model invariant exceptions in `editable.ts` and unexpected upstream/runtime errors remain
 uncoded; the existing generic guidance applies. Supported unresolved document references remain
 an authoring state, not a save error. File/revision/transport failures retain their own phases.
+
+Numbering consistency diagnostics use a separate warning family: `numbering-missing` and
+`numbering-duplicate`. They carry kind and snapshot path, never throw, and never gate writing.
+They are not `WriteIssueCode` values. See [fixed numbering](heading-numbering-v1.md#fixed-numbers-720).
 
 CLI `check --format json` passes Core `WriteIssue.code` through the existing `error` object,
 including non-native serialization refusals; its JSON envelope and exit status are unchanged.
@@ -179,6 +206,50 @@ required. No sequential replay continuation or duplicate Editor semantics is add
 list-shaped highlighting/navigation contract is unchanged.
 
 ## Canonical output and compatibility
+
+Adjacent lists retain separate boundaries without HTML comments: canonical output
+alternates `*` / `-` for adjacent unordered lists. Ordered delimiters retain their
+meaning: when two ordered siblings use the same delimiter, the second receives a
+style line, including `{style=decimal}` for the default. Different delimiters already
+separate lists. Starts, kind, items and nesting survive repeated byte-stable writes.
+This also applies to the internal writer's nested flows; Native List v1 still permits
+at most one nested list per item. No serializer guard is relaxed.
+
+### Ordered list formats (#734)
+
+`ListContent` accepts ordered-only `style` (`decimal`, `lower-alpha`, `upper-alpha`,
+`lower-roman`, `upper-roman`) and `delimiter` (`.` or `)`). Omitted values mean
+`decimal` and `.`. The editable projection omits these default values; Core node
+creation and parsing record both effective values, and the complete fingerprint
+checks both. Bullet lists reject either field. Start bounds and nesting stay unchanged.
+The existing CLI `insert-list` / `update-list --list` JSON calls these Core operations;
+`inspect` exposes the format, including nested content, with effective top-level defaults.
+
+The saved form uses Python MyST's `attrs_block` spelling on its own line immediately
+before a numeric Markdown list (an optional blank line is accepted):
+
+```markdown
+{style=lower-alpha}
+3) Third clause
+4) Fourth clause
+```
+
+Non-decimal styles always receive this line. Decimal omits it unless needed for an
+adjacent boundary. Numeric source markers retain their delimiter. Direct `a)` source
+syntax and typing input rules are outside this contract. This is a local extension
+of the pinned **JS** MyST schema, not an official JS MyST list field. It supports only
+the five style values, unquoted or double-quoted, rather than general block attributes.
+
+`patches/myst-parser@1.7.4.patch` reuses markdown-it's list rule to read this subset
+and retain the token delimiter. `patches/myst-to-md@1.0.17.patch` delegates list bodies
+to the existing writer, chooses the semantic delimiter per list and inserts style
+lines for formats/boundaries. It retains `bulletOther` from #730, replacing ordered
+delimiter alternation. Remove these patches when upstream supports the same semantics
+and the format, adjacency and canonical round-trip regressions pass without them.
+No markdown-it version override is introduced. First-stage cross-checks against
+Python MyST-parser 4.0.1 confirmed boundary, style, delimiter and start for all ten
+formats, non-default starts, adjacency and nesting. External HTML/PDF output is outside
+this change; the Editor's display/interaction is defined in [Editor UX Shell](editor-ux-shell-v1.md#unified-action-menus-516).
 
 The [v0.1.0-beta.1 candidate release record](../releases/v0.1.0-beta.1.md) summarizes compatibility and behavior changes since beta.4. The native marker remains `ieumdoc: 1`; beta.4 native documents remain supported, while new citation and reference-template metadata is not supported by beta.4.
 

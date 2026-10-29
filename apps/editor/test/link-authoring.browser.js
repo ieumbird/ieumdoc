@@ -3,7 +3,7 @@
 // reloads a real file, and checks that cross-references stay read-only and invalid links fail
 // closed. The file is a scratch copy under the repository's ignored tmp/ directory; prepare it
 // first (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
-async (page, { openPath }) => {
+async (page, { openPath, screenshots }) => {
   page.setDefaultTimeout(15000);
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
@@ -74,6 +74,96 @@ async (page, { openPath }) => {
   result.linkParagraphEditable = await editor.locator('p.paragraph', {hasText: 'OpenAI'}).count() === 1;
   // {eq} reference paragraphs are editable since cross-reference authoring.
   result.crossReferenceEditable = await editor.locator('p.paragraph [data-testid="cross-reference"][data-label="eq-a"]').count() === 1;
+
+  await select('OpenAI', 'capture link form');
+  await page.keyboard.press("Control+Quote");
+  if (screenshots) {
+    for (const width of [1440, 640]) {
+      await page.setViewportSize({width, height:900});
+      await page.evaluate(() => document.fonts.ready);
+      await page.mouse.move(0, 0);
+      await page.screenshot({path:`tmp/open-link-725/link-en-${width}.png`});
+    }
+    await page.setViewportSize({width:1280, height:720});
+  }
+
+  await page.getByTestId('link-url').press('Escape');
+
+  // Observe attempted opens without leaving the edited document; one open below uses a real tab.
+  const pagesBeforeOpening = page.context().pages().length;
+  await page.evaluate(() => {
+    window.linkOpens = [];
+    const original = window.open.bind(window);
+    window.open = (...args) => { window.linkOpens.push(args); return window.realLinkOpen ? original(...args) : null; };
+  });
+  const opens = () => page.evaluate(() => window.linkOpens);
+  const assertOpens = async count => {
+    const actual = await opens();
+    if (actual.length !== count || actual.some(([, target, features]) => target !== '_blank' || features !== 'noopener')) {
+      throw Error(`Unexpected link opens: ${JSON.stringify(actual)}`);
+    }
+  };
+  const existingLink = editor.locator('a[href="https://openai.com"]');
+  await existingLink.click();
+  await assertOpens(0);
+  for (const modifier of ['Control', 'Meta']) {
+    // Separate single clicks spatially; ProseMirror classifies nearby rapid clicks as multi-clicks.
+    await editor.locator('p.paragraph', {hasText:'A plain paragraph'}).click({position:{x:4,y:4}});
+    await existingLink.click({modifiers:[modifier]});
+  }
+  await assertOpens(2);
+  if ((await opens()).some(([url]) => url !== 'https://openai.com/')) throw Error('Wrong clicked link target');
+  // ProseMirror excludes drags before handleClick; exercise actual pointer movement.
+  const box = await existingLink.boundingBox();
+  await page.keyboard.down('Control');
+  await page.mouse.move(box.x + 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 2, box.y + box.height / 2, {steps:8});
+  await page.mouse.up();
+  await page.keyboard.up('Control');
+  await assertOpens(2);
+  await editor.locator('.ProseMirror').dispatchEvent('compositionstart', {data:'한'});
+  await existingLink.click({modifiers:['Control']});
+  await assertOpens(2);
+  await editor.locator('.ProseMirror').dispatchEvent('compositionend', {data:'한'});
+  // A fragment is still editable but never opens or navigates.
+  await editor.locator('a[href="#eq-a"]').click({modifiers:['Control']});
+  await assertOpens(2);
+  const sourceBeforeOpen = await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON()));
+  await select('OpenAI', 'open button');
+  await page.keyboard.press("Control+Quote");
+  for (const url of ['./other.md', '#eq-a', '//example.com', 'mailto:a@example.com', 'javascript:alert(1)', 'https://']) {
+    await page.getByTestId('link-url').fill(url);
+    if (!await page.getByTestId('link-open').isDisabled() ||
+      await page.getByTestId('link-open').locator('..').getAttribute('title') !== 'Only external http(s) links can be opened.') throw Error(`Open allowed ${url}`);
+  }
+  for (const url of ['http://example.com/path', 'https://example.com/preview']) {
+    await page.getByTestId('link-url').fill(url);
+    await page.getByTestId('link-url').focus();
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Tab');
+    if (!await page.getByTestId('link-open').evaluate(node => node === document.activeElement)) throw Error('Open is not reachable by Tab');
+    await page.keyboard.press('Enter');
+    if ((await opens()).at(-1)[0] !== url) throw Error('Open did not use current draft URL');
+  }
+  await assertOpens(4);
+  if (await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON())) !== sourceBeforeOpen) throw Error('Open applied the URL draft');
+  // The web surface really opens an isolated tab. Intercept the destination to avoid a network dependency.
+  await page.context().route('https://example.com/preview', route => route.fulfill({contentType:'text/html',body:'External link preview'}));
+  await page.evaluate(() => { window.realLinkOpen = true; });
+  const tabPromise = page.context().waitForEvent('page');
+  await page.getByTestId('link-open').click();
+  const tab = await tabPromise;
+  await tab.waitForLoadState();
+  if (tab.url() !== 'https://example.com/preview' || !await tab.evaluate(() => window.opener === null)) throw Error('External tab was not isolated');
+  await tab.close();
+  await page.evaluate(() => { window.realLinkOpen = false; });
+  await page.getByTestId('link-url').press('Escape');
+  const countBeforeNote = (await opens()).length;
+  await editor.getByTestId('footnote-definition').locator('a').click({modifiers:['Control']});
+  await assertOpens(countBeforeNote);
+  if (page.context().pages().length !== pagesBeforeOpening) throw Error('An ignored click opened an unwanted tab');
+  result.externalOpening = true;
 
   // Retarget an existing link: the form opens with its current URL.
   await select('OpenAI', 'initial retarget');

@@ -14,3 +14,7 @@ See {eq}`eq-a` and [details](#eq-a).
 :label: eq-a
 x
 ```
+
+Link endnote[^link-open].
+
+[^link-open]: [External note](https://note.example/)

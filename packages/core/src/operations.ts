@@ -1,7 +1,7 @@
 import { assertPersistentParagraph } from "./myst/paragraph.ts";
 import { type NodePath } from "./document.ts";
 import { getEditableDocument } from "./editable.ts";
-import { sectionBoundaries, sectionMarker, sectionRange, titleHeading } from "./section.ts";
+import { sectionBoundaries, sectionMarker, sectionRange } from "./section.ts";
 import {
   assertInlineContent,
   sameInlineContent,
@@ -31,7 +31,7 @@ import { assertReferenceableLabel } from "./myst/reference.ts";
 import { renameLabelReferences } from "./myst/rename-label.ts";
 import { labelError, targetLabelError } from "./label.ts";
 import { isAdmonitionVariant, supportedAdmonitionContent, type AdmonitionVariant } from "./myst/admonition.ts";
-import type { ListContent } from "./list.ts";
+import { LIST_STYLES, type ListContent } from "./list.ts";
 import type { CodeBlockContent } from "./code.ts";
 import { createCodeNode, supportedCodeBlock } from "./myst/code.ts";
 import { createListNode, supportedListContent } from "./myst/list.ts";
@@ -68,12 +68,8 @@ export function replaceText(document: MystDocument, from: string, to: string): M
   return finishTextEdit(document, next, block);
 }
 
-/**
- * Move a top-level block. The document title stays first (#255) unless `checkTitle` is false, which
- * only a caller that checks the rule itself against its own starting snapshot may pass: Editor Save
- * replays a final order through intermediate orders no one sees.
- */
-export function moveBlock(document: MystDocument, fromIndex: number, toIndex: number, { checkTitle = true }: { checkTitle?: boolean } = {}): MystDocument {
+/** Move one top-level body block, independently of document metadata. */
+export function moveBlock(document: MystDocument, fromIndex: number, toIndex: number): MystDocument {
   assertBodyIndex(document, fromIndex);
   assertBodyIndex(document, toIndex);
   const next = cloneDocument(document);
@@ -87,9 +83,6 @@ export function moveBlock(document: MystDocument, fromIndex: number, toIndex: nu
   if (!Number.isInteger(toIndex) || toIndex < 0 || toIndex >= blocks.length) {
     throw new DocumentDiagnosticError("invalid-operation", `moveBlock toIndex out of range: ${toIndex}`);
   }
-  const title = checkTitle ? documentTitle(document) : undefined;
-  if (title !== undefined && fromIndex <= title && fromIndex !== toIndex) throw new DocumentDiagnosticError("invalid-operation", `block ${fromIndex} is the document title or its label: ${TITLE_FIXED}`);
-  if (title !== undefined && fromIndex !== toIndex) assertAfterTitle(document, toIndex, "move");
   const [block] = blocks.splice(fromIndex, 1);
   blocks.splice(toIndex, 0, block);
   assertCanonicalBlockBoundaries(next);
@@ -110,9 +103,6 @@ export function moveSection(document: MystDocument, heading: number, to: number)
     throw new DocumentDiagnosticError("invalid-operation", `a section moves to the start of a section or the end of the document: ${to}`);
   }
   if (to > start && to < end) throw new DocumentDiagnosticError("invalid-operation", "a section cannot move into itself");
-  const title = documentTitle(document);
-  if (title !== undefined && heading === title) throw new DocumentDiagnosticError("invalid-operation", `the section of block ${heading} opens with the document title: ${TITLE_FIXED}`);
-  assertAfterTitle(document, to, "move");
   const inSection = sectionContent(document, start, end);
   const next = cloneDocument(document);
   const moved = next.children.filter((_, index) => inSection(index));
@@ -183,25 +173,8 @@ export function insertBlock(document: MystDocument, index: number, block: MystNo
   if (!Number.isInteger(index) || index < 0 || index > blocks.length) {
     throw new DocumentDiagnosticError("invalid-operation", `insertBlock index out of range: ${index}`);
   }
-  // Only the title's own label targets go before it.
-  if (block.type !== "mystTarget") assertAfterTitle(document, index, "insert");
   blocks.splice(index, 0, structuredClone(block));
   return next;
-}
-
-const TITLE_FIXED = "the document title stays first and cannot be moved";
-
-/** The title's heading index; the body starts after the metadata block when there is one. */
-function documentTitle(document: MystDocument): number | undefined {
-  return titleHeading(sectionMarkers(document), document.children[0]?.[FRONT_MATTER_FIELD] === true ? 1 : 0);
-}
-
-/** Refuse placing a block at or before the title (#255). */
-function assertAfterTitle(document: MystDocument, index: number, action: "insert" | "move"): void {
-  const title = documentTitle(document);
-  if (title !== undefined && index <= title) {
-    throw new DocumentDiagnosticError("invalid-operation", `${action === "insert" ? "insert" : "move"} after the document title at block ${title}: ${TITLE_FIXED}`);
-  }
 }
 
 export function insertParagraph(document: MystDocument, index: number, text: string | InlineContent[]): MystDocument {
@@ -510,12 +483,19 @@ function normalizeList(list: ListContent): ListContent {
   if (!list.ordered && list.start !== undefined) {
     throw new DocumentDiagnosticError("invalid-operation", "a bullet list has no start number");
   }
+  if (list.ordered ? (list.style !== undefined && !LIST_STYLES.includes(list.style)) ||
+    (list.delimiter !== undefined && list.delimiter !== "." && list.delimiter !== ")")
+    : list.style !== undefined || list.delimiter !== undefined) {
+    throw new DocumentDiagnosticError("invalid-operation", "only ordered lists support a valid style and delimiter");
+  }
   const items = list.items.map((item) => {
     if (!item || typeof item !== "object") throw new DocumentDiagnosticError("invalid-operation", "list item must be an object");
     const content = structuralInlineContent(item.content);
     return item.list === undefined ? { content } : { content, list: normalizeList(item.list) };
   });
-  return list.ordered ? { ordered: true, start, items } : { ordered: false, items };
+  return list.ordered ? { ordered: true, start,
+    ...(list.style && list.style !== "decimal" ? { style: list.style } : {}),
+    ...(list.delimiter === ")" ? { delimiter: list.delimiter } : {}), items } : { ordered: false, items };
 }
 
 function assertListRoundTrip(document: MystDocument, index: number, list: ListContent): void {
@@ -533,7 +513,9 @@ function assertListRoundTrip(document: MystDocument, index: number, list: ListCo
 }
 
 function sameList(left: ListContent, right: ListContent): boolean {
-  return left.ordered === right.ordered && left.start === right.start && left.items.length === right.items.length &&
+  return left.ordered === right.ordered && left.start === right.start &&
+    (left.style ?? "decimal") === (right.style ?? "decimal") && (left.delimiter ?? ".") === (right.delimiter ?? ".") &&
+    left.items.length === right.items.length &&
     left.items.every((item, index) => {
       const other = right.items[index];
       return sameInlineContent(item.content, other.content) && (item.list === undefined
@@ -669,7 +651,7 @@ export function updateTableCaption(document: MystDocument, path: NodePath, capti
   const next = cloneDocument(document);
   const label = typeof current.label === "string" ? current.label : "";
   next.children[path[0]] = tableBlockNode(tableOf(next.children[path[0]])!, content, label,
-    typeof current.identifier === "string" ? current.identifier : undefined);
+    typeof current.identifier === "string" ? current.identifier : undefined, current.enumerator as string | undefined);
   assertStableTable(next, path[0], TABLE_CAPTION_FAILURE);
   return next;
 }
@@ -907,7 +889,7 @@ export function updateLabel(document: MystDocument, path: NodePath, label: strin
   if (kind === "Table") {
     const paragraph = tableCaptionParagraph(current);
     if (paragraph && projectInlineContent(paragraph) === undefined) throw new DocumentDiagnosticError("unsupported-content", "table caption is not editable in this version");
-    next.children[path[0]] = tableBlockNode(tableOf(next.children[path[0]])!, tableCaptionContent(current), label, identifier);
+    next.children[path[0]] = tableBlockNode(tableOf(next.children[path[0]])!, tableCaptionContent(current), label, identifier, current.enumerator as string | undefined);
   }
   const node = getNode(next, path);
   // `$$ ... $$ (label)` math records an anchor derived from the old identifier.
@@ -921,6 +903,26 @@ export function updateLabel(document: MystDocument, path: NodePath, label: strin
     if (kind !== "Target") node.identifier = identifier;
   }
   assertLabelRoundTrip(next, path[0], label, `${kind} label cannot be preserved through canonical round-trip`);
+  return next;
+}
+
+/** Set an authored MyST enumerator, or clear it with "". Number consistency is diagnostic
+ * only. Session checks permit incomplete empty equations; final canonical write remains strict. */
+export function updateEnumerator(document: MystDocument, path: NodePath, enumerator: string): MystDocument {
+  if (!Array.isArray(path) || path.length !== 1) throw new DocumentDiagnosticError("invalid-operation", "updateEnumerator requires a top-level Equation, Figure or Table path [index]");
+  const current = getNode(document, path);
+  if (current.type !== "math" && !isFigure(current) && !tableOf(current)) {
+    throw new DocumentDiagnosticError("invalid-operation", "updateEnumerator requires a top-level Equation, Figure or Table");
+  }
+  if (typeof enumerator !== "string" || (enumerator !== "" && (!enumerator.trim() || /[\r\n]/.test(enumerator)))) {
+    throw new DocumentDiagnosticError("invalid-operation", "enumerator must be a non-empty single-line string, or an empty string to clear it");
+  }
+  const next = cloneDocument(document);
+  if (current.type === "table") next.children[path[0]] = tableBlockNode(next.children[path[0]], [], "");
+  const node = getNode(next, path);
+  if (enumerator === "") delete node.enumerator;
+  else node.enumerator = enumerator;
+  serializeFor(next, "Fixed number cannot be preserved through canonical round-trip");
   return next;
 }
 

@@ -1,8 +1,8 @@
 import { i18n } from "./i18n.ts";
 import { Extension, type Editor } from "@tiptap/core";
 import { closeHistory, isHistoryTransaction } from "@tiptap/pm/history";
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { NodeSelection, Plugin, PluginKey, Selection, TextSelection, type EditorState } from "@tiptap/pm/state";
+import type { Fragment, Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { NodeSelection, Plugin, PluginKey, Selection, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { useEditorState } from "@tiptap/react";
 import { endnoteOrder, footnoteNumbers, nextFootnoteLabel, orphanedEndnotes, type EndnoteBlock } from "@ieumdoc/core/numbering";
 import { LABEL_PROPERTIES_META } from "./label-rename.ts";
@@ -98,7 +98,7 @@ const returnPointKey = new PluginKey<ReturnPoint | null>("endnoteReturn");
 const ORDER_META = "endnoteOrder";
 
 /** Ephemeral editor interaction, never a document attribute or history event. */
-export const endnoteEditingKey = new PluginKey<string | null>("endnoteEditing");
+export const endnoteEditingKey = new PluginKey<{ label: string; initial: Fragment } | null>("endnoteEditing");
 const ownerTokens = new WeakMap<Editor, string>();
 let nextOwnerToken = 0;
 
@@ -119,26 +119,45 @@ export function endnoteAt(state: EditorState, pos: number): string | null {
 /** Inline editors inside a definition follow that definition's explicit edit session. */
 export function canEditEndnoteAt(state: EditorState, pos: number): boolean {
   const label = endnoteAt(state, pos);
-  return label === null || endnoteEditingKey.getState(state) === label;
+  return label === null || endnoteEditingKey.getState(state)?.label === label;
 }
 
 export function setEndnoteEditing(editor: Editor, label: string | null): void {
   editor.view.dispatch(editor.state.tr.setMeta(endnoteEditingKey, label));
 }
 
+/** Cancel only this edit session's inline content, retaining other document changes. */
+export function cancelEndnoteEditing(state: EditorState): Transaction | null {
+  const active = endnoteEditingKey.getState(state);
+  if (!active) return null;
+  let tr: Transaction | null = null;
+  state.doc.forEach((node, pos) => {
+    if (endnoteLabel(node) !== active.label) return;
+    tr = closeHistory(state.tr).replaceWith(pos + 1, pos + node.nodeSize - 1, active.initial);
+    tr.setSelection(NodeSelection.create(tr.doc, pos)).setMeta(endnoteEditingKey, null);
+  });
+  return tr;
+}
+
 /** Protect native input crossing a read-only definition while retaining engine history and
  * explicit whole-block deletion. Other semantic operations may update references elsewhere. */
-export function endnoteEditingPlugin(): Plugin<string | null> {
-  return new Plugin<string | null>({
+export function endnoteEditingPlugin(): Plugin<{ label: string; initial: Fragment } | null> {
+  return new Plugin<{ label: string; initial: Fragment } | null>({
     key: endnoteEditingKey,
     state: {
       init: () => null,
       apply(tr, active, _oldState, newState) {
         const requested = tr.getMeta(endnoteEditingKey) as string | null | undefined;
-        if (requested !== undefined) return requested;
+        if (requested !== undefined) {
+          if (requested === null) return null;
+          if (active?.label === requested) return active;
+          let initial: Fragment | undefined;
+          newState.doc.forEach(node => { if (endnoteLabel(node) === requested) initial = node.content; });
+          return initial ? { label: requested, initial } : null;
+        }
         if (!active) return null;
         const { selection } = tr;
-        return endnoteAt(newState, selection.from) === active && endnoteAt(newState, selection.to) === active ? active : null;
+        return endnoteAt(newState, selection.from) === active.label && endnoteAt(newState, selection.to) === active.label ? active : null;
       },
     },
     filterTransaction(tr, state) {
@@ -168,7 +187,7 @@ export function endnoteEditingPlugin(): Plugin<string | null> {
       let allowed = true;
       state.doc.forEach(node => {
         const label = endnoteLabel(node);
-        if (label === undefined || label === active) return;
+        if (label === undefined || label === active?.label) return;
         const replacement = after.get(label);
         if (!replacement || !replacement.content.eq(node.content)) allowed = false;
       });
@@ -291,19 +310,22 @@ export const Endnotes = Extension.create<{ canOrder(): boolean }>({
       Enter: () => {
         const { state, view } = this.editor;
         const selection = state.selection;
-        if (view.composing || !(selection instanceof NodeSelection) || selection.node.type.name !== "footnoteDefinition") return false;
-        const label = String(selection.node.attrs.label);
-        view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, selection.to - 1)).setMeta(endnoteEditingKey, label));
+        if (view.composing) return false;
+        if (selection instanceof NodeSelection && selection.node.type.name === "footnoteDefinition") return true;
+        const active = endnoteEditingKey.getState(state);
+        if (!active) return false;
+        state.doc.forEach((node, pos) => {
+          if (endnoteLabel(node) === active.label) view.dispatch(closeHistory(state.tr)
+            .setSelection(NodeSelection.create(state.doc, pos)).setMeta(endnoteEditingKey, null));
+        });
         return true;
       },
       Escape: () => {
         const { state, view } = this.editor;
-        const label = endnoteEditingKey.getState(state);
-        if (!label || view.composing) return false;
-        let pos: number | undefined;
-        state.doc.forEach((node, at) => { if (endnoteLabel(node) === label) pos = at; });
-        if (pos === undefined) return false;
-        view.dispatch(state.tr.setSelection(NodeSelection.create(state.doc, pos)).setMeta(endnoteEditingKey, null));
+        if (view.composing) return false;
+        const tr = cancelEndnoteEditing(state);
+        if (!tr) return false;
+        view.dispatch(tr);
         return true;
       },
     };

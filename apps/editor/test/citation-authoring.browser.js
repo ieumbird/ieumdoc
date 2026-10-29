@@ -346,11 +346,11 @@ async (page, { openFolderPicker, openPath, waitForActivePath, reloadDocument, wa
   };
   const surfaces = ['Item.', 'Nested item.', 'Quote.', 'Callout.', 'Header', 'Cell.', 'Caption.', 'Heading.', 'Nested inline', 'Definition.'];
   for (const text of surfaces) {
-    if (text === 'Definition.') await editor.getByTestId('footnote-definition').filter({hasText: text}).locator('p').dblclick();
+    if (text === 'Definition.') await editor.getByTestId('footnote-definition').filter({hasText: text}).getByTestId('endnote-edit').click();
     await caret(text);
     await checkInsertionAvailability(true, text);
     if (text === 'Definition.') {
-      await editor.getByTestId('footnote-definition').filter({hasText: text}).locator('p').dblclick();
+      await editor.getByTestId('footnote-definition').filter({hasText: text}).getByTestId('endnote-edit').click();
       await caret(text, true);
       await page.keyboard.press('Tab');
       const toolbar = page.getByTestId('selection-toolbar');
@@ -437,8 +437,7 @@ async (page, { openFolderPicker, openPath, waitForActivePath, reloadDocument, wa
   await unresolved.locator('.cross-reference-chip').click();
   assert(await page.getByTestId('reference-form').count() === 0, 'An unresolved reference does not open an editor in a read-only definition');
   assert(await inlineContent() === nestedContent, 'Read-only inline controls do not change content');
-  // The paragraph center can be a citation chip; enter through its definition text.
-  await readonlyNote.locator('p').dblclick({position: {x: 8, y: 10}});
+  await readonlyNote.getByTestId('endnote-edit').click();
   await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] [data-testid="footnote-definition"][data-label="n"]')?.getAttribute('aria-readonly') === 'false');
   assert(await readonlyCitation.getByTestId('citation-edit').count() === 1, 'Citation editing becomes available in the active definition');
   await unresolved.locator('.cross-reference-chip').click();

@@ -403,13 +403,14 @@ function isObject(value: unknown): value is Record<string, unknown> {
 function supportedEditsOf(value: unknown): SupportedEdits {
   if (!isObject(value)) throw new Error("invalid session edits");
   const arrayFields = ["headings", "headingLevels", "paragraphs", "equations", "figures", "cells", "tables", "tableCaptions",
-    "admonitions", "quotes", "footnotes", "lists", "codes", "labels", "splits", "merges", "inserts", "deletes", "order", "bibliography"] as const;
+    "admonitions", "quotes", "footnotes", "lists", "codes", "labels", "enumerators", "splits", "merges", "inserts", "deletes", "order", "bibliography"] as const;
   for (const key of Object.keys(value)) {
-    if (key !== "headingNumbering" && key !== "referenceTemplates" && !arrayFields.some(field => field === key)) throw new Error(`invalid ${key} edits`);
+    if (key !== "title" && key !== "headingNumbering" && key !== "referenceTemplates" && !arrayFields.some(field => field === key)) throw new Error(`invalid ${key} edits`);
   }
   for (const key of arrayFields) {
     if (value[key] !== undefined && !Array.isArray(value[key])) throw new Error(`invalid ${key} edits`);
   }
+  if (value.title !== undefined && value.title !== null && typeof value.title !== "string") throw new Error("invalid document title");
   if (value.headingNumbering !== undefined && typeof value.headingNumbering !== "boolean") throw new Error("invalid heading numbering");
   return value as SupportedEdits;
 }

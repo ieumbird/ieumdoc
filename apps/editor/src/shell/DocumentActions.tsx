@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { operationText, type Operation } from "../operation.ts";
 import { useEffect, useState, type Ref } from "react";
-import { Check, Circle, Copy, Ellipsis, FileDiff, LoaderCircle, PanelRight, RotateCcw, StretchHorizontal, TriangleAlert } from "lucide-react";
+import { ArrowLeftRight, Check, Circle, Copy, Ellipsis, FileDiff, LoaderCircle, PanelRight, PanelRightOpen, RotateCcw, StretchHorizontal, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import type { DocumentView } from "./TopBar.tsx";
@@ -31,20 +31,26 @@ type DocumentActionsProps = {
   outline?: boolean;
   onToggleOutline?(): void;
   outlineToggleRef?: Ref<HTMLButtonElement>;
+  compact?: boolean;
+  onOpenRight?(): void;
+  onMove?(): void;
+  openRightDisabled?: boolean;
+  moveDisabled?: boolean;
 };
 
-/** Actions and status of this tab row's active document; no editor-group state is introduced. */
+/** Actions and status of this tab row's active document. */
 export function DocumentActions({
   documentPath, wide, onToggleWide, status, unsaved = false, view, viewDisabled, onViewChange, saveDisabled,
   onSave, onCompare, compareDisabled, onReload, reloadDisabled, onCopyPath, fileActionsRef,
-  outline, onToggleOutline, outlineToggleRef,
+  outline, onToggleOutline, outlineToggleRef, compact: groupCompact = false, onOpenRight, onMove, openRightDisabled, moveDisabled,
 }: DocumentActionsProps) {
   useTranslation();
   // Outline stays directly reachable, including the overlay's Escape/focus-return path.
-  const [compact, setCompact] = useState(() => globalThis.matchMedia?.("(max-width: 64rem)").matches ?? false);
+  const [narrow, setNarrow] = useState(() => globalThis.matchMedia?.("(max-width: 64rem)").matches ?? false);
+  const compact = groupCompact || narrow;
   useEffect(() => {
     const query = matchMedia("(max-width: 64rem)");
-    const change = () => setCompact(query.matches);
+    const change = () => setNarrow(query.matches);
     query.addEventListener("change", change);
     return () => query.removeEventListener("change", change);
   }, []);
@@ -119,6 +125,10 @@ export function DocumentActions({
             <DropdownMenuContent align="end">
               {compact && onToggleWide ? <DropdownMenuItem role="menuitemcheckbox" aria-checked={wide} onClick={onToggleWide}>
                 <StretchHorizontal aria-hidden="true" />{i18n.t("Wide document")}</DropdownMenuItem> : null}
+              {onOpenRight ? <DropdownMenuItem onClick={onOpenRight} disabled={openRightDisabled}>
+                <PanelRightOpen aria-hidden="true" />{i18n.t("Open to the right")}</DropdownMenuItem> : null}
+              {onMove ? <DropdownMenuItem onClick={onMove} disabled={moveDisabled}>
+                <ArrowLeftRight aria-hidden="true" />{i18n.t("Move to other group")}</DropdownMenuItem> : null}
               {onCompare ? <DropdownMenuItem onClick={onCompare} disabled={compareDisabled}>
                 <FileDiff aria-hidden="true" />{i18n.t("Changes before saving")}</DropdownMenuItem> : null}
               <DropdownMenuItem onClick={onReload} disabled={reloadDisabled}>

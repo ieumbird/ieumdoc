@@ -199,16 +199,14 @@ async (page, { openPath, withBlockHover }) => {
     await menu.and(page.locator(':focus-within')).waitFor();
     return menu;
   };
-  const titleMenu = await openBlockMenu(0);
-  for (const name of ['Move up', 'Move down']) {
-    const item = titleMenu.getByRole('menuitem', {name, exact:true});
-    if (!await item.count() || !await item.isDisabled()) throw new Error(`Title menu must disable ${name}`);
-  }
-  await page.keyboard.press('Escape');
-  const firstBody = await openBlockMenu(1);
-  if (!await firstBody.getByRole('menuitem', {name:'Move up', exact:true}).isDisabled()) throw new Error('Nothing moves above the title');
+  const firstMenu = await openBlockMenu(0);
+  if (!await firstMenu.getByRole('menuitem', {name:'Move up', exact:true}).isDisabled()) throw new Error('The first body block cannot move up');
+  if (await firstMenu.getByRole('menuitem', {name:'Move down', exact:true}).isDisabled()) throw new Error('Leading H1 must be movable');
   const boundaryReason = async item => ({ tooltip: await item.getAttribute('title'), description: await item.getAttribute('aria-description') });
-  const firstReason = await boundaryReason(firstBody.getByRole('menuitem', {name:'Move up', exact:true}));
+  const firstReason = await boundaryReason(firstMenu.getByRole('menuitem', {name:'Move up', exact:true}));
+  await page.keyboard.press('Escape');
+  const secondMenu = await openBlockMenu(1);
+  if (await secondMenu.getByRole('menuitem', {name:'Move up', exact:true}).isDisabled()) throw new Error('Body blocks can move above the leading H1');
   await page.keyboard.press('Escape');
   const lastIndex = await editor.evaluate(node => node.editor.state.doc.childCount - 1);
   const lastMenu = await openBlockMenu(lastIndex);
@@ -227,7 +225,7 @@ async (page, { openPath, withBlockHover }) => {
   await page.getByTestId('ui-language').selectOption('ko');
   await page.keyboard.press('Escape');
   await page.getByTestId('settings-dialog').waitFor({state:'detached'});
-  for (const [index, name, expected] of [[1, '위로 이동', '위로 이동할 본문 블록이 없습니다.'],
+  for (const [index, name, expected] of [[0, '위로 이동', '위로 이동할 본문 블록이 없습니다.'],
     [lastIndex, '아래로 이동', '아래로 이동할 본문 블록이 없습니다.']]) {
     const menu = await openBlockMenu(index, '블록 작업');
     const item = menu.getByRole('menuitem', {name, exact:true});
@@ -301,17 +299,15 @@ async (page, { openPath, withBlockHover }) => {
 
   // 4. The next drag starts right after a drop, and a moved Figure is not selected either, so its
   // properties do not open.
-  // Nothing lands above the leading title (#255): no line there, and a drop changes nothing.
+  // Leading H1 is body content: a Figure can be dropped above it.
   const first = await editor.locator(':scope > *').first().boundingBox();
-  const second = await editor.locator(':scope > *').nth(1).boundingBox();
   await grab(figure, /^Move figure block \d+$/);
   await pointAt(first.y + 2);
-  result.noLineAboveTitle = await line.count() === 0;
-  await pointAt(second.y + 2);
+  result.lineAboveLeadingH1 = await line.count() === 1;
   await line.waitFor();
   await page.mouse.up();
   await tint.waitFor({state:'detached'});
-  result.figureMovedFirst = (await order()).startsWith('heading figure ');
+  result.figureMovedFirst = (await order()).startsWith('figure heading ');
   result.figureNotOpened = await figure.getAttribute('data-selected') === 'false' &&
     await page.getByTestId('figure-properties').count() === 0;
 
@@ -330,7 +326,7 @@ async (page, { openPath, withBlockHover }) => {
   await page.getByTestId('equation-latex').fill('x + BlockMoveDraft');
   // The draft is reported from an effect, so the handle follows it a render later.
   const handle = page.getByRole('button', {name:/^Move equation block \d+$/});
-  // The title's handle never drags (#255); wait for the Equation's own.
+  // Wait for the Equation's own handle.
   await page.locator('.block-handle[draggable="false"][aria-label^="Move equation block"]').waitFor({state:'attached'});
   result.draftHandleExplains = await handle.getAttribute('draggable') === 'false' &&
     await handle.getAttribute('title') === 'Apply or Cancel the Equation edit before moving it.';

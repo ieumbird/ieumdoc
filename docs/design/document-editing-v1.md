@@ -1,6 +1,7 @@
 # Continuous document editing v1
 
 - Status: Implemented
+- Title contract update: 2026-10-29 (#722; frontmatter-only title and H1–H6 body sections replace the #255/#472 leading-H1 policy).
 - Last verified: 2026-10-28 (#637: in-document block equation form, native input drag/paste isolation and wider wrapping inline math form; targeted Editor and browser checks and same-state 1440/640px captures).
 - Property Apply verification: 2026-10-27 (#576: shared Ctrl/Cmd+Enter submission, validation/busy guards, IME/modifier exclusions and prose hard-break isolation; Editor tests and targeted Windows Chrome browser regressions, with Apple platform emulation rather than native macOS).
 - Code-language verification: 2026-10-28 (#645: selection-only menu, common grammar choices, preserved unlisted values, typeahead, language/body Undo/Redo and exact disk Save/Reload; [verification](#code-language-selection-verification-645)).
@@ -9,7 +10,7 @@
 - Body-heading verification: 2026-10-26 (#472: Editor 287/287, typecheck/build, docs check; new-document, structural-block-authoring, document-title, basic-blocks and markdown-input browser regressions with the worktree's persistent Chrome profile. New insertion/menu unit assertions and browser insert/H2 promotion regressions failed on unchanged implementation before the fix).
 - Double-click verification: 2026-10-26 (#470: equation-insertion checks display-formula entry through Edit, LaTeX-field focus, Cancel/Escape caret restoration, unchanged document and Undo/Redo, and an existing draft; the new entry assertion failed before the change).
 - Inline math focus verification: 2026-10-26 (#460: Apply/Escape immediately restore editor focus and the caret after the formula; inline-math-authoring checks subsequent typing and Undo, alongside equation-insertion, equation-node-selection-typing, inline-math-split and property-drafts browser regressions).
-- Equation-end verification: 2026-10-25 (#436: `/Equation` at the document end → Apply → Enter/ArrowDown/Control+End or direct typing; the end gap cursor and explicit node selection both reach following prose. Browser regression also checks Chromium composition and disk Save/Reload; native OS IME is not tested).
+- Previous Equation-end verification: 2026-10-25 (#436: `/Equation` at the document end → Apply → Enter/ArrowDown/Control+End or direct typing; the end gap cursor and explicit node selection both reached following prose. #714 supersedes explicit node-selected typing with the input-ignore policy below; gap-cursor input and the other key commands are unchanged. Browser regression also checks Chromium composition and disk Save/Reload; native OS IME is not tested).
 - Previous verification: 2026-10-25 (#429 document-end shortcuts, including integration with #431/#433/#432: Editor 281/281, typecheck/build, focus-caret, continuous-editing and table-authoring browser regressions; final Figure/table, delayed focus check, native Shift selection and Apple keymap emulation on Windows Chrome; native macOS not tested).
 - Table Tab verification: 2026-10-25 (#430 last-cell Tab row addition, including integration with #431/#433: Editor 281/281, typecheck/build, table-authoring and continuous-editing browser regressions including first-cell focus, typing, one-step Undo and disk Save/Reload).
 - Whole-document Undo verification: 2026-10-25 (#427: saved/new/applied/local-asset Figures, Backspace/Delete and Undo/Redo; figure-authoring, image-assets and atom-boundaries browser regressions; Editor 280/280, typecheck/build).
@@ -91,6 +92,13 @@ Runner-owned servers and browser contexts are closed after each execution.
 
 Highlighting is display-only and keeps the existing lowlight common language set. Its grammars load when a code block first exists, without changing document, selection or history. Empty/unregistered languages or a grammar load failure keep literal editable code and its language; language edits still use the existing Core code operation and canonical fence. The deferred chunk reduces the initial entry, not total deployment size.
 
+Triple-clicking the code body's `<pre>` padding or blank line area selects only the code
+textblock, matching engine-handled text clicks (#724). The same editable-wrapper boundary
+as Figure/Table captions otherwise allowed native selection into the next paragraph.
+The shared mousedown handler prevents that default selection; subsequent typing/deletion
+preserves neighboring blocks. Code-language controls and normal code drag selection
+retain their existing behavior. `caption-selection` covers this shared failure path.
+
 The code-language control is a single 28px compact outlined dropdown button (#645),
 showing the current literal language or localized Plain text for an empty fence.
 This supersedes #499/#527's direct-input decision. The shared DropdownMenu owns Tab/Enter/Space
@@ -140,10 +148,9 @@ the submitted document before collecting Core edits. This changes lookup cost, n
 deletion declarations, history, or canonical write rules. Measurement scope and limits are in
 the [guard performance record](../reviews/editor-guard-performance-2026-10-23.md).
 
-Block handles read the current document's title index once per transaction/layout refresh. Unchanged handle
-rows retain their rendered controls, while geometry, visibility, menu state, move restrictions
+Unchanged block-handle rows retain their rendered controls, while geometry, visibility, menu state, move restrictions
 and language changes still update them. Geometry reads are retained; equal measured geometry
-reuses the previous state. Source-path identity and title status also invalidate that state,
+reuses the previous state. Source-path identity also invalidates that state,
 and draft changes invalidate the hint callback, preserving move permissions after reorder or
 same-sized content changes. Equation/Figure/Table display numbers share the Core-computed result
 only for the identical immutable engine document, as endnote/citation numbering already does.
@@ -164,12 +171,11 @@ A changed document recomputes numbering; source semantics and canonical output a
   Backspace at the first block keep their existing behavior. Selection uses the
   engine's `selectNodeBackward`/`selectNodeForward` before its join commands; no Core
   operation or CLI command is added for this keyboard interaction.
-- With a caret in an editable top-level heading, Tab changes H2 to H3 (one level
-  deeper), and Shift+Tab changes H3 to H2 (one level higher). Each change is one
-  Undo step and keeps the heading's content and caret. Tab at H6 and Shift+Tab at
-  H2 keep the heading and focus unchanged; Shift+Tab at an existing H1 also leaves
-  it unchanged. Body headings cannot be promoted to H1. A text selection still uses Tab to
-  reach its formatting toolbar; table, list and code Tab behavior is unchanged.
+- With a caret in an editable top-level heading, Tab changes H1 to H2 (one level
+  deeper), and Shift+Tab changes H2 to H1 (one level higher). Each change is one
+  Undo step and keeps content and caret. Tab at H6 and Shift+Tab at H1 keep the
+  heading and focus unchanged. A text selection still uses Tab to reach its
+  formatting toolbar; table, list and code Tab behavior is unchanged.
 - Tab/Shift+Tab move between table cells. Tab in the last cell of an editable
   table adds a row below it and moves the caret to the new row's first cell,
   through the same command, session locators and Core Save operation as Add row
@@ -236,19 +242,21 @@ A changed document recomputes numbering; source semantics and canonical output a
   focus move adds no document content or history event. Subsequent typing edits
   that text or creates prose at the gap; it does not replace the applied block or
   lose its reference target. Section-label properties return to the following
-  heading, keeping the label directly before it. Typing a printable character
-  while an Equation is explicitly node-selected does not replace it: a new
-  paragraph is created below (as at the gap after the block) and the
-  typed text goes there. An initial IME keydown (`Process`/229) prepares that
-  paragraph before composition starts; subsequent composition updates and
-  commit/cancellation remain engine-owned. Cancellation may leave an empty
-  session paragraph, which canonical Save omits. Accepted clipboard slices also
+  heading, keeping the label directly before it. Ordinary character input and IME
+  composition on a node-selected Equation, image/Mermaid Figure or read-only endnote
+  are ignored (#714 owner decision). They do not replace the block or caption,
+  create a paragraph or add a history step, with or without an initial `Process`/229
+  keydown. The shared selected-preview input boundary keeps the native typing surface
+  read-only throughout the block selection, without blur or deferred focus restoration;
+  clicking another text surface permits normal
+  input again. This policy changes no Enter, arrow, Delete/Backspace or clipboard
+  commands. Accepted clipboard slices still
   go below a node-selected Equation, in one undoable transaction, retaining the
   existing unsupported-content and duplicate-label checks. An accepted empty slice
   is consumed without changing the Equation, label, selection or history, and
   without creating a paragraph. Backspace/Delete on a node-selected Equation still use
-  the engine's normal deletion. Explicitly selecting other nodes still uses
-  normal engine replacement behavior.
+  the engine's normal deletion. Other node kinds retain normal engine replacement
+  behavior.
 - The adapter repairs session locators after engine edits. New blocks and
   heading/paragraph conversions use existing Core insert/remove operations;
   missing source blocks become explicit deletions. Unsupported blocks reject
@@ -260,6 +268,9 @@ A changed document recomputes numbering; source semantics and canonical output a
   cut, retaining the source selection and clipboard with a visible reason.
   Labels are preserved; pasting a duplicate label is rejected until the user
   chooses a distinct label or cuts the original target to move it.
+  Fixed Figure/Table/Equation enumerators travel with the typed attributes and the
+  new-locator insertion payload; Host replay uses Core `updateEnumerator` so Cut/Paste,
+  drop/copy and duplicate normalization preserve them through Save/Reload (#720).
 - New empty prose and empty remnants of cross-block replacement are session space
   and are omitted from canonical storage. Clearing an existing block in place and
   incomplete semantic fields retain existing Save validation and draft recovery.
@@ -363,52 +374,91 @@ Cell merge has no GFM form and is not supported.
 
 ## Document title (#255)
 
-Owner decision (2026-10-26, #472): body sections start at H2. Editor slash/insert
-menus offer H2–H6 without a search query (#575), and body Paragraph/Heading
-block menus offer H2–H6, plus Paragraph for headings. They never offer H1,
-including for an existing body H1 or an untitled document. The title's own block
-menu and explicit title changes below remain unchanged, as do Add a title and
-the empty `Title` flow. Existing body H1 blocks still open, edit and survive
-Save → Reload at H1; no migration or rewriting is applied. The existing Markdown
-input rule still turns `# ` in a body paragraph into H1; its policy is outside #472.
-This is an Editor authoring choice, not a format or semantic change: Core and CLI
-continue to admit and author H1, so no Core operation or CLI change is needed.
+Owner decision (2026-10-29, #722) replaces #255's leading-H1 title and #472's
+H2-first authoring policy. The document title has one storage source: optional
+frontmatter `title`. It is a single-line plain string, including an empty string.
+Core operations, Native admission and final writes refuse line separators
+(LF/CR, VT/FF, NEL, U+2028/U+2029), YAML literal/folded block scalars (`|`/`>`,
+including chomping variants), inline formatting, math and nonstring values with
+`native-metadata` and single-line corrective guidance; none are flattened.
+An absent title or an empty document is valid. No body heading is inferred, duplicated or synchronized as
+the title. The title has no label or reference target.
 
-A level-1 heading that opens the body, preceded only by its own label targets, is the document
-title. It is stored as that ordinary leading `# Title`, so the format and other Markdown/MyST
-tools are unchanged; there is no frontmatter title. The title stays first. One Core rule
-(`titleHeading` in `@ieumdoc/core/section`) serves Core, the CLI and the Editor:
+Core `EditableDocument.title` exposes the optional string.
+`updateDocumentTitle(document, string | null)` sets it or removes the field with
+`null`, using the shared YAML library and preserving other metadata/comments.
+CLI `update-title <file> (--text <text> | --remove)` calls that operation; an
+empty `--text` stores an empty title. It supports the existing revision guard,
+dry-run and `apply-batch` (`text` or `remove: true`). `inspect` displays the title
+separately from body nodes (JSON `title: null` means absent).
 
-- Core `moveBlock` refuses moving the title or its label targets and moving any block to or
-  before the title; `moveSection` refuses moving the title's section and moving a section before
-  it; insertions (`insertBlock` and every insert operation built on it) refuse positions at or
-  before the title, except a label target for it. The CLI's move-block, move-section and insert
-  commands therefore refuse the same changes with Core's reason and leave the file unchanged.
-- Removing the title, converting it to another block or changing its level is an explicit change
-  and is allowed; the body then has no title until a leading level-1 heading opens it again.
-  Without a title, any heading may be moved to the top and becomes the title.
-- Editor: the title carries `data-document-title`. Its handle does not drag and says why; no drop
-  line is offered at or above it, and section commands neither move the title's section nor move
-  another above it. Any engine change that would leave the old title as a level-1 heading below
-  something else is refused with the notice `The title stays at the top of the document.` Enter
-  in the title continues in a paragraph below it: at its start, an empty paragraph; elsewhere, the
-  text after the caret.
-- A document without a title shows an Add a title place above its first block (not document
-  content). It starts an empty title with the caret in it and the `Title` placeholder; a title left
-  empty is removed once the caret leaves it, because an empty heading is not saved.
-  In an empty new document it reuses the single transient starting paragraph, so Enter at the
-  end of the typed title leaves exactly one empty paragraph below it with the caret there (#437).
-  Existing document content is retained when a title is inserted above it.
-- Save replays a final block order through intermediate orders no one sees, so it moves blocks
-  with Core's `checkTitle: false` and instead checks the rule once, against the opening snapshot:
-  if that snapshot opened with a title still saved as a level-1 heading, it must still be the title.
+Editor keeps the title input above the body. It uses the document font/H1 size,
+plain text only, and an empty Add a title placeholder. Its value is a
+ProseMirror document attribute in the same state/history as body edits. It does
+not create an editor body block or snapshot path, and does not appear in
+Outline. Ctrl+Z/Ctrl+Y/Ctrl+Shift+Z use engine history while the input is focused.
+Tab reaches the title after document settings, then enters the body editor.
+Enter, including Shift+Enter, enters the existing body without inserting a line
+break. Input/paste replaces runs of line separators with one space, following
+the existing inline-math input convention; other characters and surrounding
+spaces are retained. Visual wrapping does not add stored line breaks. Save and
+Source replay the Core title operation. Recovery snapshots and their plaintext
+salvage copy retain the title. Clearing the input stores an empty string.
+
+Every H1–H6, including a leading H1, is a body section. Body insert/slash and
+Paragraph/Heading conversion menus offer H1–H6 (current level excluded in the
+block menu). Heading marks and references retain their existing rules. The
+leading H1 and its label can move, accept preceding blocks, change level, or be
+removed like other sections. There is no fixed-title guard, label exception or
+Save replay bypass. Adding, changing or removing metadata title never changes
+body heading levels, labels or content. `ieumdoc: 1` remains unchanged; existing
+leading-H1 input opens as a body section without migration.
+
+Stored logical levels are independent of output heading placement. The installed
+MyST compatibility observations and numbering boundary are recorded in
+[Heading numbering](heading-numbering-v1.md#myst-title-and-output-boundary-722).
+
+### Title verification and captures (#722)
+
+Single-line title boundaries preserve surrounding spaces, quotes, colons, `#`,
+strings resembling YAML null/boolean/numbers and Unicode exactly, independent
+of key order and other metadata edits. Core regressions check direct operations,
+opening and final write refusal of multiline/block-scalar titles, exact reopened
+values and byte-identical second writes. Frontmatter keeps its actual final
+line terminator; admitted block-scalar reference templates retain their trailing
+spaces/newlines in either key order and through every metadata write operation.
+
+Core title admission/operations/canonical reopening, CLI single/batch/revision/refusal
+writes, Editor metadata history/recovery and real HTTP title Save are covered by
+existing suites. The `document-title` browser scenario verifies absent/empty titles,
+Undo/Redo, Enter, Source, actual Save → Reload, H1 movement with its label, and
+Core-numbered section references. Existing `new-document`, `structural-block-authoring`,
+`block-move`, `outline`, `recovery-structure`, `layout-rules`, `quiet-document`,
+`focus-caret` and `equation-save-during-edit` cover the interface consequences. Old fixed-H1/H2-first assertions are replaced by
+positive movement/H1-authoring assertions under the 2026-10-29 owner decision;
+Native refusal and semantic round-trip checks are retained.
+
+Manual captures use 1440×900 and 640×900, English/light, fonts ready and the same
+checkout-owned persistent Chrome profile. Before is master `6d9f8d4e`; After is
+this change. The existing-file comparison uses the same source and sidebar fixture
+inventory; its empty metadata input and ordinary body H1 are the intended change.
+The authored example is a separate file demonstrating title, numbered H1/H2,
+Outline and section reference agreement. Manual review confirms title wrapping,
+body alignment and no horizontal overflow at 640px. Screenshot-only capture passes
+are manual evidence, separate from automated assertions. Large runner traces/logs
+remain uncommitted. [Capture metadata and SHA-256 hashes](assets/frontmatter-title-722/capture-metadata.json).
+
+| Viewport | Before, existing file | After, existing file | After, authored title/body |
+| --- | --- | --- | --- |
+| 1440px | [Before](assets/frontmatter-title-722/before-1440.png) | [After](assets/frontmatter-title-722/after-existing-1440.png) | [Authored](assets/frontmatter-title-722/after-authored-1440.png) |
+| 640px | [Before](assets/frontmatter-title-722/before-640.png) | [After](assets/frontmatter-title-722/after-existing-640.png) | [Authored](assets/frontmatter-title-722/after-authored-640.png) |
 
 ## Sections
 
 Block-menu Move up/down (#516) reuse the drag reorder transaction and Core
 `moveBlock` Save replay (CLI `move-block`). Each swaps one adjacent body block in
 one Undo step; a heading moves alone, independently of the existing section commands
-below. Title/label, endnote, boundary and active-draft restrictions match drag.
+below. Endnote, boundary and active-draft restrictions match drag.
 See [unified menu behavior](editor-ux-shell-v1.md#unified-action-menus-516).
 
 A section can be moved or deleted. It is computed from the current
@@ -575,20 +625,38 @@ then `selectNodeBackward`; Delete runs `deleteSelection`, `deleteCurrentNode`,
 fallback therefore deletes before the selection fallback. The higher-priority
 Markdown input-rule undo and the existing list/empty-block commands remain intact.
 
-`equation-node-selection-typing` covers actual preview selection, ASCII typing,
+`equation-node-selection-typing` covers actual preview selection and ignored ASCII
+typing and CDP composition commit/cancel, with and without an initial IME keydown
+and with repeated `Process` keys. The cancellation cases include Escape keydown followed
+by a late empty composition ending after two animation frames. These inputs leave the full document, Equation/label,
+rendered text and history unchanged, without adding a paragraph. A real body click
+then permits ordinary composition and English input. Initial, post-composition and
+control-focus-return `typing-again` cases check that native focus cannot redirect ignored
+letters into the title. Shift+arrow/Home/End retain the existing native range extension,
+and navigation followed by late cancellation preserves the document. The scenario also retains
 single/multiline plain-text clipboard paste, duplicate-label paste refusal,
-comment-only HTML paste as an empty-slice no-op with Undo/Redo preservation, an
-initial CDP IME keydown followed by `imeSetComposition` updates and commit/cancel,
-ordinary paragraph composition, Undo/Redo, original Equation/label and surrounding
-content preservation, real disk Save/Reload, and explicit Backspace/Delete.
-The CDP path models the keyboard-before-composition ordering described in
+comment-only HTML paste as an empty-slice no-op with Undo/Redo preservation, real disk
+Save/Reload and explicit Backspace/Delete. The Process-first path models the ordering in
 [UI Events](https://www.w3.org/TR/uievents/#events-composition-key-events).
-It does not verify a Windows Korean OS IME, candidate selection, or input methods
-that start composition without a preceding `Process`/229 keydown. Those methods
-still use the engine's default composition path; adjacent-paragraph placement is
-not guaranteed there. Manual Windows Korean IME review remains: select the
-Equation preview, type and commit `한글`, cancel another composition, then check
-single input, Equation/label, Undo/Redo and Save/Reload.
+It does not verify a Windows Korean OS IME or candidate selection. Composition input,
+with or without a preceding `Process`/229 keydown, is rejected on
+selected Equation, image/Mermaid Figure and read-only endnote previews by the shared
+`rejectPreviewComposition` handler at `compositionstart` and `compositionupdate`.
+The native typing surface stays noneditable while that block is selected, so completion
+or a late empty cancellation has no editable block range to replace. A focused read-only
+root also retains the engine's block selection when Chromium proposes a default title
+caret. The engine's logical editability remains enabled for existing keymaps and clipboard
+commands; native range-extension navigation uses the engine/browser's existing selection
+path. Explicit property-close commands enable native input before asking the engine
+for their caret/gap cursor, even when the editor root already has focus.
+A real text-surface click lets the browser place an editable caret, and explicit engine
+navigation likewise restores normal native typing. No key-specific composition release,
+blur or animation-frame focus restoration is used. Neither input path creates
+an adjacent paragraph; `footnotes` and `mermaid-authoring` cover the same protection
+and subsequent body input. Manual Windows Korean IME review remains: select the
+Equation preview, type and commit `한글`, cancel another composition, and verify no
+document change or new paragraph; then click prose and check normal single input,
+Equation/label preservation, Undo/Redo and Save/Reload.
 
 PR #314 review baseline (`3afb44f`): real clipboard paste of `Paste314` replaced
 the selected `eq-power` Equation (`P = VI \\cos \\varphi`) with a paragraph and
@@ -598,9 +666,9 @@ initial 229 keydown, retained the Equation but appended `한글` to the precedin
 failed on that original implementation. During investigation, moving the caret
 at `compositionstart` or routing through gapcursor's `beforeinput` produced
 `ㅎ한글`: Chromium restarted its composing range after the first update. These
-approaches were discarded. The final adapter prepares the caret at the initial
-IME keydown, before that range exists; it does not implement composition text
-handling. In pinned `prosemirror-view` 1.42.4, `input.ts` invokes custom DOM
+approaches were discarded. The #314 adapter prepared the caret at the initial
+IME keydown, before that range existed; #714's input-ignore policy now supersedes
+that placement. In pinned `prosemirror-view` 1.42.4, `input.ts` invokes custom DOM
 handlers before its own keydown handler skips key code 229, while `domchange.ts`
 can invoke `handleTextInput` during composition. Tiptap remains pinned at 3.31.3.
 
@@ -611,7 +679,7 @@ The HTML parser produced a non-null empty Slice; returning false delegated it
 to `doPaste`'s default `replaceSelection`. The regression failed on that HEAD.
 The handler now consumes this accepted empty slice without dispatching. The same
 real paste pipeline is tested with existing undo and redo history, preserving
-the full document, selection, focus and the original typing Undo/Redo steps.
+the full document, selection, focus and the existing paste Undo/Redo steps.
 
 
 ### Figure file name (#652)

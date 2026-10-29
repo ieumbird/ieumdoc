@@ -26,7 +26,7 @@ import { assertUnicode } from "./unicode.ts";
 // native admission; explicit cite roles retain their typed meaning.
 // Keep MyST's HTML recognition: disabling it would admit unsupported HTML as text.
 // The pinned markdown-it patch bounds unterminated inline HTML scans instead.
-export const OPTIONS = { extensions: { smartquotes: false, citations: false } };
+export const OPTIONS = { extensions: { smartquotes: false, citations: false, attrs_block: true } };
 
 /**
  * Marks the code block MyST makes from front matter. The fingerprint treats every
@@ -69,7 +69,8 @@ function markFrontMatter(document: MystDocument, source: string): void {
       // MyST's code conversion trims a trailing blank line. In YAML a block scalar
       // (notably |+) can give that newline meaning. Keep the complete metadata value;
       // the marker above keeps its role and required document-start context semantic.
-      first.value = lines.slice(1, first.position.end.line - 1).join("\n");
+      const content = lines.slice(1, first.position.end.line - 1);
+      first.value = content.length ? `${content.join("\n")}\n` : "";
     }
   }
 }

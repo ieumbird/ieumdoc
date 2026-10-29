@@ -24,6 +24,7 @@ comparable real-product Before/After images. No new Core operation or CLI comman
 the existing `updateTableCaption` operation already owns the persistent semantics.
 
 - Status: Implemented
+- Fixed numbering: 2026-10-29 (#720 Core/CLI and Editor property controls/warnings); [shared number contract](heading-numbering-v1.md#fixed-numbers-720).
 - Empty-caption surface (#577): every editable table exposes its inline caption without
   an Add caption action. An empty surface uses the caption typography and a muted
   italic `Enter a table caption…` / `표 캡션을 입력하세요...` hint while the ProseMirror
@@ -41,9 +42,10 @@ the existing `updateTableCaption` operation already owns the persistent semantic
 - Scope: Core table caption/label operations and their Editor/CLI interfaces; [Table interaction](table-interaction-v1.md).
 
 Issues #94 / #584. Core owns `updateTableCaption`, table `updateLabel` and table numbering.
-Every table receives a number in document order, regardless of caption or Label, and is
+Every table receives an automatic number in document order or an authored fixed number, regardless of caption or Label, and is
 canonically written as a MyST `{table}` directive. Without caption or Label, the directive
-has neither an argument nor `:name:`. Plain GFM input remains supported and is normalized
+has neither an argument nor `:name:`; its optional fixed number uses `:enumerator:`.
+Plain GFM input remains supported and is normalized
 on any official write. Canonical writing uses the existing Markdown writer for the caption
 and GFM grid, then verifies the complete semantic round-trip. The fingerprint treats only
 the plain top-level table and its empty directive wrapper as equivalent; grid content,
@@ -57,6 +59,14 @@ same inline controls as Figure captions and prose. A table owns its caption: mov
 deleting the table includes its caption, and Undo/Redo restores them together. ArrowDown
 from the final grid row enters the caption; ArrowUp from its first line returns to the
 last cell. Enter leaves the table. Emptying a caption removes its persistent content.
+
+The grid-to-caption gap uses the same adjustable `--space-document-caption` as Figures
+(#721). Native caption padding owns that gap; the inner caption adds no second margin.
+Edit, Table actions, Delete and Append row stay together below the caption, including
+the empty input surface, with token-derived control clearance. They do not occupy the
+caption gap or cover its text/click targets. Horizontal scrolling and row/column handle
+placement retain the [Table interaction](table-interaction-v1.md) contract.
+
 Every empty caption surface shows its official `Table N.` and, while the selection is outside,
 the input hint. Filling or
 clearing the caption or Label never changes the table's kind or number, nor the numbers
@@ -64,14 +74,20 @@ of later tables. References to a retained Label therefore keep their number. Cle
 Label retains reference text but makes references to that removed target unresolved.
 The Editor uses Core numbering, without a separate prospective-number rule.
 
-Hover a table and choose Edit (the pencil below the grid, beside Table actions, which
-also offers Edit label). The properties form contains only Label; Apply/Cancel and
-unsaved-draft protection apply to that field. It preserves the live caption, including
+Hover a table and choose Edit (the pencil below the caption, beside Table actions, which
+also offers Edit label). The properties form contains Label and Number; Apply/Cancel and
+unsaved-draft protection apply to both fields. It preserves the live caption, including
 edits made while properties are open. The inline caret surface is present below every
 editable table, including after clearing and reopening. No Add caption button is needed.
 Read-only captions retain existing content and official numbers, like Figure captions,
 but omit the editable empty-input hint. Save omits empty caption content. Cell and row coordinates remain
 unchanged. CLI and Editor share the Core read model and numbering rule.
+Table properties expose Number after Label (#720), with the shared automatic placeholder
+and empty-to-clear rule. Number-only drafts participate in unsaved-work protection;
+Apply changes label and number in one engine transaction and Save replays Core
+`updateEnumerator`. Cancel/Escape keeps the applied value. The field shows Core's applicable
+missing/duplicate warning; the document Notice also reports warnings. Neither prevents Save.
+See the [shared fixed-number Editor contract](heading-numbering-v1.md#fixed-numbers-720).
 The Editor schema requires exactly one caption after the rows. Native parsing and
 replacement therefore retain the surface even when a range deletion removes everything
 after the final cell while keeping the table. No repair transaction or Undo step is added.
@@ -98,6 +114,15 @@ the model out of sync. The same boundary applies to image, pending and Mermaid c
 The `table-caption` browser scenario checks repeated Backspace, word deletion and cut for
 each kind, including contentDOM, model, surrounding blocks, Undo/Redo and hint restoration.
 
+Triple-clicking anywhere on the caption line, including its generated number and blank
+space after the text, selects only the caption's inline content (#724). Typing or deleting
+then preserves the grid and neighboring blocks. The shared Figure/Table mousedown
+handler prevents native selection from crossing contentDOM's caption boundary, while
+retaining ProseMirror's text-click handling and ordinary drag selection. The
+`caption-selection` browser scenario checks native triple clicks and subsequent input
+at text, text-end, right-blank and number positions, including consecutive Figures,
+Figure before table, table before paragraph, Mermaid and pending Figures.
+
 The caption stays below the table. Its computed number follows the document's authored
 Table reference template, retaining the existing `. ` separator; without a template,
 `Table N. ` stays unchanged. Metadata and numbered properties accessible names share Core's
@@ -117,7 +142,7 @@ and citation NodeViews are the same ones used in the body, including computed nu
 readiness, editing and navigation. MyST reads caption citations/endnotes before grid
 cells even though the caption is visually below them; numbering follows that Core order.
 No generated display text enters Markdown. Merged cells, additional legends and directive
-options other than Label (`name` / `label`) reject native admission. Only plain GFM and
+options other than Label (`name` / `label`) and fixed number (`enumerator`) reject native admission. Only plain GFM and
 the exact `{table}` directive are accepted; `{csv-table}`, `{list-table}` and other
 table directives are refused regardless of caption, Label or options. Before lifting,
 Core checks MyST's option map and refuses any VFile diagnostic within the table
@@ -127,6 +152,13 @@ including for YAML options. No new table editor engine or persistence
 architecture is introduced.
 
 CLI: `ieumdoc update-table-caption <file> --path <block> --text <caption>` (empty text removes it), or `--content <InlineContent JSON>`. `update-label` accepts tables; `inspect --format json` includes caption, label and computed table number.
+
+`updateEnumerator` / CLI `update-enumerator` sets or clears the `{table}` enumerator.
+Caption, label, cell and shape edits preserve it. Plain GFM inputs acquire the same canonical
+wrapper when a number is set; every official write already uses that wrapper, including
+without caption, label or number. The [shared fixed-number rules](heading-numbering-v1.md#fixed-numbers-720)
+define warning-only consistency checks. `{list-table}` and `{csv-table}` remain unsupported,
+following the [#597 owner decision](https://github.com/ieumbird/ieumdoc/issues/597).
 
 No new CLI option is needed for #584: `format`, `insert-table`, caption/Label edits and
 `apply-batch` already use the Core write path; `inspect` already projects Core numbers.
@@ -159,6 +191,7 @@ Extend fail-first public Core and CLI regressions to inherited option names, YAM
 options and alternate table directives, with BOM/CRLF byte preservation and supported
 input controls. Verify Core/CLI, typecheck, docs and all PR CI checks.
 
+
 ## Cell code and math preservation (#622)
 
 Keep `{table}` + GFM as decided in [#597](https://github.com/ieumbird/ieumdoc/issues/597).
@@ -183,6 +216,34 @@ whitespace checks pass. Prose/caption output remains byte-identical in its regre
 The existing Host file-save regression also replaces its former pipe refusal with
 an actual file write, native reopen and byte-identical second save, retaining all
 malformed-input refusals. Editor 316/316, Editor typecheck and production build pass.
+
+## Shared caption gap (#721)
+
+The former 44px came from the bottom tool reservation introduced in `86ad8f31`;
+`f443766c` moved it into native caption padding. Reducing that padding alone would
+put Edit/Table actions/Delete over the caption. The bottom tools now measure the
+native table including its caption, with their reserved space after it. This retains
+the existing below-table action bar beside Append row rather than covering cells or
+caption input. Row handles and horizontal-scroll geometry are unchanged.
+
+The existing `table-caption` browser scenario compares real Table and image Figure
+gaps at 1440/640px, both with the default token and an overridden shared value, and
+checks caption/tool separation and containment. `table-authoring` checks bottom-tool
+clearance alongside its existing explicit targets, selection, row/column operations,
+horizontal scrolling (now at 640px), history and Save/Reload. `caption-selection`
+retains #724 / PR #733's native triple-click and neighboring-content protection.
+
+Same-state manual captures use baseline `a5c1c702` and the #721 working tree, the same
+scratch `caption-placeholder/captions.md`, checkout-owned persistent Windows Chrome
+profile and Vite origin `http://127.0.0.1:5721`. Both use light English UI, loaded
+bundled fonts/images, DPR 1, 100% zoom, scroll top and a hovered table. The empty Table
+and Figure captions show their retained number/hint and the bottom controls together.
+Generated traces and logs stay under ignored `tmp/`.
+
+| Viewport | Before | After |
+| --- | --- | --- |
+| 1440×1000 | [PNG](assets/table-caption-gap-721/before-1440.png) | [PNG](assets/table-caption-gap-721/after-1440.png) |
+| 640×1000 | [PNG](assets/table-caption-gap-721/before-640.png) | [PNG](assets/table-caption-gap-721/after-640.png) |
 
 ## All-table numbering verification (#584)
 

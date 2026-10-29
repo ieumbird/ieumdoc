@@ -131,6 +131,8 @@ export function SettingsDialog({ open, highlightUpdate = false, category, onCate
   const [page, setPage] = useState(readPageBackground);
   const [pageProblem, setPageProblem] = useState(false);
   const [themeProblem, setThemeProblem] = useState(false);
+  const [logBusy, setLogBusy] = useState(false);
+  const [logProblem, setLogProblem] = useState(false);
   const state = info?.update;
   const offered = state && "version" in state ? state : state?.phase === "error" ? state.update : undefined;
   const busy = state?.phase === "downloading" || state?.phase === "installing";
@@ -283,6 +285,15 @@ export function SettingsDialog({ open, highlightUpdate = false, category, onCate
                     <dt>{i18n.t("Version")}</dt>
                     <dd data-testid="app-version">{info.version}</dd>
                   </dl>
+                  <div className="settings-section">
+                    <div className="settings-actions"><Button size="sm" variant="secondary" disabled={logBusy} onClick={async () => {
+                      setLogBusy(true); setLogProblem(false);
+                      try { await desktop.openLogFolder(); }
+                      catch { setLogProblem(true); }
+                      finally { setLogBusy(false); }
+                    }}>{i18n.t("Open log folder")}</Button></div>
+                    {logProblem ? <Notice tone="error">{i18n.t("Could not open the log folder.")}</Notice> : null}
+                  </div>
                   <CliSettings desktop={desktop} />
                   <h3 className="settings-group-heading">{i18n.t("Updates")}</h3>
                   <div className="settings-section settings-section--stacked">

@@ -213,7 +213,10 @@ async (page, { openPath, reloadDocument }) => {
     const gridBottom = tableElement.rows[tableElement.rows.length - 1].getBoundingClientRect().bottom;
     const row = block.querySelector('.table-row-handle').getBoundingClientRect();
     const handle = document.querySelector('.block-controls.visible .block-handle')?.getBoundingClientRect();
-    return edit.top >= gridBottom && Math.abs(table.left - block.getBoundingClientRect().left) < 0.5 && row.right <= table.left &&
+    const caption = block.querySelector('.table-caption').getBoundingClientRect();
+    const append = block.querySelector('[aria-label="Append row"]').getBoundingClientRect();
+    return edit.top >= Math.max(gridBottom, caption.bottom) && append.top >= caption.bottom &&
+      Math.abs(edit.top - append.top) < 0.5 && Math.abs(table.left - block.getBoundingClientRect().left) < 0.5 && row.right <= table.left &&
       (!handle || handle.bottom <= row.top || row.bottom <= handle.top || handle.right <= row.left);
   });
   await initial.locator('th').first().click();
@@ -277,7 +280,7 @@ async (page, { openPath, reloadDocument }) => {
     probe.remove(); return matches;
   })) throw new Error('Delete table needs the danger token');
   await page.keyboard.press('Escape');
-  await page.setViewportSize({width:768, height:720});
+  await page.setViewportSize({width:640, height:720});
   await initial.hover();
   for (let i = 0; i < 5; i++) await initial.getByRole('button', {name:'Append column', exact:true}).click();
   await initial.locator('.table-scroll').evaluate(scroll => { scroll.scrollLeft = scroll.scrollWidth; });
@@ -285,8 +288,12 @@ async (page, { openPath, reloadDocument }) => {
   await last.click();
   result.narrowGeometry = await initial.evaluate(block => {
     const table = block.querySelector('table');
+    const caption = block.querySelector('.table-caption').getBoundingClientRect();
+    const actions = block.querySelector('.table-action-bar').getBoundingClientRect();
+    const append = block.querySelector('[aria-label="Append row"]').getBoundingClientRect();
     const handles = [...block.querySelectorAll('.table-column-handle')];
-    return block.querySelector('.table-scroll').scrollWidth > block.querySelector('.table-scroll').clientWidth &&
+    return actions.top >= caption.bottom && append.top >= caption.bottom &&
+      block.querySelector('.table-scroll').scrollWidth > block.querySelector('.table-scroll').clientWidth &&
       handles.every((handle, i) => Math.abs(handle.getBoundingClientRect().left - table.rows[0].cells[i].getBoundingClientRect().left) < 1) &&
       [...block.querySelectorAll('.table-row-handle')].every((handle, i) => {
         const r = handle.getBoundingClientRect(), row = table.rows[i].getBoundingClientRect();

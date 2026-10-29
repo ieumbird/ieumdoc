@@ -81,7 +81,7 @@ export function setTableColumnAlignNode(table: MystNode, index: number, align: "
   }
 }
 
-const TABLE_DIRECTIVE_FIELDS = new Set(["type", "kind", "children", "label", "identifier", "position"]);
+const TABLE_DIRECTIVE_FIELDS = new Set(["type", "kind", "children", "label", "identifier", "position", "enumerator"]);
 const CAPTION_FIELDS = new Set(["type", "children", "position"]);
 
 // Source-kind admission is distinct from semantic equality: the internal MyST
@@ -104,7 +104,7 @@ export function retainTableSource(node: MystNode, file: VFile): void {
   }
   if (node.type === "mystDirective" && node.name === "table") {
     const unsupported = Object.fromEntries(Object.entries(node.options ?? {})
-      .filter(([name]) => name !== "name" && name !== "label"));
+      .filter(([name]) => name !== "name" && name !== "label" && name !== "enumerator"));
     const diagnostics = file.messages.filter(message => message.line != null && node.position &&
       message.line >= node.position.start.line && message.line <= node.position.end.line)
       .map(message => message.reason);
@@ -150,10 +150,11 @@ export function tableCaptionParagraph(node: MystNode | undefined): MystNode | un
 /**
  * The top-level block for every authored table: a `{table}` directive, even without caption or label.
  */
-export function tableBlockNode(table: MystNode, caption: InlineContent[], label: string, identifier?: string): MystNode {
+export function tableBlockNode(table: MystNode, caption: InlineContent[], label: string, identifier?: string, enumerator?: string): MystNode {
   return {
     type: "container",
     kind: "table",
+    ...(enumerator !== undefined ? { enumerator } : {}),
     ...(label.length > 0 ? { label, identifier } : {}),
     children: [
       ...(caption.length > 0 ? [{ type: "caption", children: [{ type: "paragraph", children: inlineContentToNodes(caption) }] }] : []),

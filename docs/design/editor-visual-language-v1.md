@@ -2,6 +2,7 @@
 
 - Status: Implemented
 - Outline display update: 2026-10-29 (#719; single-line ellipsis, full title tooltip and accessible name; [evidence](editor-visual-language-v1.md#single-line-outline-719)).
+- Editor groups verification: 2026-10-29 (#488 phase 1; shared tokens, focused-group cue and [1440/640px comparison](editor-ux-shell-v1.md#two-editor-groups-488-phase-1)).
 - Tab-row actions update: 2026-10-29 (#695; [contract and evidence](editor-ux-shell-v1.md#title-strip-and-tab-row-actions-695)).
 - Pre-save comparison verification: 2026-10-28 (#655 stage 2: shared dry run/Worker review, persistent-browser regressions and [640/1440px bilingual captures](#pre-save-comparison-655)).
 - Save refusal verification: 2026-10-28 (#578 phase 1: real collection/Host refusals, danger block/cell overlays, snapshot invalidation, keyboard reveal and [640/1440px light/dark captures](#save-refusal-highlights-578)).
@@ -48,6 +49,14 @@
 - Scope: existing Editor presentation and interaction overlays. Core, CLI, source format, save API and the single Tiptap state are unchanged.
 
 ## Quiet segments and Command Center (#620)
+
+The two [editor groups](editor-ux-shell-v1.md#two-editor-groups-488-phase-1) reuse the
+existing tab, control, structural-border and selected-surface tokens. The focused
+group's tab-row background supplies a quiet group cue alongside each active tab's
+existing accent marker. The shared title strip and document typography do not change.
+Floating editor controls retain their existing surface, shadow, typography and targets;
+the group's viewport bounds their placement and maximum size. See the [review correction
+and comparison](editor-ux-shell-v1.md#group-verification-and-visual-evidence).
 
 All `.view-toggle` consumers share the same selected 600 semibold, themed `surface` and
 `--shadow-segment`, without a `border-control` edge. A hidden semibold label reserves width
@@ -248,7 +257,7 @@ The following base values describe Light; [Dark overrides](#system-light-and-dar
 | Body | Shared sans stack (below); 17px / 28.9px, 400; 16px paragraph gap |
 | H1–H6 | Same document stack, 700; 34/45.9, 24/32.4, 20/27, 18/24.3, 16/21.6, 14/18.9px; 32px before / 12px after; first block has no top margin |
 | UI | Same shared sans stack; 14/20px labels/controls, 12/16px metadata and status |
-| Caption | UI stack, 14/20px; caption gap 8px |
+| Caption | UI stack, 14/20px; Figure and Table share the adjustable `--space-document-caption` gap (8px by default). Table actions follow the caption, clear of its text and input surface. |
 | Table | UI stack, 15/22px; cells 8px × 12px, 112px minimum width, light visible grid |
 | Callout | Body uses document stack and body size/line spacing (17/28.9px); variant title keeps UI stack, 14/21px and semibold weight. A 3px kind-colored side bar and its surface, no outline; informational, caution and danger kinds |
 | Endnote definition | One region after the body in first-reference order. 16/24px document type and normal text color; baseline number in a 24px inset, returning to the invoking reference. Subtle rule and 12/16px `미주` label at the start, 8px internal gaps and 24px separation from the body. Each definition is one supported paragraph edited in place; unsupported definitions reject native admission. An endnote's gutter has no `+` and its handle opens block actions without dragging. Placement and Save follow [Endnotes](footnotes-v1.md). |
@@ -272,7 +281,7 @@ Colors originate in the Adjustable values of `styles/tokens.css`. `--id-color-ac
 | `surface-selected`, `surface-selected-hover`, `text-selected` | Chosen preset's two light surfaces and darker accent (`accent-hover`); current navigation, active command choice, text selection and on TopBar toggle icons. Blue defaults: `#e9f0ff`, `#e1eaff`, `#2449a6`. |
 | `surface-pressed` | `#e3e7ee`: neutral persistent menu-open/pressed face and tab-group track; an open ghost control shows only this face, without a border |
 | `text`, `text-muted`, `text-subtle` | `#20242c`, `#545c68`, `#606874`: main text, secondary labels, metadata; subtle remains readable on hover surfaces |
-| `document-heading-number` | Aliases the chosen `interaction` accent: generated H2–H6 and non-current Outline numbers. All presets meet 4.5:1 on white/panel/selected surfaces, including the 18/16/14px H4–H6 sizes. Current Outline numbers inherit `text-selected`. Heading text keeps its normal color. [Display-only contract](heading-numbering-v1.md#generated-number-color-511--503). |
+| `document-heading-number` | Aliases the chosen `interaction` accent: generated H1–H6 and non-current Outline numbers. All presets meet 4.5:1 on white/panel/selected surfaces, including the 18/16/14px H4–H6 sizes. Current Outline numbers inherit `text-selected`. Heading text keeps its normal color. [Display-only contract](heading-numbering-v1.md#generated-number-color-511--503). |
 | `border`, `border-subtle`, `border-strong` | Structural separators, paper edge, and stronger content rules; these are not input identification |
 | `border-control` | `#7b8390` in Light: recognizable fields, selects and outlined input-like controls retain at least 3:1 against adjacent faces. Selected segments and the Command Center trigger do not use this boundary (#620); segments use 600 semibold, `surface` and `--shadow-segment`, while Command Center uses `surface-subtle` and the structural `border`. |
 | `interaction`, `interaction-soft` | Chosen preset's accent (Blue default `#315fd4`) for indicator/focus and an alias to `surface-selected`; no separate copied selection palette |
@@ -443,7 +452,7 @@ the shared independent ring. Image-picker selection and preview retain their exi
 
 ## Document title (#255)
 
-A document without a title shows Add a title above its first block in the H1 type (34/45.9px bold, document font) and the subtle text color, with no box at rest; hover darkens it to muted text and keyboard focus shows the 2px ring. It sits above the editable content rather than inside it, so it never takes the caret and is never document content. An empty title shows `Title` in the same subtle color, like the empty-document hint. The title's handle keeps the ordinary handle look; its tooltip explains that the title stays at the top.
+The plain frontmatter title input sits above the editable body, using the document font and H1 type (34/45.9px bold). Its empty Add a title placeholder uses subtle text; text uses the document text color. It has no box at rest and a focus ring when keyboard focused. It visually wraps long single-line values without adding stored line breaks. Enter/Shift+Enter enters the body; pasted line separators become spaces under the existing single-line input convention. The input is metadata, has no block handle, and is excluded from Outline. Body H1 retains ordinary heading controls. The title's value and Undo/Redo are owned by the same ProseMirror document attribute; [title semantics](document-editing-v1.md#document-title-255) define Save and empty input.
 
 ## Empty document start (#133)
 
@@ -855,7 +864,7 @@ verification reruns the Editor tests, typecheck/build/docs and the six targeted 
   | H1–H6 sizes (H1 also controls the title slot) | `--font-size-document-h1`, `--font-size-document-h2`, `--font-size-document-h3`, `--font-size-document-h4`, `--font-size-document-h5`, `--font-size-document-h6` |
   | Heading/title-slot weight and line spacing | `--font-weight-document-heading`, `--line-height-document-heading` |
   | Heading margins (title slot uses the after gap) | `--space-document-heading-before`, `--space-document-heading-after` |
-  | Generated H2–H6 and non-current Outline number color (#559) | `--id-color-document-heading-number` aliases `--id-color-interaction`; current Outline numbers retain the selected color. No number/title gap style is added; the existing single space stays unchanged. |
+  | Generated H1–H6 and non-current Outline number color (#559) | `--id-color-document-heading-number` aliases `--id-color-interaction`; current Outline numbers retain the selected color. No number/title gap style is added; the existing single space stays unchanged. |
   | Top-level paragraph, list, quote, equation, code, figure, table and admonition gap | `--space-document-block` |
   | List/quote indentation | `--space-document-list-indent`, `--space-document-quote-indent` |
   | Quote/admonition left accent rule | `--size-document-side-rule` |
@@ -1585,6 +1594,7 @@ Targeted browser checks pass: `outline`, `panel-lists`, `visual-states`, `layout
 and `quiet-document`. The existing list checks now assert single-line height,
 ellipsis, actual clipping, full accessible names and title tooltips in both themes
 at 1440px and 640px. Semibold current changes retain row positions and heights.
-Shell, visual-token and browser-fixture tests (48), workspace typecheck, production
+Shell, visual-token and browser-fixture tests (51), workspace typecheck, production
 Editor build, documentation and whitespace checks pass. Native tooltip availability
 is checked through its full `title`; the OS tooltip pixels are not automated.
+

@@ -40,6 +40,7 @@ import {
   sectionRange,
   blockTargets,
   targetNumbers,
+  numberingReport,
   replaceText,
   serialize,
   updateNodeTextAtPath,
@@ -57,9 +58,11 @@ import {
   updateFigure,
   updateMediaReferences,
   updateLabel,
+  updateEnumerator,
   updateTableCell,
   updateTableCaption,
   updateHeadingNumbering,
+  updateDocumentTitle,
   updateReferenceTemplates,
   referenceNumberText,
   captionNumberText,
@@ -72,6 +75,7 @@ import {
   citationReport,
   inlineContentText as inlineText,
   headingNumbers,
+  sectionReferenceText,
   updateTableColumnAlignment,
   updateList,
   updateCodeBlock,
@@ -160,7 +164,8 @@ const FIGURE_NOTE = [
 const LIST_NOTE = [
   "--list is Core ListContent JSON: {\"ordered\": boolean, \"start\"?: number, \"items\": [...]}.",
   "Each item is {\"content\": InlineContent[], \"list\"?: ListContent}; the optional list nests below the item.",
-  "Numbered lists start at \"start\" (default 1); bullet lists have no start. Empty items are saved as list markers.",
+  "Numbered lists start at \"start\" (default 1); optional style: decimal (default), lower-alpha, upper-alpha, lower-roman, upper-roman; delimiter: . (default) or ).",
+  "Bullet lists have no start, style or delimiter. Empty items are saved as list markers.",
   "Example: --list '{\"ordered\":false,\"items\":[{\"content\":[{\"kind\":\"text\",\"text\":\"First\"}]}]}'",
 ];
 const CODE_NOTE = [
@@ -704,11 +709,18 @@ const COMMANDS: CommandSpec[] = [
     details: ["Templates contain %s (or {number}). Omitted kinds are unchanged. --reset restores MyST defaults; it cannot also set the same kind."],
   },
   {
+    name: "update-title",
+    group: "Edit — labels, footnotes and numbering",
+    summary: "Set or remove the single-line frontmatter document title through Core",
+    usage: "ieumdoc update-title <file> (--text <text> | --remove)",
+    details: ["An empty --text stores an empty title. --remove deletes the field. Body headings and labels are unchanged."],
+  },
+  {
     name: "update-heading-numbering",
     group: "Edit — labels, footnotes and numbering",
     summary: "Enable or disable document heading numbers through Core",
     usage: "ieumdoc update-heading-numbering <file> --enabled <true|false>",
-    details: ["H1 remains a title; H2-H6 are numbered automatically. Only numbering settings are written, never heading text."],
+    details: ["H1-H6 are numbered body sections. Only numbering settings are written, never heading text."],
   },
   {
     name: "update-table-caption",
@@ -766,6 +778,18 @@ const COMMANDS: CommandSpec[] = [
       "Insert a (label)= target at a top-level index. Before a heading, {ref}`label` references name that section.",
       "A section label uses 1-100 ASCII letters, digits or | @ < > * . / _ - + : characters and must not name another target.",
       "Rename a target with update-label and remove it with remove-block.",
+    ],
+  },
+  {
+    name: "update-enumerator",
+    group: "Edit — labels, footnotes and numbering",
+    summary: "Set or clear a fixed Equation, Figure or Table number through Core",
+    usage: "ieumdoc update-enumerator <file> --path <index> --enumerator <number>",
+    details: [
+      "Set an authored number string, such as 17, A.3 or 4-2. Use an empty --enumerator to clear it.",
+      "Fixed numbers survive moves and are used by references. Missing or duplicate numbers warn without blocking writes.",
+      "Saving an empty equation with a fixed number is refused: enter equation content or clear the fixed number.",
+      ...PATH_NOTE,
     ],
   },
   {
@@ -908,6 +932,7 @@ function checkDocument(document: Document, file: string, format: OutputFormat, p
   const unresolved = unresolvedReferences(document);
   // Publish readiness, apart from writeability: a pending Figure is saved, not finished.
   const blocks = getEditableDocument(document).blocks;
+  const numbering = numberingReport(blocks);
   const pendingFigures = blocks.flatMap(block =>
     block.block === "figure" && block.contentKind === "none" ? [{ path: block.path, label: block.label }] : []);
   const missingImageFigures = blocks.flatMap(block => {
@@ -932,6 +957,7 @@ function checkDocument(document: Document, file: string, format: OutputFormat, p
       validation: { valid: true },
       writeability: writeError === undefined ? { writable: true } : { writable: false, error: writeError },
       references: { unresolved },
+      numbering,
       readiness: { pendingFigures, missingImageFigures },
       endnotes,
       citations,
@@ -940,6 +966,7 @@ function checkDocument(document: Document, file: string, format: OutputFormat, p
     if (preview) process.stdout.write(`dry run; nothing was written\nrevision: ${preview.revision}\n`);
     process.stdout.write(`${summarize(document)}\n`);
     process.stdout.write(formatCitations(citations));
+    process.stdout.write(formatNumbering(numbering));
     if (writeError === undefined) process.stdout.write("writeability ok\n");
     else process.stderr.write(`writeability failed: ${writeError}\n`);
     for (const reference of unresolved) {
@@ -1150,6 +1177,10 @@ function changeFor(command: string, flags: string[]): Change {
       if (!Object.keys(templates).length) throw new Error("provide a template or --reset");
       return document => updateReferenceTemplates(document, templates);
     }
+    case "update-title": {
+      if (flags.includes("--text") === flags.includes("--remove")) throw new Error("choose --text or --remove");
+      return document => updateDocumentTitle(document, flags.includes("--remove") ? null : flag(flags, "--text"));
+    }
     case "update-heading-numbering": {
       const enabled = flag(flags, "--enabled");
       if (enabled !== "true" && enabled !== "false") throw new Error("--enabled must be true or false");
@@ -1191,6 +1222,9 @@ function changeFor(command: string, flags: string[]): Change {
         flag(flags, "--from"),
         flag(flags, "--to"),
       );
+    }
+    case "update-enumerator": {
+      return document => updateEnumerator(document, pathFlag(flags), flag(flags, "--enumerator"));
     }
     case "update-label": {
       const updateReferences = optionalFlag(flags, "--update-references");
@@ -1259,6 +1293,11 @@ function batchChange(operation: unknown): Change {
       : !["string", "number", "boolean"].includes(typeof value)) {
       throw new Error(`${name} must be ${json ? "an object, array or string" : "a string, number or boolean"}`);
     }
+    if (name === "--remove") {
+      if (value !== true) throw new Error("remove must be true");
+      tokens.push(name);
+      continue;
+    }
     tokens.push(name, json && typeof value !== "string" ? JSON.stringify(value) : String(value));
   }
   return changeFor(command, parseCommandArgs(command, ["batch-document", ...tokens]).flags);
@@ -1289,7 +1328,7 @@ function applyBatch(file: string, operationsFile: string, ifRevision: string | u
     } catch (error) {
       const command = operation !== null && typeof operation === "object" && "command" in operation
         && typeof operation.command === "string" ? operation.command : "<unknown>";
-      throw new Error(`operation ${index + 1} (${command}): ${error instanceof Error ? error.message : String(error)}; nothing was written`);
+      throw new Error(`operation ${index + 1} (${command}): ${error instanceof Error ? error.message : String(error)}; nothing was written`, { cause: error });
     }
   }
   return { markdown: result, revision, applied: operations.length, references };
@@ -1391,6 +1430,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "update-table-alignment": ["--path", "--column", "--align"],
   "insert-table-column": ["--path", "--at"],
   "update-heading-numbering": ["--enabled"],
+  "update-title": ["--text", "--remove"],
   "update-reference-templates": ["--figure", "--table", "--equation", "--reset"],
   "update-table-caption": ["--path", "--text", "--content"],
   "update-table-cell": ["--path", "--text", "--content"],
@@ -1402,6 +1442,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "update-node-text": ["--path", "--from", "--to"],
   "update-equation-latex": ["--path", "--from", "--to"],
   "update-label": ["--path", "--label", "--update-references"],
+  "update-enumerator": ["--path", "--enumerator"],
 };
 
 function isEditCommand(command: string): boolean {
@@ -1433,7 +1474,7 @@ function parseCommandArgs(command: string, args: string[]): ParsedArgs {
     }
     seen.add(token);
     flags.push(token);
-    if (token === "--dry-run") continue;
+    if (token === "--dry-run" || token === "--remove") continue;
 
     const value = tokens[index + 1];
     if (value === undefined || value.startsWith("--")) {
@@ -1462,7 +1503,8 @@ function parseCommandArgs(command: string, args: string[]): ParsedArgs {
 
 function inspectFile(file: string, bibliographyRoot?: string): string {
   const document = parse(readFile(file));
-  return `${formatInspect(getEditableDocument(document))}\n${formatCitations(resourceReport(document, file, bibliographyRoot))}`;
+  const editable = getEditableDocument(document);
+  return `title: ${editable.title === undefined ? "absent" : quote(editable.title)}\n${formatInspect(editable)}\n${formatNumbering(numberingReport(editable.blocks))}${formatCitations(resourceReport(document, file, bibliographyRoot))}`;
 }
 
 function inspectFileJson(file: string, bibliographyRoot?: string): string {
@@ -1473,9 +1515,16 @@ function inspectFileJson(file: string, bibliographyRoot?: string): string {
     ok: true,
     command: "inspect",
     revision: textRevision(source),
+    title: editable.title ?? null,
     nodes: machineNodes(editable),
+    numbering: numberingReport(editable.blocks),
     citations: resourceReport(document, file, bibliographyRoot),
   })}\n`;
+}
+
+function formatNumbering(report: ReturnType<typeof numberingReport>): string {
+  return [`numbering: ${report.mode}`, ...report.diagnostics.map(diagnostic =>
+    `warning: ${diagnostic.code} ${diagnostic.kind} (block ${diagnostic.path[0]})${diagnostic.enumerator !== undefined ? ` enumerator=${quote(diagnostic.enumerator)}` : ""}`)].join("\n") + "\n";
 }
 
 function resourceReport(document: Document, file: string, root?: string): CitationReport {
@@ -1517,6 +1566,8 @@ function machineNodes(document: EditableDocument): MachineNode[] {
     const [first, ...rest] = machineBlock(block);
     return [{
       ...first,
+      ...("enumerator" in block && block.enumerator !== undefined ? { enumerator: block.enumerator } : {}),
+      ...(block.block === "heading" ? { referenceText: sectionReferenceText(block.text, headings[index]) } : {}),
       ...(headings[index] ? { headingNumber: headings[index] } : {}),
       ...(typeof markers[index] === "number" ? { section: snapshotSection(document, index) } : {}),
       ...(Object.keys(numbers[index]).length > 0 ? { numbers: numbers[index] } : {}),
@@ -1592,7 +1643,7 @@ function machineBlock(block: EditableBlock): MachineNode[] {
     return [{ ...base, label: block.label }];
   }
   if (block.block === "list") {
-    return [{ ...base, ordered: block.ordered, ...(block.start !== undefined ? { start: block.start } : {}), items: block.items }];
+    return [{ ...base, ordered: block.ordered, ...(block.ordered ? { start: block.start, style: block.style ?? "decimal", delimiter: block.delimiter ?? "." } : {}), items: block.items }];
   }
   throw new Error("Unknown native block");
 }
@@ -1606,7 +1657,7 @@ function formatInspect(document: EditableDocument): string {
     const [first, ...rest] = formatBlock(block);
     const section = typeof markers[index] === "number" ? snapshotSection(document, index) : undefined;
     const numbered = Object.entries(numbers[index]).map(([kind, number]) => `${kind}:${number}`).join(",");
-    return [`${first}${section ? ` section=[${section.start},${section.end})` : ""}${numbered ? ` numbers=${numbered}` : ""}`, ...rest];
+    return [`${first}${section ? ` section=[${section.start},${section.end})` : ""}${numbered ? ` numbers=${numbered}` : ""}${"enumerator" in block && block.enumerator !== undefined ? ` enumerator=${quote(block.enumerator)}` : ""}`, ...rest];
   }).join("\n");
 }
 
@@ -1641,7 +1692,7 @@ function formatBlock(block: EditableBlock): string[] {
     return [`${path} table`, ...cells];
   }
   if (block.block === "list") {
-    return [`${path} list`, ...formatListItems(block, 1)];
+    return [`${path} list${block.ordered ? ` style=${block.style ?? "decimal"} delimiter=${quote(block.delimiter ?? ".")}` : ""}`, ...formatListItems(block, 1)];
   }
   if (block.block === "quote") {
     return [`${path} quote inlineEditable=${block.editable} text=${quote(block.text)}`];
@@ -1664,7 +1715,7 @@ function formatBlock(block: EditableBlock): string[] {
 function formatListItems(list: ListContent, depth: number): string[] {
   const indent = "  ".repeat(depth);
   return list.items.flatMap((item, index) => [
-    `${indent}${list.ordered ? `${(list.start ?? 1) + index}.` : "-"} text=${quote(inlineText(item.content))}`,
+    `${indent}${list.ordered ? `${(list.start ?? 1) + index}${list.delimiter ?? "."}` : "-"} text=${quote(inlineText(item.content))}${list.ordered ? ` style=${list.style ?? "decimal"}` : ""}`,
     ...(item.list ? formatListItems(item.list, depth + 1) : []),
   ]);
 }
@@ -1759,7 +1810,12 @@ function reportError(args: string[], error: unknown): number {
   if (args[0] === "check" && args.includes("--format") && args[args.indexOf("--format") + 1] === "json") {
     process.stdout.write(`${JSON.stringify({ ok: false, command: "check", validation: { valid: false },
       error: { ...writeIssueOf(error), ...(error instanceof NativeDocumentError ? { code: error.code } : {}) } })}\n`);
-  } else process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+  } else {
+    const issue = writeIssueOf(error);
+    const hint = issue.code === "fixed-number-unrepresentable"
+      ? " Enter equation content before setting the fixed number; in a batch, reorder those operations." : "";
+    process.stderr.write(`${issue.reason}${hint}\n`);
+  }
   return 1;
 }
 

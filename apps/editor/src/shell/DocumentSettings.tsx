@@ -47,7 +47,7 @@ export const DocumentSettings = forwardRef<DocumentSettingsHandle, Props>(functi
     target?.focus({ preventScroll: true });
   } }));
   const groups: SettingsGroup[] = [{ label: i18n.t("Saved in this document"), fields: [
-    { id: "numbering", label: i18n.t("Number headings"), summary: i18n.t("Numbers H2–H6; H1 stays a title. Save to keep changes."),
+    { id: "numbering", label: i18n.t("Number headings"), summary: i18n.t("Numbers H1–H6 body sections. Save to keep changes."),
       control: { kind: "checkbox", checked: headingNumbering, onChange: props.onToggleHeadingNumbering } },
     { id: "references", label: i18n.t("Reference style"), summary: preview(referenceTemplates ?? {}),
       control: { kind: "custom", render: descriptionId => <DropdownMenu>

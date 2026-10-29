@@ -433,8 +433,7 @@ async (page, { openDocument, waitForActivePath, reloadDocument }) => {
     hold = {arrived, gate};
     await page.getByTestId('save').click(); await received;
     same('Held Save writes only its snapshot', (await read(notes)).source, captioned);
-    const note = editor.locator('[data-block="footnote"][data-label="b"] p');
-    await note.dblclick();
+    await editor.locator('[data-block="footnote"][data-label="b"]').getByTestId('endnote-edit').click();
     // Wait for the explicitly opened definition's caret before typing during Save.
     await page.waitForFunction(() => {
       const selection = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection;

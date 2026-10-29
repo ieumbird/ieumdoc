@@ -6,6 +6,7 @@ import type { Editor } from "@tiptap/core";
 import { Bold, Bookmark, Code, Italic, Link2, Sigma, Strikethrough, Subscript, Superscript } from "lucide-react";
 import { useState, type CSSProperties, type RefObject } from "react";
 import { Input } from "@/components/ui/input.tsx";
+import { externalLinkUrl, openExternalLink } from "./link-opening.ts";
 import { Button } from "@/components/ui/button.tsx";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 
@@ -238,6 +239,10 @@ export function LinkForm({ editor, draft, style, onClose }: {
         }}
       />
       <Button size="sm" type="submit" data-testid="link-apply">{i18n.t("Apply")}</Button>
+      <span title={externalLinkUrl(href) ? i18n.t("Open") : i18n.t("Only external http(s) links can be opened.")}>
+        <Button size="sm" variant="outline" type="button" data-testid="link-open"
+          disabled={!externalLinkUrl(href)} onClick={() => openExternalLink(href)}>{i18n.t("Open")}</Button>
+      </span>
       {draft.href ? (
         <Button size="sm" variant="outline" data-testid="link-remove" onClick={remove}>{i18n.t("Remove")}</Button>
       ) : null}

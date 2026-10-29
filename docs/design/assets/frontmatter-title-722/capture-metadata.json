@@ -1,0 +1,59 @@
+{
+  "baseline": "6d9f8d4ebd3f980c27ebc87d3a34cf8cfb19a54c",
+  "after": "#722 working tree; final PR identifies reviewed head",
+  "browser": "checkout-owned persistent Chrome via pnpm browser:test",
+  "theme": "light",
+  "locale": "en",
+  "fonts": "document.fonts.ready",
+  "comparison": "Before and after-existing use the identical technical-document.md source and fixture inventory. Before applies the old leading-H1 title rule; after leaves title empty and H1 in the body. after-authored opens separate chapter.md with explicit frontmatter title and numbered labeled H1/H2.",
+  "captures": [
+    {
+      "file": "before-1440.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "dd8a09fb0b1095d889c7ca12301ea89f88ce0f122f5a3e8e6a97cd2f251141bd"
+    },
+    {
+      "file": "before-640.png",
+      "viewport": {
+        "width": 640,
+        "height": 900
+      },
+      "sha256": "ccc13f87dac179a0442aac9d212b5819d6be65d4abb9834a4c5142c58016e21d"
+    },
+    {
+      "file": "after-existing-1440.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "fa52f373736532a2755b825e47dcf5b8fd8a827ce397612b6cc54b9e30b8aa30"
+    },
+    {
+      "file": "after-existing-640.png",
+      "viewport": {
+        "width": 640,
+        "height": 900
+      },
+      "sha256": "093ff4e2a92641fef597a7fb8d45730930504598363490f9ab1ee3430da4b3e4"
+    },
+    {
+      "file": "after-authored-1440.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "dcf91cbf5dbc431214532470a4bb3152f2454420887c19186deb38a62d1826f9"
+    },
+    {
+      "file": "after-authored-640.png",
+      "viewport": {
+        "width": 640,
+        "height": 900
+      },
+      "sha256": "b99b9ecc683a868a82c1e9cd8fc91db487af40fb92e27242ea166eafc59fff0c"
+    }
+  ]
+}

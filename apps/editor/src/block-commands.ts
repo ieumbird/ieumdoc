@@ -3,14 +3,13 @@ import { allocateBlockPath } from "./block-locators.ts";
 import { closeHistory } from "@tiptap/pm/history";
 import type { Fragment } from "@tiptap/pm/model";
 import { NodeSelection, Selection, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
-import { ADMONITION_VARIANTS, type AdmonitionVariant, type FigureContent } from "@ieumdoc/core";
-import { sectionMarker, sectionRange, titleHeading, type SectionMarker } from "@ieumdoc/core/section";
+import { ADMONITION_VARIANTS, type AdmonitionVariant, type FigureContent, type ListStyle, type ListDelimiter } from "@ieumdoc/core";
+import { sectionMarker, sectionRange, type SectionMarker } from "@ieumdoc/core/section";
 import { isNewBlockPath } from "./tiptap-document.ts";
 import { referenceNumberText, NUMBERED_KINDS, type ReferenceTemplates } from "@ieumdoc/core/numbering";
 import { addSectionLabel, hasSectionLabel } from "./cross-reference.tsx";
 import { endnoteLabel, orphanedEndnoteNumbers } from "./endnotes.ts";
 import { updateLabelProperties } from "./label-rename.ts";
-import { editorTitleIndex } from "./document-title.ts";
 import { blockMoveTarget, blockMoveBlockedHint, reorderBlock } from "./block-reorder.ts";
 
 // Editor commands for block insert/delete and table rows/columns. Each command is one engine
@@ -55,13 +54,13 @@ export const INSERT_COMMANDS: InsertCommand[] = [
     keywords: ["text", "p"],
     run: insertParagraphAfter,
   },
-  ...Array.from({ length: 5 }, (_, index): InsertCommand => ({
-    id: `heading-${index + 2}`,
-    get label() { return i18n.t("Heading {{level}}", { level: index + 2 }); },
+  ...Array.from({ length: 6 }, (_, index): InsertCommand => ({
+    id: `heading-${index + 1}`,
+    get label() { return i18n.t("Heading {{level}}", { level: index + 1 }); },
     get group() { return i18n.t("Text"); },
-    hint: "#".repeat(index + 2),
-    keywords: ["heading", `h${index + 2}`],
-    run: (state, block, slash) => insertHeadingAfter(state, block, index + 2, slash),
+    hint: "#".repeat(index + 1),
+    keywords: ["heading", `h${index + 1}`],
+    run: (state, block, slash) => insertHeadingAfter(state, block, index + 1, slash),
   })),
   {
     id: "bulleted-list",
@@ -184,7 +183,7 @@ export const BLOCK_COMMANDS: BlockCommand[] = [
       id: `heading-level-${level}`,
       get label() { return i18n.t("Change to Heading {{level}}", { level: level }); },
       applies: (state: EditorState, block: number) =>
-        isTextBlock(state, block) && (level !== 1 || editorTitleIndex(state.doc) === block),
+        isTextBlock(state, block),
       enabled: (state: EditorState, block: number) =>
         isParagraph(state, block) || (isHeading(state, block) && Number(state.doc.child(block).attrs.level) !== level),
       rejection: (state: EditorState, block: number) =>
@@ -326,6 +325,15 @@ export function blockCommandGroup(id: string): string {
   return id.startsWith("move-") ? i18n.t("Block") : i18n.t("Turn into");
 }
 
+/** One explicit format change at the handle's list; normal edit collection replays Core updateList. */
+export function changeListFormat(state: EditorState, index: number, style: ListStyle, delimiter: ListDelimiter): Transaction {
+  const list = state.doc.child(index);
+  if (list.type.name !== "orderedList") throw new Error("list format requires a numbered list");
+  return closeHistory(state.tr)
+    .setNodeMarkup(blockPos(state, index), undefined, { ...list.attrs, style, delimiter })
+    .setMeta(BLOCK_COMMAND_META, true);
+}
+
 export function filterInsertCommands(query: string): InsertCommand[] {
   const needle = query.trim().toLowerCase();
   if (!needle) return INSERT_COMMANDS;
@@ -338,7 +346,7 @@ export function filterInsertCommands(query: string): InsertCommand[] {
 /** Search aliases remain available in both display languages. */
 const KOREAN_SEARCH: Record<string, string[]> = {
   paragraph: ["문단", "텍스트"], "bulleted-list": ["목록", "글머리"], "numbered-list": ["번호", "목록"],
-  ...Object.fromEntries(Array.from({ length: 5 }, (_, i) => [`heading-${i + 2}`, ["제목", `제목 ${i + 2}`]])),
+  ...Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`heading-${i + 1}`, ["제목", `제목 ${i + 1}`]])),
   note: ["참고"], warning: ["경고"], quote: ["인용", "인용문"], divider: ["구분선"],
   code: ["코드"], equation: ["수식"], figure: ["그림", "이미지"], table: ["표"],
   tip: ["팁"], hint: ["힌트"], important: ["중요"], seealso: ["관련"], attention: ["주의"],
@@ -392,7 +400,7 @@ export function insertMermaidAfter(state: EditorState, index: number, slash?: Sl
 export function updateFigure(
   state: EditorState,
   position: number,
-  attributes: Partial<Omit<FigureContent, "caption">> & { label?: string },
+  attributes: Partial<Omit<FigureContent, "caption">> & { label?: string; enumerator?: string | null },
   caption?: Fragment,
 ): Transaction {
   const figure = state.doc.nodeAt(position);
@@ -837,11 +845,7 @@ function sectionMarkers(doc: EditorState["doc"]): SectionMarker[] {
 export function siblingSectionTarget(state: EditorState, index: number, by: -1 | 1): number | undefined {
   if (!isSectionHeading(state, index)) return undefined;
   const markers = sectionMarkers(state.doc);
-  // The title's section is the whole document and stays first; nothing moves above it (#255).
-  const title = titleHeading(markers);
-  if (title !== undefined && index === title) return undefined;
-  const target = siblingTarget(markers, index, by);
-  return title !== undefined && target !== undefined && target <= title ? undefined : target;
+  return siblingTarget(markers, index, by);
 }
 
 function siblingTarget(markers: SectionMarker[], index: number, by: -1 | 1): number | undefined {

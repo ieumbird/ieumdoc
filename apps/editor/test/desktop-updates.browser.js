@@ -10,6 +10,7 @@ async (page, { screenshots = false, openPath }) => {
   await page.getByRole('button', {name:'Settings',exact:true}).click();
   check(await page.getByRole('button',{name:'About & updates',exact:true}).count() === 0, 'Browser exposes Desktop-only category');
   check(await page.getByTestId('cli-integration').count() === 0, 'Browser exposes Desktop CLI integration');
+  check(await page.getByRole('button',{name:'Open log folder',exact:true}).count() === 0, 'Browser exposes Desktop logs');
   await page.getByRole('button',{name:'Saving & recovery',exact:true}).click();
   check(await page.getByRole('heading',{name:'Local recovery',exact:true}).isVisible() && !await page.getByTestId('app-version').count(), 'Browser settings mixed recovery with Desktop-only information');
   await page.keyboard.press('Escape');
@@ -54,6 +55,11 @@ async (page, { screenshots = false, openPath }) => {
       },
       markUpdateSeen: async (version) => { calls.push(['seen', version]); info.seenUpdate = version; },
       openReleaseNotes: async (version) => { calls.push(['notes', version ?? null]); },
+      openLogFolder: async (...args) => {
+        calls.push(['logs', ...args]);
+        await new Promise(resolve => window.__desktop.finishLogs = resolve);
+        if (window.__desktop.failLogs) throw Error('OS failed');
+      },
       onUpdateState(listener) { listeners.add(listener); return () => listeners.delete(listener); },
       onRestartCheck(check) { restartCheck = check; return () => { if (restartCheck === check) restartCheck = null; }; },
     };
@@ -79,6 +85,16 @@ async (page, { screenshots = false, openPath }) => {
   // direct DOM state, with no reload/poll hiding a stale status after the busy boundary.
   await page.getByRole('button',{name:'Settings',exact:true}).click();
   await page.getByRole('button',{name:'About & updates',exact:true}).click();
+  const logs = page.getByRole('button',{name:'Open log folder',exact:true});
+  await logs.click();
+  check(await logs.isDisabled(), 'Log folder button accepts repeated calls while pending');
+  check(JSON.stringify(await page.evaluate(() => window.__desktop.calls.at(-1))) === '["logs"]', 'Log action passed renderer arguments');
+  await page.evaluate(() => { window.__desktop.failLogs = true; window.__desktop.finishLogs(); });
+  await page.getByText('Could not open the log folder.',{exact:true}).waitFor();
+  await logs.click();
+  await page.evaluate(() => { window.__desktop.failLogs = false; window.__desktop.finishLogs(); });
+  await page.waitForFunction(() => ![...document.querySelectorAll('button')].find(n => n.textContent === 'Open log folder')?.disabled);
+  check(await page.getByText('Could not open the log folder.',{exact:true}).count() === 0, 'Successful retry retains stale log error');
   const cli = page.getByTestId('cli-integration');
   await cli.getByText('Off',{exact:true}).waitFor();
   await page.evaluate(() => window.__cli.pending = true);
@@ -504,7 +520,7 @@ async (page, { screenshots = false, openPath }) => {
   await restart.click();
   await page.waitForFunction(() => window.__desktop.calls.some(call => call[0] === 'install' && call[1].ok));
   const recorded = await calls();
-  check(JSON.stringify(recorded) === JSON.stringify(['channel:beta', 'check', 'notes:', 'seen:0.3.0-beta.1', 'seen:0.3.0-beta.2', 'download', 'install:false', 'install:false', 'install:false', 'install:false', 'install:false', 'install:true']),
+  check(JSON.stringify(recorded) === JSON.stringify(['logs', 'logs', 'channel:beta', 'check', 'notes:', 'seen:0.3.0-beta.1', 'seen:0.3.0-beta.2', 'download', 'install:false', 'install:false', 'install:false', 'install:false', 'install:false', 'install:true']),
     `Unexpected Desktop calls ${JSON.stringify(recorded)}`);
 
   // Restore the baseline display state for the screen comparison (mock version 0.2.0,
