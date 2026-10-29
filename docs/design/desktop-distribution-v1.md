@@ -355,7 +355,9 @@ logging. No alternate userData location or speculative filesystem repair is intr
 
 ## Channels and versions
 
-The source and public distribution are `0.0.2-beta.3`; Stable publication is deferred. See the [#690 release record](../releases/v0.0.2-beta.3.md) for the successful first release-workflow attempt, public assets and Korean Release body. Actual GitHub `0.0.2-beta.2 → 0.0.2-beta.3` installation/update is **not run and unverified** because this PC’s installed state must remain unchanged. Local-feed CI is separate evidence.
+The source candidate is `0.0.2-beta.4` and remains unpublished; the public distribution is still `0.0.2-beta.3`. See the [#758 preparation record](../releases/v0.0.2-beta.4.md). Actual GitHub `0.0.2-beta.3 → 0.0.2-beta.4` installation/update is **not run and unverified** because this PC’s installed state must remain unchanged. Local-feed CI is separate evidence.
+
+The public distribution is `0.0.2-beta.3`; Stable publication is deferred. See the [#690 release record](../releases/v0.0.2-beta.3.md) for the successful first release-workflow attempt, public assets and Korean Release body. Actual GitHub `0.0.2-beta.2 → 0.0.2-beta.3` installation/update is **not run and unverified** because this PC’s installed state must remain unchanged. Local-feed CI is separate evidence.
 
 The preceding public distribution was `0.0.2-beta.2`. See the [#659 release record](../releases/v0.0.2-beta.2.md) for the successful first release-workflow attempt, public assets and CI results. Actual GitHub `0.0.2-beta.1 → 0.0.2-beta.2` installation/update was not run by owner decision and remains unverified.
 
