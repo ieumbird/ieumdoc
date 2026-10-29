@@ -1,3 +1,4 @@
+import { listenForFetch } from "../../../test/helpers/fetch-server.ts";
 import { allocateBlockPath } from "../src/block-locators.ts";
 import { prepareEditorSnapshot } from "../src/editor-snapshot.ts";
 import { recoveryText, type RecoveryRecord } from "../src/recovery-storage.ts";
@@ -1024,7 +1025,7 @@ test("session saves replay Core edits against their opening source and prove the
 test("Host rejects invalid document/request encoding and Source/Save surrogates without acknowledging or changing files", async () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-encoding-"));
   const server = createServer((req, res) => { void handleDocumentRequest(req, res, () => res.end()); });
-  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  await listenForFetch(server);
   try {
     const { port } = server.address() as AddressInfo;
     const url = `http://127.0.0.1:${port}`;
@@ -1063,7 +1064,7 @@ test("Host rejects invalid document/request encoding and Source/Save surrogates 
 test("shared Host strictly decodes document and media queries without reading replacement names", async () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-query-encoding-"));
   const server = createServer((req, res) => { void handleDocumentRequest(req, res, () => res.end()); });
-  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  await listenForFetch(server);
   try {
     const { port } = server.address() as AddressInfo;
     const url = `http://127.0.0.1:${port}`;
@@ -1105,7 +1106,7 @@ test("Host save fails over HTTP before writing when canonical Markdown would los
   const server = createServer((req, res) => {
     void handleDocumentRequest(req, res, () => { res.statusCode = 404; res.end(); });
   });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  await listenForFetch(server);
   try {
     const { port } = server.address() as AddressInfo;
     const source = nativeSource("Editable paragraph.\n");
@@ -1134,7 +1135,7 @@ test("Host refuses unsupported documents and Save acknowledges only the written 
   const server = createServer((req, res) => {
     void handleDocumentRequest(req, res, () => { res.statusCode = 404; res.end(); });
   });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  await listenForFetch(server);
   try {
     const { port } = server.address() as AddressInfo;
     const writable = path.join(dir, "writable.md");
@@ -1218,7 +1219,7 @@ test("HTTP Save reports file and revision failures without leaking paths or writ
   writeFileSync(file, original);
   const access = new RootAccess([dir]);
   const server = createServer((req, res) => { void handleDocumentRequest(req, res, () => res.end(), access); });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  await listenForFetch(server);
   try {
     const { port } = server.address() as AddressInfo;
     const request = { path: file, revision: documentRevision(original), base: { source: original },
@@ -1255,7 +1256,7 @@ test("Source preview is the canonical Markdown Save would write, without writing
   const server = createServer((req, res) => {
     void handleDocumentRequest(req, res, () => { res.statusCode = 404; res.end(); });
   });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  await listenForFetch(server);
   try {
     writeFileSync(file, source);
     const loaded = loadDocumentFile(file);
@@ -2334,7 +2335,7 @@ test("Recovery preview uses Save bytes without changing disk, acknowledgement, o
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-recovery-preview-"));
   const file = path.join(dir, "record.md");
   const server = createServer((req, res) => { void handleDocumentRequest(req, res, () => res.end()); });
-  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  await listenForFetch(server);
   const { port } = server.address() as AddressInfo;
   const post = (body: unknown) => fetch(`http://127.0.0.1:${port}/api/document-source?recovery=1`, {
     method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),

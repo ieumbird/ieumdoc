@@ -1,3 +1,4 @@
+import { listenForFetch, startFetchServer } from "../../../test/helpers/fetch-server.ts";
 import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -10,6 +11,56 @@ import { MAX_JSON_BYTES, startHttpHost } from "../server/http-host.ts";
 import { RootAccess } from "../server/file-access.ts";
 
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
+
+test("fetch listeners close a forced blocked allocation before listening again", async t => {
+  const server = createServer((_req, res) => res.end("ready"));
+  t.after(() => new Promise<void>((resolve, reject) => {
+    server.closeAllConnections();
+    server.close(error => error ? reject(error) : resolve());
+  }));
+  const address = server.address.bind(server);
+  let allocations = 0, closes = 0;
+  server.on("close", () => { closes++; });
+  const mocked = t.mock.method(server, "address", () => {
+    allocations++;
+    if (allocations === 1) return { address: "127.0.0.1", family: "IPv4", port: 6000 };
+    assert.ok(closes > 0, "the rejected listener is closed before the next allocation");
+    return address();
+  });
+  await listenForFetch(server);
+  mocked.mock.restore();
+  assert.ok(allocations >= 2);
+  const allocated = server.address();
+  assert.ok(allocated && typeof allocated !== "string");
+  assert.equal(await (await fetch(`http://127.0.0.1:${allocated.port}`)).text(), "ready");
+});
+
+test("fetch listener retries are bounded and close the final blocked allocation", async t => {
+  const server = createServer();
+  t.mock.method(server, "address", () => ({ address: "127.0.0.1", family: "IPv4", port: 6667 }));
+  let allocations = 0, closes = 0;
+  server.on("listening", () => { allocations++; });
+  server.on("close", () => { closes++; });
+  await assert.rejects(listenForFetch(server), /fetch-blocked port on all 10 attempts/);
+  assert.equal(allocations, 10);
+  assert.equal(closes, allocations);
+  assert.equal(server.listening, false);
+});
+
+test("fetch listener startup and close errors propagate without retries", async t => {
+  const failure = new Error("startup failed");
+  let starts = 0;
+  await assert.rejects(startFetchServer(async () => { starts++; throw failure; }), error => error === failure);
+  assert.equal(starts, 1);
+  const server = createServer();
+  t.mock.method(server, "address", () => ({ address: "127.0.0.1", family: "IPv4", port: 6000 }));
+  starts = 0;
+  await assert.rejects(startFetchServer(async () => {
+    starts++;
+    return { server, close: async () => { throw failure; } };
+  }), error => error === failure);
+  assert.equal(starts, 1);
+});
 
 test("HTTP file mutations reuse shared validation, strict bodies and allowlisted roots", async t => {
   const { a, b, outside, send } = await fixture(t);
@@ -96,7 +147,7 @@ async function fixture(t: TestContext, external?: string) {
   }
   fs.writeFileSync(path.join(editorDir, "index.html"), "<!doctype html><title>Editor</title>");
   fs.writeFileSync(path.join(editorDir, "app.js"), "export {};");
-  const host = await startHttpHost({ editorDir, roots: [a, b], port: 0, publicOrigin: external });
+  const host = await startFetchServer(() => startHttpHost({ editorDir, roots: [a, b], port: 0, publicOrigin: external }));
   const address = host.server.address();
   assert.ok(address && typeof address !== "string");
   const url = `http://127.0.0.1:${address.port}`;
@@ -320,7 +371,7 @@ test("body limits count chunked bytes and leave original files and the server us
 
 test("a protected reverse proxy serves HTML, APIs and media; forwarded headers cannot grant access", async t => {
   const proxy = createServer();
-  await new Promise<void>(resolve => proxy.listen(0, "127.0.0.1", resolve));
+  await listenForFetch(proxy);
   const address = proxy.address();
   assert.ok(address && typeof address !== "string");
   const external = `http://127.0.0.1:${address.port}`;
