@@ -9,12 +9,12 @@ import { runInNewContext } from 'node:vm';
 import { load, loadAll } from 'js-yaml';
 import { isDocumentationOnly } from './ci-quality-mode.mjs';
 
-test('only explicit documentation paths skip product quality on PRs', () => {
+test('only explicit documentation paths skip product quality on PRs and queue groups', () => {
   const docs = ['README.md', 'AGENTS.md', '.github/pull_request_template.md',
     'docs/test/README.md', 'docs/design/assets/screenshot.png', 'docs/reviews/evidence.json'];
   assert.equal(isDocumentationOnly('pull_request', docs), true);
-  assert.equal(isDocumentationOnly('push', docs), false, 'master pushes always run full quality');
-  assert.equal(isDocumentationOnly('merge_group', docs), false, 'queue builds always run full quality');
+  assert.equal(isDocumentationOnly('push', docs), false, 'push reuse requires API evidence, not paths');
+  assert.equal(isDocumentationOnly('merge_group', docs), true);
   assert.equal(isDocumentationOnly('workflow_dispatch', docs), false);
   assert.equal(isDocumentationOnly('pull_request', []), false);
   for (const other of ['apps/editor/src/App.tsx', 'apps/editor/document/fixture.md',
@@ -33,7 +33,8 @@ test('event CLI checks actual PR diffs, renames and whitespace, and emits the wo
   const event = path.join(dir, 'event.json');
   const output = path.join(dir, 'output.txt');
   const run = (eventName, base, head) => {
-    writeFileSync(event, JSON.stringify({ pull_request: { base: { sha: base }, head: { sha: head } } }));
+    writeFileSync(event, JSON.stringify({ pull_request: { base: { sha: base }, head: { sha: head } },
+      merge_group: { base_sha: base, head_sha: head } }));
     writeFileSync(output, '');
     return spawnSync(process.execPath, [script, eventName, event], {
       cwd: dir, encoding: 'utf8', env: { ...process.env, GITHUB_OUTPUT: output },
@@ -56,7 +57,7 @@ test('event CLI checks actual PR diffs, renames and whitespace, and emits the wo
     assert.equal(run('push', base, docsHead).status, 0);
     assert.equal(readFileSync(output, 'utf8'), 'docs_only=false\n');
     assert.equal(run('merge_group', base, docsHead).status, 0);
-    assert.equal(readFileSync(output, 'utf8'), 'docs_only=false\n');
+    assert.equal(readFileSync(output, 'utf8'), 'docs_only=true\n');
     git('mv', 'product.txt', 'PRODUCT.md');
     git('commit', '-qm', 'rename product to markdown');
     assert.equal(run('pull_request', base, git('rev-parse', 'HEAD')).status, 0);
@@ -65,7 +66,11 @@ test('event CLI checks actual PR diffs, renames and whitespace, and emits the wo
     git('commit', '-qam', 'whitespace');
     assert.notEqual(run('pull_request', base, git('rev-parse', 'HEAD')).status, 0);
     assert.equal(readFileSync(output, 'utf8'), '', 'failed checks cannot emit docs-only success');
-    assert.notEqual(run('pull_request', '--invalid', docsHead).status, 0);
+    // Missing queue history falls back to full quality, retaining HEAD whitespace checks.
+    assert.equal(run('merge_group', '--invalid', base).status, 1, 'HEAD still has invalid whitespace');
+    git('checkout', '-q', docsHead);
+    assert.equal(run('merge_group', 'f'.repeat(40), docsHead).status, 0);
+    assert.equal(readFileSync(output, 'utf8'), 'docs_only=false\n');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -78,7 +83,7 @@ test('CI keeps policy checks in both modes and gates only product quality steps'
   assert.match(mode.run, /node scripts\/ci-quality-mode.mjs "\$GITHUB_EVENT_NAME" "\$GITHUB_EVENT_PATH"/);
   assert.equal(mode.if, undefined);
   for (const run of ['pnpm typecheck', 'pnpm test', 'pnpm --filter @ieumdoc/editor build']) {
-    assert.equal(steps.find(step => step.run === run).if, "steps.mode.outputs.docs_only != 'true'");
+    assert.equal(steps.find(step => step.run === run).if, "needs.changes.outputs.quality == 'true'");
   }
   for (const name of ['Documentation checks', 'Issue forms and registration checks',
     'AI commit provenance regressions', 'CI quality path classification regressions']) {
@@ -145,22 +150,20 @@ const github = (eventName, sha, number, queueSha = sha) => ({
   event: { pull_request: { number }, merge_group: { head_sha: queueSha } },
 });
 
-test('merge_group requests full quality, all browser shards, both HTTP OSes and Desktop update', () => {
+test('workflow consumes event policy outputs and preserves selected-job gates', () => {
   const workflow = load(readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'));
   assert.deepEqual(workflow.on.merge_group.types, ['checks_requested']);
   const { changes, quality, browser, http, desktop, 'quality-and-browser': aggregate } = workflow.jobs;
-  for (const eventName of ['merge_group', 'push', 'pull_request']) {
-    // No paths selected: a docs PR skips optional jobs; queue/push must select all.
-    const context = { github: github(eventName, 'a'.repeat(40), 537), steps: { filter: { outputs: {} } } };
-    const selected = {};
-    for (const [name, expression] of Object.entries(changes.outputs)) {
-      selected[name] = String(evaluate(expression, context));
-      assert.equal(selected[name], String(eventName !== 'pull_request'), `${eventName}: ${name}`);
-    }
-    assert.equal(evaluate(changes.steps.find(step => step.id === 'filter').if, context), eventName === 'pull_request');
-    context.needs = { changes: { outputs: selected } };
+  assert.equal(changes.permissions.actions, 'read');
+  assert.equal(changes.steps.find(step => step.id === 'policy').run,
+    'node scripts/ci-execution-policy.mjs "$GITHUB_EVENT_NAME" "$GITHUB_EVENT_PATH"');
+  assert.equal(changes.steps.find(step => step.uses?.startsWith('actions/checkout@')).with['fetch-depth'], 0);
+  for (const selected of [true, false]) {
+    const outputs = Object.fromEntries(Object.keys(changes.outputs).map(name => [name, String(selected)]));
+    const context = { steps: { policy: { outputs } }, needs: { changes: { outputs } } };
+    for (const [name, expression] of Object.entries(changes.outputs)) assert.equal(evaluate(expression, context), String(selected), name);
     for (const job of [browser, http, desktop]) {
-      assert.equal(evaluate(job.if, context), eventName !== 'pull_request', job.name);
+      assert.equal(evaluate(job.if, context), selected, job.name);
     }
     const updateSteps = desktop.steps.filter(step => step.run === 'pnpm --filter @ieumdoc/desktop test:update');
     const release = load(readFileSync(new URL('../.github/workflows/desktop-release.yml', import.meta.url), 'utf8'));
@@ -169,13 +172,22 @@ test('merge_group requests full quality, all browser shards, both HTTP OSes and 
       'Stable must clean up before Beta starts on the same runner');
     assert.deepEqual(updateSteps.map(step => step.env), releaseUpdateSteps.map(step => step.env),
       'PR CI must preserve the release workflow channel order');
-    for (const step of updateSteps) assert.equal(evaluate(step.if, context), eventName !== 'pull_request');
+    for (const step of [...updateSteps, desktop.steps.find(step => step.run?.endsWith(' test:uninstall'))]) {
+      assert.equal(evaluate(step.if, context), selected);
+    }
   }
   assert.equal(quality.if, undefined);
+  assert.equal(quality.needs, 'changes');
+  assert.equal(quality.steps.find(step => step.run?.endsWith(' test:smartquotes')).if,
+    "needs.changes.outputs.smartquotes == 'true'");
+  for (const run of ['pnpm --filter @ieumdoc/desktop package', 'pnpm --filter @ieumdoc/desktop test:packaged']) {
+    assert.equal(desktop.steps.find(step => step.run === run).if, undefined);
+  }
+  assert.equal(desktop.steps.find(step => step.name === 'Validate installer and update metadata').if, undefined);
   assert.deepEqual(browser.strategy.matrix.shard, [1, 2, 3, 4]);
   assert.deepEqual(http.strategy.matrix.os, ['ubuntu-latest', 'windows-latest']);
   assert.equal(aggregate.name, 'Core, CLI, Editor, and browser regressions');
-  assert.deepEqual(new Set(aggregate.needs), new Set(['changes', 'quality', 'browser', 'http', 'desktop']));
+  assert.deepEqual(new Set(aggregate.needs), new Set(['changes', 'quality', 'browser', 'http', 'desktop', 'cache-warm']));
   assert.equal(aggregate.if, '${{ always() }}');
 });
 

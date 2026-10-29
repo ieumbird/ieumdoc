@@ -2,7 +2,7 @@
 
 변경 유형별 로컬 최소 검증과 CI에 맡길 범위는 [CONTRIBUTING](../../CONTRIBUTING.md#verification-matrix)을 따른다. 관련 패키지 테스트·browser 시나리오 지정 실행을 우선하며, 영향 범위가 여러 계층에 걸치는 경우가 아니면 전체 `pnpm test`·전체 `pnpm browser:test`는 로컬 필수가 아니다. PR의 필수 CI 통과와 실제 Save → Reload·Visual Before/After 등 고유 위험 검증은 유지한다.
 
-Last verified: 2026-10-26 (current procedures and historical records checked against source documentation and history; incoming heading links checked; no product test/browser/Desktop re-execution).
+Last verified: 2026-10-29 (CI execution-policy/quality/scripts tests, browser fixture/shard unit checks, targeted Core parser/quote/patch tests and docs checks; no browser or Desktop execution).
 
 ## 자동 검증
 
@@ -19,9 +19,9 @@ git diff --check
 
 `pnpm test`는 Core, File commit, CLI, Editor, Desktop suite를 모두 실행한다. 개별 테스트 개수와 이름은 계약이 아니며 package scripts와 test runner가 source of truth다. 문서 checker 자체를 바꾸면 `pnpm exec tsx --test scripts/check-docs.test.ts`도 실행한다. Authenticode의 실제 검사는 Windows job에서 실행한다.
 
-CI quality는 문서 전용 PR에서 문서·checker tests, diff/whitespace, issue 정책, AI provenance validator·PR commit 검사와 경로 분류 회귀만 실행한다. 제품 테스트·typecheck·Editor build는 생략한다. 문서 allowlist와 전체 실행 조건은 [Verification matrix](../../CONTRIBUTING.md#verification-matrix)를 따른다. `node --test scripts/ci-quality-mode.test.mjs`는 문서 전용·혼합·미분류·master push와 실제 Git diff/rename, whitespace 거부 및 workflow 조건을 검증한다. `merge_group`이 docs-only를 선택하지 않고 paths-filter 없이 browser 4개 shard·HTTP 양쪽 OS·Desktop 설치/업데이트를 모두 선택하며, queue head별 CI가 서로 취소되지 않는지도 검사한다. 별도 임시 PR은 필요하지 않다.
+CI quality는 문서 전용 PR과 merge group에서 문서·checker tests, diff/whitespace, issue 정책, AI provenance validator·event commit 검사와 경로 분류 회귀만 실행한다. 제품 테스트·typecheck·Editor build는 생략한다. `node --test scripts/ci-quality-mode.test.mjs scripts/ci-execution-policy.test.mjs`는 PR merge-base diff와 group 전체 base..head diff, 문서·Editor·설치기·lockfile·다중 PR·삭제/rename·diff 실패, master push의 같은 SHA 성공 run 재사용/API 실패 fallback, aggregate와 캐시 갱신 조건을 검증한다. queue head별 CI가 서로 취소되지 않는지도 검사한다. smartquotes 대형 패치 검사는 기본 Core suite에서 분리한 `pnpm --filter @ieumdoc/core test:smartquotes`이며 의존성·patch·parser 경로 변경 때 선택한다. 정확한 allowlist·실행 조건·캐시 key/scope는 [Verification matrix](../../CONTRIBUTING.md#verification-matrix)를 따른다. 로컬 probe와 PR CI만으로 실제 merge_group 실행을 검증했다고 보고하지 않는다.
 
-병합은 [독립 승인 후 merge queue 절차](../../CONTRIBUTING.md#review-and-sequential-merge)와 [Enqueue 명령·상태 확인](../../CONTRIBUTING.md#enqueue)을 따른다. Queue는 최신 master와 합친 결과를 전체 검증하고 필수 검사 `Core, CLI, Editor, and browser regressions`를 보고한다. `node --test scripts/commit-provenance.test.mjs`는 PR 고유 commit과 agent 작성 merge 검사를 유지하면서 GitHub 생성 queue merge는 건너뛰는지 확인한다. Queue 실패는 artifact부터 조사한다. Queue는 2026-10-26부터 활성화되어 있으며, [#537 검증 기록](https://github.com/ieumbird/ieumdoc/issues/537)에 [PR #543](https://github.com/ieumbird/ieumdoc/pull/543)의 실제 [merge_group 실행](https://github.com/ieumbird/ieumdoc/actions/runs/40313330979)과 queue 병합 결과가 있다. 이후 PR도 해당 queue head의 실제 실행 결과를 확인하며, 로컬 probe와 PR CI만으로 실제 queue 병합 성공을 주장하지 않는다.
+병합은 [독립 승인 후 merge queue 절차](../../CONTRIBUTING.md#review-and-sequential-merge)와 [Enqueue 명령·상태 확인](../../CONTRIBUTING.md#enqueue)을 따른다. Queue는 최신 master와 합친 결과의 전체 diff에 경로 규칙을 적용하고 필수 검사 `Core, CLI, Editor, and browser regressions`를 보고한다. `node --test scripts/commit-provenance.test.mjs`는 PR 고유 commit과 agent 작성 merge 검사를 유지하면서 GitHub 생성 queue merge는 건너뛰는지 확인한다. Queue 실패는 artifact부터 조사한다. Queue는 2026-10-26부터 활성화되어 있으며, [#537 검증 기록](https://github.com/ieumbird/ieumdoc/issues/537)에 [PR #543](https://github.com/ieumbird/ieumdoc/pull/543)의 실제 [merge_group 실행](https://github.com/ieumbird/ieumdoc/actions/runs/40313330979)과 queue 병합 결과가 있다. 이후 PR도 해당 queue head의 실제 실행 결과를 확인하며, 로컬 probe와 PR CI만으로 실제 queue 병합 성공을 주장하지 않는다.
 
 ## Browser regression
 
