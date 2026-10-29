@@ -100,6 +100,15 @@ the model out of sync. The same boundary applies to image, pending and Mermaid c
 The `table-caption` browser scenario checks repeated Backspace, word deletion and cut for
 each kind, including contentDOM, model, surrounding blocks, Undo/Redo and hint restoration.
 
+Triple-clicking anywhere on the caption line, including its generated number and blank
+space after the text, selects only the caption's inline content (#724). Typing or deleting
+then preserves the grid and neighboring blocks. The shared Figure/Table mousedown
+handler prevents native selection from crossing contentDOM's caption boundary, while
+retaining ProseMirror's text-click handling and ordinary drag selection. The
+`caption-selection` browser scenario checks native triple clicks and subsequent input
+at text, text-end, right-blank and number positions, including consecutive Figures,
+Figure before table, table before paragraph, Mermaid and pending Figures.
+
 The caption stays below the table. Its computed number follows the document's authored
 Table reference template, retaining the existing `. ` separator; without a template,
 `Table N. ` stays unchanged. Metadata and numbered properties accessible names share Core's

@@ -548,12 +548,16 @@ const TableCaption = Node.create({
   },
 });
 
-function focusEmptyCaption(event: ReactMouseEvent, { editor, node, getPos }: Pick<ReactNodeViewProps, "editor" | "node" | "getPos">): void {
-  if (!editor.isEditable || node.content.size !== 0 || event.button !== 0) return;
+function handleTextblockMouseDown(event: ReactMouseEvent, { editor, node, getPos }: Pick<ReactNodeViewProps, "editor" | "node" | "getPos">): void {
+  if (!editor.isEditable || event.button !== 0 || event.defaultPrevented) return;
+  if (node.content.size !== 0 && event.detail !== 3) return;
   const position = getPos();
   if (typeof position !== "number") return;
+  // Outside contentDOM, Tiptap stops the editable wrapper's mousedown. Prevent
+  // native triple-click selection from extending into the following block.
   event.preventDefault();
-  editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, position + 1)));
+  editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, position + 1,
+    event.detail === 3 ? position + node.nodeSize - 1 : position + 1)));
   editor.view.focus();
 }
 
@@ -578,7 +582,7 @@ function TableCaptionView({ node, editor, getPos }: ReactNodeViewProps) {
   const placeholder = useCaptionPlaceholder({ editor, getPos }, "table");
   const numbered = useCaptionNumberText(editor, getPos, "table");
   return <NodeViewWrapper className="caption" data-testid="table-caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}
-    onMouseDown={(event: ReactMouseEvent) => focusEmptyCaption(event, { editor, node, getPos })}>
+    onMouseDown={(event: ReactMouseEvent) => handleTextblockMouseDown(event, { editor, node, getPos })}>
     <NodeViewContent as="div" aria-label={i18n.t("Table caption")} data-empty-caption={node.content.size === 0 || undefined}
       data-placeholder={placeholder} />
   </NodeViewWrapper>;
@@ -1292,7 +1296,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
         <div className="figure-no-content" data-testid="figure-no-content" contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>{i18n.t("No content yet")}</div>
       ) : null}
       <figcaption className="caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}
-        onMouseDown={event => focusEmptyCaption(event, { editor, node, getPos })}><NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")}
+        onMouseDown={event => handleTextblockMouseDown(event, { editor, node, getPos })}><NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")}
         data-empty-caption={node.content.size === 0 || undefined} data-placeholder={placeholder} /></figcaption>
       {editableFigure && !editing ? (
         <Button className="figure-edit" size="sm" variant="outline" aria-label={i18n.t("Edit figure")} contentEditable={false} onClick={beginEdit}>{i18n.t("Edit")}</Button>
@@ -1503,7 +1507,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
       <MermaidPreview source={applied.mermaidSource!} />
     </div>}
     <figcaption className="caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}
-      onMouseDown={event => focusEmptyCaption(event, { editor, node, getPos })}>
+      onMouseDown={event => handleTextblockMouseDown(event, { editor, node, getPos })}>
       <NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")}
         data-empty-caption={node.content.size === 0 || undefined} data-placeholder={placeholder} />
     </figcaption>
@@ -1794,7 +1798,7 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
   );
 }
 
-function CodeBlockView({ node, editor, updateAttributes }: ReactNodeViewProps) {
+function CodeBlockView({ node, editor, getPos, updateAttributes }: ReactNodeViewProps) {
   useTranslation();
   const editable = useEditorState({ editor, selector: ({ editor: current }) => current.isEditable });
   return (
@@ -1806,7 +1810,7 @@ function CodeBlockView({ node, editor, updateAttributes }: ReactNodeViewProps) {
     >
       <CodeLanguageInput language={String(node.attrs.language ?? "")} readOnly={!editable}
         onChange={(language) => { if (editor.isEditable) updateAttributes({ language }); }} />
-      <pre><NodeViewContent<"code"> as="code" /></pre>
+      <pre onMouseDown={event => { if (event.detail === 3) handleTextblockMouseDown(event, { editor, node, getPos }); }}><NodeViewContent<"code"> as="code" /></pre>
     </NodeViewWrapper>
   );
 }

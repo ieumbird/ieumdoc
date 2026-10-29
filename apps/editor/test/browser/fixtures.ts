@@ -31,6 +31,16 @@ const technical = [document("technical-document.md"), document("diagram.svg")];
 
 /** Scratch directory under `tmp/` → the files a fresh copy holds, and the scenarios using it. */
 export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: string[] }> = {
+  "caption-selection": { files: [
+    { name: "selection.md", create: () => nativeSource("# Caption selection\n\nBefore.\n\n" +
+      ":::{figure} ./diagram.svg\n:name: fig-a\n\nUpper caption alpha\n:::\n\n" +
+      ":::{figure} ./diagram.svg\n:name: fig-b\n\nLower caption beta\n:::\n\nAfter pair.\n\n" +
+      ":::{figure} ./diagram.svg\n:name: fig-single\n\nSingle caption gamma\n:::\n\n" +
+      ":::{table} Table caption delta\n:name: tbl-a\n\n| Header |\n| --- |\n| Cell text |\n:::\n\nAfter table.\n\n" +
+      ":::{figure}\n:name: fig-mermaid\n\n```{mermaid}\ngraph LR\n  A --> B\n```\n\nMermaid caption epsilon\n:::\n\n" +
+      ":::{figure}\n:name: fig-pending\n\nPending caption zeta\n:::\n\nAfter pending.\n\n```text\nCode alpha\n```\n\nAfter code.\n") },
+    document("diagram.svg"),
+  ], scenarios: ["caption-selection"] },
   "caption-placeholder": { files: [
     { name: "captions.md", create: () => nativeSource("# Captions\n\nBefore.\n\n:::{table}\n\n| Header |\n| --- |\n| Cell |\n:::\n\n:::{figure} ./diagram.svg\n:::\n\n:::{figure}\n:::\n\n:::{figure}\n\n```{mermaid}\ngraph LR\n  A --> B\n```\n:::\n\nAfter.\n") },
     document("diagram.svg"),

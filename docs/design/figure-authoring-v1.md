@@ -53,6 +53,13 @@ Repeated Backspace keeps the caption's editable surface and model synchronized; 
 further Backspace does not edit the preceding block. Deletion that empties a caption uses the shared
 ProseMirror deletion/history boundary described in [Table caption](table-caption-v1.md).
 
+Triple-clicking anywhere on an image, pending or Mermaid caption line, including the
+generated number and blank space after the text, selects only that caption's inline
+content (#724). Subsequent typing or deletion preserves neighboring blocks. The shared
+caption mousedown handler prevents native paragraph selection on the editable wrapper
+outside contentDOM. Text clicks handled by ProseMirror and ordinary drag selection
+retain their existing behavior. This Editor interaction adds no Core or CLI operation.
+
 A pending Figure has no image. Its caption and label are optional: an empty Figure, with no image, caption or label, is a valid place reserved for content to come. Alt text requires an image. An image Figure may have neither caption nor label. Supported captions use the existing InlineContent contract. Connecting or removing an image updates the same container and preserves the label and caption. Removing an image with alt text requires clearing the alt text too.
 
 ```markdown
