@@ -134,10 +134,12 @@ type DocumentEditorProps = {
   renameImage?: ImageRenamer;
   /** Headings, tables and figures with their current reading positions. */
   onOutlineChange?: (outline: DocumentOutline) => void;
+  /** SPIKE (docling-compare-1030): a view-only editor for the Docling comparison view. */
+  readOnly?: boolean;
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { settingsExpanded = false, onSettingsExpandedChange, settingsDisabled = false, document, bibliography, initialSnapshot, documentPath, onStructuralReject, onNotice, onDraftChange, onAssetPendingChange, onAssetError, onAssetChange, onDirtyChange, onAppliedEdit, onSaveLocationsChange, onHeadingNumberingChange, onReferenceTemplatesChange, validateFigure, chooseImage, renameImage, onOutlineChange },
+  { settingsExpanded = false, onSettingsExpandedChange, settingsDisabled = false, document, bibliography, initialSnapshot, documentPath, onStructuralReject, onNotice, onDraftChange, onAssetPendingChange, onAssetError, onAssetChange, onDirtyChange, onAppliedEdit, onSaveLocationsChange, onHeadingNumberingChange, onReferenceTemplatesChange, validateFigure, chooseImage, renameImage, onOutlineChange, readOnly = false },
   ref,
 ) {
   useTranslation();
@@ -222,7 +224,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       initialDeletedPaths.push(...restored.editorDocument.attrs!.deletedPaths as string[]);
     }
     return {
-      editable: true,
+      editable: !readOnly,
       immediatelyRender: true,
       shouldRerenderOnTransaction: true,
       extensions: [
@@ -704,7 +706,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           <ReadingPreview editor={editor} host={host} documentPath={documentPath} />
         </BibliographyContent>
       </ImageRenameContext.Provider></DocumentPathContext.Provider>
-      {visible ? <BlockHandles
+      {visible && !readOnly ? <BlockHandles
         editor={editor}
         saveLocations={saveLocations}
         menuIndex={blockMenu?.index}

@@ -38,6 +38,7 @@ import type {
   FolderResponse,
 } from "../shared/document-protocol.ts";
 import type { SaveFailure } from "../shared/save-error.ts";
+import { serveDoclingMap } from "./docling-map.ts";
 
 /** Internal file helpers may replay directly against a supplied disk snapshot. HTTP always requires a session. */
 type FileSaveRequest = SupportedEdits & { revision?: string; base?: SaveRequest["base"] };
@@ -259,6 +260,11 @@ export async function handleDocumentRequest(
       res.setHeader("Content-Security-Policy", "sandbox; default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'");
       res.end(req.method === "HEAD" ? undefined : bytes);
     } catch (error) { failure(error); }
+    return;
+  }
+  if (url === "/api/docling-map") {
+    if (req.method !== "GET") { res.statusCode = 405; res.end(); return; }
+    serveDoclingMap(res, query, access);
     return;
   }
   if (url.startsWith("/document/")) {

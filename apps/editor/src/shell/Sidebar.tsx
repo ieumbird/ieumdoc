@@ -4,13 +4,16 @@ import { FilePreviewDialog } from "./FilePreviewDialog.tsx";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
-import { Pencil, Trash2, ChevronRight, Ellipsis, File, Files as FilesIcon, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelRightOpen, Plus, RotateCw, Settings, X } from "lucide-react";
+import { Pencil, Trash2, ChevronRight, Ellipsis, File, Files as FilesIcon, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelRightOpen, Plus, ScanSearch, RotateCw, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
 import { treeKey, visibleTreeItems, type FolderTreeState, type TreeItem } from "./folder-tree.ts";
 
 type SidebarProps = {
+  /** SPIKE (docling-compare-1030): opens the Docling conversion comparison view. */
+  onDoclingCompare?(): void;
+  doclingActive?: boolean;
   onFileAction: FileActionHandler;
   fileActionsDisabled: boolean;
   isFileDirty(path: string): boolean;
@@ -48,7 +51,7 @@ type SidebarProps = {
 /** File navigation stays mounted when collapsed. Outline remains independent on the right. */
 export function Sidebar({
   onFileAction, fileActionsDisabled, isFileDirty, open, documentPath, onToggle, toggleRef, onOpenFolder, onNewDocument, recent = [], onOpenRecent, onNew, onNewFolder,
-  folders = [], focusFolder, onFolderFocused, onToggleFolder, onToggleSection, onOpenDocument, onOpenRight, openRightDisabled, onCloseFolder, onRefreshFolder, onRevealFolder, onSettings, updateVersion,
+  folders = [], focusFolder, onFolderFocused, onToggleFolder, onToggleSection, onOpenDocument, onOpenRight, openRightDisabled, onCloseFolder, onRefreshFolder, onRevealFolder, onSettings, updateVersion, onDoclingCompare, doclingActive = false,
 }: SidebarProps) {
   useTranslation();
   return (
@@ -122,6 +125,11 @@ export function Sidebar({
       </div>
       {onSettings ? (
         <div className="sidebar-footer">
+          {onDoclingCompare ? <Button className={open ? "min-w-0 justify-start" : undefined} size={open ? "sm" : "icon-sm"}
+            variant={doclingActive ? "secondary" : "ghost"} aria-pressed={doclingActive} aria-label="Docling 대조" title="Docling 변환 대조 보기"
+            data-testid="docling-compare-entry" onClick={onDoclingCompare}>
+            <ScanSearch aria-hidden="true" />{open ? "Docling 대조" : null}
+          </Button> : null}
           <SettingsEntry iconOnly={!open} onOpen={onSettings} updateVersion={updateVersion} />
         </div>
       ) : null}

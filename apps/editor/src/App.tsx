@@ -53,6 +53,7 @@ import type {
 } from "../shared/document-protocol.ts";
 import type { DesktopInfo, RestartCheck } from "../shared/desktop-bridge.ts";
 import { Button } from "@/components/ui/button.tsx";
+import { DoclingCompare } from "./docling/DoclingCompare.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
 
 const SaveCompare = lazy(() => import("./shell/SaveCompare.tsx"));
@@ -86,6 +87,8 @@ export function App() {
   const [panelOverlay, setPanelOverlay] = useState(() => globalThis.matchMedia?.(PANEL_OVERLAY_LAYOUT).matches ?? false);
   // Page state only: open when docked, closed (and overlaying when opened) below the docking width.
   const [panelOpen, setPanelOpen] = useState(!panelOverlay);
+  // SPIKE (docling-compare-1030): the comparison view covers the editor groups while open.
+  const [doclingCompare, setDoclingCompare] = useState(false);
   // Only explicit docked choices survive layout changes; overlays always start closed.
   const dockedPanelOpen = useRef<boolean | undefined>(undefined);
   const choosePanelOpen = (open: boolean) => {
@@ -923,6 +926,8 @@ export function App() {
   return (
     <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${panelOpen ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}${split ? " app-shell--split" : ""}`}>
       <Sidebar
+        onDoclingCompare={() => setDoclingCompare(value => !value)}
+        doclingActive={doclingCompare}
         onFileAction={fileAction} fileActionsDisabled={busy || Boolean(continuation)}
         isFileDirty={path => { const tab = tabs.find(tab => tab.path === path); return !!(tab && sessions.current.get(tab.id)?.editorRef.current?.hasUnsavedChanges()); }}
         open={sidebarOpen}
@@ -1075,7 +1080,8 @@ export function App() {
           })}
         </main>
       </div>
-      {panelOpen ? (
+      {doclingCompare ? <DoclingCompare roots={[...new Set([...openedFolderPaths, ...(allowedRoots ?? [])])]} activePath={openedPath} onClose={() => setDoclingCompare(false)} /> : null}
+      {panelOpen && !doclingCompare ? (
         <DocumentPanel
           overlay={panelOverlay}
           outline={document ? outlineStore : undefined}
