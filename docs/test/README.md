@@ -290,7 +290,7 @@ CI의 Windows Desktop job이 선택되면 clean package·release 자산 검증·
 
 ## Real GitHub Beta update
 
-아래 opt-in 명령의 향후 대상은 `0.0.2-beta.3 → 0.0.2-beta.4`다. `0.0.2-beta.4`는 공개 전 후보이므로 아직 실행할 수 없다. 현재 공개 버전은 `0.0.2-beta.3`다. **이 PC의 설치 상태를 바꾸지 않는다는 제약으로 이번 릴리스의 실제 GitHub 설치·업데이트는 미실행·미검증이다.** [#758 준비 기록](../releases/v0.0.2-beta.4.md)을 따른다. 두 버전 공개 후 별도 승인으로 실행할 경우 `ieumdoc: 1` 표식이 있는 Markdown의 저장·보존을 확인한다. CI local-feed는 현재 소스를 테스트 버전으로 각각 빌드하므로 Stable `0.0.1 → 0.0.2`, Beta `0.1.0-beta.1 → 0.1.0-beta.2` fixture를 그대로 유지하며 공개 버전 쌍과 구별한다. 이전 배포·철회 근거는 [#632 기록](../releases/v0.0.2-beta.1.md)에 보존한다.
+아래 opt-in 명령의 대상은 `0.0.2-beta.3 → 0.0.2-beta.4`다. 현재 공개 버전은 `0.0.2-beta.4`이며 직전 공개 버전은 `0.0.2-beta.3`다. **이 PC의 설치 상태를 바꾸지 않는다는 제약으로 이번 릴리스의 실제 GitHub 설치·업데이트는 미실행·미검증이다.** [#758 배포 기록](../releases/v0.0.2-beta.4.md)을 따른다. 별도 승인으로 실행할 경우 `ieumdoc: 1` 표식이 있는 Markdown의 저장·보존을 확인한다. CI local-feed는 현재 소스를 테스트 버전으로 각각 빌드하므로 Stable `0.0.1 → 0.0.2`, Beta `0.1.0-beta.1 → 0.1.0-beta.2` fixture를 그대로 유지하며 공개 버전 쌍과 구별한다. 이전 배포·철회 근거는 [#632 기록](../releases/v0.0.2-beta.1.md)에 보존한다.
 
 이 opt-in 검증은 두 버전의 공개 후 명시적 승인 범위에서 실행한다. 모의 Feed 성공은 이 검증의 성공이 아니다. 이미 설치된 IeumDoc이나 사용자 데이터·cache를 삭제해서 실행하지 않는다. 별도 Windows 테스트 계정/VM을 권장한다. 테스트는 기존 설치, `%APPDATA%\IeumDoc`, `%LOCALAPPDATA%\ieumdoc-updater`, 기본 설치 폴더가 하나라도 있으면 거부한다. 이 검사 후에만 테스트가 소유하는 per-user 설치와 profile/cache를 만들고 정리한다. Markdown은 `tmp/desktop-update/documents/`에만 만든다.
 
