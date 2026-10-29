@@ -1410,6 +1410,15 @@ h6.heading { font-size: var(--font-size-document-h6); }
 ul.list { list-style: disc; }
 ul.list ul.list { list-style: circle; }
 ol.list { list-style: decimal; }
+ol.list[data-list-style="lower-alpha"] { list-style-type: lower-alpha; }
+ol.list[data-list-style="upper-alpha"] { list-style-type: upper-alpha; }
+ol.list[data-list-style="lower-roman"] { list-style-type: lower-roman; }
+ol.list[data-list-style="upper-roman"] { list-style-type: upper-roman; }
+ol.list[data-list-delimiter=")"] > li::marker { content: counter(list-item) ") "; }
+ol.list[data-list-delimiter=")"][data-list-style="lower-alpha"] > li::marker { content: counter(list-item, lower-alpha) ") "; }
+ol.list[data-list-delimiter=")"][data-list-style="upper-alpha"] > li::marker { content: counter(list-item, upper-alpha) ") "; }
+ol.list[data-list-delimiter=")"][data-list-style="lower-roman"] > li::marker { content: counter(list-item, lower-roman) ") "; }
+ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { content: counter(list-item, upper-roman) ") "; }
 
 .list .paragraph {
   margin: 0;

@@ -164,7 +164,8 @@ const FIGURE_NOTE = [
 const LIST_NOTE = [
   "--list is Core ListContent JSON: {\"ordered\": boolean, \"start\"?: number, \"items\": [...]}.",
   "Each item is {\"content\": InlineContent[], \"list\"?: ListContent}; the optional list nests below the item.",
-  "Numbered lists start at \"start\" (default 1); bullet lists have no start. Empty items are saved as list markers.",
+  "Numbered lists start at \"start\" (default 1); optional style: decimal (default), lower-alpha, upper-alpha, lower-roman, upper-roman; delimiter: . (default) or ).",
+  "Bullet lists have no start, style or delimiter. Empty items are saved as list markers.",
   "Example: --list '{\"ordered\":false,\"items\":[{\"content\":[{\"kind\":\"text\",\"text\":\"First\"}]}]}'",
 ];
 const CODE_NOTE = [
@@ -1642,7 +1643,7 @@ function machineBlock(block: EditableBlock): MachineNode[] {
     return [{ ...base, label: block.label }];
   }
   if (block.block === "list") {
-    return [{ ...base, ordered: block.ordered, ...(block.start !== undefined ? { start: block.start } : {}), items: block.items }];
+    return [{ ...base, ordered: block.ordered, ...(block.ordered ? { start: block.start, style: block.style ?? "decimal", delimiter: block.delimiter ?? "." } : {}), items: block.items }];
   }
   throw new Error("Unknown native block");
 }
@@ -1691,7 +1692,7 @@ function formatBlock(block: EditableBlock): string[] {
     return [`${path} table`, ...cells];
   }
   if (block.block === "list") {
-    return [`${path} list`, ...formatListItems(block, 1)];
+    return [`${path} list${block.ordered ? ` style=${block.style ?? "decimal"} delimiter=${quote(block.delimiter ?? ".")}` : ""}`, ...formatListItems(block, 1)];
   }
   if (block.block === "quote") {
     return [`${path} quote inlineEditable=${block.editable} text=${quote(block.text)}`];
@@ -1714,7 +1715,7 @@ function formatBlock(block: EditableBlock): string[] {
 function formatListItems(list: ListContent, depth: number): string[] {
   const indent = "  ".repeat(depth);
   return list.items.flatMap((item, index) => [
-    `${indent}${list.ordered ? `${(list.start ?? 1) + index}.` : "-"} text=${quote(inlineText(item.content))}`,
+    `${indent}${list.ordered ? `${(list.start ?? 1) + index}${list.delimiter ?? "."}` : "-"} text=${quote(inlineText(item.content))}${list.ordered ? ` style=${list.style ?? "decimal"}` : ""}`,
     ...(item.list ? formatListItems(item.list, depth + 1) : []),
   ]);
 }

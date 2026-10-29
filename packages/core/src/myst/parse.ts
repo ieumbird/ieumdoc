@@ -26,7 +26,7 @@ import { assertUnicode } from "./unicode.ts";
 // native admission; explicit cite roles retain their typed meaning.
 // Keep MyST's HTML recognition: disabling it would admit unsupported HTML as text.
 // The pinned markdown-it patch bounds unterminated inline HTML scans instead.
-export const OPTIONS = { extensions: { smartquotes: false, citations: false } };
+export const OPTIONS = { extensions: { smartquotes: false, citations: false, attrs_block: true } };
 
 /**
  * Marks the code block MyST makes from front matter. The fingerprint treats every

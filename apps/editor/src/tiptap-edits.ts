@@ -400,7 +400,9 @@ function listContent(node: TiptapJSON): ListContent {
   if (node.type === "bulletList") return { ordered: false, items };
   const start = Number(node.attrs?.start ?? 1);
   if (!Number.isInteger(start) || start < 0) throw new Error("numbered list start must be a non-negative integer");
-  return { ordered: true, start, items };
+  return { ordered: true, start,
+    ...(node.attrs?.style && node.attrs.style !== "decimal" ? { style: node.attrs.style as ListContent["style"] } : {}),
+    ...(node.attrs?.delimiter && node.attrs.delimiter !== "." ? { delimiter: node.attrs.delimiter as ListContent["delimiter"] } : {}), items };
 }
 
 /** Code block v1 content of an editor code block: unmarked text and a language. */
@@ -428,6 +430,7 @@ function footnoteLabel(node: TiptapJSON): string {
 
 function sameList(left: ListContent, right: ListContent): boolean {
   return left.ordered === right.ordered && (left.start ?? 1) === (right.start ?? 1) && left.items.length === right.items.length &&
+    (left.style ?? "decimal") === (right.style ?? "decimal") && (left.delimiter ?? ".") === (right.delimiter ?? ".") &&
     left.items.every((item, index) => {
       const other = right.items[index];
       return sameInline(item.content, other.content) &&

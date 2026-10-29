@@ -31,7 +31,7 @@ import { assertReferenceableLabel } from "./myst/reference.ts";
 import { renameLabelReferences } from "./myst/rename-label.ts";
 import { labelError, targetLabelError } from "./label.ts";
 import { isAdmonitionVariant, supportedAdmonitionContent, type AdmonitionVariant } from "./myst/admonition.ts";
-import type { ListContent } from "./list.ts";
+import { LIST_STYLES, type ListContent } from "./list.ts";
 import type { CodeBlockContent } from "./code.ts";
 import { createCodeNode, supportedCodeBlock } from "./myst/code.ts";
 import { createListNode, supportedListContent } from "./myst/list.ts";
@@ -483,12 +483,19 @@ function normalizeList(list: ListContent): ListContent {
   if (!list.ordered && list.start !== undefined) {
     throw new DocumentDiagnosticError("invalid-operation", "a bullet list has no start number");
   }
+  if (list.ordered ? (list.style !== undefined && !LIST_STYLES.includes(list.style)) ||
+    (list.delimiter !== undefined && list.delimiter !== "." && list.delimiter !== ")")
+    : list.style !== undefined || list.delimiter !== undefined) {
+    throw new DocumentDiagnosticError("invalid-operation", "only ordered lists support a valid style and delimiter");
+  }
   const items = list.items.map((item) => {
     if (!item || typeof item !== "object") throw new DocumentDiagnosticError("invalid-operation", "list item must be an object");
     const content = structuralInlineContent(item.content);
     return item.list === undefined ? { content } : { content, list: normalizeList(item.list) };
   });
-  return list.ordered ? { ordered: true, start, items } : { ordered: false, items };
+  return list.ordered ? { ordered: true, start,
+    ...(list.style && list.style !== "decimal" ? { style: list.style } : {}),
+    ...(list.delimiter === ")" ? { delimiter: list.delimiter } : {}), items } : { ordered: false, items };
 }
 
 function assertListRoundTrip(document: MystDocument, index: number, list: ListContent): void {
@@ -506,7 +513,9 @@ function assertListRoundTrip(document: MystDocument, index: number, list: ListCo
 }
 
 function sameList(left: ListContent, right: ListContent): boolean {
-  return left.ordered === right.ordered && left.start === right.start && left.items.length === right.items.length &&
+  return left.ordered === right.ordered && left.start === right.start &&
+    (left.style ?? "decimal") === (right.style ?? "decimal") && (left.delimiter ?? ".") === (right.delimiter ?? ".") &&
+    left.items.length === right.items.length &&
     left.items.every((item, index) => {
       const other = right.items[index];
       return sameInlineContent(item.content, other.content) && (item.list === undefined

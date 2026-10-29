@@ -3,7 +3,7 @@ import { allocateBlockPath } from "./block-locators.ts";
 import { closeHistory } from "@tiptap/pm/history";
 import type { Fragment } from "@tiptap/pm/model";
 import { NodeSelection, Selection, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
-import { ADMONITION_VARIANTS, type AdmonitionVariant, type FigureContent } from "@ieumdoc/core";
+import { ADMONITION_VARIANTS, type AdmonitionVariant, type FigureContent, type ListStyle, type ListDelimiter } from "@ieumdoc/core";
 import { sectionMarker, sectionRange, type SectionMarker } from "@ieumdoc/core/section";
 import { isNewBlockPath } from "./tiptap-document.ts";
 import { referenceNumberText, NUMBERED_KINDS, type ReferenceTemplates } from "@ieumdoc/core/numbering";
@@ -323,6 +323,15 @@ export function blockCommandGroup(id: string): string {
   if (id.startsWith("table-")) return i18n.t("Table");
   if (id.startsWith("section-")) return i18n.t("Section");
   return id.startsWith("move-") ? i18n.t("Block") : i18n.t("Turn into");
+}
+
+/** One explicit format change at the handle's list; normal edit collection replays Core updateList. */
+export function changeListFormat(state: EditorState, index: number, style: ListStyle, delimiter: ListDelimiter): Transaction {
+  const list = state.doc.child(index);
+  if (list.type.name !== "orderedList") throw new Error("list format requires a numbered list");
+  return closeHistory(state.tr)
+    .setNodeMarkup(blockPos(state, index), undefined, { ...list.attrs, style, delimiter })
+    .setMeta(BLOCK_COMMAND_META, true);
 }
 
 export function filterInsertCommands(query: string): InsertCommand[] {

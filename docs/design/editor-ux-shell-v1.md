@@ -21,6 +21,7 @@
 - Document settings verification: 2026-10-27 (#580: inline settings, per-tab expansion, notation previews and existing document operations; [integration, checks and captures](#document-settings-placement-554)).
 - New-document entry verification: 2026-10-27 (#553: Editor 291 tests, workspace typecheck/build/docs; new-document, command-center, folder-navigation, editor-shell, ui-language, layout-rules and quiet-document; [behavior and visual comparison](#new-document-entry-553)).
 - Folder refresh verification: 2026-10-26 (#494: Editor 291 tests, typecheck/build, folder-tree failure guard and folder-navigation/image-assets/command-center/folder-memory/layout-rules/quiet-document; actual menu comparison below).
+- List-format verification: 2026-10-29 (#734: explicit handle target, all ten choices/current check, single Undo, typed clipboard and Host Save→Reload; English/Korean 1440px and 640px manual captures).
 - Menu verification: 2026-10-26 (#516: action icons/danger tokens, adjacent block movement/Undo/Save→Reload, title/endnote/draft/boundary restrictions, conversions and slash editor focus; [contract and evidence](#unified-action-menus-516)).
 - Body-heading verification: 2026-10-26 (#472: Editor 287/287, typecheck/build, docs check and new-document, structural-block-authoring, document-title, basic-blocks, markdown-input browser regressions; persistent Chrome in the implementation worktree).
 - Double-click verification: 2026-10-26 (#470: figure-authoring and equation-insertion browser regressions verify the shared Edit path, focus, draft/history preservation and native Figure-caption word selection).
@@ -1493,6 +1494,19 @@ the user action needed before movement can become available.
 Body Paragraph/Heading conversions offer H1–H6 and Paragraph for headings, excluding
 the current level. Frontmatter title is not a block conversion target. No Duplicate
 or list conversion is added.
+
+Numbered-list block handles offer **List format / 목록 형식** (#734). It opens one
+shared action-menu list with `1.`, `1)`, `a.`, `a)`, `A.`, `A)`, `i.`, `i)`, `I.`,
+`I)` preview labels and a check on the current format. Bullet-list menus omit this
+entry. Selection applies to the handle's top-level list, preserving its start,
+items and nested lists' independent formats; cursor position does not retarget it.
+One format change is one engine transaction and one Undo. Save uses the existing
+Core `updateList` replay and its [ordered-format contract](document-support-v1.md#ordered-list-formats-734),
+also available through CLI `--list` JSON. Choosing the current format leaves history
+unchanged. The Editor renders each list's effective style and delimiter, including
+nested lists, and its typed clipboard retains both through paste. Split, merge,
+item deletion and Undo retain the containing list's attributes. Direct `a) ` typing
+input rules and external HTML/PDF rendering are outside this change.
 
 Move up / Move down swap the block with its adjacent body block through the same
 reorder transaction as drag, with one-step Undo. They are disabled at boundaries,
