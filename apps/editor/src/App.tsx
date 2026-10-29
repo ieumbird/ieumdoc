@@ -15,7 +15,7 @@ import type { DocumentEditorHandle } from "./DocumentEditor.tsx";
 import { DocumentTab } from "./DocumentTab.tsx";
 import { documentScrollContainer, scrollDocumentFromShell } from "./document-scroll.ts";
 import { DocumentTabs } from "./shell/DocumentTabs.tsx";
-import { activeAfterClose, allTabsPendingWork, openedTab, tabNames } from "./document-tabs.ts";
+import { editorGroups, initialEditorGroups, allTabsPendingWork, openedTab, tabNames } from "./document-tabs.ts";
 import { type DocumentSession, type DocumentSessionSnapshot } from "./useDocumentSession.ts";
 import { messageOf, NativeOpenError, requestDocument } from "./document-session.ts";
 import { readDocumentWidth, readOpenTabs, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, writeOpenTabs, type DocumentWidth } from "./preferences.ts";
@@ -38,7 +38,7 @@ import appIcon from "../../desktop/assets/icon.svg";
 import { CommandCenter } from "./shell/CommandCenter.tsx";
 import { KeyboardShortcutsDialog } from "./shell/KeyboardShortcutsDialog.tsx";
 import type { CommandCenterItem } from "./shell/command-center.ts";
-import { Bookmark, Quote, Columns3, Copy, FileDiff, FileText, FileX, FolderOpen, Keyboard, PanelLeft, PanelRight, RotateCcw, RotateCw, Save, Settings2, SlidersHorizontal, SquareCode, StretchHorizontal } from "lucide-react";
+import { Bookmark, Quote, Columns3, Copy, FileDiff, FileText, FileX, FolderOpen, Keyboard, PanelLeft, PanelRight, PanelRightOpen, ArrowLeftRight, RotateCcw, RotateCw, Save, Settings2, SlidersHorizontal, SquareCode, StretchHorizontal } from "lucide-react";
 import type {
   DocumentErrorResponse,
   DocumentFileResponse,
@@ -60,6 +60,8 @@ const SaveCompare = lazy(() => import("./shell/SaveCompare.tsx"));
 // Below the docking width of styles.css the Document panel starts closed and overlays the
 // document; at and above it the panel docks. Independent of the narrow sidebar (64rem).
 const PANEL_OVERLAY_LAYOUT = "(width < 89rem)";
+// 640px supported viewport - 200px narrow Explorer; two groups plus their boundary.
+const SPLIT_MIN_WIDTH = 440 * 2 + 1;
 type Tab = { id: string; path: string; file: DocumentFileResponse; recoveryId: string; restored?: DocumentSessionSnapshot };
 
 /** The Desktop app's bridge; the browser Editor has none and shows no Desktop UI. */
@@ -94,6 +96,7 @@ export function App() {
   const fileActionsToggle = useRef<HTMLButtonElement>(null);
   const shell = useRef<HTMLDivElement>(null);
   const header = useRef<HTMLDivElement>(null);
+  const main = useRef<HTMLDivElement>(null);
   const titlebar = useRef<HTMLDivElement>(null);
   const [documentWidth, setDocumentWidth] = useState<DocumentWidth>(readDocumentWidth);
   const [folderDialog, setFolderDialog] = useState(false);
@@ -124,10 +127,17 @@ export function App() {
   const renameImageRef = useRef<ImageRenamer | undefined>(undefined);
   const renameImage = useCallback<ImageRenamer>((...args) => renameImageRef.current!(...args), []);
   const [tabs, setTabs] = useState<Tab[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [navigation, navigate] = useReducer(editorGroups, initialEditorGroups);
+  const focusedGroup = navigation.groups.find(group => group.id === navigation.focused)!;
+  const activeId = focusedGroup.active;
+  const split = navigation.groups.length === 2;
+  const [canSplit, setCanSplit] = useState(false);
+  const splitAvailable = useRef(false);
   const [tabsRestored, setTabsRestored] = useState(false);
   const [rememberVersion, rememberTabs] = useReducer(version => version + 1, 0);
-  const serializedTabs = JSON.stringify({ paths: tabs.map(tab => tab.path), activePath: tabs.find(tab => tab.id === activeId)?.path ?? null });
+  const serializedTabs = JSON.stringify({ paths: navigation.groups.flatMap(group => group.tabs).flatMap(id => {
+    const tab = tabs.find(tab => tab.id === id); return tab ? [tab.path] : [];
+  }), activePath: tabs.find(tab => tab.id === activeId)?.path ?? null });
   // Like folder memory, explicit actions remember the live list, even after another tab wrote it.
   // Session reports, Save and restoration alone never write navigation preferences.
   useEffect(() => {
@@ -181,7 +191,8 @@ export function App() {
     await recoveryStorage.restore(record, recoveryId);
     const id = `document-${++nextId.current}`;
     setTabs(previous => [...previous.filter(tab => tab.id !== existing?.id), { id, path: record.path, file: restored.file, recoveryId, restored }]);
-    setActiveId(id);
+    if (existing) navigate({ type: "close", id: existing.id });
+    navigate({ type: "open", id });
     rememberTabs();
     setRecoveryReview(null);
     await refreshRecovery();
@@ -226,21 +237,20 @@ export function App() {
   useLayoutEffect(() => { if (session?.noticeAction) setNotice(""); }, [session?.noticeAction]);
   const {
     editorRef = emptyEditorRef, document, openedPath = "", outlineStore,
-    view = "visual", status: sessionStatus = "ready", error: sessionError = "", notice: sessionNotice = "",
-    draftActive = false, assetPending = false, documentDirty = false, draftNotice = "", documentNotice = "",
+    view = "visual", error: sessionError = "", notice: sessionNotice = "",
+    draftActive = false, documentDirty = false, draftNotice = "", documentNotice = "",
     reloadDialog = false, imageChoice = null, imageReturnFocus = emptyImageRef,
   } = session ?? {};
   const busy = Boolean(operation || fileOperationPending || session?.busy || continuationPending);
   const switching = Boolean(operation || session?.switching);
-  const status = operation || sessionStatus;
-  function compareBeforeSave(returnFocus: HTMLElement | null): void {
-    if (!session || busy || !(documentDirty || draftActive)) return;
+  function compareBeforeSave(returnFocus: HTMLElement | null, owner = session): void {
+    if (!owner || operationRef.current || owner.busy || !(owner.documentDirty || owner.draftActive)) return;
     saveComparisonReturnFocus.current = returnFocus;
-    const submitted = session.editorRef.current?.getDocument();
-    try { setSaveComparison({ path: openedPath, revision: session.acknowledgedRevision, submitted, request: session.savePreviewRequest() }); }
+    const submitted = owner.editorRef.current?.getDocument();
+    try { setSaveComparison({ path: owner.openedPath, revision: owner.acknowledgedRevision, submitted, request: owner.savePreviewRequest() }); }
     catch (cause) {
       const failure = cause instanceof SaveContentError ? cause : new SaveContentError(messageOf(cause), undefined, { phase: "collect", cause });
-      setSaveComparison({ path: openedPath, revision: session.acknowledgedRevision, submitted, failure: new SaveDisplayError([failure], submitted) });
+      setSaveComparison({ path: owner.openedPath, revision: owner.acknowledgedRevision, submitted, failure: new SaveDisplayError([failure], submitted) });
     }
   }
   const save = () => session?.save();
@@ -273,14 +283,23 @@ export function App() {
     return () => { cancelled = true; };
   }, [commandFileFocus, busy, session, openRefusal, recoveryReview]);
 
-  function activateTab(id: string): void {
-    if (operationRef.current || session?.busyRef.current || continuation) return;
-    rememberTabs();
+  function activateTab(id: string, explicit = true): void {
+    const group = navigation.groups.find(group => group.tabs.includes(id));
+    if (!group || explicit && (operationRef.current || continuation)) return;
+    // Actual focus always follows a visible document, even while Open/Save is pending.
+    // Switching a group's hidden tab still waits for that group's current operation.
+    if (group.active !== id && (!explicit || group.active && sessions.current.get(group.active)?.busyRef.current)) return;
+    if (explicit || id !== activeId) rememberTabs();
     if (id === activeId) return;
-    setActiveId(id);
+    navigate({ type: "select", id });
     setError("");
     setNotice("");
   }
+  // DocumentTab reports session changes to the shell. Keep its callback prop stable so
+  // that report alone cannot cause another memoized tab render/report cycle.
+  const activateTabRef = useRef(activateTab);
+  activateTabRef.current = activateTab;
+  const focusDocument = useCallback((id: string) => activateTabRef.current(id, false), []);
   useLayoutEffect(() => {
     if (focusAfterClose.current) {
       focusAfterClose.current = false;
@@ -288,17 +307,46 @@ export function App() {
         : globalThis.document.querySelector<HTMLElement>('[data-testid="document-start"] button');
       target?.focus({ preventScroll: true });
     }
-  }, [activeId, tabs.length]);
+  }, [activeId, tabs.length, navigation]);
 
-  function acceptFile(file: DocumentFileResponse): void {
+  function placeTab(id: string, group = navigation.focused): void {
+    navigate({ type: "open", id, group });
     rememberTabs();
+  }
+  const rightGroup = navigation.groups[1]?.id ?? 1 - navigation.groups[0]!.id;
+  function moveTab(id: string, right = false): void {
+    if (operationRef.current || continuation || !canSplit || sessions.current.get(id)?.busyRef.current) return;
+    const owner = navigation.groups.find(group => group.tabs.includes(id));
+    const target = right ? rightGroup : navigation.groups.find(group => group !== owner)?.id;
+    if (target === undefined) return;
+    focusAfterClose.current = true;
+    placeTab(id, target);
+  }
+
+  useLayoutEffect(() => {
+    const area = main.current;
+    if (!area) return;
+    const measure = () => {
+      const available = area.getBoundingClientRect().width >= SPLIT_MIN_WIDTH;
+      splitAvailable.current = available;
+      setCanSplit(available);
+      if (!available) navigate({ type: "merge" });
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(area);
+    measure();
+    return () => observer.disconnect();
+  }, [split]);
+
+  function acceptFile(file: DocumentFileResponse, group = navigation.focused): void {
     const existing = openedTab(tabs, file.path);
-    if (existing) setActiveId(existing.id);
+    const target = splitAvailable.current ? group : navigation.focused;
+    if (existing) placeTab(existing.id, target);
     else {
       const id = `document-${++nextId.current}`;
       const recoveryId = newRecoveryId();
       setTabs(previous => [...previous, { id, path: file.path, file, recoveryId }]);
-      setActiveId(id);
+      placeTab(id, target);
     }
   }
   useEffect(() => {
@@ -355,7 +403,7 @@ export function App() {
       setStart("start" in first ? first : { start: true, samples: first.samples, sampleProblem: first.sampleProblem });
       if ("start" in first) setAllowedRoots(first.allowedRoots);
       setTabs(initialTabs);
-      setActiveId(openedTab(initialTabs, activePath ?? "")?.id ?? initialTabs[0]?.id ?? null);
+      navigate({ type: "reset", tabs: initialTabs.map(tab => tab.id), active: openedTab(initialTabs, activePath ?? "")?.id ?? initialTabs[0]?.id ?? null });
       // With no clean tabs, the existing start-screen list already offers every record.
       // If clean tabs hide that list, surface the newest matching record in its usual dialog.
       if (recovery && (explicit || !saved || initialTabs.length > 0)) reviewRecovery(recovery);
@@ -366,14 +414,13 @@ export function App() {
   }, [folders.restored]);
 
   function removeTab(id: string): void {
-    const next = activeAfterClose(tabs, activeId, id);
     void sessions.current.get(id)?.discardRecovery()?.then(deleted => {
       if (!deleted) setError({ key: "The tab closed, but its local recovery record could not be deleted. Review it on the start screen and try Delete record again." });
     });
     sessions.current.delete(id);
     focusAfterClose.current = true;
     setTabs(previous => previous.filter(tab => tab.id !== id));
-    setActiveId(next);
+    navigate({ type: "close", id });
     rememberTabs();
   }
   const fileAction = async (action: Parameters<FileActionHandler>[0], chosenRoot: string, entry: FolderEntry, name?: string, figure?: { documentPath: string; imageUrl: string }) => {
@@ -438,7 +485,7 @@ export function App() {
       } else if (tab) {
         sessions.current.delete(tab.id);
         setTabs(previous => previous.filter(item => item.id !== tab.id));
-        setActiveId(activeAfterClose(tabs, activeId, tab.id));
+        navigate({ type: "close", id: tab.id });
       }
       rememberTabs();
       folders.refreshParents(entry.path);
@@ -519,14 +566,14 @@ export function App() {
     return () => query.removeEventListener("change", change);
   }, []);
 
-  async function openFile(path: string, openedNotice = ""): Promise<string | null> {
+  async function openFile(path: string, openedNotice = "", group = navigation.focused): Promise<string | null> {
     const requestedPath = unquotePath(path);
     if (!requestedPath) return i18n.t("Enter a Markdown file path.");
     if (!requestedPath.toLowerCase().endsWith(".md")) return i18n.t("Only .md files can be opened.");
     if (operationRef.current || busy || continuation) return i18n.t("Wait for the current operation to finish.");
     const existing = openedTab(tabs, requestedPath);
     if (existing) {
-      activateTab(existing.id);
+      placeTab(existing.id, group);
       setError("");
       setNotice(openedNotice);
       return "";
@@ -538,7 +585,7 @@ export function App() {
     try {
       const next = await requestDocument("GET", requestedPath, folders.rootOf(requestedPath));
       if ("start" in next) throw new UiError({ key: "The Host did not return a document." });
-      acceptFile(next);
+      acceptFile(next, group);
       void offerRecovery(next);
       setNotice(openedNotice);
       return "";
@@ -648,8 +695,8 @@ export function App() {
     }
   }
 
-  async function openFolderDocument(path: string): Promise<boolean> {
-    const message = await openFile(path);
+  async function openFolderDocument(path: string, group = navigation.focused): Promise<boolean> {
+    const message = await openFile(path, "", group);
     if (message) setError(message);
     return message === "";
   }
@@ -734,13 +781,13 @@ export function App() {
   }, []);
 
   /** Browsers expose the Clipboard API only on secure (HTTPS or local) pages; elsewhere, say so. */
-  async function copyPath(): Promise<void> {
+  async function copyPath(path = openedPath): Promise<void> {
     if (!navigator.clipboard?.writeText) {
       setError({ key: "Copy path needs clipboard access, which this browser allows only on HTTPS or local pages. The full path is in the filename's tooltip." });
       return;
     }
     try {
-      await navigator.clipboard.writeText(openedPath);
+      await navigator.clipboard.writeText(path);
       setNotice({ key: "Copied the file path." });
     } catch (cause) {
       setError({ key: "Could not copy the file path: {{reason}}", values: { reason: messageOf(cause) } });
@@ -817,6 +864,12 @@ export function App() {
     { id: "new-document", kind: "command", label: i18n.t("New document…"), icon: FileText, takesFocus: true,
       disabled: busy || Boolean(continuation), keywords: ["new document", "new file", "새 문서", "새 파일"],
       run: () => newDocument(commandReturnFocus.current) },
+    { id: "open-right", kind: "command", label: i18n.t("Open to the right"), icon: PanelRightOpen,
+      disabled: !activeId || !canSplit || busy || Boolean(continuation), takesFocus: true,
+      keywords: ["split editor group", "오른쪽 그룹 분할"], run: () => { if (activeId) moveTab(activeId, true); } },
+    { id: "move-group", kind: "command", label: i18n.t("Move to other group"), icon: ArrowLeftRight,
+      disabled: !activeId || !split || busy || Boolean(continuation), takesFocus: true,
+      keywords: ["move tab group", "탭 그룹 이동"], run: () => { if (activeId) moveTab(activeId); } },
     { id: "open-folder", kind: "command", label: i18n.t("Open folder…"), icon: FolderOpen, takesFocus: true,
       keywords: ["open folder", "폴더 열기"], run: () => { dialogReturnFocus.current = commandReturnFocus.current; setFolderDialog(true); } },
     ...folders.trees.map(tree => ({ id: 'refresh-folder:' + tree.root, kind: "command" as const,
@@ -832,9 +885,9 @@ export function App() {
     { id: "copy-path", kind: "command", label: i18n.t("Copy path"), icon: Copy, disabled: !document || busy,
       keywords: ["copy path", "경로 복사"], run: () => { void copyPath(); } },
     { id: "visual", kind: "command", label: i18n.t("Visual"), icon: FileText, disabled: !document || busy, takesFocus: true,
-      keywords: ["visual view", "비주얼 보기"], run: () => { globalThis.document.querySelector<HTMLElement>('[data-testid="view-visual"]')?.focus(); setView("visual"); } },
+      keywords: ["visual view", "비주얼 보기"], run: () => { globalThis.document.querySelector<HTMLElement>(`[data-editor-group="${navigation.focused}"] [data-testid="view-visual"]`)?.focus(); setView("visual"); } },
     { id: "source", kind: "command", label: i18n.t("Source"), icon: SquareCode, disabled: !document || busy, takesFocus: true,
-      keywords: ["source markdown", "소스 보기"], run: () => { globalThis.document.querySelector<HTMLElement>('[data-testid="view-source"]')?.focus(); void showSource(); } },
+      keywords: ["source markdown", "소스 보기"], run: () => { globalThis.document.querySelector<HTMLElement>(`[data-editor-group="${navigation.focused}"] [data-testid="view-source"]`)?.focus(); void showSource(); } },
     { id: "outline", kind: "command", label: i18n.t(panelOpen ? "Hide outline" : "Show outline"), icon: PanelRight, takesFocus: true,
       keywords: ["outline", "개요"], run: () => { outlineToggle.current?.focus(); choosePanelOpen(!panelOpen); } },
     { id: "sidebar", kind: "command", label: i18n.t(sidebarOpen ? "Collapse Explorer" : "Expand Explorer"), icon: PanelLeft,
@@ -868,7 +921,7 @@ export function App() {
   ];
 
   return (
-    <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${panelOpen ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}`}>
+    <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${panelOpen ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}${split ? " app-shell--split" : ""}`}>
       <Sidebar
         onFileAction={fileAction} fileActionsDisabled={busy || Boolean(continuation)}
         isFileDirty={path => { const tab = tabs.find(tab => tab.path === path); return !!(tab && sessions.current.get(tab.id)?.editorRef.current?.hasUnsavedChanges()); }}
@@ -902,6 +955,8 @@ export function App() {
         onOpenDocument={(path) => {
           void openFolderDocument(path);
         }}
+        onOpenRight={path => { if (canSplit) void openFolderDocument(path, rightGroup).then(opened => { if (opened) setCommandFileFocus(path); }); }}
+        openRightDisabled={!canSplit || busy || Boolean(continuation)}
         onRevealFolder={desktop?.openFolderInExplorer ? path => {
           void (async () => {
             try {
@@ -931,33 +986,50 @@ export function App() {
             location={documentLocation(openedPath, folders.rootOf(openedPath))} />
         </div>
       </div>
-      <div className="app-main">
+      <div className="app-main" ref={main}>
         <div className="app-header" ref={header}>
-          <DocumentTabs tabs={tabs.map(tab => ({ ...tab,
+          <div className="editor-group-headers">
+          {navigation.groups.map((group, index) => {
+            const owner = group.active ? sessions.current.get(group.active) : undefined;
+            const groupBusy = Boolean(operation || fileOperationPending || owner?.busy || continuationPending);
+            return <section key={group.id} data-editor-group={group.id} data-focused={group.id === navigation.focused}
+              aria-label={i18n.t("Editor group {{number}}", { number: index + 1 })}
+              onFocusCapture={() => { if (group.active) activateTab(group.active, false); }}
+              onPointerDownCapture={() => { if (group.active) activateTab(group.active, false); }}>
+          <DocumentTabs allTabs={tabs} tabs={group.tabs.flatMap(id => tabs.filter(tab => tab.id === id)).map(tab => ({ ...tab,
             dirty: Boolean(sessions.current.get(tab.id)?.documentDirty || sessions.current.get(tab.id)?.draftActive),
-          }))} active={activeId} disabled={busy || Boolean(continuation)} onActivate={activateTab} onClose={closeTab} actions={
+          }))} active={group.active} disabled={groupBusy || Boolean(continuation)} onActivate={activateTab} onClose={closeTab}
+            onOpenRight={id => moveTab(id, true)} onMove={id => moveTab(id)} openRightDisabled={!canSplit || groupBusy} moveDisabled={!split || groupBusy} actions={
             <DocumentActions
-              documentPath={openedPath}
+              documentPath={owner?.openedPath ?? ""}
               wide={documentWidth === "wide"}
               onToggleWide={toggleDocumentWidth}
-              status={assetPending ? "adding-image" : status}
-              unsaved={documentDirty || draftActive}
-              view={view}
-              viewDisabled={!document || busy}
-              onViewChange={(next) => (next === "source" ? void showSource() : setView("visual"))}
-              saveDisabled={!document || busy}
-              onSave={() => void save()}
-              onCompare={() => compareBeforeSave(fileActionsToggle.current)}
-              compareDisabled={!(documentDirty || draftActive) || busy}
-              onReload={() => void reload()}
-              reloadDisabled={!document || busy}
-              onCopyPath={() => void copyPath()}
-              fileActionsRef={fileActionsToggle}
+              compact={split}
+              status={operation || (owner?.assetPending ? "adding-image" : owner?.status ?? "ready")}
+              unsaved={owner?.documentDirty || owner?.draftActive}
+              view={owner?.view ?? "visual"}
+              viewDisabled={!owner?.document || groupBusy}
+              onViewChange={(next) => (next === "source" ? void owner?.showSource() : owner?.setView("visual"))}
+              saveDisabled={!owner?.document || groupBusy}
+              onSave={() => void owner?.save()}
+              onCompare={() => compareBeforeSave(fileActionsToggle.current, owner)}
+              compareDisabled={!(owner?.documentDirty || owner?.draftActive) || groupBusy}
+              onReload={() => void owner?.reload()}
+              reloadDisabled={!owner?.document || groupBusy}
+              onCopyPath={() => void copyPath(owner?.openedPath)}
+              fileActionsRef={group.id === navigation.focused ? fileActionsToggle : undefined}
+              onOpenRight={() => { if (group.active) moveTab(group.active, true); }}
+              onMove={() => { if (group.active) moveTab(group.active); }}
+              openRightDisabled={!owner || !canSplit || groupBusy}
+              moveDisabled={!owner || !split || groupBusy}
               outline={panelOpen}
               onToggleOutline={() => choosePanelOpen(!panelOpen)}
-              outlineToggleRef={outlineToggle}
+              outlineToggleRef={group.id === navigation.focused ? outlineToggle : undefined}
             />
           } />
+          </section>;
+          })}
+          </div>
           <MessageArea
             warning={[recoveryProblem || [...sessions.current.values()].map(owner => owner.recoveryError).find(Boolean), sampleWarning].filter(Boolean).join(" ")}
             error={error || sessionError}
@@ -973,8 +1045,10 @@ export function App() {
         </div>
         <main className="document-stage" onMouseDown={(event) => {
           // The empty area below the document places the caret at its end.
-          if (event.button === 0 && event.target instanceof HTMLElement && event.target.classList.contains("document-column") && view === "visual" &&
-            editorRef.current?.focusEnd(event.clientY)) event.preventDefault();
+          const id = event.target instanceof Element ? event.target.closest<HTMLElement>("[data-document-tab]")?.dataset.documentTab : undefined;
+          const owner = id ? sessions.current.get(id) : undefined;
+          if (event.button === 0 && event.target instanceof HTMLElement && event.target.classList.contains("document-column") && owner?.view === "visual" &&
+            owner.editorRef.current?.focusEnd(event.clientY)) event.preventDefault();
         }}>
           {tabs.length === 0 && start ? (
             <div className="document-scroll" data-active="true"><div className="document-column"><DocumentStart
@@ -992,7 +1066,13 @@ export function App() {
               onOpenSample={openSample}
             /></div></div>
           ) : null}
-          {tabs.map(tab => <DocumentTab settingsDisabled={busy} key={tab.id} id={tab.id} file={tab.file} restored={tab.restored} recoveryId={tab.recoveryId} active={tab.id === activeId} report={reportSession} onAssetChange={onAssetChange} renameImage={renameImage} />)}
+          {tabs.map(tab => {
+            const groupIndex = navigation.groups.findIndex(group => group.tabs.includes(tab.id));
+            const group = navigation.groups[groupIndex];
+            return <DocumentTab settingsDisabled={Boolean(operation || fileOperationPending || continuationPending)} key={tab.id} id={tab.id} file={tab.file} restored={tab.restored} recoveryId={tab.recoveryId}
+              active={group?.active === tab.id} focused={tab.id === activeId} groupIndex={groupIndex} onFocus={focusDocument}
+              report={reportSession} onAssetChange={onAssetChange} renameImage={renameImage} />;
+          })}
         </main>
       </div>
       {panelOpen ? (

@@ -1,6 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
+- Editor groups verification: 2026-10-29 (#488 phase 1; shared tokens, focused-group cue and [1440/640px comparison](editor-ux-shell-v1.md#two-editor-groups-488-phase-1)).
 - Tab-row actions update: 2026-10-29 (#695; [contract and evidence](editor-ux-shell-v1.md#title-strip-and-tab-row-actions-695)).
 - Pre-save comparison verification: 2026-10-28 (#655 stage 2: shared dry run/Worker review, persistent-browser regressions and [640/1440px bilingual captures](#pre-save-comparison-655)).
 - Save refusal verification: 2026-10-28 (#578 phase 1: real collection/Host refusals, danger block/cell overlays, snapshot invalidation, keyboard reveal and [640/1440px light/dark captures](#save-refusal-highlights-578)).
@@ -47,6 +48,14 @@
 - Scope: existing Editor presentation and interaction overlays. Core, CLI, source format, save API and the single Tiptap state are unchanged.
 
 ## Quiet segments and Command Center (#620)
+
+The two [editor groups](editor-ux-shell-v1.md#two-editor-groups-488-phase-1) reuse the
+existing tab, control, structural-border and selected-surface tokens. The focused
+group's tab-row background supplies a quiet group cue alongside each active tab's
+existing accent marker. The shared title strip and document typography do not change.
+Floating editor controls retain their existing surface, shadow, typography and targets;
+the group's viewport bounds their placement and maximum size. See the [review correction
+and comparison](editor-ux-shell-v1.md#group-verification-and-visual-evidence).
 
 All `.view-toggle` consumers share the same selected 600 semibold, themed `surface` and
 `--shadow-segment`, without a `border-control` edge. A hidden semibold label reserves width

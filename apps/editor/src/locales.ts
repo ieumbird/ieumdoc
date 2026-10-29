@@ -1,5 +1,8 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Open to the right": "Open to the right",
+  "Move to other group": "Move to other group",
+  "Editor group {{number}}": "Editor group {{number}}",
   "Already inside the opened folder {{name}}.": "Already inside the opened folder {{name}}.",
   "Sample documents are unavailable because the sample folder could not be replaced safely. The existing folder was kept.": "Sample documents are unavailable because the sample folder could not be replaced safely. The existing folder was kept.",
   "Sample documents could not be prepared. You can still open your documents.": "Sample documents could not be prepared. You can still open your documents.",
@@ -662,6 +665,9 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Open to the right": "오른쪽에 열기",
+  "Move to other group": "다른 그룹으로 이동",
+  "Editor group {{number}}": "에디터 그룹 {{number}}",
   "Already inside the opened folder {{name}}.": "이미 열린 폴더 {{name}} 안에 있습니다",
   "Sample documents are unavailable because the sample folder could not be replaced safely. The existing folder was kept.": "샘플 폴더를 안전하게 교체할 수 없어 샘플 문서를 제공하지 않습니다. 기존 폴더는 보존했습니다.",
   "Sample documents could not be prepared. You can still open your documents.": "샘플 문서를 준비하지 못했습니다. 다른 문서는 계속 열 수 있습니다.",
