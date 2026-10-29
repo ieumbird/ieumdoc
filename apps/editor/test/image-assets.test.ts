@@ -1,3 +1,4 @@
+import { listenForFetch } from "../../../test/helpers/fetch-server.ts";
 import { messageText } from "../src/ui-message.ts";
 import { nativeSource } from "./helpers/document.ts";
 import assert from "node:assert/strict";
@@ -319,7 +320,7 @@ test("asset JSON endpoints reject malformed UTF-8 before copying or deleting fil
   const created = createImageAsset(doc, "image/png", PNG, key);
   const names = fs.readdirSync(assets);
   const server = createServer((req, res) => { void handleAssetRequest(req, res, key); });
-  await new Promise<void>(done => server.listen(0, "127.0.0.1", done));
+  await listenForFetch(server);
   t.after(() => new Promise<void>(done => { server.close(() => done()); server.closeAllConnections(); }));
   const address = server.address();
   assert.ok(address && typeof address === "object");
@@ -348,7 +349,7 @@ test("asset JSON endpoints reject malformed UTF-8 before copying or deleting fil
 test("binary Host endpoint sanitizes filename hints and bounds chunked uploads before writing", async t => {
   const { doc, assets } = fixture(t);
   const server = createServer((req, res) => { void handleAssetRequest(req, res, key); });
-  await new Promise<void>(done => server.listen(0, "127.0.0.1", done));
+  await listenForFetch(server);
   t.after(() => new Promise<void>(done => { server.close(() => done()); server.closeAllConnections(); }));
   const address = server.address();
   assert.ok(address && typeof address === "object");

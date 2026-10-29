@@ -1,4 +1,5 @@
 // Packaged RunAsNode and the shipped CLI, with an isolated integration directory.
+import { listenForFetch } from "../../../../test/helpers/fetch-server.ts";
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { once } from "node:events";
@@ -29,7 +30,7 @@ test("packaged RunAsNode satisfies CLI engines and the shim runs version/check/h
     const version = JSON.parse(readFileSync(path.join(desktop, "package.json"), "utf8")).version;
     verifyPackagedCli(exe, integration.shim, folder, version);
     const portServer = createServer();
-    await new Promise<void>(resolve => portServer.listen(0, "127.0.0.1", resolve));
+    await listenForFetch(portServer);
     const address = portServer.address(); assert.ok(address && typeof address !== "string");
     await new Promise<void>(resolve => portServer.close(() => resolve()));
     const child = spawn(process.env.ComSpec ?? "cmd.exe", windowsCommand(integration.shim,
