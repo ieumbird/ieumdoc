@@ -4,7 +4,8 @@ async (page, { openPath, expect, reloadDocument }) => {
   const initial = await (await page.request.get(origin + '/api/document')).json();
   const separator = initial.path.includes('\\') ? '\\' : '/';
   const root = initial.path.split(separator).slice(0, -4).join(separator);
-  await openPath(page, [root, 'tmp', 'caption-selection', 'selection.md'].join(separator));
+  const file = [root, 'tmp', 'caption-selection', 'selection.md'].join(separator);
+  await openPath(page, file);
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const failures = [];
   const cases = ['fig-a', 'fig-b', 'fig-single', 'tbl-a', 'fig-mermaid', 'fig-pending', 'code'];
@@ -108,7 +109,7 @@ async (page, { openPath, expect, reloadDocument }) => {
       }
     }
   }
-  // Native drag selection remains available for each caption NodeView.
+  // Full replacement across rich inline marks must retain the editable contentDOM (#750).
   for (const label of ['fig-a', 'tbl-a', 'fig-mermaid', 'fig-pending']) {
     await restore();
     const caption = captionFor(label);
@@ -147,5 +148,43 @@ async (page, { openPath, expect, reloadDocument }) => {
       }), `${selector}/${location} triple click`).toBe(true);
     }
   }
+  // Chromium's native Korean composition uses the same full rich-caption range.
+  // This exercises browser composition events, not the Windows OS IME/candidate UI.
+  await restore();
+  const caption = captionFor('fig-mermaid');
+  await caption.scrollIntoViewIfNeeded();
+  const points = await caption.evaluate(el => {
+    const range = document.createRange(); range.selectNodeContents(el.querySelector('[data-node-view-content-react]'));
+    const box = range.getBoundingClientRect();
+    return {left:box.left, right:box.right, y:box.top + box.height / 2};
+  });
+  const before = await snapshot('fig-mermaid');
+  const originalDocument = await editor.evaluate(el => el.editor.getJSON());
+  await page.mouse.move(points.left, points.y); await page.mouse.down();
+  await page.mouse.move(points.right, points.y, {steps:10}); await page.mouse.up();
+  expect((await snapshot('fig-mermaid')).selection).toEqual(before.expected);
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    for (const text of ['ㅎ', '한', '한ㄱ', '한글'])
+      await cdp.send('Input.imeSetComposition', {text, selectionStart:text.length, selectionEnd:text.length});
+    await cdp.send('Input.insertText', {text:'한글'});
+  } finally { await cdp.detach(); }
+  await page.waitForFunction(() => !document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.composing);
+  expect(await caption.textContent()).toBe('한글');
+  expect((await snapshot('fig-mermaid')).text).toBe('한글');
+  expect((await snapshot('fig-mermaid')).doc).toEqual(before.doc);
+  await page.keyboard.press('Control+z');
+  expect(await editor.evaluate(el => el.editor.getJSON())).toEqual(originalDocument);
+  await page.keyboard.press('Control+Shift+z');
+  expect((await snapshot('fig-mermaid')).text).toBe('한글');
+  const response = page.waitForResponse(r => r.request().method() === 'POST' && /\/api\/document(?:\?|$)/.test(r.url()));
+  await page.getByTestId('save').click();
+  expect((await response).status()).toBe(200);
+  const disk = await page.request.get(`${origin}/document/selection.md?path=${encodeURIComponent(file)}`);
+  expect(disk.status()).toBe(200);
+  expect(await disk.text()).toContain('한글');
+  await reloadDocument(page);
+  expect((await snapshot('fig-mermaid')).text).toBe('한글');
+  expect((await snapshot('fig-mermaid')).doc).toEqual(before.doc);
   expect(failures, 'Every triple click must preserve neighboring blocks').toEqual([]);
 }

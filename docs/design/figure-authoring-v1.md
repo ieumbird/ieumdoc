@@ -56,6 +56,14 @@ See the [visual verification](editor-visual-language-v1.md#empty-caption-hints-6
 Repeated Backspace keeps the caption's editable surface and model synchronized; once empty,
 further Backspace does not edit the preceding block. Deletion that empties a caption uses the shared
 ProseMirror deletion/history boundary described in [Table caption](table-caption-v1.md).
+Replacing an entire caption, including mixed bold/plain text, also keeps the DOM and model
+synchronized for image, pending and Mermaid Figures (#750). Cancelable native text replacement
+uses the browser's exact target range and a ProseMirror transaction. At composition start, a full
+caption selection is deleted through the engine before native composition continues at that caret.
+Partial selections and ordinary caret input retain their existing paths. The replacement remains
+one Undo step and survives Save → Reload with diagram source, label and surrounding content intact.
+The `caption-selection` regression covers real mouse drag, text input and Chromium Korean composition;
+Windows OS IME candidate selection remains a manual verification boundary.
 
 Triple-clicking anywhere on an image, pending or Mermaid caption line, including the
 generated number and blank space after the text, selects only that caption's inline

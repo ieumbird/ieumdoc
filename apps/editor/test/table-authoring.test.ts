@@ -76,7 +76,7 @@ function caretIn(state: EditorState, row: number, column: number, index = TABLE)
 
 const cellOf = (state: EditorState) => ({ row: state.selection.$from.index(1), column: state.selection.$from.index(2) });
 
-test("caption delete input without usable target ranges leaves the event and document untouched", () => {
+test("caption replacement without usable target ranges leaves the event and document untouched", () => {
   const { state } = editorState(mixed);
   const extension = documentInteraction(() => assert.fail("unexpected rejection"));
   const editor = { schema: state.schema, isEditable: true } as Editor;
@@ -89,19 +89,21 @@ test("caption delete input without usable target ranges leaves the event and doc
   let dispatched = false;
   const view = { state, composing: false, dispatch() { dispatched = true; },
     posAtDOM() { assert.fail("cannot infer a target without ranges"); } } as unknown as EditorView;
-  for (const [name, method] of [
-    ["missing", undefined],
-    ["not a function", "unsupported"],
-    ["empty", () => []],
-    ["throws", () => { throw new Error("unavailable"); }],
-  ] as const) {
-    let prevented = false;
-    const event = { inputType: "deleteWordBackward", cancelable: true, isComposing: false,
-      getTargetRanges: method, preventDefault() { prevented = true; } } as unknown as InputEvent;
-    assert.equal(handler.call(plugin, view, event), false, name);
-    assert.equal(prevented, false, name);
-    assert.equal(dispatched, false, name);
-    assert.equal(view.state, state, name);
+  for (const inputType of ["deleteWordBackward", "insertText", "insertReplacementText"]) {
+    for (const [name, method] of [
+      ["missing", undefined],
+      ["not a function", "unsupported"],
+      ["empty", () => []],
+      ["throws", () => { throw new Error("unavailable"); }],
+    ] as const) {
+      let prevented = false;
+      const event = { inputType, data: "Z", cancelable: true, isComposing: false,
+        getTargetRanges: method, preventDefault() { prevented = true; } } as unknown as InputEvent;
+      assert.equal(handler.call(plugin, view, event), false, name);
+      assert.equal(prevented, false, name);
+      assert.equal(dispatched, false, name);
+      assert.equal(view.state, state, name);
+    }
   }
 });
 

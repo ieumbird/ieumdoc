@@ -94,6 +94,12 @@ function selectedPreview(state: EditorState): boolean {
     ["equation", "figure", "footnoteDefinition"].includes(state.selection.node.type.name);
 }
 
+function fullCaptionRange(state: EditorState, from: number, to: number): boolean {
+  const $from = state.doc.resolve(from), $to = state.doc.resolve(to);
+  return $from.sameParent($to) && ["figure", "tableCaption"].includes($from.parent.type.name) &&
+    from === $from.start() && to === $from.end() && from < to;
+}
+
 /** The caret goes to the end of a final paragraph. After any other final block, it goes to a new empty paragraph. */
 export function documentEnd(state: EditorState): Transaction {
   const end = state.doc.content.size;
@@ -365,8 +371,10 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
               if (event.cancelable) event.preventDefault();
               return true;
             }
-            if (!this.editor.isEditable || view.composing || event.isComposing || !event.cancelable ||
-                !event.inputType.startsWith("delete")) return false;
+            if (!this.editor.isEditable || view.composing || event.isComposing || !event.cancelable) return false;
+            const insert = event.inputType === "insertText" || event.inputType === "insertReplacementText";
+            if (!insert && !event.inputType.startsWith("delete")) return false;
+            if (insert && typeof event.data !== "string") return false;
             let ranges: StaticRange[];
             try {
               if (typeof event.getTargetRanges !== "function") return false;
@@ -379,13 +387,11 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
               from = view.posAtDOM(range.startContainer, range.startOffset);
               to = view.posAtDOM(range.endContainer, range.endOffset);
             } catch { return false; }
-            const $from = view.state.doc.resolve(from), $to = view.state.doc.resolve(to);
-            if (!$from.sameParent($to) || !["figure", "tableCaption"].includes($from.parent.type.name) ||
-                $from.parent.content.size === 0 || from !== $from.start() || to !== $from.end()) return false;
-            // Chrome can remove the React-owned wrapper while natively emptying a caption.
+            if (!fullCaptionRange(view.state, from, to)) return false;
+            // Chrome can remove the React-owned wrappers while replacing a whole rich caption.
             // Use the browser's exact target range and ProseMirror's normal transaction/history.
             event.preventDefault();
-            view.dispatch(view.state.tr.delete(from, to).scrollIntoView());
+            view.dispatch((insert ? view.state.tr.insertText(event.data!, from, to) : view.state.tr.delete(from, to)).scrollIntoView());
             return true;
           },
           keydown: (view, event) => {
@@ -409,7 +415,14 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
             }
             return false;
           },
-          compositionstart: rejectPreviewComposition,
+          compositionstart: view => {
+            if (rejectPreviewComposition(view)) return true;
+            const { from, to } = view.state.selection;
+            // Empty the selected caption through the engine before Chromium's noncancelable
+            // composition replacement can remove its NodeView contentDOM wrappers.
+            if (this.editor.isEditable && fullCaptionRange(view.state, from, to)) view.dispatch(view.state.tr.delete(from, to));
+            return false;
+          },
           compositionupdate: rejectPreviewComposition,
           copy: (view, event) => {
             if (view.state.selection.content().content.content.every(portable)) return false;

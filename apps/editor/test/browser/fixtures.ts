@@ -33,11 +33,11 @@ const technical = [document("technical-document.md"), document("diagram.svg")];
 export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: string[] }> = {
   "caption-selection": { files: [
     { name: "selection.md", create: () => nativeSource("# Caption selection\n\nBefore.\n\n" +
-      ":::{figure} ./diagram.svg\n:name: fig-a\n\nUpper caption alpha\n:::\n\n" +
+      ":::{figure} ./diagram.svg\n:name: fig-a\n\n**Upper** caption alpha\n:::\n\n" +
       ":::{figure} ./diagram.svg\n:name: fig-b\n\nLower caption beta\n:::\n\nAfter pair.\n\n" +
       ":::{figure} ./diagram.svg\n:name: fig-single\n\nSingle caption gamma\n:::\n\n" +
-      ":::{table} Table caption delta\n:name: tbl-a\n\n| Header |\n| --- |\n| Cell text |\n:::\n\nAfter table.\n\n" +
-      ":::{figure}\n:name: fig-mermaid\n\n```{mermaid}\ngraph LR\n  A --> B\n```\n\nMermaid caption epsilon\n:::\n\n" +
+      ":::{table} **Table** caption delta\n:name: tbl-a\n\n| Header |\n| --- |\n| Cell text |\n:::\n\nAfter table.\n\n" +
+      ":::{figure}\n:name: fig-mermaid\n\n```{mermaid}\ngraph LR\n  A --> B\n```\n\n**Mermaid** caption epsilon\n:::\n\n" +
       ":::{figure}\n:name: fig-pending\n\nPending caption zeta\n:::\n\nAfter pending.\n\n```text\nCode alpha\n```\n\nAfter code.[^note-a][^note-b]\n\n[^note-a]: First endnote alpha.\n\n[^note-b]: Second endnote beta.\n") },
     document("diagram.svg"),
   ], scenarios: ["caption-selection"] },
