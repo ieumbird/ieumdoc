@@ -92,6 +92,12 @@ equation number. These extraction limitations remain visible in the PDF/JSON pai
 
 ## Reproduction
 
+For new source bundles, the Node-only `ieumdoc docling convert-pdf` command uses
+the fixed `ieumdoc-pdf-en-v1` profile and readable image names without resizing.
+See the [service/bundle contract](../../../../docs/design/docling-conversion-v1.md#external-pdf-service-and-source-bundle).
+The saved #768 fixtures below keep their original hashes, normalization and
+manifests; adopting readable names on fixture regeneration is follow-up work.
+
 Requires Python via `uv`, Docker Desktop with the local NVIDIA GPU and the
 existing `C:\Projects\docling-local\compose.yaml` pinned to
 `ghcr.io/docling-project/docling-serve-cu128:v1.32.0`. No files in that project
