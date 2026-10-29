@@ -1,6 +1,7 @@
 # Endnotes (MyST footnotes)
 
 - Status: Implemented
+- Image-link reading interaction: 2026-10-29 (#731; [Editor preview contract](editor-ux-shell-v1.md#relative-image-link-previews-731)).
 - Lifecycle verification: 2026-10-29 (#716 owner decision: Core reconciliation, CLI completion boundaries, lossless reference clipboard and Editor one-event deletion/Undo/Save → Reload).
 - Review corrections: 2026-10-29 (#746: collision-paste cleanup and placement in one transaction; Core-owned removal of ordinary paragraphs emptied by coupled reference deletion, with one-event Undo).
 - Explicit edit controls: 2026-10-29 (#714 / #715: button-only entry, Apply/Cancel, read-only IME protection and localized region label).
@@ -21,6 +22,7 @@ Issue #119 made paragraphs with footnotes editable and stopped silent loss of de
 - An endnote is a MyST footnote: a reference `[^label]` in the body and a definition `[^label]: ...`. The syntax, the labels and the MyST node names (`footnoteReference`, `footnoteDefinition`, inline `{ kind: "footnote" }`) are unchanged. No new syntax or metadata is written.
 - A definition belongs to the document, not to the block or section it is written after. Several references can share one definition.
 - **Definition content**: a native document permits one non-empty paragraph of supported inline content per definition, without footnote references. Multiple paragraphs, other nested blocks or unsupported inline content reject the entire document at admission; there is no source-editing fallback.
+- Ordinary relative image links such as `[^n]: [그림 보기](assets/footnote-110.png)` are supported inline links, with their URL/text preserved by native admission and canonical round-trip. The Editor's [image-link preview](editor-ux-shell-v1.md#relative-image-link-previews-731) is available while the definition is read-only as well as during editing; it does not insert an inline image or Figure into the definition.
 - **Endnote order**: the body's blocks first, then the definitions in the order of the first reference to each. Numbers 1, 2, 3, ... follow the same reading order; a repeated reference shows the same number. Labels are identifiers, independent of numbers. A completed edit removes definitions with no remaining body reference; reference counts cover the entire document, including tables, lists and Figure captions.
 - Canonical Markdown writes the definitions after the body in endnote order, wherever the source or an operation placed them. Non-endnote blocks keep their order and content. Writing the result again gives the same bytes.
 

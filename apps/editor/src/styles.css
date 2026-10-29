@@ -2128,6 +2128,7 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
 
 /* Editor overlays: positioned over the document, never part of its content. */
 .command-menu,
+.image-link-preview,
 .selection-toolbar {
   position: absolute;
   z-index: 3;
@@ -2146,6 +2147,18 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
   translate: var(--overlay-shift-x, 0px) var(--overlay-shift-y, 0px);
 }
 
+.image-link-preview {
+  width: var(--layout-image-link-preview-width);
+  padding: var(--space-2);
+  pointer-events: none;
+  overflow: hidden;
+}
+.image-link-preview img {
+  display: block;
+  width: 100%;
+  max-height: min(var(--layout-image-link-preview-height), calc(var(--overlay-max-height, 100dvh - var(--app-header-height, var(--layout-header-row)) - var(--space-4)) - var(--space-4)));
+  object-fit: contain;
+}
 .command-menu {
   display: grid;
   min-width: 10rem;

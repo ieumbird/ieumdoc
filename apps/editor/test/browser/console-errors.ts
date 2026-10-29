@@ -79,6 +79,9 @@ const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
   "link-authoring": [
     {status: 400, pathname: "/api/document", minimum: 1, description: "rejected unpreservable link save"},
   ],
+  "image-link-preview": [
+    { status: 404, pathname: "/document/missing.png", queryPath: path.join(REPOSITORY_ROOT, "tmp", "image-link-preview", "links.md"), minimum: 1, description: "missing linked image shows its load failure" },
+  ],
   "inline-math-authoring": [
     {status: 400, pathname: "/api/document", minimum: 1, description: "rejected unpreservable inline math save"},
   ],

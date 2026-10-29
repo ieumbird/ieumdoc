@@ -1,6 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Image-link preview verification: 2026-10-29 (#731; [contract and captures](#relative-image-link-previews-731)).
 - Link opening verification: 2026-10-29 (#725; [contract and captures](#open-ordinary-links-725)).
 - Editor groups verification: 2026-10-29 (#488 phase 1; Editor 341 tests, workspace typecheck/build, related browser regressions and [group/visual evidence](#two-editor-groups-488-phase-1)).
 - Tab-row actions update: 2026-10-29 (#695; [current contract and evidence](#title-strip-and-tab-row-actions-695)).
@@ -1389,6 +1390,55 @@ The extra compact outline button wraps with the existing form controls without w
 | --- | --- | --- |
 | 1440px | [Before](assets/open-link-725/before-en-1440.png) | [After](assets/open-link-725/after-en-1440.png) |
 | 640px | [Before](assets/open-link-725/before-en-640.png) | [After](assets/open-link-725/after-en-640.png) |
+
+### Relative image link previews (#731)
+
+An ordinary Markdown link to a document-relative PNG, JPG/JPEG, GIF, WebP or SVG
+shows an image preview on pointer hover throughout the Visual document, including
+read-only endnote definitions. Keyboard reading follows the existing editor selection:
+an empty text selection inside an image-link mark shows its preview while the editor
+has focus. Moving the caret outside the link, selecting a range, editing or composition
+closes it. Links retain ordinary StarterKit rendering and editing: no extra Tab stop,
+anchor-element focus or Enter/Tab interception. Click placement, double-click word
+selection, drag selection, Korean composition, link authoring and Undo stay unchanged.
+Destinations use the existing Figure Host resolver and document locator, including
+its access boundary. Missing or undecodable images show **Image not found /
+이미지를 찾을 수 없음**. Absolute paths, fragments, http(s) destinations and other
+schemes have no preview; hover/focus never requests a remote image. Click behavior
+remains the [ordinary-link contract](#open-ordinary-links-725).
+
+The display-only overlay reuses the editor overlay surface, border, typography and
+shadow, with 8px padding, a 320px width cap and 240px image-height cap (adjustable
+tokens). It fits the owning split group's viewport through `useOverlayBounds`,
+follows document scrolling, and closes when its anchor scrolls out of view. Escape,
+pointer exit, blur, pointer down, editing and composition dismiss it. It is pointer
+transparent and never moves focus, changes selection or writes document content.
+No new syntax, Core operation, CLI command or Host API is introduced. Image rename
+retargeting, printing/export and remote images are outside this feature.
+
+The `image-link-preview` browser scenario covers hover and keyboard caret movement,
+read-only endnotes, quote/list/table links, missing and undecodable images, zero
+remote requests, scrolling and split-group bounds. It also compares actual pointer
+editing of body/list/table image links with an ordinary link: click then type, native
+double-click and drag selection, Korean composition through Chromium's IME protocol,
+Ctrl/Cmd+' link authoring and Undo. It never repairs focus or selection before those
+input checks. The click/caret regression fails on the original preview implementation
+(`33c3bf2b67b7f814dd4083b3a02798d3f680101d`). Native Core admission and canonical round-trip were checked
+before implementation with `[^n]: [그림 보기](assets/footnote-110.png)`; the link's
+URL/text and stable reserialization are already supported.
+
+Manual-review pairs below use base `a5c1c702f375712a5bdd9e3962ec6c7e137e9f9f`
+and this implementation, the same `image-link-preview/links.md` scratch fixture,
+Local diagram hover, scroll top, Windows persistent Chrome, English Light/Paper,
+1440/640 × 900px, DPR/zoom 1 and bundled Pretendard ready. Before was captured
+with the base rendering; After is reproducible with
+`pnpm browser:test image-link-preview --screenshots`. Generated logs/traces stay in
+ignored `tmp/`; only these small review PNGs are retained.
+
+| Width | Before | After |
+| --- | --- | --- |
+| 1440px | [Before](assets/image-link-preview-731/before-1440.png) | [After](assets/image-link-preview-731/after-1440.png) |
+| 640px | [Before](assets/image-link-preview-731/before-640.png) | [After](assets/image-link-preview-731/after-640.png) |
 
 ### Shortcut contract (#381)
 
