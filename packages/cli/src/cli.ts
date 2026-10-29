@@ -97,6 +97,7 @@ import {
 import { assertUnicode, commitFile, decodeUtf8, preflightFileCommit, textRevision } from "@ieumdoc/file-commit";
 import { resolveMediaPath } from "../../../apps/editor/server/document-path.ts";
 import { figureMediaPath } from "../../../apps/editor/shared/figure-media-path.ts";
+import { convertDoclingFile } from "@ieumdoc/docling";
 
 const HELP_GROUPS = [
   "Create and inspect",
@@ -215,6 +216,16 @@ const COMMANDS: CommandSpec[] = [
     summary: "Create an empty IeumDoc native document",
     usage: "ieumdoc create <file>",
     details: ["Create a new .md file in an existing directory. Existing files are never overwritten."],
+  },
+  {
+    name: "docling",
+    group: "Create and inspect",
+    summary: "Convert a whole DoclingDocument and create its correspondence sidecar",
+    usage: "ieumdoc docling convert <document.json> --output <new-folder>",
+    details: ["Accepts DoclingDocument 1.10.0. The output directory must not exist.",
+      "Creates document.md, document.docling-map.json and local image assets.",
+      "Furniture and unsupported elements are reported in the sidecar. No chapter/range selection.",
+      "Original heading numbers remain literal text; automatic heading numbering is off."],
   },
   {
     name: "update-bibliography",
@@ -859,6 +870,16 @@ function main(argv: string[]): number {
     process.stdout.write(commandHelp(command));
     return 0;
   }
+  if (command === "docling") {
+    if (rest.length !== 4 || rest[0] !== "convert" || rest[2] !== "--output" ||
+        rest[1].startsWith("-") || rest[3].startsWith("-")) throw new Error(commandHelp(command));
+    const result = convertDoclingFile(rest[1], rest[3]);
+    const counts = result.map.items.reduce<Record<string, number>>((sum, item) => {
+      sum[item.status] = (sum[item.status] ?? 0) + 1; return sum;
+    }, {});
+    process.stdout.write(JSON.stringify({ output: path.resolve(rest[3]), ...counts }) + "\n");
+    return 0;
+  }
   if (!rest[0]) {
     process.stderr.write(commandHelp(command));
     return 2;
@@ -1387,6 +1408,7 @@ function topLevelHelp(): string {
 function commandHelp(name: string): string {
   const spec = findCommand(name);
   if (!spec) return topLevelHelp();
+  if (name === "docling") return ["Usage:", `  ${spec.usage}`, "", ...spec.details, ""].join("\n");
   const editing = isEditCommand(name);
   const addressed = /--(?:at|path|from) <(?:index|heading index|table)/.test(spec.usage);
   return ["Usage:", `  ${spec.usage}${editing ? " [--if-revision <revision>] [--dry-run [--format <text|json>]]" : ""}`, "", ...spec.details,

@@ -74,10 +74,13 @@ pnpm editor
 pnpm ieumdoc help
 pnpm ieumdoc check apps/editor/document/technical-document.md
 pnpm ieumdoc inspect apps/editor/samples/ko/converter-control.md --format json
+pnpm ieumdoc docling convert /path/to/document.json --output /path/to/new-folder
 ```
 
 문서를 수정할 때는 저장소 밖의 사본을 사용하세요. 단건 명령은 `help <command>`, 여러 수정은 [배치 예제](docs/design/filesystem-host-boundary-v1.md#cli-batch-application-215)를 참고합니다.
 `inspect`로 경로와 revision을 확인하고 [`--if-revision`](docs/design/filesystem-host-boundary-v1.md#cli-revision-precondition-214)으로 외부 변경을 보호하며, [`--dry-run`](docs/design/filesystem-host-boundary-v1.md#cli-dry-run-292)으로 쓰기 전에 확인할 수 있습니다. [버전 출력·Desktop CLI 설정](docs/design/desktop-distribution-v1.md#optional-command-line-tools-604)도 제공합니다.
+
+[Docling 변환](docs/design/docling-conversion-v1.md)은 DoclingDocument 1.10.0 문서 전체를 새 폴더의 이음독 문서·블록 대응표·이미지로 만듭니다. 변환하지 못한 요소와 장식 요소는 대응표에서 구분합니다.
 
 <a id="standalone-http-editor"></a>
 
