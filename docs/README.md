@@ -90,7 +90,7 @@ Implementation record: [UI language #256 plan and verification](design/ui-langua
 
 ## Verification
 
-- [v0.0.2-beta.4 preparation and release record](releases/v0.0.2-beta.4.md) — Draft; #758 공개 전 unsigned Beta 후보, 포함 변경·한국어 Release 본문 초안·게시 후 기록 항목. #757 병합 대기. 실제 GitHub beta.3→beta.4 업데이트는 설치 상태 보존 제약으로 미실행·미검증.
+- [v0.0.2-beta.4 preparation and release record](releases/v0.0.2-beta.4.md) — Draft; #758 공개 전 unsigned Beta 후보, 포함 변경·한국어 Release 본문 초안·게시 후 기록 항목. #757 그림 속성 팝오버·#760 본문 클릭 입력 복구 포함. 실제 GitHub beta.3→beta.4 업데이트는 설치 상태 보존 제약으로 미실행·미검증.
 
 - [v0.0.2-beta.3 release and verification record](releases/v0.0.2-beta.3.md) — Historical; #690 unsigned Beta 공개, 첫 배포 시도 성공·공개 자산 해시·한국어 Release 본문과 준비 단계 기록. 실제 GitHub beta.2→beta.3 업데이트는 설치 상태 보존 제약으로 미실행·미검증.
 
