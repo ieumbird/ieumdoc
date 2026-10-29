@@ -260,6 +260,9 @@ A changed document recomputes numbering; source semantics and canonical output a
   cut, retaining the source selection and clipboard with a visible reason.
   Labels are preserved; pasting a duplicate label is rejected until the user
   chooses a distinct label or cuts the original target to move it.
+  Fixed Figure/Table/Equation enumerators travel with the typed attributes and the
+  new-locator insertion payload; Host replay uses Core `updateEnumerator` so Cut/Paste,
+  drop/copy and duplicate normalization preserve them through Save/Reload (#720).
 - New empty prose and empty remnants of cross-block replacement are session space
   and are omitted from canonical storage. Clearing an existing block in place and
   incomplete semantic fields retain existing Save validation and draft recovery.

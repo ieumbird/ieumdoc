@@ -5,10 +5,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { getSchema } from "@tiptap/core";
-import { EditorState } from "@tiptap/pm/state";
+import { EditorState, NodeSelection } from "@tiptap/pm/state";
 import { addSectionLabel, isResolved, newSectionLabel, referenceCommandItems, referenceOfCommand, referenceTargets, referenceDisplay, referencesBrokenByDeletion } from "../src/cross-reference.tsx";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
-import { collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
+import { collectSupportedEdits, freshBlockPath, normalizeEngineDocument, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
 import { fromTiptapContent } from "../src/tiptap-inline.ts";
 import { loadDocumentFile, previewDocumentFile, saveDocumentFile } from "../server/document-api.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
@@ -45,6 +45,35 @@ test("fixed numbers cross the real editor schema and Core save replay without lo
   const reopened = loadEditableDocument(saved);
   assert.deepEqual(reopened.blocks.flatMap(block => "enumerator" in block ? [block.enumerator] : []), ["17", "A.3", "4-2", "B.2"]);
   assert.equal(saveEdits(saved, collectSupportedEdits(reopened, schema.nodeFromJSON(toTiptapDocument(reopened)).toJSON() as TiptapJSON)).markdown, saved);
+  for (const enumerator of ["17", "A.3", "4-2", "B.2"]) {
+    const rejected: string[] = [];
+    let moved = EditorState.create({ schema, doc: schema.nodeFromJSON(projected), plugins: [structureGuardPlugin(projected, () => rejected.push("rejected"))] });
+    let position = -1;
+    moved.doc.forEach((node, pos) => { if (node.attrs.enumerator === enumerator) position = pos; });
+    assert.notEqual(position, -1);
+    const original = moved.doc.nodeAt(position)!;
+    moved = moved.applyTransaction(moved.tr.setSelection(NodeSelection.create(moved.doc, position)).deleteSelection()).state;
+    // The internal clipboard's freshSlice keeps attrs and assigns a new locator on paste/drop.
+    const pasted = original.type.create({ ...original.attrs, sourcePath: freshBlockPath() }, original.content, original.marks);
+    moved = moved.applyTransaction(moved.tr.insert(moved.doc.content.size, pasted)).state;
+    assert.deepEqual(rejected, []);
+    const movedEdits = collectSupportedEdits(snapshot, editorDocumentJSON(moved));
+    const movedSaved = saveEdits(source, movedEdits).markdown;
+    const movedRead = loadEditableDocument(movedSaved);
+    const last = movedRead.blocks.at(-1)!;
+    assert.equal("enumerator" in last && last.enumerator, enumerator, `new-locator Save/Reload lost ${enumerator}`);
+    assert.equal(saveEdits(movedSaved, collectSupportedEdits(movedRead, schema.nodeFromJSON(toTiptapDocument(movedRead)).toJSON() as TiptapJSON)).markdown, movedSaved);
+  }
+  // Engine-created duplicates receive fresh locators through normalization too.
+  const copySource = source.replace(":name: tbl\n", "");
+  const copySnapshot = loadEditableDocument(copySource);
+  const copyBaseline = toTiptapDocument(copySnapshot);
+  const copied = clone(copyBaseline);
+  copied.content!.push(clone(copied.content![1]));
+  const normalized = normalizeEngineDocument(copyBaseline, copied);
+  assert.notEqual(normalized.content!.at(-1)!.attrs!.sourcePath, copyBaseline.content![1].attrs!.sourcePath);
+  const copySaved = saveEdits(copySource, collectSupportedEdits(copySnapshot, normalized)).markdown;
+  assert.deepEqual(loadEditableDocument(copySaved).blocks.filter(block => block.block === "table").map(block => block.enumerator), ["A.3", "A.3"]);
   next.content![0].attrs!.enumerator = "lost";
   assert.throws(() => collectSupportedEdits(snapshot, next), /fixed numbers are preserved/);
 });

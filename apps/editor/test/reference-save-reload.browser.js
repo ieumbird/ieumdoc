@@ -66,6 +66,27 @@ async (page, { openPath, openDocument }) => {
     if (JSON.stringify(state) !== JSON.stringify(expected)) throw new Error(`Fixed number projection failed: ${JSON.stringify(state)}`);
   };
   await assertFixedState();
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  const engine = active.locator('.document-editor');
+  for (const enumerator of ['17', 'A.3', '4-2', 'B.2']) {
+    const originalPath = await engine.evaluate((element, number) => {
+      const editor = element.editor;
+      let selected;
+      editor.state.doc.forEach((node, pos) => { if (node.attrs.enumerator === number) selected = {node, pos}; });
+      if (!selected) throw new Error(`Missing fixed target ${number}`);
+      editor.commands.setNodeSelection(selected.pos);
+      editor.view.focus();
+      return selected.node.attrs.sourcePath;
+    }, enumerator);
+    await page.keyboard.press('Control+x');
+    const cut = await engine.evaluate((element, number) => element.editor.getJSON().content.some(node => node.attrs?.enumerator === number), enumerator);
+    if (cut) throw new Error(`Cut did not remove fixed target ${enumerator}`);
+    await page.keyboard.press('Control+End');
+    await page.keyboard.press('Control+v');
+    const pasted = await engine.evaluate((element, number) => element.editor.getJSON().content.find(node => node.attrs?.enumerator === number), enumerator);
+    if (!pasted || pasted.attrs.sourcePath === originalPath) throw new Error(`Paste did not retain ${enumerator} on a fresh locator`);
+  }
+  await assertFixedState();
   await active.getByText('Before.', {exact:true}).click();
   await page.keyboard.press('End');
   await page.keyboard.type(' FixedSaveMarker');
@@ -83,5 +104,6 @@ async (page, { openPath, openDocument }) => {
   await openPath(page, fixedPath);
   await assertFixedState();
   result.fixedNumbersSavedAndReloaded = true;
+  result.fixedNumbersCutPastedSavedAndReloaded = true;
   return result;
 }

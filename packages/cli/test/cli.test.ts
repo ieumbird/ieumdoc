@@ -77,6 +77,20 @@ test("fixed-number CLI edits share revision/dry-run/batch writes and expose nonb
   const clear = run(["update-enumerator", file, "--path", "1", "--enumerator", ""]);
   assert.equal(clear.status, 0, clear.stderr);
   assert.ok(JSON.parse(run(["check", file, "--format", "json"]).stdout).numbering.diagnostics.some((d: { code: string }) => d.code === "numbering-missing"));
+  const emptyFile = path.join(fixtures, "fixed-empty-guidance.md");
+  const emptySource = nativeSource("$$\n$$\n");
+  writeFileSync(emptyFile, emptySource);
+  const number = { command: "update-enumerator", path: 1, enumerator: "A.3" };
+  const fill = { command: "update-equation-latex", path: 1, from: "", to: "x=1" };
+  writeFileSync(operations, JSON.stringify([number, fill]));
+  const refused = run(["apply-batch", emptyFile, "--operations", operations]);
+  assert.equal(refused.status, 1);
+  assert.match(refused.stderr, /Enter equation content before setting the fixed number; in a batch, reorder those operations/);
+  assert.equal(readFileSync(emptyFile, "utf8"), emptySource);
+  writeFileSync(operations, JSON.stringify([fill, number]));
+  const reordered = run(["apply-batch", emptyFile, "--operations", operations]);
+  assert.equal(reordered.status, 0, reordered.stderr);
+  assert.match(readFileSync(emptyFile, "utf8"), /:enumerator: A\.3/);
 });
 
 test("update-media-references supports dry-run, batch, revision conflict and failure without writes", () => {

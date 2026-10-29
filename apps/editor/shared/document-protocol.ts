@@ -114,9 +114,9 @@ export type InsertEdit =
   | { block: "quote"; content: InlineContent[] }
   | { block: "footnote"; label: string; content: InlineContent[] }
   | { block: "divider" }
-  | { block: "equation"; latex: string; label?: string }
-  | ({ block: "figure"; label?: string } & FigureContent)
-  | { block: "table"; rows: InlineContent[][][]; align?: ("left" | "center" | "right" | null)[]; caption?: InlineContent[]; label?: string }
+  | { block: "equation"; latex: string; label?: string; enumerator?: string }
+  | ({ block: "figure"; label?: string; enumerator?: string } & FigureContent)
+  | { block: "table"; rows: InlineContent[][][]; align?: ("left" | "center" | "right" | null)[]; caption?: InlineContent[]; label?: string; enumerator?: string }
   | { block: "list"; list: ListContent }
   | ({ block: "code" } & CodeBlockContent)
   /** A `(label)=` target, labeling the block after it (a section heading in the Editor). */

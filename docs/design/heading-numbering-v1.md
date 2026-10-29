@@ -68,9 +68,13 @@ include `numbering` with the complete Core report in JSON and mode/warnings in t
 `apply-batch` accepts the same command. Its existing contract serializes and reparses each
 step, with one final file replacement; an unsavable intermediate step therefore refuses
 the batch without writing. This PR preserves that contract rather than changing batch paths.
+For an initially empty equation, fill its content before setting its number (reorder the batch operations): the reverse order has no MyST representation for the intermediate step.
 
 Editor projects the read-only attribute through its real schema, uses Core numbers for display,
-and preserves it through existing Core save operations. Number-entry controls and warning UI
+and preserves it through existing Core save operations. New locators from typed Cut/Paste,
+drop/copy or duplicate normalization carry the enumerator in `InsertEdit`; Host replay calls
+Core `updateEnumerator` after insertion, including image/pending/Mermaid Figures, tables and
+equations. Number-entry controls and warning UI
 remain outside PR A. Verification covers Core exact-string round-trips, moves, content/label
 edits, MyST enumeration/reference resolution, warnings and intermediate/final-write boundaries;
 CLI covers revision/dry-run/batch and report output; Editor covers schema/save-replay preservation.

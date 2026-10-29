@@ -1788,7 +1788,12 @@ function reportError(args: string[], error: unknown): number {
   if (args[0] === "check" && args.includes("--format") && args[args.indexOf("--format") + 1] === "json") {
     process.stdout.write(`${JSON.stringify({ ok: false, command: "check", validation: { valid: false },
       error: { ...writeIssueOf(error), ...(error instanceof NativeDocumentError ? { code: error.code } : {}) } })}\n`);
-  } else process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+  } else {
+    const issue = writeIssueOf(error);
+    const hint = issue.code === "fixed-number-unrepresentable"
+      ? " Enter equation content before setting the fixed number; in a batch, reorder those operations." : "";
+    process.stderr.write(`${issue.reason}${hint}\n`);
+  }
   return 1;
 }
 
