@@ -1,7 +1,7 @@
 # Figure authoring v1
 
 - Status: Implemented
-- Fixed numbering: 2026-10-29 (#720 Core/CLI); [shared number contract](heading-numbering-v1.md#fixed-numbers-720).
+- Fixed numbering: 2026-10-29 (#720 Core/CLI and Editor property controls/warnings); [shared number contract](heading-numbering-v1.md#fixed-numbers-720).
 - Mermaid update: 2026-10-28 (#651: Core/CLI source semantics and Editor in-document authoring/rendering).
 - Media reference verification: 2026-10-27 (#504: simultaneous exact source replacement, canonical preservation/refusal, CLI dry-run/batch/revision conflicts, real Host rename and Editor reload).
 - Property-entry update: 2026-10-27 (#557: shared selection/Enter/double-click and explicit property drafts; see [Continuous editing](document-editing-v1.md#continuous-editing)).
@@ -28,7 +28,11 @@ Mermaid Figures. Core read models, captions and references use the exact authore
 moving, relabeling or editing content preserves it. `updateEnumerator` and the thin CLI
 `update-enumerator` command set or clear it. Mermaid's inner directive stays option-free.
 The [shared fixed-number contract](heading-numbering-v1.md#fixed-numbers-720) defines
-warning-only missing/duplicate checks and the separate Editor-controls scope.
+warning-only missing/duplicate checks and Editor display. The image/pending and Mermaid
+property forms place Number after Label and reuse their existing draft, Apply/Cancel,
+validation-busy and Undo contracts. Empty input clears the fixed number; captions and
+references update from Core display functions. Core warnings appear beside this field and
+in a document warning Notice without blocking Save.
 
 A Figure owns its caption, label, location and number. Content is optional: `contentKind` in the Core read model is `none`, `image` or `mermaid`. Existing `imageUrl` and `imageAlt` fields remain available. Mermaid Figures additionally expose `mermaidSource`; image fields are empty. Unsupported content, including subfigures, rejects native admission.
 

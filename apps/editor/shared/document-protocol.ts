@@ -145,6 +145,8 @@ export type SupportedEdits = {
   lists?: ListEdit[];
   codes?: CodeEdit[];
   labels?: LabelEdit[];
+  /** Authored fixed numbers; empty `to` clears through Core updateEnumerator. */
+  enumerators?: { path: NodePath; from: string; to: string }[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
   inserts?: InsertEdit[];

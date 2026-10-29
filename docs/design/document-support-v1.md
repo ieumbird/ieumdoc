@@ -112,7 +112,10 @@ canonical write refuses it with `fixed-number-unrepresentable` and asks the auth
 equation content or clear the fixed number. MyST 1.7.4 rejects an empty `{math}` body, while
 `$$` has no directive options. No dummy LaTeX or parser extension is used. An empty equation
 without an enumerator remains savable, including in a fixed document (a nonblocking missing-number
-warning). The [fixed-number contract](heading-numbering-v1.md#fixed-numbers-720) defines the distinction.
+warning). Editor Number input follows the existing property draft/Apply/Cancel contract;
+the existing Save error path presents the content-or-clear guidance in English and Korean.
+Numbering consistency warnings are displayed separately and never disable Save.
+The [fixed-number contract](heading-numbering-v1.md#fixed-numbers-720) defines the distinction.
 
 Existing CLI input paths share Core's rules, including empty `--text`, `--latex` and
 list content arrays. No new empty-element commands are added: the existing operations

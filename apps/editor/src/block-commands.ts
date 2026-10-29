@@ -392,7 +392,7 @@ export function insertMermaidAfter(state: EditorState, index: number, slash?: Sl
 export function updateFigure(
   state: EditorState,
   position: number,
-  attributes: Partial<Omit<FigureContent, "caption">> & { label?: string },
+  attributes: Partial<Omit<FigureContent, "caption">> & { label?: string; enumerator?: string | null },
   caption?: Fragment,
 ): Transaction {
   const figure = state.doc.nodeAt(position);
