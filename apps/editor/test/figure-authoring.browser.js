@@ -397,6 +397,11 @@ async (page, { openFolderPicker, openDocument, waitForEditorFocus, expect, scree
     expect(await figures.first().locator('figcaption').innerText(), 'Properties preserve the live direct caption').toBe('Updated converter control diagram.');
     const appliedBeforeDelete = await snapshot();
     await page.getByText('The current reference is calculated from the active power command.', {exact:true}).filter({visible:true}).click();
+    await page.waitForFunction(() => {
+      const {selection} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state;
+      return selection.empty && selection.$from.parent.type.name === 'paragraph' &&
+        selection.$from.parent.textContent === 'The current reference is calculated from the active power command.';
+    });
     await page.keyboard.press('ControlOrMeta+a');
     await page.keyboard.press('Backspace');
     expect(await figures.count()).toBe(0);
@@ -480,6 +485,11 @@ async (page, { openFolderPicker, openDocument, waitForEditorFocus, expect, scree
     await editor.waitFor({state:'detached'});
     const newBeforeDelete = await snapshot();
     await page.getByText('The current reference is calculated from the active power command.', {exact:true}).filter({visible:true}).click();
+    await page.waitForFunction(() => {
+      const {selection} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state;
+      return selection.empty && selection.$from.parent.type.name === 'paragraph' &&
+        selection.$from.parent.textContent === 'The current reference is calculated from the active power command.';
+    });
     await page.keyboard.press('ControlOrMeta+a');
     await page.keyboard.press('Backspace');
     expect(await figures.count()).toBe(0);

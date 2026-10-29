@@ -1,5 +1,6 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Image not found": "Image not found",
   "Number": "Number",
   "Automatic": "Automatic",
   "Enter a fixed number; leave empty for automatic numbering.": "Enter a fixed number; leave empty for automatic numbering.",
@@ -677,6 +678,7 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Image not found": "이미지를 찾을 수 없음",
   "Number": "번호",
   "Automatic": "자동",
   "Enter a fixed number; leave empty for automatic numbering.": "고정 번호를 입력하세요. 비워 두면 자동 번호를 사용합니다.",

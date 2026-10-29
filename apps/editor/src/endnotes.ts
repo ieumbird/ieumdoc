@@ -4,8 +4,10 @@ import { closeHistory, isHistoryTransaction } from "@tiptap/pm/history";
 import type { Fragment, Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey, Selection, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { useEditorState } from "@tiptap/react";
-import { endnoteOrder, footnoteNumbers, nextFootnoteLabel, orphanedEndnotes, type EndnoteBlock } from "@ieumdoc/core/numbering";
+import { endnoteOrder, footnoteNumbers, nextFootnoteLabel, planEndnoteLifecycle, type EndnoteBlock } from "@ieumdoc/core/numbering";
+import { endnoteRemovalEmptiesParagraph } from "@ieumdoc/core";
 import { LABEL_PROPERTIES_META } from "./label-rename.ts";
+import { fromTiptapContent } from "./tiptap-inline.ts";
 
 /**
  * The Editor's endnotes. MyST footnotes keep their syntax and node names (`footnoteReference`,
@@ -85,17 +87,10 @@ function endnotePlacement(doc: ProseMirrorNode): number[] | undefined {
   return order.every((index, at) => index === at) ? undefined : order;
 }
 
-/**
- * Labels of the endnotes that removing the top-level blocks `removed` selects would leave with no
- * reference, as numbers the reader sees. Save refuses such a document.
- */
-export function orphanedEndnoteNumbers(doc: ProseMirrorNode, removed: (index: number) => boolean): string[] {
-  return orphanedEndnotes(endnoteBlocks(doc), removed).map(label => String(endnoteNumber(doc, label) ?? `[^${label}]`));
-}
-
 type ReturnPoint = { label: string; pos: number };
 const returnPointKey = new PluginKey<ReturnPoint | null>("endnoteReturn");
 const ORDER_META = "endnoteOrder";
+const LIFECYCLE_META = "endnoteLifecycle";
 
 /** Ephemeral editor interaction, never a document attribute or history event. */
 export const endnoteEditingKey = new PluginKey<{ label: string; initial: Fragment } | null>("endnoteEditing");
@@ -161,7 +156,7 @@ export function endnoteEditingPlugin(): Plugin<{ label: string; initial: Fragmen
       },
     },
     filterTransaction(tr, state) {
-      if (!tr.docChanged || isHistoryTransaction(tr) || tr.getMeta(ORDER_META) || tr.getMeta("blockCommand") ||
+      if (!tr.docChanged || isHistoryTransaction(tr) || tr.getMeta(ORDER_META) || tr.getMeta(LIFECYCLE_META) || tr.getMeta("blockCommand") ||
           tr.getMeta(LABEL_PROPERTIES_META)) return true;
       // A whole-document selection alone says nothing about a drop or targeted
       // transaction. Composition can first normalize AllSelection to text positions
@@ -169,6 +164,13 @@ export function endnoteEditingPlugin(): Plugin<{ label: string; initial: Fragmen
       // the last block's closing boundary. Restrict that case to composition input.
       const { selection, doc } = state;
       const uiEvent = tr.getMeta("uiEvent");
+      if (selection instanceof NodeSelection && selection.node.type.name === "footnoteDefinition" && uiEvent !== "drop") {
+        let deletesSelected = false;
+        tr.steps[0]?.getMap().forEach((from, to, newFrom, newTo) => {
+          if (from === selection.from && to === selection.to && newFrom === newTo) deletesSelected = true;
+        });
+        if (deletesSelected) return true;
+      }
       const wholeSelection = selection.from === 0 && selection.to === doc.content.size;
       const wholeComposition = !selection.empty && selection.from === 1 && selection.to === doc.content.size - 1 &&
         tr.getMeta("composition") !== undefined && uiEvent !== "paste";
@@ -246,20 +248,38 @@ export function endnotesPlugin(canOrder: () => boolean = () => true): Plugin<Ret
     state: {
       init: () => null,
       apply(tr, point) {
-        const visited = tr.getMeta(returnPointKey) as ReturnPoint | undefined;
-        if (visited) return visited;
+        const visited = tr.getMeta(returnPointKey) as ReturnPoint | null | undefined;
+        if (visited !== undefined) return visited;
         if (!point) return null;
-        const order = tr.getMeta(ORDER_META) as number[] | undefined;
-        const mapped = order ? { pos: orderedPosition(tr.before, order, point.pos), deleted: false } : tr.mapping.mapResult(point.pos);
+        const mapped = tr.mapping.mapResult(point.pos);
         const node = tr.doc.nodeAt(mapped.pos);
         return !mapped.deleted && node?.type.name === "footnoteReference" && node.attrs.label === point.label
           ? { ...point, pos: mapped.pos } : null;
       },
     },
-    appendTransaction(transactions, _old, state) {
-      if (!transactions.some(tr => tr.docChanged || tr.getMeta(ENDNOTE_DRAFT_CLOSED)) || !canOrder()) return null;
-      const order = endnotePlacement(state.doc);
-      if (!order) return null;
+    appendTransaction(transactions, old, state) {
+      if (!transactions.some(tr => tr.docChanged || tr.getMeta(ENDNOTE_DRAFT_CLOSED))) return null;
+      const plan = planEndnoteLifecycle(endnoteBlocks(old.doc), endnoteBlocks(state.doc));
+      const definitions = new Set(plan.removeDefinitions), references = new Set(plan.removeReferences);
+      const removed: { from: number; to: number }[] = [];
+      state.doc.descendants((node, pos, parent) => {
+        const removeParagraph = parent === state.doc && node.type.name === "paragraph" && references.size > 0 &&
+          endnoteRemovalEmptiesParagraph(fromTiptapContent({ type: "doc", content: [node.toJSON()] }), plan.removeReferences);
+        if (removeParagraph || node.type.name === "footnoteDefinition" && definitions.has(String(node.attrs.label)) ||
+            node.type.name === "footnoteReference" && references.has(String(node.attrs.label))) {
+          removed.push({ from: pos, to: pos + node.nodeSize });
+          return false;
+        }
+      });
+      const tr = state.tr;
+      for (const range of removed.reverse()) tr.delete(range.from, range.to);
+      if (removed.length) tr.setMeta(LIFECYCLE_META, true);
+      if (!canOrder()) return tr.docChanged ? tr : null;
+      // A plugin does not append again to its own appended transaction. Place the cleaned
+      // document now, retaining its mapped selection and return point in this history event.
+      const cleaned = tr.doc;
+      const order = endnotePlacement(cleaned);
+      if (!order) return tr.docChanged ? tr : null;
       // Replace only the span whose blocks move; blocks outside it keep their views.
       let first = 0;
       let last = order.length;
@@ -267,11 +287,14 @@ export function endnotesPlugin(canOrder: () => boolean = () => true): Plugin<Ret
       while (last > first && order[last - 1] === last - 1) last--;
       let from = 0;
       let to = 0;
-      state.doc.forEach((node, _pos, index) => { if (index < first) from += node.nodeSize; if (index < last) to += node.nodeSize; });
-      const tr = state.tr.replaceWith(from, to, order.slice(first, last).map(index => state.doc.child(index)));
-      const selected = state.selection.toJSON();
-      if (selected.anchor !== undefined) selected.anchor = orderedPosition(state.doc, order, selected.anchor);
-      if (selected.head !== undefined) selected.head = orderedPosition(state.doc, order, selected.head);
+      cleaned.forEach((node, _pos, index) => { if (index < first) from += node.nodeSize; if (index < last) to += node.nodeSize; });
+      const selected = tr.selection.toJSON();
+      if (selected.anchor !== undefined) selected.anchor = orderedPosition(cleaned, order, selected.anchor);
+      if (selected.head !== undefined) selected.head = orderedPosition(cleaned, order, selected.head);
+      const point = returnPointKey.getState(state);
+      const mapped = point ? tr.mapping.mapResult(point.pos) : undefined;
+      tr.setMeta(returnPointKey, point && mapped && !mapped.deleted ? { ...point, pos: orderedPosition(cleaned, order, mapped.pos) } : null);
+      tr.replaceWith(from, to, order.slice(first, last).map(index => cleaned.child(index)));
       return tr.setSelection(Selection.fromJSON(tr.doc, selected)).setMeta(ORDER_META, order);
     },
   });

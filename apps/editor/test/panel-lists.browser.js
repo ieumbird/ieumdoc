@@ -129,6 +129,20 @@ async (page, { openDocument, expect, screenshots }) => {
       }));
       for (let tab = 0; tab < 3; tab++) {
         await tabs.nth(tab).click();
+        // The shared navigation rows retain full names/tooltips while clipping only their painting.
+        const buttons = panel.getByRole('tabpanel').getByRole('button');
+        for (const button of await buttons.all()) {
+          const text = await button.textContent();
+          await expect(button).toHaveAccessibleName(text);
+          await expect(button).toHaveAttribute('title', text);
+        }
+        const labels = await buttons.locator('.document-outline-copy').evaluateAll(nodes => nodes.map(n => {
+          const style = getComputedStyle(n);
+          return { singleLine: n.getBoundingClientRect().height === parseFloat(style.lineHeight),
+            ellipsis: style.textOverflow === 'ellipsis', clipped: n.scrollWidth > n.clientWidth };
+        }));
+        expect(labels.every(label => label.singleLine && label.ellipsis)).toBe(true);
+        expect(labels.some(label => label.clipped)).toBe(true);
         expect(await tabs.evaluateAll(buttons => buttons.map(button => {
           const r = button.getBoundingClientRect(); return [r.x, r.y, r.width, r.height];
         }))).toEqual(originalBounds);

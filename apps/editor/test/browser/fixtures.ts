@@ -131,7 +131,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
         return `Guard ${id}.\n\n` + (key === "Backspace" ? `${block}\n\n${prose}` : `${prose}\n\n${block}`) + `\n\nTail ${id}.\n\n`;
       }))).join("")
   ) }], scenarios: ["atom-boundaries"] },
-  "continuous-editing": { files: [fixture("continuous-editing.md"), document("diagram.svg"),
+  "continuous-editing": { files: [fixture("continuous-editing.md"), fixture("scoped-select-all.md"), document("diagram.svg"),
     { name: "edge-equation.md", create: () => nativeSource("$$\nx\n$$\n") },
     // Every inline kind a heading, Figure caption and table cell hold (#58).
     { name: "formatted-clipboard.md", create: () => nativeSource("## **Bold** *it* {del}`gone` [link](https://example.com) `code` $x$ {eq}`eq-a` {numref}`fig-a`\n\n" +
@@ -209,6 +209,13 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   },
   "table-cell-editing": { files: [...technical, fixture("mixed-table.md")], scenarios: ["table-cell-editing"] },
   "link-authoring": { files: [fixture("links.md")], scenarios: ["link-authoring"] },
+  "image-link-preview": { files: [
+    document("diagram.svg"),
+    { name: "broken.png", create: () => "not an image" },
+    { name: "links.md", create: () => nativeSource("# Image links\n\nSee [Local diagram](diagram.svg), [Missing image](missing.png), [Broken image](broken.png) and [Remote image](https://example.invalid/image.png).\n\n" +
+      "> [Quote diagram](./diagram.svg)\n\n- [List diagram](diagram.svg)\n\n| Image |\n| --- |\n| [Cell diagram](diagram.svg) |\n\n" +
+      "A note[^image].\n\n[^image]: [Endnote diagram](diagram.svg)\n") },
+  ], scenarios: ["image-link-preview"] },
   "inline-math": { files: [fixture("math.md"), fixture("split.md")], scenarios: ["inline-math-authoring", "inline-math-split"] },
   "equation-editing": { files: [fixture("math.md"),
     { name: "middle.md", create: () => `${fixture("math.md").create().toString().trimEnd()}\n\nAfter.\n` },
