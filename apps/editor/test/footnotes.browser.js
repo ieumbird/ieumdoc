@@ -202,6 +202,7 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
       await bodyForDrop.click();
       await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.$from.parent.textContent === 'Middle paragraph.');
       await page.keyboard.press('Control+a');
+      await page.keyboard.press('Control+a');
       assert(await editor.evaluate(element => element.editor.state.selection.toJSON().type) === 'all', 'Ctrl+A must select the whole document');
     }
     await page.evaluate(() => {
@@ -246,6 +247,7 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   for (const action of ['Backspace', 'Delete', 'type']) {
     await editor.evaluate(element => element.editor.view.focus());
     await page.keyboard.press('Control+a');
+    await page.keyboard.press('Control+a');
     assert(await editor.evaluate(element => element.editor.state.selection.toJSON().type) === 'all', `${action}: whole document must be selected`);
     if (action === 'type') await page.keyboard.type('Replacement');
     else await page.keyboard.press(action);
@@ -256,6 +258,7 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   // Chromium may normalize AllSelection to a document-covering TextSelection before the
   // composition transaction. This is real composition, not a native Windows IME probe.
   await editor.evaluate(element => element.editor.view.focus());
+  await page.keyboard.press('Control+a');
   await page.keyboard.press('Control+a');
   assert(await editor.evaluate(element => element.editor.state.selection.toJSON().type) === 'all', 'Composition must start with a whole-document selection');
   const wholeComposition = await page.context().newCDPSession(page);
@@ -275,6 +278,7 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   await page.keyboard.press('Control+z');
   assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === beforeWholeDocumentEdit, 'One Undo must restore the document after composition');
   await editor.evaluate(element => element.editor.view.focus());
+  await page.keyboard.press('Control+a');
   await page.keyboard.press('Control+a');
   await page.keyboard.press('Control+x');
   assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === beforeWholeDocumentEdit, 'Whole-document cut retains the existing lossless-copy refusal');
