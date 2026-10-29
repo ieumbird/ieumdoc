@@ -43,6 +43,9 @@
   Split paper uses the existing 80px starting gutter and 16px narrow trailing inset;
   each native scrollbar belongs to its group. The shared title strip stays 40px;
   both tab rows stay 32px plus the boundary. See the [group contract](editor-ux-shell-v1.md#two-editor-groups-488-phase-1).
+  Floating editor controls fit and cap their size to the owning group's client viewport,
+  excluding the native scrollbar, with the existing 8px edge inset. Overlay and viewport
+  resize/scroll recompute placement; one group retains its previous window bounds.
 
 - The bottom Settings icon carries an 8px update dot in the same icon slot in both expanded Sidebar and collapsed rail (#665), without changing button targets or footer placement. Dot activation opens About & updates; its update actions receive an inset accent outline and selected-surface background. See the [update contract and captures](desktop-distribution-v1.md#settings-update-cue-verification-665).
 

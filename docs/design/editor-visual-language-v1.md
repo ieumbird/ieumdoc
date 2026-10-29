@@ -53,6 +53,9 @@ The two [editor groups](editor-ux-shell-v1.md#two-editor-groups-488-phase-1) reu
 existing tab, control, structural-border and selected-surface tokens. The focused
 group's tab-row background supplies a quiet group cue alongside each active tab's
 existing accent marker. The shared title strip and document typography do not change.
+Floating editor controls retain their existing surface, shadow, typography and targets;
+the group's viewport bounds their placement and maximum size. See the [review correction
+and comparison](editor-ux-shell-v1.md#group-verification-and-visual-evidence).
 
 All `.view-toggle` consumers share the same selected 600 semibold, themed `surface` and
 `--shadow-segment`, without a `border-control` edge. A hidden semibold label reserves width

@@ -2131,8 +2131,8 @@ ol.list { list-style: decimal; }
   font-weight: 400;
   font-style: normal;
   line-height: var(--line-height-label);
-  max-width: calc(100vw - var(--space-4));
-  max-height: calc(100dvh - var(--app-header-height, var(--layout-header-row)) - var(--space-4));
+  max-width: var(--overlay-max-width, calc(100vw - var(--space-4)));
+  max-height: var(--overlay-max-height, calc(100dvh - var(--app-header-height, var(--layout-header-row)) - var(--space-4)));
   overflow: auto;
   translate: var(--overlay-shift-x, 0px) var(--overlay-shift-y, 0px);
 }

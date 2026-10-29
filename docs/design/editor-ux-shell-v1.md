@@ -49,6 +49,14 @@ independently scrollable and editable. The focused group's tab row uses the exis
 selected-surface color as a cue; individual tab selection keeps its accent marker.
 Equal filenames keep their distinguishing parent-folder labels across both groups.
 
+Floating editor controls stay inside their owning group's native document viewport,
+excluding its scrollbar: text formatting, slash/insert/block menus and inline link,
+reference and citation forms. Their existing 8px inset applies on each side. The shared
+bounds helper caps width/height before measuring and placing the overlay, so long menus
+wrap or scroll within the group. It observes that viewport as well as the overlay;
+window resize, group resize/movement and document scrolling refit the same controls.
+Single-group mode retains the previous window/header bounds and CSS size limits.
+
 Open to the right is available in tab context menus, document File actions, Explorer
 document context menus and Command Center. It targets the right group, creating it
 when necessary. Move to other group is available from tab/File menus and Command
@@ -77,6 +85,25 @@ migration, Core semantic operation or CLI surface is needed for this editor inte
 Derived screens, a third group and divider dragging remain outside phase 1.
 
 ### Group verification and visual evidence
+
+The #718 review follow-up reproduces a first-paragraph selection at the right edge
+of the left group, 1440×900 with Explorer and docked Outline open. Before correction,
+the group ended at x=711.5 but the 294px toolbar reached x=877.171875; five trailing
+buttons failed native `elementFromPoint` hit tests. The same assertion now measures
+x=409.5…703.5 and all nine actions are reachable. Tab traverses every action and Enter
+opens the final Cross-reference form; pointer activation verifies that same trailing
+action and Link. Reference/Link/Citation forms and slash/block menus also assert their
+owning group bounds, including keyboard-active menu items. These checks supplement the
+existing group/session regression without changing its timeout or retry policy.
+
+Same-state manual [before](assets/editor-groups-488/toolbar-before-1440.png) /
+[after](assets/editor-groups-488/toolbar-after-1440.png) captures use head `74cdecda`,
+then this correction, the same persistent Windows Chrome/profile, English/light,
+1440×900, DPR/zoom 1, bundled Pretendard and the selected `link` in `DC-link voltage`.
+The existing 1440/640px single-group comparisons below remain unchanged.
+The follow-up reran `quiet-document --screenshots` at both widths and matched those
+PNG hashes. `editor-groups`, `link-authoring`, `cross-reference`, `citation-authoring`,
+`basic-blocks` and `layout-rules` pass with the shared bounds correction.
 
 `editor-groups` verifies retained editor identity, content/selection/property drafts,
 Undo/Redo, independent native scroll, group Save/Source, focused shortcut/Command Center/

@@ -62,6 +62,84 @@ async (page, { openPath, activeDocument, expect, screenshots = false }) => {
   check(sorted.every(r=>r.width>=440 && r.bottom===900) && Math.abs(sorted[1].x-sorted[0].right-1)<1,
     `Group viewports are not bounded independent columns: ${JSON.stringify(geometry)}`);
   const left = await rowOf(bid), right = await rowOf(aid);
+  // Review #718: a real selection at the first paragraph's right edge must expose
+  // the entire toolbar inside its owning group, including its trailing actions.
+  await surface(bid).locator('.document-editor').evaluate(n => {
+    let range;
+    n.editor.state.doc.descendants((node,pos) => {
+      if (range || !node.isText || !node.text.includes('DC-link voltage')) return;
+      const from = pos + node.text.indexOf('link'); range = {from,to:from+4};
+    });
+    if (!range) throw new Error('Toolbar reproduction text is missing');
+    n.editor.view.focus(); n.editor.commands.setTextSelection(range);
+  });
+  const toolbar = surface(bid).getByTestId('selection-toolbar');
+  const overlayBounds = async (overlay,label,allControls=false) => {
+    await overlay.waitFor();
+    const result = await overlay.evaluate(n => {
+      const viewport=n.closest('.document-scroll'), group=viewport.getBoundingClientRect(), rect=n.getBoundingClientRect();
+      const left=group.left+viewport.clientLeft, top=group.top+viewport.clientTop;
+      return {group:{left,top,right:Math.min(group.right,left+viewport.clientWidth),bottom:Math.min(group.bottom,top+viewport.clientHeight)},
+        overlay:{left:rect.left,top:rect.top,right:rect.right,bottom:rect.bottom,width:rect.width},
+        // Hit-test interactive controls, excluding the combobox's hidden bookkeeping input.
+        controls:[...n.querySelectorAll('button,input,select')].filter(control=>control.tabIndex>=0 && !control.disabled && control.getClientRects().length).map(control=>{
+          const r=control.getBoundingClientRect();
+          return {name:control.getAttribute('aria-label')??control.textContent,reachable:control.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))};
+        })};
+    });
+    check(result.overlay.left>=result.group.left && result.overlay.right<=result.group.right && result.overlay.top>=result.group.top && result.overlay.bottom<=result.group.bottom &&
+      (!allControls || result.controls.every(control=>control.reachable)), `${label} is clipped: ${JSON.stringify(result)}`);
+    return result;
+  };
+  await toolbar.waitFor();
+  if (screenshots) await page.screenshot({path:'tmp/visual-refinement/groups-toolbar-1440.png'});
+  const toolbarGeometry = await overlayBounds(toolbar,'Group toolbar',true);
+  // Tab reaches every formatting action; Enter on the trailing action opens a usable form.
+  const toolbarButtons=toolbar.getByRole('button');
+  await page.keyboard.press('Tab');
+  for (let index=0;index<await toolbarButtons.count();index++) {
+    await expect(toolbarButtons.nth(index)).toBeFocused();
+    if (index+1<await toolbarButtons.count()) await page.keyboard.press('Tab');
+  }
+  await page.keyboard.press('Enter');
+  await overlayBounds(surface(bid).getByTestId('reference-form'),'Keyboard reference form',true);
+  await page.keyboard.press('Escape');
+  await toolbar.getByRole('button',{name:'Cross-reference',exact:true}).click();
+  await overlayBounds(surface(bid).getByTestId('reference-form'),'Pointer reference form',true);
+  await page.keyboard.press('Escape');
+  await toolbar.getByRole('button',{name:'Link',exact:true}).click();
+  await overlayBounds(surface(bid).getByTestId('link-form'),'Link form',true);
+  await page.keyboard.press('Escape');
+  await surface(bid).locator('.document-editor').evaluate(n=>{
+    n.editor.commands.setTextSelection(n.editor.state.selection.to); n.editor.view.focus();
+  });
+  await command('Insert citation…');
+  await overlayBounds(surface(bid).getByTestId('citation-form'),'Citation form',true);
+  await page.keyboard.press('Escape');
+  // A slash query at the same paragraph edge includes existing long reference labels.
+  await page.keyboard.type(' /');
+  const slashMenu=surface(bid).getByRole('menu',{name:'Insert block',exact:true});
+  await overlayBounds(slashMenu,'Slash menu');
+  await page.keyboard.press('ArrowDown');
+  const activeSlash=slashMenu.locator('.active');
+  check(await activeSlash.evaluate(n=>{
+    const r=n.getBoundingClientRect(); return n.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));
+  }), 'The active slash command is clipped');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Backspace'); await page.keyboard.press('Backspace');
+  await surface(bid).locator('.paragraph').first().hover();
+  await surface(bid).getByRole('button',{name:/^Move paragraph block /}).first().click();
+  const blockMenu=surface(bid).getByRole('menu',{name:'Block actions',exact:true});
+  await overlayBounds(blockMenu,'Block menu');
+  await page.keyboard.press('ArrowUp');
+  check(await blockMenu.evaluate(n=>{
+    const focused=document.activeElement, r=focused.getBoundingClientRect();
+    return n.contains(focused) && focused.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));
+  }), 'The focused block command is clipped');
+  await page.keyboard.press('Escape');
+  check((await state(bid,'groupEditorB')).json===beforeB.json,'Overlay checks changed document content');
+  await surface(bid).locator('.document-editor').evaluate((n,selection)=>n.editor.commands.setTextSelection(selection),beforeB.selection);
+  await page.locator(`#tab-${aid}`).focus();
   // A user can focus the other visible editor while an Explorer Open is waiting for the Host.
   const waitingPath = file('technical-3.md');
   let release, arrived;
@@ -174,5 +252,5 @@ async (page, { openPath, activeDocument, expect, screenshots = false }) => {
   check(await groups().count() === 1 && await page.getByRole('tablist',{name:'Documents',exact:true}).getByRole('tab').count() === 2,
     'Reload changed tab memory or restored an empty group');
   check((await activeDocument(page).locator('.document-editor').innerText()).includes('Shortcut B Group B '), 'Reload did not reopen the explicitly saved file');
-  return {geometry, retainedEditors:true, independentSaveSourceOutline:true, narrowMerge:true};
+  return {geometry, toolbarGeometry, retainedEditors:true, independentSaveSourceOutline:true, narrowMerge:true};
 }
