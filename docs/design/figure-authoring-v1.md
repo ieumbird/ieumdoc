@@ -61,6 +61,11 @@ Label-only pending Figures omit the body. Caption-only Figures omit `:name:`. An
 
 Public `serialize` and `canonicalWriteError` validate the final state; an empty Figure is writable. Earlier versions refused a Figure with no image, caption or label; [#171](https://github.com/ieumbird/ieumdoc/issues/171) reversed this so that reserving a place does not require invented caption or label text. The limited pending writer handles a container with no content and at most a caption; existing whole-document semantic fingerprint, reparse and serializer diagnostic guards still apply. Legends, subfigures and unsupported contents keep their existing fail-closed boundary.
 
+Image, pending and Mermaid captions share [scoped Ctrl/Cmd+A](document-editing-v1.md#select-all-within-an-editing-surface-723):
+the first press selects only caption content, and a consecutive second press
+selects the document. The number, image/source and properties stay outside the
+first selection. Empty captions stay local on the first press (#723).
+
 ## Mermaid Figures (#651, Core and CLI)
 
 A Figure may contain exactly one option-free MyST `mermaid` directive followed by an optional

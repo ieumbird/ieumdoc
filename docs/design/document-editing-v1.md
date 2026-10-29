@@ -116,6 +116,30 @@ composition state; code-body composition remains ProseMirror-owned.
 ProseMirror owns selection, replacement, clipboard slices and history among the existing supported blocks. Core still owns all
 persistent changes and canonical semantic validation.
 
+### Select all within an editing surface (#723)
+
+In a table cell, table caption, Figure caption (image, pending or Mermaid), or
+explicitly edited endnote definition, the first Ctrl+A (Cmd+A on macOS) selects
+that surface's inline content, including formatting, inline atoms and supported
+line breaks. It excludes the displayed number, block properties, adjacent cells,
+other definitions and other blocks. An empty surface retains its empty caret.
+Pressing the shortcut again without an intervening editor transaction selects the
+whole document with the engine's AllSelection. Typing, selection movement or Undo
+starts a new first press. Cross-surface selections and ordinary prose retain the
+engine's whole-document behavior. Read-only endnotes retain their existing node
+selection, input protection and default whole-document shortcut; Ctrl+A does not
+enter endnote editing. During composition inside an editable scoped surface the
+shortcut is consumed without changing its content or composition selection.
+
+Replacement and Backspace use the engine's normal text transactions and history;
+one Undo restores the rich content. This is Editor-only selection behavior and
+adds no Core operation or CLI surface. The existing `continuous-editing` browser
+regression covers the five surfaces, repeated shortcuts, empty surfaces, replacement,
+Backspace, Undo and Chromium composition. Native Windows IME and native macOS
+keyboard behavior remain manual verification boundaries.
+
+### Shared history and editing boundaries
+
 Undo uses Ctrl+Z; Redo uses Ctrl+Y or Ctrl+Shift+Z on Windows (Cmd+Z and
 Cmd+Shift+Z on macOS). In the editor, a Hangul IME's opaque Ctrl+Y/Z keydown
 (`Process`/`Unidentified`, keyCode 229/0) uses physical `KeyY`/`KeyZ` only as

@@ -13,10 +13,20 @@ import { addTableRowBelow, changeHeadingLevel, TABLE_DELETE_META } from "./block
 import { normalizeExternalHTML, type ExternalHTML } from "./external-html.ts";
 import { freshBlockPath, TABLE_CELL_SOURCE_ATTR } from "./tiptap-document.ts";
 import { REDO_SHORTCUT, UNDO_SHORTCUT } from "./shortcuts.ts";
+import { canEditEndnoteAt } from "./endnotes.ts";
 
 const TYPES = new Set(["paragraph", "heading", "admonition", "quote", "divider", "equation", "figure", "table", "tableRow", "tableCell", "tableCaption", "bulletList", "orderedList", "listItem", "codeBlock", "text", "hardBreak", "inlineMath", "crossReference", "footnoteReference", "citation"]);
 const COPY_RESTRICTION = "This selection cannot be copied losslessly. Use Source to copy its original Markdown. The selection is kept.";
 const CUT_RESTRICTION = "This selection cannot be cut losslessly. Use Source to copy its original Markdown. Nothing was removed.";
+
+/** These NodeViews each expose one inline editing surface in the shared document. */
+function selectAllScope(state: EditorState): { from: number; to: number } | undefined {
+  const { selection } = state;
+  if (!(selection instanceof TextSelection) || !selection.$from.sameParent(selection.$to) ||
+      !["tableCell", "tableCaption", "figure", "footnoteDefinition"].includes(selection.$from.parent.type.name) ||
+      !canEditEndnoteAt(state, selection.from)) return undefined;
+  return { from: selection.$from.start(), to: selection.$from.end() };
+}
 
 /** Use the real keymap order (including input-rule Undo), with full native transactions. */
 export function runHistoryShortcut(view: EditorView, shortcut: typeof UNDO_SHORTCUT): boolean {
@@ -139,6 +149,9 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
     name: "documentInteraction",
     priority: 120,
     addKeyboardShortcuts() {
+      // State identity also distinguishes first/second presses in an empty surface.
+      // Any intervening transaction (typing, pointer selection, history) starts afresh.
+      let scopedState: EditorState | undefined;
       const end = () => {
         const { view } = this.editor;
         view.dispatch(documentEnd(view.state)); return true;
@@ -186,6 +199,16 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
         this.editor.view.dispatch(tr); return true;
       };
       return {
+        "Mod-a": () => {
+          const { view, isEditable } = this.editor;
+          const { state } = view;
+          if (!isEditable || view.composing || state === scopedState) return false;
+          const scope = selectAllScope(state);
+          if (!scope) return false;
+          view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, scope.from, scope.to)));
+          scopedState = view.state;
+          return true;
+        },
         Backspace: () => join(true),
         Delete: () => join(false),
         // A native clipboard event may target the body when an AllSelection has
@@ -349,6 +372,14 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
             return true;
           },
           keydown: (view, event) => {
+            // ProseMirror skips keymaps during composition. Consume the shortcut here
+            // so Chromium cannot select the whole document behind the composing range.
+            if (this.editor.isEditable && (view.composing || event.isComposing) && selectAllScope(view.state) &&
+                !event.altKey && !event.shiftKey && (isMacOS() ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey) &&
+                (event.key.toLowerCase() === "a" || ["Process", "Unidentified"].includes(event.key) && event.code === "KeyA")) {
+              event.preventDefault();
+              return true;
+            }
             if (!isMacOS() && this.editor.isEditable && !view.composing && event.ctrlKey && !event.metaKey) {
               const shortcut = UNDO_SHORTCUT.matches(event, { opaqueOnly: true }) ? UNDO_SHORTCUT
                 : REDO_SHORTCUT.matches(event, { opaqueOnly: true }) ? REDO_SHORTCUT : undefined;

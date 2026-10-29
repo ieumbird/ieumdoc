@@ -121,7 +121,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
         return `Guard ${id}.\n\n` + (key === "Backspace" ? `${block}\n\n${prose}` : `${prose}\n\n${block}`) + `\n\nTail ${id}.\n\n`;
       }))).join("")
   ) }], scenarios: ["atom-boundaries"] },
-  "continuous-editing": { files: [fixture("continuous-editing.md"), document("diagram.svg"),
+  "continuous-editing": { files: [fixture("continuous-editing.md"), fixture("scoped-select-all.md"), document("diagram.svg"),
     { name: "edge-equation.md", create: () => nativeSource("$$\nx\n$$\n") },
     // Every inline kind a heading, Figure caption and table cell hold (#58).
     { name: "formatted-clipboard.md", create: () => nativeSource("## **Bold** *it* {del}`gone` [link](https://example.com) `code` $x$ {eq}`eq-a` {numref}`fig-a`\n\n" +

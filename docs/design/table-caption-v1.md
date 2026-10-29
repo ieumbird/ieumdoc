@@ -40,6 +40,11 @@ the existing `updateTableCaption` operation already owns the persistent semantic
 - Previous verification: 2026-10-11 (contract compared with current code and regression coverage; caption inline math and reference display, #165).
 - Scope: Core table caption/label operations and their Editor/CLI interfaces; [Table interaction](table-interaction-v1.md).
 
+Ctrl/Cmd+A in the inline caption first selects only its content, excluding the
+computed number; a consecutive second press selects the document. Empty captions
+stay local on the first press. The shared [scoped selection contract](document-editing-v1.md#select-all-within-an-editing-surface-723)
+also defines composition and history behavior (#723).
+
 Issues #94 / #584. Core owns `updateTableCaption`, table `updateLabel` and table numbering.
 Every table receives a number in document order, regardless of caption or Label, and is
 canonically written as a MyST `{table}` directive. Without caption or Label, the directive
