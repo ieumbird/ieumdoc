@@ -58,7 +58,7 @@ export function updateBibliography(document: MystDocument, paths: string[]): Mys
   const { node, yaml } = metadata(next);
   if (paths.length) yaml.set("bibliography", yaml.createNode(paths));
   else yaml.delete("bibliography");
-  node.value = String(yaml).trimEnd();
+  node.value = String(yaml);
   serializeFor(next, "bibliography declaration cannot be preserved through canonical round-trip");
   return next;
 }

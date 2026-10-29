@@ -146,7 +146,7 @@ test("localized sample folders retain the supported feature set and canonical Co
     assert.equal(serialize(document), source, "sample is already canonical");
     const model = getEditableDocument(document);
     assert.deepEqual(getEditableDocument(parse(serialize(document))), model);
-    assert.deepEqual(model.headingNumbering?.enabled, [false, true, true, true, true, true]);
+    assert.deepEqual(model.headingNumbering?.enabled, [true, true, true, true, true, true]);
     assert.ok(model.referenceTemplates?.figure && model.referenceTemplates.table && model.referenceTemplates.equation);
     structures.push(model.blocks.map(block => block.block));
     const inline: InlineContent[] = [];

@@ -35,7 +35,6 @@ import { useEditorVisible } from "./editor-visibility.ts";
 import { ADMONITION_LABELS, admonitionTone, updateFigure } from "./block-commands.ts";
 import { CrossReference, captionPrefixText, useBlockNumber, useCaptionNumberText } from "./cross-reference.tsx";
 import { Endnotes, canEditEndnoteAt, cancelEndnoteEditing, endnoteAt, endnoteEditingKey, endnoteEditorToken, revealReference, useEndnoteNumber } from "./endnotes.ts";
-import { DocumentTitle, TITLE_FIXED, titleKept } from "./document-title.ts";
 import { FootnoteReference } from "./footnote.tsx";
 import { Citation } from "./citation.tsx";
 import { renderEquation } from "./equation-render.ts";
@@ -934,7 +933,6 @@ export function editorExtensions(
     DocumentNumbering,
     PropertyEntry,
     ImageRenames,
-    DocumentTitle,
     Endnotes.configure({ canOrder: () => !hasActiveDraft?.() }),
     TableCellFocus,
     ParagraphHardBreak,
@@ -1041,11 +1039,6 @@ export function structureGuardPlugin(baseline: TiptapJSON, onReject: (reason?: U
     // save representation. This retains table/inline validation.
     filterTransaction(transaction, state) {
       if (!transaction.docChanged) return true;
-      // The title stays first (#255): nothing moves it or goes above it.
-      if (!titleKept(transaction.before, transaction.doc)) {
-        onReject({ key: TITLE_FIXED });
-        return false;
-      }
       try {
         const next = normalizeEngineDocument(baseline, {
           ...transaction.doc.toJSON(), attrs: { [DELETED_PATHS_ATTR]: commandDeletions(transaction, declaredDeletions(state)) },
@@ -1867,7 +1860,7 @@ function EndnoteNumber({ editor, label }: { editor: Editor; label: string }) {
 
 const DocumentNumbering = Extension.create({
   name: "documentNumbering",
-  addGlobalAttributes() { return [{ types: ["doc"], attributes: { headingNumbering: { default: null, rendered: false }, referenceTemplates: { default: null, rendered: false }, bibliography: { default: null, rendered: false } } }]; },
+  addGlobalAttributes() { return [{ types: ["doc"], attributes: { title: { default: null, rendered: false }, headingNumbering: { default: null, rendered: false }, referenceTemplates: { default: null, rendered: false }, bibliography: { default: null, rendered: false } } }]; },
   addProseMirrorPlugins() {
     return [new Plugin({ props: { decorations(state) {
       const blocks: { block: string; level?: number }[] = [];

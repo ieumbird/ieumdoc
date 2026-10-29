@@ -47,6 +47,7 @@ export function prepareEditorSnapshot(schema: Schema, opening: TiptapJSON, snaps
       }
     };
     checkAttrs(node.attrs, node.type.spec.attrs);
+    if (node.attrs.title !== null && typeof node.attrs.title !== "string") throw new Error("Invalid editor attribute title");
     const bibliography = node.attrs.bibliography;
     if (bibliography !== null && (!Array.isArray(bibliography) || !bibliography.every((value: unknown) => typeof value === "string"))) {
       throw new Error("Invalid editor attribute bibliography");

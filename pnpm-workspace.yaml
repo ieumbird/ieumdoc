@@ -15,15 +15,14 @@ minimumReleaseAgeExclude:
   - cn@0.4.0
   - fs-extra@11.4.1
 
-# Security backports without changing MyST's 13.x API/peers.
-# Current rationale and removal conditions: docs/design/parser-security-v1.md
 patchedDependencies:
+  # #346, #11; docs/contributing/dependency-patches.md
   linkify-it@4.0.1: patches/linkify-it@4.0.1.patch
+  # #11, #346; docs/contributing/dependency-patches.md
   markdown-it@13.0.2: patches/markdown-it@13.0.2.patch
-  # Python MyST list styles, semantic delimiters and adjacent boundaries (#734, #730).
-  # Local JS schema extension; rationale/removal: docs/design/document-support-v1.md.
+  # #734, #730; docs/contributing/dependency-patches.md
   myst-parser@1.7.4: patches/myst-parser@1.7.4.patch
+  # #730, #734; docs/contributing/dependency-patches.md
   myst-to-md@1.0.17: patches/myst-to-md@1.0.17.patch
-  # Restore native focus before selection is read; preserve later keys/pointer/touch (#542, #144, #489).
-  # Current scope/removal: docs/design/document-editing-v1.md; original evidence: docs/reviews/prosemirror-focus-caret-2026-10-09.md
+  # #542, #144, #489; docs/contributing/dependency-patches.md
   prosemirror-view@1.42.4: patches/prosemirror-view@1.42.4.patch

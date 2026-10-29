@@ -623,7 +623,7 @@ test("ieumdoc help exits successfully", () => {
       "Edit — text and content": ["insert-hard-break", "replace-text", "update-heading", "update-admonition-variant", "update-quote", "update-figure", "update-media-references", "update-list", "update-code-block", "update-node-text", "update-equation-latex"],
       "Edit — structure": ["split-paragraph", "merge-paragraph", "update-heading-level", "convert-block", "remove-block", "move-block", "move-section", "remove-section"],
       "Edit — tables": ["insert-table", "insert-table-row", "insert-table-column", "remove-table-row", "remove-table-column", "move-table-row", "move-table-column", "update-table-alignment", "update-table-caption", "update-table-cell"],
-      "Edit — labels, footnotes and numbering": ["insert-citation", "insert-footnote", "insert-target", "remove-citation", "update-bibliography", "update-citation", "update-enumerator", "update-footnote", "update-heading-numbering", "update-label", "update-reference-templates"],
+      "Edit — labels, footnotes and numbering": ["insert-citation", "insert-footnote", "insert-target", "remove-citation", "update-bibliography", "update-citation", "update-enumerator", "update-footnote", "update-heading-numbering", "update-label", "update-reference-templates", "update-title"],
       "Format": ["format"],
       "Serve": ["serve"],
     };
@@ -1583,7 +1583,7 @@ test("inspect prints Core editable targets", () => {
     if (quotedParagraph?.block === "paragraph") {
       assert.equal(
         quoted.stdout,
-        `1 paragraph inlineEditable=${quotedParagraph.editable} text=${JSON.stringify(quotedParagraph.text)}\nnumbering: automatic\n`,
+        `title: absent\n1 paragraph inlineEditable=${quotedParagraph.editable} text=${JSON.stringify(quotedParagraph.text)}\nnumbering: automatic\n`,
       );
       assert.equal(quoted.stdout.includes("\n\n"), false);
     }
@@ -2615,7 +2615,8 @@ test("CLI heading numbering persists document settings and exposes the computed 
     assert.doesNotMatch(saved, /## 1/);
     const inspected = run(["inspect", file, "--format", "json"]);
     assert.equal(inspected.status, 0, inspected.stderr);
-    assert.deepEqual(JSON.parse(inspected.stdout).nodes.filter((node: {type:string}) => node.type === "heading").map((node: {headingNumber?: string}) => node.headingNumber), [undefined, "1", "1.1"]);
+    assert.deepEqual(JSON.parse(inspected.stdout).nodes.filter((node: {type:string}) => node.type === "heading").map((node: {headingNumber?: string}) => node.headingNumber), ["1", "1.1", "1.1.1"]);
+    assert.deepEqual(JSON.parse(inspected.stdout).nodes.filter((node: {type:string}) => node.type === "heading").map((node: {referenceText?: string}) => node.referenceText), ["§ 1", "§ 1.1", "§ 1.1.1"]);
     const invalid = run(["update-heading-numbering", file, "--enabled", "yes"]);
     assert.notEqual(invalid.status, 0);
     assert.equal(readFileSync(file, "utf8"), saved);
@@ -2813,4 +2814,36 @@ test("Figure Mermaid argument input supports atomic writes, inspect, dry-run and
   const batch = run(["apply-batch", batchFile, "--operations", operationsFile]);
   assert.equal(batch.status, 0, batch.stderr);
   assert.equal(readFileSync(batchFile, "utf8"), output);
+});
+
+test("CLI title settings support inspect, revision-safe writes, removal, batches and refusal preservation", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-title-"));
+  const file = path.join(dir, "chapter.md");
+  const operations = path.join(dir, "operations.json");
+  const source = nativeSource("(clause)=\n# Power quality\n\n## Detail\n\nSee {ref}`clause`.\n");
+  writeFileSync(file, source);
+  try {
+    assert.equal(JSON.parse(run(["inspect", file, "--format", "json"]).stdout).title, null);
+    const changed = run(["update-title", file, "--text", "IEEE 1547 · Chapter 7", "--if-revision", textRevision(source)]);
+    assert.equal(changed.status, 0, changed.stderr);
+    const saved = readFileSync(file, "utf8");
+    assert.equal(JSON.parse(run(["inspect", file, "--format", "json"]).stdout).title, "IEEE 1547 · Chapter 7");
+    assert.match(run(["inspect", file]).stdout, /title: "IEEE 1547 · Chapter 7"/);
+    assert.deepEqual(getEditableDocument(parse(saved)).blocks, getEditableDocument(parse(source)).blocks);
+    for (const flags of [["--text", "**Formatted**"], ["--text", "Two\nlines"], ["--text", "Stale", "--if-revision", textRevision(source)], [], ["--text", "Both", "--remove"]]) {
+      assert.notEqual(run(["update-title", file, ...flags]).status, 0);
+      assert.equal(readFileSync(file, "utf8"), saved);
+    }
+    const preview = run(["update-title", file, "--text", "", "--dry-run", "--format", "json"]);
+    assert.equal(preview.status, 0, preview.stderr);
+    assert.equal(getEditableDocument(parse(JSON.parse(preview.stdout).markdown)).title, "");
+    assert.equal(readFileSync(file, "utf8"), saved);
+    writeFileSync(operations, JSON.stringify([{ command: "update-title", text: "Batch title" }, { command: "update-title", remove: true }]));
+    const batch = run(["apply-batch", file, "--operations", operations]);
+    assert.equal(batch.status, 0, batch.stderr);
+    assert.equal(getEditableDocument(parse(readFileSync(file, "utf8"))).title, undefined);
+    assert.equal(run(["update-title", file, "--text", "Again"]).status, 0);
+    assert.equal(run(["update-title", file, "--remove"]).status, 0);
+    assert.equal(getEditableDocument(parse(readFileSync(file, "utf8"))).title, undefined);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

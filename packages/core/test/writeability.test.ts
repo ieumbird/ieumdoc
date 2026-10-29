@@ -120,7 +120,7 @@ test("Core refusals expose stable codes through operation and cause wrappers", a
     ["native-content", () => native("<div>HTML</div>\n")],
     ["invalid-structure", () => core.validateStructure({} as never)],
     ["invalid-operation", () => core.removeBlock(document, 0)],
-    ["invalid-operation", () => core.moveBlock(document, 1, 2)],
+    ["invalid-operation", () => core.moveBlock(document, 1, 99)],
     ["unsupported-content", () => core.updateParagraphInlineContent(document, [2], [{ kind: "unknown" }] as never)],
     ["empty-content", () => core.updateHeadingInlineContent(document, [1], [])],
     ["round-trip-mismatch", () => core.updateTableCell(document, [3, 1, 0], [{ kind: "math", value: "`v$" }])],

@@ -59,7 +59,7 @@ test("HTTP recovery survives an owned browser process crash, then Save/Reload an
     let page = await launch();
     await resetRecovery(page);
     await openPath(page, file);
-    await page.getByRole("button", { name: "Add a title", exact: true }).click();
+    await page.getByRole("textbox", { name: "Title", exact: true }).click();
     await page.keyboard.type("HTTP recovery paper");
     await page.keyboard.press("Enter");
     await page.keyboard.type("HTTP body.");
@@ -99,6 +99,7 @@ test("HTTP recovery survives an owned browser process crash, then Save/Reload an
     await expect(page.getByRole("tab", { name: "a.md, Unsaved changes", exact: true })).toBeVisible();
     await expect(page.locator(".document-editor")).toContainText("HTTP crash recorded.");
     const restored = await page.locator(".document-editor").evaluate(element => (element as HTMLElement & {editor:Editor}).editor.getJSON());
+    expect(restored.attrs?.title).toBe("HTTP recovery paper");
     // The prose changed after the structural capture; all inserted atoms and table content must match.
     expect(restored.content?.filter(node => ["equation","table","figure"].includes(node.type!)))
       .toEqual(structured.content?.filter(node => ["equation","table","figure"].includes(node.type!)));
@@ -108,8 +109,10 @@ test("HTTP recovery survives an owned browser process crash, then Save/Reload an
     await expect.poll(() => recoveryRecords(page)).toEqual([]);
     const saved = readFileSync(file, "utf8");
     expect(saved).toContain("HTTP crash recorded.");
+    expect(saved).toContain("title: HTTP recovery paper");
     for (const text of ["HTTP recovery paper","x^2 + y^2 = z^2","Header","Measured cell","HTTP table caption","HTTP pending figure caption"]) expect(saved).toContain(text);
     await reloadDocument(page); await ready(page);
+    await expect(page.getByRole("textbox", { name: "Title", exact: true })).toHaveValue("HTTP recovery paper");
     await expect(page.locator(".document-editor")).toContainText("HTTP crash recorded.");
     await expect(page.locator(".document-editor")).toContainText("Measured cell");
     await expect(page.locator(".document-editor")).toContainText("HTTP pending figure caption");

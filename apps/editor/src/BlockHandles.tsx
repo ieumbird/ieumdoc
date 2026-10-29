@@ -5,7 +5,6 @@ import type { Editor, EditorEvents } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { blockDropTarget, reorderBlock } from "./block-reorder.ts";
 import { endnoteLabel } from "./endnotes.ts";
-import { editorTitleIndex, TITLE_FIXED } from "./document-title.ts";
 import { Button } from "@/components/ui/button.tsx";
 import { GripVertical, Plus } from "lucide-react";
 import { saveErrorBadge, type SaveErrorLocation } from "./save-error.ts";
@@ -58,7 +57,7 @@ export const BlockHandles = memo(function BlockHandles({ editor, saveLocations, 
   useTranslation();
   const gutter = useRef<HTMLDivElement>(null);
   const drag = useRef<{ index: number; doc: ProseMirrorNode } | null>(null);
-  const [blocks, setBlocks] = useState<{ top: number; height: number; name: string; endnote: boolean; title: boolean; sourcePath: string;
+  const [blocks, setBlocks] = useState<{ top: number; height: number; name: string; endnote: boolean; sourcePath: string;
     cell?: { top: number; left: number; width: number; height: number } }[]>([]);
   // Event handlers read the latest measured geometry, not the controls' last render.
   const geometry = useRef(blocks);
@@ -116,17 +115,11 @@ export const BlockHandles = memo(function BlockHandles({ editor, saveLocations, 
       while (end > 0 && endnoteLabel(editor.state.doc.child(end - 1)) !== undefined) end--;
       return rectangles().slice(0, end);
     };
-    // The title stays first (#255): nothing lands at or above it.
-    const dropTarget = (y: number, from: number) => {
-      const target = blockDropTarget(bodyRectangles(), y, from);
-      const title = editorTitleIndex(editor.state.doc);
-      return target && title !== undefined && target.to <= title ? null : target;
-    };
+    const dropTarget = (y: number, from: number) => blockDropTarget(bodyRectangles(), y, from);
     const update = () => {
       const rects = rectangles();
       const hostRect = host.getBoundingClientRect();
       const top = hostRect.top;
-      const titleIndex = editorTitleIndex(editor.state.doc);
       let blockPos = 0;
       const next = rects.map((rect, index) => {
         const node = editor.state.doc.child(index);
@@ -143,7 +136,7 @@ export const BlockHandles = memo(function BlockHandles({ editor, saveLocations, 
         const right = cellRect ? Math.min(cellRect.right, scrollRect?.right ?? cellRect.right) : 0;
         const cell = cellRect && right > left ? { top: cellRect.top - top, left: left - hostRect.left,
           width: right - left, height: cellRect.height } : undefined;
-        return {top: rect.top - top, height: rect.height, endnote, title: index === titleIndex,
+        return {top: rect.top - top, height: rect.height, endnote,
           cell,
           sourcePath: String(node.attrs.sourcePath ?? ""),
           name: endnote ? "endnote" : node.type.name.replace(/Block$/, "").toLowerCase()};
@@ -151,7 +144,7 @@ export const BlockHandles = memo(function BlockHandles({ editor, saveLocations, 
       setBlocks(previous => previous.length === next.length && previous.every((block, index) => {
         const current = next[index];
         return block.top === current.top && block.height === current.height && block.name === current.name &&
-          block.endnote === current.endnote && block.title === current.title && block.sourcePath === current.sourcePath &&
+          block.endnote === current.endnote && block.sourcePath === current.sourcePath &&
           JSON.stringify(block.cell) === JSON.stringify(current.cell);
       }) ? previous : next);
       updateHovered(rects);
@@ -259,7 +252,7 @@ export const BlockHandles = memo(function BlockHandles({ editor, saveLocations, 
   return <div className="block-gutter" ref={gutter}>
     {blocks.map((block, index) => {
       const blocked = block.endnote ? i18n.t(ENDNOTE_HINT)
-        : block.title ? `${i18n.t(TITLE_FIXED)} ${i18n.t("Block actions")}` : moveBlockedHint?.(index);
+        : moveBlockedHint?.(index);
       return <div key={index} className={`block-controls${active === index || menuIndex === index ? " visible" : ""}`}
         data-menu-open={menuIndex === index} style={{top: block.top}}>
         <HandleControls index={index} name={block.name} endnote={block.endnote}
