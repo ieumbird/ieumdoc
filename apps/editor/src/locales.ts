@@ -1,5 +1,7 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Open log folder": "Open log folder",
+  "Could not open the log folder.": "Could not open the log folder.",
   "Open to the right": "Open to the right",
   "Move to other group": "Move to other group",
   "Editor group {{number}}": "Editor group {{number}}",
@@ -667,6 +669,8 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Open log folder": "로그 폴더 열기",
+  "Could not open the log folder.": "로그 폴더를 열지 못했습니다.",
   "Open to the right": "오른쪽에 열기",
   "Move to other group": "다른 그룹으로 이동",
   "Editor group {{number}}": "에디터 그룹 {{number}}",
