@@ -1,6 +1,7 @@
 # Editor Visual Language — Quiet Document
 
 - Status: Implemented
+- Contract cross-check: 2026-10-30 (#777 inventory; current Figure completion and the always-visible Endnote Edit exception aligned with #757/#714, without product changes).
 - Outline display update: 2026-10-29 (#719; single-line ellipsis, full title tooltip and accessible name; [evidence](editor-visual-language-v1.md#single-line-outline-719)).
 - Editor groups verification: 2026-10-29 (#488 phase 1; shared tokens, focused-group cue and [1440/640px comparison](editor-ux-shell-v1.md#two-editor-groups-488-phase-1)).
 - Tab-row actions update: 2026-10-29 (#695; [contract and evidence](editor-ux-shell-v1.md#title-strip-and-tab-row-actions-695)).
@@ -180,8 +181,8 @@ replaces visible row numbers and A/B/C labels with 16px vertical/horizontal line
 transparent rest and neutral current/open faces. Localized address names/tooltips,
 explicit command targets and menu anchors remain. Hover/focus/selection reveals the
 handles, native Tab can discover them from prose, and no-hover devices keep them visible.
-The language field uses compact Input, its existing accessible name and language-update
-path; no language autocomplete is introduced. Breadcrumbs use compact Button geometry,
+The code-language trigger uses the compact outlined Button and selection-only menu above,
+with its existing accessible name and language-update path; no language autocomplete is introduced. Breadcrumbs use compact Button geometry,
 regular text and the existing darker current-location text/`aria-current`; long paths wrap.
 
 C1 now uses one chosen accent (`--id-color-interaction`, default `#315fd4`) and its
@@ -412,7 +413,13 @@ no Edge channel or packaged app was launched locally.
 | Disabled control | Native disabled controls retain dimming. Focusable `aria-disabled` controls use a muted face, secondary text and structural boundary, preserving their tooltip, focus ring and Base UI activation guard. |
 | No hover device | Gutter and Edit remain visible; the block extent outline is hidden under `(hover: none)`. |
 
-These are independent axes, not a state enum. Visual interactions never write document attributes. Figure Apply/Cancel and the existing explicit Escape-to-Cancel behavior remain; selection changes and outside dismissal do not cancel an editing Figure. Cancel never removes a Figure.
+These are independent axes, not a state enum. Visual interactions never write document attributes.
+The rest rule has an explicit exception: existing Endnotes retain an always-visible Edit button
+and button-only edit entry under [#714's Endnotes contract](footnotes-v1.md#editor).
+Figure metadata uses Done, Escape-to-Cancel and valid outside pointer-click application under
+[Anchored Figure properties](figure-authoring-v1.md#anchored-figure-properties-757).
+Keyboard focus/selection movement alone does not apply; rejected application retains its draft.
+Mermaid source retains explicit Apply/Cancel. Cancel never removes a Figure.
 
 ## Action menu rows (#516)
 

@@ -56,6 +56,12 @@ Implementation record: [UI language #256 plan and verification](design/ui-langua
 
 [AGENTS.md](../AGENTS.md)는 저장소 전체 제약, [CONTRIBUTING.md](../CONTRIBUTING.md)는 setup·검증 matrix·PR 절차의 진입점이다.
 
+## Draft reviews and proposals
+
+| Document | Status | Authority / description |
+| --- | --- | --- |
+| [UI pattern inventory and target proposals #777](reviews/ui-pattern-inventory-777.md) | Draft | 1단계: 25개 사용처 묶음, 12개 반복 패턴, 1440px 실제 캡처와 비교판, 목표·대안·결정 충돌·소유자 질문. 제품 변경이나 패턴 채택 결정이 아니며, 패턴 문서 확정·AGENTS 연결·후속 이슈는 2단계. |
+
 ## Historical reviews and spikes
 
 [#204 document tabs implementation and review](reviews/document-tabs-204-2026-10-16.md) records the final tab step's scope, visual evidence, measurements and verification.
