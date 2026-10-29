@@ -6,7 +6,7 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument
   const root = initial.path.split(separator).slice(0, -4).join(separator);
   const file = [root, 'tmp', 'mermaid-authoring', 'diagram.md'].join(separator);
   // Hold a real render result after its SVG exists, allowing a later render to finish first.
-  await page.route('**/src/mermaid-render.ts', async route => {
+  await page.route('**/src/mermaid-render.ts*', async route => {
     const response = await route.fetch();
     await route.fulfill({response, body: await response.text() + `\n
       const actualMermaidRender = renderMermaid;
@@ -46,6 +46,39 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument
     await expect(figure.getByTestId('figure-file-name')).toHaveCount(0);
   };
   await rendered(figure.getByTestId('mermaid-preview'), '>A<');
+  // A visible <img> can still be broken: decode the real SVG image, including HTML labels.
+  const beforeLabels = await model(), diskBeforeLabels = await disk();
+  await edit();
+  for (const label of ['첫 줄\\n둘째 줄', 'First<br>Second', 'First<br/>Second']) {
+    await field().fill(`flowchart LR\n  A["${label}"] --> B`);
+    await rendered(preview(), label.startsWith('첫') ? '첫 줄' : 'First');
+    if (screenshots && label.startsWith('첫')) await page.screenshot({path:'tmp/mermaid-707-newline.png'});
+    const image = await preview().locator('img').evaluate(async img => {
+      try { await img.decode(); return {width:img.naturalWidth,height:img.naturalHeight}; }
+      catch (error) { return {error:String(error),svg:decodeURIComponent(img.src)}; }
+    });
+    expect(image.error).toBeUndefined();
+    expect(image.width).toBeGreaterThan(0); expect(image.height).toBeGreaterThan(0);
+    const labelMarkup = await preview().locator('img').evaluate(img => {
+      const xml = new DOMParser().parseFromString(decodeURIComponent(img.src.split(',')[1]), 'image/svg+xml');
+      return {errors:xml.querySelectorAll('parsererror').length,
+        breaks:xml.getElementsByTagNameNS('http://www.w3.org/1999/xhtml','br').length};
+    });
+    expect(labelMarkup.errors).toBe(0); expect(labelMarkup.breaks).toBeGreaterThan(0);
+    expect(await field().inputValue()).toBe(`flowchart LR\n  A["${label}"] --> B`);
+  }
+  // Exercise an image-decoder rejection independently of Mermaid syntax errors.
+  await page.evaluate(() => {
+    window.__originalImageDecode = HTMLImageElement.prototype.decode;
+    HTMLImageElement.prototype.decode = function () { return Promise.reject(new Error('Image decoder unavailable')); };
+  });
+  await field().fill('graph LR\n  DecodeFailure --> B');
+  await expect(preview().getByTestId('mermaid-error')).toContainText('Image decoder unavailable');
+  await expect(preview().locator('img')).toHaveCount(0);
+  await page.evaluate(() => { HTMLImageElement.prototype.decode = window.__originalImageDecode; });
+  await field().fill('graph LR\n  Recovered --> B'); await rendered(preview(), 'Recovered');
+  await active.getByTestId('mermaid-cancel').click();
+  expect(await model()).toEqual(beforeLabels); expect(await disk()).toBe(diskBeforeLabels);
   const refs=active.getByTestId('cross-reference');
   await expect(refs.nth(0)).toHaveAttribute('data-resolved','true');
   await expect(refs.nth(1)).toHaveAttribute('data-resolved','true');
@@ -267,8 +300,8 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument
   await expect(panel.getByRole('tabpanel').getByRole('button')).toHaveCount(3);
   await save();
   // A rejected lazy import is a block error, while source editing and real Save still work.
-  await page.unroute('**/src/mermaid-render.ts');
-  await page.route('**/src/mermaid-render.ts',route=>route.fulfill({contentType:'application/javascript',body:'throw new Error("Renderer chunk unavailable");'}));
+  await page.unroute('**/src/mermaid-render.ts*');
+  await page.route('**/src/mermaid-render.ts*',route=>route.fulfill({contentType:'application/javascript',body:'throw new Error("Renderer chunk unavailable");'}));
   await page.reload();await expect(diagrams.first().getByTestId('mermaid-error')).toBeVisible();
   await edit();await field().fill('graph TD\n  Offline --> Saved');await active.getByTestId('mermaid-apply').click();
   await expect(field()).toHaveCount(0);await save();expect(await disk()).toContain('Offline --> Saved');

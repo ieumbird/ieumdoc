@@ -2,6 +2,7 @@
 
 - Status: Implemented
 - Mermaid update: 2026-10-28 (#651: Core/CLI source semantics and Editor in-document authoring/rendering).
+- Mermaid image verification: 2026-10-29 (#707: newline label decoding, XML/XHTML serialization, decoder failure notice and recovery in `mermaid-authoring`; unchanged source/disk/history).
 - Media reference verification: 2026-10-27 (#504: simultaneous exact source replacement, canonical preservation/refusal, CLI dry-run/batch/revision conflicts, real Host rename and Editor reload).
 - Property-entry update: 2026-10-27 (#557: shared selection/Enter/double-click and explicit property drafts; see [Continuous editing](document-editing-v1.md#continuous-editing)).
 - Active image preview verification: 2026-10-26 (#480: Figure browser preview/race/focus/overflow checks and [same-state manual captures](folder-picker-v1.md#active-image-preview-480); Editor tests/typecheck/build).
@@ -136,11 +137,21 @@ results and unmounted/hidden views cannot overwrite current results. Rendering i
 around Mermaid's global configuration, with a unique render ID per request. Effective light/dark
 theme changes rerender applied and draft previews. Loading/render errors stay inside the block;
 source editing, Apply and Save remain available. Rendering uses `securityLevel: "strict"`,
-disables automatic/error DOM rendering, and displays the returned SVG as an image data URL,
+disables automatic/error DOM rendering, and displays the returned SVG as an image data URL.
+The sanitized result is parsed in a detached document and XML-serialized, preserving HTML label
+line breaks (`\n`, `<br>` and `<br/>`) and XHTML namespaces without changing Mermaid source.
+Image decoding completes before publishing a preview; decoding failures use the same block-local
+error notice as syntax/render failures instead of leaving a broken image. This conversion runs
+with the same strict security settings,
 without injecting SVG/HTML or binding diagram callbacks into the Editor DOM. Mermaid's own
 temporary measuring container is owned and removed after each request. All renderer code and
 diagram chunks ship locally; no diagram service receives source. Ordinary `mermaid` code blocks
 remain code blocks. Conversion, alternative formats, alt text and diagram export are excluded.
+
+#707 visual evidence: [before](assets/mermaid-707/before.png) (base `7f6ba127`) and
+[after](assets/mermaid-707/after.png), same Korean `\n` label draft, light theme,
+1280×720 viewport, DPR 1/default zoom, Windows installed Chrome and bundled Pretendard.
+The baseline image failed real decoding; the corrected preview displays both label lines.
 
 ## Editor session states
 
