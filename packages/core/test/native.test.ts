@@ -18,7 +18,7 @@ test("frontmatter title alone owns the title; edits preserve body levels, labels
   const original = parse(source);
   const body = getEditableDocument(original).blocks;
   assert.equal(getEditableDocument(original).title, "IEEE 1547 · 제7장 발췌");
-  for (const title of ["Changed", "", "여러 줄\n제목", null]) {
+  for (const title of ["Changed", "", null]) {
     const changed = core.updateDocumentTitle(original, title);
     const saved = serialize(changed);
     assert.deepEqual(getEditableDocument(parse(saved)).blocks, body);
@@ -35,6 +35,74 @@ test("frontmatter title alone owns the title; edits preserve body levels, labels
     assert.equal(getEditableDocument(parse(source)).title, undefined);
   }
   assert.equal(getEditableDocument(core.updateDocumentTitle(createDocument(), "Only a title")).blocks.length, 0);
+});
+
+test("single-line title boundaries preserve exact values through every metadata edit and repeated writes", () => {
+  const values = ["", " ", "  first second  ", "\t한글 제목\t", '"quoted"', "it's plain", "title: value", "# heading", "null", "true", "123", "1.20", "유니코드 漢字 🙂", "A long title ".repeat(20)];
+  for (const title of values) for (const titleFirst of [true, false]) {
+    const fields = [`title: ${JSON.stringify(title)}`, "ieumdoc: 1", "bibliography: [refs.bib]", "numbering: {headings: false, title: false, figure: 'Figure %s'}"];
+    if (!titleFirst) fields.push(fields.shift()!);
+    const original = parse(`---\n${fields.join("\n")}\n---\n\n# Body\n`);
+    const edited = core.updateDocumentTitle(original, title);
+    for (const changed of [edited, core.updateHeadingNumbering(edited, true), core.updateReferenceTemplates(edited, { table: "Table %s" }), core.updateBibliography(edited, ["other.bib"])]) {
+      assert.equal(getEditableDocument(changed).title, title);
+      const saved = serialize(changed);
+      assert.equal(getEditableDocument(parse(saved)).title, title);
+      assert.equal(serialize(parse(saved)), saved);
+      assert.deepEqual(getEditableDocument(changed).blocks, getEditableDocument(original).blocks);
+    }
+    assert.equal(getEditableDocument(original).title, title);
+  }
+});
+
+test("multiline and YAML block scalar titles refuse at operations, admission and final writing", () => {
+  const refused = (run: () => unknown) => assert.throws(run, error => {
+    const issue = core.writeIssueOf(error);
+    assert.equal(issue.code, "native-metadata");
+    assert.match(issue.reason, /plain string on one line/);
+    assert.match(issue.action, /single-line/);
+    return true;
+  });
+  const original = core.createDocument();
+  const source = serialize(original);
+  const values = ["\n", "line\n\n", "  first\n second  ", ...["\n", "\r", "\r\n", "\v", "\f", "\u0085", "\u2028", "\u2029"].map(separator => `first${separator}second`)];
+  for (const title of values) {
+    refused(() => core.updateDocumentTitle(original, title));
+    for (const titleFirst of [true, false]) {
+      const fields = [`title: ${JSON.stringify(title)}`, "ieumdoc: 1"];
+      if (!titleFirst) fields.push(fields.shift()!);
+      const yaml = fields.join("\n") + "\n";
+      refused(() => parse(`---\n${yaml}---\n`));
+      const corrupt = structuredClone(original) as unknown as MystDocument;
+      corrupt.children[0].value = yaml;
+      refused(() => serialize(corrupt as never));
+    }
+  }
+  for (const style of ["|", "|-", "|+", ">", ">-", ">+"]) for (const content of ["", "  line\n\n"]) for (const titleFirst of [true, false]) {
+    const title = `title: ${style}\n${content}`;
+    const yaml = titleFirst ? title + "ieumdoc: 1\n" : "ieumdoc: 1\n" + title;
+    refused(() => parse(`---\n${yaml}---\n`));
+    const corrupt = structuredClone(original) as unknown as MystDocument;
+    corrupt.children[0].value = yaml;
+    refused(() => serialize(corrupt as never));
+  }
+  assert.equal(serialize(original), source);
+});
+
+test("reference-template block scalar endings keep YAML meaning regardless of key order or metadata writes", () => {
+  const expected = "Figure %s  \n\n";
+  const numbering = "numbering:\n  headings: false\n  title: false\n  table: Table %s\n  figure: |+\n    Figure %s  \n\n";
+  const other = 'ieumdoc: 1\ntitle: "  File title  "\nbibliography: [refs.bib]\n';
+  for (const yaml of [other + numbering, numbering + other]) {
+    const document = parse(`---\n${yaml}---\n\n# Body\n`);
+    assert.equal(getEditableDocument(document).referenceTemplates?.figure, expected);
+    for (const changed of [document, core.updateDocumentTitle(document, "  Changed  "), core.updateHeadingNumbering(document, true), core.updateReferenceTemplates(document, { table: "Values %s" }), core.updateBibliography(document, ["other.bib"])]) {
+      assert.equal(getEditableDocument(changed).referenceTemplates?.figure, expected);
+      const saved = serialize(changed);
+      assert.equal(getEditableDocument(parse(saved)).referenceTemplates?.figure, expected);
+      assert.equal(serialize(parse(saved)), saved);
+    }
+  }
 });
 
 test("title refuses nonstrings and formatted inline meaning instead of flattening it", () => {

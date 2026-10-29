@@ -19,7 +19,7 @@ export function updateHeadingNumbering(document: MystDocument, enabled: boolean)
   const { node, yaml } = metadata(next);
   yaml.setIn(["numbering", "headings"], enabled);
   yaml.setIn(["numbering", "title"], false);
-  node.value = String(yaml).trimEnd();
+  node.value = String(yaml);
   serializeFor(next, "heading numbering cannot be preserved through canonical round-trip");
   return next;
 }

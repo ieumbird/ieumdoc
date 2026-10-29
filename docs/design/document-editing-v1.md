@@ -369,10 +369,12 @@ Cell merge has no GFM form and is not supported.
 
 Owner decision (2026-10-29, #722) replaces #255's leading-H1 title and #472's
 H2-first authoring policy. The document title has one storage source: optional
-frontmatter `title`. It is a plain string, including an empty string; inline
-formatting, math and nonstring values are refused at admission rather than
-flattened. Plain multiline strings are retained. An absent title or an empty
-document is valid. No body heading is inferred, duplicated or synchronized as
+frontmatter `title`. It is a single-line plain string, including an empty string.
+Core operations, Native admission and final writes refuse line separators
+(LF/CR, VT/FF, NEL, U+2028/U+2029), YAML literal/folded block scalars (`|`/`>`,
+including chomping variants), inline formatting, math and nonstring values with
+`native-metadata` and single-line corrective guidance; none are flattened.
+An absent title or an empty document is valid. No body heading is inferred, duplicated or synchronized as
 the title. The title has no label or reference target.
 
 Core `EditableDocument.title` exposes the optional string.
@@ -389,7 +391,10 @@ ProseMirror document attribute in the same state/history as body edits. It does
 not create an editor body block or snapshot path, and does not appear in
 Outline. Ctrl+Z/Ctrl+Y/Ctrl+Shift+Z use engine history while the input is focused.
 Tab reaches the title after document settings, then enters the body editor.
-Enter enters the existing body; Shift+Enter allows a plain line break. Save and
+Enter, including Shift+Enter, enters the existing body without inserting a line
+break. Input/paste replaces runs of line separators with one space, following
+the existing inline-math input convention; other characters and surrounding
+spaces are retained. Visual wrapping does not add stored line breaks. Save and
 Source replay the Core title operation. Recovery snapshots and their plaintext
 salvage copy retain the title. Clearing the input stores an empty string.
 
@@ -407,6 +412,14 @@ MyST compatibility observations and numbering boundary are recorded in
 [Heading numbering](heading-numbering-v1.md#myst-title-and-output-boundary-722).
 
 ### Title verification and captures (#722)
+
+Single-line title boundaries preserve surrounding spaces, quotes, colons, `#`,
+strings resembling YAML null/boolean/numbers and Unicode exactly, independent
+of key order and other metadata edits. Core regressions check direct operations,
+opening and final write refusal of multiline/block-scalar titles, exact reopened
+values and byte-identical second writes. Frontmatter keeps its actual final
+line terminator; admitted block-scalar reference templates retain their trailing
+spaces/newlines in either key order and through every metadata write operation.
 
 Core title admission/operations/canonical reopening, CLI single/batch/revision/refusal
 writes, Editor metadata history/recovery and real HTTP title Save are covered by

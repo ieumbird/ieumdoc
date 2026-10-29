@@ -451,7 +451,7 @@ the shared independent ring. Image-picker selection and preview retain their exi
 
 ## Document title (#255)
 
-The plain frontmatter title input sits above the editable body, using the document font and H1 type (34/45.9px bold). Its empty Add a title placeholder uses subtle text; text uses the document text color. It has no box at rest and a focus ring when keyboard focused. It grows to show plain multiline text. The input is metadata, has no block handle, and is excluded from Outline. Body H1 retains ordinary heading controls. The title's value and Undo/Redo are owned by the same ProseMirror document attribute; [title semantics](document-editing-v1.md#document-title-255) define Save and empty input.
+The plain frontmatter title input sits above the editable body, using the document font and H1 type (34/45.9px bold). Its empty Add a title placeholder uses subtle text; text uses the document text color. It has no box at rest and a focus ring when keyboard focused. It visually wraps long single-line values without adding stored line breaks. Enter/Shift+Enter enters the body; pasted line separators become spaces under the existing single-line input convention. The input is metadata, has no block handle, and is excluded from Outline. Body H1 retains ordinary heading controls. The title's value and Undo/Redo are owned by the same ProseMirror document attribute; [title semantics](document-editing-v1.md#document-title-255) define Save and empty input.
 
 ## Empty document start (#133)
 

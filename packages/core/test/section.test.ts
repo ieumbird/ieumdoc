@@ -26,7 +26,7 @@ test("endnotes are in no section: the last section ends with the body, and the b
   assert.deepEqual(sectionBoundaries(markers), [0, 2, 4, 6]);
   assert.equal(sectionMarker({ block: "footnote" }), "endnote");
   // A definition still inside the body is not section content, but does not end the section.
-  // (Level-2 headings: a leading level-1 heading would be the document title, which stays first.)
+  // Level-2 sibling sections exercise the same section boundary rule as H1.
   const inBody = moveBlock(parse("## A\n\nOne[^n].\n\n### B\n\nTwo[^n].\n\n[^n]: Note.\n"), 4, 2);
   assert.equal(serialize(removeSection(inBody, 3)), "## A\n\nOne[^n].\n\n[^n]: Note.\n");
   assert.equal(serialize(moveSection(inBody, 3, 0)), "### B\n\nTwo[^n].\n\n## A\n\nOne[^n].\n\n[^n]: Note.\n");

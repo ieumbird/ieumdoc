@@ -1,6 +1,6 @@
 import { createTokenizer } from "myst-parser";
-import { isScalar } from "yaml";
-import { DocumentDiagnosticError } from "../write-error.ts";
+import { isScalar, Scalar } from "yaml";
+import { DocumentWriteError } from "../write-error.ts";
 import { metadata } from "./metadata.ts";
 import { FRONT_MATTER_FIELD, OPTIONS } from "./parse.ts";
 import { serializeFor } from "./serialize.ts";
@@ -9,12 +9,16 @@ import { assertUnicode } from "./unicode.ts";
 
 const tokenizer = createTokenizer(OPTIONS);
 
-/** Titles are plain strings, never flattened Markdown or inline math. */
+const TITLE_REASON = "Document title must be a plain string on one line, without line breaks, inline formatting, math or YAML block scalar syntax";
+function invalidTitle(): never {
+  throw new DocumentWriteError(TITLE_REASON, { code: "native-metadata", path: [0],
+    action: "Use a single-line plain string for title. Remove line separators and YAML block scalar syntax." });
+}
+
+/** Titles are single-line plain strings, never flattened Markdown or inline math. */
 function assertTitle(value: unknown): asserts value is string {
-  if (typeof value !== "string" || tokenizer.parseInline(value, {}).some(token =>
-    token.children?.some(child => child.type !== "text" && child.type !== "softbreak"))) {
-    throw new DocumentDiagnosticError("native-metadata", "Document title must be a plain string without inline formatting or math");
-  }
+  if (typeof value !== "string" || /[\r\n\v\f\u0085\u2028\u2029]/u.test(value) ||
+      tokenizer.parseInline(value, {}).some(token => token.children?.some(child => child.type !== "text"))) invalidTitle();
   assertUnicode(value, [0]);
 }
 
@@ -23,7 +27,7 @@ export function getDocumentTitle(document: MystDocument): string | undefined {
   const { yaml } = metadata(document);
   if (!yaml.has("title")) return undefined;
   const title = yaml.get("title", true);
-  if (!isScalar(title)) throw new DocumentDiagnosticError("native-metadata", "Document title must be a plain string without inline formatting or math");
+  if (!isScalar(title) || title.type === Scalar.BLOCK_LITERAL || title.type === Scalar.BLOCK_FOLDED) invalidTitle();
   assertTitle(title.value);
   return title.value;
 }
@@ -35,7 +39,7 @@ export function updateDocumentTitle(document: MystDocument, title: string | null
   const { node, yaml } = metadata(next);
   if (title === null) yaml.delete("title");
   else yaml.set("title", title);
-  node.value = String(yaml).trimEnd();
+  node.value = String(yaml);
   serializeFor(next, "document title cannot be preserved through canonical round-trip");
   return next;
 }

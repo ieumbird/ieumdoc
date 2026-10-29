@@ -2841,7 +2841,7 @@ test("CLI title settings support inspect, revision-safe writes, removal, batches
     assert.equal(JSON.parse(run(["inspect", file, "--format", "json"]).stdout).title, "IEEE 1547 · Chapter 7");
     assert.match(run(["inspect", file]).stdout, /title: "IEEE 1547 · Chapter 7"/);
     assert.deepEqual(getEditableDocument(parse(saved)).blocks, getEditableDocument(parse(source)).blocks);
-    for (const flags of [["--text", "**Formatted**"], ["--text", "Stale", "--if-revision", textRevision(source)], [], ["--text", "Both", "--remove"]]) {
+    for (const flags of [["--text", "**Formatted**"], ["--text", "Two\nlines"], ["--text", "Stale", "--if-revision", textRevision(source)], [], ["--text", "Both", "--remove"]]) {
       assert.notEqual(run(["update-title", file, ...flags]).status, 0);
       assert.equal(readFileSync(file, "utf8"), saved);
     }

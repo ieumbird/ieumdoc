@@ -65,7 +65,11 @@ function metadata(document: MystDocument): void {
     if (!isScalar(pair.key) || !["ieumdoc", "title", "numbering", "bibliography"].includes(String(pair.key.value))) throw new NativeDocumentError("native-metadata", "Native frontmatter supports only ieumdoc, title, numbering and bibliography", [0], 1);
   }
   try { getDocumentTitle(document); declaredBibliography(document); }
-  catch (error) { throw new NativeDocumentError("native-metadata", (error as Error).message, [0], 1); }
+  catch (error) {
+    const refusal = new NativeDocumentError("native-metadata", (error as Error).message, [0], 1);
+    refusal.location.action = writeIssueOf(error).action;
+    throw refusal;
+  }
   if (yaml.has("numbering")) {
     const numbering = yaml.get("numbering", true);
     if (!isMap(numbering) || numbering.items.some(pair => {

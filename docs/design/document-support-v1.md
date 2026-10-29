@@ -1,7 +1,7 @@
 # Native document support v1
 
 - Status: Implemented
-- Title update: 2026-10-29 (#722; optional plain frontmatter title, no leading-H1 title inference; marker stays `ieumdoc: 1`).
+- Title update: 2026-10-29 (#722; optional single-line plain frontmatter title, no leading-H1 title inference; marker stays `ieumdoc: 1`).
 - Fixed numbering: 2026-10-29 (#720 Core/CLI; [numbering contract](heading-numbering-v1.md#fixed-numbers-720)).
 - Feature sample verification: 2026-10-28 (#528 localized folders, Core read-model coverage and canonical CLI check/format; Desktop replacement/preservation unit tests and development browser entry/captures; no local packaged Desktop run).
 - Save diagnostics: 2026-10-28 (#578 phase 2; stable Core codes, CLI JSON pass-through and bilingual Editor guidance; [inventory](#save-diagnostic-codes-578-phase-2)).
@@ -25,7 +25,7 @@ Public `parse(source)` accepts an IeumDoc native document. It validates the mark
 
 HTML recognition remains enabled so unsupported HTML is refused instead of silently admitted as literal text. Public source diagnostics reach the URL recognizer even though automatic linkification is off. The [Parser security boundary](parser-security-v1.md) records the pinned URL/inline HTML backports, public API verification and removal conditions.
 
-A native file starts with closed YAML frontmatter containing the numeric marker `ieumdoc: 1`. Missing markers, strings, unsupported versions, duplicate keys and invalid YAML are rejected. Only `ieumdoc`, optional plain-string `title`, optional `numbering` and optional `bibliography` are allowed. `title` supports empty and plain multiline strings; nonstrings, inline formatting and math are rejected without flattening. An absent title stays absent even when the body starts with H1. `numbering` accepts `headings: boolean`, `title: false`, and the [reference templates](heading-numbering-v1.md#reference-templates-445) for `figure`, `table` and `equation` (template string or template-only object); unknown keys and other per-kind options remain rejected. Omitting heading settings disables heading numbering; omitting a reference template uses its MyST default. `bibliography` is a non-empty sequence of relative `.bib` paths under the [citation declaration contract](citations-v1.md#bibliography-declaration-and-readiness); no resource is read. Arbitrary metadata, custom starts and per-level settings are unsupported. Heading prefixes remain unsupported. Accepted YAML comments and spelling survive body edits. Metadata never appears as an editable body block, but remains part of the Core snapshot: the first body block has path `[1]`.
+A native file starts with closed YAML frontmatter containing the numeric marker `ieumdoc: 1`. Missing markers, strings, unsupported versions, duplicate keys and invalid YAML are rejected. Only `ieumdoc`, optional single-line plain-string `title`, optional `numbering` and optional `bibliography` are allowed. `title` supports empty and single-line plain strings, preserving surrounding spaces and all accepted characters exactly. Line separators (LF/CR, VT/FF, NEL, U+2028/U+2029), YAML block scalar title syntax (`|`/`>` and their chomping variants), nonstrings, inline formatting and math are explicitly refused by operations, admission and final writes with `native-metadata` and single-line guidance; none are flattened. An absent title stays absent even when the body starts with H1. `numbering` accepts `headings: boolean`, `title: false`, and the [reference templates](heading-numbering-v1.md#reference-templates-445) for `figure`, `table` and `equation` (template string or template-only object); unknown keys and other per-kind options remain rejected. Omitting heading settings disables heading numbering; omitting a reference template uses its MyST default. `bibliography` is a non-empty sequence of relative `.bib` paths under the [citation declaration contract](citations-v1.md#bibliography-declaration-and-readiness); no resource is read. Arbitrary metadata, custom starts and per-level settings are unsupported. Heading prefixes remain unsupported. Accepted YAML comments and spelling survive body edits. Metadata never appears as an editable body block, but remains part of the Core snapshot: the first body block has path `[1]`.
 
 ```markdown
 ---
@@ -37,6 +37,13 @@ title: My document
 
 Body text.
 ```
+
+Frontmatter retains the final YAML line terminator before its closing delimiter.
+This matters beyond title: supported reference templates can contain block scalar
+strings with meaningful trailing spaces/newlines. Parse and all metadata writes
+preserve them independently of key order. Metadata edits retain the YAML library's
+complete serialization; they do not trim scalar content. Canonical output still
+uses LF and remains byte-identical on a second write.
 
 `createDocument()` returns the minimal native document with no body blocks. An empty document, an empty Figure/table/admonition/quote/list item/equation and an unresolved cross-reference are permitted authoring states. Footnotes retain their existing completeness and write rules; see [Endnotes](footnotes-v1.md). A marker alone does not certify that the body is supported.
 

@@ -91,6 +91,19 @@ async (page, { openPath, reloadDocument, expect, screenshots, waitForEditorFocus
   await reloadDocument(page);
   await expect(editor.locator('h1').first()).toHaveText('Next clause');
   await expect(title).toHaveValue('');
-  return {plainMetadataTitle:true, noImplicitPromotion:true, history:true, enterKeepsBody:true,
+  // Single-line input follows the existing inline-math convention: pasted line separators become spaces.
+  await page.context().grantPermissions(['clipboard-read','clipboard-write']);
+  await title.focus();
+  await page.evaluate(() => navigator.clipboard.writeText('  first\r\nsecond\u0085third\u2028fourth\u2029last  '));
+  await page.keyboard.press('Control+v');
+  await expect(title).toHaveValue('  first second third fourth last  ');
+  await page.keyboard.press('Shift+Enter');
+  await waitForEditorFocus(page);
+  await expect(title).toHaveValue('  first second third fourth last  ');
+  await save();
+  expect((await read('chapter.md')).document.title).toBe('  first second third fourth last  ');
+  await reloadDocument(page);
+  await expect(title).toHaveValue('  first second third fourth last  ');
+  return {singleLinePaste:true, plainMetadataTitle:true, noImplicitPromotion:true, history:true, enterKeepsBody:true,
     sourceSaveReload:true, emptyTitle:true, movableLeadingH1:true, coreNumbersAndReference:true};
 }

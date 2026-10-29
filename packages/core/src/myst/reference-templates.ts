@@ -53,7 +53,7 @@ export function updateReferenceTemplates(document: MystDocument, templates: Refe
   if (changed) {
     const numbering = yaml.get("numbering", true);
     if (isMap(numbering) && numbering.items.length === 0) yaml.delete("numbering");
-    node.value = String(yaml).trimEnd();
+    node.value = String(yaml);
   }
   serializeFor(next, "reference templates cannot be preserved through canonical round-trip");
   return next;

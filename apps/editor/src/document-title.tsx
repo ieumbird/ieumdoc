@@ -13,7 +13,7 @@ export function DocumentTitle({ editor }: { editor: Editor }) {
     aria-label={t("Title")} placeholder={t("Add a title")} value={title ?? ""}
     readOnly={!editor.isEditable} spellCheck={false}
     onFocus={boundary} onBlur={boundary}
-    onChange={event => editor.view.dispatch(editor.state.tr.setDocAttribute("title", event.target.value))}
+    onChange={event => editor.view.dispatch(editor.state.tr.setDocAttribute("title", event.target.value.replace(/[\r\n\v\f\u0085\u2028\u2029]+/gu, " ")))}
     onKeyDown={event => {
       if (!editor.isEditable || event.nativeEvent.isComposing) return;
       if ((event.ctrlKey || event.metaKey) && !event.altKey) {
@@ -25,7 +25,7 @@ export function DocumentTitle({ editor }: { editor: Editor }) {
           return;
         }
       }
-      if (event.key === "Enter" && !event.shiftKey) {
+      if (event.key === "Enter") {
         event.preventDefault();
         boundary();
         const selection = TextSelection.findFrom(editor.state.doc.resolve(0), 1, true);

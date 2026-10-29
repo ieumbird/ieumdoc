@@ -710,7 +710,7 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "update-title",
     group: "Edit — labels, footnotes and numbering",
-    summary: "Set or remove the plain frontmatter document title through Core",
+    summary: "Set or remove the single-line frontmatter document title through Core",
     usage: "ieumdoc update-title <file> (--text <text> | --remove)",
     details: ["An empty --text stores an empty title. --remove deletes the field. Body headings and labels are unchanged."],
   },
