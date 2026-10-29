@@ -1,7 +1,7 @@
 # Heading numbering v1
 
 - Status: Implemented
-- Fixed numbering: 2026-10-29 (#720 Core/CLI, Native round-trip and Editor attribute preservation; editing controls and warning UI are a separate PR).
+- Fixed numbering: 2026-10-29 (#720 Core/CLI and Editor property entry, warning display and Save/Reload).
 - Document settings verification: 2026-10-27 (#580: inline settings, per-tab expansion, notation previews and existing document operations; [integration, checks and captures](editor-ux-shell-v1.md#document-settings-placement-554)).
 - Accent verification: 2026-10-27 (#559: generated heading/Outline numbers share the local accent; all presets checked by the token contrast and existing Outline browser tests).
 - Body-heading authoring verification: 2026-10-26 (#472 Editor unit/browser checks; Core/CLI and numbering behavior unchanged). [Verification details](document-editing-v1.md).
@@ -70,18 +70,49 @@ step, with one final file replacement; an unsavable intermediate step therefore 
 the batch without writing. This PR preserves that contract rather than changing batch paths.
 For an initially empty equation, fill its content before setting its number (reorder the batch operations): the reverse order has no MyST representation for the intermediate step.
 
-Editor projects the read-only attribute through its real schema, uses Core numbers for display,
+Editor projects the authored attribute through its real schema, uses Core numbers for display,
 and preserves it through existing Core save operations. New locators from typed Cut/Paste,
 drop/copy or duplicate normalization carry the enumerator in `InsertEdit`; Host replay calls
 Core `updateEnumerator` after insertion, including image/pending/Mermaid Figures, tables and
-equations. Number-entry controls and warning UI
-remain outside PR A. Verification covers Core exact-string round-trips, moves, content/label
+equations. Image/pending Figure, Mermaid Figure, table and equation property forms expose
+**Number** after Label, with **Automatic** as the empty placeholder and a short explanation.
+Input is a string draft, included in existing dirty/work-loss protection; only Apply changes
+the engine attribute, in the same Undo step as the other properties. Cancel/Escape keeps the
+applied value. Empty input clears the fixed number. Save collects snapshot-relative changes
+and Host replay calls Core `updateEnumerator`; no numbering semantics are implemented in UI.
+
+The Editor adapts the live applied blocks (including inserted ones) to Core `numberingReport`.
+An existing warning Notice above the document body reports the warning count, and Number in
+the affected block's properties explains Core's missing or duplicate diagnostic. Both say
+that saving is allowed; neither gates Save. Unapplied number drafts do not alter the report.
+Automatic documents show no warning Notice. Empty fixed equations can Apply, but the existing
+located Save error explains that the author must enter equation content or clear the number,
+in English and Korean. The original file and applied work are retained on refusal.
+
+Verification covers Core exact-string round-trips, moves, content/label
 edits, MyST enumeration/reference resolution, warnings and intermediate/final-write boundaries;
-CLI covers revision/dry-run/batch and report output; Editor covers schema/save-replay preservation.
+CLI covers revision/dry-run/batch and report output; Editor covers schema/save-replay setting, clearing and preservation.
 The `reference-save-reload` browser regression opens a real fixed-number document, checks
 caption/equation/reference display, edits prose, saves and reloads, then checks all four
 enumerators on disk and in the reopened display. Browser navigation waits for the exact
-active file and ready state, retaining immediate value assertions afterward.
+active file and ready state, retaining immediate value assertions afterward. The same scenario
+uses all four property forms for number-only drafts, Cancel, Apply, Undo/Redo and real Save →
+Reload, saves missing/duplicate warnings, clears all numbers back to automatic, and verifies
+Korean empty-fixed-equation refusal and recovery by clearing the number. These interface checks
+do not repeat the Core numbering policy tests.
+
+Manual image-property captures use master base `7ee58e9e`, the same scratch
+`tmp/mermaid-authoring/diagram.md`, checkout-owned persistent Chrome, dedicated origin
+`http://127.0.0.1:5720`, 1440×1000 / 640×1000, DPR 1, zoom 1, English UI and loaded fonts.
+Only the Number field and its hint are added to this automatic document's form. Small review
+pairs: [before 1440px](assets/fixed-numbering-720/before-1440.png) /
+[after 1440px](assets/fixed-numbering-720/after-1440.png),
+[before 640px](assets/fixed-numbering-720/before-640.png) /
+[after 640px](assets/fixed-numbering-720/after-640.png). Full generated diagnostics remain
+under ignored `tmp/`. The lazy Mermaid preview finishes between the narrow captures;
+these review the form and viewport fit, not pixel equivalence. Captures are manual evidence,
+separate from behavioral assertions. The [Korean warning at 640px](assets/fixed-numbering-720/warning-ko-640.png)
+shows the same shared Notice in the document and the affected Mermaid properties.
 
 ## Generated number color (#511 / #503)
 

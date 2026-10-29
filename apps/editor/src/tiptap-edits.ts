@@ -103,6 +103,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
   const lists: ListEdit[] = [];
   const codes: CodeEdit[] = [];
   const labels: LabelEdit[] = [];
+  const enumerators: NonNullable<SupportedEdits["enumerators"]> = [];
   const splits: NonNullable<SupportedEdits["splits"]> = [];
   const merges: NonNullable<SupportedEdits["merges"]> = [];
   const inserts: InsertEdit[] = [];
@@ -140,6 +141,10 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
     const node = group[0];
     atEditorBlock(next, node, () => {
       const block = blocksByPath.get(paths[0])!;
+      if (block.block === "figure" || block.block === "table" || block.block === "equation") {
+        const to = node.attrs?.enumerator ?? "";
+        if (to !== (block.enumerator ?? "")) enumerators.push({ path: block.path, from: block.enumerator ?? "", to: String(to) });
+      }
       if (paths.length > 1) {
         merges.push({ paths: paths.map(path => path.split(",").map(Number)), parts: group.map(paragraphInline) });
       } else if (block.block === "heading" && block.editable) {
@@ -264,6 +269,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
     ...(lists.length ? { lists } : {}),
     ...(codes.length ? { codes } : {}),
     ...(labels.length ? { labels } : {}),
+    ...(enumerators.length ? { enumerators } : {}),
     ...(splits.length ? { splits } : {}),
     ...(merges.length ? { merges } : {}),
     ...(inserts.length ? { inserts } : {}),
@@ -527,8 +533,8 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
   const beforeType = before.type ?? "";
   const afterType = after.type ?? "";
   if (["figure", "table", "equation"].includes(beforeType) &&
-      normalizeAttr(before.attrs?.enumerator) !== normalizeAttr(after.attrs?.enumerator)) {
-    throw new Error("fixed numbers are preserved; editing them requires the Core enumerator operation");
+      after.attrs?.enumerator != null && typeof after.attrs.enumerator !== "string") {
+    throw new Error("fixed number must be a string");
   }
   if (!KNOWN_BLOCKS.has(afterType)) {
     throw new Error(`unsupported Tiptap block "${afterType || "unknown"}"`);

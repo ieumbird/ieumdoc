@@ -336,7 +336,8 @@ async (page, { openPath, expect, reloadDocument, screenshots }) => {
     await page.getByTestId('table-caption-input').fill('Updated with fig-a, alpha and x^2');
     await page.getByTestId('table-apply').click();
   } else {
-    expect(await page.getByTestId('table-editor').getByRole('textbox').count()).toBe(1);
+    await expect(page.getByTestId('table-editor').getByRole('textbox', {name:'Label', exact:true})).toBeVisible();
+    await expect(page.getByTestId('table-editor').getByRole('textbox', {name:'Number', exact:true})).toBeVisible();
     await page.getByTestId('table-cancel').click();
     await page.evaluate(() => {
       const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;

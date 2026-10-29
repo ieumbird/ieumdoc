@@ -74,8 +74,31 @@ test("fixed numbers cross the real editor schema and Core save replay without lo
   assert.notEqual(normalized.content!.at(-1)!.attrs!.sourcePath, copyBaseline.content![1].attrs!.sourcePath);
   const copySaved = saveEdits(copySource, collectSupportedEdits(copySnapshot, normalized)).markdown;
   assert.deepEqual(loadEditableDocument(copySaved).blocks.filter(block => block.block === "table").map(block => block.enumerator), ["A.3", "A.3"]);
-  next.content![0].attrs!.enumerator = "lost";
-  assert.throws(() => collectSupportedEdits(snapshot, next), /fixed numbers are preserved/);
+  // Property edits use the same real schema/guard, then Core's setting/clearing operation.
+  const edited = EditorState.create({ schema, doc: schema.nodeFromJSON(projected), plugins: [structureGuardPlugin(projected, () => assert.fail("number edit rejected"))] });
+  const changed = edited.applyTransaction(edited.tr.setNodeMarkup(0, undefined, { ...edited.doc.firstChild!.attrs, enumerator: "A.7" })).state;
+  const changedEdits = collectSupportedEdits(snapshot, editorDocumentJSON(changed));
+  assert.deepEqual(changedEdits.enumerators, [{ path: snapshot.blocks[0].path, from: "17", to: "A.7" }]);
+  const numberedSource = saveEdits(source, changedEdits).markdown;
+  assert.equal(referenceTargets(schema.nodeFromJSON(toTiptapDocument(loadEditableDocument(numberedSource))))[0].number, "A.7");
+  const cleared = changed.applyTransaction(changed.tr.setNodeMarkup(0, undefined, { ...changed.doc.firstChild!.attrs, enumerator: null })).state;
+  const clearedEdits = collectSupportedEdits(snapshot, editorDocumentJSON(cleared));
+  assert.deepEqual(clearedEdits.enumerators, [{ path: snapshot.blocks[0].path, from: "17", to: "" }]);
+  const clearedBlock = loadEditableDocument(saveEdits(source, clearedEdits).markdown).blocks[0];
+  assert.equal("enumerator" in clearedBlock ? clearedBlock.enumerator : undefined, undefined);
+  const emptySource = nativeSource("$$\n$$\n");
+  const emptySnapshot = loadEditableDocument(emptySource);
+  const empty = schema.nodeFromJSON(toTiptapDocument(emptySnapshot));
+  const emptyState = EditorState.create({ schema, doc: empty });
+  let emptyPosition = -1;
+  empty.forEach((node, pos) => { if (node.type.name === "equation") emptyPosition = pos; });
+  const emptyFixed = emptyState.apply(emptyState.tr.setNodeMarkup(emptyPosition, undefined, { ...empty.lastChild!.attrs, enumerator: "E.1" }));
+  assert.throws(() => saveEdits(emptySource, collectSupportedEdits(emptySnapshot, editorDocumentJSON(emptyFixed))), (error: unknown) => {
+    assert.equal((error as { code: string }).code, "fixed-number-unrepresentable");
+    assert.match(saveErrorMessage(error), /content|clear/i);
+    return true;
+  });
+  assert.throws(() => saveEdits(source, { enumerators: [{ path: snapshot.blocks[0].path, from: "wrong", to: "9" }] }), /does not match/);
 });
 
 test("deletion notices distinguish a remaining fragment link from a relabel or removal of both link and target", () => {

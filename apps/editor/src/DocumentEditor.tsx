@@ -1,4 +1,5 @@
 import { DocumentSettings, type DocumentSettingsHandle } from "./shell/DocumentSettings.tsx";
+import { NumberingNotice } from "./numbering-properties.tsx";
 import { documentScrollContainer } from "./document-scroll.ts";
 import { handleLinkClick, handleLinkMouseDown } from "./link-opening.ts";
 import { ImageRenameContext, imageRenameKey, renameSnapshot, type ImageRenamer } from "./image-rename.ts";
@@ -690,6 +691,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         onToggleHeadingNumbering={toggleHeadingNumbering} onReferenceStyleChange={setReferenceStyle}
         onConnectBibliography={target => bibliographyControls.current?.connect(target)} /> : null}
       {/* Outside the editable content, so it never takes the caret or reads as document text (#255). */}
+      <NumberingNotice editor={editor} />
       {editor.isEditable && editorTitleIndex(editor.state.doc) === undefined ? (
         <button type="button" className="document-title-slot" onMouseDown={event => event.preventDefault()}
           onClick={() => addTitle(editor.view)}>{i18n.t("Add a title")}</button>
