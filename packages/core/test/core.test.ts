@@ -120,13 +120,15 @@ test("Core can move a top-level block", () => {
   assert.notEqual(changed.children, document.children);
 });
 
-test("Core rejects a reorder that changes canonical top-level block boundaries", () => {
+test("Core preserves separate lists when reordering makes them adjacent", () => {
   const document = parse("- A\n\nMiddle\n\n- B");
   const before = structuredClone(document);
-  assert.throws(
-    () => moveBlock(document, 2, 1),
-    /Canonical save changed block boundaries; this order cannot be saved/,
-  );
+  const moved = moveBlock(document, 2, 1);
+  const markdown = serialize(moved);
+  assert.deepEqual(parse(markdown).children.map(node => [node.type, toText(node)]), [
+    ["list", "A"], ["list", "B"], ["paragraph", "Middle"],
+  ]);
+  assert.equal(serialize(parse(markdown)), markdown);
   assert.deepEqual(document, before);
 });
 

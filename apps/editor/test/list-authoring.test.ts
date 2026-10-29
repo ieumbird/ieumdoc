@@ -8,7 +8,7 @@ import { getSchema } from "@tiptap/core";
 import { liftListItem, sinkListItem, splitListItem } from "@tiptap/pm/schema-list";
 import { EditorState, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { parse, serialize, type InlineContent } from "@ieumdoc/core";
-import { insertListAfter } from "../src/block-commands.ts";
+import { deleteBlock, insertListAfter } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { appliedDocument, collectSupportedEdits, toTiptapDocument } from "../src/tiptap-document.ts";
 import { documentRevision, saveDocumentFile } from "../server/document-api.ts";
@@ -50,6 +50,24 @@ function saveFile(dir: string, markdown: string, state: EditorState, editable: R
   saveDocumentFile(file, { revision: documentRevision(markdown), ...collectSupportedEdits(editable, editorDocumentJSON(state)) });
   return readFileSync(file, "utf8");
 }
+
+test("deleting the paragraph between lists preserves both lists through Host Save and reopen", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-adjacent-lists-"));
+  const markdown = nativeSource("1. First\n\nSeparator\n\n7. Second\n");
+  try {
+    const { editable, state } = editorState(markdown);
+    const deleted = state.applyTransaction(deleteBlock(state, 1)).state;
+    assert.deepEqual(deleted.doc.content.content.map(node => node.type.name), ["orderedList", "orderedList"]);
+    const disk = saveFile(dir, markdown, deleted, editable);
+    assert.deepEqual(loadEditableDocument(disk).blocks, [
+      { block: "list", path: [1], ordered: true, start: 1, items: [{ content: text("First") }] },
+      { block: "list", path: [2], ordered: true, start: 7, items: [{ content: text("Second") }] },
+    ]);
+    assert.equal(serialize(parse(disk)), disk);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 test("list item split, indent, outdent and kind change save as the edited list and reload editable", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-list-"));
