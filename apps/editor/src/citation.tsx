@@ -125,7 +125,7 @@ function CitationView({ node, editor, getPos, updateAttributes, selected }: Reac
   return <NodeViewWrapper as="span" className="cross-reference citation" data-citation=""
     data-role={role} data-keys={JSON.stringify(keys)}
     data-selected={String(selected)} data-readiness={citationReadiness(keys, bibliography)}>
-    <span className="cross-reference-chip" title={status} aria-label={status}>{text}</span>
+    <span className="cross-reference-chip" aria-label={status}>{text}</span>
     {canEdit ? <button type="button" className="cross-reference-edit" aria-label={i18n.t("Edit citation")} title={i18n.t("Edit citation")}
       data-testid="citation-edit" onMouseDown={event => event.preventDefault()} onClick={() => setEditing(true)}>
       <Pencil aria-hidden="true" size={12} />

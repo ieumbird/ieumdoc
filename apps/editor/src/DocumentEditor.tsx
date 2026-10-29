@@ -2,7 +2,7 @@ import { DocumentSettings, type DocumentSettingsHandle } from "./shell/DocumentS
 import { NumberingNotice } from "./numbering-properties.tsx";
 import { documentScrollContainer } from "./document-scroll.ts";
 import { handleLinkClick, handleLinkMouseDown } from "./link-opening.ts";
-import { ImageLinkPreview } from "./ImageLinkPreview.tsx";
+import { ReadingPreview } from "./ReadingPreview.tsx";
 import { ImageRenameContext, imageRenameKey, renameSnapshot, type ImageRenamer } from "./image-rename.ts";
 import type { MediaReplacement } from "../shared/file-operations.ts";
 import { EDITOR_SHORTCUTS, LINK_SHORTCUT } from "./shortcuts.ts";
@@ -698,8 +698,12 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         onConnectBibliography={target => bibliographyControls.current?.connect(target)} /> : null}
       <NumberingNotice editor={editor} />
       <DocumentTitle editor={editor} />
-      <DocumentPathContext.Provider value={documentPath}><ImageRenameContext.Provider value={renameImage}><BibliographyContent ref={bibliographyControls} editor={editor} bibliography={bibliography} documentPath={documentPath}><EditorContent editor={editor} /></BibliographyContent></ImageRenameContext.Provider></DocumentPathContext.Provider>
-      <ImageLinkPreview editor={editor} host={host} documentPath={documentPath} />
+      <DocumentPathContext.Provider value={documentPath}><ImageRenameContext.Provider value={renameImage}>
+        <BibliographyContent ref={bibliographyControls} editor={editor} bibliography={bibliography} documentPath={documentPath}>
+          <EditorContent editor={editor} />
+          <ReadingPreview editor={editor} host={host} documentPath={documentPath} />
+        </BibliographyContent>
+      </ImageRenameContext.Provider></DocumentPathContext.Provider>
       {visible ? <BlockHandles
         editor={editor}
         saveLocations={saveLocations}

@@ -1416,6 +1416,51 @@ transparent and never moves focus, changes selection or writes document content.
 No new syntax, Core operation, CLI command or Host API is introduced. Image rename
 retargeting, printing/export and remote images are outside this feature.
 
+### Endnote and citation reading previews (#752)
+
+Body endnote references show their current definition on hover; citation chips show the matching
+bibliography entries in key order, using the same formatted parts and readiness as References.
+Missing definitions, missing keys and unchecked bibliography retain the existing status messages.
+These previews replace the chips' native title tooltips. Endnote click still reveals its definition;
+citation click/selection and its explicit Edit button keep their existing behavior.
+
+The same `ReadingPreview` observer handles image links and both chip kinds. A focused editor's
+collapsed text caret touching either side of a chip, or native atomic selection of that chip, shows
+the same content. There are no added Tab stops, focus transfers, selection changes or transactions.
+Typing, document updates and composition close the preview until a subsequent reading gesture;
+range selection, Escape, blur, pointer down/exit and scrolling the anchor out of view also close it.
+Existing editor keyboard, pointer and IME handling owns all input and selection.
+
+Endnote inline content uses schema mark serialization and existing math/reference/citation display
+calculations, without an editor instance or editable NodeViews. Image links keep their formatted
+link text in this static preview; their original definition still supports #731 image hover.
+Preview links are display-only spans, so there are no focusable or editable descendants.
+Both kinds share #731's pointer-transparent surface, spacing, `useOverlayBounds`, split-group
+viewport fitting and adjustable reading width/height tokens (20rem / 15rem). Longer content is
+clipped to the preview cap; the original definition or References list remains the full reading
+surface. No Core operation, CLI command, saved syntax or Host API is added because this is
+Editor-only presentation.
+
+`reference-preview` covers hover without state changes, both caret sides/native atom selection,
+range dismissal, existing endnote navigation, real citation-click typing/Undo, text-caret Korean
+composition, rich static content, unresolved states, list/table chips, scroll dismissal and
+1440/640px split bounds. `image-link-preview`, `citations`, `footnotes`, `citation-authoring`,
+`layout-rules` and `quiet-document` retain their interface regressions. CDP composition is not
+a manual native Windows IME/candidate-window check.
+
+Manual captures use the same fixture, pointer targets, scroll top and persistent Chrome profile
+at 1440×900 / 640×900, DPR/zoom 1, English Light/Paper and bundled Pretendard. Before restores
+the runtime sources from base `35cbfdfb`; After uses this implementation. The
+[capture metadata](assets/reference-preview-752/capture-metadata.json) records the environment.
+Only representative PNGs are retained; traces and generated logs stay outside Git.
+
+| Preview | Width | Before | After |
+| --- | --- | --- | --- |
+| Endnote | 1440 | [PNG](assets/reference-preview-752/before-endnote-1440.png) | [PNG](assets/reference-preview-752/after-endnote-1440.png) |
+| Endnote | 640 | [PNG](assets/reference-preview-752/before-endnote-640.png) | [PNG](assets/reference-preview-752/after-endnote-640.png) |
+| Citation | 1440 | [PNG](assets/reference-preview-752/before-citation-1440.png) | [PNG](assets/reference-preview-752/after-citation-1440.png) |
+| Citation | 640 | [PNG](assets/reference-preview-752/before-citation-640.png) | [PNG](assets/reference-preview-752/after-citation-640.png) |
+
 The `image-link-preview` browser scenario covers hover and keyboard caret movement,
 read-only endnotes, quote/list/table links, missing and undecodable images, zero
 remote requests, scrolling and split-group bounds. It also compares actual pointer
