@@ -240,8 +240,9 @@ A changed document recomputes numbering; source semantics and canonical output a
   composition on a node-selected Equation, image/Mermaid Figure or read-only endnote
   are ignored (#714 owner decision). They do not replace the block or caption,
   create a paragraph or add a history step, with or without an initial `Process`/229
-  keydown. The shared selected-preview composition rejection aborts the native range
-  without entering engine composition; clicking another text surface permits normal
+  keydown. The shared selected-preview input boundary keeps the native typing surface
+  read-only throughout the block selection, without blur or deferred focus restoration;
+  clicking another text surface permits normal
   input again. This policy changes no Enter, arrow, Delete/Backspace or clipboard
   commands. Accepted clipboard slices still
   go below a node-selected Equation, in one undoable transaction, retaining the
@@ -578,9 +579,13 @@ Markdown input-rule undo and the existing list/empty-block commands remain intac
 
 `equation-node-selection-typing` covers actual preview selection and ignored ASCII
 typing and CDP composition commit/cancel, with and without an initial IME keydown
-and with repeated `Process` keys. These inputs leave the full document, Equation/label,
+and with repeated `Process` keys. The cancellation cases include Escape keydown followed
+by a late empty composition ending after two animation frames. These inputs leave the full document, Equation/label,
 rendered text and history unchanged, without adding a paragraph. A real body click
-then permits ordinary composition and English input. The scenario also retains
+then permits ordinary composition and English input. Initial, post-composition and
+control-focus-return `typing-again` cases check that native focus cannot redirect ignored
+letters into the title. Shift+arrow/Home/End retain the existing native range extension,
+and navigation followed by late cancellation preserves the document. The scenario also retains
 single/multiline plain-text clipboard paste, duplicate-label paste refusal,
 comment-only HTML paste as an empty-slice no-op with Undo/Redo preservation, real disk
 Save/Reload and explicit Backspace/Delete. The Process-first path models the ordering in
@@ -589,14 +594,15 @@ It does not verify a Windows Korean OS IME or candidate selection. Composition i
 with or without a preceding `Process`/229 keydown, is rejected on
 selected Equation, image/Mermaid Figure and read-only endnote previews by the shared
 `rejectPreviewComposition` handler at `compositionstart` and `compositionupdate`.
-It aborts the native range by blurring the editor and temporarily making its native
-input target noneditable. The next animation frame restores engine editability and
-returns focus only if focus is still on the document body. A late native completion or
-empty cancellation cannot change that preview or turn its engine selection into a text
-caret. Explicit pointer interaction, focus elsewhere or a non-Process keyboard command
-releases this temporary guard; clipboard commands do so even without a keyboard event.
-Other keymaps and editable fields retain their behavior.
-Neither input path creates
+The native typing surface stays noneditable while that block is selected, so completion
+or a late empty cancellation has no editable block range to replace. A focused read-only
+root also retains the engine's block selection when Chromium proposes a default title
+caret. The engine's logical editability remains enabled for existing keymaps and clipboard
+commands; native range-extension navigation uses the engine/browser's existing selection
+path. Explicit properties retain their normal inputs and gap-cursor restoration.
+A real text-surface click lets the browser place an editable caret, and explicit engine
+navigation likewise restores normal native typing. No key-specific composition release,
+blur or animation-frame focus restoration is used. Neither input path creates
 an adjacent paragraph; `footnotes` and `mermaid-authoring` cover the same protection
 and subsequent body input. Manual Windows Korean IME review remains: select the
 Equation preview, type and commit `한글`, cancel another composition, and verify no

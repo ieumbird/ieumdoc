@@ -290,47 +290,19 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
       // Shown once the engine's paste transaction is applied; the structure guard may still refuse it.
       let pastedNotice: string | undefined;
       const fail = (message: UiMessage) => { reject(message); return true; };
-      let rejectedPreview: PMNode | undefined;
-      let previewFrame: number | undefined;
-      const releasePreviewInput = (view: EditorView) => {
-        if (!rejectedPreview && previewFrame === undefined) return;
-        rejectedPreview = undefined;
-        if (previewFrame !== undefined) cancelAnimationFrame(previewFrame);
-        previewFrame = undefined;
-        if (!view.isDestroyed) view.dom.contentEditable = String(view.editable);
+      // A selected block has no native text caret. Keep the DOM read-only for that
+      // selection, while the engine remains editable for explicit keymaps/clipboard.
+      const syncPreviewInput = (view: EditorView) => {
+        view.dom.contentEditable = String(view.editable && !selectedPreview(view.state));
       };
       const rejectPreviewComposition = (view: EditorView) => {
         if (!selectedPreview(view.state)) return false;
-        rejectedPreview = (view.state.selection as NodeSelection).node;
-        // The native composition range targets the preview, with or without Process keydown.
-        // Make that native target noneditable until Chromium finishes this input task;
-        // moving its selection here would duplicate text or leave a live native range.
-        view.dom.blur();
-        view.dom.contentEditable = "false";
-        if (previewFrame !== undefined) cancelAnimationFrame(previewFrame);
-        previewFrame = requestAnimationFrame(() => {
-          previewFrame = undefined;
-          if (view.isDestroyed) return;
-          view.dom.contentEditable = String(view.editable);
-          if (view.editable && view.dom.ownerDocument.activeElement === view.dom.ownerDocument.body) view.focus();
-        });
+        syncPreviewInput(view);
         return true;
       };
       return [new Plugin({
-        // Chromium can finish a rejected composition with an empty replacement after blur.
-        // Protect that preview until the next explicit pointer, focus or keyboard intent;
-        // real Delete/Backspace and whole-document replacement retain their own keymaps.
-        filterTransaction(tr) {
-          return !rejectedPreview || !tr.docChanged || tr.doc.content.content.some(node => node.eq(rejectedPreview!));
-        },
-        appendTransaction(_transactions, _oldState, state) {
-          if (!rejectedPreview) return null;
-          let position: number | undefined;
-          state.doc.forEach((node, pos) => { if (node.eq(rejectedPreview!)) position = pos; });
-          if (position === undefined || state.selection instanceof NodeSelection && state.selection.from === position) return null;
-          return state.tr.setSelection(NodeSelection.create(state.doc, position)).setMeta("addToHistory", false);
-        },
         view: view => {
+          syncPreviewInput(view);
           // Chromium may send native/menu clipboard events to the body when a
           // selection ends in a non-editable NodeView. Route this editor's focused
           // event to ProseMirror's clipboard handler, retaining the native data object.
@@ -347,30 +319,26 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
             if (forwarded.defaultPrevented) event.preventDefault();
           };
           const document = view.dom.ownerDocument;
-          const release = () => releasePreviewInput(view);
-          const focus = (event: FocusEvent) => {
-            if (event.target !== view.dom && event.target !== document.body) release();
-          };
           document.addEventListener("copy", restrict, true);
           document.addEventListener("cut", restrict, true);
-          document.addEventListener("pointerdown", release, true);
-          document.addEventListener("focusin", focus, true);
           return {
             // The notice shares the restriction message channel.
             update(view, previous) {
+              syncPreviewInput(view);
               if (pastedNotice && view.state.doc !== previous.doc) reject(pastedNotice);
               pastedNotice = undefined;
             },
             destroy() {
               document.removeEventListener("copy", restrict, true);
               document.removeEventListener("cut", restrict, true);
-              document.removeEventListener("pointerdown", release, true);
-              document.removeEventListener("focusin", focus, true);
-              release();
             },
           };
         },
         props: {
+        // A native focus caret cannot turn a read-only block selection into title text.
+        // Property commands run outside the root and still delegate to the engine's gap cursor.
+        createSelectionBetween: (view, anchor, head) => anchor.pos === head.pos && view.hasFocus() &&
+          !view.dom.isContentEditable && selectedPreview(view.state) ? view.state.selection : null,
         clipboardSerializer: new DOMSerializer(serializers, DOMSerializer.marksFromSchema(schema)),
         clipboardParser: parser,
         clipboardTextSerializer: slice => slice.content.textBetween(0, slice.content.size, "\n\n", node =>
@@ -381,7 +349,22 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
           node.type.name === "citation" ? inlineContentText([{ kind: "citation", role: node.attrs.role, keys: node.attrs.keys }]) :
           node.type.name === "figure" ? `![${node.attrs.imageAlt}](${node.attrs.imageUrl})` : ""),
         handleDOMEvents: {
+          mousedown: (view, event) => {
+            // Let an actual pointer place a text caret before the browser's default action.
+            const target = event.target instanceof Element ? event.target : null;
+            const readonly = target?.closest('[contenteditable="false"]');
+            if (event.button === 0 && (!readonly || readonly === view.dom) &&
+                !target?.closest('[data-testid="footnote-definition"][aria-readonly="true"]')) {
+              view.dom.contentEditable = String(view.editable);
+            }
+            return false;
+          },
           beforeinput: (view, event) => {
+            if (selectedPreview(view.state) && /^(insert|delete)/.test(event.inputType)) {
+              syncPreviewInput(view);
+              if (event.cancelable) event.preventDefault();
+              return true;
+            }
             if (!this.editor.isEditable || view.composing || event.isComposing || !event.cancelable ||
                 !event.inputType.startsWith("delete")) return false;
             let ranges: StaticRange[];
@@ -406,12 +389,17 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
             return true;
           },
           keydown: (view, event) => {
-            if (event.keyCode !== 229 && event.key !== "Process") releasePreviewInput(view);
+            // Native range extension still needs an editable selection surface.
+            // Let the existing engine/browser navigation place that range, without
+            // admitting character input or releasing on composition-cancel keys.
+            if (selectedPreview(view.state) && /^(Arrow(Left|Right|Up|Down)|Home|End)$/.test(event.key)) {
+              view.dom.contentEditable = String(view.editable);
+              view.focus();
+            }
             if (!isMacOS() && this.editor.isEditable && !view.composing && event.ctrlKey && !event.metaKey) {
               const shortcut = UNDO_SHORTCUT.matches(event, { opaqueOnly: true }) ? UNDO_SHORTCUT
                 : REDO_SHORTCUT.matches(event, { opaqueOnly: true }) ? REDO_SHORTCUT : undefined;
               if (shortcut) {
-                releasePreviewInput(view);
                 // IME Process/229 has no character for the engine keymap to resolve.
                 // Reuse that keymap, including Markdown input-rule Undo, with a visible key.
                 runHistoryShortcut(view, shortcut);
@@ -424,12 +412,10 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
           compositionstart: rejectPreviewComposition,
           compositionupdate: rejectPreviewComposition,
           copy: (view, event) => {
-            releasePreviewInput(view);
             if (view.state.selection.content().content.content.every(portable)) return false;
             event.preventDefault(); return fail({ key: COPY_RESTRICTION });
           },
           cut: (view, event) => {
-            releasePreviewInput(view);
             if (view.state.selection.content().content.content.every(portable)) return false;
             event.preventDefault(); return fail({ key: CUT_RESTRICTION });
           },
@@ -441,8 +427,7 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
           return pasted.html;
         },
         transformPasted: slice => freshSlice(external ? closeExternalSlice(slice) : slice),
-        handleDrop: (view, _event, _slice, moved) => {
-          releasePreviewInput(view);
+        handleDrop: (_view, _event, _slice, moved) => {
           const { error, notice } = moved ? {} : pasted ?? {};
           pasted = undefined;
           external = false;
@@ -456,7 +441,6 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
           return !!text && selectedPreview(view.state);
         },
         handlePaste: (view, event, slice) => {
-          releasePreviewInput(view);
           const { error, notice } = event.clipboardData?.getData("text/html") ? pasted ?? {} : {};
           pasted = undefined;
           external = false;

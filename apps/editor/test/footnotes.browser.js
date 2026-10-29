@@ -675,10 +675,17 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
         assert(await editor.evaluate(element => JSON.stringify(element.editor.getJSON())) === beforeComposition, `${via}: ordinary typing changed the document`);
         if (processKey) await input.send('Input.dispatchKeyEvent', {type:'rawKeyDown', key:'Process', windowsVirtualKeyCode:229, nativeVirtualKeyCode:229});
         await compose('ㅎ'); await compose('하'); await compose('한글');
-        await input.send('Input.insertText', {text:'한글'});
+        if (via === 'text') {
+          // Reviewer's late composition-cancel: Escape keydown before the empty native ending.
+          await rendered();
+          await input.send('Input.dispatchKeyEvent', {type:'rawKeyDown',key:'Escape',windowsVirtualKeyCode:27,nativeVirtualKeyCode:27});
+          await compose('');
+          await input.send('Input.dispatchKeyEvent', {type:'keyUp',key:'Escape',windowsVirtualKeyCode:27,nativeVirtualKeyCode:27});
+          await rendered();
+        } else await input.send('Input.insertText', {text:'한글'});
         await page.waitForFunction(() => {
           const el=document.querySelector('[data-document-tab][data-active=true] .document-editor');
-          return el.isContentEditable && el.editor.view.hasFocus() && !el.editor.view.composing;
+          return el.editor.view.editable && el.editor.view.hasFocus() && !el.editor.view.composing;
         });
         assert(await note.getAttribute('aria-readonly') === 'true' && await note.locator('p').innerText() === beforeCompositionText, `${via}: composition changed the read-only text`);
         await page.keyboard.type('Z');

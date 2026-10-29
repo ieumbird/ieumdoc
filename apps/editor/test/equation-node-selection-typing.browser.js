@@ -76,33 +76,77 @@ async (page, { openPath, reloadDocument }) => {
   const cdp = await page.context().newCDPSession(page);
   const compose = text => cdp.send('Input.imeSetComposition', {text, selectionStart:text.length, selectionEnd:text.length});
   try {
-    for (const mode of ['typing', 'typing-again', 'composition', 'composition-no-key', 'composition-cancel']) {
+    for (const mode of ['typing', 'typing-again', 'composition', 'composition-no-key', 'composition-cancel', 'composition-cancel-escape', 'composition-cancel-escape-no-key', 'typing-after-composition', 'typing-again-after-composition', 'typing-again-after-focus']) {
       const before = await snapshot();
+      if (mode === 'typing-again-after-focus') await page.getByRole('button',{name:'Settings',exact:true}).focus();
       await selectEquation();
       const beforeHistory = await editor.evaluate(el => [el.editor.can().undo(),el.editor.can().redo()]);
       const beforeRendered = await equation.getByTestId('equation-preview').innerText();
-      if (mode === 'typing') await page.keyboard.type('QR');
-      if (mode === 'typing-again') await page.keyboard.type('R');
+      const nativeBefore = await editor.evaluate(el => {
+        const s=getSelection(),e=el.editor;
+        const point=(node,offset)=>{try{return e.view.posAtDOM(node,offset);}catch{return null;}};
+        return {engine:e.state.selection.toJSON(),native:s?{from:point(s.anchorNode,s.anchorOffset),to:point(s.focusNode,s.focusOffset)}:null,focus:e.view.hasFocus(),editable:el.isContentEditable};
+      });
+      check(nativeBefore.engine.type==='node', `${mode}: preview selection drifted before input: ${JSON.stringify(nativeBefore)}`);
+      if (mode.startsWith('typing')) await page.keyboard.type(mode.includes('again')?'R':'QR');
       if (mode.startsWith('composition')) {
-        if (mode !== 'composition-no-key') await cdp.send('Input.dispatchKeyEvent', {type:'rawKeyDown', key:'Process', windowsVirtualKeyCode:229, nativeVirtualKeyCode:229});
+        if (!mode.includes('no-key')) await cdp.send('Input.dispatchKeyEvent', {type:'rawKeyDown', key:'Process', windowsVirtualKeyCode:229, nativeVirtualKeyCode:229});
         await compose('ㅎ');
         await compose('하');
         if (mode === 'composition') await cdp.send('Input.dispatchKeyEvent', {type:'rawKeyDown', key:'Process', windowsVirtualKeyCode:229, nativeVirtualKeyCode:229});
         await compose('한');
         await compose('한ㄱ');
         await compose('한글');
-        if (mode === 'composition-cancel') await compose('');
+        if (mode.includes('cancel-escape')) {
+          await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+          await cdp.send('Input.dispatchKeyEvent', {type:'rawKeyDown',key:'Escape',windowsVirtualKeyCode:27,nativeVirtualKeyCode:27});
+          await compose('');
+          await cdp.send('Input.dispatchKeyEvent', {type:'keyUp',key:'Escape',windowsVirtualKeyCode:27,nativeVirtualKeyCode:27});
+          await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+        } else if (mode === 'composition-cancel') await compose('');
         else await cdp.send('Input.insertText', {text:'한글'});
         await page.waitForFunction(() => {
           const el=document.querySelector('[data-document-tab][data-active=true] .document-editor');
-          return el.isContentEditable && el.editor.view.hasFocus() && !el.editor.view.composing;
+          return el.editor.view.editable && el.editor.view.hasFocus() && !el.editor.view.composing;
         });
       }
       await page.keyboard.type('Z');
-      check(same(await snapshot(),before), `${mode}: ignored input must preserve the entire document and add no paragraph`);
+      check(same(await snapshot(),before), `${mode}: ignored input must preserve the entire document and add no paragraph; before=${JSON.stringify(nativeBefore)}`);
       check(await equation.getByTestId('equation-preview').innerText() === beforeRendered, `${mode}: composition left stale rendered text`);
       check(same(await editor.evaluate(el => [el.editor.can().undo(),el.editor.can().redo()]),beforeHistory), `${mode}: ignored input changed history`);
     }
+
+    // Native range extension is still delegated to the engine/browser navigation.
+    for (const key of ['Shift+ArrowDown','Shift+ArrowUp','Shift+Home','Shift+End']) {
+      const before = await snapshot();
+      // Start a separate pointer sequence instead of double-clicking the preview.
+      await editor.locator('p.paragraph', {hasText:'Before the equation.'}).click();
+      await selectEquation();
+      await page.keyboard.press(key);
+      await page.waitForFunction(() => {
+        const s=document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection;
+        return s.toJSON().type==='text' && !s.empty;
+      });
+      const range = await editor.evaluate(el => {
+        let equation=false;
+        el.editor.state.selection.content().content.descendants(node => { if (node.type.name==='equation') equation=true; });
+        const s=el.editor.state.selection;
+        return {equation,text:el.editor.state.doc.textBetween(s.from,s.to)};
+      });
+      check(key==='Shift+ArrowUp' ? range.text==='Before the equation.' : range.equation,
+        `${key}: native range must retain the existing selection behavior: ${JSON.stringify(range)}`);
+      check(same(await snapshot(),before), `${key}: navigation changed the document`);
+    }
+
+    // Navigation remains explicit, even when followed by a late native cancellation.
+    await editor.locator('p.paragraph', {hasText:'Before the equation.'}).click();
+    await selectEquation();
+    const beforeNavigation = await snapshot();
+    await compose('ㅎ');
+    await page.keyboard.press('ArrowDown');
+    await compose('');
+    await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+    check(same(await snapshot(),beforeNavigation), 'Late cancellation after navigation changed the document');
 
     // A real click elsewhere restores ordinary composition and English typing.
     const beforeOrdinary = await snapshot();
@@ -136,7 +180,7 @@ async (page, { openPath, reloadDocument }) => {
         await compose('ㅎ'); await cdp.send('Input.insertText', {text:'한'});
         await page.waitForFunction(() => {
           const el=document.querySelector('[data-document-tab][data-active=true] .document-editor');
-          return el.isContentEditable && el.editor.view.hasFocus() && !el.editor.view.composing;
+          return el.editor.view.editable && el.editor.view.hasFocus() && !el.editor.view.composing;
         });
         check(await editor.evaluate(el=>el.editor.view.pasteText('Paste314')), 'Accepted menu/API paste must be handled');
       } else {
@@ -175,7 +219,7 @@ async (page, { openPath, reloadDocument }) => {
       await compose('ㅎ'); await cdp.send('Input.insertText', {text:'한'});
       await page.waitForFunction(() => {
         const el=document.querySelector('[data-document-tab][data-active=true] .document-editor');
-        return el.isContentEditable && el.editor.view.hasFocus() && !el.editor.view.composing;
+        return el.editor.view.editable && el.editor.view.hasFocus() && !el.editor.view.composing;
       });
       check(same(await snapshot(),beforeRemoval), `${key}: ignored composition changed the document before explicit removal`);
       await page.keyboard.press(key);
