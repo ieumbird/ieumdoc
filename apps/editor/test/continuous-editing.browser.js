@@ -47,10 +47,16 @@ async (page, { openDocument }) => {
     el.dispatchEvent(event);
     return event.defaultPrevented;
   }, overrides);
-  // Ctrl+A starts in the clicked editing surface, then expands to the document (#723).
+  // Ctrl+A starts in every clicked textblock, then expands to the document (#723/#751).
   await openDocument(page, file.replace('continuous-editing.md', 'scoped-select-all.md'));
   const scopedEditor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const scopes = [
+    ['paragraph', 'p.paragraph', 'After.'],
+    ['heading', 'h2', 'Body heading'],
+    ['list item', 'li p', 'List item'],
+    ['quote', '[data-block="quote"] p', 'Quoted text'],
+    ['admonition', '[data-block="admonition"] [data-node-view-content]', 'Notice text'],
+    ['code', 'pre code', 'Code text'],
     ['table cell', 'td', 'Cell with '],
     ['table caption', '[data-testid="table-caption"] [data-node-view-content]', 'Table caption with '],
     ['image caption', 'figure:not([data-content-kind="mermaid"]) [data-testid="figure-caption-content"]', 'Image caption with '],
@@ -66,7 +72,10 @@ async (page, { openDocument }) => {
       await target.click();
     }
     else await target.click();
-    const type = name === 'table cell' ? 'tableCell' : name === 'table caption' ? 'tableCaption' : name === 'endnote' ? 'footnoteDefinition' : 'figure';
+    const type = ['paragraph', 'list item'].includes(name) ? 'paragraph'
+      : ['quote', 'admonition', 'heading'].includes(name) ? name : name === 'code' ? 'codeBlock'
+      : name === 'table cell' ? 'tableCell' : name === 'table caption' ? 'tableCaption'
+      : name === 'endnote' ? 'footnoteDefinition' : 'figure';
     await page.waitForFunction(({type, text}) => {
       const {selection} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state;
       return selection.toJSON().type === 'text' && selection.empty && selection.$from.parent.type.name === type && selection.$from.parent.textContent.includes(text);
@@ -183,7 +192,7 @@ async (page, { openDocument }) => {
     return selection.empty && selection.$from.parent.type.name === 'paragraph' && selection.$from.parent.textContent === 'After.';
   });
   await page.keyboard.press('Control+a');
-  assert(await scopedEditor.evaluate(el => el.editor.state.selection.toJSON().type) === 'all', 'Ordinary prose Ctrl+A must still select the document');
+  assert(await scopedEditor.evaluate(el => el.editor.state.selection.$from.parent.textContent === 'After.' && el.editor.state.selection.toJSON().type === 'text'), 'Ordinary prose Ctrl+A must select its text');
   await openDocument(page, file);
   const original = await snapshot();
   await select(['Heading', 7]);
@@ -268,6 +277,7 @@ async (page, { openDocument }) => {
 
   // A whole-document clipboard slice must retain typed atoms, Note content and aligned tables.
   await select(['Beta plain.', 11]);
+  await page.keyboard.press('Control+a');
   await page.keyboard.press('Control+a');
   await page.waitForFunction(() => { const e = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor; return e.state.selection.from <= 1 && e.state.selection.to >= e.state.doc.content.size - 1; });
   await page.keyboard.press('Control+c');
@@ -390,6 +400,7 @@ async (page, { openDocument }) => {
   const formattedBlocks = value => ['heading', 'figure', 'table'].map(type => semantic(value.content.filter(node => node.type === type)));
   const twiceBlocks = blocks => blocks.map(json => JSON.stringify([...JSON.parse(json), ...JSON.parse(json)]));
   await select(['After.', 0]);
+  await page.keyboard.press('Control+a');
   await page.keyboard.press('Control+a');
   await page.waitForFunction(() => { const e = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor; return e.state.selection.from === 0 && e.state.selection.to === e.state.doc.content.size; });
   await page.keyboard.press('Control+c');

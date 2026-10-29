@@ -155,6 +155,7 @@ async (page, { openFolderPicker, openDocument, waitForEditorFocus, expect, scree
         return editor.view.hasFocus() && editor.state.selection.empty && editor.state.selection.$from.parent.type.name === 'paragraph';
       });
       await page.keyboard.press('ControlOrMeta+a');
+      await page.keyboard.press('ControlOrMeta+a');
       await page.keyboard.press(key);
       expect(await figures.count(), 'Select all deletes the Figure').toBe(0);
       await page.keyboard.press('ControlOrMeta+z');
@@ -403,6 +404,7 @@ async (page, { openFolderPicker, openDocument, waitForEditorFocus, expect, scree
         selection.$from.parent.textContent === 'The current reference is calculated from the active power command.';
     });
     await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('ControlOrMeta+a');
     await page.keyboard.press('Backspace');
     expect(await figures.count()).toBe(0);
     await page.keyboard.press('ControlOrMeta+z');
@@ -490,6 +492,7 @@ async (page, { openFolderPicker, openDocument, waitForEditorFocus, expect, scree
       return selection.empty && selection.$from.parent.type.name === 'paragraph' &&
         selection.$from.parent.textContent === 'The current reference is calculated from the active power command.';
     });
+    await page.keyboard.press('ControlOrMeta+a');
     await page.keyboard.press('ControlOrMeta+a');
     await page.keyboard.press('Backspace');
     expect(await figures.count()).toBe(0);

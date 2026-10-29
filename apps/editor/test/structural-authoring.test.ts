@@ -5,12 +5,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { getSchema } from "@tiptap/core";
-import { EditorState, TextSelection, type Transaction } from "@tiptap/pm/state";
+import { AllSelection, EditorState, NodeSelection, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { parse, serialize, type InlineContent } from "@ieumdoc/core";
 import { applyBlockShortcut, type BlockShortcut } from "../src/markdown-input-rules.ts";
 import { changeHeadingLevel, headingToParagraph, insertDividerAfter, insertQuoteAfter, paragraphToHeading, paragraphToHeadingRejection } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
-import { joinRichProse } from "../src/document-interaction.ts";
+import { joinRichProse, selectAllTransaction } from "../src/document-interaction.ts";
 import { collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
 import { documentRevision, saveDocumentFile } from "../server/document-api.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
@@ -281,4 +281,43 @@ test("a formatted heading opens editable, takes marks and saves its inline conte
   assert.match(saved.markdown, /^## Limits of \*\*phase\*\* \*current\*$/m);
   const savedBlock = loadEditableDocument(saved.markdown).blocks[0];
   assert.equal(savedBlock?.block === "heading" && savedBlock.editable, true);
+});
+
+test("select all stays in each textblock, expands an existing full range and resets after a transaction", () => {
+  const { state: initial } = editorState(nativeSource("## Heading\n\nParagraph\n\n- Item\n\n> Quote\n\n```text\nCode\n```\n"));
+  initial.doc.descendants((node, pos) => {
+    if (!node.isTextblock) return;
+    const state = initial.apply(initial.tr.setSelection(TextSelection.create(initial.doc, pos + 2)));
+    const selected = state.apply(selectAllTransaction(state));
+    assert.equal(selected.selection.from, pos + 1);
+    assert.equal(selected.selection.to, pos + 1 + node.content.size);
+    assert.ok(selected.apply(selectAllTransaction(selected, selected)).selection instanceof AllSelection);
+    // A full range selected independently (including backwards) also expands immediately.
+    const full = state.apply(state.tr.setSelection(TextSelection.create(state.doc, pos + 1 + node.content.size, pos + 1)));
+    assert.ok(full.apply(selectAllTransaction(full)).selection instanceof AllSelection);
+    const moved = selected.apply(selected.tr.setSelection(TextSelection.create(selected.doc, pos + 2)));
+    assert.ok(!(moved.apply(selectAllTransaction(moved, selected)).selection instanceof AllSelection));
+  });
+});
+
+test("empty block select all uses consecutive state and document expansion can be disabled", () => {
+  const schema = getSchema(editorExtensions());
+  const doc = schema.node("doc", null, [schema.node("paragraph"), schema.node("paragraph", null, schema.text("Other"))]);
+  const initial = EditorState.create({schema, doc});
+  const first = initial.apply(selectAllTransaction(initial));
+  assert.equal(first.selection.from, 1);
+  assert.equal(first.selection.to, 1);
+  assert.ok(first.apply(selectAllTransaction(first, first)).selection instanceof AllSelection);
+  const intervening = first.apply(first.tr);
+  assert.ok(!(intervening.apply(selectAllTransaction(intervening, first)).selection instanceof AllSelection));
+  assert.ok(!(first.apply(selectAllTransaction(first, first, false)).selection instanceof AllSelection));
+  const full = initial.apply(initial.tr.setSelection(TextSelection.create(doc, 3, 8)));
+  assert.deepEqual(full.apply(selectAllTransaction(full, full, false)).selection.toJSON(), full.selection.toJSON());
+  for (const type of ["figure", "table"]) {
+    const block = schema.nodes[type]!.createAndFill()!;
+    const nodeDoc = schema.node("doc", null, [block, schema.node("paragraph")]);
+    const node = EditorState.create({schema, doc: nodeDoc, selection: NodeSelection.create(nodeDoc, 0)});
+    assert.ok(node.apply(selectAllTransaction(node)).selection instanceof AllSelection);
+    assert.deepEqual(node.apply(selectAllTransaction(node, undefined, false)).selection.toJSON(), node.selection.toJSON());
+  }
 });

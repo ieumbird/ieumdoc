@@ -99,6 +99,10 @@ the first press selects only caption content, and a consecutive second press
 selects the document. The number, image/source and properties stay outside the
 first selection. Empty captions stay local on the first press (#723).
 
+For the shared #751 policy, an already complete nonempty text selection expands
+immediately. Disabling `EXPAND_SELECT_ALL_TO_DOCUMENT` keeps Ctrl/Cmd+A local;
+node/read-only selections are retained. See the [selection contract](document-editing-v1.md#select-all-within-an-editing-surface-723).
+
 ## Mermaid Figures (#651, Core and CLI)
 
 A Figure may contain exactly one option-free MyST `mermaid` directive followed by an optional

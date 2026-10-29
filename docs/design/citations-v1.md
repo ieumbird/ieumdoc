@@ -140,6 +140,14 @@ A single derived References section follows canonical endnotes, outside the Pros
 It contains only cited keys in current number order, including missing/duplicate/unverified keys.
 Moving citations and Undo/Redo recompute numbers; Save never inserts this section into `.md`.
 
+Hovering a citation chip, or reaching either side of it with the focused editor's caret (including
+native atomic selection), shows a [reading preview](editor-ux-shell-v1.md#endnote-and-citation-reading-previews-752)
+of the cited entries in key order. It reuses the derived References' formatted parts and readiness
+messages from the same loaded bibliography snapshot; missing or unchecked keys keep their existing
+status. The browser title tooltip is replaced, while accessible key/status labels and the existing
+chip click/selection and Edit button behavior remain. Preview display never changes selection,
+focus, document content, Core semantics or the CLI surface.
+
 ### Connect and disconnect bibliography files (#438)
 
 Owner decision (2026-10-25): connections apply on Save. The existing Host read contract

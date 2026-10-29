@@ -29,6 +29,20 @@ graph LR
 **Mermaid** caption
 :::
 
+## Body heading
+
+- List item
+
+> Quoted text
+
+:::{note}
+Notice text
+:::
+
+```text
+Code text
+```
+
 After.
 
 [^a]: **First** note with $n$\

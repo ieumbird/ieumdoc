@@ -46,6 +46,10 @@ computed number; a consecutive second press selects the document. Empty captions
 stay local on the first press. The shared [scoped selection contract](document-editing-v1.md#select-all-within-an-editing-surface-723)
 also defines composition and history behavior (#723).
 
+For the shared #751 policy, an already complete nonempty text selection expands
+immediately. Disabling `EXPAND_SELECT_ALL_TO_DOCUMENT` keeps Ctrl/Cmd+A local;
+node/read-only selections are retained. See the [selection contract](document-editing-v1.md#select-all-within-an-editing-surface-723).
+
 Issues #94 / #584. Core owns `updateTableCaption`, table `updateLabel` and table numbering.
 Every table receives an automatic number in document order or an authored fixed number, regardless of caption or Label, and is
 canonically written as a MyST `{table}` directive. Without caption or Label, the directive

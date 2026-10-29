@@ -8,7 +8,8 @@ import { useTranslation } from "react-i18next";
 import { bibliographyError } from "@ieumdoc/core/citation";
 import { evaluateBibliography } from "@ieumdoc/core/bibliography";
 import type { DocumentFileResponse, FolderResponse } from "../shared/document-protocol.ts";
-import { citationNumbers, BibliographyContext, bibliographyState } from "./citation.tsx";
+import { citationNumbers, BibliographyContext } from "./citation.tsx";
+import { BibliographyReferenceText } from "./BibliographyReferenceText.tsx";
 import { i18n } from "./i18n.ts";
 
 /** Citable entries follow the last loaded resource snapshot, never staged declarations. */
@@ -83,9 +84,7 @@ export const BibliographyContent = forwardRef<BibliographyHandle, {
       <ol className="bibliography-list">
         {evaluation?.references.map(reference => <li key={reference.key} data-key={reference.key} data-readiness={reference.status}>
           <span className="bibliography-number">[{reference.number}]</span>
-          <div><span>{reference.parts.map((part, index) => part.emphasis ? <em key={index}>{part.text}</em> : part.text)}</span>
-            {reference.status !== "complete" ? <span className="bibliography-status">{bibliographyState(reference.status)} · {reference.key}</span> : null}
-          </div>
+          <BibliographyReferenceText reference={reference} />
         </li>)}
       </ol>
       {evaluation?.readiness.diagnostics.some(d => d.source && !d.key) ? <ul className="bibliography-status bibliography-resources">

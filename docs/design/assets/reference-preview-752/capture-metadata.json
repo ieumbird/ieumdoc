@@ -1,0 +1,22 @@
+{
+  "base": "35cbfdfb",
+  "before": "Base runtime source files restored from git HEAD in the same checkout; implementation restored in finally before After.",
+  "after": "PR implementation",
+  "command": "pnpm browser:test reference-preview --screenshots",
+  "fixture": "apps/editor/test/browser/fixtures/reference-preview.md",
+  "viewports": [
+    [
+      1440,
+      900
+    ],
+    [
+      640,
+      900
+    ]
+  ],
+  "dpr": 1,
+  "zoom": 1,
+  "environment": "Windows, persistent Chrome, headless, English, Light/Paper, bundled Pretendard after document.fonts.ready",
+  "state": "Document scroll top; pointer over first body endnote or first citation; no click or edit",
+  "purpose": "Manual review evidence; no pixel assertions"
+}

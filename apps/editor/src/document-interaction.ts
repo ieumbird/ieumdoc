@@ -68,13 +68,27 @@ const TYPES = new Set(["paragraph", "heading", "admonition", "quote", "divider",
 const COPY_RESTRICTION = "This selection cannot be copied losslessly. Use Source to copy its original Markdown. The selection is kept.";
 const CUT_RESTRICTION = "This selection cannot be cut losslessly. Use Source to copy its original Markdown. Nothing was removed.";
 
-/** These NodeViews each expose one inline editing surface in the shared document. */
+/** Every textblock exposes one inline editing surface in the shared document. */
 function selectAllScope(state: EditorState): { from: number; to: number } | undefined {
   const { selection } = state;
   if (!(selection instanceof TextSelection) || !selection.$from.sameParent(selection.$to) ||
-      !["tableCell", "tableCaption", "figure", "footnoteDefinition"].includes(selection.$from.parent.type.name) ||
+      !selection.$from.parent.isTextblock ||
       !canEditEndnoteAt(state, selection.from)) return undefined;
   return { from: selection.$from.start(), to: selection.$from.end() };
+}
+
+// Product policy: turn off document-wide Mod-a expansion here; no settings UI.
+const EXPAND_SELECT_ALL_TO_DOCUMENT = true;
+
+export function selectAllTransaction(state: EditorState, previous?: EditorState,
+  expand = EXPAND_SELECT_ALL_TO_DOCUMENT): Transaction {
+  const scope = selectAllScope(state);
+  const fullBlock = scope && scope.from < scope.to &&
+    state.selection.from === scope.from && state.selection.to === scope.to;
+  if (expand && (!scope || state === previous || fullBlock)) {
+    return state.tr.setSelection(new AllSelection(state.doc));
+  }
+  return scope ? state.tr.setSelection(TextSelection.create(state.doc, scope.from, scope.to)) : state.tr;
 }
 
 /** Use the real keymap order (including input-rule Undo), with full native transactions. */
@@ -266,10 +280,8 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
         "Mod-a": () => {
           const { view, isEditable } = this.editor;
           const { state } = view;
-          if (!isEditable || view.composing || state === scopedState) return false;
-          const scope = selectAllScope(state);
-          if (!scope) return false;
-          view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, scope.from, scope.to)));
+          if (!isEditable || view.composing) return false;
+          view.dispatch(selectAllTransaction(state, scopedState));
           scopedState = view.state;
           return true;
         },

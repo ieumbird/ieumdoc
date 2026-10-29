@@ -19,6 +19,7 @@ Issue #119 made paragraphs with footnotes editable and stopped silent loss of de
 
 ## Product contract
 
+- Hovering a body reference, or placing the focused editor's caret immediately before or after it, shows its current definition in the shared [reading preview](editor-ux-shell-v1.md#endnote-and-citation-reading-previews-752). Native atomic selection also supports keyboard reading. The preview replaces the browser title tooltip and retains formatting, math, reference/citation display and image-link text as read-only content. Missing definitions show the existing unresolved status. Clicking the original reference still reveals its definition; preview display does not dispatch transactions or move focus/selection. Core and CLI semantics are unchanged.
 - An endnote is a MyST footnote: a reference `[^label]` in the body and a definition `[^label]: ...`. The syntax, the labels and the MyST node names (`footnoteReference`, `footnoteDefinition`, inline `{ kind: "footnote" }`) are unchanged. No new syntax or metadata is written.
 - A definition belongs to the document, not to the block or section it is written after. Several references can share one definition.
 - **Definition content**: a native document permits one non-empty paragraph of supported inline content per definition, without footnote references. Multiple paragraphs, other nested blocks or unsupported inline content reject the entire document at admission; there is no source-editing fallback.
@@ -114,6 +115,10 @@ selects the document. Other definitions and the number are excluded from the
 first selection. At rest, Ctrl/Cmd+A retains the existing whole-document behavior
 and does not open editing or change input guards. See [scoped selection](document-editing-v1.md#select-all-within-an-editing-surface-723)
 for empty bodies, composition and history (#723).
+
+For the shared #751 policy, an already complete nonempty text selection expands
+immediately. Disabling `EXPAND_SELECT_ALL_TO_DOCUMENT` keeps Ctrl/Cmd+A local;
+node/read-only selections are retained. See the [selection contract](document-editing-v1.md#select-all-within-an-editing-surface-723).
 
 All top-level definitions follow the body in the one editor state. The first has a subtle 1px rule, a 12/16px muted label (`Endnotes` in English / `미주` in Korean), and 24px space from the body; subsequent definitions have an 8px gap. Text keeps the 16px font and 1.5 line-height (24px), normal document text color and baseline number in a 24px inset. Inline reference chips stay superscript. The localized region label is display only: it is not a heading, an Outline entry, selected text or Markdown. Whole-definition copying keeps the existing lossless-copy restriction; Source remains available for copying actual Markdown.
 
