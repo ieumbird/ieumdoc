@@ -91,9 +91,9 @@ async (page, { openPath, expect }) => {
       await page.setViewportSize({width, height:900});
       if (width === 640) await page.getByTestId('document-panel').waitFor({state:'detached'});
       for (const sidebar of ['open', 'closed']) {
-        const expand = page.getByRole('button', {name:'Expand sidebar', exact:true});
+        const expand = page.getByRole('button', {name:'Expand Explorer', exact:true});
         if ((sidebar === 'open') === await expand.isVisible()) {
-          await page.getByRole('button', {name:sidebar === 'open' ? 'Expand sidebar' : 'Collapse sidebar', exact:true}).click();
+          await page.getByRole('button', {name:sidebar === 'open' ? 'Expand Explorer' : 'Collapse Explorer', exact:true}).click();
         }
         for (const panel of ['closed', 'open']) {
           const toggle = page.getByRole('button', {name:'Outline', exact:true});

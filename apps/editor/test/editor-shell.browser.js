@@ -21,12 +21,12 @@ async page => {
     // Shell: application UI stays outside the document.
     result.noLegacyUi = await page.locator('.file-picker, .format-bar, [data-testid="equation-draft-notice"]').count() === 0;
     result.appUiOutsideDocument = await article.locator('[data-testid="folder-path"], [data-testid="status"], [data-testid="message-area"]').count() === 0;
-    await page.getByRole('button',{name:'Collapse sidebar'}).click();
+    await page.getByRole('button',{name:'Collapse Explorer'}).click();
     result.sidebarCollapses = await page.getByRole('button',{name:'Open folder…'}).count() === 0;
-    await page.getByRole('button',{name:'Expand sidebar'}).click();
+    await page.getByRole('button',{name:'Expand Explorer'}).click();
     result.currentPath = (await page.getByTestId('current-file').getAttribute('title')).endsWith('technical-document.md');
 
-    // Brand is not a new tab stop: retain Files → TopBar → document navigation order.
+    // Brand is not a new tab stop: retain Explorer → TopBar → document navigation order.
     await page.getByRole('button',{name:'Settings',exact:true}).focus();
     await page.keyboard.press('Tab');
     result.filesToTopBar = await page.getByRole('button',{name:'Find documents and commands',exact:true}).evaluate(n=>n===document.activeElement);
@@ -43,7 +43,7 @@ async page => {
     result.folderOnlyEntry = await page.getByRole('button',{name:'Open file…', exact:true}).count() === 0;
     await openFolder.focus();
     await page.keyboard.press('Shift+Tab');
-    result.headerTabToCollapse = await isFocused(page.getByRole('button', {name:'Collapse sidebar', exact:true}));
+    result.headerTabToCollapse = await isFocused(page.getByRole('button', {name:'Collapse Explorer', exact:true}));
     await page.keyboard.press('Tab');
     result.headerReverseTab = await isFocused(openFolder);
     await openFolder.focus();
@@ -71,10 +71,10 @@ async page => {
     result.documentSettingsKeyboardEntry = await isFocused(page.getByRole('checkbox', {name:'Number headings', exact:true}));
     await page.keyboard.press('Escape'); await settingsDialog.waitFor({state:'hidden'});
     result.documentSettingsEscapeReturnsFocus = await isFocused(settings);
-    await page.getByRole('button',{name:'Collapse sidebar'}).click();
-    const files = page.getByRole('button',{name:'Expand sidebar',exact:true});
+    await page.getByRole('button',{name:'Collapse Explorer'}).click();
+    const files = page.getByRole('button',{name:'Expand Explorer',exact:true});
     const railSettings = page.getByTestId('sidebar').getByRole('button',{name:'Settings',exact:true});
-    result.railActionsNamed = await files.getAttribute('title') === 'Expand sidebar' &&
+    result.railActionsNamed = await files.getAttribute('title') === 'Expand Explorer' &&
       await railSettings.getAttribute('title') === 'Settings';
     await files.focus();
     await page.keyboard.press('Tab');

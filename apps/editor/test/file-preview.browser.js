@@ -73,7 +73,7 @@ async (page, { openDocument, screenshots }) => {
     await page.keyboard.press('Escape'); await dialog().waitFor({state:'detached'});
   }
   // Escape from the previous narrow preview may also close the overlay sidebar.
-  const expand = page.getByRole('button', {name:'Expand sidebar',exact:true});
+  const expand = page.getByRole('button', {name:'Expand Explorer',exact:true});
   if (await expand.isVisible()) await expand.click();
   await clickRow('긴파일이름' + 'unbrokenfilename'.repeat(8) + '.zip');
   await measureLongDialog('preview', dialog());

@@ -254,7 +254,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   check(matches.some(text => text.includes('technical-8.md')), 'Sidebar-listed unopened document missing from search');
   check(await center().getByRole('option',{name:'technical-1.md',exact:true}).count() === 1, 'Opened tab duplicated by sidebar listing');
   check((await center().getByRole('option',{name:'technical-1.md',exact:true}).innerText()).includes('Opened tab'), 'Opened tab not distinguished');
-  check((await center().getByRole('option',{name:'technical-8.md',exact:true}).innerText()).includes('Files'), 'Unopened file not distinguished');
+  check((await center().getByRole('option',{name:'technical-8.md',exact:true}).innerText()).includes('Explorer'), 'Unopened file not distinguished');
   check(JSON.stringify(await center().getByRole('option').evaluateAll(nodes => nodes.map(n => n.getAttribute('aria-label')))) ===
     JSON.stringify(Array.from({length:8}, (_,i) => `technical-${i+1}.md`)), 'Results did not keep tabs first and unopened files in path order');
   await input().fill('guide.md');
@@ -405,7 +405,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     'Command center must use selected background/text, selected-hover and control radius without a marker');
   if (screenshots) await page.screenshot({path:'tmp/command-center/keyboard-hover-386.png'});
   await page.keyboard.press('ArrowUp');
-  check(await center().getByRole('option',{name:'Collapse sidebar',exact:true}).getAttribute('data-highlighted') !== null,
+  check(await center().getByRole('option',{name:'Collapse Explorer',exact:true}).getAttribute('data-highlighted') !== null,
     'Keyboard did not continue from the hovered result');
   await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
   result.searchArrowsAndHover = true;
@@ -474,10 +474,10 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Outline', null, {timeout:5000});
   await run('Show outline');
   await panel.waitFor();
-  await page.getByRole('button',{name:'Collapse sidebar',exact:true}).focus();
-  await run('Collapse sidebar');
-  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Expand sidebar', null, {timeout:5000});
-  await run('Expand sidebar');
+  await page.getByRole('button',{name:'Collapse Explorer',exact:true}).focus();
+  await run('Collapse Explorer');
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Expand Explorer', null, {timeout:5000});
+  await run('Expand Explorer');
   result.panelCommandsRetainFocus = true;
 
   // Resolve the exact named command even when folder paths match the same search words.
@@ -647,15 +647,15 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     }
   }
   result.responsiveCenter = true;
-  if (await page.getByRole('button',{name:'Collapse sidebar',exact:true}).isVisible())
-    await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
-  await run('Expand sidebar');
-  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Collapse sidebar', null, {timeout:5000});
-  await page.getByRole('button',{name:'Collapse sidebar',exact:true}).focus();
-  await run('Collapse sidebar');
-  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Expand sidebar', null, {timeout:5000});
+  if (await page.getByRole('button',{name:'Collapse Explorer',exact:true}).isVisible())
+    await page.getByRole('button',{name:'Collapse Explorer',exact:true}).click();
+  await run('Expand Explorer');
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Collapse Explorer', null, {timeout:5000});
+  await page.getByRole('button',{name:'Collapse Explorer',exact:true}).focus();
+  await run('Collapse Explorer');
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label')==='Expand Explorer', null, {timeout:5000});
   result.narrowSidebarFocus = true;
-  await run('Expand sidebar');
+  await run('Expand Explorer');
   await run('Settings');
   await page.getByTestId('ui-language').selectOption('ko');
   await page.keyboard.press('Escape'); await page.getByTestId('settings-dialog').waitFor({state:'detached'});
@@ -713,7 +713,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   try {
     await openFolder(folderPath);
     await folder.getByRole('treeitem',{name:'bulk-1999.md',exact:true,includeHidden:true}).waitFor({state:'attached'});
-    const collapse = page.getByRole('button',{name:'Collapse sidebar',exact:true});
+    const collapse = page.getByRole('button',{name:'Collapse Explorer',exact:true});
     if (await collapse.isVisible()) await collapse.click();
     searchRequests = 0;
     page.on('request', countSearchRequests);

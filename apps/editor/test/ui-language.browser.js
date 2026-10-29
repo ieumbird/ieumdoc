@@ -10,6 +10,7 @@ async (page, { openPath, screenshots }) => {
   const sep = initial.path.includes('\\') ? '\\' : '/';
   const file = [...initial.path.split(sep).slice(0, -4), 'tmp', 'reference-save-reload', 'technical-document.md'].join(sep);
   await openPath(page, file);
+  check(await page.getByTestId('sidebar').locator('.product').innerText() === 'Explorer', 'Explorer heading must be translated into English');
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const original = await editor.evaluateHandle(node => node.editor);
   const snapshot = () => editor.evaluate(node => ({ json: JSON.stringify(node.editor.getJSON()), selection: node.editor.state.selection.toJSON() }));
@@ -173,6 +174,13 @@ async (page, { openPath, screenshots }) => {
     if (screenshots) await page.screenshot({ path: 'tmp/256/settings-ko.png' });
     await closeSettings();
     check(await page.evaluate(() => document.querySelector('.document-scroll[data-active="true"]').scrollTop) === scrollBefore, 'Settings changed document scroll');
+    check(await page.getByTestId('sidebar').locator('.product').innerText() === '탐색기', 'Explorer heading must be translated into Korean');
+    const collapseExplorer = page.getByRole('button', {name:'탐색기 접기', exact:true});
+    check(await collapseExplorer.getAttribute('title') === '탐색기 접기', 'Expanded Explorer tooltip must be translated');
+    await collapseExplorer.click();
+    const expandExplorer = page.getByRole('button', {name:'탐색기 펼치기', exact:true});
+    check(await expandExplorer.getAttribute('title') === '탐색기 펼치기', 'Rail Explorer tooltip must be translated');
+    await expandExplorer.click();
     await page.getByTestId('folder').first().getByRole('button', {name:'더 많은 작업', exact:true}).click();
     await page.getByRole('menuitem', {name:'폴더 열기…', exact:true}).waitFor();
     await page.getByRole('menu').and(page.locator(':focus-within')).waitFor();
