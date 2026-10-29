@@ -496,3 +496,16 @@ test("reference styles derive from template values and editor Save replays autho
   reset.attrs!.referenceTemplates = null;
   assert.equal(loadEditableDocument(saveEdits(saved.markdown, collectSupportedEdits(reopened, reset)).markdown).referenceTemplates, undefined);
 });
+
+test("numbered section references use Core H1-H6 counters after body section changes", async () => {
+  const { defaultHeadingNumbering } = await import("@ieumdoc/core/numbering");
+  const json = toTiptapDocument(loadEditableDocument(nativeSource("(first)=\n# First\n\n(detail)=\n## Detail\n\n(second)=\n# Second\n")));
+  json.attrs = { ...json.attrs, title: "Independent title", headingNumbering: defaultHeadingNumbering(true) };
+  const schema = getSchema(editorExtensions());
+  const doc = schema.nodeFromJSON(json);
+  assert.equal(referenceDisplay(referenceTargets(doc), "ref", "first").text, "§ 1");
+  assert.equal(referenceDisplay(referenceTargets(doc), "ref", "detail").text, "§ 1.1");
+  assert.equal(referenceDisplay(referenceTargets(doc), "ref", "second").text, "§ 2");
+  json.attrs.headingNumbering = null;
+  assert.equal(referenceDisplay(referenceTargets(schema.nodeFromJSON(json)), "ref", "detail").text, "§ Detail");
+});

@@ -17,9 +17,9 @@ async (page, { openFolderPicker, openDocument, reloadDocument, screenshots }) =>
   await page.getByRole('dialog').getByRole('button', {name:'Create', exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'detached'});
   await page.keyboard.type('Opening paragraph');
-  await page.locator('[data-document-tab][data-active=true]').getByRole('button',{name:'Add a title',exact:true}).click();
+  await page.locator('[data-document-tab][data-active=true]').getByRole('textbox',{name:'Title',exact:true}).click();
   await page.keyboard.type('Recovery paper');
-  // Real Enter in the title creates an engine paragraph with default attrs before normalization.
+  // Metadata title Enter enters the first body paragraph.
   await page.keyboard.press('Enter');
   await page.keyboard.type('New paragraph');
   await engine.evaluate(async node => {
@@ -67,10 +67,10 @@ async (page, { openFolderPicker, openDocument, reloadDocument, screenshots }) =>
   await page.locator('[data-testid="status"][data-operation^="save"]').waitFor({state:'attached'});
   check(await page.getByTestId('status').getAttribute('data-operation')==='saved', await page.locator('body').innerText());
   const saved = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json();
-  check(saved.document.blocks.some(b=>b.block==='heading') && saved.document.blocks.some(b=>b.block==='equation') && saved.document.blocks.some(b=>b.block==='table') && saved.document.blocks.some(b=>b.block==='figure'),'Save lost a structured block');
+  check(saved.document.title==='Recovery paper' && saved.document.blocks.some(b=>b.block==='equation') && saved.document.blocks.some(b=>b.block==='table') && saved.document.blocks.some(b=>b.block==='figure'),'Save lost a structured block');
   for (const text of ['Recovery paper','New paragraph','Opening paragraph','x^2 + y^2 = z^2','Cell 1','Measured results','Pending figure caption']) check(saved.source.includes(text),`Save lost ${text}`);
   await reloadDocument(page);
-  await engine.getByText('Recovery paper',{exact:true}).waitFor();
+  check(await page.locator('[data-document-tab][data-active=true]').getByRole('textbox',{name:'Title',exact:true}).inputValue() === 'Recovery paper', 'Reload lost title');
   const again = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json();
   check(saved.source===again.source,'Reload changed canonical source');
   // Refuse a different invalid path, retain readable fallback, and translate an already open dialog.

@@ -1308,40 +1308,28 @@ body:has(.ui-portal [role="menu"]) :is(.app-titlebar, .top-bar, .settings-topbar
   pointer-events: none;
 }
 
-/* The document title (#255). An empty title says what it is for, like the empty-document hint;
- * a document without one offers Add a title in the title's place, quiet until used. */
-.document-editor > h1[data-title-placeholder]::before {
-  content: attr(data-title-placeholder);
-  float: left;
-  height: 0;
-  color: var(--id-color-text-subtle);
-  pointer-events: none;
-}
-
-.document-title-slot {
+/* Plain frontmatter title, aligned with the document text column. */
+.document-title-input {
   display: block;
+  box-sizing: border-box;
+  width: 100%;
+  field-sizing: content;
+  resize: none;
+  overflow: hidden;
   margin: 0 0 var(--space-document-heading-after);
   padding: 0;
   border: 0;
   border-radius: var(--id-radius-sm);
   background: transparent;
-  color: var(--id-color-text-subtle);
+  color: var(--id-color-text);
   font-family: var(--font-family-document);
   font-size: var(--font-size-document-h1);
   font-weight: var(--font-weight-document-heading);
   line-height: var(--line-height-document-heading);
-  text-align: left;
-  cursor: text;
+  overflow-wrap: anywhere;
 }
-
-.document-title-slot:hover {
-  color: var(--id-color-text-muted);
-}
-
-.document-title-slot:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
+.document-title-input::placeholder { color: var(--id-color-text-subtle); }
+.document-title-input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 .heading {
   margin: var(--space-document-heading-before) 0 var(--space-document-heading-after);

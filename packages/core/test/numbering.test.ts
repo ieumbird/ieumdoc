@@ -5,7 +5,7 @@ import { mystParse } from "myst-parser";
 import { VFile } from "vfile";
 import { parseDocument } from "yaml";
 import { validateNumbering } from "myst-frontmatter";
-import { headingNumbers, blockTargets, targetNumbers, captionNumberText, referenceNumberText } from "../src/numbering.ts";
+import { headingNumbers, sectionReferenceText, blockTargets, targetNumbers, captionNumberText, referenceNumberText } from "../src/numbering.ts";
 import { updateHeadingNumbering, getHeadingNumbering } from "../src/myst/heading-numbering.ts";
 import { getEditableDocument, insertEquation, moveBlock, parse, removeBlock, serialize, type MystDocument, type MystNode } from "./core-internal.ts";
 
@@ -165,7 +165,7 @@ test("native target numbers agree with MyST and follow insertions, moves and rem
   assert.deepEqual(numbers(table), [{ table: 1 }]);
 });
 
-test("native heading policy matches MyST without writing numbers into heading text", () => {
+test("native H1 body numbering preserves stored levels independently of MyST output policy", () => {
   const source = "---\nieumdoc: 1\n# Native document\n---\n\n# Title\n\n## First\n\n### Detail\n\n## Second\n";
   const document = parse(source);
   const before = structuredClone(document);
@@ -176,14 +176,18 @@ test("native heading policy matches MyST without writing numbers into heading te
   assert.doesNotMatch(markdown, /## 1/);
   assert.deepEqual(document, before);
   const read = getEditableDocument(next);
-  assert.deepEqual(headingNumbers(read.blocks, read.headingNumbering), [undefined, "1", "1.1", "2"]);
+  assert.deepEqual(headingNumbers(read.blocks, read.headingNumbering), ["1", "1.1", "1.1.1", "1.2"]);
   const tree = structuredClone(next);
   const metadata = parseDocument(String(tree.children[0].value)).toJS();
   metadata.numbering = validateNumbering(metadata.numbering, { property: "numbering", messages: {} });
   enumerateTargetsTransform(tree as never, { state: new ReferenceState("document.md", { frontmatter: metadata, vfile: new VFile() }) });
-  assert.deepEqual(tree.children.slice(1).map(node => node.enumerator), headingNumbers(read.blocks, read.headingNumbering));
+  // Raw MyST numbering with title:false excludes H1; Native does not use that output transform.
+  assert.deepEqual(tree.children.slice(1).map(node => node.enumerator), [undefined, "1", "1.1", "2"]);
   const moved = moveBlock(next, 4, 2);
-  assert.deepEqual(headingNumbers(getEditableDocument(moved).blocks, getHeadingNumbering(moved)), [undefined, "1", "2", "2.1"]);
+  assert.deepEqual(headingNumbers(getEditableDocument(moved).blocks, getHeadingNumbering(moved)), ["1", "1.1", "1.2", "1.2.1"]);
+  assert.equal(sectionReferenceText("Title", headingNumbers(read.blocks, read.headingNumbering)[0]), "§ 1");
+  assert.equal(sectionReferenceText("Title"), "§ Title");
+  assert.deepEqual(headingNumbers([1, 2, 3, 4, 5, 6, 1].map(level => ({ block: "heading", level })), read.headingNumbering), ["1", "1.1", "1.1.1", "1.1.1.1", "1.1.1.1.1", "1.1.1.1.1.1", "2"]);
   assert.equal(getHeadingNumbering(updateHeadingNumbering(next, false)), undefined);
   assert.equal(serialize(parse(markdown)), markdown);
 });

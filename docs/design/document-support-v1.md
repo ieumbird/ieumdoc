@@ -1,6 +1,7 @@
 # Native document support v1
 
 - Status: Implemented
+- Title update: 2026-10-29 (#722; optional single-line plain frontmatter title, no leading-H1 title inference; marker stays `ieumdoc: 1`).
 - Fixed numbering: 2026-10-29 (#720 Core/CLI; [numbering contract](heading-numbering-v1.md#fixed-numbers-720)).
 - Feature sample verification: 2026-10-28 (#528 localized folders, Core read-model coverage and canonical CLI check/format; Desktop replacement/preservation unit tests and development browser entry/captures; no local packaged Desktop run).
 - Save diagnostics: 2026-10-28 (#578 phase 2; stable Core codes, CLI JSON pass-through and bilingual Editor guidance; [inventory](#save-diagnostic-codes-578-phase-2)).
@@ -26,17 +27,25 @@ Public `parse(source)` accepts an IeumDoc native document. It validates the mark
 
 HTML recognition remains enabled so unsupported HTML is refused instead of silently admitted as literal text. Public source diagnostics reach the URL recognizer even though automatic linkification is off. The [Parser security boundary](parser-security-v1.md) records the pinned URL/inline HTML backports, public API verification and removal conditions.
 
-A native file starts with closed YAML frontmatter containing the numeric marker `ieumdoc: 1`. Missing markers, strings, unsupported versions, duplicate keys and invalid YAML are rejected. Only `ieumdoc`, optional `numbering` and optional `bibliography` are allowed. `numbering` accepts `headings: boolean`, `title: false`, and the [reference templates](heading-numbering-v1.md#reference-templates-445) for `figure`, `table` and `equation` (template string or template-only object); unknown keys and other per-kind options remain rejected. Omitting heading settings disables heading numbering; omitting a reference template uses its MyST default. `bibliography` is a non-empty sequence of relative `.bib` paths under the [citation declaration contract](citations-v1.md#bibliography-declaration-and-readiness); no resource is read. Arbitrary metadata, custom starts and per-level settings are unsupported. Heading prefixes remain unsupported. Accepted YAML comments and spelling survive body edits. Metadata never appears as an editable body block, but remains part of the Core snapshot: the first body block has path `[1]`.
+A native file starts with closed YAML frontmatter containing the numeric marker `ieumdoc: 1`. Missing markers, strings, unsupported versions, duplicate keys and invalid YAML are rejected. Only `ieumdoc`, optional single-line plain-string `title`, optional `numbering` and optional `bibliography` are allowed. `title` supports empty and single-line plain strings, preserving surrounding spaces and all accepted characters exactly. Line separators (LF/CR, VT/FF, NEL, U+2028/U+2029), YAML block scalar title syntax (`|`/`>` and their chomping variants), nonstrings, inline formatting and math are explicitly refused by operations, admission and final writes with `native-metadata` and single-line guidance; none are flattened. An absent title stays absent even when the body starts with H1. `numbering` accepts `headings: boolean`, `title: false`, and the [reference templates](heading-numbering-v1.md#reference-templates-445) for `figure`, `table` and `equation` (template string or template-only object); unknown keys and other per-kind options remain rejected. Omitting heading settings disables heading numbering; omitting a reference template uses its MyST default. `bibliography` is a non-empty sequence of relative `.bib` paths under the [citation declaration contract](citations-v1.md#bibliography-declaration-and-readiness); no resource is read. Arbitrary metadata, custom starts and per-level settings are unsupported. Heading prefixes remain unsupported. Accepted YAML comments and spelling survive body edits. Metadata never appears as an editable body block, but remains part of the Core snapshot: the first body block has path `[1]`.
 
 ```markdown
 ---
 ieumdoc: 1
+title: My document
 ---
 
-# My document
+# First section
 
 Body text.
 ```
+
+Frontmatter retains the final YAML line terminator before its closing delimiter.
+This matters beyond title: supported reference templates can contain block scalar
+strings with meaningful trailing spaces/newlines. Parse and all metadata writes
+preserve them independently of key order. Metadata edits retain the YAML library's
+complete serialization; they do not trim scalar content. Canonical output still
+uses LF and remains byte-identical on a second write.
 
 `createDocument()` returns the minimal native document with no body blocks. An empty document, an empty Figure/table/admonition/quote/list item/equation and an unresolved cross-reference are permitted authoring states. Footnotes retain their existing completeness and write rules; see [Endnotes](footnotes-v1.md). A marker alone does not certify that the body is supported.
 
@@ -127,7 +136,7 @@ already express these states. Migration and stored-data compatibility are out of
 - Label rename (#216): `update-label --update-references true` calls Core `updateLabel` with `{ updateReferences: true }` for an existing Equation/Figure/Table/section label. It atomically updates only references previously resolved to that target, preserving display content and refusing conflicts or meaning changes; omission/`false` keeps references untouched. Single edits and `apply-batch` share this option. [Section references](section-references-v1.md#opt-in-label-rename-with-references-216) defines resolution, implicit heading IDs and refusals. The implemented [Editor entry point](section-references-v1.md#editor) uses this Core opt-in for non-empty label renames. Native admission is unchanged.
 - Equation authoring: `insert-equation <file> --at <index|end> --latex <latex> [--label <label>]` composes Core `insertEquation` and `updateLabel` in one edit and one file replacement. Empty LaTeX is supported; the shared [label collision rules](section-references-v1.md#core), including implicit heading IDs, apply; failures preserve the original. Single commands and `apply-batch` share this contract (#280).
 - Top-level body insertions accept CLI `--at end`, resolved by Core `bodyEndIndex(document)` before trailing endnote definitions. Without endnotes it is after the last body block; a new empty native document returns 1. Numeric positions, including the metadata refusal below, retain their existing rules. The command scope and batch behavior are in [CLI batch application](filesystem-host-boundary-v1.md#cli-batch-application-215).
-- The [document title](document-editing-v1.md#document-title-255) is the leading level-1 heading, kept first by Core moves and insertions; admission and the Markdown form are unchanged.
+- The [document title](document-editing-v1.md#document-title-255) is optional frontmatter `title`, exposed by `EditableDocument.title` and changed through Core `updateDocumentTitle` / CLI `update-title`. It has no label/reference. Every H1–H6 is a body section; no positional title restrictions or implicit promotion apply.
 - Body operations reject top-level index `0` and paths starting with `0` at Core operation time: `block 0 is the document metadata; body blocks start at 1`. This includes insertion, movement, removal and section operations. Metadata stays at snapshot index `0`; body indices and paths are not renumbered for interfaces. Single CLI edits and Editor receive the same Core guidance; `apply-batch` wraps it as `operation N (command): <reason>; nothing was written`. Refusal preserves original file bytes and never falls through to marker or round-trip errors.
 - Core native errors keep `native-marker`, `native-metadata`, `native-content`. All explicit write validation guards also carry a stable `WriteIssueCode` through `canonicalWriteIssue` / `writeIssueOf`, alongside the original English reason, action and snapshot path/source line where identified. Unknown exceptions have no code. The [diagnostic inventory](#save-diagnostic-codes-578-phase-2) defines the code families.
 - CLI `ieumdoc create <file>` exclusively creates a new `.md` file in an existing directory. It never overwrites or creates parent directories. `check` returns a failing exit code for rejected files; JSON failures contain `ok: false`, `validation.valid: false` and `error` diagnostics, without a document model. `inspect`, `format` and editing commands use the same admission and preserve rejected file bytes.
@@ -156,7 +165,7 @@ both whole-document and operation-specific round-trip comparisons:
 | `native-metadata` | Invalid YAML, unsupported metadata, numbering or reference templates. |
 | `native-content` | Unsupported native blocks, attributes, inline nesting and citation shorthand. |
 | `invalid-structure` | Invalid root, missing node type, invalid children array. |
-| `invalid-operation` | Wrong operation argument/type, path/index/offset, stale value, illegal title/order or structural operation. |
+| `invalid-operation` | Wrong operation argument/type, path/index/offset, stale value, illegal block order or structural operation. |
 | `unsupported-content` | Unsupported inline kinds/formatting, block shapes, list/code/citation content and writer diagnostics. |
 | `empty-content` | Required paragraph/heading/endnote text is empty, or a split would create an empty persistent paragraph. |
 | `round-trip-mismatch` | Fingerprint loss, operation content/canonical instability, or changed block boundaries. |

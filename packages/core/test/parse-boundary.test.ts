@@ -1,3 +1,4 @@
+import { parseDocument } from "yaml";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { SemanticLossError } from "../src/myst/serialize.ts";
@@ -129,6 +130,22 @@ test("closed front matter remains metadata when the body changes", () => {
     "---\nabstract: |\n  ---\n  text\n---\n\nBody.\n",
   ]) {
     assert.throws(() => serialize(parse(source)), /front matter must be closed/);
+  }
+});
+
+test("front matter retains its final line terminator for YAML block scalar semantics", () => {
+  for (const ending of ["\n", "\r\n"]) for (const last of [true, false]) {
+    const block = "abstract: |+\n  Keep trailing lines.\n\n";
+    const other = "title: Example\n";
+    const yaml = last ? other + block : block + other;
+    const source = `---\n${yaml}---\n\nBody.\n`.replaceAll("\n", ending);
+    const document = parse(source);
+    const stored = String(document.children[0].value);
+    assert.equal(stored, yaml);
+    assert.equal(parseDocument(stored).get("abstract"), "Keep trailing lines.\n\n");
+    const output = serialize(document);
+    assert.equal(output, source.replaceAll("\r\n", "\n"));
+    assert.equal(serialize(parse(output)), output);
   }
 });
 
