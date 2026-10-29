@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { i18n } from "./i18n.ts";
-import { Fragment, memo, useLayoutEffect, useState } from "react";
+import { Fragment, memo, useLayoutEffect, useState, type CSSProperties } from "react";
 import type { DocumentFileResponse } from "../shared/document-protocol.ts";
 import { DocumentEditor } from "./DocumentEditor.tsx";
 import type { ImageRenamer } from "./image-rename.ts";
@@ -8,13 +8,16 @@ import { EditorVisibility } from "./editor-visibility.ts";
 import { useDocumentSession, type DocumentSession, type DocumentSessionSnapshot } from "./useDocumentSession.ts";
 
 /** One mounted hook/editor per tab. Reporting shell state never replaces the editor. */
-export const DocumentTab = memo(function DocumentTab({ settingsDisabled, id, file, restored, recoveryId, active, report, onAssetChange, renameImage }: {
+export const DocumentTab = memo(function DocumentTab({ settingsDisabled, id, file, restored, recoveryId, active, focused, groupIndex, onFocus, report, onAssetChange, renameImage }: {
   settingsDisabled: boolean;
   id: string;
   file: DocumentFileResponse;
   restored?: DocumentSessionSnapshot;
   recoveryId: string;
   active: boolean;
+  focused: boolean;
+  groupIndex: number;
+  onFocus(id: string): void;
   report(id: string, session: DocumentSession | null): void;
   onAssetChange(documentPath: string, assetPath: string): void;
   renameImage: ImageRenamer;
@@ -22,12 +25,14 @@ export const DocumentTab = memo(function DocumentTab({ settingsDisabled, id, fil
   useTranslation();
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const session = useDocumentSession(file, restored, recoveryId, onAssetChange, renameImage);
-  useLayoutEffect(() => { if (!active && session.noticeAction) session.setNotice(""); }, [active]);
+  useLayoutEffect(() => { if (!focused && session.noticeAction) session.setNotice(""); }, [focused]);
   useLayoutEffect(() => { report(id, session); });
   useLayoutEffect(() => () => report(id, null), [id, report]);
   return (
     <div className="document-scroll" role="tabpanel" id={`panel-${id}`} aria-labelledby={`tab-${id}`} hidden={!active} inert={!active}
-      data-document-tab={id} data-active={active ? "true" : "false"}>
+      data-document-tab={id} data-active={focused ? "true" : "false"} data-visible={active ? "true" : "false"} data-group-index={groupIndex}
+      style={{ "--editor-group-index": groupIndex } as CSSProperties}
+      onFocusCapture={() => onFocus(id)} onPointerDownCapture={() => onFocus(id)}>
       <div className="document-column">
         {session.view === "source" ? (
           <article className="document source-view" data-testid="source-view" aria-label={i18n.t("Markdown source")}>

@@ -1,6 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Editor groups verification: 2026-10-29 (#488 phase 1; Editor 341 tests, workspace typecheck/build, related browser regressions and [group/visual evidence](#two-editor-groups-488-phase-1)).
 - Tab-row actions update: 2026-10-29 (#695; [current contract and evidence](#title-strip-and-tab-row-actions-695)).
 - Non-overlapping roots verification: 2026-10-29 (#702: Editor 338 unit tests, typecheck/build; persistent Chrome folder-navigation/memory, layout-rules, quiet-document, document-tabs, editor-shell and reveal-folder; [behavior and captures](editor-ux-shell-v1.md#non-overlapping-opened-folders-702)).
 - Document scroll verification: 2026-10-29 (#488 phase 0; [container contract and evidence](#document-scroll-container-488-phase-0)).
@@ -37,6 +38,79 @@
 
 Historical verification records: [Verification record](#verification-record).
 
+## Two editor groups (#488 phase 1)
+
+There are at most two editor groups, in fixed equal columns separated by a 1px
+structural boundary. Each has its own scrolling tablist and active-document
+Visual/Source, Save/status and File actions at the right. The title strip is shared.
+Pointer or keyboard focus in a group's tabs, actions or document makes that group
+the target of Outline, Command Center and shell shortcuts. Both documents remain
+independently scrollable and editable. The focused group's tab row uses the existing
+selected-surface color as a cue; individual tab selection keeps its accent marker.
+Equal filenames keep their distinguishing parent-folder labels across both groups.
+
+Open to the right is available in tab context menus, document File actions, Explorer
+document context menus and Command Center. It targets the right group, creating it
+when necessary. Move to other group is available from tab/File menus and Command
+Center when two groups exist. There was no tab drag interaction to extend; these
+commands provide keyboard and pointer movement. An ordinary document Open targets
+the focused group. Selecting an existing tab in Command Center focuses its owner.
+Opening an already open document in another group moves that same tab. No second
+session, editor, undo history, property draft or recovery record is created. Moving
+the last tab out of a group, closing it or deleting its file removes the empty group.
+
+Each group needs **440px**, derived from the supported 640px desktop viewport minus
+the existing 200px narrow expanded Explorer. Split documents use the existing narrow
+paper trailing inset (16px), preserving the 80px starting gutter. The available
+document area must be at least **881px** (2 × 440px + 1px boundary), after the current
+Explorer and docked Outline reservations. Split commands are disabled below this
+width. Resizing the window or opening a side panel below this limit merges both tab
+lists in left-to-right order and retains the focused active tab. Tabs stay mounted;
+unsaved content, drafts, history and each document's scroll position survive. Widening
+the window does not split again automatically.
+
+Group layout is page memory. The existing [navigation-only tab memory](editing-session-save-v1.md#tab-navigation-memory-383)
+continues to remember flattened tab order and the focused active path, without a new
+preference format or recovery mechanism. Reload restores those documents in one
+group through the existing Host validation and recovery precedence. No stored-data
+migration, Core semantic operation or CLI surface is needed for this editor interaction.
+Derived screens, a third group and divider dragging remain outside phase 1.
+
+### Group verification and visual evidence
+
+`editor-groups` verifies retained editor identity, content/selection/property drafts,
+Undo/Redo, independent native scroll, group Save/Source, focused shortcut/Command Center/
+Outline, ordinary Open relocation without rereading, Explorer Open to the right,
+empty-group/dirty-close guards, narrow merging and navigation-only Reload. A held
+Host Open response also verifies that actual focus can change groups during loading;
+the immediate focus assertion failed before separating focus from operation guards.
+Existing same-tab navigation-memory regression caught a misplaced early return; it
+still verifies explicit selection overwrites stale shared memory, without changing
+Save or restoration write boundaries. Neither test criterion was relaxed.
+
+Final local `editor-groups` and `quiet-document --screenshots` pass. The related
+`document-tabs`, `document-scroll`, `command-center`, `editor-shell`, `source-view`,
+`save-session` and `layout-rules` scenarios pass. Temporary local stop-after-first-failure
+prevented automatic worker relaunches during diagnosis and is absent from the PR.
+No retries or timeout changes were added. Edge and packaged Desktop remain CI-only.
+
+The same-state Quiet Document pairs below use base `7f6ba127803ad456f57b7c2d8688e638cf6040cb`
+and this implementation, Vite 127.0.0.1:5294, checkout-owned persistent installed Windows
+Chrome, English/light UI, bundled Pretendard loaded, DPR/zoom 1 and 1000px height.
+They retain the existing single-group document, panel and interaction state. The
+Before/After PNG hashes match at both widths. The
+additional 900px-high group captures show two different document scroll positions at
+1440px and their lossless single-group merge at 640px; these are feature evidence,
+not same-state comparisons. At 1440px with both side panels open, each group measures
+471.5px, separated by 1px, and both viewports end at y=900. Their shared message/header
+bottom is y=120 in the captured draft-notice state.
+
+| State | Before | After |
+| --- | --- | --- |
+| Quiet Document, 1440px | [Before](assets/editor-groups-488/before-1440.png) | [After](assets/editor-groups-488/after-1440.png) |
+| Quiet Document, 640px | [Before](assets/editor-groups-488/before-640.png) | [After](assets/editor-groups-488/after-640.png) |
+| Two groups / narrow merge | — | [1440px split](assets/editor-groups-488/groups-1440.png) · [640px merged](assets/editor-groups-488/groups-640.png) |
+
 ## Title strip and tab-row actions (#695)
 
 The shared title strip is always exactly one `--layout-header-row` (40px): brand,
@@ -55,8 +129,8 @@ stable. The compact menu stays available without a document and during pending w
 for the width preference; document-specific commands retain their disabled guards.
 Visual/Source and Save are disabled on the empty start screen. No special tab is added.
 
-Each row receives the actions and status of its own active document. This change
-introduces no groups or split UI. Existing independent tab sessions, Save/shortcut,
+Each row receives the actions and status of its own active document. #488 phase 1
+adds the groups described above. Existing independent tab sessions, Save/shortcut,
 Source, Reload/discard, Compare, Copy path, Command center and error/conflict
 MessageArea paths are retained. Explorer → search → document tabs → document actions →
 content follows DOM keyboard order. Tabs retain roving navigation, close and dirty dots.
@@ -148,7 +222,8 @@ Each mounted document tab owns one native `.document-scroll` viewport. Hiding a 
 its scroll position with its existing editor/session; closing it releases that element. Visual
 and Source share the tab's viewport. No scroll position is persisted across application reloads.
 `documentScrollContainer` is the single lookup for the owning viewport; shell actions can use
-the active surface, including the document start surface. There are no editor groups or new commands.
+the focused surface, including the document start surface. #488 phase 1 bounds each
+visible document's viewport to its editor group; hidden tabs keep their viewport.
 
 The viewport spans the window width **below the measured tabs/messages header** to keep its
 native scrollbar at the right edge only in the document area (#694 follow-up). The root does
@@ -711,19 +786,18 @@ The shell has three responsibilities: the Sidebar on the left browses opened fol
 | MessageArea | Load/save errors, conflict and temporary notices below the tab row; no reserved height when empty. Explicit table deletion shows `Table deleted` / `표를 삭제했습니다` with `Undo` / `되돌리기`, using the existing five-second temporary notice, informational surface and polite status role. It takes no focus. Undo restores the table in one editor history step and returns focus to the editor. The notice/action closes on the next document change, Save, Reload (including opening its discard prompt), Source preview request start, tab switch or timeout; a revoked action cannot undo other work. Source cannot undo the hidden Visual document, and returning to Visual does not revive the action. See [Table interaction](table-interaction-v1.md). |
 | Document | Continuous white writing surface with a subtle edge on a muted canvas, extending at least to the bottom of the viewport minus its outer gap. Block tools occupy its gutter. Empty editable documents expose a first-line hint and `+`. No fixed formatting toolbar. |
 
-General file navigation is Open folder… followed by choosing a `.md` file in the sidebar tree; there is no full-file-path dialog (#190). Closing the folder dialog returns focus to the control that opened it. Open folder uses an in-app [folder picker](folder-picker-v1.md), with path completion, breadcrumbs, Up, New folder, recent folders and starting places. Navigating never opens a folder: Enter or Open applies the typed path to the sidebar. A document clicked in the folder opens through Open and its checks ([Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112)). Source previews canonical Markdown read-only. Long source lines, including unbroken URLs/words, soft-wrap to the available width without horizontal scrolling (#476). Line numbers count Markdown lines only; continuations align with their line's text and have no new number. Wrapping changes no document text or saved content, inserts no copied characters or line breaks, and the generated numbers are never copied. Native selection/Copy retains its existing omission of the terminal newline in Chromium. Source does not replace or reconstruct that tab's visual editor state. Pending Source work blocks document switching. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
+General file navigation is Open folder… followed by choosing a `.md` file in the sidebar tree; there is no full-file-path dialog (#190). Closing the folder dialog returns focus to the control that opened it. Open folder uses an in-app [folder picker](folder-picker-v1.md), with path completion, breadcrumbs, Up, New folder, recent folders and starting places. Navigating never opens a folder: Enter or Open applies the typed path to the sidebar. A document clicked in the folder opens through Open and its checks ([Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112)). Source previews canonical Markdown read-only. Long source lines, including unbroken URLs/words, soft-wrap to the available width without horizontal scrolling (#476). Line numbers count Markdown lines only; continuations align with their line's text and have no new number. Wrapping changes no document text or saved content, inserts no copied characters or line breaks, and the generated numbers are never copied. Native selection/Copy retains its existing omission of the terminal newline in Chromium. Source does not replace or reconstruct that tab's visual editor state. Pending Source work blocks switching tabs within its group. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
 
 Opening another document or the folder heading's `+` opens a new tab after Host success; an already-open
-normalized path activates its tab without a Host GET when the requested path matches exactly. Other
+normalized path activates its existing tab in the requested group without a Host GET when the requested path matches exactly. Other
 spellings still use Host normalization. Neither Open/New nor tab switching asks to discard work. Switching
 retains history, block property drafts, selection, scroll and view; transient inline link/math inputs
-close on blur as within one document. Active pending Save/Source/assets/Open/New still
-block it. **Save / Don't save / Cancel** is used for closing one dirty tab. Failed Save, Cancel, or newer
+close on blur as within one document. Pending Save/Source/assets block tab switching within their group; Open/New and close confirmation retain their operation guards. Focus can still move between visible documents. **Save / Don't save / Cancel** is used for closing one dirty tab. Failed Save, Cancel, or newer
 applied edits after Save keep that tab. Inactive tabs keep their state with overlays and measurement
 suspended. Browser unload and Desktop close/update inspect all tabs. See the
 [editing-session contract](editing-session-save-v1.md#switching-and-recovery).
 
-On Reload or Desktop restart, tab paths, order and active identity are restored from browser
+On Reload or Desktop restart, flattened tab paths, order and focused active identity are restored in one group from browser
 preferences, after opened-folder restoration. Missing/refused/non-native documents are quietly
 excluded; no document content, cursor or undo is remembered here. Explicit URL/Desktop launch paths
 win over remembered tabs, and unsaved recovery records retain their existing review flow rather than
