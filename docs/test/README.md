@@ -305,8 +305,20 @@ pnpm --filter @ieumdoc/desktop test:update:github
 ## Manual review
 
 - [TEST_GUIDE](TEST_GUIDE.md): 실행 옵션, CI, OS IME·실제 앱 clipboard 등 자동화가 판정하지 않는 시나리오.
-- [Visual change review](../design/editor-visual-language-v1.md#reviewing-a-visual-change): 같은 상태의 Before/After 캡처와 검토 절차.
+- [Visual change review](#reviewing-a-visual-change): 같은 상태의 Before/After 캡처와 검토 절차.
 - [Layout Rules](../design/editor-layout-rules-v1.md): 정렬·간격·control 치수 기준.
+
+### Reviewing a visual change
+
+A change to the Editor's look or a new visible control states which [Visual Language](../design/editor-visual-language-v1.md), [Layout Rules](../design/editor-layout-rules-v1.md) or [UI pattern](../design/ui-patterns-v1.md) rule it follows, or updates the relevant contract in the same PR. Compare the same states before and after:
+
+1. Capture the clean base before editing and preserve its files separately, or check out the base in a second worktree and start its dev server on a free port (for example 5174).
+2. In each checkout, run `pnpm browser:test quiet-document --screenshots` against that checkout's own server; in the base worktree set `IEUMDOC_BROWSER_URL=http://127.0.0.1:5174`. Fixtures and captures belong to the checkout that runs the command.
+3. Compare the captures in each checkout's `tmp/visual-refinement/` and attach the representative pairs to the PR.
+
+IeumDoc keeps one stylesheet; comparison captures do not need a runtime old/new theme toggle. Record the actual HEAD, viewport, DPR/zoom, scroll/interaction state and font environment. CSS studies and mockups are not product Before images.
+
+Use 1440px and 640px as the default comparison widths under [ADR-0010](../adr/0010-supported-viewport-and-input.md). Follow the [Windows browser/session rules](../contributing/windows-browser-automation.md), and close processes started for the comparison. Captures are manual evidence, not screenshot assertions or owner visual approval.
 
 ## Native document boundary
 

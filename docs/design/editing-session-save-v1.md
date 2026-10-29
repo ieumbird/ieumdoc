@@ -3,7 +3,7 @@
 - Status: Implemented
 - Editor groups verification: 2026-10-29 (#488 phase 1; one mounted session per document across group moves, group actions/focused shortcuts, dirty-close and navigation-only reload; [contract and evidence](editor-ux-shell-v1.md#two-editor-groups-488-phase-1)).
 - Recovery support verification: 2026-10-29 (#705: current-schema validation and stored plaintext refusal path; Editor tests and typecheck).
-- Pre-save comparison verification: 2026-10-28 (#655 stage 2: Save parity, read-only state, external revisions, refusal locations and missing files; [visual evidence](editor-visual-language-v1.md#pre-save-comparison-655)).
+- Pre-save comparison verification: 2026-10-28 (#655 stage 2: Save parity, read-only state, external revisions, refusal locations and missing files; [visual evidence](../reviews/editor-visual-language-history-2026-10-30.md#pre-save-comparison-655)).
 - Save refusal verification: 2026-10-28 (#578 phase 2: structured Core codes and bilingual cause/action in the alert and badge; [diagnostic guidance](#diagnostic-guidance-578-phase-2). Phase 1: localized summaries and collapsed original details, block/cell highlighting and keyboard reveal, list-shaped state with conservative submitted-snapshot invalidation; no Host/Core validation policy change).
 - Image rename verification: 2026-10-27 (#504: file-actions browser checks inactive dirty/property-draft refusal, clean active/inactive tabs, Source-to-Visual reload, subsequent Save and other-window revision conflict).
 - File operations verification: 2026-10-27 (#505 / #504 PR A: Editor/Host/Desktop unit tests, workspace typecheck, production Editor build and targeted persistent-Chrome browser checks; packaged Desktop is CI-only).
@@ -494,7 +494,7 @@ visible **Cannot save** badge (**저장 불가** in Korean). A located table cel
 inset stroke covering the current-cell outline, clipped to its table's horizontal scroll viewport. These overlays live outside
 the engine content and do not change document geometry, source, selection, history or dirty state.
 The error stroke paints above selection and hover: a refused Save needs to remain discoverable
-even when the user selects or points at the same block. See [visual contract](editor-visual-language-v1.md#save-refusal-highlights-578).
+even when the user selects or points at the same block. See [visual contract](editor-visual-language-v1.md#state-rules).
 
 **Go to problem** uses the same block-reveal path as Outline/Tables/Figures: it selects text or an
 atomic block using ProseMirror, focuses the editor and scrolls below the measured sticky header.
@@ -547,7 +547,7 @@ never English prose. File/revision/transport guidance takes precedence over any 
 Core owns the [code inventory and collection decision](document-support-v1.md#save-diagnostic-codes-578-phase-2).
 Host still reports its first failure. Captures for real empty-heading collection and table-cell
 round-trip refusals cover 640/1440px, Korean/English and light/dark in the
-[visual evidence](editor-visual-language-v1.md#diagnostic-guidance-captures-578-phase-2).
+[visual evidence](../reviews/editor-visual-language-history-2026-10-30.md#diagnostic-guidance-captures-578-phase-2).
 
 ## Switching and recovery
 
@@ -702,7 +702,7 @@ retry for read/calculation errors and Close, with no Save or revert action. Clos
 the invoking focus target. Ctrl/Cmd+S is blocked while the dialog is open.
 
 Visual evidence and capture conditions are recorded in
-[Visual Language](editor-visual-language-v1.md#pre-save-comparison-655).
+[the Historical comparison record](../reviews/editor-visual-language-history-2026-10-30.md#pre-save-comparison-655).
 
 ## Save shortcut and work-loss protection (#56)
 

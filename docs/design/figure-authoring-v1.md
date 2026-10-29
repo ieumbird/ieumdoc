@@ -55,7 +55,7 @@ text, so the caption's accessible name is announced once. Clicking the hint plac
 the engine caret in the caption and hides the hint; keyboard and programmatic selection
 do the same. Clearing the text and moving selection away restores it. The hint is absent in read-only
 mode and is never document text, clipboard content, Source or saved Markdown.
-See the [visual verification](editor-visual-language-v1.md#empty-caption-hints-698).
+See the [visual verification](../reviews/editor-visual-language-history-2026-10-30.md#empty-caption-hints-698).
 Repeated Backspace keeps the caption's editable surface and model synchronized; once empty,
 further Backspace does not edit the preceding block. Deletion that empties a caption uses the shared
 ProseMirror deletion/history boundary described in [Table caption](table-caption-v1.md).
