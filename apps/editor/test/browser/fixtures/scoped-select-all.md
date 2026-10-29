@@ -31,7 +31,7 @@ graph LR
 
 After.
 
-[^a]: **First** note with $n$  
+[^a]: **First** note with $n$\
     Second line.
 
 [^b]: Keep this note.
