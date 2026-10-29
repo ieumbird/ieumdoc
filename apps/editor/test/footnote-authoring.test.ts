@@ -5,7 +5,7 @@ import { getSchema } from "@tiptap/core";
 import { history, undo, redo } from "@tiptap/pm/history";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { AllSelection, EditorState, NodeSelection, TextSelection, type Transaction } from "@tiptap/pm/state";
-import { parse, serialize } from "@ieumdoc/core";
+import { getEditableDocument, parse, removeFootnote, serialize } from "@ieumdoc/core";
 import { BLOCK_COMMANDS, deleteBlock } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { cancelEndnoteEditing, endnoteEditingKey, endnoteEditingPlugin, endnoteLabel, endnoteNumber, endnotesPlugin } from "../src/endnotes.ts";
@@ -68,10 +68,31 @@ test("reference cut/paste preserves definitions, fresh locators and one-event Un
   assert.equal(serialize(parse(saved)), saved);
   assert.throws(() => pasteFootnotes(destination, slice, []), /definition is missing/);
   const conflict = [{ label: "a", content: [{ kind: "text" as const, text: "Incoming." }] }];
-  const target = selected.apply(pasteFootnotes(selected, slice, conflict));
+  const target = selected.applyTransaction(pasteFootnotes(selected, slice, conflict)).state;
   assert.equal(target.doc.nodeAt(pos)!.attrs.label, "1");
   assert.equal(target.doc.content.content.find(node => endnoteLabel(node) === "a")?.textContent, undefined, "replacing the last original reference removes its old definition");
   assert.equal(target.doc.content.content.find(node => endnoteLabel(node) === "1")?.textContent, "Incoming.");
+  assert.deepEqual(labels(target.doc), ["heading", "paragraph", "1", "b"], "cleanup must place the replacement definition in first-reference order before rendering");
+  assert.equal(target.selection.from, pos + 1, "placement retains the paste caret");
+  const conflictSaved = saveEdits(source, collectSupportedEdits(loadEditableDocument(source), editorDocumentJSON(target))).markdown;
+  assert.deepEqual(labels(schema.nodeFromJSON(toTiptapDocument(loadEditableDocument(conflictSaved)))), labels(target.doc), "Save/Reload must retain the displayed order");
+  assert.ok(run(target, undo).doc.eq(selected.doc), "one Undo restores replaced reference, old definition and placement");
+});
+
+test("definition deletion removes reference-only ordinary paragraphs and restores all with one Undo", () => {
+  for (const tail of ["Other.\n\n", ""]) {
+    const markdown = nativeSource(`[^a]\n\n${tail}[^a]: Note.\n`);
+    const state = engine(markdown);
+    const deleted = state.applyTransaction(deleteBlock(state, state.doc.childCount - 1)).state;
+    const saved = saveEdits(markdown, collectSupportedEdits(loadEditableDocument(markdown), editorDocumentJSON(deleted))).markdown;
+    const document = parse(markdown);
+    const note = getEditableDocument(document).blocks.find(block => block.block === "footnote")!;
+    assert.equal(saved, serialize(removeFootnote(document, note.path)), "Editor and headless Core must produce the same saved document");
+    assert.equal(getEditableDocument(parse(saved)).blocks.length, tail ? 1 : 0);
+    assert.deepEqual(labels(deleted.doc), ["paragraph"]);
+    assert.equal(deleted.doc.textContent, tail ? "Other." : "");
+    assert.ok(run(deleted, undo).doc.eq(state.doc), "one Undo restores paragraph, reference and definition");
+  }
 });
 
 test("deleting a definition removes repeated references together and Host replay retains moved definitions", () => {

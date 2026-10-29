@@ -43,7 +43,7 @@ export { labelError, labelKey, targetLabelError } from "./label.ts";
 export { planLabelRename, type LabelRenameBlock, type LabelRenameReference } from "./myst/label-rename-plan.ts";
 export { planEndnoteLifecycle } from "./numbering.ts";
 export type { FootnoteDefinition } from "./operations.ts";
-export { planFootnotePaste, footnoteDefinitionsMarkdown } from "./operations.ts";
+export { planFootnotePaste, footnoteDefinitionsMarkdown, endnoteRemovalEmptiesParagraph } from "./operations.ts";
 export { sectionBoundaries, sectionMarker, sectionRange, type SectionMarker } from "./section.ts";
 export { blockTargets, NUMBERED_KINDS, targetNumbers, numberingReport, type NumberingDiagnostic, type NumberedKind, type NumberedTargets } from "./numbering.ts";
 export { endnoteOrder, footnoteNumbers, nextFootnoteLabel, orphanedEndnotes, headingNumbers, sectionReferenceText, defaultHeadingNumbering, type EndnoteBlock, type HeadingNumbering } from "./numbering.ts";

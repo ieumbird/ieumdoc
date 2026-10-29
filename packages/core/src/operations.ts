@@ -127,6 +127,19 @@ export function removeSection(document: MystDocument, heading: number, { deferEn
   return deferEndnotes ? next : reconcileEndnotes(document, next);
 }
 
+/** Whether coupled reference deletion completely empties an ordinary paragraph. Unrelated
+ * empty paragraphs are untouched; links and other data-bearing inline content are retained. */
+export function endnoteRemovalEmptiesParagraph(content: InlineContent[], labels: readonly string[]): boolean {
+  const removed = new Set(labels);
+  let changed = false;
+  const withoutReferences = (items: InlineContent[]): InlineContent[] => items.flatMap(item => {
+    if (item.kind === "footnote" && removed.has(item.label)) { changed = true; return []; }
+    return [{ ...item, ...("children" in item ? { children: withoutReferences(item.children) } : {}) }];
+  });
+  const remaining = withoutReferences(content);
+  return changed && structuralInlineContent(remaining).length === 0;
+}
+
 /** Complete one semantic edit or an entire replay/batch. Parsing and canonical serialization
  * retain their fail-closed admission/write checks; this never repairs external source. */
 export function reconcileEndnotes(before: MystDocument, after: MystDocument): MystDocument {
@@ -138,12 +151,16 @@ export function reconcileEndnotes(before: MystDocument, after: MystDocument): My
     if (!node.children) return false;
     let changed = false;
     node.children = node.children.filter(child => {
+      if (node.type === "root" && child.type === "paragraph") {
+        const content = projectInlineContent(child);
+        if (content && endnoteRemovalEmptiesParagraph(content, plan.removeReferences)) { changed = true; return false; }
+      }
       if (child.type === "footnoteReference" && references.has(String(child.label))) { changed = true; return false; }
       if (!remove(child)) return true;
       changed = true;
       // Reuse native empty structural content: empty list items/quotes/admonitions have no
       // paragraph, and empty Figure/Table captions have no caption node. Headings stay headings.
-      if (["paragraph", "strong", "emphasis", "delete", "subscript", "superscript"].includes(child.type)) {
+      if ((child.type === "paragraph" && node.type !== "root") || ["strong", "emphasis", "delete", "subscript", "superscript"].includes(child.type)) {
         const content = projectInlineContent(child);
         if (content && structuralInlineContent(content).length === 0) return false;
       }
