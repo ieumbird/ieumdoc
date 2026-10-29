@@ -7,7 +7,8 @@
 - Empty structural elements: 2026-10-27 (#574; canonical forms and verification below).
 - Documentation verification: 2026-10-26 (Open protection and implemented Editor label rename compared with the session/reference contracts and current code; no new browser execution).
 - CLI insertion verification: 2026-10-15 (#280 Core body-end and CLI single/batch insertion tests; one-write and unchanged-file refusal).
-- Last verified: 2026-10-24 (#366 citation-only and footnote-only list admission, update and canonical reopen; Core list regressions).
+- Last verified: 2026-10-29 (#730 adjacent-list canonical boundaries, numbering/content preservation and stable reopen; Core regressions and Editor paragraph deletion through Host Save).
+- Previous verification: 2026-10-24 (#366 citation-only and footnote-only list admission, update and canonical reopen; Core list regressions).
 - Previous verification: 2026-10-22 (#332 citation roles and bibliography declarations; Core/CLI/Editor tests and browser Save → Reload, detailed in [Citations](citations-v1.md)).
 - Previous verification: 2026-10-20 (#328: literal @ admission, canonical escaping and bracket shorthand refusal; Core/CLI tests and Editor save-path code inspection).
 - Previous verification: 2026-10-19 (#255: the leading level-1 heading is the document title and stays first in Core operations; admission and format unchanged).
@@ -179,6 +180,16 @@ required. No sequential replay continuation or duplicate Editor semantics is add
 list-shaped highlighting/navigation contract is unchanged.
 
 ## Canonical output and compatibility
+
+Adjacent lists retain separate boundaries without HTML comments: canonical output
+alternates `*` / `-` for adjacent unordered lists and `.` / `)` for adjacent ordered
+lists, preserving each list's start, kind, items and nesting. Repeated writes are
+byte-stable. This also applies to the internal writer's nested list flows; Native
+List v1 still permits at most one nested list per item.
+`patches/myst-to-md@1.0.17.patch` enables the existing downstream writer options
+`bulletOther` and `bulletOrderedOther` (#730). Remove the patch when the pinned
+upstream writer preserves these boundaries without HTML and the Core adjacency
+and canonical round-trip regressions pass. No serializer guard is relaxed.
 
 The [v0.1.0-beta.1 candidate release record](../releases/v0.1.0-beta.1.md) summarizes compatibility and behavior changes since beta.4. The native marker remains `ieumdoc: 1`; beta.4 native documents remain supported, while new citation and reference-template metadata is not supported by beta.4.
 

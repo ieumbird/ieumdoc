@@ -20,6 +20,8 @@ minimumReleaseAgeExclude:
 patchedDependencies:
   linkify-it@4.0.1: patches/linkify-it@4.0.1.patch
   markdown-it@13.0.2: patches/markdown-it@13.0.2.patch
+  # Preserve adjacent list boundaries without HTML (#730); removal: document-support-v1.md.
+  myst-to-md@1.0.17: patches/myst-to-md@1.0.17.patch
   # Restore native focus before selection is read; preserve later keys/pointer/touch (#542, #144, #489).
   # Current scope/removal: docs/design/document-editing-v1.md; original evidence: docs/reviews/prosemirror-focus-caret-2026-10-09.md
   prosemirror-view@1.42.4: patches/prosemirror-view@1.42.4.patch
