@@ -40,7 +40,7 @@ import {
   bodyIndex, completeFootnotes, createFootnoteDefinition, endnoteBlocks, endnotePlacement, footnoteLabels, footnoteReferences,
   supportedFootnoteContent,
 } from "./myst/footnote.ts";
-import { nextFootnoteLabel, orphanedEndnotes } from "./numbering.ts";
+import { nextFootnoteLabel, planEndnoteLifecycle } from "./numbering.ts";
 import { canonicalCitation, type CitationContent } from "./citation.ts";
 import { FRONT_MATTER_FIELD, parse } from "./myst/parse.ts";
 import { serialize, serializeFor } from "./myst/serialize.ts";
@@ -115,20 +115,78 @@ export function moveSection(document: MystDocument, heading: number, to: number)
 
 /**
  * Remove the section a top-level heading opens, with its label targets and deeper sections.
- * Endnote definitions are in no section and are kept; a removal that would leave one with no
- * reference is refused, naming it, because canonical write would refuse the document.
+ * Endnote definitions are in no section; definitions with no remaining reference are cleaned
+ * at completion. A larger batch may defer reconciliation until all its operations finish.
  */
-export function removeSection(document: MystDocument, heading: number): MystDocument {
+export function removeSection(document: MystDocument, heading: number, { deferEndnotes = false }: { deferEndnotes?: boolean } = {}): MystDocument {
   assertBodyIndex(document, heading);
   const { start, end } = sectionRange(sectionMarkers(document), heading);
   const inSection = sectionContent(document, start, end);
-  const orphaned = orphanedEndnotes(endnoteBlocks(document), inSection);
-  if (orphaned.length > 0) {
-    throw new DocumentDiagnosticError("invalid-footnote", `removing this section would leave footnote [^${orphaned[0]}] with no reference, and MyST drops an unreferenced definition`);
-  }
   const next = cloneDocument(document);
   next.children = next.children.filter((_, index) => !inSection(index));
+  return deferEndnotes ? next : reconcileEndnotes(document, next);
+}
+
+/** Whether coupled reference deletion completely empties an ordinary paragraph. Unrelated
+ * empty paragraphs are untouched; links and other data-bearing inline content are retained. */
+export function endnoteRemovalEmptiesParagraph(content: InlineContent[], labels: readonly string[]): boolean {
+  const removed = new Set(labels);
+  let changed = false;
+  const withoutReferences = (items: InlineContent[]): InlineContent[] => items.flatMap(item => {
+    if (item.kind === "footnote" && removed.has(item.label)) { changed = true; return []; }
+    return [{ ...item, ...("children" in item ? { children: withoutReferences(item.children) } : {}) }];
+  });
+  const remaining = withoutReferences(content);
+  return changed && structuralInlineContent(remaining).length === 0;
+}
+
+/** Complete one semantic edit or an entire replay/batch. Parsing and canonical serialization
+ * retain their fail-closed admission/write checks; this never repairs external source. */
+export function reconcileEndnotes(before: MystDocument, after: MystDocument): MystDocument {
+  const plan = planEndnoteLifecycle(endnoteBlocks(before), endnoteBlocks(after));
+  if (!plan.removeDefinitions.length && !plan.removeReferences.length) return after;
+  const next = cloneDocument(after);
+  const definitions = new Set(plan.removeDefinitions), references = new Set(plan.removeReferences);
+  const remove = (node: MystNode): boolean => {
+    if (!node.children) return false;
+    let changed = false;
+    node.children = node.children.filter(child => {
+      if (node.type === "root" && child.type === "paragraph") {
+        const content = projectInlineContent(child);
+        if (content && endnoteRemovalEmptiesParagraph(content, plan.removeReferences)) { changed = true; return false; }
+      }
+      if (child.type === "footnoteReference" && references.has(String(child.label))) { changed = true; return false; }
+      if (!remove(child)) return true;
+      changed = true;
+      // Reuse native empty structural content: empty list items/quotes/admonitions have no
+      // paragraph, and empty Figure/Table captions have no caption node. Headings stay headings.
+      if ((child.type === "paragraph" && node.type !== "root") || ["strong", "emphasis", "delete", "subscript", "superscript"].includes(child.type)) {
+        const content = projectInlineContent(child);
+        if (content && structuralInlineContent(content).length === 0) return false;
+      }
+      return child.type !== "caption" || child.children?.length !== 0;
+    });
+    return changed;
+  };
+  remove(next);
+  next.children = next.children.filter(node => !(node.type === "footnoteDefinition" && definitions.has(String(node.label))));
   return next;
+}
+
+/** Delete one definition and every reference to its exact label in a single semantic edit. */
+export function removeFootnote(document: MystDocument, path: NodePath): MystDocument {
+  assertTopLevelPath(path);
+  if (getNode(document, path).type !== "footnoteDefinition") throw new DocumentDiagnosticError("invalid-operation", "removeFootnote requires a footnote definition");
+  return reconcileEndnotes(document, removeBlock(document, path[0]));
+}
+
+/** Stage an operation without dropping definitions or inventing references. Batch indexes use
+ * canonical placement, while lifecycle cleanup and final write validation wait for completion. */
+export function placeEndnotes(document: MystDocument): MystDocument {
+  // Retain every other intermediate write check (for example empty Equation numbers).
+  // The completed copy is validation-only; no synthetic definition/reference reaches callers.
+  serialize(completeFootnotes(document));
+  return { ...document, children: endnotePlacement(document) };
 }
 
 /** Whether a top-level block is content of the section range `[start, end)`: definitions are not. */
@@ -409,6 +467,38 @@ export function updateFootnoteDefinition(document: MystDocument, path: NodePath,
   next.children[path[0]] = createFootnoteDefinition(label, normalized);
   assertFootnoteRoundTrip(next, label, normalized);
   return next;
+}
+
+export type FootnoteDefinition = { label: string; content: InlineContent[] };
+
+/** Core owns exact-label matching, content equality and collision-free clipboard labels. */
+export function planFootnotePaste(labels: readonly string[], existing: readonly FootnoteDefinition[], incoming: readonly FootnoteDefinition[]): {
+  labels: { from: string; to: string }[]; definitions: FootnoteDefinition[];
+} {
+  const used = new Set([...labels, ...incoming.map(note => note.label)]);
+  const seen = new Set<string>();
+  const definitions: FootnoteDefinition[] = [], mapping: { from: string; to: string }[] = [];
+  for (const note of incoming) {
+    const error = footnoteLabelError(note.label);
+    if (error || seen.has(note.label)) throw new DocumentDiagnosticError("invalid-footnote", error ?? "duplicate clipboard footnote definition");
+    seen.add(note.label);
+    const content = footnoteContent(note.content);
+    const current = existing.find(item => item.label === note.label);
+    const label = current && !sameInlineContent(current.content, content) ? nextFootnoteLabel(used) : note.label;
+    used.add(label);
+    mapping.push({ from: note.label, to: label });
+    if (!current || label !== note.label) definitions.push({ label, content });
+  }
+  return { labels: mapping, definitions };
+}
+
+/** Canonical definition Markdown for the plain-text clipboard, using the normal writer. */
+export function footnoteDefinitionsMarkdown(definitions: readonly FootnoteDefinition[]): string {
+  if (!definitions.length) return "";
+  let document: MystDocument = { type: "root", children: [{ type: "paragraph", children: inlineContentToNodes(definitions.map(note => ({ kind: "footnote", label: note.label }))) }] };
+  for (const note of definitions) document = insertFootnoteDefinition(document, document.children.length, note.label, note.content);
+  const markdown = serialize(document);
+  return markdown.slice(markdown.indexOf("\n\n") + 2);
 }
 
 function footnoteContent(content: InlineContent[]): InlineContent[] {

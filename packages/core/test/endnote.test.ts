@@ -3,6 +3,8 @@ import test from "node:test";
 import {
   canonicalWriteError, getEditableDocument, insertFootnote, insertParagraph, moveSection, parse, removeSection, serialize,
   updateParagraphInlineContent,
+  reconcileEndnotes, removeFootnote, removeBlock, planFootnotePaste, footnoteDefinitionsMarkdown,
+  insertFootnoteDefinition, endnoteRemovalEmptiesParagraph,
 } from "./core-internal.ts";
 
 // Endnotes v4: canonical Markdown writes every footnote definition after the body, in the order
@@ -66,8 +68,68 @@ test("sections hold no endnotes: removing or moving one keeps every definition w
   assert.match(serialize(moveSection(document, 3, 1)), /^# Document\n\n## Section B\n\nAnother paragraph\[\^b\]\.\n\n## Section A\n\nFirst claim\[\^b\] and another\[\^a\]\.\n\n\[\^b\]: First note\.\n\n\[\^a\]: Second note\.\n$/);
   // Section B holds a reference to [^b], which Section A also references: its definition stays.
   assert.equal(serialize(removeSection(document, 3)), "# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n[^b]: First note.\n\n[^a]: Second note.\n");
-  // Removing Section A would leave [^a] with no reference; the operation says so before writing.
-  assert.throws(() => removeSection(document, 1), /\[\^a\]/);
+  assert.equal(serialize(removeSection(document, 1)), "# Document\n\n## Section B\n\nAnother paragraph[^b].\n\n[^b]: First note.\n");
+  assert.match(canonicalWriteError(removeSection(document, 1, { deferEndnotes: true })) ?? "", /\[\^a\] has no reference/, "a batch keeps the definition until completion");
+});
+
+test("completed edits reconcile global references, while intermediate moves retain definitions", () => {
+  const document = parse("Body[^a].\n\n- List[^a].\n\n| Key |\n| --- |\n| Cell[^a]. |\n\n:::{figure}\n\nCaption[^a].\n:::\n\n[^a]: Shared.\n");
+  let next = updateParagraphInlineContent(document, [0], [{ kind: "text", text: "Body." }]);
+  next = reconcileEndnotes(document, next);
+  assert.match(serialize(next), /\[\^a\]: Shared\./, "nested references keep the definition alive");
+  const note = next.children.findIndex(node => node.type === "footnoteDefinition");
+  const removed = removeFootnote(next, [note]);
+  const markdown = serialize(removed);
+  assert.ok(!markdown.includes("[^a]"), "definition deletion removes references in every surface");
+  assert.match(markdown, /List\./);
+  assert.match(markdown, /Cell\./);
+  assert.match(markdown, /Caption\./);
+  assert.equal(serialize(parse(markdown)), markdown);
+  const single = parse("From[^a].\n\nTo.\n\n[^a]: Keep **rich** $x$.\n");
+  const intermediate = updateParagraphInlineContent(single, [0], [{ kind: "text", text: "From." }]);
+  assert.match(canonicalWriteError(intermediate) ?? "", /no reference/);
+  const moved = updateParagraphInlineContent(intermediate, [1], [{ kind: "text", text: "To." }, { kind: "footnote", label: "a" }]);
+  assert.match(serialize(reconcileEndnotes(single, moved)), /\[\^a\]: Keep \*\*rich\*\* \$x\$/);
+  assert.equal(serialize(reconcileEndnotes(single, intermediate)), "From.\n\nTo.\n");
+  assert.equal(serialize(reconcileEndnotes(single, removeBlock(single, 2))), "From.\n\nTo.\n");
+  for (const body of ["[^a]", "**[^a]**", "- [^a]", "> [^a]", ":::{note}\n[^a]\n:::",
+    "| Key |\n| --- |\n| [^a] |", ":::{figure}\n\n[^a]\n:::", ":::{table} [^a]\n\n| Key |\n| --- |\n| Cell |\n:::"]) {
+    const only = parse(`${body}\n\n[^a]: Note.\n`);
+    const removed = removeFootnote(only, [only.children.findIndex(node => node.type === "footnoteDefinition")]);
+    const written = serialize(removed);
+    assert.ok(!written.includes("[^a]"));
+    assert.equal(serialize(parse(written)), written);
+  }
+});
+
+test("clipboard definitions use Core equality, unused labels and canonical Markdown", () => {
+  const note = { label: "a", content: [{ kind: "text" as const, text: "Same." }] };
+  assert.deepEqual(planFootnotePaste(["a"], [note], [note]), { labels: [{ from: "a", to: "a" }], definitions: [] });
+  const incoming = { label: "a", content: [{ kind: "strong" as const, children: [{ kind: "text" as const, text: "Other." }] }] };
+  assert.deepEqual(planFootnotePaste(["a", "1"], [note], [incoming]), { labels: [{ from: "a", to: "2" }], definitions: [{ ...incoming, label: "2" }] });
+  assert.deepEqual(planFootnotePaste([], [], [incoming]).definitions, [incoming]);
+  assert.equal(footnoteDefinitionsMarkdown([incoming]), "[^a]: **Other.**\n");
+  assert.throws(() => footnoteDefinitionsMarkdown([{ label: "a", content: [] }]), /non-empty/);
+  const document = parse("First[^a] then[^b].\n\n[^a]: Original A.\n\n[^b]: Original B.\n");
+  const plan = planFootnotePaste(["a", "b"], [{ label: "a", content: [{ kind: "text", text: "Original A." }] }], [incoming]);
+  const label = plan.labels[0].to;
+  let pasted = updateParagraphInlineContent(document, [0], [{ kind: "text", text: "First" }, { kind: "footnote", label },
+    { kind: "text", text: " then" }, { kind: "footnote", label: "b" }, { kind: "text", text: "." }]);
+  pasted = insertFootnoteDefinition(pasted, pasted.children.length, label, plan.definitions[0].content);
+  assert.equal(serialize(reconcileEndnotes(document, pasted)), "First[^1] then[^b].\n\n[^1]: **Other.**\n\n[^b]: Original B.\n");
+});
+
+test("definition deletion prunes only ordinary paragraphs emptied by its references", () => {
+  const document = parse("[^a]\n\n**[^a]**\n\nOther.\n\n[^b]\n\n[^a]: Note A.\n\n[^b]: Note B.\n");
+  const removed = removeFootnote(document, [document.children.findIndex(node => node.type === "footnoteDefinition" && node.label === "a")]);
+  assert.equal(serialize(removed), "Other.\n\n[^b]\n\n[^b]: Note B.\n");
+  assert.equal(serialize(document), "[^a]\n\n**[^a]**\n\nOther.\n\n[^b]\n\n[^a]: Note A.\n\n[^b]: Note B.\n");
+  assert.equal(endnoteRemovalEmptiesParagraph([{ kind: "strong", children: [{ kind: "footnote", label: "a" }] }], ["a"]), true);
+  for (const content of [[], [{ kind: "footnote" as const, label: "b" }],
+    [{ kind: "footnote" as const, label: "a" }, { kind: "math" as const, value: "x" }],
+    [{ kind: "footnote" as const, label: "a" }, { kind: "link" as const, url: "https://example.com", children: [{ kind: "text" as const, text: " " }] }]]) {
+    assert.equal(endnoteRemovalEmptiesParagraph(content, ["a"]), false, "unrelated emptiness and remaining inline data must be retained");
+  }
 });
 
 test("documents MyST would drop or reread are still refused, naming the footnote", () => {
