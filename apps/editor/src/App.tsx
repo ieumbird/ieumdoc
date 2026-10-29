@@ -1,4 +1,7 @@
 import { COMMAND_CENTER_SHORTCUT, EDITOR_SHORTCUTS, SAVE_SHORTCUT } from "./shortcuts.ts";
+import type { ComparisonSnapshot } from "@ieumdoc/docling/compare";
+import { DoclingComparisonTab } from "./DoclingComparisonTab.tsx";
+import { NotificationCenter } from "./components/ui/notification-center.tsx";
 import { UiError } from "./ui-message.ts";
 import { useMessageState } from "./ui-message.ts";
 import { useTranslation } from "react-i18next";
@@ -127,9 +130,14 @@ export function App() {
   const renameImageRef = useRef<ImageRenamer | undefined>(undefined);
   const renameImage = useCallback<ImageRenamer>((...args) => renameImageRef.current!(...args), []);
   const [tabs, setTabs] = useState<Tab[]>([]);
+  const [comparisons, setComparisons] = useState<{ id: string; path: string; snapshot: ComparisonSnapshot }[]>([]);
+  const [comparePicker, setComparePicker] = useState(false);
+  const compareReturn = useRef<HTMLElement | null>(null);
   const [navigation, navigate] = useReducer(editorGroups, initialEditorGroups);
   const focusedGroup = navigation.groups.find(group => group.id === navigation.focused)!;
   const activeId = focusedGroup.active;
+  const comparison = comparisons.find(tab => tab.id === activeId);
+  const allTabs = [...tabs, ...comparisons.map(tab => ({ ...tab, title: `${i18n.t("Docling comparison")} · ${tab.snapshot.map.source.name}` }))];
   const split = navigation.groups.length === 2;
   const [canSplit, setCanSplit] = useState(false);
   const splitAvailable = useRef(false);
@@ -505,6 +513,11 @@ export function App() {
     return `./${renamed.slice(directory.length).replaceAll("\\", "/")}`;
   };
   function closeTab(id: string): void {
+    if (comparisons.some(tab => tab.id === id)) {
+      if (busy || continuation) return;
+      setComparisons(previous => previous.filter(tab => tab.id !== id));
+      navigate({ type: "close", id }); focusAfterClose.current = true; return;
+    }
     const owner = sessions.current.get(id);
     if (!owner || busy || owner.busyRef.current || continuation) return;
     if (owner.editorRef.current?.hasUnsavedChanges()) {
@@ -597,6 +610,20 @@ export function App() {
       }
       return messageOf(cause);
     } finally { operationRef.current = false; setOperation(""); }
+  }
+  async function openComparison(folder: string): Promise<string> {
+    try {
+      const path = childPath(folder.replace(/[\\/]+$/, ""), "document.md");
+      const response = await fetch(`${import.meta.env.BASE_URL}api/docling-compare?${new URLSearchParams({ path })}`);
+      const payload = await response.json();
+      if (!response.ok) return payload.error ?? i18n.t("Could not open comparison.");
+      const snapshot = payload as ComparisonSnapshot;
+      const existing = comparisons.find(tab => tab.path === snapshot.path);
+      if (existing) { placeTab(existing.id); return ""; }
+      const id = `docling-${++nextId.current}`;
+      setComparisons(previous => [...previous, { id, path: snapshot.path, snapshot }]);
+      placeTab(id); return "";
+    } catch (cause) { return messageOf(cause); }
   }
   async function createFile(path: string): Promise<string> {
     if (operationRef.current || busy || continuation) return i18n.t("Wait for the current operation to finish.");
@@ -921,8 +948,9 @@ export function App() {
   ];
 
   return (
-    <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${panelOpen ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}${split ? " app-shell--split" : ""}`}>
+    <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${panelOpen && !comparison ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}${split ? " app-shell--split" : ""}`}>
       <Sidebar
+        onDoclingCompare={element => { compareReturn.current = element; setComparePicker(true); }}
         onFileAction={fileAction} fileActionsDisabled={busy || Boolean(continuation)}
         isFileDirty={path => { const tab = tabs.find(tab => tab.path === path); return !!(tab && sessions.current.get(tab.id)?.editorRef.current?.hasUnsavedChanges()); }}
         open={sidebarOpen}
@@ -996,7 +1024,7 @@ export function App() {
               aria-label={i18n.t("Editor group {{number}}", { number: index + 1 })}
               onFocusCapture={() => { if (group.active) activateTab(group.active, false); }}
               onPointerDownCapture={() => { if (group.active) activateTab(group.active, false); }}>
-          <DocumentTabs allTabs={tabs} tabs={group.tabs.flatMap(id => tabs.filter(tab => tab.id === id)).map(tab => ({ ...tab,
+          <DocumentTabs allTabs={allTabs} tabs={group.tabs.flatMap(id => allTabs.filter(tab => tab.id === id)).map(tab => ({ ...tab,
             dirty: Boolean(sessions.current.get(tab.id)?.documentDirty || sessions.current.get(tab.id)?.draftActive),
           }))} active={group.active} disabled={groupBusy || Boolean(continuation)} onActivate={activateTab} onClose={closeTab}
             onOpenRight={id => moveTab(id, true)} onMove={id => moveTab(id)} openRightDisabled={!canSplit || groupBusy} moveDisabled={!split || groupBusy} actions={
@@ -1050,7 +1078,7 @@ export function App() {
           if (event.button === 0 && event.target instanceof HTMLElement && event.target.classList.contains("document-column") && owner?.view === "visual" &&
             owner.editorRef.current?.focusEnd(event.clientY)) event.preventDefault();
         }}>
-          {tabs.length === 0 && start ? (
+          {tabs.length === 0 && comparisons.length === 0 && start ? (
             <div className="document-scroll" data-active="true"><div className="document-column"><DocumentStart
               mark={productMark}
               recovery={<RecoveryList records={recoveryRecords.filter(record => !tabs.some(tab => tab.recoveryId === record.id))} unavailable={Boolean(recoveryProblem)} onReview={reviewRecovery} />}
@@ -1073,9 +1101,14 @@ export function App() {
               active={group?.active === tab.id} focused={tab.id === activeId} groupIndex={groupIndex} onFocus={focusDocument}
               report={reportSession} onAssetChange={onAssetChange} renameImage={renameImage} />;
           })}
+          {comparisons.map(tab => {
+            const groupIndex = navigation.groups.findIndex(group => group.tabs.includes(tab.id));
+            return <DoclingComparisonTab key={tab.id} id={tab.id} snapshot={tab.snapshot} groupIndex={groupIndex}
+              active={navigation.groups[groupIndex]?.active === tab.id} focused={tab.id === activeId} onFocus={focusDocument} />;
+          })}
         </main>
       </div>
-      {panelOpen ? (
+      {panelOpen && !comparison ? (
         <DocumentPanel
           overlay={panelOverlay}
           outline={document ? outlineStore : undefined}
@@ -1087,6 +1120,15 @@ export function App() {
           }}
         />
       ) : null}
+      <NotificationCenter items={comparison?.snapshot.stale ? [{ id: `docling-stale-${comparison.id}`, severity: "warning",
+        message: i18n.t("The correspondence map does not match this document. Connections and sync scrolling are disabled. Reconvert to compare."),
+        reveal: () => globalThis.document.getElementById(`panel-${comparison.id}`)?.focus(),
+      }] : []} />
+      <FolderDialog open={comparePicker} title={i18n.t("Docling comparison")}
+        description={i18n.t("Choose a conversion folder containing document.md and document.docling-map.json.")}
+        initialPath={folders.roots.at(-1) ?? splitDocumentPath(openedPath).directory} recent={visibleRecent}
+        restricted={allowedRoots !== undefined} browse={browseHostFolder} places={folderPlaces} onOpen={openComparison}
+        returnFocus={compareReturn} onClose={() => setComparePicker(false)} />
       <SettingsDialog
           open={settingsOpen}
           category={settingsCategory}

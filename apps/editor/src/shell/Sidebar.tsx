@@ -11,6 +11,7 @@ import { splitDocumentPath } from "./document-path.ts";
 import { treeKey, visibleTreeItems, type FolderTreeState, type TreeItem } from "./folder-tree.ts";
 
 type SidebarProps = {
+  onDoclingCompare?(returnFocus: HTMLElement): void;
   onFileAction: FileActionHandler;
   fileActionsDisabled: boolean;
   isFileDirty(path: string): boolean;
@@ -49,6 +50,7 @@ type SidebarProps = {
 export function Sidebar({
   onFileAction, fileActionsDisabled, isFileDirty, open, documentPath, onToggle, toggleRef, onOpenFolder, onNewDocument, recent = [], onOpenRecent, onNew, onNewFolder,
   folders = [], focusFolder, onFolderFocused, onToggleFolder, onToggleSection, onOpenDocument, onOpenRight, openRightDisabled, onCloseFolder, onRefreshFolder, onRevealFolder, onSettings, updateVersion,
+  onDoclingCompare,
 }: SidebarProps) {
   useTranslation();
   return (
@@ -73,6 +75,8 @@ export function Sidebar({
       </div>
       {/* Keep the tree mounted: collapse retains scroll and keyboard position. */}
       <div id="sidebar-files" className="sidebar-content" hidden={!open}>
+        {onDoclingCompare ? <Button size="sm" variant="ghost" className="w-full justify-start" disabled={fileActionsDisabled}
+          onClick={event => onDoclingCompare(event.currentTarget)}><FileText aria-hidden="true" />{i18n.t("Docling comparison")}</Button> : null}
         {folders.length > 0 ? folders.map(tree => (
           <FolderTree
             key={tree.root}

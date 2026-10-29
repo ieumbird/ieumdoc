@@ -1,5 +1,13 @@
 /* Product values: one source, consumed by CSS and mapped into Tailwind in index.css. */
 :root {
+  /* Docling source categories; status also has distinct border styles. */
+  --id-color-docling-heading: #7655b8;
+  --id-color-docling-text: #2979ad;
+  --id-color-docling-list: #258476;
+  --id-color-docling-table: #a36b19;
+  --id-color-docling-formula: #a54d83;
+  --id-color-docling-picture: #3b8051;
+  --id-color-docling-footnote: #95624c;
   color-scheme: light;
 
   /* Adjustable values: tuned by hand or chosen by a user preference. Change them here only;
@@ -302,6 +310,13 @@
 /* Dark role values, not a second palette layer. Images retain their original pixels;
  * KaTeX inherits text. The brighter paper and thin edge remain visible without elevation. */
 :root[data-theme="dark"] {
+  --id-color-docling-heading: #ba9be9;
+  --id-color-docling-text: #72b7e0;
+  --id-color-docling-list: #69c3b4;
+  --id-color-docling-table: #e8b66a;
+  --id-color-docling-formula: #e591c5;
+  --id-color-docling-picture: #85c997;
+  --id-color-docling-footnote: #cfaa93;
   color-scheme: dark;
   --id-color-canvas: #14171c;
   --id-color-paper: #1e2229;

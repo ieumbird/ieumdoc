@@ -192,6 +192,7 @@ inline surface, with notes explaining the insertion point. Original footnote
 display numbers are not a new Core feature in this issue. Conversion never
 silently treats an unrelated occurrence of the same number as an endnote call.
 
-Confirmation state, correction records, comparison UI and post-edit relinking
-are outside this contract. Public fixture provenance, licenses and reproduction
+Read-only comparison is defined by [Docling comparison](docling-compare-v1.md).
+Confirmation state, correction records and post-edit relinking remain outside
+this contract. Public fixture provenance, licenses and reproduction
 commands are in the [fixture README](../../packages/docling/test/fixtures/README.md).

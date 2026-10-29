@@ -4,7 +4,7 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": { ".": "./src/index.ts", "./compare": "./src/compare.ts", "./compare-host": "./src/compare-host.ts", "./ui": "./src/CompareView.tsx" },
   "scripts": {
     "test": "tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
@@ -15,8 +15,10 @@
     "ajv-formats": "3.0.1"
   },
   "devDependencies": {
+    "@types/react": "^19.1.13",
     "@types/node": "^24.5.2",
     "tsx": "^4.23.15",
     "typescript": "7.0.2"
-  }
+  },
+  "peerDependencies": { "react": "^19.1.1" }
 }

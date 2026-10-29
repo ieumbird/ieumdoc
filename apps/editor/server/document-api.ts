@@ -1,4 +1,5 @@
 import { readBibliographySources } from "./bibliography.ts";
+import { loadDoclingComparison } from "./docling-compare.ts";
 import { MAX_ASSET_BYTES } from "../shared/asset-policy.ts";
 import { ImageValidationError, validateImage } from "./image-validation.ts";
 import fs, { readFileSync, statSync, writeFileSync } from "node:fs";
@@ -237,6 +238,12 @@ export async function handleDocumentRequest(
   try { query = requestQuery(req.url ?? ""); }
   catch (error) { failure(error); return; }
   const url = new URL(req.url ?? "", "http://localhost").pathname;
+  if (url === "/api/docling-compare") {
+    if (req.method !== "GET") { res.statusCode = 405; res.end(); return; }
+    try { sendJson(res, 200, loadDoclingComparison(query.get("path") ?? undefined, access)); }
+    catch (error) { failure(error); }
+    return;
+  }
   if (url === "/api/file") {
     if (req.method !== "DELETE" && req.method !== "PATCH") { res.statusCode = 405; res.end(); return; }
     try {

@@ -41,6 +41,13 @@
 
 Historical verification records: [Verification record](#verification-record).
 
+## Docling comparison tabs (#769)
+
+The sidebar opens the read-only module tab described in
+[Docling comparison](docling-compare-v1.md), under [ADR-0011](../adr/0011-code-module-boundary.md).
+It shares tab navigation/closing while remaining outside document editing,
+Save/recovery sessions and startup tab restoration.
+
 ## Two editor groups (#488 phase 1)
 
 There are at most two editor groups, in fixed equal columns separated by a 1px
