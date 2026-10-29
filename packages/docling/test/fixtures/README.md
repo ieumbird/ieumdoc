@@ -83,8 +83,11 @@ small schema-valid cases for explicit footnote ownership, nested list targets,
 merged tables, unsupported formatting and malformed references. Those tests
 exercise converter behavior, without claiming that OCR recovered each structure.
 In the saved supplement, Docling does retain a three-column merged header and
-two header rows, and the converter reports that table as unsupported. It flattens
-the visually nested clauses into one mixed-marker group and omits the displayed
+two header rows. The converter repeats the merged text across all three columns,
+joins each column's two header labels, and records both changes in the table's
+map notes. Focused API cases also cover merged body cells across both axes,
+repeated header labels, row headers/sections, empty cells and invalid spans.
+Docling flattens the visually nested clauses into one mixed-marker group and omits the displayed
 equation number. These extraction limitations remain visible in the PDF/JSON pair.
 
 ## Reproduction

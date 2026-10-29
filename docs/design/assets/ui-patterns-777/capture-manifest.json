@@ -1,0 +1,912 @@
+{
+  "sourceCommit": "a4d2f64bbcefa48f436bce916aecd0772ad15e93",
+  "capturedOn": "2026-10-30",
+  "viewportCssPixels": [
+    1440,
+    900
+  ],
+  "deviceScaleFactor": 1,
+  "locale": "en-US",
+  "theme": "light except 35-figure-dark",
+  "purpose": "Manual current-product inventory, not regression verdict or mockup",
+  "boards": {
+    "compare-properties": [
+      [
+        "11-figure-form",
+        "Image properties"
+      ],
+      [
+        "07-table-form",
+        "Table properties"
+      ],
+      [
+        "13-mermaid-properties",
+        "Mermaid properties"
+      ],
+      [
+        "17-section-label",
+        "Section label"
+      ]
+    ],
+    "compare-source": [
+      [
+        "05-equation-form",
+        "Equation source"
+      ],
+      [
+        "14-mermaid-source",
+        "Mermaid source"
+      ]
+    ],
+    "compare-numbering": [
+      [
+        "11-figure-form",
+        "Figure / Automatic"
+      ],
+      [
+        "12-figure-fixed",
+        "Figure / Fixed"
+      ],
+      [
+        "07-table-form",
+        "Table / empty means automatic"
+      ],
+      [
+        "05-equation-form",
+        "Equation / empty means automatic"
+      ]
+    ],
+    "compare-entry": [
+      [
+        "03-equation-rest",
+        "Equation / rest"
+      ],
+      [
+        "04-equation-hover",
+        "Equation / hover"
+      ],
+      [
+        "09-figure-rest",
+        "Figure / rest"
+      ],
+      [
+        "10-figure-hover",
+        "Figure / hover"
+      ],
+      [
+        "15-endnote-rest",
+        "Endnote / rest"
+      ],
+      [
+        "16-endnote-edit",
+        "Endnote / editing"
+      ]
+    ],
+    "compare-inline": [
+      [
+        "21-link-form",
+        "Link"
+      ],
+      [
+        "18-citation-form",
+        "Citation"
+      ],
+      [
+        "19-reference-form",
+        "Cross-reference"
+      ],
+      [
+        "20-inline-math",
+        "Inline math"
+      ]
+    ],
+    "compare-fields-theme": [
+      [
+        "11-figure-form",
+        "Figure / Light"
+      ],
+      [
+        "35-figure-dark",
+        "Figure / Dark"
+      ],
+      [
+        "07-table-form",
+        "Table / Light"
+      ],
+      [
+        "17-section-label",
+        "Section label / Light"
+      ]
+    ],
+    "compare-empty": [
+      [
+        "26-empty-title",
+        "Empty title"
+      ],
+      [
+        "29-pending-figure",
+        "Pending Figure"
+      ],
+      [
+        "27-empty-figure",
+        "Empty Figure caption"
+      ],
+      [
+        "28-empty-table",
+        "Empty Table caption"
+      ]
+    ],
+    "compare-feedback": [
+      [
+        "08-table-error",
+        "Rejected duplicate label"
+      ],
+      [
+        "22-link-error",
+        "Invalid URL draft"
+      ],
+      [
+        "30-numbering-notice",
+        "Document numbering summary"
+      ],
+      [
+        "31-numbering-warning",
+        "Block warning / saving allowed"
+      ]
+    ],
+    "compare-reading": [
+      [
+        "23-endnote-preview",
+        "Endnote preview"
+      ],
+      [
+        "24-citation-preview",
+        "Citation preview"
+      ],
+      [
+        "25-image-preview",
+        "Relative image-link preview"
+      ]
+    ],
+    "compare-settings-dialogs": [
+      [
+        "02-document-settings",
+        "Document settings / immediate operations"
+      ],
+      [
+        "33-new-dialog",
+        "New document / explicit Create"
+      ],
+      [
+        "36-unsaved-dialog",
+        "Close dirty tab / three choices"
+      ]
+    ],
+    "compare-tools": [
+      [
+        "06-table-tools",
+        "Table handles and bottom actions"
+      ],
+      [
+        "10-figure-hover",
+        "Figure metadata and Edit"
+      ],
+      [
+        "32-file-menu",
+        "File action menu"
+      ],
+      [
+        "37-selection-toolbar",
+        "Text-format toolbar"
+      ]
+    ]
+  },
+  "files": [
+    {
+      "file": "01-document-rest-crop.png",
+      "pixels": [
+        932,
+        827
+      ],
+      "sha256": "b9d926b21ae6fe38d919c74a6ec1f995eaf9d0e0e4bfe55fe4ba3338a8a482d0"
+    },
+    {
+      "file": "01-document-rest.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "0f6f4b1adbd5cd2eb7dbff2c10bc1282f5c0f84095a6c5f102116f06df9b1374"
+    },
+    {
+      "file": "02-document-settings-crop.png",
+      "pixels": [
+        772,
+        215
+      ],
+      "sha256": "5df28b588409933d52105c89c265131ff1ef241fd0acd8fce89d4a19f21594e7"
+    },
+    {
+      "file": "02-document-settings.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "6ab9b139411aa02939dc626ca5044d0cce61420f78781cc3632f0560d61aa2ac"
+    },
+    {
+      "file": "03-equation-rest-crop.png",
+      "pixels": [
+        772,
+        117
+      ],
+      "sha256": "d584163371a1c98c0f04f2f39c73f35e5558ebd662f1a8135415470f559a8d7e"
+    },
+    {
+      "file": "03-equation-rest.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "94bb8eb3c587e41f75f1d73ada7c7fb3ecf0bb766dffb7bb461d850a7b758c2f"
+    },
+    {
+      "file": "04-equation-hover-crop.png",
+      "pixels": [
+        772,
+        117
+      ],
+      "sha256": "ac8d96ee04903277d9dad8fb6763f25eb1bbd9f2a1dcc27fcdca65565e40d6d2"
+    },
+    {
+      "file": "04-equation-hover.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "08c43b66c9f42c4a765a9b6b083f9da99dcc631d8f36eaa2c96d4dc0c990782d"
+    },
+    {
+      "file": "05-equation-form-crop.png",
+      "pixels": [
+        772,
+        437
+      ],
+      "sha256": "535006ad4fc1adfadf5c2e696c33701912a8f13295bf3b84df7c7a557bbf3644"
+    },
+    {
+      "file": "05-equation-form.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "d6c30808c9dcc5ba337b96394ec6ba226e1ff19d9c0387322ef3a198464b3a38"
+    },
+    {
+      "file": "06-table-tools-crop.png",
+      "pixels": [
+        772,
+        264
+      ],
+      "sha256": "3dc22c4966e61f216788b79327631e70b1f4aa6ac6003dad64cc65422a07a322"
+    },
+    {
+      "file": "06-table-tools.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "473ce66704280ea730fe82a0d844e0c52bf6f3b93d80764d7dbdbf38d5e9f9ae"
+    },
+    {
+      "file": "07-table-form-crop.png",
+      "pixels": [
+        356,
+        328
+      ],
+      "sha256": "970a1cbcc3a2e370b33c330c530d3646732cb32c4c2733b7ed3e052fd2db69c4"
+    },
+    {
+      "file": "07-table-form.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "5e598a37945c39369d549f623418cc94754a7340adc3ddd2d26cb38316d42914"
+    },
+    {
+      "file": "08-table-error-crop.png",
+      "pixels": [
+        356,
+        442
+      ],
+      "sha256": "cad9e5fc560c33ed16ad3ea97590f511b96f3db86074682a55862fdd876b351b"
+    },
+    {
+      "file": "08-table-error.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "bc11c1faa4277470a393feabd8b8836482d302e313ef84d2524a24c4d64576f3"
+    },
+    {
+      "file": "09-figure-rest-crop.png",
+      "pixels": [
+        772,
+        266
+      ],
+      "sha256": "9ac39c29ca92e3bd54f35de6e5f46612c04597f810157d4a77cf3560f44d2221"
+    },
+    {
+      "file": "09-figure-rest.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "661d2325e748d682b89fba48a840618d0c3b6e03854563d6476ccc378f4ba309"
+    },
+    {
+      "file": "10-figure-hover-crop.png",
+      "pixels": [
+        772,
+        266
+      ],
+      "sha256": "403de6f1a81cde956cbe9cc6eff68017ef4a8ef7be8283b882e4e4e4032a3adc"
+    },
+    {
+      "file": "10-figure-hover.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "b144ecc13b7ee941f382a8b93fd07535ec0f057fcac035fea21cfcd436198165"
+    },
+    {
+      "file": "11-figure-form-crop.png",
+      "pixels": [
+        556,
+        318
+      ],
+      "sha256": "24ba74e58d72a544d39bf2fefc19e3c69eb46804abd111e5b61d482e6896357d"
+    },
+    {
+      "file": "11-figure-form.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "8aeadcde54a6c0e3861cb8a6fbf244c5ce1dd4fe714d35e2ca4449d7f410f468"
+    },
+    {
+      "file": "12-figure-fixed-crop.png",
+      "pixels": [
+        556,
+        309
+      ],
+      "sha256": "54e9cf6c25f1dd85112bfa4e4a0cd3b3fb21e13dc3e77c485aa4e0c7b1dd29c8"
+    },
+    {
+      "file": "12-figure-fixed.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "1c5e0e6ef82cb83f02f1c1e68f155d182ee635ba4fa2d73af3ebad3d1a0dec04"
+    },
+    {
+      "file": "13-mermaid-properties-crop.png",
+      "pixels": [
+        556,
+        214
+      ],
+      "sha256": "ab5cba2ec7e4b89c9c8efc15a0b38d3e8e374d3861562fd1ce94971495588ca9"
+    },
+    {
+      "file": "13-mermaid-properties.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "d582ae5f88bc43f72a750856db5a4cd3b6ab2d41c65b65979c30747037f46cca"
+    },
+    {
+      "file": "14-mermaid-source-crop.png",
+      "pixels": [
+        772,
+        492
+      ],
+      "sha256": "1f27dc0b9069c3935b80ccec356281ba2a21ff049ebd32137a24ea29693f2a4b"
+    },
+    {
+      "file": "14-mermaid-source.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "f598acccbb3b085083ce0878452ccec5445ab0d5603febcb9564ff2ab76c4a5f"
+    },
+    {
+      "file": "15-endnote-rest-crop.png",
+      "pixels": [
+        772,
+        70
+      ],
+      "sha256": "b89fe4dd1696448f47b6d47cc1d38b1b23d41ae21c6f32646d347b45ecabd41d"
+    },
+    {
+      "file": "15-endnote-rest.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "eb3dd31f10fdbdcd6e25e6ad9c9f8836b814ad1e2e4525ca857c5ba126b29436"
+    },
+    {
+      "file": "16-endnote-edit-crop.png",
+      "pixels": [
+        772,
+        70
+      ],
+      "sha256": "8b8af11a5868a01e0f6026772b1cdf9165bee680940c611873ab19ada3e85996"
+    },
+    {
+      "file": "16-endnote-edit.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "54573b8aa1d34a06c084bd4d0af22752b3f1579610887011f49e5b8e3a87bcd1"
+    },
+    {
+      "file": "17-section-label-crop.png",
+      "pixels": [
+        356,
+        216
+      ],
+      "sha256": "bc096f639f8ed2e8fda8c7f880e88afa273e7aec7be50620a4e457a09ac7b932"
+    },
+    {
+      "file": "17-section-label.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "85a21d3c9ad1c050cdd1797e4dddfd6c83c192f74774943e0151d01ed3637377"
+    },
+    {
+      "file": "18-citation-form-crop.png",
+      "pixels": [
+        388,
+        473
+      ],
+      "sha256": "56715994e6d5780cceba825a94e415fa165ef56babc21f04057124d147e1ec84"
+    },
+    {
+      "file": "18-citation-form.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "c190a1a8fd77f8cab3d38f307ea5349c1e4e7f02b3b55b504f6b2d9e82b8ad97"
+    },
+    {
+      "file": "19-reference-form-crop.png",
+      "pixels": [
+        388,
+        156
+      ],
+      "sha256": "3a38268ea6f7f00313d872c950d22005777672f382cc8cb534d44bb6857e3922"
+    },
+    {
+      "file": "19-reference-form.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "2597f92878856fb81af7ca78df4ec37d421dff664bda3b0654bdbddfe8b72457"
+    },
+    {
+      "file": "20-inline-math-crop.png",
+      "pixels": [
+        612,
+        288
+      ],
+      "sha256": "ded3b9ef497348e561d7ae61fb987953b39514357c68d35b794b95e8a1f64e14"
+    },
+    {
+      "file": "20-inline-math.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "ab925ab21e65f82c438a111e0a6c159b2729d4e1f50091a5fe71ffdcaf4eb53f"
+    },
+    {
+      "file": "21-link-form-crop.png",
+      "pixels": [
+        420,
+        156
+      ],
+      "sha256": "4f1d7edf37b04749a3d9bb2d59df27f7ee56501cadf2fcd050b783ed3e3c982a"
+    },
+    {
+      "file": "21-link-form.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "af911d9f9137b80907f7345f9870f0f3a8751a79ff2a92fa6c617eace6849e71"
+    },
+    {
+      "file": "22-link-error-crop.png",
+      "pixels": [
+        420,
+        180
+      ],
+      "sha256": "ace66a9eea9d5ba6053869b1c1097ddc2cf489db725e9379c65a26fdd4f9f790"
+    },
+    {
+      "file": "22-link-error.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "5084bf643543faf3093785f76a8467e0425b7ce3ffa354f70cf3d1d55cb1160e"
+    },
+    {
+      "file": "23-endnote-preview-crop.png",
+      "pixels": [
+        356,
+        128
+      ],
+      "sha256": "1db17f21b8493aa0803a661cf165b017fc02c4463fcd2f56c5a90aeb61a31aa7"
+    },
+    {
+      "file": "23-endnote-preview.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "24aedca803341a41a9a4b8d5f302b2e51c1342c2d145e7c74aed72654f5d72be"
+    },
+    {
+      "file": "24-citation-preview-crop.png",
+      "pixels": [
+        356,
+        168
+      ],
+      "sha256": "da4fb47c9c09d4ec15aa1d8dd5ac7f6ac3e21f726bcb9badb22d9f735fa29ca6"
+    },
+    {
+      "file": "24-citation-preview.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "3741b7b2e996b268afe2c4713a548700faac65abf25d90f86141b55ec388b186"
+    },
+    {
+      "file": "25-image-preview-crop.png",
+      "pixels": [
+        356,
+        157
+      ],
+      "sha256": "b8f0b361479f3a5b50e65c7a1ff649c4579da79cd7254054f11dab30aaa08d0e"
+    },
+    {
+      "file": "25-image-preview.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "64b0d8d1564ded94eda652a1e009c1c6130d4e32d5243fb6013956f4adf9330e"
+    },
+    {
+      "file": "26-empty-title-crop.png",
+      "pixels": [
+        772,
+        87
+      ],
+      "sha256": "b015fa99ebd30dee3e471b5d8ae6e308050097ace326f8b2666fc16169b11fb9"
+    },
+    {
+      "file": "26-empty-title.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "1f314df6fc95fa71817909b15b074dcf752a318ba004be26d3476b42ca2ac2fd"
+    },
+    {
+      "file": "27-empty-figure-crop.png",
+      "pixels": [
+        772,
+        266
+      ],
+      "sha256": "f3788584b7cbd501df6974eeb1e79072c22480dc1f75e595cb4a3ce3068da89c"
+    },
+    {
+      "file": "27-empty-figure.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "f2d8726f32a21403c482fdb0185d54dd374b745f2d1941e8c470297d8d2d2dfe"
+    },
+    {
+      "file": "28-empty-table-crop.png",
+      "pixels": [
+        772,
+        225
+      ],
+      "sha256": "63cfa256e787c1df93f6cbf8714150a6816554382c05836bbe3cfec9861f6203"
+    },
+    {
+      "file": "28-empty-table.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "f2d8726f32a21403c482fdb0185d54dd374b745f2d1941e8c470297d8d2d2dfe"
+    },
+    {
+      "file": "29-pending-figure-crop.png",
+      "pixels": [
+        772,
+        172
+      ],
+      "sha256": "d700e53b4546c6c35f06b0dea07ad91445a9be9ec6ea8a1f00ba28cea1fd7567"
+    },
+    {
+      "file": "29-pending-figure.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "f2d8726f32a21403c482fdb0185d54dd374b745f2d1941e8c470297d8d2d2dfe"
+    },
+    {
+      "file": "30-numbering-notice-crop.png",
+      "pixels": [
+        772,
+        116
+      ],
+      "sha256": "b913d3f64f940c70591ff185d656c5e8cdf60f7e4a8f580adf45c038a947eb01"
+    },
+    {
+      "file": "30-numbering-notice.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "3c8c483696c499b1b014925be65175969c0080607cf00308a9a01eefc3dd0481"
+    },
+    {
+      "file": "31-numbering-warning-crop.png",
+      "pixels": [
+        556,
+        434
+      ],
+      "sha256": "c3ca316bbeab85a8a43288a20b82a70db5a9e1ed4709c65d19a6bc9f4d3cb9bf"
+    },
+    {
+      "file": "31-numbering-warning.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "82fc1cdba789688b899917e435eb8a0a05f9e4c974e2e57c79ecf2d364d8bf9c"
+    },
+    {
+      "file": "32-file-menu-crop.png",
+      "pixels": [
+        237,
+        169
+      ],
+      "sha256": "f699e2df24634a3a149d7e3de58f8066de0b3aaa5ff5d401d6808eda6b912b66"
+    },
+    {
+      "file": "32-file-menu.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "7da12a625e8d4769110e9239788de68912af5e84d3454422ab21f51ee0a277b9"
+    },
+    {
+      "file": "33-new-dialog-crop.png",
+      "pixels": [
+        420,
+        333
+      ],
+      "sha256": "71db61e784408048f4c3df5b2fc22a054a0b5484d5779ca766971e104549495a"
+    },
+    {
+      "file": "33-new-dialog.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "3332c5e06ab414a6e3321d0b14e8ad33a96175bad47c8277cb87e420a7bed1ff"
+    },
+    {
+      "file": "34-settings-crop.png",
+      "pixels": [
+        1440,
+        827
+      ],
+      "sha256": "6395137428ae51c2285d71c1859ad83c173f0cb32c9c1dc31d78a804077098ff"
+    },
+    {
+      "file": "34-settings.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "fd00b08c2ba2a03f4d191e58284ec569c0464f0880ac9d2d3592d95fbdacbb85"
+    },
+    {
+      "file": "35-figure-dark-crop.png",
+      "pixels": [
+        556,
+        344
+      ],
+      "sha256": "cba8559a43b46a376b198e4b7a879e2d08a64cc7d2da4ae7e834ca7e6ec89cad"
+    },
+    {
+      "file": "35-figure-dark.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "321c7fdf33195d9ade4fd70195a416cc56555a8f6fbf816440e9c70a757cbd84"
+    },
+    {
+      "file": "36-unsaved-dialog-crop.png",
+      "pixels": [
+        420,
+        201
+      ],
+      "sha256": "80b3959028184d4f7caa350cd463a8fa14b48e017af01f9d349afc3f13ed12e1"
+    },
+    {
+      "file": "36-unsaved-dialog.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "6758aff68d365745157e58cfa0e696d3b74eae83db195d7f2d8901c989c82c31"
+    },
+    {
+      "file": "37-selection-toolbar-crop.png",
+      "pixels": [
+        330,
+        80
+      ],
+      "sha256": "4ce6a8e887db959d455bfda7cc5fae1c0f9192ca16a22a8a7d81caaed6d514fd"
+    },
+    {
+      "file": "37-selection-toolbar.png",
+      "pixels": [
+        1440,
+        900
+      ],
+      "sha256": "574849cb0efee101ef6daf594e68cd4d31d58ade21c3158b3aeccd68b822ee69"
+    },
+    {
+      "file": "compare-empty.png",
+      "pixels": [
+        1624,
+        634
+      ],
+      "sha256": "8867f3fe23076d063537c6947d2fd2a8f296fdcee5670c63774148ab287be651"
+    },
+    {
+      "file": "compare-entry.png",
+      "pixels": [
+        1624,
+        713
+      ],
+      "sha256": "65d41ce527ed4ee91d0f6a21361007ce3a0fa292d77bd2aa583d4786f7d1c9f5"
+    },
+    {
+      "file": "compare-feedback.png",
+      "pixels": [
+        1624,
+        1072
+      ],
+      "sha256": "a4b133f637bddb2b4701ff5ef8394da6ed52fe4a5d08d0b4b15b8b5aaaecd835"
+    },
+    {
+      "file": "compare-fields-theme.png",
+      "pixels": [
+        1192,
+        868
+      ],
+      "sha256": "4df0384cf54b1cc8cb661e7eecdda94692d5bb3f00df8422346123336a001116"
+    },
+    {
+      "file": "compare-inline.png",
+      "pixels": [
+        1304,
+        957
+      ],
+      "sha256": "2ac7c76cdf70f0e65d9a7a7c3ab6a6d1159d99cb5c4ccde993c3af69c7e642b7"
+    },
+    {
+      "file": "compare-numbering.png",
+      "pixels": [
+        1624,
+        951
+      ],
+      "sha256": "4a44b309c5fa09ca8cf297d7747672964291d43982a44125cebc339ad9365429"
+    },
+    {
+      "file": "compare-properties.png",
+      "pixels": [
+        1192,
+        740
+      ],
+      "sha256": "f4003e39c5823569e5a5ef36cd56aff6f2945b69e662faab4ca0bece7b88a31b"
+    },
+    {
+      "file": "compare-reading.png",
+      "pixels": [
+        792,
+        521
+      ],
+      "sha256": "a0ad98aa83ef67cee278738f7c90b775e92c5d2a7be7bb54340379f93564765e"
+    },
+    {
+      "file": "compare-settings-dialogs.png",
+      "pixels": [
+        1624,
+        730
+      ],
+      "sha256": "1f1350195ea131211ac143051ef36209be2d60ac67347cba24a2c53f36f1da8b"
+    },
+    {
+      "file": "compare-source.png",
+      "pixels": [
+        1624,
+        624
+      ],
+      "sha256": "e4976df11154e058d5b9f5926b2abe8116deb67d83f4e2db6742d964c2b4de6e"
+    },
+    {
+      "file": "compare-tools.png",
+      "pixels": [
+        1624,
+        631
+      ],
+      "sha256": "4f5cbbfafc04b5d8c6b01f99ea1ac004c0b145deb140ed492d5021a6d39f3d3f"
+    }
+  ],
+  "fixtures": {
+    "empty.md": "---\nieumdoc: 1\n---\n\n# Empty affordances\n\n:::{figure} ./diagram.svg\n:::\n\n:::{table}\n\n| Name |\n| --- |\n| Value |\n:::\n\n:::{figure}\n:::\n",
+    "inventory.md": "---\nieumdoc: 1\nbibliography: [refs.bib]\n---\n\n(patterns)=\n# Pattern inventory\n\nRead this note[^detail], evidence {cite:p}`article,standard`, [design resource](https://example.com/design) and [local diagram](diagram.svg). Compare {eq}`eq-example` and $x^2$.\n\n```{math}\n:label: eq-example\nx = a + b\n```\n\n:::{table} Comparison values\n:name: tbl-example\n\n| Name | Value |\n| --- | --- |\n| A | 1 |\n| B | 2 |\n:::\n\n:::{figure} ./diagram.svg\n:name: fig-image\n:alt: Control block diagram\n\nImage caption\n:::\n\n:::{figure}\n:name: fig-flow\n\n```{mermaid}\ngraph LR\n  A --> B\n```\n\nSignal flow\n:::\n\n[^detail]: **Formatted** endnote with $x^2$ and a line of supporting text.\n",
+    "warnings.md": "---\nieumdoc: 1\n---\n\n# Numbering review\n\n:::{figure} ./diagram.svg\n:name: fixed\n:enumerator: A.1\n\nFixed figure\n:::\n\n:::{figure} ./diagram.svg\n:name: missing\n\nMissing fixed number\n:::\n"
+  },
+  "fixtureAssets": {
+    "diagram.svg": "286a8cfcee4cd7485a873a0cc5a1367cd25e8a22cf625d7bda854c04662f614c",
+    "refs.bib": "281dea66799096a2e9f4598eee193dcd853c51fab58abf18732a77315a5a7c27"
+  },
+  "manualCapture": {
+    "command": "pnpm browser:test manual-inventory-777",
+    "temporaryPath": "apps/editor/test/manual-inventory-777.browser.js",
+    "source": "// Temporary manual capture route only. Not a regression or part of STABLE_SCENARIOS.\nasync (page, { openPath }) => {\n  const out = 'docs/design/assets/ui-patterns-777';\n  const loaded = await (await page.request.get(page.url().split('/').slice(0,3).join('/')+'/api/document')).json();\n  const sep = loaded.path.includes('\\\\') ? '\\\\' : '/';\n  const root = loaded.path.split(sep).slice(0,-4).join(sep);\n  await page.setViewportSize({width:1440,height:900});\n  await page.evaluate(() => { localStorage.setItem('ieumdoc.theme','light'); localStorage.setItem('ieumdoc.language','en'); });\n  await page.reload();\n  const shots=[];\n  const active=()=>page.locator('[data-document-tab][data-active=true]');\n  const settle=async()=>{await page.evaluate(async()=>{await document.fonts.ready; await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));});};\n  const shot=async(name, target)=>{\n    await settle();\n    await page.screenshot({path:`${out}/${name}.png`});\n    if(target) { const b=await target.boundingBox(); const clip={x:Math.max(0,b.x-18),y:Math.max(73,b.y-24),width:Math.min(1440, b.x+b.width+18)-Math.max(0,b.x-18),height:Math.min(900,b.y+b.height+18)-Math.max(73,b.y-24)}; await page.screenshot({path:`${out}/${name}-crop.png`,clip}); }\n    shots.push(name);\n  };\n  const open=async(name='inventory.md')=>{await openPath(page,[root,'tmp','ui-patterns-777',name].join(sep)); await settle();};\n  await open();\n  await shot('01-document-rest',active().locator('article.document'));\n  await active().getByRole('button',{name:'Document settings',exact:true}).click();\n  await shot('02-document-settings',active().locator('.document-settings'));\n  await active().getByRole('button',{name:'Document settings',exact:true}).click();\n  const eq=active().locator('.equation').first();\n  await eq.evaluate(el=>el.scrollIntoView({block:'center'})); await page.mouse.move(0,0); await shot('03-equation-rest',eq);\n  await eq.hover(); await shot('04-equation-hover',eq);\n  await eq.getByRole('button',{name:'Edit',exact:true}).click();\n  await shot('05-equation-form',eq);\n  await page.getByTestId('equation-cancel').click();\n  const table=active().locator('.table-block').first();\n  await table.evaluate(el=>el.scrollIntoView({block:'center'})); await table.hover();\n  await shot('06-table-tools',table);\n  await table.getByRole('button',{name:'Edit table',exact:true}).click();\n  await shot('07-table-form',page.getByTestId('table-properties'));\n  await page.getByTestId('table-label').fill('eq-example'); await page.getByTestId('table-apply').click();\n  await shot('08-table-error',page.getByTestId('table-properties'));\n  await page.getByTestId('table-cancel').click();\n  const fig=active().locator('.figure').filter({has:page.getByTestId('figure-image')}).first();\n  await fig.evaluate(el=>el.scrollIntoView({block:'center'})); await page.mouse.move(0,0); await shot('09-figure-rest',fig);\n  await fig.hover(); await shot('10-figure-hover',fig);\n  await fig.getByRole('button',{name:'Edit figure',exact:true}).click();\n  await shot('11-figure-form',page.getByTestId('figure-properties'));\n  await page.getByTestId('figure-editor').getByRole('button',{name:'Fixed',exact:true}).click();\n  await page.getByTestId('figure-enumerator').fill('S1');\n  await shot('12-figure-fixed',page.getByTestId('figure-properties'));\n  await page.getByTestId('figure-label').press('Escape');\n  const mer=active().locator('[data-content-kind=mermaid]').first();\n  await mer.scrollIntoViewIfNeeded(); await mer.hover();\n  await mer.getByRole('button',{name:'Edit figure',exact:true}).click();\n  await page.getByTestId('mermaid-property-editor').locator('.figure-property-thumbnail img').waitFor();\n  await shot('13-mermaid-properties',page.getByTestId('mermaid-property-properties'));\n  await page.getByTestId('mermaid-edit-source').click();\n  await page.getByTestId('mermaid-edit-preview').locator('img').waitFor();\n  await page.getByTestId('mermaid-edit-preview').evaluate(async el=>{await el.querySelector('img').decode();});\n  await page.getByTestId('mermaid-properties').evaluate(el=>el.scrollIntoView({block:'center'}));\n  await shot('14-mermaid-source',page.getByTestId('mermaid-properties'));\n  await page.getByTestId('mermaid-cancel').click();\n  const note=active().getByTestId('footnote-definition').first();\n  await note.scrollIntoViewIfNeeded(); await page.mouse.move(0,0); await shot('15-endnote-rest',note);\n  await note.getByTestId('endnote-edit').click(); await shot('16-endnote-edit',note);\n  await note.getByTestId('endnote-cancel').click();\n  await active().getByTestId('label-target-edit').first().scrollIntoViewIfNeeded();\n  await active().locator('h1').first().hover();\n  await active().getByTestId('label-target-edit').first().click();\n  await shot('17-section-label',page.getByTestId('label-target-properties'));\n  await page.getByTestId('label-target-cancel').click();\n  const cite=active().locator('[data-citation]').first(); await cite.hover(); await cite.getByTestId('citation-edit').click();\n  await shot('18-citation-form',page.getByTestId('citation-form')); await page.keyboard.press('Escape');\n  const ref=active().getByTestId('cross-reference').first(); await ref.hover(); await ref.getByTestId('cross-reference-edit').click();\n  await shot('19-reference-form',page.getByTestId('reference-form')); await page.keyboard.press('Escape');\n  await active().locator('.inline-math-rendered .katex-html').first().dblclick();\n  await shot('20-inline-math',page.getByTestId('inline-math-properties')); await page.getByTestId('inline-math-cancel').click();\n  await active().locator('.document-editor').evaluate(el=>{\n    const editor=el.editor; let range;\n    editor.state.doc.descendants((node,pos)=>{if(node.isText && node.text.includes('design resource')) {const from=pos+node.text.indexOf('design resource');range={from,to:from+'design resource'.length};}});\n    editor.chain().focus().setTextSelection(range).run();\n  });\n  await page.getByTestId('selection-toolbar').waitFor();\n  await shot('37-selection-toolbar',page.getByTestId('selection-toolbar'));\n  await page.keyboard.press(\"Control+Quote\");\n  await shot('21-link-form',page.getByTestId('link-form')); await page.getByTestId('link-url').fill('bad url'); await page.getByTestId('link-apply').click();\n  await shot('22-link-error',page.getByTestId('link-form')); await page.keyboard.press('Escape');\n  await page.mouse.move(0,0); await active().getByTestId('footnote-reference').first().hover();\n  await page.getByTestId('reference-preview').waitFor(); await shot('23-endnote-preview',page.getByTestId('reference-preview'));\n  await page.mouse.move(0,0); await cite.hover(); await page.getByTestId('reference-preview').waitFor(); await shot('24-citation-preview',page.getByTestId('reference-preview'));\n  await page.mouse.move(0,0); await active().locator('a[href=\"diagram.svg\"]').hover(); await page.getByTestId('image-link-preview').waitFor(); await shot('25-image-preview',page.getByTestId('image-link-preview'));\n  await open('empty.md'); await shot('26-empty-title',active().locator('.document-title-input'));\n  for(const [name,selector] of [['27-empty-figure','.figure'],['28-empty-table','.table-block'],['29-pending-figure','.figure:has([data-testid=figure-no-content])']]) {const el=active().locator(selector).first();await el.scrollIntoViewIfNeeded(); await page.mouse.move(0,0); await shot(name,el);}\n  await open('warnings.md');\n  await shot('30-numbering-notice',active().getByTestId('numbering-warnings'));\n  const missing=active().locator('.figure').nth(1);await missing.scrollIntoViewIfNeeded(); await missing.hover();\n  await missing.getByRole('button',{name:'Edit figure',exact:true}).click();\n  await shot('31-numbering-warning',page.getByTestId('figure-properties'));await page.getByTestId('figure-label').press('Escape');\n  await open();\n  await page.getByRole('button',{name:'File actions',exact:true}).click();\n  await shot('32-file-menu',page.getByRole('menu'));await page.keyboard.press('Escape');\n  await page.getByRole('button',{name:'New document…',exact:true}).click();\n  await shot('33-new-dialog',page.getByRole('dialog'));await page.keyboard.press('Escape');\n  await page.getByRole('button',{name:'Settings',exact:true}).click();\n  await shot('34-settings',page.getByTestId('settings-dialog'));\n  await page.getByTestId('theme').selectOption('dark');await page.getByTestId('settings-back').click();\n  const darkFig=active().locator('.figure').filter({has:page.getByTestId('figure-image')}).first();await darkFig.scrollIntoViewIfNeeded();await darkFig.hover();\n  await darkFig.getByRole('button',{name:'Edit figure',exact:true}).click();\n  await shot('35-figure-dark',page.getByTestId('figure-properties'));await page.getByTestId('figure-label').press('Escape');\n  await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByTestId('theme').selectOption('light');await page.getByTestId('settings-back').click();\n  await active().locator('.document-title-input').fill('Unsaved example');\n  await page.getByRole('button',{name:'Close inventory.md',exact:true}).click();\n  await shot('36-unsaved-dialog',page.getByRole('dialog'));await page.getByRole('button',{name:'Cancel',exact:true}).click();\n  return {purpose:'Manual inventory capture only; no product behavior verdict',viewport:[1440,900],shots};\n}\n\n\n\n\n\n\n",
+    "instructions": [
+      "Restore fixtures under tmp/ui-patterns-777 from fixtures and fixtureAssets; reuse repository SVG and BibTeX sources.",
+      "Check BadPasswordAttempts before execution: wait at 5, stop at 6 or above.",
+      "Materialize source only at temporaryPath, never add it to STABLE_SCENARIOS or CI.",
+      "Use the existing runner persistent profile. Remove the temporary script after capture and verify owned server/browser cleanup."
+    ],
+    "lastFullCaptureSeconds": 15.0,
+    "mermaidCenteredSupplementSeconds": 5.0
+  },
+  "observations": {
+    "19-reference-form": "Right side including Apply is occluded by Outline in this actual product capture; not an image-composition omission.",
+    "12-figure-fixed": "The fixed field increases content height; the current popover has an internal scrollable height cap."
+  }
+}
