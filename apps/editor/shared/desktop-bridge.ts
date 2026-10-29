@@ -62,6 +62,8 @@ export type DesktopBridge = {
   /** OS folder action capability; only Host-listed roots can be synchronized. */
   setOpenedFolders(roots: string[]): Promise<void>;
   openFolderInExplorer(folder: string): Promise<void>;
+  /** Main chooses and creates the app's log directory; no renderer-supplied path. */
+  openLogFolder(): Promise<void>;
   /** In-memory native appearance only; preference persistence stays in renderer localStorage. */
   setTheme(theme: "system" | "light" | "dark"): Promise<boolean>;
   /** Opaque sRGB #rrggbb canvas and caption roles; also marks the initial appearance ready to show. */

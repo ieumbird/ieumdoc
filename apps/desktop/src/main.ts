@@ -70,6 +70,14 @@ function log(message: string): void {
   }
 }
 
+// Observe without handling: keep Electron/Node's existing exception and rejection behavior.
+// With Node's default rejection mode, unhandled rejections arrive with that origin too.
+// Error messages, stacks and rejection values can contain document text or full paths.
+process.on("uncaughtExceptionMonitor", (_error, origin) => log(`main ${origin}`));
+app.on("child-process-gone", (_event, details) => {
+  log(`child process exited: type=${details.type} reason=${details.reason} exitCode=${details.exitCode}`);
+});
+
 /** Why this build does not update itself, or undefined when it can. */
 function updatesUnsupported(updater: typeof electronUpdater.autoUpdater): string | undefined {
   if (!app.isPackaged) return "Updates run in the installed app.";
@@ -164,6 +172,12 @@ function registerIpc(): void {
   };
   handle("desktop:opened-folders", roots => explorerFolders.setOpened(roots));
   handle("desktop:open-folder", folder => explorerFolders.open(folder, target => shell.openPath(target)));
+  handle("desktop:open-log-folder", async () => {
+    const directory = path.join(app.getPath("userData"), "logs");
+    mkdirSync(directory, { recursive: true });
+    const error = await shell.openPath(directory);
+    if (error) throw new Error("Could not open the log folder.");
+  });
   handle("desktop:info", () => info());
   handle("desktop:cli-state", () => cliIntegration?.state() ?? { status: "off", unsupported: true });
   handle("desktop:cli-set", (enabled) => {
@@ -247,7 +261,11 @@ function createWindow(): void {
   created.webContents.on("did-fail-load", (_event, code, description, _url, isMainFrame) => {
     if (isMainFrame) failed(`renderer load failed (${code}): ${description}`);
   });
-  created.webContents.on("render-process-gone", (_event, details) => failed(`renderer exited: ${details.reason} (${details.exitCode})`));
+  created.webContents.on("render-process-gone", (_event, details) => {
+    const reason = `renderer exited: ${details.reason} (${details.exitCode})`;
+    log(reason);
+    failed(reason);
+  });
   // The Editor's beforeunload asks before losing work; Electron needs the question shown here.
   created.webContents.on("will-prevent-unload", (event) => {
     if (installing) {
