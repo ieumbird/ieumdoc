@@ -32,6 +32,8 @@ export const en = {
   "Cell whitespace → Trim cell": "Cell whitespace → Trim cell",
   "Invalid table → Check columns": "Invalid table → Check columns",
   "Invalid Figure → Check properties": "Invalid Figure → Check properties",
+  "Fixed number cannot be saved → Add content or clear number": "Fixed number cannot be saved → Add content or clear number",
+  "Fixed number cannot be saved → Enter equation content or clear the fixed number.": "Fixed number cannot be saved → Enter equation content or clear the fixed number.",
 
   "Invalid marker → Open an IeumDoc document or create one.": "Invalid marker → Open an IeumDoc document or create one.",
   "Unsupported settings → Check document frontmatter.": "Unsupported settings → Check document frontmatter.",
@@ -698,6 +700,8 @@ export const ko: Record<keyof typeof en, string> = {
   "Cell whitespace → Trim cell": "셀 앞뒤 공백 → 공백 삭제",
   "Invalid table → Check columns": "표 구조 오류 → 열 확인",
   "Invalid Figure → Check properties": "그림 오류 → 속성 확인",
+  "Fixed number cannot be saved → Add content or clear number": "고정 번호 저장 불가 → 내용 입력 또는 번호 해제",
+  "Fixed number cannot be saved → Enter equation content or clear the fixed number.": "고정 번호를 저장할 수 없음 → 수식 내용을 입력하거나 고정 번호를 해제하세요.",
 
   "Invalid marker → Open an IeumDoc document or create one.": "표식 오류 → 이음독 문서를 열거나 새로 만드세요.",
   "Unsupported settings → Check document frontmatter.": "미지원 설정 → 문서 앞부분의 설정을 확인하세요.",

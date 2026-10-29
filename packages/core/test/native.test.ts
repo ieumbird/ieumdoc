@@ -133,7 +133,10 @@ test("native admission rejects unsupported structure instead of projecting parti
     "> One.\n>\n> Two.\n", ":::{note}\n# Nested\n:::\n", "Text {kbd}`Ctrl`.\n",
     "## See {ref}`Custom <target>`\n", "[a](./same)[b](./same)\n", "| A |\n|---|\n| ![x](./x.png) |\n",
     "Text[^a].\n\n[^a]: One.\n\n    Two.\n", ":::{figure} ./x.png\n:width: 100px\n:::\n",
-    "```{math}\n:enumerated: false\nx\n```\n"]) {
+    "```{math}\n:enumerated: false\nx\n```\n", ":::{figure} ./x.png\n:enumerated: false\n:::\n",
+    ":::{table}\n:enumerated: false\n\n| A |\n|---|\n:::\n",
+    "```{code-block} python\n:enumerator: 17\n\nprint(1)\n```\n",
+    ":::{figure}\n\n```{mermaid}\n:enumerator: 17\n\ngraph LR; A-->B\n```\n:::\n"]) {
     assert.throws(() => parse(native(body)), NativeDocumentError, body);
   }
 });

@@ -1,6 +1,7 @@
 # Heading numbering v1
 
 - Status: Implemented
+- Fixed numbering: 2026-10-29 (#720 Core/CLI, Native round-trip and Editor attribute preservation; editing controls and warning UI are a separate PR).
 - Document settings verification: 2026-10-27 (#580: inline settings, per-tab expansion, notation previews and existing document operations; [integration, checks and captures](editor-ux-shell-v1.md#document-settings-placement-554)).
 - Accent verification: 2026-10-27 (#559: generated heading/Outline numbers share the local accent; all presets checked by the token contrast and existing Outline browser tests).
 - Body-heading authoring verification: 2026-10-26 (#472 Editor unit/browser checks; Core/CLI and numbering behavior unchanged). [Verification details](document-editing-v1.md).
@@ -24,6 +25,63 @@ In the inline Document settings block above the title (#580), Number headings be
 CLI: `ieumdoc update-heading-numbering <file> --enabled true|false`. `inspect --format json` reports computed `headingNumber` values. Figure/equation numbering is independent.
 
 Verification covers Core default-policy equivalence to MyST, native metadata writes, CLI edits, Editor path retention, Outline agreement, Undo/Redo and Save → Reload.
+
+## Fixed numbers (#720)
+
+Figures (image, Mermaid and pending), tables and display equations support automatic or fixed
+numbering. Fixed numbers are authored non-empty single-line strings such as `17`, `A.3` or
+`4-2`, stored only in the MyST directive's `:enumerator:` option. Mermaid uses the outer
+`{figure}` option; the inner directive remains option-free. Code blocks and heading numbering
+are outside this feature. `:enumerated: false` is unsupported. No document-mode frontmatter
+or private number format is introduced.
+
+`EditableBlock.enumerator` exposes the authored string. `blockTargets` / `targetNumbers`
+return that string unchanged; automatic targets still return numeric counters. A fixed
+target does not advance the automatic counter, matching MyST. Caption and reference display
+substitute the exact string into the existing templates. Moving or editing content, caption
+or label retains it. Labels remain target identity; duplicate numbers do not merge targets.
+The complete semantic fingerprint includes enumerator, and canonical writing/reopening
+preserves it. The Core writer adds the option to its existing table/Mermaid/pending writers
+and the upstream image/math directive output; no dependency patch is needed.
+
+`numberingReport(blocks)` infers `mode: "fixed"` if any numbered target has an enumerator,
+otherwise `"automatic"`. It returns numbered `targets` and warning `diagnostics` with stable
+codes, `severity: "warning"`, kind and snapshot path. In fixed mode, each missing enumerator
+reports `numbering-missing`; every target sharing an exact string within its own kind reports
+`numbering-duplicate`. Different kinds have separate namespaces. Missing targets retain
+MyST's automatic fallback display until authored. These warnings identify a document that
+mixes modes or duplicates numbers; they never prevent Save, format or CLI edits.
+
+`updateEnumerator(document, [index], string)` sets or changes a fixed number; `""` clears it.
+The operation returns a new snapshot and preserves the input. Core operations allow an empty
+equation with a fixed number as an intermediate state. Operation checks validate a disposable
+copy of that empty equation without its enumerator, keeping the actual result unchanged.
+Final canonical write refuses the state with `fixed-number-unrepresentable` and guidance to
+enter equation content or clear the fixed number. MyST 1.7.4 requires a non-empty `{math}`
+body and `$$` cannot carry options; no dummy content or parser extension is used. An empty
+equation without a fixed number is savable and merely warns in fixed mode.
+
+CLI: `ieumdoc update-enumerator <file> --path <index> --enumerator "A.3"`; an empty value
+clears it. Existing revision, dry-run and atomic file replacement rules apply. `inspect`
+reports authored enumerators and computed numbers/display text; both `inspect` and `check`
+include `numbering` with the complete Core report in JSON and mode/warnings in text.
+`apply-batch` accepts the same command. Its existing contract serializes and reparses each
+step, with one final file replacement; an unsavable intermediate step therefore refuses
+the batch without writing. This PR preserves that contract rather than changing batch paths.
+For an initially empty equation, fill its content before setting its number (reorder the batch operations): the reverse order has no MyST representation for the intermediate step.
+
+Editor projects the read-only attribute through its real schema, uses Core numbers for display,
+and preserves it through existing Core save operations. New locators from typed Cut/Paste,
+drop/copy or duplicate normalization carry the enumerator in `InsertEdit`; Host replay calls
+Core `updateEnumerator` after insertion, including image/pending/Mermaid Figures, tables and
+equations. Number-entry controls and warning UI
+remain outside PR A. Verification covers Core exact-string round-trips, moves, content/label
+edits, MyST enumeration/reference resolution, warnings and intermediate/final-write boundaries;
+CLI covers revision/dry-run/batch and report output; Editor covers schema/save-replay preservation.
+The `reference-save-reload` browser regression opens a real fixed-number document, checks
+caption/equation/reference display, edits prose, saves and reloads, then checks all four
+enumerators on disk and in the reopened display. Browser navigation waits for the exact
+active file and ready state, retaining immediate value assertions afterward.
 
 ## Generated number color (#511 / #503)
 
@@ -117,7 +175,7 @@ and resetting the same kind together is refused. `inspect --format json` adds `r
 to labeled numbered target nodes, computed by the same Core rule. Single commands and
 `apply-batch` use the existing command/write path; failures leave original bytes unchanged.
 
-Roman numerals, chapter hierarchy, caption substitution and Korean particles remain out of scope.
+Generated Roman numerals, chapter hierarchy, caption substitution and Korean particles remain out of scope. Authored fixed strings follow the separate contract below.
 
 ### Caption number labels (#462)
 

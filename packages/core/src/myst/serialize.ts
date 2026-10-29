@@ -5,7 +5,7 @@ import { VFile } from "vfile";
 import { semanticDifferenceIssue, semanticFingerprint } from "./fingerprint.ts";
 import { DocumentWriteError, writeIssueOf, type WriteIssue } from "../write-error.ts";
 import { completeFootnotes, endnotePlacement, footnoteWriteIssue } from "./footnote.ts";
-import { isFigure, supportedFigureContent } from "./figure.ts";
+import { isFigure, figureContentKind } from "./figure.ts";
 import { FRONT_MATTER_FIELD, parse } from "./parse.ts";
 import { prepareReferences } from "./reference.ts";
 import { isTableDirective, tableOf, tableCaptionParagraph, tableBlockNode } from "./table.ts";
@@ -29,10 +29,17 @@ export class SemanticLossError extends DocumentWriteError {
 }
 
 /** Serialize for an operation's own round-trip check, reporting a loss as that operation's failure.
- * Its footnotes are completed: they are the document's write rule, not the operation's. */
+ * Incomplete session states are checked on a disposable clone: missing footnote definitions
+ * are completed, and an empty equation is checked without its unrepresentable fixed option.
+ * The operation result retains that option. Only the final canonical write rejects it. */
 export function serializeFor(document: MystDocument, failure: string): string {
   try {
-    return serialize(completeFootnotes(document));
+    let check = document;
+    if (document.children.some(node => node.type === "math" && node.value === "" && node.enumerator !== undefined)) {
+      check = cloneDocument(document);
+      for (const node of check.children) if (node.type === "math" && node.value === "") delete node.enumerator;
+    }
+    return serialize(completeFootnotes(check));
   } catch (error) {
     if (error instanceof SemanticLossError) throw new Error(`${failure} (${error.detail})`, { cause: error });
     throw error;
@@ -112,7 +119,9 @@ function prepareWriter(tree: MystDocument, blockPaths: number[][]): string {
     }
   }
   function prepare(node: MystNode, index: number, parent: MystNode | undefined, path: number[], inLink: boolean): void {
-    const mermaidFigure = isFigure(node) && supportedFigureContent(node)?.mermaidSource !== undefined;
+    // Reference/inline writer adaptations change caption leaves, not the Figure's content kind.
+    const figureKind = isFigure(node) ? figureContentKind(node) : undefined;
+    const mermaidFigure = figureKind === "mermaid";
     // Lifted roles can lack positions; diagnostics still identify their containing block.
     node.position ??= parent?.position;
     if (node[FRONT_MATTER_FIELD] !== undefined) {
@@ -146,6 +155,22 @@ function prepareWriter(tree: MystDocument, blockPaths: number[][]): string {
       node === tree ? blockPaths[childIndex] : [...path, childIndex], inLink));
     // MyST requires a body in {math}; dollar fences also preserve an empty equation
     // and its optional closing-line label. The full fingerprint still guards the label.
+    if (node.type === "math" && node.enumerator !== undefined && !String(node.value ?? "").trim()) {
+      throw new DocumentWriteError("A fixed number cannot be represented on an empty equation in MyST. Enter equation content or clear the fixed number.", {
+        code: "fixed-number-unrepresentable", path, action: "Enter equation content or clear the fixed number.",
+      });
+    }
+    // The pinned upstream writer omits enumerator on image Figures and math. Reuse its
+    // complete directive output and add only the standard option on the write clone.
+    if (node.enumerator !== undefined && (node.type === "math" || figureKind === "image")) {
+      const enumerator = node.enumerator;
+      delete node.enumerator;
+      const source = render(node);
+      const newline = source.indexOf("\n");
+      node.type = "html";
+      node.value = `${source.slice(0, newline)}\n:enumerator: ${enumerator}${source.slice(newline)}`;
+      delete node.children;
+    }
     if (node.type === "math" && node.value === "") {
       const source = `$$\n$$${node.label ? ` (${node.label})` : ""}`;
       if (node.label) {
@@ -174,7 +199,7 @@ function prepareWriter(tree: MystDocument, blockPaths: number[][]): string {
         action: "Remove line breaks from the table caption." });
       const fence = ":".repeat(Math.max(3, ...[...body.matchAll(/^(:{3,})/gm)].map(match => match[1].length + 1)));
       node.type = "html";
-      node.value = `${fence}{table}${title ? ` ${title}` : ""}\n${node.label ? `:name: ${node.label}\n` : ""}\n${body}\n${fence}`;
+      node.value = `${fence}{table}${title ? ` ${title}` : ""}\n${node.label ? `:name: ${node.label}\n` : ""}${node.enumerator !== undefined ? `:enumerator: ${node.enumerator}\n` : ""}\n${body}\n${fence}`;
       delete node.children;
     }
     // Write the supported Mermaid shape ourselves; upstream's Figure writer assumes an image.
@@ -187,7 +212,7 @@ function prepareWriter(tree: MystDocument, blockPaths: number[][]): string {
       const body = `${codeFence}{mermaid}\n${source}\n${codeFence}${caption ? `\n\n${caption}` : ""}`;
       const fence = ":".repeat(Math.max(3, ...[...body.matchAll(/^ *(:{3,})/gm)].map(match => match[1].length + 1)));
       node.type = "html";
-      node.value = `${fence}{figure}\n${node.label ? `:name: ${node.label}\n` : ""}\n${body}\n${fence}`;
+      node.value = `${fence}{figure}\n${node.label ? `:name: ${node.label}\n` : ""}${node.enumerator !== undefined ? `:enumerator: ${node.enumerator}\n` : ""}\n${body}\n${fence}`;
       delete node.children;
     }
     // myst-to-md writes a Figure only from its image. A pending Figure (no content, at most its
@@ -199,7 +224,7 @@ function prepareWriter(tree: MystDocument, blockPaths: number[][]): string {
       const caption = (node.children ?? []).flatMap(child => child.children ?? []).map(render).join("\n\n");
       const fence = ":".repeat(Math.max(3, ...[...caption.matchAll(/^(:{3,})/gm)].map(match => match[1].length + 1)));
       node.type = "html";
-      node.value = `${fence}{figure}\n${node.label ? `:name: ${node.label}\n` : ""}${caption ? `\n${caption}\n` : ""}${fence}`;
+      node.value = `${fence}{figure}\n${node.label ? `:name: ${node.label}\n` : ""}${node.enumerator !== undefined ? `:enumerator: ${node.enumerator}\n` : ""}${caption ? `\n${caption}\n` : ""}${fence}`;
       delete node.children;
     }
   }

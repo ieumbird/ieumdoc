@@ -1,6 +1,7 @@
 # Figure authoring v1
 
 - Status: Implemented
+- Fixed numbering: 2026-10-29 (#720 Core/CLI); [shared number contract](heading-numbering-v1.md#fixed-numbers-720).
 - Mermaid update: 2026-10-28 (#651: Core/CLI source semantics and Editor in-document authoring/rendering).
 - Media reference verification: 2026-10-27 (#504: simultaneous exact source replacement, canonical preservation/refusal, CLI dry-run/batch/revision conflicts, real Host rename and Editor reload).
 - Property-entry update: 2026-10-27 (#557: shared selection/Enter/double-click and explicit property drafts; see [Continuous editing](document-editing-v1.md#continuous-editing)).
@@ -21,6 +22,13 @@ The MVP keeps the existing MyST Figure container and image authoring UI, adding 
 Verification covers Core canonical round-trip and fail-closed cases, CLI writes and failure without writes, Editor session collection/history, and browser insertion, Apply/Cancel, Source, Save acknowledgement and existing image authoring.
 
 ## Persistent meaning
+
+The optional outer `{figure}` `:enumerator:` stores a fixed number for image, pending and
+Mermaid Figures. Core read models, captions and references use the exact authored string;
+moving, relabeling or editing content preserves it. `updateEnumerator` and the thin CLI
+`update-enumerator` command set or clear it. Mermaid's inner directive stays option-free.
+The [shared fixed-number contract](heading-numbering-v1.md#fixed-numbers-720) defines
+warning-only missing/duplicate checks and the separate Editor-controls scope.
 
 A Figure owns its caption, label, location and number. Content is optional: `contentKind` in the Core read model is `none`, `image` or `mermaid`. Existing `imageUrl` and `imageAlt` fields remain available. Mermaid Figures additionally expose `mermaidSource`; image fields are empty. Unsupported content, including subfigures, rejects native admission.
 

@@ -1,6 +1,7 @@
 # Native document support v1
 
 - Status: Implemented
+- Fixed numbering: 2026-10-29 (#720 Core/CLI; [numbering contract](heading-numbering-v1.md#fixed-numbers-720)).
 - Feature sample verification: 2026-10-28 (#528 localized folders, Core read-model coverage and canonical CLI check/format; Desktop replacement/preservation unit tests and development browser entry/captures; no local packaged Desktop run).
 - Save diagnostics: 2026-10-28 (#578 phase 2; stable Core codes, CLI JSON pass-through and bilingual Editor guidance; [inventory](#save-diagnostic-codes-578-phase-2)).
 - Mermaid Figure update: 2026-10-28 (#651 PR 1; Core/CLI source/admission/canonical contract; [Figure authoring](figure-authoring-v1.md#mermaid-figures-651-core-and-cli)).
@@ -45,9 +46,9 @@ Support is decided from Core semantic structure and existing authoring helpers, 
 | --- | --- |
 | Headings | H1–H6, non-empty supported inline content, no line breaks or additional attributes. |
 | Paragraphs and inline content | Text, strong/emphasis/delete/code, ordinary links with non-empty content, inline math, supported subscript/superscript, footnote references, `{eq}`, `{numref}`, `{ref}` without custom display text, and explicit `{cite}`, `{cite:t}`, `{cite:p}` keys/groups. Existing inline nesting/round-trip restrictions apply. Distinct adjacent links with identical targets are unsupported. |
-| Equation | Display math value (including empty) and optional label; empty equations use dollar fences, filled equations use `{math}`. A label must preserve its identity in the chosen notation. No enumeration overrides or arbitrary attributes. |
-| Figure | Empty/pending, one image or one option-free non-empty `mermaid` directive, optional container label and one supported inline caption. Alt text requires an image. Mermaid source is opaque; no syntax validation or image ↔ Mermaid conversion. No legends, subfigures, mixed content or extra directive/image/Mermaid attributes. |
-| Table | Rectangular GFM grid with a header row, supported inline cells without line breaks, column alignment; optional supported table caption and label. Only plain GFM and the exact `{table}` directive are accepted. Its options may contain only `name` / `label`, and any MyST VFile diagnostic within the directive's source range causes refusal, including duplicate/unknown options in colon-line or YAML syntax. `{csv-table}`, `{list-table}` and other table directives are refused with or without caption/Label. Every table is numbered and canonically saved as `{table}`, including without caption or label. No merged cells, legends or extra directive attributes. |
+| Equation | Display math value (including empty), optional label and fixed `:enumerator:` string. Empty equations use dollar fences, filled equations use `{math}`. A label must preserve its identity in the chosen notation. Empty equations with a fixed number are permitted only as an intermediate operation state, and refused at final canonical write. No `:enumerated: false` or arbitrary attributes. |
+| Figure | Empty/pending, one image or one option-free non-empty `mermaid` directive, optional container label, fixed `:enumerator:` string and one supported inline caption. Mermaid numbering belongs only to the outer `{figure}`. Alt text requires an image. Mermaid source is opaque; no syntax validation or image ↔ Mermaid conversion. No legends, subfigures, mixed content or extra directive/image/Mermaid attributes. |
+| Table | Rectangular GFM grid with a header row, supported inline cells without line breaks, column alignment; optional supported table caption, label and fixed number. Only plain GFM and the exact `{table}` directive are accepted. Its options may contain only `name` / `label` and `enumerator`, and any MyST VFile diagnostic within the directive's source range causes refusal, including duplicate/unknown options in colon-line or YAML syntax. `{csv-table}`, `{list-table}` and other table directives are refused with or without caption/Label. Every table is numbered and canonically saved as `{table}`, including without caption or label. No merged cells, legends or extra directive attributes. |
 | List | Ordered or unordered lists with supported paragraph content and supported nested lists; existing start and nesting rules. A list retains at least one item. Each item may be empty, including a parent with only a nested list, or contain supported inline content such as text, a citation, footnote reference, math, code or semantic reference. This applies at every nesting level. Insert/update operations normalize whitespace-only content to empty content as described below. No tasks or arbitrary nested blocks. |
 | Code | Plain fenced code with the existing language contract; no captioned/directive variants. |
 | Quote, divider, admonition | An empty quote or one supported paragraph; thematic break; all standard admonition kinds with an empty body or one supported paragraph. No custom titles/options or additional nested blocks. |
@@ -105,6 +106,13 @@ These writes fail with a located write error instructing the user to enter conte
 remove the label, or choose a compatible label. The original file remains unchanged.
 All equations retain the existing official number, including when empty.
 
+An empty equation may retain an authored fixed number during editing operations. Only final
+canonical write refuses it with `fixed-number-unrepresentable` and asks the author to enter
+equation content or clear the fixed number. MyST 1.7.4 rejects an empty `{math}` body, while
+`$$` has no directive options. No dummy LaTeX or parser extension is used. An empty equation
+without an enumerator remains savable, including in a fixed document (a nonblocking missing-number
+warning). The [fixed-number contract](heading-numbering-v1.md#fixed-numbers-720) defines the distinction.
+
 Existing CLI input paths share Core's rules, including empty `--text`, `--latex` and
 list content arrays. No new empty-element commands are added: the existing operations
 already express these states. Migration and stored-data compatibility are out of scope.
@@ -157,10 +165,15 @@ both whole-document and operation-specific round-trip comparisons:
 | `table-cell-whitespace` | Leading/trailing cell whitespace. |
 | `table-shape` | Missing columns, ragged grid or invalid column alignment. |
 | `invalid-figure` | Invalid image/alt/Mermaid/caption property combination. |
+| `fixed-number-unrepresentable` | Final write of an empty equation retaining a fixed number; enter equation content or clear the fixed number. |
 
 Read-model invariant exceptions in `editable.ts` and unexpected upstream/runtime errors remain
 uncoded; the existing generic guidance applies. Supported unresolved document references remain
 an authoring state, not a save error. File/revision/transport failures retain their own phases.
+
+Numbering consistency diagnostics use a separate warning family: `numbering-missing` and
+`numbering-duplicate`. They carry kind and snapshot path, never throw, and never gate writing.
+They are not `WriteIssueCode` values. See [fixed numbering](heading-numbering-v1.md#fixed-numbers-720).
 
 CLI `check --format json` passes Core `WriteIssue.code` through the existing `error` object,
 including non-native serialization refusals; its JSON envelope and exit status are unchanged.

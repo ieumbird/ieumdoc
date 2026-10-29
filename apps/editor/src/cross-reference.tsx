@@ -17,7 +17,7 @@ import { canEditEndnoteAt } from "./endnotes.ts";
 
 /** A labeled Equation, Figure, Table or section in the current editor document that a reference
  * can name, with its computed number or, for a section, its heading text. */
-export type ReferenceTarget = { role: ReferenceRole; label: string; number?: number; template?: string; kind?: NumberedKind; title?: string };
+export type ReferenceTarget = { role: ReferenceRole; label: string; number?: number | string; template?: string; kind?: NumberedKind; title?: string };
 
 /** A reference to an unlabeled heading: inserting it labels the heading too. */
 type HeadingChoice = { heading: number; title: string };
@@ -37,19 +37,19 @@ export function blockNumbers(doc: ProseMirrorNode): readonly Readonly<NumberedTa
   const existing = numbersOf.get(doc);
   if (existing) return existing;
   const blocks: NumberedTargets[] = [];
-  doc.forEach((node) => blocks.push(blockTargets({ block: node.type.name, label: node.attrs.label, caption: node.type.name === "table" ? tableCaption(node.toJSON()) : undefined })));
+  doc.forEach((node) => blocks.push(blockTargets({ block: node.type.name, enumerator: node.attrs.enumerator ?? undefined })));
   const numbers = targetNumbers(blocks);
   numbersOf.set(doc, numbers);
   return numbers;
 }
 
 /** The computed number of the top-level block at `pos`, for one target kind. */
-export function blockNumberAt(doc: ProseMirrorNode, pos: number, kind: NumberedKind): number | undefined {
+export function blockNumberAt(doc: ProseMirrorNode, pos: number, kind: NumberedKind): number | string | undefined {
   return blockNumbers(doc)[doc.resolve(pos).index(0)]?.[kind];
 }
 
 /** A target block's computed number, following every change to the editor document. */
-export function useBlockNumber(editor: Editor, getPos: () => number | undefined, kind: NumberedKind): number | undefined {
+export function useBlockNumber(editor: Editor, getPos: () => number | undefined, kind: NumberedKind): number | string | undefined {
   return useEditorState({
     editor,
     selector: ({ editor: current }) => {
@@ -84,7 +84,7 @@ export function useCaptionNumberText(editor: Editor, getPos: () => number | unde
 }
 
 /** How a number is shown: equations in parentheses, as MyST renders them. */
-export function numberText(kind: NumberedKind, number: number): string {
+export function numberText(kind: NumberedKind, number: number | string): string {
   return kind === "equation" ? `(${number})` : String(number);
 }
 

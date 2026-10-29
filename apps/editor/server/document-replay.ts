@@ -41,6 +41,7 @@ import {
   insertDivider,
   updateFigure,
   updateLabel,
+  updateEnumerator,
   updateList,
   updateCodeBlock,
   updateTableCell,
@@ -488,6 +489,10 @@ export function saveEdits(
     if ((item.block === "equation" || item.block === "figure" || item.block === "table") && item.label) {
       const label = item.label;
       document = editAt(target, () => updateLabel(document, [index], label));
+    }
+    if ((item.block === "equation" || item.block === "figure" || item.block === "table") && item.enumerator !== undefined) {
+      const enumerator = item.enumerator;
+      document = editAt(target, () => updateEnumerator(document, [index], enumerator));
     }
     locators.splice(index, 0, { insert });
   }

@@ -451,11 +451,11 @@ function insertEdit(node: TiptapJSON): InsertEdit {
   }
   if (node.type === "equation") {
     const label = blockLabel(node);
-    return { block: "equation", latex: equationLatex(node), ...(label ? { label } : {}) };
+    return { block: "equation", latex: equationLatex(node), ...(label ? { label } : {}), ...insertEnumerator(node) };
   }
   if (node.type === "figure") {
     const label = blockLabel(node);
-    return { block: "figure", ...figureContent(node), ...(label ? { label } : {}) };
+    return { block: "figure", ...figureContent(node), ...(label ? { label } : {}), ...insertEnumerator(node) };
   }
   if (node.type === "table") {
     const grid = tableCells(node);
@@ -469,7 +469,7 @@ function insertEdit(node: TiptapJSON): InsertEdit {
     const caption = tableCaption(node);
     const label = blockLabel(node);
     return { block: "table", rows: grid.map(row => row.map(cell => cell.content)), ...(align.some(Boolean) ? { align } : {}),
-      ...(caption.length ? { caption } : {}), ...(label ? { label } : {}) };
+      ...(caption.length ? { caption } : {}), ...(label ? { label } : {}), ...insertEnumerator(node) };
   }
   if (LIST_BLOCKS.has(node.type ?? "")) {
     return { block: "list", list: listContent(node) };
@@ -481,6 +481,14 @@ function insertEdit(node: TiptapJSON): InsertEdit {
     return { block: "target", label: targetLabel(node) };
   }
   throw new Error("only paragraphs, headings, admonitions, quotes, footnote definitions, dividers, equations, figures, tables, lists, code blocks and section labels can be inserted");
+}
+
+/** Carry authored data across fresh locators; Core alone validates number semantics. */
+function insertEnumerator(node: TiptapJSON): { enumerator?: string } {
+  const value = node.attrs?.enumerator;
+  if (value == null) return {};
+  if (typeof value !== "string") throw new Error("inserted enumerator must be a string");
+  return { enumerator: value };
 }
 
 export function figureContent(node: TiptapJSON): FigureContent {
@@ -518,6 +526,10 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
   }
   const beforeType = before.type ?? "";
   const afterType = after.type ?? "";
+  if (["figure", "table", "equation"].includes(beforeType) &&
+      normalizeAttr(before.attrs?.enumerator) !== normalizeAttr(after.attrs?.enumerator)) {
+    throw new Error("fixed numbers are preserved; editing them requires the Core enumerator operation");
+  }
   if (!KNOWN_BLOCKS.has(afterType)) {
     throw new Error(`unsupported Tiptap block "${afterType || "unknown"}"`);
   }
