@@ -1836,6 +1836,7 @@ ol.list { list-style: decimal; }
 /* A footnote reference is a superscript reference chip; its definition shows the same number. */
 .footnote-reference sup,
 .footnote-number {
+  color: var(--id-color-interaction);
   line-height: 0;
 }
 
@@ -1865,10 +1866,10 @@ ol.list { list-style: decimal; }
   padding-top: calc(var(--border-width) + var(--space-3) + var(--line-height-meta) + var(--space-document-endnote-gap));
 }
 
-.document-editor > [data-footnote-definition="true"]:not([data-footnote-definition="true"] + [data-footnote-definition="true"])::before {
-  content: "미주";
+.document-editor > [data-footnote-definition="true"]:not([data-footnote-definition="true"] + [data-footnote-definition="true"]) > .footnote-definition::before {
+  content: attr(data-endnotes-heading);
   position: absolute;
-  inset: 0 0 auto;
+  inset: calc(-1 * (var(--border-width) + var(--space-3) + var(--line-height-meta) + var(--space-document-endnote-gap))) 0 auto;
   border-top: var(--border-width) solid var(--id-color-border-subtle);
   padding-top: var(--space-3);
   color: var(--id-color-text-muted);
@@ -1884,6 +1885,16 @@ ol.list { list-style: decimal; }
   margin: 0;
   padding-left: var(--space-document-endnote-indent);
   color: var(--id-color-text);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-3);
+}
+
+.endnote-actions {
+  display: flex;
+  gap: var(--space-2);
+  grid-area: 1 / 2;
 }
 
 .footnote-definition > .footnote-number {
@@ -1898,6 +1909,7 @@ ol.list { list-style: decimal; }
 
 .footnote-definition-body {
   margin: 0;
+  grid-area: 1 / 1;
 }
 
 /* A section label is authoring metadata, like a Figure label. It takes no layout space (its
@@ -2300,7 +2312,8 @@ ol.list { list-style: decimal; }
   text-underline-offset: var(--reference-underline-offset);
 }
 
-.cross-reference-chip:hover {
+.cross-reference-chip:hover,
+.footnote-number:hover {
   text-decoration: underline;
   text-underline-offset: var(--reference-underline-offset);
 }

@@ -261,6 +261,60 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument
   const urls=await diagrams.locator('[data-testid="mermaid-preview"] img').evaluateAll(imgs=>imgs.map(img=>decodeURIComponent(img.src)));
   expect(urls.length).toBe(2);
   const ids=urls.map(svg=>svg.match(/<svg[^>]* id="([^"]+)"/)[1]);expect(ids[0]).not.toBe(ids[1]);
+  // #714: selected image/Mermaid previews ignore text and IME without adding paragraphs.
+  // This uses the same selected-preview handler as Equation and read-only endnotes.
+  const input = await page.context().newCDPSession(page);
+  try {
+    for (const target of [editor.locator('figure:not([data-content-kind="mermaid"]) img').first(), diagrams.first().getByTestId('mermaid-preview')]) {
+      for (const processKey of [false, true]) {
+        for (const completion of ['commit','composition-cancel']) {
+          const before = await editor.evaluate(el => el.editor.getJSON());
+          await target.click();
+          expect(await editor.evaluate(el => el.editor.state.selection.node?.type.name)).toBe('figure');
+          const caption = () => target.evaluate(el => el.closest('figure').querySelector('[data-testid="figure-caption-content"]').textContent);
+          const beforeCaption = await caption();
+          await page.keyboard.type('Ignored');
+          expect(await editor.evaluate(el=>el.editor.getJSON())).toEqual(before);
+          if (processKey) await input.send('Input.dispatchKeyEvent', {type:'rawKeyDown', key:'Process', windowsVirtualKeyCode:229, nativeVirtualKeyCode:229});
+          for (const text of ['ㅎ', '하', '한글']) await input.send('Input.imeSetComposition', {text, selectionStart:text.length, selectionEnd:text.length});
+          if (completion === 'composition-cancel') {
+            await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+            await input.send('Input.dispatchKeyEvent', {type:'rawKeyDown',key:'Escape',windowsVirtualKeyCode:27,nativeVirtualKeyCode:27});
+            await input.send('Input.imeSetComposition', {text:'',selectionStart:0,selectionEnd:0});
+            await input.send('Input.dispatchKeyEvent', {type:'keyUp',key:'Escape',windowsVirtualKeyCode:27,nativeVirtualKeyCode:27});
+            await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+          } else await input.send('Input.insertText', {text:'한글'});
+          await page.waitForFunction(() => {
+            const el=document.querySelector('[data-document-tab][data-active=true] .document-editor');
+            return el.editor.view.editable && el.editor.view.hasFocus() && !el.editor.view.composing;
+          });
+          const after = await editor.evaluate(el => el.editor.getJSON());
+          expect(after.content.filter(n=>n.type==='figure')).toEqual(before.content.filter(n=>n.type==='figure'));
+          await page.keyboard.type('Z');
+          expect(await editor.evaluate(el=>el.editor.getJSON())).toEqual(before);
+          expect(await caption()).toBe(beforeCaption);
+        }
+      }
+      const beforeBody = await editor.evaluate(el=>el.editor.getJSON());
+      await active.getByText('Before.',{exact:true}).click();
+      await page.waitForFunction(() => {
+        const s=document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection;
+        return s.empty && s.$from.parent.textContent==='Before.';
+      });
+      await page.keyboard.press('End');
+      await page.waitForFunction(() => {
+        const {$from}=document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection;
+        return $from.parentOffset===$from.parent.content.size;
+      });
+      for (const text of ['ㄴ','나']) await input.send('Input.imeSetComposition', {text, selectionStart:text.length, selectionEnd:text.length});
+      await input.send('Input.insertText', {text:'나'});
+      await page.waitForFunction(() => !document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.composing);
+      await page.keyboard.type('Z');
+      expect(await editor.evaluate(el=>el.editor.state.selection.$from.parent.textContent)).toBe('Before.나Z');
+      await page.keyboard.press('Control+z');
+      expect(await editor.evaluate(el=>el.editor.getJSON())).toEqual(beforeBody);
+    }
+  } finally { await input.detach(); }
   const panel=page.getByRole('complementary',{name:'Outline'});
   if(!await panel.isVisible())await page.getByRole('button',{name:'Outline',exact:true}).click();
   await panel.getByRole('tab',{name:'Figures',exact:true}).click();

@@ -484,7 +484,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   useEffect(() => {
     if (!editor) return;
     const leave = (event: Event) => {
-      const active = endnoteEditingKey.getState(editor.state);
+      const active = endnoteEditingKey.getState(editor.state)?.label;
       if (!active) return;
       const target = event.target;
       if (!(target instanceof Element)) return;
