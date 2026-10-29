@@ -47,6 +47,149 @@ async (page, { openDocument }) => {
     el.dispatchEvent(event);
     return event.defaultPrevented;
   }, overrides);
+  // Ctrl+A starts in the clicked editing surface, then expands to the document (#723).
+  await openDocument(page, file.replace('continuous-editing.md', 'scoped-select-all.md'));
+  const scopedEditor = page.locator('[data-document-tab][data-active=true] .document-editor');
+  const scopes = [
+    ['table cell', 'td', 'Cell with '],
+    ['table caption', '[data-testid="table-caption"] [data-node-view-content]', 'Table caption with '],
+    ['image caption', 'figure:not([data-content-kind="mermaid"]) [data-testid="figure-caption-content"]', 'Image caption with '],
+    ['Mermaid caption', '[data-content-kind="mermaid"] [data-testid="figure-caption-content"]', 'Mermaid caption'],
+    ['endnote', '[data-testid="footnote-definition"][data-label="a"] p', 'First note with '],
+  ];
+  const enterScope = async (name, selector, text) => {
+    const target = scopedEditor.locator(selector).filter({hasText: text}).first();
+    if (name === 'endnote') {
+      const definition = scopedEditor.locator('[data-testid="footnote-definition"][data-label="a"]');
+      const edit = definition.getByTestId('endnote-edit');
+      if (await edit.count()) await edit.click();
+      await target.click();
+    }
+    else await target.click();
+    const type = name === 'table cell' ? 'tableCell' : name === 'table caption' ? 'tableCaption' : name === 'endnote' ? 'footnoteDefinition' : 'figure';
+    await page.waitForFunction(({type, text}) => {
+      const {selection} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state;
+      return selection.toJSON().type === 'text' && selection.empty && selection.$from.parent.type.name === type && selection.$from.parent.textContent.includes(text);
+    }, {type, text});
+  };
+  const selectionFailures = [];
+  for (const [name, selector, text] of scopes) {
+    await enterScope(name, selector, text);
+    await page.keyboard.press('Control+a');
+    const selected = await scopedEditor.evaluate(el => {
+      const {selection} = el.editor.state;
+      return {type: selection.toJSON().type, sameParent: selection.$from.sameParent(selection.$to),
+        from: selection.from, to: selection.to, start: selection.$from.start(), end: selection.$from.end(),
+        text: selection.$from.parent.textContent};
+    });
+    if (!(selected.type === 'text' && selected.sameParent && selected.from === selected.start && selected.to === selected.end && selected.text.includes(text))) {
+      selectionFailures.push({name, selected});
+    }
+    await page.keyboard.press('Control+a');
+    assert(await scopedEditor.evaluate(el => el.editor.state.selection.toJSON().type) === 'all', `${name}: second Ctrl+A must select the document`);
+  }
+  assert(selectionFailures.length === 0, `First Ctrl+A must select only the current surface: ${JSON.stringify(selectionFailures)}`);
+  const scopedOriginal = await snapshot();
+  // Mask only this textblock's inline content, retaining its attributes, other cells,
+  // other definitions and every other block in the document comparison.
+  const outsideScope = indexes => scopedEditor.evaluate((el, indexes) => {
+    const json = el.editor.getJSON();
+    let target = json;
+    for (const index of indexes) target = target.content[index];
+    target.content = [];
+    return JSON.stringify(json);
+  }, indexes);
+  const scopeText = pos => scopedEditor.evaluate((el, pos) => el.editor.state.doc.nodeAt(pos).textContent, pos);
+  const scopedComposition = await page.context().newCDPSession(page);
+  try {
+    for (const [name, selector, text] of scopes) {
+      // Scope split, not a weaker input assertion: #750 independently reproduces
+      // Mermaid caption DOM/model divergence without Ctrl+A. Keep its real-click
+      // Ctrl/Cmd+A selection matrix above/below; input/model/history cases belong
+      // to #750. Every other surface retains the exact model assertions here.
+      if (name === 'Mermaid caption') continue;
+      await enterScope(name, selector, text);
+      const {indexes, pos} = await scopedEditor.evaluate(el => {
+        const {$from} = el.editor.state.selection;
+        return {indexes: Array.from({length: $from.depth}, (_, depth) => $from.index(depth)), pos: $from.before()};
+      });
+      const outside = await outsideScope(indexes);
+      const resetCaret = async () => {
+        if (name === 'endnote') {
+          const edit = scopedEditor.locator('[data-testid="footnote-definition"][data-label="a"]').getByTestId('endnote-edit');
+          if (await edit.count()) await edit.click();
+        }
+        // Undo restores its selection too. Set the next independent case's caret
+        // explicitly; pointer entry is already covered by the matrix above.
+        await scopedEditor.evaluate((el, pos) => {
+          el.editor.commands.setTextSelection(pos + 1);
+          el.editor.view.focus();
+        }, pos);
+      };
+      for (const action of ['type', 'Backspace']) {
+        await resetCaret();
+        await page.keyboard.press('Control+a');
+        if (action === 'type') await page.keyboard.type('Z');
+        else await page.keyboard.press('Backspace');
+        // Native input can first move the selection, then arrive through the DOM
+        // observer. Require the actual replacement, not just a completed key event.
+        await page.waitForFunction(({pos, text}) => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.doc.nodeAt(pos)?.textContent === text,
+          {pos, text: action === 'type' ? 'Z' : ''});
+        assert(await outsideScope(indexes) === outside, `${name}: ${action} changed another cell, caption, definition or block`);
+        if (action === 'Backspace') {
+          await page.keyboard.press('Control+a');
+          assert(await scopedEditor.evaluate(el => el.editor.state.selection.toJSON().type) === 'text', `${name}: first Ctrl+A in an empty surface must stay local`);
+          await page.keyboard.press('Control+a');
+          assert(await scopedEditor.evaluate(el => el.editor.state.selection.toJSON().type) === 'all', `${name}: second Ctrl+A in an empty surface must select the document`);
+        }
+        await page.keyboard.press('Control+z');
+        assert(await snapshot() === scopedOriginal, `${name}: one Undo must restore the exact rich document after ${action}`);
+      }
+      await resetCaret();
+      // Set up a caret before the rich inline content, then exercise real
+      // Chromium composition and Ctrl+A while it is active. This avoids native
+      // range-collapse/navigation behavior at an uneditable inline atom's edge.
+      const beforeComposition = await scopeText(pos);
+      await scopedComposition.send('Input.imeSetComposition', {text: 'ㅎ', selectionStart: 1, selectionEnd: 1});
+      await page.waitForFunction(({pos, text}) => {
+        const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+        return editor.view.composing && editor.state.doc.nodeAt(pos)?.textContent === text;
+      }, {pos, text: 'ㅎ' + beforeComposition});
+      const composing = await snapshot();
+      const composingSelection = await scopedEditor.evaluate(el => JSON.stringify(el.editor.state.selection.toJSON()));
+      await page.keyboard.press('Control+a');
+      assert(await snapshot() === composing && await scopedEditor.evaluate(el => JSON.stringify(el.editor.state.selection.toJSON())) === composingSelection,
+        `${name}: Ctrl+A during composition must keep its text and composing selection`);
+      await scopedComposition.send('Input.imeSetComposition', {text: '한글', selectionStart: 2, selectionEnd: 2});
+      await scopedComposition.send('Input.insertText', {text: '한글'});
+      // compositionend clears view.composing before the DOM observer's queued
+      // transaction; wait for the committed text as well, without a fixed delay.
+      await page.waitForFunction(({pos, text}) => {
+        const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+        return !editor.view.composing && editor.state.doc.nodeAt(pos)?.textContent === text;
+      }, {pos, text: '한글' + beforeComposition});
+      const afterComposition = await outsideScope(indexes);
+      assert(afterComposition === outside, `${name}: Korean composition changed content outside its surface: ${JSON.stringify({outside, afterComposition})}`);
+      await page.keyboard.press('Control+z');
+      assert(await snapshot() === scopedOriginal, `${name}: one Undo must restore the rich document after composition`);
+    }
+  } finally { await scopedComposition.detach(); }
+  // Read-only endnotes keep their existing node-selection/default whole-document path.
+  const readonlyNote = scopedEditor.locator('[data-testid="footnote-definition"][data-label="b"]');
+  await readonlyNote.locator('p').click();
+  await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.node?.attrs.label === 'b');
+  await page.keyboard.type('Ignored');
+  assert(await snapshot() === scopedOriginal, 'Read-only endnotes must still reject typing');
+  await page.keyboard.press('Control+a');
+  assert(await scopedEditor.evaluate(el => el.editor.state.selection.toJSON().type) === 'all', 'Read-only endnote Ctrl+A retains whole-document selection');
+  await scopedEditor.locator('p.paragraph', {hasText: 'After.'}).click();
+  await page.waitForFunction(() => {
+    const {selection} = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state;
+    return selection.empty && selection.$from.parent.type.name === 'paragraph' && selection.$from.parent.textContent === 'After.';
+  });
+  await page.keyboard.press('Control+a');
+  assert(await scopedEditor.evaluate(el => el.editor.state.selection.toJSON().type) === 'all', 'Ordinary prose Ctrl+A must still select the document');
+  await openDocument(page, file);
   const original = await snapshot();
   await select(['Heading', 7]);
   await page.keyboard.type(' first');
@@ -352,5 +495,22 @@ async (page, { openDocument }) => {
     assert(index >= 0 && continued[index + 1]?.content?.map(node => node.text ?? '').join('') === text,
       `Final Equation and following input must survive Save/Reload: ${text}`);
   }
-  return {headingBoundary:true, crossBlockDeletion:true, cutPasteRichText:true, typedBlockClipboard:true, formattedTypedClipboard:true, undoRedoAcrossSave:true, tableNavigation:true, rejectedPasteRetainsInput:true, compositionSaveReload:true, atomEdges:true, continuation};
+  // Exercise Cmd+A in the same persistent browser using the Apple keymap.
+  // This is platform emulation, not a native macOS keyboard/OS check.
+  await page.addInitScript(() => Object.defineProperty(navigator, 'platform', {configurable:true, get:() => 'MacIntel'}));
+  await page.reload();
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor();
+  await openDocument(page, file.replace('continuous-editing.md', 'scoped-select-all.md'));
+  for (const [name, selector, text] of scopes) {
+    await enterScope(name, selector, text);
+    await page.keyboard.press('Meta+a');
+    assert(await scopedEditor.evaluate(el => {
+      const {selection} = el.editor.state;
+      return selection.toJSON().type === 'text' && selection.$from.sameParent(selection.$to) &&
+        selection.from === selection.$from.start() && selection.to === selection.$from.end();
+    }), `${name}: first Cmd+A must stay in its editing surface`);
+    await page.keyboard.press('Meta+a');
+    assert(await scopedEditor.evaluate(el => el.editor.state.selection.toJSON().type) === 'all', `${name}: second Cmd+A must select the document`);
+  }
+  return {scopedSelectAll:true, scopedReplacementAndUndo:true, scopedComposition:true, appleSelectAllKeymap:true, headingBoundary:true, crossBlockDeletion:true, cutPasteRichText:true, typedBlockClipboard:true, formattedTypedClipboard:true, undoRedoAcrossSave:true, tableNavigation:true, rejectedPasteRetainsInput:true, compositionSaveReload:true, atomEdges:true, continuation};
 }

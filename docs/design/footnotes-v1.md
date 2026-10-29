@@ -108,6 +108,13 @@ The Editor presents the Core order; it does not keep a source order of its own.
 
 ### Endnotes presentation
 
+While a definition is explicitly being edited, Ctrl/Cmd+A first selects that
+definition's inline body, including line breaks; a consecutive second press
+selects the document. Other definitions and the number are excluded from the
+first selection. At rest, Ctrl/Cmd+A retains the existing whole-document behavior
+and does not open editing or change input guards. See [scoped selection](document-editing-v1.md#select-all-within-an-editing-surface-723)
+for empty bodies, composition and history (#723).
+
 All top-level definitions follow the body in the one editor state. The first has a subtle 1px rule, a 12/16px muted label (`Endnotes` in English / `미주` in Korean), and 24px space from the body; subsequent definitions have an 8px gap. Text keeps the 16px font and 1.5 line-height (24px), normal document text color and baseline number in a 24px inset. Inline reference chips stay superscript. The localized region label is display only: it is not a heading, an Outline entry, selected text or Markdown. Whole-definition copying keeps the existing lossless-copy restriction; Source remains available for copying actual Markdown.
 
 ## Scope
