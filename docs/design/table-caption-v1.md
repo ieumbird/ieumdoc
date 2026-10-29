@@ -118,6 +118,10 @@ removed the React-owned content wrapper, leaving its contentDOM detached and, fo
 the model out of sync. The same boundary applies to image, pending and Mermaid captions.
 The `table-caption` browser scenario checks repeated Backspace, word deletion and cut for
 each kind, including contentDOM, model, surrounding blocks, Undo/Redo and hint restoration.
+Full-caption text replacement and composition commit/cancel share the
+[Figure input boundary](figure-authoring-v1.md): a detached contentDOM is reported to
+ProseMirror for final DOM reading and reconstruction, including after Escape cancellation.
+The `caption-selection` regression checks DOM/model agreement and actual Save → Reload.
 
 Triple-clicking anywhere on the caption line, including its generated number and blank
 space after the text, selects only the caption's inline content (#724). Typing or deleting

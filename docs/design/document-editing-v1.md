@@ -142,11 +142,12 @@ shortcut is consumed without changing its content or composition selection.
 Replacement and Backspace use the engine's normal text transactions and history;
 one Undo restores the rich content. This is Editor-only selection behavior and
 adds no Core operation or CLI surface. The existing `continuous-editing` browser
-regression covers selection on all five surfaces. Replacement, Backspace, empty
-surfaces, Undo and Chromium composition cover image/table captions, cells and
-edited endnotes. Mermaid input/model checks are tracked separately in
-[#750](https://github.com/ieumbird/ieumdoc/issues/750), which reproduces DOM/model
-divergence even without Ctrl+A; this is an explicit scope split. Native Windows IME and native macOS
+regression covers selection, replacement, Backspace, empty surfaces, Undo and
+Chromium composition on all five surfaces, including Mermaid caption input/model
+checks restored with [#750](https://github.com/ieumbird/ieumdoc/issues/750).
+The separate caption regression also verifies composition cancellation and real-file
+Save → Reload; see [Figure authoring](figure-authoring-v1.md).
+Native Windows IME and native macOS
 keyboard behavior remain manual verification boundaries.
 
 ### Shared history and editing boundaries

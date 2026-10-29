@@ -61,9 +61,14 @@ Replacing an entire caption, including mixed bold/plain text, also keeps the DOM
 synchronized for image, pending and Mermaid Figures (#750). Cancelable native text replacement
 uses the browser's exact target range and a ProseMirror transaction. At composition start, a full
 caption selection is deleted through the engine before native composition continues at that caret.
+Composition cancellation can also detach the contentDOM. Caption NodeViews report that removal
+to ProseMirror instead of ignoring it, so the engine reads the final DOM and rebuilds the editable
+surface. Cancelled text is removed from the model and cannot reappear through Save → Reload.
 Partial selections and ordinary caret input retain their existing paths. The replacement remains
 one Undo step and survives Save → Reload with diagram source, label and surrounding content intact.
-The `caption-selection` regression covers real mouse drag, text input and Chromium Korean composition;
+The `caption-selection` regression covers real mouse drag, text input, Chromium Korean composition
+commit/cancel (including Escape and Backspace), immediate and two-frame DOM/model agreement,
+Undo/Redo, and real-file Save → Reload for image, Mermaid, pending and table captions;
 Windows OS IME candidate selection remains a manual verification boundary.
 
 Triple-clicking anywhere on an image, pending or Mermaid caption line, including the
