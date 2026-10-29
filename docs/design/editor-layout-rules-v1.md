@@ -90,6 +90,9 @@ on collision, with its width/height capped to the owning group's available viewp
 Sidebar/Outline padding and native scrollbar are excluded. `--layout-figure-popover-width` and
 `--size-figure-property-thumbnail` and `--space-figure-popover-gap` are adjustable; spacing and control dimensions reuse the shared
 tokens. Label and Number share a two-column row at both wide and supported narrow widths.
+The Number track and Label input share a height and vertical center (#760); revealing the
+fixed input or its warning does not stretch the Label field. The contained square media box
+centers its compact action; above placement also clears the absolute metadata line.
 See [Figure properties](figure-authoring-v1.md#anchored-figure-properties-757).
 
 ## Controls and spacing

@@ -466,6 +466,10 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
             const readonly = target?.closest('[contenteditable="false"]');
             if (event.button === 0 && (!readonly || readonly === view.dom) &&
                 !target?.closest('[data-testid="footnote-definition"][aria-readonly="true"]')) {
+              // Tiptap's focus transaction synchronizes the selected preview back to
+              // read-only. Finish focus first, then let this same native click place
+              // its caret on the now-editable surface.
+              if (selectedPreview(view.state)) view.focus();
               view.dom.contentEditable = String(view.editable);
             }
             return false;

@@ -162,6 +162,14 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
   await applyNumber('fixed-diagram','mermaid-property','18');
   await edit('fixed-diagram','mermaid-property');
   expect(await page.getByTestId('numbering-block-warning').innerText()).toContain('18 is duplicated');
+  const warningStyle = await page.getByTestId('numbering-block-warning').evaluate(el => {
+    const control=el.closest('.figure-number-field'), label=control.querySelector('span'), s=getComputedStyle(el), l=getComputedStyle(label);
+    return {size:s.fontSize,line:s.lineHeight,labelSize:l.fontSize,labelLine:l.lineHeight,
+      left:el.getBoundingClientRect().left,fieldLeft:control.getBoundingClientRect().left};
+  });
+  expect(warningStyle.size).toBe(warningStyle.labelSize);
+  expect(warningStyle.line).toBe(warningStyle.labelLine);
+  expect(warningStyle.left).toBe(warningStyle.fieldLeft);
   await page.getByTestId('mermaid-property-label').press('Escape');
   expect(await active.getByTestId('numbering-warnings').innerText()).toContain('Saving is allowed');
   await save();

@@ -505,13 +505,20 @@ Historical comparison evidence is preserved in the [visual review](editor-visual
 ### Figure metadata popover (#757)
 
 Image/pending and Mermaid metadata use the same anchored surface at wide and 640px widths.
-Fields have transparent rest borders and show the shared hover/focus boundaries. Automatic/Fixed
+Fields have transparent rest borders, a subtle surface fill and placeholders so empty controls
+remain visible. Hover/focus use the shared boundaries. Automatic/Fixed
 reuse the quiet raised-segment expression; Fixed alone reveals its number input. There is one
 Done action and no repeated title, path summary, caption input or section heading. Advanced starts
 collapsed except for retained filename drafts/errors and contains explicit Rename. Image replacement
 and Mermaid source entry are explicit actions; the latter opens the unchanged full-column source
 editor after metadata validation. Conditional errors/warnings/draft notices remain visible.
-Width, thumbnail size and anchor gap use the new adjustable tokens in `tokens.css`.
+Image and Mermaid thumbnails share a contained, centered token-sized box with subtle fill
+and the content radius. Replace/Edit source are compact actions in the same column. Label
+and Number share a control-height center; segment labels occupy one grid cell with their
+hidden width reservation. Advanced uses the shared chevron and compact target. Equal outer
+padding and shared row gaps keep the single Done action separate without extra notice margins.
+Warning/error text stays at UI 14/20. Above placement clears the visible metadata line (#760).
+Width, thumbnail size and anchor gap use adjustable tokens in `tokens.css`.
 See [interaction and bounds](figure-authoring-v1.md#anchored-figure-properties-757).
 
 ### Mermaid Figure editing (#651)
@@ -855,6 +862,8 @@ above precede this integration; at that width the Outline remains docked. Merged
 verification reruns the Editor tests, typecheck/build/docs and the six targeted browser flows.
 
 ## Adjustable values and preferences
+
+- Figure metadata: `--layout-figure-popover-width`, `--size-figure-property-thumbnail` (6rem square) and `--space-figure-popover-gap` control the anchored surface, shared media box and clearance. Fields, disclosure, segments and notices reuse the existing control, spacing, radius, surface and UI typography tokens.
 
 - Accent values (#559): the four palette entries per preset above, shared heading-number,
   selected-text and focus aliases, plus neutral `info`/`surface-info`. Settings selects

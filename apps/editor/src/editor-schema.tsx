@@ -31,6 +31,7 @@ import { CodeLanguageInput } from "./code-language-input.tsx";
 import { BlockProperties, PropertyForm } from "./block-properties.tsx";
 import { FigureProperties } from "./figure-properties.tsx";
 import { NumberField } from "./numbering-properties.tsx";
+import { ChevronRight } from "lucide-react";
 import { useEditorVisible } from "./editor-visibility.ts";
 import { ADMONITION_LABELS, admonitionTone, updateFigure } from "./block-commands.ts";
 import { CrossReference, captionPrefixText, useBlockNumber, useCaptionNumberText } from "./cross-reference.tsx";
@@ -1291,6 +1292,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
         ref={key === "imageUrl" ? imageInput : undefined}
         data-testid={testId}
         disabled={validating}
+        placeholder={i18n.t(key === "imageAlt" ? "Describe the image…" : "None")}
         value={typeof draft[key] === "string" ? draft[key] : ""}
         onChange={(event) => {
           setDraft({ ...draft, [key]: event.target.value });
@@ -1349,7 +1351,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
         onCancel={cancel}
       >
         <div className="figure-property-media">
-          {src && !imageFailed ? <img src={src} alt="" /> : null}
+          {src && !imageFailed ? <div className="figure-property-thumbnail"><img src={src} alt="" /></div> : null}
           <Button ref={replaceButton} type="button" size="sm" variant="outline" disabled={validating || choosing}
             data-testid="figure-replace" onClick={() => setReplacing(value => !value)}>{i18n.t("Replace")}</Button>
         </div>
@@ -1377,9 +1379,10 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
         <NumberField segmented editor={editor} getPos={getPos} testId="figure" value={numberDraft} onChange={value => { setNumberDraft(value); setError(""); }} disabled={validating} />
         </div>
         {canRename ? <details key={String(editing)} open={filenameDraft || !!error || undefined}>
-          <summary>{i18n.t("Advanced")}</summary>
+          <summary><ChevronRight aria-hidden="true" />{i18n.t("Advanced")}</summary>
           <div className="figure-image-field"><label className="form-field"><span>{i18n.t("File name")}</span>
             <Input data-testid="figure-file-name" value={filename} disabled={validating}
+              placeholder={i18n.t("None")}
               onChange={event => { setFilename(event.target.value); setError(""); }} />
           </label><Button type="button" size="sm" variant="outline" disabled={validating || !filenameDraft}
             data-testid="figure-rename" onClick={() => void apply(true)}>{i18n.t("Rename")}</Button></div>
@@ -1575,8 +1578,11 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
       contentEditable={false} onClick={beginEdit}>{i18n.t("Edit")}</Button> : null}
     <FigureProperties anchor={anchor} kind={kind} testId="mermaid-property" open={properties} error={error} busy={busy}
       onApply={outside => void apply(false, !outside)} onCancel={cancel}>
-      <Button ref={sourceButton} type="button" size="sm" variant="outline" data-testid="mermaid-edit-source"
-        disabled={busy} onClick={() => void apply(true)}>{i18n.t("Edit source")}</Button>
+      <div className="figure-property-media">
+        <div className="figure-property-thumbnail"><MermaidPreview source={applied.mermaidSource!} /></div>
+        <Button ref={sourceButton} type="button" size="sm" variant="outline" data-testid="mermaid-edit-source"
+          disabled={busy} onClick={() => void apply(true)}>{i18n.t("Edit source")}</Button>
+      </div>
       <div className="figure-property-columns">
         <label className="form-field"><span>{i18n.t("Label")}</span>
           <Input data-testid="mermaid-property-label" disabled={busy} value={labelDraft} placeholder={i18n.t("None")}

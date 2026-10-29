@@ -52,6 +52,19 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument
   await figure.getByTestId('mermaid-preview').dblclick();
   const properties = page.getByTestId('mermaid-property-editor');
   await expect(properties.getByRole('button', {name:'Done',exact:true})).toBeVisible();
+  const thumbnail = properties.locator('.figure-property-thumbnail');
+  await expect(thumbnail.getByTestId('mermaid-preview')).toHaveAttribute('aria-busy','false');
+  const media = await thumbnail.evaluate(el => {
+    const image=el.querySelector('img'), box=el.getBoundingClientRect(), r=image.getBoundingClientRect();
+    const button=el.parentElement.querySelector('button').getBoundingClientRect();
+    return {width:r.width,height:r.height,ratio:image.naturalWidth/image.naturalHeight,
+      fits:r.left>=box.left && r.right<=box.right && r.top>=box.top && r.bottom<=box.bottom,
+      centerOffset:box.y+box.height/2-button.y-button.height/2,buttonWidth:button.width,boxWidth:box.width};
+  });
+  expect(media.width).toBeGreaterThan(0); expect(media.height).toBeGreaterThan(0);
+  expect(media.width/media.height).toBeCloseTo(media.ratio,1);
+  expect(media.fits).toBe(true); expect(Math.abs(media.centerOffset)).toBeLessThanOrEqual(1);
+  expect(media.buttonWidth).toBeLessThan((await properties.boundingBox()).width-media.boxWidth);
   await expect(field()).toHaveCount(0);
   await expect(figure.getByTestId('mermaid-preview')).toBeVisible();
   await page.getByTestId('mermaid-property-label').fill('fig-image');

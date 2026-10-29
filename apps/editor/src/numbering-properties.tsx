@@ -30,18 +30,26 @@ export function NumberField({ editor, getPos, value, onChange, testId, disabled,
     const index = current.state.doc.resolve(pos).index(0);
     return editorNumberingReport(current.state.doc).diagnostics.filter(item => item.path[0] === index);
   } }) ?? [];
+  const notices = warnings.map(item => <Notice tone="warning" key={item.code} data-testid="numbering-block-warning">
+    {item.code === "numbering-missing"
+      ? i18n.t("Missing fixed number in a fixed-number document. Saving is allowed.")
+      : i18n.t("Fixed number {{number}} is duplicated for this kind. Saving is allowed.", { number: item.enumerator ?? "" })}
+  </Notice>);
   return <>
     {segmented ? <div className="form-field figure-number-field">
       <span id={`${id}-label`}>{i18n.t("Number")}</span>
       <div className="view-toggle" role="group" aria-labelledby={`${id}-label`}>
         {[false, true].map(option => <Button key={String(option)} type="button" size="sm" variant="ghost"
           className="view-toggle-option" aria-pressed={fixed === option} disabled={disabled}
+          data-segment-label={i18n.t(option ? "Fixed" : "Automatic")}
           onClick={() => { setFixed(option); if (!option) onChange(""); }}>
-          {i18n.t(option ? "Fixed" : "Automatic")}
+          <span className="view-toggle-label">{i18n.t(option ? "Fixed" : "Automatic")}</span>
         </Button>)}
       </div>
       {fixed ? <Input id={id} aria-labelledby={`${id}-label`} data-testid={`${testId}-enumerator`}
+        placeholder={i18n.t("None")}
         value={value} disabled={disabled} onChange={event => onChange(event.target.value)} /> : null}
+      {notices}
     </div> : <>
     <label className="form-field" htmlFor={id}>
       <span>{i18n.t("Number")}</span>
@@ -50,12 +58,8 @@ export function NumberField({ editor, getPos, value, onChange, testId, disabled,
         onChange={event => onChange(event.target.value)} />
     </label>
     <p className="form-hint" id={`${id}-hint`}>{i18n.t("Enter a fixed number; leave empty for automatic numbering.")}</p>
+    {notices}
     </>}
-    {warnings.map(item => <Notice tone="warning" key={item.code} data-testid="numbering-block-warning">
-      {item.code === "numbering-missing"
-        ? i18n.t("Missing fixed number in a fixed-number document. Saving is allowed.")
-        : i18n.t("Fixed number {{number}} is duplicated for this kind. Saving is allowed.", { number: item.enumerator ?? "" })}
-    </Notice>)}
   </>;
 }
 

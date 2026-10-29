@@ -197,6 +197,11 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "figure-authoring": {
     files: [
       ...technical,
+      { name: "pointer.md", create: () => nativeSource("# Pointer properties\n\nPointer target paragraph.\n\n" +
+        ":::{figure} ./diagram.svg\n\nImage caption.\n:::\n\n" +
+        ":::{figure}\n\n```{mermaid}\ngraph LR\n  A --> B\n```\n\nDiagram caption.\n:::\n\n" +
+        "```{math}\nx=1\n```\n\n:::{table} Values\n\n| Name |\n| --- |\n| Value |\n:::\n\n" +
+        "Note reference[^pointer].\n\n[^pointer]: Pointer note.\n") },
       // A second, visibly different asset the scenario switches the Figure to.
       { name: "diagram-v2.svg", create: () => readFileSync(path.join(DOCUMENT_DIR, "diagram.svg"), "utf8").replace("<svg ", '<svg data-variant="v2" ') },
     ],
