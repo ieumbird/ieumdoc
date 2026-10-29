@@ -1597,4 +1597,3 @@ at 1440px and 640px. Semibold current changes retain row positions and heights.
 Shell, visual-token and browser-fixture tests (51), workspace typecheck, production
 Editor build, documentation and whitespace checks pass. Native tooltip availability
 is checked through its full `title`; the OS tooltip pixels are not automated.
-
