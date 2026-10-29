@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { checkDocs, headingAnchors } from "./check-docs.ts";
+import { checkDependencyPatches, checkDocs, headingAnchors } from "./check-docs.ts";
 
 function repository(run: (root: string, write: (file: string, source: string) => void) => void) {
   const root = mkdtempSync(path.join(os.tmpdir(), "ieumdoc-docs-check-"));
@@ -16,9 +16,11 @@ function repository(run: (root: string, write: (file: string, source: string) =>
     write("AGENTS.md", "# Rules\n");
     write("CONTRIBUTING.md", "[Rules](AGENTS.md) [Docs](docs/README.md)\n");
     write("LICENSE", "Fixture license\n");
-    write("docs/README.md", "# Docs\n[Guide](<가이드 (초안).md>)\n");
     write("docs/가이드 (초안).md", "# 한글 제목!\n## Repeat\n## Repeat-1\n## Repeat\n## A & B -- C\n");
     write(".github/pull_request_template.md", "[Docs](/docs/README.md)\n");
+    write("pnpm-workspace.yaml", "patchedDependencies: {}\n");
+    write("docs/contributing/dependency-patches.md", "# Patches\n");
+    write("docs/README.md", "# Docs\n[Guide](<가이드 (초안).md>) [Patches](contributing/dependency-patches.md)\n");
     run(root, write);
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -30,6 +32,7 @@ test("local Markdown links work across encoded paths, references, images, titles
     write("docs/image.png", "fixture");
     write("docs/README.md", [
       "# Docs",
+      "[Patches](contributing/dependency-patches.md)",
       '[Guide](<가이드 (초안).md> "title")',
       "[Encoded](%EA%B0%80%EC%9D%B4%EB%93%9C%20%28%EC%B4%88%EC%95%88%29.md?view=1#%ED%95%9C%EA%B8%80-%EC%A0%9C%EB%AA%A9)",
       "[Balanced](가이드%20(초안).md#repeat-2)",
@@ -44,7 +47,34 @@ test("local Markdown links work across encoded paths, references, images, titles
     ].join("\r\n"));
     const result = checkDocs(root);
     assert.deepEqual(result.failures, []);
-    assert.equal(result.documents, 1);
+    assert.equal(result.documents, 2);
+  });
+});
+
+test("patch register rejects missing, stale, duplicate, version and file mismatches", () => {
+  repository((root, write) => {
+    write("pnpm-workspace.yaml", "patchedDependencies:\n  'example@1.0.0': patches/example.patch\n");
+    const row = (key = "example@1.0.0", file = "example.patch") =>
+      `| \`${key}\` | [patch](../../patches/${file}) | reason | change | scope | removal | tests | contract |\n`;
+    const register = (text: string) => write("docs/contributing/dependency-patches.md", text);
+    register(row());
+    assert.deepEqual(checkDependencyPatches(root), []);
+    register("");
+    assert.match(checkDependencyPatches(root)[0].reason, /no register row/);
+    register(row("example@2.0.0"));
+    assert.equal(checkDependencyPatches(root).length, 2);
+    assert.match(checkDependencyPatches(root)[0].reason, /no patchedDependencies entry/);
+    register(row(undefined, "other.patch"));
+    assert.match(checkDependencyPatches(root)[0].reason, /file mismatch/);
+    register(row() + row());
+    assert.match(checkDependencyPatches(root)[0].reason, /duplicate/);
+    register(row() + row("stale@1"));
+    assert.match(checkDependencyPatches(root)[0].reason, /no patchedDependencies entry/);
+    register("| `example@1.0.0` | missing link |\n");
+    assert.match(checkDependencyPatches(root)[0].reason, /invalid dependency patch register row/);
+    register(row());
+    write("pnpm-workspace.yaml", "patchedDependencies: {}\n");
+    assert.match(checkDependencyPatches(root)[0].reason, /no patchedDependencies entry/);
   });
 });
 

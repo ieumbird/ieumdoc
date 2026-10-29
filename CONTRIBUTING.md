@@ -87,6 +87,8 @@ gh run list --event merge_group --json databaseId,headSha,status,conclusion,url
 
 충돌이나 CI 실패로 PR이 queue에서 제거되면 해당 실행의 로그·artifact부터 조사한다(`gh run view <run-id>`, `gh run download <run-id>`). 재등록은 위 4–5단계를 따른다. Head를 수정해야 하면 새 head의 필수 CI와 새 `APPROVE`를 받은 뒤 다시 enqueue한다.
 
+의존성 패치 목록과 갱신 절차는 [Dependency patch register](docs/contributing/dependency-patches.md)를 따른다.
+
 ## Verification matrix
 
 로컬에서는 변경의 고유한 위험에 맞는 관련 패키지 테스트·browser 시나리오를 지정해 실행한다. 영향 범위가 여러 계층에 걸치는 경우가 아니면 전체 `pnpm test`와 전체 `pnpm browser:test`는 로컬 필수가 아니다. 아래 표는 로컬 최소 검증이며, PR의 필수 CI 검사는 모두 통과해야 한다.
