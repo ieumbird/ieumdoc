@@ -106,7 +106,7 @@ CLI/Desktop `package`, `test:packaged`, release/artifact 검증, 설치·업데�
 | Editor logic | Editor tests, `pnpm typecheck`, `pnpm --filter @ieumdoc/editor build` |
 | Host/save behavior | 관련 browser regression과 실제 파일 Save → Reload/충돌 검증 |
 | HTTP Host / CLI distribution | 관련 HTTP boundary tests와 production `pnpm browser:test http-host` (실제 Save → Reload/충돌). 공유 handler 변경은 관련 handler tests와 Vite browser 회귀도 로컬 실행하며 Desktop packaged 회귀는 CI에 맡김. CLI 배포 경계 변경 시 CLI package + offline `test:packaged`도 로컬 실행; Windows/Linux 검증은 CI |
-| Visual change | `layout-rules` / `quiet-document` 검사와 같은 상태의 Before/After 근거 ([절차](docs/design/editor-visual-language-v1.md#reviewing-a-visual-change)) |
+| Visual change | `layout-rules` / `quiet-document` 검사와 같은 상태의 Before/After 근거 ([절차](docs/test/README.md#reviewing-a-visual-change)) |
 | Dependency change | frozen install, audit/reachability 검토, 영향받는 계층의 전체 관련 regression. MyST·markdown-it/patch/lockfile/parser 설정 변경은 `pnpm --filter @ieumdoc/core test:smartquotes`도 실행 |
 | Desktop/update/release | 관련 Desktop tests/typecheck·browser 회귀. 패키징·배포 경계 변경 시 clean Windows package + artifact verification·`test:packaged`도 로컬 실행; updater/installer 변경 시 actual install/update regression도 실행. 해당 경계 변경이 없으면 패키징·설치/업데이트 회귀는 CI |
 

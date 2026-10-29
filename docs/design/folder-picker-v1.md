@@ -286,7 +286,7 @@ choosing a folder is interface/Host navigation, not a document semantic operatio
 - Creation uses the existing Host API and Core's canonical empty Markdown. Success
   opens a new document tab and lists its folder again, so it appears in the tree. On close, a successful
   New focuses its first paragraph; Cancel/Escape or a rejected New returns focus to the New button
-  (see [Empty document start](editor-visual-language-v1.md#empty-document-start-133)). Existing files, pending
+  (see [New document entry](editor-ux-shell-v1.md#new-document-entry-553)). Existing files, pending
   operations keep their existing protections. Cancel/Escape in the filename form creates nothing.
 - No workspace state or new Core/CLI operation is needed:
   this change supplies a destination to the existing document-creation flow.
