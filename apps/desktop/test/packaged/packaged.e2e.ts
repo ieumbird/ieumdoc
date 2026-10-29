@@ -12,6 +12,7 @@ import { _electron as electron, expect, type ElectronApplication, type Page } fr
 import { openDocument, openFolderPicker, reloadDocument } from "../../../editor/test/browser/navigation.ts";
 import { recoveryRecords, resetRecovery } from "../../../editor/test/browser/recovery-records.ts";
 import { processTree } from "./process-tree.ts";
+import { captionPixels } from "./caption-pixels.ts";
 
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const repo = path.resolve(desktop, "../..");
@@ -122,6 +123,8 @@ test("started without a document, it opens none; the sample opens with its figur
     await expect(page).toHaveTitle("converter-control.md — IeumDoc");
     await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getTitle()),
       { message: "native taskbar title follows the active file" }).toBe("converter-control.md — IeumDoc");
+    assert.equal(await figuresLoaded(page), true);
+    await page.evaluate(async () => { await document.fonts.ready; });
     for (const width of [1440, 640]) {
       await app.evaluate(({ BrowserWindow }, width) => BrowserWindow.getAllWindows()[0]!.setContentSize(width, 900), width);
       await expect.poll(() => page.evaluate(() => innerWidth)).toBe(width);
@@ -144,13 +147,77 @@ test("started without a document, it opens none; the sample opens with its figur
             return r.width && (r.right > innerWidth || (r.top < overlay.bottom && r.right > overlay.right) || getComputedStyle(element).getPropertyValue('app-region') !== 'no-drag');
           }).map(element => element.getAttribute('aria-label') || element.textContent) };
       });
-      assert.ok(geometry.reserved > 0 && geometry.height === 40, JSON.stringify(geometry));
+      assert.ok(geometry.reserved > 0 && geometry.height === 39, JSON.stringify(geometry));
       assert.equal(geometry.captionEdgeLines, 1, "one separator reaches the actual native caption edge with Outline closed");
       assert.deepEqual(geometry.blocked, [], "controls clear native caption buttons at each supported width");
     }
+    // #694: DOM geometry cannot see the native opaque overlay covering a web border.
+    // Keep the caption edge on-screen even if a CI monitor is narrower than 1440px.
+    // #647 places docked Outline below the full-width strip; cover both docked states.
+    const captionFailures: Error[] = [];
+    const inspectCaption = async (name: string, surface: "settings" | "document", oldHeight = false) => {
+      try { await captionPixels(app, page, path.join(work, "caption-pixels", name), surface, oldHeight); }
+      catch (error) { captionFailures.push(new Error(`${name}: ${String(error)}`, { cause: error })); }
+    };
+    for (const state of [{ width: 1440, outline: false }, { width: 1440, outline: true },
+      { width: 640, outline: false }, { width: 0, outline: true }]) {
+      await app.evaluate(({ BrowserWindow, screen }, width) => {
+        const window = BrowserWindow.getAllWindows()[0]!;
+        if (!width) { window.maximize(); return; }
+        window.unmaximize();
+        window.setContentSize(width, 900);
+        const area = screen.getPrimaryDisplay().workArea, bounds = window.getBounds();
+        window.setPosition(area.x + area.width - bounds.width - 16, area.y + 16);
+      }, state.width);
+      await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isMaximized())).toBe(state.width === 0);
+      if (state.width) await expect.poll(() => page.evaluate(() => innerWidth)).toBe(state.width);
+      const toggle = page.getByRole("button", { name: "Outline", exact: true });
+      if (await toggle.getAttribute("aria-pressed") !== String(state.outline)) await toggle.click();
+      for (const theme of ["light", "dark"]) {
+        await page.evaluate(() => {
+          const viewport = document.querySelector<HTMLElement>('.document-scroll[data-active="true"]')!;
+          viewport.scrollTop = Math.min(200, Math.max(0, viewport.scrollHeight - viewport.clientHeight));
+        });
+        await page.getByRole("button", { name: "Settings", exact: true }).click();
+        await expect(page.getByTestId("settings-back")).toBeFocused();
+        await page.getByTestId("theme").selectOption(theme);
+        await expect.poll(() => app.evaluate(({ nativeTheme }) => nativeTheme.themeSource)).toBe(theme);
+        // Wait for the appearance IPC, including the native color update, before OS sampling.
+        await page.evaluate(() => {
+          const style = getComputedStyle(document.documentElement);
+          return window.ieumdocDesktop!.setWindowBackground(style.getPropertyValue("--id-color-canvas").trim(), {
+            color: style.getPropertyValue("--id-color-surface-subtle").trim(), symbolColor: style.getPropertyValue("--id-color-text").trim(),
+          });
+        });
+        const name = `${state.width || "maximized"}-${theme}-${state.outline ? "open" : "closed"}`;
+        await inspectCaption(`${name}-settings`, "settings",
+          state.width === 1440 && theme === "light" && !state.outline);
+        const scrollBeforeWheel = await page.evaluate(() => document.querySelector<HTMLElement>('.document-scroll[data-active="true"]')!.scrollTop);
+        await page.mouse.wheel(0, 300);
+        await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+        assert.equal(await page.evaluate(() => document.querySelector<HTMLElement>('.document-scroll[data-active="true"]')!.scrollTop), scrollBeforeWheel, "Settings wheel input does not scroll the document behind it");
+        if (state.width === 1440 && theme === "light" && !state.outline) {
+          // Exercise the native inset change while the Settings surface stays open.
+          await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.maximize());
+          await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isMaximized())).toBe(true);
+          await inspectCaption("open-resize-maximized-settings", "settings");
+          await app.evaluate(({ BrowserWindow, screen }) => {
+            const window = BrowserWindow.getAllWindows()[0]!;
+            window.unmaximize(); window.setContentSize(1440, 900);
+            const area = screen.getPrimaryDisplay().workArea, bounds = window.getBounds();
+            window.setPosition(area.x + area.width - bounds.width - 16, area.y + 16);
+          });
+          await expect.poll(() => page.evaluate(() => innerWidth)).toBe(1440);
+          await inspectCaption("open-resize-restored-settings", "settings");
+        }
+        await page.keyboard.press("Escape");
+        await page.getByTestId("settings-dialog").waitFor({ state: "detached" });
+        await inspectCaption(`${name}-document`, "document");
+      }
+    }
+    if (captionFailures.length) throw new AggregateError(captionFailures, "Native caption pixel regressions (all captures retained)");
     assert.match(await page.getByTestId("current-file").getAttribute("title") ?? "", /[\\/]sample-native-v1[\\/]en[\\/]converter-control\.md$/);
     assert.equal(await page.locator(".ProseMirror h1").first().innerText(), "Current control for a 48 V converter");
-    assert.equal(await figuresLoaded(page), true);
     assert.equal(readFileSync(oldSample, "utf8"), "User-modified legacy sample.\n", "unrelated legacy sample directory is outside the versioned copy");
     assert.equal(await page.evaluate(() => typeof (globalThis as { process?: unknown }).process), "undefined", "the page has no Node.js");
     const foreign = requests.filter((url) => !/^(ieumdoc:\/\/app\/|data:|blob:)/.test(url));
