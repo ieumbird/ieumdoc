@@ -8,7 +8,7 @@ const editorUpdate = path => ['apps/editor/shared/desktop-bridge.ts',
   'apps/editor/src/shell/SettingsDialog.tsx', 'apps/editor/src/shell/MessageArea.tsx'].includes(path);
 const shared = path => ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'].includes(path) ||
   /^(patches\/|tsconfig[^/]*$|\.github\/workflows\/|scripts\/)/.test(path);
-const product = path => ['packages/cli', 'apps/editor', 'packages/core', 'packages/file-commit', 'apps/desktop']
+const product = path => ['packages/cli', 'packages/docling', 'apps/editor', 'packages/core', 'packages/file-commit', 'apps/desktop']
   .some(name => inPackage(path, name));
 const known = path => product(path) || shared(path) || path.startsWith('docs/') ||
   path.endsWith('.md') || path.startsWith('.github/ISSUE_TEMPLATE/');
@@ -21,7 +21,7 @@ export function selectJobs(eventName, paths) {
   const full = paths.some(path => shared(path) || !known(path));
   const browser = full || paths.some(path => ['apps/editor', 'packages/core', 'packages/file-commit']
     .some(name => inPackage(path, name)));
-  const http = browser || paths.some(path => inPackage(path, 'packages/cli'));
+  const http = browser || paths.some(path => ['packages/cli', 'packages/docling'].some(name => inPackage(path, name)));
   return {
     quality: !isDocumentationOnly(eventName, paths),
     browser, http,

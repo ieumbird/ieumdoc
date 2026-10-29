@@ -1,0 +1,55 @@
+{
+  "service": {
+    "docling-serve": "1.32.0",
+    "docling-jobkit": "3.5.0",
+    "docling": "2.124.0",
+    "docling-core": "2.93.0",
+    "docling-ibm-models": "4.0.1",
+    "docling-parse": "7.16.0",
+    "python": "cpython-312 (3.12.13)",
+    "plaform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.34"
+  },
+  "options": {
+    "from_formats": [
+      "pdf"
+    ],
+    "to_formats": [
+      "json"
+    ],
+    "image_export_mode": "embedded",
+    "pipeline": "standard",
+    "pdf_backend": "threaded_docling_parse",
+    "do_ocr": true,
+    "force_ocr": false,
+    "ocr_preset": "auto",
+    "ocr_lang": [
+      "en"
+    ],
+    "do_table_structure": true,
+    "table_mode": "accurate",
+    "table_cell_matching": true,
+    "table_structure_preset": "tableformer_v1_accurate",
+    "do_pdf_heading_hierarchy": true,
+    "pdf_heading_hierarchy_options": {
+      "use_bookmarks": true,
+      "use_numbering": true,
+      "use_style": true,
+      "use_font_style": true,
+      "style_size_tolerance": 0.05,
+      "max_level": 6,
+      "bookmark_match_threshold": 0.8
+    },
+    "include_images": true,
+    "include_page_images": true,
+    "images_scale": 2.0,
+    "md_compact_tables": false,
+    "do_code_enrichment": true,
+    "do_formula_enrichment": true,
+    "do_picture_classification": true,
+    "do_chart_extraction": false,
+    "abort_on_error": false
+  },
+  "source_sha256": "5be90726ae6ff9cf0383fbb5ad76167c0f51328545782c37411fb27892143820",
+  "task_status": "success",
+  "normalization": "Embedded images externalized to PNG, maximum 1000x1000; image size/dpi updated. All document semantics and provenance unchanged."
+}

@@ -23,6 +23,7 @@ test('merge_group payloads apply the same path rules as PRs to the entire group 
     // Multiple PRs in one group: take the union, including a deleted file.
     [['docs/test/README.md', 'apps/editor/src/App.tsx', 'apps/desktop/installer/cli.nsh'], expected(true, true, true, true, true)],
     [['packages/cli/src/cli.ts'], expected(true, false, true, true, false)],
+    [['packages/docling/src/convert.ts'], expected(true, false, true, true, false)],
     [['unknown/config.json'], expected(true, true, true, true, true)],
     [['apps/editor/document/fixture.md'], expected(true, true, true, true, false)],
     [['apps/editor/shared/desktop-bridge.ts'], expected(true, true, true, true, true)],

@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@ieumdoc/core": "workspace:*",
+    "@ieumdoc/docling": "workspace:*",
     "@ieumdoc/file-commit": "workspace:*"
   },
   "devDependencies": {

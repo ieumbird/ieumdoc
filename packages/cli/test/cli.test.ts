@@ -31,6 +31,24 @@ import { versionText } from "../src/version.ts";
 const cliRoot = fileURLToPath(new URL("..", import.meta.url));
 const nativeSource = (body: string): string => `---\nieumdoc: 1\n---\n\n${body}`;
 const fixtures = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-native-fixtures-"));
+
+test("docling convert delegates whole-document conversion and refuses overwrite and range options", () => {
+  const input = fileURLToPath(new URL("../../docling/test/fixtures/synthetic/document.json", import.meta.url));
+  const before = readFileSync(input);
+  const output = path.join(fixtures, "docling-bundle");
+  const converted = run(["docling", "convert", input, "--output", output]);
+  assert.equal(converted.status, 0, converted.stderr);
+  assert.equal(JSON.parse(converted.stdout).output, output);
+  assert.ok(fs.existsSync(path.join(output, "document.md")));
+  const map = readFileSync(path.join(output, "document.docling-map.json"));
+  assert.deepEqual(readFileSync(input), before);
+  assert.equal(run(["docling", "convert", input, "--output", output]).status, 1);
+  assert.deepEqual(readFileSync(path.join(output, "document.docling-map.json")), map);
+  const refused = path.join(fixtures, "docling-refused");
+  assert.equal(run(["docling", "convert", input, "--output", refused, "--chapter", "7"]).status, 1);
+  assert.equal(fs.existsSync(refused), false);
+  assert.match(run(["help", "docling"]).stdout, /DoclingDocument 1\.10\.0/);
+});
 after(() => rmSync(fixtures, { recursive: true, force: true }));
 const fixture = path.join(fixtures, "document.md");
 const technicalFixture = path.join(fixtures, "technical-document.md");
@@ -616,7 +634,7 @@ test("ieumdoc help exits successfully", () => {
     }
     const help = args.length === 0 ? result.stderr : result.stdout;
     const expectedGroups: Record<string, string[]> = {
-      "Create and inspect": ["create", "inspect"],
+      "Create and inspect": ["create", "inspect", "docling"],
       "Check": ["check"],
       "Edit — batch": ["apply-batch"],
       "Edit — insert blocks": ["insert-block", "insert-heading", "insert-admonition", "insert-quote", "insert-divider", "insert-equation", "insert-figure", "insert-list", "insert-code-block"],

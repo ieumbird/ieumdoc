@@ -1,0 +1,3 @@
+# PDFs are binary even when ReportLab emits an ASCII-compatible stream.
+# Do not apply Windows line-ending conversion to offsets or PDF xref tables.
+*.pdf binary

@@ -342,6 +342,9 @@ importers:
       '@ieumdoc/core':
         specifier: workspace:*
         version: link:../core
+      '@ieumdoc/docling':
+        specifier: workspace:*
+        version: link:../docling
       '@ieumdoc/file-commit':
         specifier: workspace:*
         version: link:../file-commit
@@ -388,6 +391,28 @@ importers:
       yaml:
         specifier: 2.9.1
         version: 2.9.1
+    devDependencies:
+      '@types/node':
+        specifier: ^24.5.2
+        version: 24.13.6
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+
+  packages/docling:
+    dependencies:
+      '@ieumdoc/core':
+        specifier: workspace:*
+        version: link:../core
+      ajv:
+        specifier: 8.20.0
+        version: 8.20.0
+      ajv-formats:
+        specifier: 3.0.1
+        version: 3.0.1(ajv@8.20.0)
     devDependencies:
       '@types/node':
         specifier: ^24.5.2

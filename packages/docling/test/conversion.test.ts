@@ -1,0 +1,161 @@
+import assert from "node:assert/strict";
+import { readFileSync, readdirSync } from "node:fs";
+import test from "node:test";
+import { getEditableDocument, parse, serialize, type EditableBlock } from "@ieumdoc/core";
+import { convertDoclingDocument, readDoclingMap } from "../src/index.ts";
+import type { SourceDocument, SourceItem } from "../src/source.ts";
+
+const fixture = (name: string): string => readFileSync(new URL(`./fixtures/${name}/document.json`, import.meta.url), "utf8");
+const ref = (self_ref: string) => ({ $ref: self_ref });
+function text(index: number, value: string, extra: Partial<SourceItem> = {}): SourceItem {
+  return { self_ref: `#/texts/${index}`, label: "text", text: value, orig: value,
+    parent: ref("#/body"), children: [], content_layer: "body", ...extra } as SourceItem;
+}
+function source(texts: SourceItem[], extra: Partial<SourceDocument> = {}): SourceDocument {
+  return { schema_name: "DoclingDocument", version: "1.10.0", name: "Synthetic API case",
+    body: { self_ref: "#/body", label: "unspecified", children: texts.map(t => ref(t.self_ref)), name: "_root_" } as SourceItem,
+    texts, tables: [], groups: [], pictures: [], pages: {}, ...extra };
+}
+const convert = (s: SourceDocument) => convertDoclingDocument(JSON.stringify(s));
+const blocks = (markdown: string): EditableBlock[] => getEditableDocument(parse(markdown)).blocks;
+
+for (const name of ["nist-sp1108r4", "synthetic"]) test(`${name}: whole saved Docling output has complete, canonical correspondence`, () => {
+  const input = fixture(name), original = JSON.parse(input);
+  const result = convertDoclingDocument(input);
+  const map = readDoclingMap(JSON.stringify(result.map), result.markdown);
+  assert.equal(serialize(parse(result.markdown)), result.markdown);
+  assert.equal(getEditableDocument(parse(result.markdown)).headingNumbering, undefined);
+  const all = [original.body, original.furniture, ...["texts", "groups", "tables", "pictures", "key_value_items", "form_items", "field_items", "field_regions"].flatMap(k => original[k] ?? [])].filter(Boolean);
+  assert.deepEqual(new Set(map.items.map(x => x.self_ref)), new Set(all.map(x => x.self_ref)));
+  for (const item of all) {
+    const mapped = map.items.find(x => x.self_ref === item.self_ref)!;
+    assert.deepEqual(mapped.provenance, item.prov ?? [], "page, bbox, coordinate origin and charspan must survive");
+    if (item.content_layer === "furniture" || ["page_header", "page_footer"].includes(item.label)) assert.equal(mapped.status, "decoration");
+    if (mapped.status === "converted") assert.ok(mapped.targets.length);
+    else assert.ok(mapped.reason);
+  }
+  const headings = blocks(result.markdown).filter(b => b.block === "heading");
+  assert.ok(headings.length > 0);
+  const lastHeading = original.texts.filter((x: SourceItem) => x.label === "section_header" && x.content_layer === "body").at(-1);
+  assert.ok(headings.some(b => b.block === "heading" && b.text === lastHeading.text), "whole document includes final heading");
+  if (name === "synthetic") {
+    const merged = original.tables.find((t: { data: { table_cells: { col_span: number }[] } }) => t.data.table_cells.some(c => c.col_span > 1));
+    assert.ok(merged, "the saved real Docling output must contain the merged-header supplement");
+    assert.equal(map.items.find(x => x.self_ref === merged.self_ref)!.status, "unsupported");
+    assert.ok(map.items.some(x => x.status === "converted"));
+    assert.ok(map.items.some(x => x.status === "decoration"));
+  }
+  assert.throws(() => readDoclingMap(JSON.stringify(map), result.markdown + "\n"), /Stale/);
+});
+
+test("source schema, version and graph failures refuse instead of silently skipping malformed input", () => {
+  assert.throws(() => convertDoclingDocument('{"schema_name":"Other"}'), /Invalid DoclingDocument/);
+  assert.throws(() => convert({ ...source([]), version: "1.11.0" } as unknown as SourceDocument), /Expected DoclingDocument 1.10.0/);
+  assert.throws(() => convert(source([text(0, "text")], { body: { self_ref: "#/body", label: "unspecified", children: [ref("#/texts/999")] } })), /Dangling/);
+  assert.throws(() => convert(source([text(0, "text", { parent: ref("#/texts/0"), children: [ref("#/texts/0")] })], { body: { self_ref: "#/body", label: "unspecified", children: [] } })), /cycle/);
+  assert.throws(() => convert(source([text(0, "text", { parent: null })])), /Parent\/child/);
+  assert.throws(() => convert(source([text(1, "wrong array position")])), /array position/);
+});
+
+test("multi-page provenance keeps each coordinate origin and applies the Docling default explicitly", () => {
+  const s = source([text(0, "Continued paragraph", { prov: [
+    { page_no: 1, bbox: { l: 1, t: 2, r: 4, b: 5 }, charspan: [0, 10] },
+    { page_no: 2, bbox: { l: 2, t: 8, r: 5, b: 6, coord_origin: "BOTTOMLEFT" }, charspan: [10, 19] },
+  ] })], { pages: { "1": { page_no: 1, size: { width: 10, height: 20 } }, "2": { page_no: 2, size: { width: 10, height: 20 } } } });
+  const r = convert(s);
+  assert.deepEqual(r.map.items.find(x => x.self_ref === "#/texts/0")!.provenance.map(p => [p.page_no, p.bbox.coord_origin, p.charspan]),
+    [[1, "TOPLEFT", [0, 10]], [2, "BOTTOMLEFT", [10, 19]]]);
+  const malformed = structuredClone(s);
+  malformed.texts![0].prov![0].charspan = [0, "invalid" as unknown as number];
+  assert.throws(() => convert(malformed), /Invalid DoclingDocument/);
+});
+
+test("decoration, unsupported content, missing images and unreachable elements are distinct from converted text", () => {
+  const s = source([text(0, "1.2 Source number", { label: "section_header", level: 2 }),
+    text(1, "Page 1", { label: "page_footer" }), text(2, "Unsupported underline", { formatting: { underline: true } }),
+    text(3, "Unreachable", { parent: null })]);
+  s.body!.children!.pop();
+  s.pictures = [{ self_ref: "#/pictures/0", label: "picture", parent: ref("#/body"), children: [], prov: [] }];
+  s.body!.children!.push(ref("#/pictures/0"));
+  const result = convert(s);
+  assert.equal(blocks(result.markdown)[0].block, "heading");
+  assert.equal(blocks(result.markdown).length, 1);
+  assert.equal(result.map.items.find(x => x.self_ref === "#/texts/1")!.status, "decoration");
+  assert.match(result.map.items.find(x => x.self_ref === "#/texts/2")!.reason!, /Underline/);
+  assert.equal(result.map.items.find(x => x.self_ref === "#/texts/3")!.reason, "unreachable");
+  assert.match(result.map.items.find(x => x.self_ref === "#/pictures/0")!.reason!, /Missing/);
+});
+
+test("nested list item targets resolve through the public list model, including non-1 starts", () => {
+  const s = source([text(0, "Outer first", { label: "list_item", marker: "3)", enumerated: true, parent: ref("#/groups/0"), children: [ref("#/groups/1")] }),
+    text(1, "Outer second", { label: "list_item", marker: "4)", enumerated: true, parent: ref("#/groups/0") }),
+    text(2, "Nested alphabetic", { label: "list_item", marker: "b)", enumerated: true, parent: ref("#/groups/1") })]);
+  s.body!.children = [ref("#/groups/0")];
+  s.groups = [{ self_ref: "#/groups/0", label: "ordered_list", parent: ref("#/body"), children: [ref("#/texts/0"), ref("#/texts/1")] },
+    { self_ref: "#/groups/1", label: "list", parent: ref("#/texts/0"), children: [ref("#/texts/2")] }];
+  const r = convert(s), list = blocks(r.markdown)[0];
+  assert.equal(list.block, "list");
+  if (list.block !== "list") return;
+  assert.equal(list.start, 3);
+  assert.equal(list.items[0].list?.style, "lower-alpha");
+  assert.equal(list.items[0].list?.start, 2);
+  const nested = r.map.items.find(x => x.self_ref === "#/texts/2")!;
+  assert.deepEqual(nested.targets[0].item, [0, 0]);
+  const tampered = structuredClone(r.map); tampered.items.find(x => x.self_ref === nested.self_ref)!.targets[0].item = [0, 999];
+  assert.throws(() => readDoclingMap(JSON.stringify(tampered), r.markdown), /list item/);
+});
+
+test("standalone footnote digits stay literal; explicit owner relations create and locate final endnotes", () => {
+  const s = source([text(0, "A literal value 108 is not an endnote call."), text(1, "108 Source note", { label: "footnote" }), text(2, "Later text")]);
+  const plain = convert(s);
+  assert.equal(blocks(plain.markdown).some(b => b.block === "footnote"), false);
+  assert.match(plain.map.items.find(x => x.self_ref === "#/texts/1")!.notes.join(" "), /no endnote link inferred/);
+  s.tables = [{ self_ref: "#/tables/0", label: "table", parent: ref("#/body"), children: [], footnotes: [ref("#/texts/1")],
+    data: { num_rows: 1, num_cols: 1, table_cells: [{ text: "Header", start_row_offset_idx: 0, end_row_offset_idx: 1, start_col_offset_idx: 0, end_col_offset_idx: 1, column_header: true }] } }];
+  s.body!.children!.push(ref("#/tables/0"));
+  const r = convert(s);
+  const note = r.map.items.find(x => x.self_ref === "#/texts/1")!;
+  assert.equal(note.targets[0].role, "endnote");
+  const endnote = blocks(r.markdown).at(-1)!;
+  assert.equal(endnote.block, "footnote");
+  assert.deepEqual(note.targets[0].path, endnote.path);
+  assert.ok(blocks(r.markdown).some(b => b.block === "paragraph" && b.text.includes("108 is not")));
+  const tampered = structuredClone(r.map); tampered.items.find(x => x.self_ref === note.self_ref)!.targets[0].label = "other";
+  assert.throws(() => readDoclingMap(JSON.stringify(tampered), r.markdown), /endnote/);
+});
+
+test("merged tables are reported, without discarding their independently convertible captions and notes", () => {
+  const s = source([text(0, "Table caption", { label: "caption" }), text(1, "NOTE - table note", { label: "footnote" })]);
+  s.tables = [{ self_ref: "#/tables/0", label: "table", parent: ref("#/body"), children: [], captions: [ref("#/texts/0")], footnotes: [ref("#/texts/1")],
+    data: { num_rows: 1, num_cols: 2, table_cells: [{ text: "Merged", col_span: 2, start_row_offset_idx: 0, end_row_offset_idx: 1, start_col_offset_idx: 0, end_col_offset_idx: 2 }] } }];
+  s.body!.children = [ref("#/tables/0"), ...s.body!.children!];
+  const r = convert(s);
+  assert.match(r.map.items.find(x => x.self_ref === "#/tables/0")!.reason!, /Merged/);
+  assert.ok(blocks(r.markdown).some(b => b.block === "paragraph" && b.text === "Table caption"));
+  assert.ok(blocks(r.markdown).some(b => b.block === "paragraph" && b.text === "NOTE - table note"));
+  assert.equal(r.map.items.find(x => x.self_ref === "#/tables/0")!.targets.length, 0);
+});
+
+test("map version, status and target kind are validated independently of the document hash", () => {
+  const r = convert(source([text(0, "Text")]));
+  assert.throws(() => readDoclingMap(JSON.stringify({ ...r.map, version: 2 }), r.markdown), /format\/version/);
+  const target = structuredClone(r.map); target.items.find(x => x.self_ref === "#/texts/0")!.targets[0].block = "table";
+  assert.throws(() => readDoclingMap(JSON.stringify(target), r.markdown), /Missing target/);
+  const status = structuredClone(r.map); status.items[0].status = "unsupported";
+  assert.throws(() => readDoclingMap(JSON.stringify(status), r.markdown), /status/);
+});
+
+test("module imports only public Core API; Core never imports a module", () => {
+  const root = new URL("../src/", import.meta.url);
+  for (const name of readdirSync(root).filter(x => x.endsWith(".ts"))) {
+    const source = readFileSync(new URL(name, root), "utf8");
+    const imports = [...source.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/gu)].map(m => m[1]);
+    for (const specifier of imports) {
+      assert.ok(!specifier.includes("core/") && !specifier.includes("apps/") && !specifier.includes("myst-"), `${name}: ${specifier}`);
+      if (specifier.startsWith(".")) assert.ok(new URL(specifier, root).href.startsWith(new URL("../", root).href));
+    }
+  }
+  const manifest = JSON.parse(readFileSync(new URL("../../core/package.json", import.meta.url), "utf8"));
+  assert.equal(Object.hasOwn(manifest.dependencies, "@ieumdoc/docling"), false);
+  // Core's existing public-api test additionally checks every Core source import.
+});
