@@ -28,6 +28,7 @@
 - Previous verification: 2026-10-17 (UX review: unreserved block metadata, text-aligned tables, folder heading actions, 200px narrow sidebar and the overlay sidebar below 640px; stable browser suite and 1440/1024/375px [Before/After](../reviews/editor-ux-review-2026-10-17.md)).
 - Previous verification: 2026-10-16 (#204: tab row and measured-header overlay bounds; layout-rules/quiet-document checks and approved 1440/375px [captures](../reviews/document-tabs-204-2026-10-16.md)). Previous verification: 2026-10-14 (#218: folder-navigation, layout-rules and quiet-document checks; full folder names, Korean word wrapping, unbroken wrapping, first-line icon and short-name alignment, reachable actions and actual Before/After captures. #225 review fixes: layout-rules and quiet-document browser checks, gutter hover retention, expanded top-level extent geometry, control/neighbor clearance, 0px text shift and same-state Before/After captures). Previous shell verification: 2026-10-13 (#176; [actual captures](../reviews/editor-shell-176-2026-10-13.md)).
 - Scope: Editor shell, document, block tools and control geometry.
+- Pattern targets: UI 작업 전 [UI 패턴](ui-patterns-v1.md)의 사용처·확정 목표·불일치를 확인한다. 아래는 현재 geometry이며 P01 가용 콘텐츠 경계와 P09 표 상단 도구 목표의 구현 완료를 뜻하지 않는다.
 - [Visual Language (current v4.8)](editor-visual-language-v1.md) owns color, typography and surface rules. It supersedes the earlier restriction against changing fonts/colors.
 
 - Viewport alignment: #695 replaces the 35rem/56rem multi-row header and 704px action wrapping with a fixed title strip and tab row. Search becomes icon-only below a 22rem available title container; Wide document folds into ⋯ at viewport widths up to 1024px. Settings, Sidebar and Outline docking breakpoints remain unchanged.
@@ -48,6 +49,9 @@
   Floating editor controls fit and cap their size to the owning group's client viewport,
   excluding the native scrollbar, with the existing 8px edge inset. Overlay and viewport
   resize/scroll recompute placement; one group retains its previous window bounds.
+  The single-group bounds can leave a reference form behind Outline; this is a known
+  mismatch tracked by [#782](https://github.com/ieumbird/ieumdoc/issues/782), not an
+  allowed exception to the [P01 target](ui-patterns-v1.md#p01-속성-편집-표면과-위치).
 
 - The bottom Settings icon carries an 8px update dot in the same icon slot in both expanded Sidebar and collapsed rail (#665), without changing button targets or footer placement. Dot activation opens About & updates; its update actions receive an inset accent outline and selected-surface background. See the [update contract and captures](desktop-distribution-v1.md#settings-update-cue-verification-665).
 

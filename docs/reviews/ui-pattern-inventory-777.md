@@ -1,10 +1,11 @@
 # 반복 UI 패턴 인벤토리와 목표 디자인 제안 — #777 1단계
 
-- Status: Draft
+- Status: Historical
 - Last verified: 2026-10-30. 기준 `a4d2f64bbcefa48f436bce916aecd0772ad15e93`의 코드·Implemented 계약·이슈 댓글 대조와 실제 Vite Editor 수동 검토용 촬영. 동작 회귀 suite를 재검증했다는 뜻은 아니다.
-- Scope: [#777](https://github.com/ieumbird/ieumdoc/issues/777)의 **인벤토리와 목표 제안만**. 제품 코드·화면·문서 의미 변경 없음. 소유자 승인 전 현재 계약이나 구현 지침으로 사용하지 않는다.
+- Scope: [#777](https://github.com/ieumbird/ieumdoc/issues/777)의 **1단계 인벤토리와 당시 목표 제안**. 제품 코드·화면·문서 의미 변경 없음. 승인 전 비교·질문은 역사적 근거로 보존하며 현재 구현 지침으로 사용하지 않는다.
 - Authority: [AGENTS.md](../../AGENTS.md), [문서 상태 규칙](../contributing/documentation-governance.md), [ADR-0001](../adr/0001-single-document-editor-architecture.md), [ADR-0010](../adr/0010-supported-viewport-and-input.md). 현재 UI 권위는 [Visual Language][visual], [Layout Rules][layout] 및 아래 개별 계약이다.
-- Related: [#776](https://github.com/ieumbird/ieumdoc/issues/776), [#740 소유자 결정][i740], [#757 그림 구현][i757], [#714 미주 결정][i714]. #777의 패턴 문서 확정·AGENTS 연결·후속 이슈 등록은 **2단계에 남는다**. 이 문서로 #777을 닫지 않는다.
+- Related: [#776](https://github.com/ieumbird/ieumdoc/issues/776), [#740 소유자 결정][i740], [#757 그림 구현][i757], [#714 미주 결정][i714]. 2단계의 확정 목표·운영 규칙·불일치 추적은 [UI 패턴](../design/ui-patterns-v1.md)을 따른다.
+- Lifecycle checked: 2026-10-30. [소유자 결정](https://github.com/ieumbird/ieumdoc/issues/777#issuecomment-6510554436)으로 P01–P06/P08–P12 추천이 채택되고 P07은 창 오른쪽 아래 알림 센터 안으로 대체되었다. 아래 추천·대안·질문·이후 단계는 당시 기록이며 새 목표나 미결 질문이 아니다. 캡처와 검증 결과는 다시 실행하지 않았다.
 
 ## 제안의 중심
 
