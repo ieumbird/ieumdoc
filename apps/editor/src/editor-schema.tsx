@@ -4,7 +4,7 @@ import { useMessageState } from "./ui-message.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "./i18n.ts";
 import { allocateBlockPath } from "./block-locators.ts";
-import { Extension, Node, type Attribute, type Editor, type Extensions } from "@tiptap/core";
+import { Extension, Node, type Attribute, type Editor, type Extensions, type NodeViewRenderer } from "@tiptap/core";
 import { BulletList, ListItem, ListKeymap, OrderedList } from "@tiptap/extension-list";
 import { Code } from "@tiptap/extension-code";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
@@ -446,6 +446,21 @@ const Divider = Node.create({
 
 export const DocumentPathContext = createContext<string | undefined>(undefined);
 
+function captionNodeView(renderer: NodeViewRenderer): NodeViewRenderer {
+  return props => {
+    const nodeView = renderer(props);
+    const ignoreMutation = nodeView.ignoreMutation?.bind(nodeView);
+    nodeView.ignoreMutation = mutation => {
+      // Chromium can remove the whole contentDOM when cancelling composition. Tiptap
+      // ignores that parent mutation; ProseMirror must read it and rebuild the lost DOM.
+      if (mutation.type === "childList" && nodeView.contentDOM &&
+          !nodeView.dom.contains(nodeView.contentDOM)) return false;
+      return ignoreMutation?.(mutation) ?? false;
+    };
+    return nodeView;
+  };
+}
+
 const Figure = Node.create<{ documentPath?: string | (() => string) }>({
   name: "figure",
   group: "block",
@@ -472,7 +487,7 @@ const Figure = Node.create<{ documentPath?: string | (() => string) }>({
       ...(node.attrs.imageUrl ? [["img", { src: resolveFigureSource(node.attrs.imageUrl, this.options.documentPath), alt: node.attrs.imageAlt }]] : []), ["figcaption", 0]];
   },
   addNodeView() {
-    return ReactNodeViewRenderer(FigureView);
+    return captionNodeView(ReactNodeViewRenderer(FigureView));
   },
 });
 
@@ -504,7 +519,7 @@ function equationNode(onDraftChange?: DraftListener) {
 function figureNode(documentPath?: string | (() => string), onDraftChange?: DraftListener, validateFigure?: FigureValidator, chooseImage?: ImageChooser) {
   return Figure.configure({ documentPath }).extend({
     addNodeView() {
-      return ReactNodeViewRenderer(createFigureNodeView(documentPath, onDraftChange, validateFigure, chooseImage));
+      return captionNodeView(ReactNodeViewRenderer(createFigureNodeView(documentPath, onDraftChange, validateFigure, chooseImage)));
     },
   });
 }
@@ -557,7 +572,7 @@ const TableCaption = Node.create({
   parseHTML() { return [{ tag: "caption" }]; },
   renderHTML() { return ["caption", { class: "caption table-caption" }, 0]; },
   addNodeView() {
-    return ReactNodeViewRenderer(TableCaptionView, { as: "caption", className: "table-caption", contentDOMElementTag: "span" });
+    return captionNodeView(ReactNodeViewRenderer(TableCaptionView, { as: "caption", className: "table-caption", contentDOMElementTag: "span" }));
   },
 });
 

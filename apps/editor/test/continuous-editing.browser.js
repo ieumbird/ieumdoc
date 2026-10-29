@@ -112,11 +112,6 @@ async (page, { openDocument }) => {
   const scopedComposition = await page.context().newCDPSession(page);
   try {
     for (const [name, selector, text] of scopes) {
-      // Scope split, not a weaker input assertion: #750 independently reproduces
-      // Mermaid caption DOM/model divergence without Ctrl+A. Keep its real-click
-      // Ctrl/Cmd+A selection matrix above/below; input/model/history cases belong
-      // to #750. Every other surface retains the exact model assertions here.
-      if (name === 'Mermaid caption') continue;
       await enterScope(name, selector, text);
       const {indexes, pos} = await scopedEditor.evaluate(el => {
         const {$from} = el.editor.state.selection;

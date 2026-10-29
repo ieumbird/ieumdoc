@@ -4,7 +4,8 @@ async (page, { openPath, expect, reloadDocument }) => {
   const initial = await (await page.request.get(origin + '/api/document')).json();
   const separator = initial.path.includes('\\') ? '\\' : '/';
   const root = initial.path.split(separator).slice(0, -4).join(separator);
-  await openPath(page, [root, 'tmp', 'caption-selection', 'selection.md'].join(separator));
+  const file = [root, 'tmp', 'caption-selection', 'selection.md'].join(separator);
+  await openPath(page, file);
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const failures = [];
   const cases = ['fig-a', 'fig-b', 'fig-single', 'tbl-a', 'fig-mermaid', 'fig-pending', 'code'];
@@ -108,7 +109,7 @@ async (page, { openPath, expect, reloadDocument }) => {
       }
     }
   }
-  // Native drag selection remains available for each caption NodeView.
+  // Full replacement across rich inline marks must retain the editable contentDOM (#750).
   for (const label of ['fig-a', 'tbl-a', 'fig-mermaid', 'fig-pending']) {
     await restore();
     const caption = captionFor(label);
@@ -147,5 +148,82 @@ async (page, { openPath, expect, reloadDocument }) => {
       }), `${selector}/${location} triple click`).toBe(true);
     }
   }
-  expect(failures, 'Every triple click must preserve neighboring blocks').toEqual([]);
+  // Native composition endings must agree across DOM, model, history and disk (#750).
+  // CDP drives Chromium's lifecycle; it does not emulate the Windows OS IME candidate UI.
+  const compositionResults = [];
+  const cdp = await page.context().newCDPSession(page);
+  const compose = async (label, mode) => {
+    await restore();
+    const caption = captionFor(label);
+    if (label === 'fig-mermaid') await expect(caption.locator('..').getByTestId('mermaid-preview')).toHaveAttribute('aria-busy', 'false');
+    await caption.scrollIntoViewIfNeeded();
+    const points = await caption.evaluate(el => {
+      const range = document.createRange(); range.selectNodeContents(el.querySelector('[data-node-view-content-react]'));
+      const box = range.getBoundingClientRect();
+      return {left:box.left, right:box.right, y:box.top + box.height / 2};
+    });
+    const before = await snapshot(label);
+    const originalDocument = await editor.evaluate(el => el.editor.getJSON());
+    await page.mouse.move(points.left, points.y); await page.mouse.down();
+    await page.mouse.move(points.right, points.y, {steps:10}); await page.mouse.up();
+    expect((await snapshot(label)).selection, `${label}/${mode} drag selection`).toEqual(before.expected);
+    for (const text of ['ㅎ', '한', '한ㄱ', '한글'])
+      await cdp.send('Input.imeSetComposition', {text, selectionStart:text.length, selectionEnd:text.length});
+    if (mode.startsWith('escape')) await page.keyboard.press('Escape');
+    if (mode.startsWith('backspace')) {
+      await page.keyboard.press('Backspace');
+      // Supply the IME result of Backspace, separately from the physical key event.
+      await cdp.send('Input.imeSetComposition', {text:'한', selectionStart:1, selectionEnd:1});
+    }
+    const expected = mode.endsWith('cancel') ? '' : mode.startsWith('backspace') ? '한' : '한글';
+    if (mode.endsWith('cancel')) await cdp.send('Input.imeSetComposition', {text:'', selectionStart:0, selectionEnd:0});
+    else await cdp.send('Input.insertText', {text:expected});
+    await page.waitForFunction(() => !document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.composing);
+    const record = async phase => {
+      const after = await snapshot(label);
+      const dom = await caption.textContent();
+      const contentDOM = await caption.locator('[data-node-view-content-react]').count();
+      compositionResults.push({label, mode, phase, dom, model:after.text, contentDOM});
+      if (dom !== expected || after.text !== expected || contentDOM !== 1)
+        failures.push({label, mode, phase, expected, dom, model:after.text, contentDOM});
+      expect(after.doc, `${label}/${mode} surrounding content`).toEqual(before.doc);
+      return dom === expected && after.text === expected && contentDOM === 1;
+    };
+    await record('compositionend');
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    if (await record('two-frames')) {
+      const finalDocument = await editor.evaluate(el => el.editor.getJSON());
+      await page.keyboard.press('Control+z');
+      expect(await editor.evaluate(el => el.editor.getJSON()), `${label}/${mode} one Undo`).toEqual(originalDocument);
+      await page.keyboard.press('Control+Shift+z');
+      expect(await editor.evaluate(el => el.editor.getJSON()), `${label}/${mode} Redo`).toEqual(finalDocument);
+    }
+    return {caption, before, expected};
+  };
+  const saveReload = async (label, result) => {
+    const response = page.waitForResponse(r => r.request().method() === 'POST' && /\/api\/document(?:\?|$)/.test(r.url()));
+    await page.getByTestId('save').click();
+    expect((await response).status()).toBe(200);
+    const disk = await page.request.get(`${origin}/document/selection.md?path=${encodeURIComponent(file)}`);
+    expect(disk.status()).toBe(200);
+    const source = await disk.text();
+    if (result.expected) expect(source).toContain(result.expected);
+    else expect(source).not.toContain('한글');
+    await reloadDocument(page);
+    const after = await snapshot(label);
+    expect(await result.caption.textContent(), `${label} reloaded DOM`).toBe(result.expected);
+    expect(after.text, `${label} reloaded model`).toBe(result.expected);
+    expect(after.doc, `${label} saved surrounding content`).toEqual(result.before.doc);
+  };
+  try {
+    for (const label of ['fig-a', 'fig-mermaid', 'tbl-a', 'fig-pending']) {
+      for (const mode of ['escape-cancel', 'cancel', 'escape-commit', 'backspace-commit', 'backspace-cancel', 'commit']) {
+        const result = await compose(label, mode);
+        if (mode === 'commit') await saveReload(label, result);
+      }
+      await saveReload(label, await compose(label, 'escape-cancel'));
+    }
+  } finally { await cdp.detach(); }
+  expect(failures, 'Caption input and composition endings must agree with the model').toEqual([]);
+  return {compositionResults};
 }
