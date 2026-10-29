@@ -106,6 +106,11 @@ export function App() {
   const [settingsCategory, setSettingsCategory] = useState<SettingsCategory>("appearance");
   const shortcutsReturnFocus = useRef<HTMLElement | null>(null);
   const [commandFileFocus, setCommandFileFocus] = useState<string | null>(null);
+  const [folderFocus, setFolderFocus] = useState<string | null>(null);
+  const pendingFolderFocus = useRef<string | null>(null);
+  // Keep the handoff through finalFocus as well as onClosed: the dialog may call them in either
+  // order. Reset only for the next picker, so a late default return cannot steal the tree focus.
+  useEffect(() => { if (folderDialog) pendingFolderFocus.current = null; }, [folderDialog]);
   const [recentFolders, setRecentFolders] = useState(readRecentFolders);
   const recentFoldersRef = useRef(recentFolders);
   const [allowedRoots, setAllowedRoots] = useState<string[] | undefined>(undefined);
@@ -609,7 +614,15 @@ export function App() {
     if (!root) return i18n.t("Enter a folder path.");
     try {
       const listed = await requestFolder(root);
-      folders.open(listed, openedPath);
+      const parent = folders.open(listed, openedPath);
+      if (parent) {
+        setSidebarOpen(true);
+        setNotice({ key: "Already inside the opened folder {{name}}.", values: { name: splitDocumentPath(parent).name || parent } });
+        if (!createAfterOpen) {
+          if (folderDialog) pendingFolderFocus.current = listed.root;
+          else setFolderFocus(listed.root);
+        }
+      }
       // Responses can overlap; advance the list before another completion or render.
       recentFoldersRef.current = rememberRecentFolder(listed.root, recentFoldersRef.current);
       setRecentFolders(recentFoldersRef.current);
@@ -881,6 +894,8 @@ export function App() {
           setNewFolderDialog(true);
         }}
         folders={folders.trees}
+        focusFolder={folderFocus}
+        onFolderFocused={() => setFolderFocus(null)}
         onToggleFolder={folders.toggle}
         onToggleSection={folders.toggleSection}
         onOpenDocument={(path) => {
@@ -1024,12 +1039,15 @@ export function App() {
         places={folderPlaces}
         onOpen={path => openFolder(path, newAfterFolder)}
         onClosed={() => {
+          if (pendingFolderFocus.current) {
+            setFolderFocus(pendingFolderFocus.current);
+          }
           if (!folderNewReady.current) return;
           setNewDialog(true);
         }}
         onCreateFolder={createFolder}
         returnFocus={dialogReturnFocus}
-        finalFocus={() => folderNewReady.current ? false : shellReturnFocus(dialogReturnFocus.current)}
+        finalFocus={() => folderNewReady.current || pendingFolderFocus.current ? false : shellReturnFocus(dialogReturnFocus.current)}
         onClose={() => { setFolderDialog(false); setNewAfterFolder(false); }}
       />
       <FolderDialog

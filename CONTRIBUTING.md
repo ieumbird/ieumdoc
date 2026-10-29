@@ -54,7 +54,7 @@ pnpm --filter @ieumdoc/editor build
 2. 구현에 참여하지 않은 별도 agent가 최종 diff, 관련 계약과 검증 근거를 독립 검토한다. PR 댓글에 reviewer agent 식별자, `APPROVE` verdict와 검토한 정확한 전체 head SHA를 기록한다. 구현자 자신의 판단은 이 승인을 대신하지 않는다.
    승인 전에 [Git parsed-trailer 검사](#ai-commit-provenance)로 PR 고유 commit 전체(작성된 merge 포함)의 provenance와 같은 head의 CI 검사 통과를 확인한다.
 3. GitHub required approval count 0은 GitHub 서버의 승인 수 설정이며, 별도 agent 승인을 생략한다는 뜻이 아니다. 같은 GitHub 계정을 사용하는 agent는 PR 작성자 자신의 PR에 GitHub approve review를 제출할 수 없다. PR 댓글의 독립 승인 기록은 운영상 승인 근거이며 GitHub의 approved review로 계산되지 않는다.
-4. 통합 담당자는 enqueue 직전에 PR head가 독립 승인 SHA와 같은지, 해당 head의 필수 CI가 모두 통과했는지, review thread가 모두 해결되었는지 확인한다. 하나라도 충족하지 않으면 queue에 넣지 않는다. Queue는 최신 master와 합친 결과에서 전체 CI와 필수 aggregate 검사를 실행한다.
+4. 통합 담당자는 enqueue 직전에 PR head가 독립 승인 SHA와 같은지, 해당 head의 필수 CI가 모두 통과했는지, review thread가 모두 해결되었는지 확인한다. 하나라도 충족하지 않으면 queue에 넣지 않는다. Queue는 최신 master와 합친 결과의 전체 diff에 경로 규칙을 적용하고 필수 aggregate 검사를 실행한다.
 5. 수정 commit, 수동 conflict 해결, queue가 보고한 충돌 때문에 필요한 master merge 등으로 PR head SHA가 달라지면 기존 승인은 재사용하지 않는다. 새 head에서 필수 CI와 별도 agent의 새 `APPROVE`를 받은 뒤 통합 담당자가 다시 enqueue한다. Queue 실패도 일반 CI 실패처럼 artifact부터 확인하여 원인을 조사한다. PR head가 그대로라면 master 이동이나 queue 재구성만으로 독립 재승인을 요구하지 않는다.
 
 ### Enqueue
@@ -91,40 +91,46 @@ gh run list --event merge_group --json databaseId,headSha,status,conclusion,url
 
 로컬에서는 변경의 고유한 위험에 맞는 관련 패키지 테스트·browser 시나리오를 지정해 실행한다. 영향 범위가 여러 계층에 걸치는 경우가 아니면 전체 `pnpm test`와 전체 `pnpm browser:test`는 로컬 필수가 아니다. 아래 표는 로컬 최소 검증이며, PR의 필수 CI 검사는 모두 통과해야 한다.
 
-CLI/Desktop `package`, `test:packaged`, release/artifact 검증, 설치·업데이트 회귀와 다른 OS 검증은 해당 패키징·설치/업데이트·배포 경계를 변경한 경우가 아니면 필수 CI에 맡긴다. [CI](.github/workflows/ci.yml)는 항상 quality를 실행한다. 문서 전용 PR에서는 문서 검사·checker 테스트, diff/whitespace, issue forms·등록 정책, AI provenance 회귀·실제 PR commit 검사와 CI 경로 분류 테스트만 실행한다. 나머지 PR과 `master` push, `merge_group`에서는 전체 제품 테스트·typecheck·Editor build도 실행한다. `merge_group`은 paths-filter 없이 browser 4개 shard, HTTP 양쪽 OS, Desktop package·설치/업데이트를 모두 실행한다. PR의 추가 job은 아래 경로 요약으로 선택한다. 실제 GitHub 업데이트·서명·수동 확인은 이 CI의 보장 범위가 아니므로 해당 변경·릴리즈의 별도 절차를 유지한다.
+CLI/Desktop `package`, `test:packaged`, release/artifact 검증, 설치·업데이트 회귀와 다른 OS 검증은 해당 패키징·설치/업데이트·배포 경계를 변경한 경우가 아니면 필수 CI에 맡긴다. [CI](.github/workflows/ci.yml)는 항상 quality job의 정책·문서 검사를 실행한다. 문서 전용 PR과 merge group은 문서 검사·checker 테스트, diff/whitespace, issue forms·등록 정책, AI provenance 회귀·event commit 검사와 CI 경로 분류 테스트만 실행한다. 나머지는 전체 제품 테스트·typecheck·Editor build를 실행하며 추가 job은 아래 경로 규칙으로 선택한다. master push는 같은 SHA의 성공한 `merge_group` CI가 확인되면 제품 검사를 생략하고 캐시만 갱신한다. 확인할 수 없으면 전체 실행한다. 실제 GitHub 업데이트·서명·수동 확인은 이 CI의 보장 범위가 아니므로 해당 변경·릴리즈의 별도 절차를 유지한다.
 
 | Change type | Required verification |
 | --- | --- |
 | Documentation only | `pnpm docs:check`, `git diff --check` |
 | Issue forms / registration tooling | `pnpm issues:forms --check`, `pnpm issues:test`, `pnpm docs:check`, `git diff --check` |
 | Commit provenance tooling / policy | `node --test scripts/commit-provenance.test.mjs`, `pnpm docs:check`, `git diff --check`; 실제 commit의 Git parsed trailers 확인 |
-| CI quality 경로 / browser shard 설정 | `node --test scripts/ci-quality-mode.test.mjs`, `pnpm --filter @ieumdoc/editor exec tsx --test test/browser-fixtures.test.ts`, `pnpm docs:check`, `git diff --check`; PR의 실제 shard CI 결과 확인 |
+| CI 실행 정책 / browser shard 설정 | `node --test scripts/ci-quality-mode.test.mjs scripts/ci-execution-policy.test.mjs`, `pnpm --filter @ieumdoc/editor exec tsx --test test/browser-fixtures.test.ts`, `pnpm docs:check`, `git diff --check`; PR의 실제 shard CI 결과 확인 |
 | Core semantics | Core tests, `pnpm typecheck`, 관련 canonical round-trip/거부 regression |
 | CLI | Core/CLI tests, `pnpm typecheck`, 실제 파일 write 및 실패 시 원본 보존 |
 | Editor logic | Editor tests, `pnpm typecheck`, `pnpm --filter @ieumdoc/editor build` |
 | Host/save behavior | 관련 browser regression과 실제 파일 Save → Reload/충돌 검증 |
 | HTTP Host / CLI distribution | 관련 HTTP boundary tests와 production `pnpm browser:test http-host` (실제 Save → Reload/충돌). 공유 handler 변경은 관련 handler tests와 Vite browser 회귀도 로컬 실행하며 Desktop packaged 회귀는 CI에 맡김. CLI 배포 경계 변경 시 CLI package + offline `test:packaged`도 로컬 실행; Windows/Linux 검증은 CI |
 | Visual change | `layout-rules` / `quiet-document` 검사와 같은 상태의 Before/After 근거 ([절차](docs/design/editor-visual-language-v1.md#reviewing-a-visual-change)) |
-| Dependency change | frozen install, audit/reachability 검토, 영향받는 계층의 전체 관련 regression |
+| Dependency change | frozen install, audit/reachability 검토, 영향받는 계층의 전체 관련 regression. MyST·markdown-it/patch/lockfile/parser 설정 변경은 `pnpm --filter @ieumdoc/core test:smartquotes`도 실행 |
 | Desktop/update/release | 관련 Desktop tests/typecheck·browser 회귀. 패키징·배포 경계 변경 시 clean Windows package + artifact verification·`test:packaged`도 로컬 실행; updater/installer 변경 시 actual install/update regression도 실행. 해당 경계 변경이 없으면 패키징·설치/업데이트 회귀는 CI |
 
 문서 checker를 바꾸면 `pnpm exec tsx --test scripts/check-docs.test.ts`도 실행한다. 검증 명령의 자세한 사용법은 [검증 안내](docs/test/README.md)에 있다.
 
-quality의 문서 전용 판정은 [ci-quality-mode.mjs](scripts/ci-quality-mode.mjs)의 보수적인 allowlist다. 루트 `*.md`, `.github` 바로 아래 `*.md`, `docs/**`의 `md/png/jpg/jpeg/gif/svg/webp/ico/pdf/json`만 허용한다. 제품 fixture일 수 있는 `apps/**`·`packages/**` Markdown, tooling·설정, issue form, 미분류 경로가 하나라도 섞이면 전체 quality를 실행한다. 삭제도 변경 경로에 포함하고 rename의 이전·이후 경로를 모두 검사한다. PR merge-base diff로 판정하며 `master` push에는 문서 전용 생략을 적용하지 않는다.
+quality의 문서 전용 판정은 [ci-quality-mode.mjs](scripts/ci-quality-mode.mjs)의 보수적인 allowlist다. 루트 `*.md`, `.github` 바로 아래 `*.md`, `docs/**`의 `md/png/jpg/jpeg/gif/svg/webp/ico/pdf/json`만 허용한다. 제품 fixture일 수 있는 `apps/**`·`packages/**` Markdown, tooling·설정, issue form, 미분류 경로가 하나라도 섞이면 전체 quality를 실행한다. 삭제도 변경 경로에 포함하고 rename의 이전·이후 경로를 모두 검사한다. PR은 merge-base diff(`base...head`), merge group은 event payload의 전체 tree diff(`merge_group.base_sha..head_sha`)로 판정한다. diff를 계산할 수 없거나 경로가 비어 있으면 전체 실행한다. `master` push에는 문서 경로만으로 생략을 적용하지 않는다.
 
-CI 경로 규칙의 기준은 [ci.yml의 changes job](.github/workflows/ci.yml)이며, 다음 표는 요약이다. 여러 경로를 바꾸면 필요한 job의 합집합을 실행한다. `master` push와 PR 이외 이벤트는 경로와 무관하게 전체 job과 `test:update`를 실행한다. **미분류 경로가 하나라도 있으면 전체 실행**한다.
+CI 경로 규칙의 기준은 changes job이 호출하는 [ci-execution-policy.mjs](scripts/ci-execution-policy.mjs)이며, 다음 표는 요약이다. PR과 merge group은 같은 분류 함수를 사용한다. 여러 PR이 묶인 group도 전체 diff의 합집합으로 선택하고, 삭제와 rename 양쪽 경로를 포함한다. **미분류 경로가 하나라도 있으면 전체 제품 실행**한다. smartquotes 의존성 검사는 아래 별도 조건을 따른다.
 
-| PR 변경 경로 요약 | quality 외 추가 검증 |
+| PR / merge group 변경 경로 요약 | quality 외 추가 검증 |
 | --- | --- |
 | `docs/**`, 루트·하위 `*.md`, `.github/ISSUE_TEMPLATE/**`만 변경 | 없음 (아래 패키지·공용 경로에 속하는 Markdown은 해당 경로 규칙 우선) |
 | `packages/cli/**` | http, desktop (Desktop bundles the CLI) |
 | `apps/editor/**`, `packages/core/**`, `packages/file-commit/**` | browser, http, desktop |
-| `apps/desktop/**`, Editor의 업데이트 화면(`apps/editor/shared/desktop-bridge.ts`, `apps/editor/src/shell/SettingsDialog.tsx`, `apps/editor/src/shell/MessageArea.tsx`) | desktop + `test:update` (Editor 파일은 Editor 규칙도 함께 적용) |
-| 공용 설정·도구 (`package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `patches/**`, 루트 `tsconfig*`, `.github/workflows/**`, `scripts/**`) 또는 미분류 경로 | browser, http, desktop + `test:update` |
+| `apps/desktop/**`, Editor의 업데이트 화면(`apps/editor/shared/desktop-bridge.ts`, `apps/editor/src/shell/SettingsDialog.tsx`, `apps/editor/src/shell/MessageArea.tsx`) | desktop + `test:update`·`test:uninstall` (Editor 파일은 Editor 규칙도 함께 적용) |
+| 공용 설정·도구 (`package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `patches/**`, 루트 `tsconfig*`, `.github/workflows/**`, `scripts/**`) 또는 미분류 경로 | browser, http, desktop + `test:update`·`test:uninstall` |
 
-패키지 내부 Markdown은 fixture나 배포 입력일 수 있어 패키지 경로 규칙을 적용한다. browser는 Editor 4개 shard로 stable 시나리오를 정확히 한 번씩 실행한다. 목록 순서의 순환 분배를 사용하며 각 shard의 배정은 CI 로그에 출력한다. http는 Windows/Linux CLI package·`test:packaged`·HTTP browser 회귀를 실행한다. desktop이 선택되면 clean package·release 자산 검증·`test:packaged`는 항상 실행하고, 로컬 feed 설치·업데이트 단계만 `update` 출력으로 선택한다. 선택되면 release workflow와 같은 Windows 러너에서 Stable 다음 Beta를 연달아 실행해 채널 사이의 CLI 정리도 검증한다. 이 설치·업데이트 e2e는 Editor의 Settings·업데이트 알림·Desktop bridge를 직접 조작하므로 해당 파일도 `update` 대상이다. `App.tsx`의 재시작 거부 판단처럼 그 밖의 Editor 변경은 browser `desktop-updates`(mock bridge)와 Desktop packaged 회귀로 검증하고, 실제 설치·업데이트는 `master` push와 `merge_group`의 전체 실행에서 확인한다. Editor와 CLI는 Core/File commit을 공유하고, Desktop은 Editor 코드와 Host를 직접 사용하며 HTTP용 CLI package도 Editor를 빌드하므로 이 의존 경로를 함께 검증한다.
+패키지 내부 Markdown은 fixture나 배포 입력일 수 있어 패키지 경로 규칙을 적용한다. browser는 Editor 4개 shard로 stable 시나리오를 정확히 한 번씩 실행한다. 목록 순서의 순환 분배를 사용하며 각 shard의 배정은 CI 로그에 출력한다. http는 Windows/Linux CLI package·`test:packaged`·HTTP browser 회귀를 실행한다. desktop이 선택되면 clean package·release 자산 검증·`test:packaged`는 항상 실행하고, 로컬 feed 설치·업데이트 및 `test:uninstall`은 기존 `update` 출력으로 선택한다. 선택되면 release workflow와 같은 Windows 러너에서 Stable 다음 Beta를 연달아 실행해 채널 사이의 CLI 정리도 검증한다. 이 설치·업데이트 e2e는 Editor의 Settings·업데이트 알림·Desktop bridge를 직접 조작하므로 해당 파일도 `update` 대상이다. `App.tsx`의 재시작 거부 판단처럼 그 밖의 Editor 변경은 browser `desktop-updates`(mock bridge)와 Desktop packaged 회귀로 검증하고, 실제 설치·업데이트·삭제는 `update` 대상 변경 또는 전체 실행 fallback에서 확인한다. Editor와 CLI는 Core/File commit을 공유하고, Desktop은 Editor 코드와 Host를 직접 사용하며 HTTP용 CLI package도 Editor를 빌드하므로 이 의존 경로를 함께 검증한다.
 
-필수 aggregate 검사 `Core, CLI, Editor, and browser regressions`는 changes와 quality의 성공을 요구하고, 경로 규칙이 선택한 browser/http/desktop은 반드시 성공해야 하고, 선택하지 않은 job만 skipped여야 한다. 실패·취소는 통과하지 않는다. Queue에서도 정확히 같은 검사 이름을 보고한다. 같은 PR에 새 커밋을 push하면 이전 CI 실행을 취소하며, `master` push와 `merge_group` 실행은 이벤트·head SHA별로 유지하고 서로 취소하지 않는다.
+smartquotes 대형 검사는 기본 Core suite에서 분리한 `pnpm --filter @ieumdoc/core test:smartquotes`로 #11의 설치된 패치를 검증한다. `package.json`, `packages/core/package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `patches/**`, parser/tokenizer 설정을 소유한 `packages/core/src/myst/`의 `parse.ts`·`serialize.ts`·`footnote.ts`·`literal-syntax.ts` 또는 해당 검사 파일 변경 때 선택한다. manifest는 MyST·markdown-it 버전 선언을, lockfile은 전이 의존성을 포함한다. 새 parser/tokenizer 설정 파일을 추가하면 이 선택 목록도 함께 갱신한다. diff/API를 확인할 수 없어 전체 실행할 때도 포함한다. 일반 Core의 따옴표 원문 보존 및 공개 parser의 URL·HTML 보안 검사는 계속 기본 suite에서 실행한다. 패치 제거 조건은 [Parser security boundary](docs/design/parser-security-v1.md)를 따른다.
+
+master push 중복 판정은 이 저장소의 `ci.yml` workflow runs API에서 `event=merge_group`, `head_sha=github.sha`, `status=completed`, `conclusion=success`인 실행을 찾는다. 성공 run URL과 생략/전체 실행 사유를 changes 로그에 남긴다. 성공 기록 없음, 권한·네트워크·응답 오류는 전체 제품 검사·browser·HTTP·Desktop·update/uninstall·smartquotes로 되돌아간다. release workflow는 이 재사용 정책을 적용하지 않는다.
+
+캐시는 key뿐 아니라 ref scope와 path에 따른 cache version도 구분된다([GitHub cache reference](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache)). 실제 master 캐시 목록과 [pnpm/action-setup v6 구현](https://github.com/pnpm/action-setup/blob/v6/src/cache-restore/run.ts)을 확인한 결과 pnpm key는 `pnpm-cache-<runner.os>-<arch>-<hashFiles(pnpm-lock.yaml)>`, 경로는 `pnpm store path`다. Linux Playwright key는 `Linux-playwright-<hashFiles(pnpm-lock.yaml)>`, 경로는 `/github/home/.cache/ms-playwright`다. queue/PR scope에만 새 key가 저장되면 master 캐시를 대신하지 못하므로, 중복 생략 push는 Linux(동일 Playwright 컨테이너)·Windows `cache-warm` matrix에서 frozen install을 수행하고 Linux Chromium만 설치/캐시한다. 제품 검사·패키징은 실행하지 않는다. lockfile 또는 잠긴 Playwright 버전 변경은 새 key로 master scope에 저장되고, 동일 key는 복원한다. 전체 실행 fallback에서는 기존 quality/browser/HTTP/Desktop job이 캐시를 유지한다.
+
+필수 aggregate 검사 `Core, CLI, Editor, and browser regressions`는 changes와 quality의 성공을 요구하고, 정책이 선택한 browser/http/desktop/cache-warm은 반드시 성공해야 하고, 선택하지 않은 job만 skipped여야 한다. 실패·취소는 통과하지 않는다. Queue에서도 정확히 같은 검사 이름을 보고한다. 같은 PR에 새 커밋을 push하면 이전 CI 실행을 취소하며, `master` push와 `merge_group` 실행은 이벤트·head SHA별로 유지하고 서로 취소하지 않는다.
 
 Linux Editor 4개 shard와 HTTP browser job은 공식 `mcr.microsoft.com/playwright:v1.64.0-noble` 컨테이너를 **OS 의존성 제공용**으로 사용한다. 이미지의 CJK/Korean 글꼴을 포함한 의존성을 재사용하며 CI에서 apt를 실행하지 않는다. `@playwright/cli`의 transitive 버전과 맞춘 `1.64.0-alpha-1789764292000` 고정은 유지한다([채택 근거](docs/reviews/reduction-2026-10-10.md#단위-6-runner-채택-근거)). 해당 alpha 이미지가 없으므로 이미지에 포함된 stable 브라우저(`/ms-playwright`)는 사용하지 않는다. `PLAYWRIGHT_BROWSERS_PATH=/github/home/.cache/ms-playwright`로 분리하고 lockfile 키의 캐시를 복원한 뒤 `pnpm exec playwright install chromium`만 실행한다. 이 설치는 2분 제한이며 `--with-deps`를 사용하지 않는다. 기존 CI 경로 테스트가 lockfile의 prerelease 꼬리를 제외한 base 버전과 두 Linux 이미지 태그의 일치를 검사한다.
 

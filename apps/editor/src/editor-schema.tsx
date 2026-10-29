@@ -545,14 +545,30 @@ function focusEmptyCaption(event: ReactMouseEvent, { editor, node, getPos }: Pic
   editor.view.focus();
 }
 
+export function captionPlaceholderVisible(state: EditorState, pos: number, editable: boolean): boolean {
+  const node = state.doc.nodeAt(pos);
+  if (!editable || !node || node.content.size !== 0) return false;
+  const selection = state.selection;
+  return !(selection instanceof TextSelection && selection.head === pos + 1);
+}
+
+function useCaptionPlaceholder({ editor, getPos }: Pick<ReactNodeViewProps, "editor" | "getPos">, kind: "table" | "figure") {
+  const show = useEditorState({ editor, selector: ({ editor: current }) => {
+    const pos = getPos();
+    if (!current || !current.isEditable || typeof pos !== "number") return false;
+    return captionPlaceholderVisible(current.state, pos, current.isEditable);
+  } });
+  return show ? i18n.t(kind === "table" ? "Enter a table caption…" : "Enter a figure caption…") : undefined;
+}
+
 function TableCaptionView({ node, editor, getPos }: ReactNodeViewProps) {
   useTranslation();
-  const editable = useEditorState({ editor, selector: ({ editor: current }) => current.isEditable });
+  const placeholder = useCaptionPlaceholder({ editor, getPos }, "table");
   const numbered = useCaptionNumberText(editor, getPos, "table");
   return <NodeViewWrapper className="caption" data-testid="table-caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}
     onMouseDown={(event: ReactMouseEvent) => focusEmptyCaption(event, { editor, node, getPos })}>
-    <NodeViewContent as="div" aria-label={i18n.t("Table caption")}
-      data-placeholder={editable && node.content.size === 0 ? i18n.t("Table caption") : undefined} />
+    <NodeViewContent as="div" aria-label={i18n.t("Table caption")} data-empty-caption={node.content.size === 0 || undefined}
+      data-placeholder={placeholder} />
   </NodeViewWrapper>;
 }
 
@@ -1040,6 +1056,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
   const renameImage = useContext(ImageRenameContext);
   const documentPath = useContext(DocumentPathContext) ?? (typeof initialDocumentPath === "function" ? initialDocumentPath() : initialDocumentPath);
   useTranslation();
+  const placeholder = useCaptionPlaceholder({ editor, getPos }, "figure");
   // Core's computed label prefixes the caption; it is never saved.
   const numbered = useCaptionNumberText(editor, getPos, "figure");
   const anchor = useRef<HTMLParagraphElement>(null);
@@ -1264,7 +1281,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
       ) : null}
       <figcaption className="caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}
         onMouseDown={event => focusEmptyCaption(event, { editor, node, getPos })}><NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")}
-        data-placeholder={editor.isEditable && node.content.size === 0 ? i18n.t("Figure caption") : undefined} /></figcaption>
+        data-empty-caption={node.content.size === 0 || undefined} data-placeholder={placeholder} /></figcaption>
       {editableFigure && !editing ? (
         <Button className="figure-edit" size="sm" variant="outline" aria-label={i18n.t("Edit figure")} contentEditable={false} onClick={beginEdit}>{i18n.t("Edit")}</Button>
       ) : null}
@@ -1348,6 +1365,7 @@ function useSourceInputFocus(input: RefObject<HTMLElement | null>, editing: bool
 
 function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange, validateFigure }: FigureViewProps) {
   useTranslation();
+  const placeholder = useCaptionPlaceholder({ editor, getPos }, "figure");
   const visible = useEditorVisible();
   const numbered = useCaptionNumberText(editor, getPos, "figure");
   const kind = numbered ?? i18n.t("Figure");
@@ -1475,7 +1493,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
     <figcaption className="caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}
       onMouseDown={event => focusEmptyCaption(event, { editor, node, getPos })}>
       <NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")}
-        data-placeholder={editor.isEditable && node.content.size === 0 ? i18n.t("Figure caption") : undefined} />
+        data-empty-caption={node.content.size === 0 || undefined} data-placeholder={placeholder} />
     </figcaption>
     {view.editable && !editing ? <Button className="figure-edit" size="sm" variant="outline" aria-label={i18n.t("Edit figure")}
       contentEditable={false} onClick={beginEdit}>{i18n.t("Edit")}</Button> : null}

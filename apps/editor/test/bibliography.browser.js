@@ -58,7 +58,7 @@ async (page, { openFolderPicker, openPath, waitForActivePath, reloadDocument, bi
   await capture('unverified', 1440);
 
   await page.getByRole('button', { name: 'Close paper.md', exact: true }).click();
-  // The chapter folder opened first stays open too; use the common folder's own tree.
+  // Opening the common parent absorbs the chapter section; reopen through its surviving tree.
   const common = sidebar.locator(`[data-testid="folder"][data-root=${JSON.stringify(root)}]`);
   const chapters = common.getByRole('treeitem', { name: 'chapters', exact: true });
   if (await chapters.getAttribute('aria-expanded') !== 'true') await chapters.click();

@@ -509,6 +509,7 @@ button {
 }
 
 .sidebar-tree-item[aria-current="page"],
+.sidebar-tree-item[aria-selected="true"],
 .document-outline-item[aria-current="location"] {
   background: var(--id-color-surface-selected);
   color: var(--id-color-text-selected);
@@ -516,6 +517,7 @@ button {
 }
 
 .sidebar-tree-item[aria-current="page"]:hover,
+.sidebar-tree-item[aria-selected="true"]:hover,
 .document-outline-item[aria-current="location"]:hover {
   background: var(--id-color-surface-selected-hover);
 }
@@ -3077,12 +3079,13 @@ ol.list { list-style: decimal; }
 .table-grid:has(.table-caption) { padding-bottom: 0; }
 .table > table { width: 100%; border-collapse: collapse; }
 .table-caption { caption-side: bottom; text-align: left; padding-top: 44px; }
-.caption[data-number] [data-placeholder], .caption [data-placeholder] { display: inline-block; min-width: 8em; }
+.caption[data-number] [data-empty-caption], .caption [data-empty-caption] { display: inline-block; min-width: 8em; }
 .caption [data-placeholder]::before {
   content: attr(data-placeholder) / "";
   float: left;
   height: 0;
   color: var(--id-color-text-muted);
+  font-style: italic;
   pointer-events: none;
 }
 

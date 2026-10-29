@@ -31,6 +31,10 @@ const technical = [document("technical-document.md"), document("diagram.svg")];
 
 /** Scratch directory under `tmp/` → the files a fresh copy holds, and the scenarios using it. */
 export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: string[] }> = {
+  "caption-placeholder": { files: [
+    { name: "captions.md", create: () => nativeSource("# Captions\n\nBefore.\n\n:::{table}\n\n| Header |\n| --- |\n| Cell |\n:::\n\n:::{figure} ./diagram.svg\n:::\n\n:::{figure}\n:::\n\n:::{figure}\n\n```{mermaid}\ngraph LR\n  A --> B\n```\n:::\n\nAfter.\n") },
+    document("diagram.svg"),
+  ], scenarios: ["table-caption"] },
   "mermaid-authoring": { files: [
     { name: "diagram.md", create: () => nativeSource('# Mermaid figures\n\nBefore.\n\n:::{figure}\n:name: fig-flow\n\n```{mermaid}\ngraph LR\n  A --> B\n```\n\nSignal flow\n:::\n\n:::{figure} ./diagram.svg\n:name: fig-image\n\nImage caption\n:::\n\nSee {numref}`fig-flow` and {numref}`fig-image`.\n\nAfter.\n') },
     { name: "other.md", create: () => nativeSource("# Other tab\n\nOther document.\n") },
@@ -254,6 +258,14 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "desktop-updates": {
     files: [{ name: "updates.md", create: () => nativeSource("# Updates\n\nAlpha.\n\n:::{table} Values\n:name: tbl-a\n\n| A |\n| - |\n| 1 |\n:::\n") }],
     scenarios: ["desktop-updates"],
+  },
+  "folder-memory-b": {
+    files: [{ name: "b.md", create: () => nativeSource("# B\n\nBody.\n") }],
+    scenarios: ["folder-memory", "folder-navigation"],
+  },
+  "folder-memory-c": {
+    files: [{ name: "c.md", create: () => nativeSource("# C\n\nBody.\n") }],
+    scenarios: ["folder-memory"],
   },
   "folder-navigation": {
     files: [

@@ -26,7 +26,9 @@ the existing `updateTableCaption` operation already owns the persistent semantic
 - Status: Implemented
 - Empty-caption surface (#577): every editable table exposes its inline caption without
   an Add caption action. An empty surface uses the caption typography and a muted
-  `Table caption` hint; clicking it starts normal inline input. Opening alone creates
+  italic `Enter a table caption…` / `표 캡션을 입력하세요...` hint while the ProseMirror
+  selection is outside it; clicking it starts normal inline input and hides the hint.
+  Clearing the text and moving the selection away restores it. Opening alone creates
   neither dirty state nor Undo history, and empty captions are omitted on Save.
 - Empty-caption verification: 2026-10-27 (#577: Editor tests, typecheck/build,
   caption/table authoring, references, recovery and layout browser checks;
@@ -55,7 +57,8 @@ same inline controls as Figure captions and prose. A table owns its caption: mov
 deleting the table includes its caption, and Undo/Redo restores them together. ArrowDown
 from the final grid row enters the caption; ArrowUp from its first line returns to the
 last cell. Enter leaves the table. Emptying a caption removes its persistent content.
-Every empty caption surface shows its official `Table N.` and the input hint. Filling or
+Every empty caption surface shows its official `Table N.` and, while the selection is outside,
+the input hint. Filling or
 clearing the caption or Label never changes the table's kind or number, nor the numbers
 of later tables. References to a retained Label therefore keep their number. Clearing a
 Label retains reference text but makes references to that removed target unresolved.
@@ -72,15 +75,28 @@ unchanged. CLI and Editor share the Core read model and numbering rule.
 The Editor schema requires exactly one caption after the rows. Native parsing and
 replacement therefore retain the surface even when a range deletion removes everything
 after the final cell while keeping the table. No repair transaction or Undo step is added.
-Previously recorded valid Editor snapshots that omit an empty caption receive the
-same transient surface in both current and saved checkpoints, after lossless validation.
-Restoring does not mutate the stored record or create a false dirty difference.
+Recovery requires that caption child in both checkpoints. The owner ended pre-#577
+snapshot supplementation on 2026-10-29 (#705), following AGENTS.md's exclusion of
+historical-data compatibility. Unsupported records follow the common refusal and
+stored plaintext-copy path in [Editing session and Save](editing-session-save-v1.md).
 
 Whole-table clipboard output retains the empty structural `<caption>` element in HTML
 and the existing trailing block separator (`\n\n`) in plain text. The input hint and
 generated number are never copied; canonical Save still omits empty caption content.
 Changing `setEditable(false)` at runtime removes the hint; reenabling editing restores it,
-without changing document content, dirty state or Undo history.
+when the selection is outside, without changing document content, dirty state or Undo history.
+The shared Figure/Table rule follows ProseMirror selection, including keyboard and programmatic
+selection, independently of DOM focus. The hint is generated with an empty accessibility
+alternative; the caption retains its single accessible name. See [visual evidence](editor-visual-language-v1.md#empty-caption-hints-698).
+
+Backspace removes caption text through the normal editor history. At an empty caption's
+start, further Backspace leaves the table and neighboring content unchanged. When a native
+delete input's target range would empty the caption, the Editor uses that range in a
+ProseMirror deletion transaction: native Chrome deletion had
+removed the React-owned content wrapper, leaving its contentDOM detached and, for Figures,
+the model out of sync. The same boundary applies to image, pending and Mermaid captions.
+The `table-caption` browser scenario checks repeated Backspace, word deletion and cut for
+each kind, including contentDOM, model, surrounding blocks, Undo/Redo and hint restoration.
 
 The caption stays below the table. Its computed number follows the document's authored
 Table reference template, retaining the existing `. ` separator; without a template,
@@ -349,13 +365,11 @@ Figure/equation property entry and Apply/Cancel unification remain outside this 
 The initial HTTP CI run on both Windows and Linux failed because its synthetic
 `insertContentAt` fixture still supplied the former caption attribute; the caption
 was absent before crash/restore. The fixture now supplies the caption child and keeps
-all existing preservation assertions. A separate headless regression passes an actual
-old-schema `RecoveryRecord` through `prepareRecovery`: restore throws
-`Incompatible editor snapshot`, the entire rich record remains unchanged, and its
-plaintext copy includes the unsaved caption, reference label, citation key and cells.
-`App.restoreRecovery` calls this validation before any storage replacement, so the
-failed restore retains the record. This is explicit refusal with readable salvage,
-not automatic structural migration or silent caption loss.
+all existing preservation assertions. The old-schema caption salvage regression and its
+attribute extraction were retired
+by the 2026-10-29 owner decision (#705). Current recovery accepts only the current
+schema; rejected records retain their separately stored plaintext copy. Historical
+#555 verification above does not establish ongoing support for obsolete attributes.
 
 The attempted additional local production-HTTP browser run was stopped before launch
 at `BadPasswordAttempts=6`; its temporary Host was shut down. The subsequent owner

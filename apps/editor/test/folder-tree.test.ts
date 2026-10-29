@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { FolderEntry, FolderResponse } from "../shared/document-protocol.ts";
-import { containingRoot, folderChain, folderTreeReducer, folderTreesReducer, knownFolders, treeKey, visibleTreeItems, type FolderTreeState } from "../src/shell/folder-tree.ts";
+import { containsFolder, containingRoot, folderChain, folderTreeReducer, folderTreesReducer, knownFolders, treeKey, visibleTreeItems, type FolderTreeState } from "../src/shell/folder-tree.ts";
 
 const ROOT = "/r";
 const folder = (path: string): FolderEntry => ({ name: path.split("/").pop()!, kind: "folder", path });
@@ -154,4 +154,51 @@ test("an item's folder context is the outermost opened folder containing it", ()
   assert.equal(containingRoot(roots, "/rr/z.md"), undefined, "A sibling with a shared prefix is outside");
   assert.equal(containingRoot(roots, "/t/z.md"), undefined);
   assert.equal(containingRoot([String.raw`C:\docs`], String.raw`C:\docs\guide.md`), String.raw`C:\docs`);
+});
+
+test("folder containment uses Host path text and separator boundaries, including filesystem roots", () => {
+  for (const [root, path, expected] of [
+    ["/r/docs", "/r/docs/sub", true], ["/r/docs/sub", "/r/docs", false],
+    ["/r/docs", "/r/other", false], ["/r/docs", "/r/docs", true],
+    ["/r/docs", "/r/docs2", false], ["/", "/docs", true],
+    [String.raw`C:\docs`, String.raw`C:\docs\sub`, true],
+    [String.raw`C:\docs`, String.raw`C:\Docs\sub`, false],
+    ["C:\\", String.raw`C:\docs`, true],
+    [String.raw`\\server\share\docs`, String.raw`\\server\share\docs\sub`, true],
+  ] as const) assert.equal(containsFolder(root, path), expected, `${root} contains ${path}`);
+});
+
+test("opening a parent absorbs children at their first position and transfers loaded expansion", () => {
+  const open = (trees: FolderTreeState[], root: string, entries: FolderEntry[] = [], sectionExpanded = true) =>
+    folderTreesReducer(trees, { type: "openRoot", listing: { root, path: root, entries }, sectionExpanded });
+  let trees = open([], "/s");
+  trees = open(trees, "/r/a/deep", [folder("/r/a/deep/more")]);
+  trees = folderTreesReducer(trees, { type: "expand", root: "/r/a/deep", path: "/r/a/deep/more" });
+  trees = folderTreesReducer(trees, { type: "loadStart", root: "/r/a/deep", path: "/r/a/deep/more", request: 1 });
+  trees = open(trees, "/t");
+  trees = open(trees, "/r/b", [doc("/r/b/notes.md")], false);
+  trees = open(trees, "/r", [folder("/r/a"), folder("/r/b")]);
+  assert.deepEqual(trees.map(tree => tree.root), ["/s", "/r", "/t"]);
+  assert.deepEqual([...trees[1].expanded].sort(), ["/r/a", "/r/a/deep", "/r/a/deep/more"]);
+  assert.equal(trees[1].nodes.get("/r/b")?.entries[0].path, "/r/b/notes.md");
+  assert.equal(trees[1].nodes.get("/r/a/deep")?.root, "/r");
+  assert.equal(trees[1].pending.size, 0, "Old-root requests must not keep the new tree pending");
+  const before = trees;
+  trees = folderTreesReducer(trees, { type: "loadSuccess", root: "/r/a/deep", path: "/r/a/deep/more", request: 1,
+    listing: { root: "/r/a/deep", path: "/r/a/deep/more", entries: [] } });
+  assert.deepEqual(trees, before, "A late absorbed-root answer cannot replace the merged state");
+  trees = open(trees, "/r/a/deep", [doc("/r/a/deep/new.md")]);
+  assert.deepEqual(trees.map(tree => tree.root), ["/s", "/r", "/t"]);
+  assert.equal(trees[1].nodes.get("/r/a/deep")?.entries[0].name, "new.md");
+});
+
+test("restoring nested roots in either order reduces them with the same open rule", () => {
+  for (const saved of [["/r/a", "/s", "/r", "/r/a"], ["/r", "/s", "/r/a", "/r"]]) {
+    let trees: FolderTreeState[] = [];
+    for (const root of saved) trees = folderTreesReducer(trees, {
+      type: "openRoot", listing: { root, path: root, entries: [] }, sectionExpanded: false,
+    });
+    assert.deepEqual(trees.map(tree => tree.root), ["/r", "/s"]);
+    assert.equal(trees[0].sectionExpanded, false);
+  }
 });

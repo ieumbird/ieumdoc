@@ -569,6 +569,22 @@ A change to the Editor's look or a new visible control states which rule above (
 
 IeumDoc keeps one stylesheet; comparison captures do not need a runtime old/new theme toggle. Record the actual HEAD, viewport, DPR/zoom, scroll/interaction state and font environment. CSS studies and mockups are not product Before images.
 
+### Empty caption hints #698
+
+Empty editable Table, image Figure, pending Figure and Mermaid Figure captions share a muted
+italic input hint while the ProseMirror selection is elsewhere. The hint disappears with
+selection in the caption and returns after clearing and leaving it. The number prefix and
+minimum 8em click surface remain; the generated text has an empty accessibility alternative
+and is absent from clipboard, Source and Save. Read-only captions omit the hint.
+
+The same scratch document and persistent Chrome profile were used before (base
+`a1be38ce063a10bf5068d077e07b8884455967e4`) and after, with DPR 1, zoom 1,
+loaded Pretendard fonts, no hovered block and selection outside the captions. Pairs:
+[Table, English/light/1440](caption-placeholder-698/before-table.png) / [after](caption-placeholder-698/after-table.png),
+[image, Korean/dark/640](caption-placeholder-698/before-image.png) / [after](caption-placeholder-698/after-image.png),
+[pending, Korean/light/1440](caption-placeholder-698/before-pending.png) / [after](caption-placeholder-698/after-pending.png),
+[Mermaid, English/dark/640](caption-placeholder-698/before-mermaid.png) / [after](caption-placeholder-698/after-mermaid.png).
+
 ### Korean document wrapping #506
 
 `pnpm browser:test quiet-document --screenshots` extends the existing typography scenario.
