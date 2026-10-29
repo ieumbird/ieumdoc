@@ -97,7 +97,7 @@ import {
 import { assertUnicode, commitFile, decodeUtf8, preflightFileCommit, textRevision } from "@ieumdoc/file-commit";
 import { resolveMediaPath } from "../../../apps/editor/server/document-path.ts";
 import { figureMediaPath } from "../../../apps/editor/shared/figure-media-path.ts";
-import { convertDoclingFile } from "@ieumdoc/docling";
+import { convertDoclingFile, convertDoclingPdf } from "@ieumdoc/docling";
 
 const HELP_GROUPS = [
   "Create and inspect",
@@ -223,6 +223,9 @@ const COMMANDS: CommandSpec[] = [
     summary: "Convert a whole DoclingDocument and create its correspondence sidecar",
     usage: "ieumdoc docling convert <document.json> --output <new-folder>",
     details: ["Accepts DoclingDocument 1.10.0. The output directory must not exist.",
+      "ieumdoc docling convert-pdf <pdf> --server <url> --output <new-folder> [--timeout <seconds>]",
+      "--server defaults to IEUMDOC_DOCLING_SERVER. Uses the fixed ieumdoc-pdf-en-v1 profile.",
+      "PDF conversion creates document.json, readable image files, conversion-record.json and the native document/map.",
       "Creates document.md, document.docling-map.json and local image assets.",
       "Furniture and unsupported elements are reported in the sidecar. No chapter/range selection.",
       "Original heading numbers remain literal text; automatic heading numbering is off."],
@@ -1864,6 +1867,27 @@ export function runCli(args: string[]): number {
   }
 }
 
+/** Asynchronous command surface; synchronous commands keep the existing runCli API. */
+export async function runCliAsync(args: string[]): Promise<number> {
+  if (args[0] !== "docling" || args[1] !== "convert-pdf" || args.includes("--version") || isCommandHelpRequest(args.slice(1))) return runCli(args);
+  try {
+    const input = args[2], flags = new Map<string, string>();
+    if (!input || input.startsWith("-")) throw new Error(commandHelp("docling"));
+    for (let i = 3; i < args.length; i += 2) {
+      const key = args[i], value = args[i + 1];
+      if (!["--server", "--output", "--timeout"].includes(key) || flags.has(key) || !value || value.startsWith("-")) throw new Error(commandHelp("docling"));
+      flags.set(key, value);
+    }
+    const output = flags.get("--output"), server = flags.get("--server") ?? process.env.IEUMDOC_DOCLING_SERVER;
+    if (!output || !server) throw new Error("convert-pdf requires --output and --server (or IEUMDOC_DOCLING_SERVER)");
+    const seconds = flags.has("--timeout") ? Number(flags.get("--timeout")) : 1800;
+    if (!Number.isFinite(seconds) || seconds <= 0) throw new Error("--timeout must be a positive number of seconds");
+    const record = await convertDoclingPdf(input, output, { server, timeoutMs: seconds * 1000 });
+    process.stdout.write(JSON.stringify({ output: path.resolve(output), taskId: record.taskId, pages: record.document.pages, elapsedMs: record.elapsedMs }) + "\n");
+    return 0;
+  } catch (error) { return reportError(args, error); }
+}
+
 if (import.meta.main) {
   const args = process.argv.slice(2);
   try {
@@ -1872,7 +1896,7 @@ if (import.meta.main) {
       // Source checkout runs use an explicit Editor build; the distributable carries it beside cli.mjs.
       const editorDir = fileURLToPath(new URL(import.meta.url.endsWith(".ts") ? "../../../apps/editor/dist/" : "./editor/", import.meta.url));
       await serve(args.slice(1), editorDir);
-    } else process.exitCode = runCli(args);
+    } else process.exitCode = await runCliAsync(args);
   } catch (error) {
     process.exitCode = reportError(args, error);
   }

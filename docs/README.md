@@ -27,7 +27,7 @@ Implementation record: [UI language #256 plan and verification](design/ui-langua
 | Document | Status | Authority / description |
 | --- | --- | --- |
 | [Native document support](design/document-support-v1.md) | Implemented | 현재 계약. 표식·지원 의미·Core 진입/생성/쓰기 경계와 LF/fail-closed 보존. |
-| [Docling conversion](design/docling-conversion-v1.md) | Implemented | DoclingDocument 1.10.0 전체 변환, 버전·해시로 묶인 대응표와 변환 한계. |
+| [Docling conversion](design/docling-conversion-v1.md) | Implemented | DoclingDocument 1.10.0 전체 변환, 외부 PDF REST 프로필·가벼운 원본 묶음, 해시로 묶인 대응표와 변환 한계. |
 | [Parser security boundary](design/parser-security-v1.md) | Implemented | 공개 parse/참조 진단 도달성, URL·inline HTML backport와 patch 제거 조건. |
 | [Continuous document editing](design/document-editing-v1.md) | Implemented | 현재 계약. 연속 편집, clipboard, table/section 구조 변경의 보존 경계. |
 | [Editing session and Save](design/editing-session-save-v1.md) | Implemented | 현재 계약. opening snapshot, Save acknowledgement, draft/work-loss 보호와 로컬 복구. |

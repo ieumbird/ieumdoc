@@ -1,6 +1,7 @@
 import { syncBuiltinESMExports } from "node:module";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { createServer } from "node:http";
 import { copyFileSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import fs from "node:fs";
 import { tmpdir } from "node:os";
@@ -27,6 +28,7 @@ import {
 import { textRevision } from "@ieumdoc/file-commit";
 import { runCli } from "../src/cli.ts";
 import { versionText } from "../src/version.ts";
+import { listenForFetch } from "../../../test/helpers/fetch-server.ts";
 
 const cliRoot = fileURLToPath(new URL("..", import.meta.url));
 const nativeSource = (body: string): string => `---\nieumdoc: 1\n---\n\n${body}`;
@@ -48,6 +50,54 @@ test("docling convert delegates whole-document conversion and refuses overwrite 
   assert.equal(run(["docling", "convert", input, "--output", refused, "--chapter", "7"]).status, 1);
   assert.equal(fs.existsSync(refused), false);
   assert.match(run(["help", "docling"]).stdout, /DoclingDocument 1\.10\.0/);
+});
+
+test("docling convert-pdf executable accepts server flag/environment and reports module results", async () => {
+  const server = createServer(async (req, res) => {
+    res.setHeader("content-type", "application/json");
+    if (req.url === "/version") res.end('{"docling-serve":"1.32.0"}');
+    else if (req.url === "/ready") res.end('{}');
+    else if (req.url === "/openapi.json") res.end('{"info":{"version":"1.32.0"}}');
+    else if (req.url === "/v1/convert/file/async") {
+      for await (const _ of req) { /* consume uploaded PDF */ }
+      res.end('{"task_id":"cli-job","task_status":"success"}');
+    } else if (req.url === "/v1/result/cli-job") res.end(JSON.stringify({ status: "success", document: {
+      json_content: { schema_name: "DoclingDocument", version: "1.10.0", name: "CLI", body: { self_ref: "#/body", children: [] } },
+    } }));
+    else { res.statusCode = 404; res.end('{}'); }
+  });
+  await listenForFetch(server);
+  const url = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+  const input = path.join(fixtures, "rest.pdf"); writeFileSync(input, "%PDF-1.7\nfixture");
+  async function execute(args: string[], envServer: string) {
+    const child = spawn(process.execPath, ["--import", "tsx", fileURLToPath(new URL("../src/cli.ts", import.meta.url)), ...args], {
+      cwd: cliRoot, env: { ...process.env, IEUMDOC_DOCLING_SERVER: envServer }, stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "", stderr = "";
+    child.stdout.on("data", c => { stdout += c; }); child.stderr.on("data", c => { stderr += c; });
+    const status = await new Promise<number | null>((resolve, reject) => { child.once("error", reject); child.once("close", resolve); });
+    return { status, stdout, stderr };
+  }
+  try {
+    for (const explicit of [true, false]) {
+      const output = path.join(fixtures, explicit ? "rest-explicit" : "rest-env");
+      const result = await execute(["docling", "convert-pdf", input, "--output", output, ...(explicit ? ["--server", url] : [])], explicit ? "http://127.0.0.1:1" : url);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(JSON.parse(result.stdout).taskId, "cli-job");
+      assert.equal(JSON.parse(readFileSync(path.join(output, "conversion-record.json"), "utf8")).server.url, url + "/");
+      assert.ok(fs.existsSync(path.join(output, "document.md")));
+    }
+    for (const flags of [["--timeout", "NaN"], ["--image-export-mode", "referenced"], ["--server", url, "--server", url]]) {
+      const result = await execute(["docling", "convert-pdf", input, "--output", path.join(fixtures, "rest-refused"), ...flags], url);
+      assert.equal(result.status, 1);
+      assert.equal(fs.existsSync(path.join(fixtures, "rest-refused")), false);
+    }
+    const missing = await execute(["docling", "convert-pdf", input, "--output", path.join(fixtures, "rest-refused")], "");
+    assert.equal(missing.status, 1); assert.match(missing.stderr, /requires.*--server/);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close(e => e ? reject(e) : resolve()));
+  }
 });
 after(() => rmSync(fixtures, { recursive: true, force: true }));
 const fixture = path.join(fixtures, "document.md");
