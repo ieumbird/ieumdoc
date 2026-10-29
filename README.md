@@ -24,7 +24,7 @@ Desktop 시작 화면이나 Command center의 **샘플 문서 열기**에서 현
 바뀔 때 앱이 소유를 확인한 경우에만 교체됩니다. 개발 Editor에서도 같은 샘플을 제공하며 HTTP Host는 제외합니다.
 [샘플 배포 계약](docs/design/desktop-distribution-v1.md#native-sample)을 따릅니다.
 
-Settings → About에서 버전·업데이트를 확인합니다. 업데이트 다운로드와 설치는 사용자 요청 후 진행합니다([Desktop 계약](docs/design/desktop-distribution-v1.md)). 공개 설치본의 변경 사항과 검증 범위는 각 Release 본문과 [릴리스 기록](docs/README.md#verification)을 확인하세요. 현재 공개 [v0.0.2-beta.3의 배포·검증 기록](docs/releases/v0.0.2-beta.3.md)과 다음 소스 후보의 [공개 전 준비 기록](docs/releases/v0.0.2-beta.4.md)을 구분합니다.
+Settings → About에서 버전·업데이트를 확인합니다. 업데이트 다운로드와 설치는 사용자 요청 후 진행합니다([Desktop 계약](docs/design/desktop-distribution-v1.md)). 공개 설치본의 변경 사항과 검증 범위는 각 Release 본문과 [릴리스 기록](docs/README.md#verification)을 확인하세요. 현재 공개 [v0.0.2-beta.4의 배포·검증 기록](docs/releases/v0.0.2-beta.4.md)과 직전 [v0.0.2-beta.3 기록](docs/releases/v0.0.2-beta.3.md)을 확인할 수 있습니다.
 지원 대상은 최소 **640px**의 데스크톱급 창과 키보드·포인터 입력입니다([ADR-0010](docs/adr/0010-supported-viewport-and-input.md)).
 
 <a id="document-compatibility-and-preservation"></a>
