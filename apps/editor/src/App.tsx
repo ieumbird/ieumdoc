@@ -1120,10 +1120,13 @@ export function App() {
           }}
         />
       ) : null}
-      <NotificationCenter items={comparison?.snapshot.stale ? [{ id: `docling-stale-${comparison.id}`, severity: "warning",
-        message: i18n.t("The correspondence map does not match this document. Connections and sync scrolling are disabled. Reconvert to compare."),
-        reveal: () => globalThis.document.getElementById(`panel-${comparison.id}`)?.focus(),
-      }] : []} />
+      <NotificationCenter items={comparisons.filter(tab => tab.snapshot.stale).map(tab => ({ id: `docling-stale-${tab.id}`, severity: "warning",
+        message: `${tab.snapshot.map.source.name}: ${i18n.t("The correspondence map does not match this document. Connections and sync scrolling are disabled. Reconvert to compare.")}`,
+        reveal: () => {
+          activateTab(tab.id);
+          requestAnimationFrame(() => globalThis.document.getElementById(`panel-${tab.id}`)?.focus());
+        },
+      }))} />
       <FolderDialog open={comparePicker} title={i18n.t("Docling comparison")}
         description={i18n.t("Choose a conversion folder containing document.md and document.docling-map.json.")}
         initialPath={folders.roots.at(-1) ?? splitDocumentPath(openedPath).directory} recent={visibleRecent}

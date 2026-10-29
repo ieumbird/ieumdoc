@@ -118,6 +118,10 @@ async (page, { expect }) => {
   await center.getByRole('button', { name: 'Notifications', exact: true }).click();
   await center.getByRole('button', { name: 'Dismiss notification' }).click();
   await expect(center).toHaveCount(0);
+  const staleTabId = await stale.getAttribute('aria-labelledby');
+  await page.getByRole('tab', { name: 'technical-document.md', exact: true }).click();
+  await page.locator('#' + staleTabId).click();
+  await expect(center).toHaveCount(0);
   await page.getByRole('tab', { selected: true }).press('Delete');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   return { initialImages, totalPages: Object.keys(snapshot.map.pages).length, visiblePages, correspondenceCounts, firstRegion,

@@ -36,7 +36,9 @@ on the browser scroll path.
 A Markdown SHA-256 mismatch appears in the shared bottom-right notification
 center, following owner P07 in [#777](https://github.com/ieumbird/ieumdoc/issues/777).
 It expands without taking focus, can be collapsed/dismissed and offers Go to
-problem. Source regions and the current document remain readable; stale targets,
+problem. Open comparison tabs contribute warnings to one window-level center;
+switching tabs does not resurrect a dismissed cause. Go to problem selects its
+comparison tab, and closing that tab removes its cause. Source regions and the current document remain readable; stale targets,
 links and synchronized scrolling are disabled. Reconvert, close and reopen to use
 fresh correspondence. Invalid format/coordinates/targets refuse opening with a
 folder-picker error.
