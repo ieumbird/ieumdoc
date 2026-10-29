@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 import { getEditableDocument, parse, serialize, type EditableBlock } from "@ieumdoc/core";
 import { convertDoclingDocument, readDoclingMap } from "../src/index.ts";
-import type { SourceDocument, SourceItem } from "../src/source.ts";
+import type { Cell, SourceDocument, SourceItem } from "../src/source.ts";
 
 const fixture = (name: string): string => readFileSync(new URL(`./fixtures/${name}/document.json`, import.meta.url), "utf8");
 const ref = (self_ref: string) => ({ $ref: self_ref });
@@ -18,6 +18,18 @@ function source(texts: SourceItem[], extra: Partial<SourceDocument> = {}): Sourc
 }
 const convert = (s: SourceDocument) => convertDoclingDocument(JSON.stringify(s));
 const blocks = (markdown: string): EditableBlock[] => getEditableDocument(parse(markdown)).blocks;
+function tableSource(num_rows: number, num_cols: number, table_cells: Cell[]): SourceDocument {
+  return source([], { body: { self_ref: "#/body", label: "unspecified", children: [ref("#/tables/0")] },
+    tables: [{ self_ref: "#/tables/0", label: "table", parent: ref("#/body"), children: [], data: { num_rows, num_cols, table_cells } }] });
+}
+const cell = (text: string, row: number, col: number, extra: Partial<Cell> = {}): Cell => ({ text,
+  start_row_offset_idx: row, end_row_offset_idx: row + (extra.row_span ?? 1),
+  start_col_offset_idx: col, end_col_offset_idx: col + (extra.col_span ?? 1), ...extra });
+function tableRows(markdown: string): string[][] {
+  const table = blocks(markdown).find(b => b.block === "table");
+  assert.ok(table?.block === "table");
+  return table.rows.map(row => row.cells.map(c => c.text));
+}
 
 for (const name of ["nist-sp1108r4", "synthetic"]) test(`${name}: whole saved Docling output has complete, canonical correspondence`, () => {
   const input = fixture(name), original = JSON.parse(input);
@@ -41,7 +53,14 @@ for (const name of ["nist-sp1108r4", "synthetic"]) test(`${name}: whole saved Do
   if (name === "synthetic") {
     const merged = original.tables.find((t: { data: { table_cells: { col_span: number }[] } }) => t.data.table_cells.some(c => c.col_span > 1));
     assert.ok(merged, "the saved real Docling output must contain the merged-header supplement");
-    assert.equal(map.items.find(x => x.self_ref === merged.self_ref)!.status, "unsupported");
+    const mapped = map.items.find(x => x.self_ref === merged.self_ref)!;
+    assert.equal(mapped.status, "converted");
+    assert.deepEqual(tableRows(result.markdown), [
+      ["Operating envelope / Band", "Operating envelope / Minimum", "Operating envelope / Maximum", "Review result / Status"],
+      ["Normal", "0.2", "0.8", "Accept"], ["Emergency", "0.8", "1.0", "Review"],
+    ]);
+    assert.match(mapped.notes.join(" "), /Flattened 1 merged source cells across 3 grid positions/);
+    assert.match(mapped.notes.join(" "), /Combined 2 leading column header rows/);
     assert.ok(map.items.some(x => x.status === "converted"));
     assert.ok(map.items.some(x => x.status === "decoration"));
   }
@@ -124,13 +143,67 @@ test("standalone footnote digits stay literal; explicit owner relations create a
   assert.throws(() => readDoclingMap(JSON.stringify(tampered), r.markdown), /endnote/);
 });
 
-test("merged tables are reported, without discarding their independently convertible captions and notes", () => {
+test("merged body cells repeat across both axes; headers collapse and row roles become ordinary cells", () => {
+  const s = tableSource(7, 3, [
+    cell("Item", 0, 0, { column_header: true, row_span: 2 }),
+    cell("Group", 0, 1, { column_header: true, col_span: 2 }),
+    cell("Group", 1, 1, { column_header: true }), cell("Group", 1, 2, { column_header: true }),
+    cell("Item", 2, 0, { column_header: true }), cell("Low", 2, 1, { column_header: true }), cell("High", 2, 2, { column_header: true }),
+    cell("Row | label", 3, 0, { row_header: true, row_span: 2 }),
+    cell("Shared *literal*", 3, 1, { row_span: 2, col_span: 2 }),
+    cell("Section", 5, 0, { row_section: true, col_span: 3 }), cell("Last", 6, 0), cell("", 6, 1),
+  ]);
+  const r = convert(s), mapped = r.map.items.find(x => x.self_ref === "#/tables/0")!;
+  assert.equal(mapped.status, "converted");
+  assert.deepEqual(tableRows(r.markdown), [
+    ["Item", "Group / Low", "Group / High"],
+    ["Row | label", "Shared *literal*", "Shared *literal*"],
+    ["Row | label", "Shared *literal*", "Shared *literal*"],
+    ["Section", "Section", "Section"], ["Last", "", ""],
+  ]);
+  assert.match(mapped.notes.join(" "), /Flattened 5 merged source cells across 13 grid positions/);
+  assert.match(mapped.notes.join(" "), /Combined 3 leading column header rows/);
+  assert.match(mapped.notes.join(" "), /Converted 1 row header cells to ordinary cells/);
+  assert.match(mapped.notes.join(" "), /Converted 1 row section cells to ordinary cells/);
+  assert.equal(serialize(parse(r.markdown)), r.markdown);
+  readDoclingMap(JSON.stringify(r.map), r.markdown);
+});
+
+test("partial and nonleading headers retain text; headerless tables keep an empty native header", () => {
+  const partial = convert(tableSource(2, 2, [cell("Heading", 0, 0, { column_header: true }), cell("Also retained", 0, 1), cell("Value", 1, 0)]));
+  assert.deepEqual(tableRows(partial.markdown), [["Heading", "Also retained"], ["Value", ""]]);
+  assert.match(partial.map.items.find(x => x.self_ref === "#/tables/0")!.notes.join(" "), /Partial column header rows/);
+  const nonleading = convert(tableSource(4, 2, [cell("First body", 0, 0, { row_header: true }),
+    cell("Later heading", 2, 0, { column_header: true, col_span: 2 }), cell("Last", 3, 1)]));
+  assert.deepEqual(tableRows(nonleading.markdown), [["", ""], ["First body", ""], ["", ""], ["Later heading", "Later heading"], ["", "Last"]]);
+  const notes = nonleading.map.items.find(x => x.self_ref === "#/tables/0")!.notes.join(" ");
+  assert.match(notes, /inserted empty native header/);
+  assert.match(notes, /1 nonleading column header rows as ordinary body cells/);
+});
+
+test("invalid merged coordinates, inconsistent spans and overlaps refuse the table", () => {
+  for (const cells of [
+    [cell("Outside", 0, 0, { row_span: 3 })],
+    [cell("Inconsistent", 0, 0, { col_span: 2, end_col_offset_idx: 1 })],
+    [cell("Zero span", 0, 0, { row_span: 0 })],
+    [cell("Negative", -1, 0)],
+    [cell("Merged", 0, 0, { col_span: 2 }), cell("Overlap", 0, 1)],
+  ]) {
+    const r = convert(tableSource(2, 2, cells)), mapped = r.map.items.find(x => x.self_ref === "#/tables/0")!;
+    assert.equal(mapped.status, "unsupported");
+    assert.match(mapped.reason!, /Invalid\/overlapping table cell coordinates/);
+    assert.deepEqual(mapped.targets, []);
+    assert.deepEqual(mapped.notes, []);
+  }
+});
+
+test("form tables remain unsupported, without discarding their independently convertible captions and notes", () => {
   const s = source([text(0, "Table caption", { label: "caption" }), text(1, "NOTE - table note", { label: "footnote" })]);
   s.tables = [{ self_ref: "#/tables/0", label: "table", parent: ref("#/body"), children: [], captions: [ref("#/texts/0")], footnotes: [ref("#/texts/1")],
-    data: { num_rows: 1, num_cols: 2, table_cells: [{ text: "Merged", col_span: 2, start_row_offset_idx: 0, end_row_offset_idx: 1, start_col_offset_idx: 0, end_col_offset_idx: 2 }] } }];
+    data: { num_rows: 1, num_cols: 2, table_cells: [cell("Fillable", 0, 0, { fillable: true, col_span: 2 })] } }];
   s.body!.children = [ref("#/tables/0"), ...s.body!.children!];
   const r = convert(s);
-  assert.match(r.map.items.find(x => x.self_ref === "#/tables/0")!.reason!, /Merged/);
+  assert.match(r.map.items.find(x => x.self_ref === "#/tables/0")!.reason!, /Fillable form cells/);
   assert.ok(blocks(r.markdown).some(b => b.block === "paragraph" && b.text === "Table caption"));
   assert.ok(blocks(r.markdown).some(b => b.block === "paragraph" && b.text === "NOTE - table note"));
   assert.equal(r.map.items.find(x => x.self_ref === "#/tables/0")!.targets.length, 0);
