@@ -92,7 +92,7 @@ async (page, { openPath }) => {
   async function appliedTyping() {
     const focusFile = file.replace('drafts.md', 'focus.md');
     const cases = [
-      {kind:'figure', type:'figure', field:'figure-label', first:'figure-image-url', value:'fig-applied', label:'fig-applied'},
+      {kind:'figure', type:'figure', field:'figure-label', first:'figure-replace', value:'fig-applied', label:'fig-applied'},
       {kind:'table', type:'table', field:'table-label', first:'table-label', value:'tbl-applied', label:'tbl-applied'},
       {kind:'label-target', type:'labelTarget', field:'label-target-input', first:'label-target-input', value:'SECTION-A', label:'SECTION-A'},
     ];

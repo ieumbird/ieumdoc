@@ -2572,6 +2572,52 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
   gap: var(--space-2);
 }
 
+/* Figure metadata is a quiet anchored surface; other property forms retain their contract. */
+.figure-properties {
+  width: var(--layout-figure-popover-width);
+  max-width: var(--available-width);
+  max-height: var(--available-height);
+}
+.figure-properties [data-slot="input"] { border-color: transparent; background: var(--id-color-surface-subtle); }
+.figure-properties [data-slot="input"]:hover { border-color: var(--id-color-border); }
+.figure-properties [data-slot="input"]:focus-visible { border-color: var(--id-color-border-focus); }
+.figure-property-media { display: flex; align-items: center; gap: var(--space-3); }
+.figure-property-thumbnail {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+.figure-property-thumbnail img {
+  display: block;
+  max-width: var(--size-figure-property-thumbnail-max-width);
+  max-height: var(--size-figure-property-thumbnail-max-height);
+  width: auto;
+  height: auto;
+  border: var(--border-width) solid var(--id-color-border-subtle);
+  border-radius: var(--id-radius-sm);
+}
+/* Mermaid SVGs use percentage width; provide a width reference, leaving height intrinsic. */
+.figure-property-thumbnail .mermaid-preview { width: var(--size-figure-property-thumbnail-max-width); margin: 0; min-height: 0; }
+.figure-property-thumbnail .mermaid-preview img { margin: 0; }
+.figure-property-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: var(--space-3); }
+.figure-number-field .view-toggle { width: fit-content; height: var(--size-control); align-items: center; }
+.figure-properties details > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--size-control-compact);
+  cursor: pointer;
+  color: var(--id-color-text-muted);
+  list-style: none;
+}
+.figure-properties details > summary::-webkit-details-marker { display: none; }
+.figure-properties details > summary svg { width: var(--size-icon-slot); height: var(--size-icon-slot); }
+.figure-properties details[open] > summary svg { transform: rotate(90deg); }
+.figure-properties details[open] > summary { margin-bottom: var(--space-2); }
+/* Match the collapsed disclosure's label-line clearance above Done. */
+.figure-properties details[open] { padding-bottom: var(--space-1); }
+.figure-properties .ui-notice { margin: 0; font-size: var(--font-size-sm); line-height: var(--line-height-label); }
+
 .block-popover-note {
   margin: var(--space-2) 0 0;
   color: var(--id-color-text-subtle);

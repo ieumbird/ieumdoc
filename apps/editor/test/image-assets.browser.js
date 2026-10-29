@@ -180,7 +180,7 @@ async (page, { openFolderPicker, openPath, openDocument, screenshots, recoveryRe
   const pathField = picker.getByRole('combobox', {name:'Image path'});
   const editFigure = async index => {
     const edit = figures.nth(index).getByRole('button', {name:'Edit figure'});
-    await edit.locator('..').hover({position:{x:4,y:4}}); await edit.click(); await imageField.waitFor();
+    await edit.locator('..').hover({position:{x:4,y:4}}); await edit.click(); await page.getByTestId('figure-replace').click(); await imageField.waitFor();
   };
   const chooseOutside = async () => {
     await page.getByRole('button', {name:'Choose…', exact:true}).click();
@@ -215,7 +215,7 @@ async (page, { openFolderPicker, openPath, openDocument, screenshots, recoveryRe
   assert(cancelled === './assets/photo.png', 'An image elsewhere is copied into assets/');
   assert((await page.request.get(media(cancelled))).status() === 200, 'The copy exists while the form holds it');
   const removed = page.waitForResponse(response => response.url().endsWith('/api/asset') && response.request().method() === 'DELETE');
-  await page.getByTestId('figure-cancel').click();
+  await page.getByTestId('figure-alt').press('Escape');
   assert((await removed).status() === 204 && (await page.request.get(media(cancelled))).status() === 404, 'Cancel removes the unused copy');
   await editFigure(1);
   const copied = await chooseOutside();
@@ -237,9 +237,9 @@ async (page, { openFolderPicker, openPath, openDocument, screenshots, recoveryRe
     assert((await deleted).status() === 204 && (await page.request.get(media(copy))).status() === 404, 'The unapplied copy is removed');
   };
   await discarded(async () => {
-    await page.getByRole('button', {name:'File actions', exact:true}).click();
-    await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
-    await page.getByRole('button', {name:'Discard and reload', exact:true}).click();
+    await page.getByRole('button', {name:'File actions', exact:true}).focus(); await page.keyboard.press('Enter');
+    await page.getByRole('menuitem', {name:'Reload', exact:true}).focus(); await page.keyboard.press('Enter');
+    await page.getByRole('button', {name:'Discard and reload', exact:true}).focus(); await page.keyboard.press('Enter');
     await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   });
   await discarded(() => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => {
@@ -386,7 +386,7 @@ async (page, { openFolderPicker, openPath, openDocument, screenshots, recoveryRe
     assert(savedFigure?.block === 'figure' && savedFigure.imageUrl === filled.content[index].attrs.imageUrl &&
       savedFigure.label === beforeFill.content[index].attrs.label && savedFigure.caption.text === (gesture === 'paste' ? 'Reserved caption' : ''),
       `Save writes the filled Figure's image, caption, label and position after ${gesture}`);
-    await page.getByRole('button', {name:'File actions', exact:true}).click();
+    await page.getByRole('button', {name:'File actions', exact:true}).focus(); await page.keyboard.press('Enter');
     await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
     await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     assert(semanticJSON(await documentJSON()) === semanticJSON(filled), `Reload retains the filled Figure after ${gesture}`);
@@ -404,7 +404,9 @@ async (page, { openFolderPicker, openPath, openDocument, screenshots, recoveryRe
   await imageField.fill('../outside.png');
   assert(await filename.count() === 0, 'An outside-folder Image path hides File name');
   await imageField.fill(oldUrl);
+  await page.getByTestId('figure-editor').getByText('Advanced', {exact:true}).click();
   await filename.waitFor();
+  if (!await filename.isVisible()) await page.getByTestId('figure-editor').getByText('Advanced', {exact:true}).click();
   await filename.fill('회로도-final');
   await page.getByTestId('figure-alt').fill('Renamed alt');
   await page.getByTestId('figure-label').fill('renamed-652');
@@ -419,13 +421,13 @@ async (page, { openFolderPicker, openPath, openDocument, screenshots, recoveryRe
   // Host rejection retains every draft and does not partially apply Alt/Label.
   await page.route('**/api/file', route => route.fulfill({status:400, json:{error:'Rename denied'}}));
   const priorRename = JSON.stringify(await documentJSON());
-  await page.getByTestId('figure-apply').click();
+  await page.getByTestId('figure-rename').click();
   await page.getByTestId('figure-editor').getByText('Rename denied', {exact:true}).waitFor();
   assert(await filename.inputValue() === '회로도-final' && await page.getByTestId('figure-alt').inputValue() === 'Renamed alt' &&
     await page.getByTestId('figure-label').inputValue() === 'renamed-652', 'Rename refusal retains all form fields');
   assert(JSON.stringify(await documentJSON()) === priorRename, 'Rename refusal applies no properties');
   await page.unroute('**/api/file');
-  await page.getByTestId('figure-apply').click();
+  await page.getByTestId('figure-rename').click();
   await page.getByTestId('figure-editor').waitFor({state:'detached'});
   const renamed = (await documentJSON()).content.find(node => node.type === 'figure').attrs;
   assert(renamed.imageUrl === './assets/회로도-final.png' && renamed.imageAlt === 'Renamed alt' && renamed.label === 'renamed-652', 'Rename and properties Apply succeed');
@@ -452,8 +454,9 @@ async (page, { openFolderPicker, openPath, openDocument, screenshots, recoveryRe
   await waitIdle();
   const uploadIndex = (await documentJSON()).content.filter(node => node.type === 'figure').findIndex(node => node.attrs.imageUrl === renameUpload.path);
   await editFigure(uploadIndex);
+  if (!await filename.isVisible()) await page.getByTestId('figure-editor').getByText('Advanced', {exact:true}).click();
   await filename.fill('just-pasted');
-  await page.getByTestId('figure-apply').click();
+  await page.getByTestId('figure-rename').click();
   await page.getByTestId('figure-editor').waitFor({state:'detached'});
   const pastedRename = JSON.stringify(await documentJSON());
   await historyKey('Control+z');
@@ -478,8 +481,9 @@ async (page, { openFolderPicker, openPath, openDocument, screenshots, recoveryRe
   await page.getByTestId('figure-apply').click();
   await page.getByTestId('figure-editor').waitFor({state:'detached'});
   await saveCurrent();
-  await editFigure(0); await filename.fill('history-spelling');
-  await page.getByTestId('figure-apply').click();
+  await editFigure(0); if (!await filename.isVisible()) await page.getByTestId('figure-editor').getByText('Advanced', {exact:true}).click();
+  await filename.fill('history-spelling');
+  await page.getByTestId('figure-rename').click();
   await page.getByTestId('figure-editor').waitFor({state:'detached'});
   const spellingRenamed = await firstImage();
   await historyKey('Control+z');
@@ -499,10 +503,16 @@ async (page, { openFolderPicker, openPath, openDocument, screenshots, recoveryRe
   await editFigure(1);
   await forms.first().getByTestId('figure-alt').fill('Shared B draft');
   await forms.first().getByTestId('figure-label').fill('shared-b-652');
-  await figures.first().getByTestId('figure-image').dblclick();
+  await figures.first().evaluate(node => {
+    const e=node.closest('.document-editor').editor;
+    e.state.doc.forEach((block,pos) => { if (block.attrs.sourcePath === node.getAttribute('data-source-path')) e.commands.setNodeSelection(pos); });
+    e.view.focus();
+  });
+  await page.keyboard.press('Enter');
   await expect(forms).toHaveCount(2);
+  await forms.last().getByText('Advanced', {exact:true}).focus(); await page.keyboard.press('Enter');
   await forms.last().getByTestId('figure-file-name').fill('shared-renamed');
-  await forms.last().getByTestId('figure-apply').click();
+  await forms.last().getByTestId('figure-rename').focus(); await page.keyboard.press('Enter');
   await expect(forms).toHaveCount(1);
   assert(await forms.first().getByTestId('figure-image-url').inputValue() === './assets/shared-renamed.png', 'Other open form follows the renamed path');
   assert(await forms.first().getByTestId('figure-alt').inputValue() === 'Shared B draft' &&
@@ -520,10 +530,16 @@ async (page, { openFolderPicker, openPath, openDocument, screenshots, recoveryRe
   await editFigure(1);
   await forms.first().getByTestId('figure-image-url').fill(explicitImage);
   await forms.first().getByTestId('figure-alt').fill('Manual Image draft preserved');
-  await figures.first().getByTestId('figure-image').dblclick();
+  await figures.first().evaluate(node => {
+    const e=node.closest('.document-editor').editor;
+    e.state.doc.forEach((block,pos) => { if (block.attrs.sourcePath === node.getAttribute('data-source-path')) e.commands.setNodeSelection(pos); });
+    e.view.focus();
+  });
+  await page.keyboard.press('Enter');
   await expect(forms).toHaveCount(2);
+  await forms.last().getByText('Advanced', {exact:true}).focus(); await page.keyboard.press('Enter');
   await forms.last().getByTestId('figure-file-name').fill('shared-final');
-  await forms.last().getByTestId('figure-apply').click();
+  await forms.last().getByTestId('figure-rename').focus(); await page.keyboard.press('Enter');
   await expect(forms).toHaveCount(1);
   assert(await forms.first().getByTestId('figure-image-url').inputValue() === explicitImage &&
     await forms.first().getByTestId('figure-alt').inputValue() === 'Manual Image draft preserved', 'Explicit Image and Alt draft survive another form rename');

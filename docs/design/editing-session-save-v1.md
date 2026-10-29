@@ -64,7 +64,8 @@ Image/document commit order and best-effort rollback limits are specified by the
 
 ### Figure-form image rename (#652)
 
-The Figure form validates image/alt/label and preflights the existing Core-backed label/reference
+The explicit Rename action in Figure Advanced (#757), separate from Done/outside metadata
+completion, validates image/alt/label and preflights the existing Core-backed label/reference
 transaction before requesting the #504 Host rename. While the request and clean-tab reloads run,
 a modal busy surface blocks new document input and cancellation. Host refusal leaves every form
 field intact and applies no Alt/Label edits. On success, the initiating session stays mounted:

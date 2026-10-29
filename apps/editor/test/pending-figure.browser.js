@@ -42,6 +42,7 @@ async (page, { openPath }) => {
     await action.locator('..').hover({position:{x:4,y:4}});
     await action.click();
     await form.waitFor();
+    await page.getByTestId('figure-replace').click();
   };
   const apply = async () => {
     await page.getByTestId('figure-apply').click();
@@ -152,6 +153,7 @@ async (page, { openPath }) => {
     await page.getByTestId('save').click();
     await requested;
     await edit(figures.first());
+    if (!await page.getByTestId('figure-image-url').isVisible()) await page.getByTestId('figure-replace').click();
     await page.getByTestId('figure-image-url').fill('./diagram.svg');
     await page.getByTestId('figure-alt').fill('PFC current control diagram');
     await apply();
@@ -174,6 +176,7 @@ async (page, { openPath }) => {
       await figures.first().locator('figcaption').getAttribute('data-number') === 'Figure 1', 'Image connection lost numbering/reference');
 
     await edit(figures.first());
+    if (!await page.getByTestId('figure-image-url').isVisible()) await page.getByTestId('figure-replace').click();
     await page.getByTestId('figure-image-url').fill('');
     await page.getByTestId('figure-alt').fill('');
     await apply();

@@ -42,10 +42,57 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument
   };
   const edit = async () => {
     await figure.hover({position:{x:4,y:4}}); await figure.getByRole('button',{name:'Edit figure'}).click();
+    await page.getByTestId('mermaid-edit-source').click();
     await expect(field()).toBeFocused();
     await expect(figure.getByTestId('figure-file-name')).toHaveCount(0);
   };
   await rendered(figure.getByTestId('mermaid-preview'), '>A<');
+  // #757: metadata entry keeps the diagram visible; only Edit source opens the existing source form.
+  const metadataBefore = await model();
+  await figure.getByTestId('mermaid-preview').dblclick();
+  const properties = page.getByTestId('mermaid-property-editor');
+  await expect(properties.getByRole('button', {name:'Done',exact:true})).toBeVisible();
+  const thumbnail = properties.locator('.figure-property-thumbnail');
+  await expect(thumbnail.getByTestId('mermaid-preview')).toHaveAttribute('aria-busy','false');
+  const media = await thumbnail.evaluate(el => {
+    const image=el.querySelector('img'), box=el.getBoundingClientRect(), r=image.getBoundingClientRect();
+    const s=getComputedStyle(image);
+    const button=el.parentElement.querySelector('button').getBoundingClientRect();
+    return {width:r.width,height:r.height,ratio:image.naturalWidth/image.naturalHeight,
+      contentWidth:r.width-parseFloat(s.borderLeftWidth)-parseFloat(s.borderRightWidth),
+      contentHeight:r.height-parseFloat(s.borderTopWidth)-parseFloat(s.borderBottomWidth),
+      maxWidth:parseFloat(s.maxWidth),maxHeight:parseFloat(s.maxHeight),boxHeight:box.height,
+      borders:[s.borderLeftWidth,s.borderRightWidth,s.borderTopWidth,s.borderBottomWidth],
+      background:getComputedStyle(el).backgroundColor,
+      fits:r.left>=box.left && r.right<=box.right && r.top>=box.top && r.bottom<=box.bottom,
+      centerOffset:box.y+box.height/2-button.y-button.height/2,buttonWidth:button.width,boxWidth:box.width};
+  });
+  expect(media.width).toBeGreaterThan(0); expect(media.height).toBeGreaterThan(0);
+  expect(media.contentWidth/media.contentHeight, JSON.stringify(media)).toBeCloseTo(media.ratio,1);
+  expect(media.width).toBeLessThanOrEqual(media.maxWidth); expect(media.height).toBeLessThanOrEqual(media.maxHeight);
+  expect(media.background).toBe('rgba(0, 0, 0, 0)');
+  expect(Math.abs(media.boxHeight-media.height)).toBeLessThanOrEqual(1);
+  expect(media.fits).toBe(true); expect(Math.abs(media.centerOffset)).toBeLessThanOrEqual(1);
+  expect(media.buttonWidth).toBeLessThan((await properties.boundingBox()).width-media.boxWidth);
+  await expect(field()).toHaveCount(0);
+  await expect(figure.getByTestId('mermaid-preview')).toBeVisible();
+  await page.getByTestId('mermaid-property-label').fill('fig-image');
+  await page.getByTestId('mermaid-edit-source').click();
+  await expect(properties.locator('[role=alert]')).toBeVisible();
+  await expect(field()).toHaveCount(0);
+  expect(await model()).toEqual(metadataBefore);
+  await page.getByTestId('mermaid-property-label').press('Escape');
+  expect(await model()).toEqual(metadataBefore);
+  await figure.getByTestId('mermaid-preview').dblclick();
+  await page.getByTestId('mermaid-property-label').fill('fig-metadata');
+  await page.getByTestId('mermaid-edit-source').click();
+  await expect(field()).toBeFocused();
+  expect(await active.getByTestId('mermaid-label').inputValue()).toBe('fig-metadata');
+  expect(await field().inputValue()).toBe('graph LR\n  A --> B');
+  await active.getByTestId('mermaid-cancel').click();
+  await editor.evaluate(el => el.editor.commands.undo());
+  expect(await editor.evaluate(el => el.editor.getJSON())).toEqual(metadataBefore.doc);
+
   // A visible <img> can still be broken: decode the real SVG image, including HTML labels.
   const beforeLabels = await model(), diskBeforeLabels = await disk();
   await edit();
@@ -178,7 +225,7 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument
   await page.setViewportSize({width:1440,height:1000});
   await page.evaluate(async ()=>(await import('/src/theme.ts')).applyTheme('light'));
   const opening=await model(), originalDisk=await disk();
-  await figure.getByTestId('mermaid-preview').dblclick(); await expect(field()).toBeFocused();
+  await figure.getByTestId('mermaid-preview').dblclick(); await page.getByTestId('mermaid-edit-source').click(); await expect(field()).toBeFocused();
   await field().fill('graph LR'); await field().press('End'); await field().press('Enter'); await field().pressSequentially('  A --> C');
   expect(await field().inputValue()).toBe('graph LR\n  A --> C');
   const height=(await field().boundingBox()).height;

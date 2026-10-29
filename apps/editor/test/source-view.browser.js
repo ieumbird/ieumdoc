@@ -32,8 +32,8 @@ async (page, { openPath, screenshots }) => {
   const sourceView = page.locator('[data-document-tab][data-active=true]').getByTestId('source-view');
   const editor = page.locator('[data-document-tab][data-active=true]').getByTestId('document-editor');
   const sourceText = async () => (await sourceView.locator('pre').textContent()).replaceAll('\r\n', '\n');
-  const showSource = async () => { await source.click(); await sourceView.waitFor(); };
-  const showVisual = async () => { await visual.click(); await editor.waitFor(); };
+  const showSource = async () => { await source.focus(); await page.keyboard.press('Enter'); await sourceView.waitFor(); };
+  const showVisual = async () => { await visual.focus(); await page.keyboard.press('Enter'); await editor.waitFor(); };
   const paragraph = 'The current reference is calculated from the active power command.';
   const cell = text => page.locator('[data-document-tab][data-active=true] [data-block="table"] [data-table-cell]', {hasText: new RegExp(`^${text}$`)});
 
@@ -116,7 +116,7 @@ async (page, { openPath, screenshots }) => {
   result.sourceExcludesFigureDraft = !(await sourceText()).includes('Draft caption.');
   await showVisual();
   result.figureDraftRetained = await page.getByTestId('figure-alt').inputValue() === 'Draft caption.';
-  await page.getByTestId('figure-cancel').click();
+  await page.getByTestId('figure-alt').press('Escape');
   await page.getByTestId('figure-editor').waitFor({state:'detached'});
 
   // G. Soft wrapping is visual: source lines, indentation, selection and native Copy stay exact.

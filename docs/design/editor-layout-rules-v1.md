@@ -85,6 +85,19 @@ Desktop reserves native caption-button width using CSS `env(titlebar-area-x)` an
 `env(titlebar-area-width)`; ordinary browser tabs reserve no width. The full-width title strip carries that reservation independently of Outline state; search shrinks or becomes an icon within the remaining width. Tab-row actions remain below it. Title-strip empty areas are drag regions and
 interactive descendants are no-drag. No fixed caption-button width is used in production.
 
+Figure metadata (#757) is anchored to the full Figure and caption, below by default and above
+on collision, with its width/height capped to the owning group's available viewport. Single-group
+Sidebar/Outline padding and native scrollbar are excluded. `--layout-figure-popover-width` and
+`--size-figure-property-thumbnail-max-width`, `--size-figure-property-thumbnail-max-height`
+and `--space-figure-popover-gap` are adjustable; spacing and control dimensions reuse the shared
+tokens. Label and Number share a two-column row at both wide and supported narrow widths.
+The Number track and Label input share a height and vertical center (#760); revealing the
+fixed input or its warning does not stretch the Label field. Media previews retain their own
+aspect ratio within the maximum width/height, without a fixed box or letterbox fill, and center
+their compact action. Expanded Advanced retains the collapsed label-line clearance above Done.
+Above placement also clears the absolute metadata line.
+See [Figure properties](figure-authoring-v1.md#anchored-figure-properties-757).
+
 ## Controls and spacing
 
 Document scrolling belongs to the active tab's viewport below the measured tabs/messages

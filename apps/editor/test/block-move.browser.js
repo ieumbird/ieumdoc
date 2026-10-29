@@ -58,7 +58,7 @@ async (page, { openPath, withBlockHover }) => {
   for (const [folder, document, blockSelector, editName, fieldId, cancelId, draft] of [
     ['block-move', 'draft-boundaries.md', '[data-block="equation"]', 'Edit', 'equation-latex', 'equation-cancel', 'x + DeferredFocusDraft'],
     ['mermaid-authoring', 'diagram.md', '[data-block="figure"]', 'Edit figure', 'mermaid-source', 'mermaid-cancel', 'graph TD\n  Draft --> Preserved'],
-    ['block-move', 'technical-document.md', '[data-block="figure"]', 'Edit figure', 'figure-image-url', 'figure-cancel', 'draft-image.svg'],
+    ['block-move', 'technical-document.md', '[data-block="figure"]', 'Edit figure', 'figure-alt', 'figure-editor', ' invalid alt'],
   ]) {
     await openPath(page, [root, 'tmp', folder, document].join(separator));
     await page.getByRole('dialog').waitFor({state:'detached'});
@@ -67,6 +67,7 @@ async (page, { openPath, withBlockHover }) => {
     await holdOpeningFrames();
     try {
       await block.getByRole('button', {name:editName, exact:true}).click();
+      if (fieldId === 'mermaid-source') await page.getByTestId('mermaid-edit-source').click();
       await page.getByTestId(fieldId).waitFor();
       await waitForOpeningFrame();
       await page.getByTestId(fieldId).fill(draft);
@@ -80,7 +81,9 @@ async (page, { openPath, withBlockHover }) => {
       // Finish the asynchronous Mermaid preview before cleanup clicks: its height changes
       // can move Cancel between pointer down/up. Keep the focus assertions above immediate.
       if (fieldId === 'mermaid-source') await page.locator('[data-testid="mermaid-edit-preview"][aria-busy="false"]').waitFor();
-      await page.getByTestId(cancelId).click();
+      if (cancelId === 'figure-editor') await page.getByTestId('figure-alt').press('Escape');
+      else if (fieldId === 'mermaid-source') await page.getByTestId(fieldId).press('Escape');
+      else await page.getByTestId(cancelId).click();
       await page.getByTestId(fieldId).waitFor({state:'detached'});
     } finally {
       await page.evaluate(() => window.releaseOpeningFrames?.());
@@ -104,14 +107,19 @@ async (page, { openPath, withBlockHover }) => {
       try {
         if (enter) await page.keyboard.press('Enter');
         else await block.getByRole('button', {name:editName, exact:true}).click();
+        if (fieldId === 'mermaid-source') await page.getByTestId('mermaid-edit-source').click();
         const field = page.getByTestId(fieldId);
         await field.waitFor();
         await waitForOpeningFrame();
         const originalDraft = await field.inputValue();
+        if (fieldId === 'mermaid-source' && ['same-editor','keyboard','composition'].includes(movement))
+          await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(node => node.editor.view.focus());
+        const dismisses = fieldId === 'figure-alt' && ['same-editor','round-trip'].includes(movement);
+        const focusTarget = fieldId === 'figure-alt' ? page.getByTestId('figure-replace') : field;
         let openingFocus = await page.evaluateHandle(() => document.activeElement);
         if (movement === 'tab-out' || movement === 'tab-out-keyboard') {
-          if (movement === 'tab-out') await field.click();
-          else await field.focus();
+          if (movement === 'tab-out') await focusTarget.click();
+          else await focusTarget.focus();
           await page.keyboard.press('Shift+Tab');
           if (await field.evaluate(node => node.closest('form').contains(document.activeElement))) throw new Error(`${fieldId}: Shift+Tab did not leave the form`);
           await openingFocus.dispose();
@@ -153,16 +161,20 @@ async (page, { openPath, withBlockHover }) => {
         if (movement !== 'programmatic-focus' && !await page.evaluate(element => document.activeElement === element, openingFocus)) throw new Error(`${fieldId}: ${movement} did not reproduce identical activeElement`);
         if (!await page.evaluate(() => window.releaseOpeningFrames())) throw new Error('Opening frame was not held');
         if (movement === 'programmatic-focus') {
-          if (!await field.evaluate(node => node === document.activeElement)) throw new Error(`${fieldId} lost autofocus after programmatic editor focus`);
+          if (!await focusTarget.evaluate(node => node === document.activeElement)) throw new Error(`${fieldId} lost autofocus after programmatic editor focus`);
         } else if (!await page.evaluate(element => document.activeElement === element, openingFocus)) throw new Error(`${fieldId} stole focus after ${movement}`);
         await openingFocus.dispose();
         if (movement === 'same-editor') {
           await page.keyboard.type('FocusDestinationProbe');
-          if (!(await prose.innerText()).includes('FocusDestinationProbe') || await field.inputValue() !== originalDraft) throw new Error(`${fieldId} took subsequent prose typing`);
+          if (!(await prose.innerText()).includes('FocusDestinationProbe') || await field.count() > 0 && await field.inputValue() !== originalDraft) throw new Error(`${fieldId} took subsequent prose typing`);
           await page.keyboard.press('ControlOrMeta+z');
         }
         if (fieldId === 'mermaid-source') await page.locator('[data-testid="mermaid-edit-preview"][aria-busy="false"]').waitFor();
-        await page.getByTestId(cancelId).click();
+        if (!dismisses || await field.count() > 0) {
+          if (cancelId === 'figure-editor') await page.getByTestId('figure-alt').press('Escape');
+          else if (fieldId === 'mermaid-source') await page.getByTestId(fieldId).press('Escape');
+          else await page.getByTestId(cancelId).click();
+        }
         await field.waitFor({state:'detached'});
       } finally {
         await page.evaluate(() => window.releaseOpeningFrames?.());

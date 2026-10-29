@@ -111,7 +111,8 @@ async (page, { openFolderPicker, screenshots = false, fileActionsRoot, expect, r
   await expect(dialog.getByRole('alert')).toContainText('Save these documents before renaming the image: ref.md');
   await cancel(); await row('ref.md').click();
   await expect(page.getByRole('textbox',{name:'Alt text',exact:true})).toHaveValue('Unapplied alt');
-  await page.getByRole('dialog',{name:'Figure 1 properties'}).getByRole('button',{name:'Cancel',exact:true}).click();
+  await page.getByTestId('figure-alt').press('Escape');
+  await page.getByTestId('figure-editor').waitFor({state:'detached'});
   await row('second-ref.md').click(); await expect(page.getByTestId('current-file')).toHaveText('second-ref.md');
   await page.getByRole('button',{name:'Source',exact:true}).click();
   await expect(activeDocument(page).getByTestId('source-view')).toBeVisible();
