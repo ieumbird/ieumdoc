@@ -1,11 +1,9 @@
-import { COMMAND_CENTER_SHORTCUT, SAVE_SHORTCUT } from "../shortcuts.ts";
+import { COMMAND_CENTER_SHORTCUT } from "../shortcuts.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
-import { operationText, type Operation } from "../operation.ts";
-import { useLayoutEffect, useRef, useState, type Ref } from "react";
-import { Copy, Ellipsis, FileDiff, LoaderCircle, PanelRight, RotateCcw, Search, StretchHorizontal } from "lucide-react";
+import { useLayoutEffect, useRef, useState } from "react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
 
 export type DocumentView = "visual" | "source";
@@ -13,45 +11,12 @@ export type DocumentView = "visual" | "source";
 type TopBarProps = {
   onOpenCommandCenter?(): void;
   documentPath: string;
-  wide?: boolean;
-  onToggleWide?(): void;
-  /** The folders holding the document, shown before its name; the tab row already names it. */
+  /** Secondary search context; the tab row already names the active document. */
   location?: string[];
-  status: Operation;
-  unsaved?: boolean;
-  view: DocumentView;
-  /** Both views unavailable, e.g. no document or an operation in flight. */
-  viewDisabled?: boolean;
-  onViewChange(view: DocumentView): void;
-  saveDisabled: boolean;
-  onSave(): void;
-  onCompare?(): void;
-  compareDisabled?: boolean;
-  onReload?(): void;
-  reloadDisabled?: boolean;
-  /** Copies the document's full path, for use in other tools. */
-  onCopyPath?(): void;
-  fileActionsRef?: Ref<HTMLButtonElement>;
-  /** Whether the outline panel is shown. */
-  outline?: boolean;
-  onToggleOutline?(): void;
-  outlineToggleRef?: Ref<HTMLButtonElement>;
 };
 
-/**
- * The centered Find documents and commands button opens the command center. Status has its own left cell,
- * so an unsaved/saved notice never moves the center or actions.
- * On the right: Visual/Source, Wide document and
- * Outline, then Save and File actions. Only Save with unsaved changes takes the accent.
- * Spaced groups separate view and file actions; Visual/Source is segmented and width/Outline
- * are pressed toggles.
- */
-export function TopBar({
-  onOpenCommandCenter, documentPath, wide, onToggleWide,
-  location = [], status, unsaved = false, view, viewDisabled, onViewChange, saveDisabled,
-  onSave, onCompare, compareDisabled, onReload, reloadDisabled, onCopyPath, fileActionsRef,
-  outline, onToggleOutline, outlineToggleRef,
-}: TopBarProps) {
+/** Shared title-strip search. Document actions belong to the owning tab row. */
+export function TopBar({ onOpenCommandCenter, documentPath, location = [] }: TopBarProps) {
   useTranslation();
   const { name } = splitDocumentPath(documentPath);
   const commandButton = useRef<HTMLButtonElement>(null);
@@ -80,35 +45,8 @@ export function TopBar({
     void document.fonts.ready.then(measure);
     return () => { active = false; observer.disconnect(); };
   }, [documentPath, name, location.join("/"), i18n.resolvedLanguage]);
-  const idle = status === "ready" || status === "saved" || status === "saved-pending";
-  const displayStatus = idle
-    ? (unsaved ? i18n.t("Unsaved changes") : status === "ready" ? "" : operationText("saved"))
-    : operationText(status);
-  const sourceProps = {
-    type: "button" as const,
-    variant: "ghost" as const,
-    size: "sm" as const,
-    className: "view-toggle-option",
-    "aria-pressed": view === "source",
-    onClick: () => onViewChange("source"),
-    disabled: viewDisabled,
-    "data-testid": "view-source",
-    "data-segment-label": i18n.t("Source"),
-  };
-  const saving = status === "saving";
-  const saveState = saving ? "saving" : unsaved ? "unsaved" : "clean";
-  const saveVariant = saveState === "unsaved" ? "default" : "ghost";
-  const saveLabel = (
-    <>{i18n.t("Save")}{saving ? <LoaderCircle aria-hidden="true" className="top-bar-save-spinner motion-safe:animate-spin" /> : null}
-    </>
-  );
   return (
     <header className="top-bar">
-      <div className="top-bar-identity">
-        <p className="status" data-testid="status" data-operation={status} role="status">
-          {displayStatus}
-        </p>
-      </div>
       <Button ref={commandButton} type="button" variant="outline" className="command-center-trigger" data-detail={commandDetail}
         aria-label={i18n.t("Find documents and commands")} title={i18n.t("Find documents and commands ({{shortcut}})", { shortcut: COMMAND_CENTER_SHORTCUT.label })}
         aria-haspopup="dialog" aria-keyshortcuts={COMMAND_CENTER_SHORTCUT.aria} onClick={onOpenCommandCenter}
@@ -125,60 +63,6 @@ export function TopBar({
         </span>
         <kbd ref={commandShortcut} aria-hidden="true">{COMMAND_CENTER_SHORTCUT.label}</kbd>
       </Button>
-      <div className="top-bar-actions">
-        <div className="top-bar-group" role="group" aria-label={i18n.t("View controls")}>
-          <div className="view-toggle" role="group" aria-label={i18n.t("Document view")}>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="view-toggle-option"
-              aria-pressed={view === "visual"}
-              onClick={() => onViewChange("visual")}
-              disabled={viewDisabled}
-              data-testid="view-visual"
-              data-segment-label={i18n.t("Visual")}
-            ><span className="view-toggle-label">{i18n.t("Visual")}</span></Button>
-            <Button {...sourceProps}><span className="view-toggle-label">{i18n.t("Source")}</span></Button>
-          </div>
-          {onToggleWide ? <Button type="button" size="icon-sm" variant="ghost" className="top-bar-toggle"
-            aria-label={i18n.t("Wide document")} aria-pressed={wide} onClick={onToggleWide}
-            title={`${i18n.t("Wide document")} — ${i18n.t("Remembered here; never saved in the document.")}`}>
-            <StretchHorizontal aria-hidden="true" />
-          </Button> : null}
-          {onToggleOutline ? (
-            <Button ref={outlineToggleRef} type="button" size="icon-sm" variant="ghost" className="top-bar-toggle" aria-label={i18n.t("Outline")}
-              title={i18n.t("Outline")} aria-pressed={outline} onClick={onToggleOutline}>
-              <PanelRight aria-hidden="true" />
-            </Button>
-          ) : null}
-        </div>
-        <div className="top-bar-group" role="group" aria-label={i18n.t("File actions")}>
-            <Button type="button" variant={saveVariant} className="top-bar-save" data-save-state={saveState}
-              aria-busy={saving || undefined} onClick={onSave} disabled={saveDisabled} data-testid="save"
-              title={i18n.t("Save ({{shortcut}})", { shortcut: SAVE_SHORTCUT.label })} aria-keyshortcuts={SAVE_SHORTCUT.aria}>
-              {saveLabel}
-            </Button>
-          {onReload ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger ref={fileActionsRef}
-                render={<Button type="button" size="icon-sm" variant="ghost" aria-label={i18n.t("File actions")} title={i18n.t("File actions")} disabled={reloadDisabled} />}>
-                <Ellipsis aria-hidden="true" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {onCompare ? <DropdownMenuItem onClick={onCompare} disabled={compareDisabled}>
-                  <FileDiff aria-hidden="true" />{i18n.t("Changes before saving")}</DropdownMenuItem> : null}
-                <DropdownMenuItem onClick={onReload} disabled={reloadDisabled}>
-                  <RotateCcw aria-hidden="true" />{i18n.t("Reload")}</DropdownMenuItem>
-                {onCopyPath ? (
-                  <DropdownMenuItem onClick={onCopyPath} disabled={!documentPath}>
-                    <Copy aria-hidden="true" />{i18n.t("Copy path")}</DropdownMenuItem>
-                ) : null}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : null}
-        </div>
-      </div>
     </header>
   );
 }

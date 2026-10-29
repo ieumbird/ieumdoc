@@ -73,7 +73,7 @@ async (page, { openPath }) => {
   await page.waitForFunction(() => document.querySelectorAll('[data-testid="label-target"]').length === 2);
   result.blockMenuLabel = JSON.stringify(await labels()) === JSON.stringify(['sec-install', 'sec-1']);
 
-  await page.locator('.top-bar [data-testid="save"]').click();
+  await page.locator('.document-tab-row [data-testid="save"]').click();
   await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({state:'attached'});
   const saved = await read();
   const expected = opened.replace('## Install', '(sec-install)=\n\n## Install').replace('See the install section.', 'See the install section. {ref}`sec-install`')
@@ -93,7 +93,7 @@ async (page, { openPath }) => {
   await page.keyboard.press('ControlOrMeta+z');
   result.renameUndoTogether = await chip.getAttribute('data-label') === 'sec-install' && (await labels())[0] === 'sec-install';
   await page.keyboard.press('ControlOrMeta+Shift+z');
-  await page.locator('.top-bar [data-testid="save"]').click();
+  await page.locator('.document-tab-row [data-testid="save"]').click();
   await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({state:'attached'});
   result.renameWritten = (await read()).includes('(sec-renamed)=') && (await read()).includes('{ref}`sec-renamed`');
   await page.getByRole('button', {name:'File actions', exact:true}).click();

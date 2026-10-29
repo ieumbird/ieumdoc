@@ -189,7 +189,7 @@ async (page, { expect }) => {
     // Closing the properties panel and handing focus back are separate browser tasks.
     await page.waitForFunction(caretAfterEquation, newPath);
     const escapeReturnsFocus = await page.evaluate(caretAfterEquation, newPath);
-    await page.locator('.top-bar [data-testid="save"]:not([aria-disabled="true"])').waitFor();
+    await page.locator('.document-tab-row [data-testid="save"]:not([aria-disabled="true"])').waitFor();
     await page.getByRole('button', {name:'Save', exact:true}).click();
     await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
     const insert = requests.at(-1)?.inserts?.find(item => item.block === 'equation');

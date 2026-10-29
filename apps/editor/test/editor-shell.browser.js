@@ -31,6 +31,11 @@ async page => {
     await page.keyboard.press('Tab');
     result.filesToTopBar = await page.getByRole('button',{name:'Find documents and commands',exact:true}).evaluate(n=>n===document.activeElement);
 
+    await page.keyboard.press('Tab');
+    result.searchToActiveTab = await page.getByRole('tab', {name:'technical-document.md',exact:true}).evaluate(n=>n===document.activeElement);
+    await page.keyboard.press('Shift+Tab');
+    result.tabToSearch = await page.getByRole('button',{name:'Find documents and commands',exact:true}).evaluate(n=>n===document.activeElement);
+
     // Folder entry is the only general Open action; Escape and Cancel return focus to it.
     const isFocused = locator => locator.evaluate(node => node === document.activeElement);
     const dialog = page.getByRole('dialog');
@@ -178,7 +183,7 @@ async page => {
     await page.getByRole('dialog', {name:'Discard local changes?', exact:true}).waitFor({state:'detached'});
     result.reloadCancelKeepsDraftAndFocus = await page.getByTestId('equation-latex').inputValue() === 'x + 1' && await isFocused(fileActions);
     await page.getByTestId('equation-cancel').click();
-    await page.locator('.top-bar [data-testid="save"]:not([aria-disabled="true"])').waitFor();
+    await page.locator('.document-tab-row [data-testid="save"]:not([aria-disabled="true"])').waitFor();
     result.saveEnabledAfterCancel = await page.locator('[data-document-tab][data-active=true]').getByTestId('equation-draft-status').count() === 0;
 
     // Selection ends at selection; only explicit Edit opens properties.

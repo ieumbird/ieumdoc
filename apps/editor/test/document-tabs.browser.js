@@ -29,6 +29,18 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
   await page.getByRole('button', {name:'Close technical-document.md',exact:true}).click();
   await page.getByTestId('document-start').waitFor();
   await expect(page).toHaveTitle('IeumDoc');
+  check(await page.getByTestId('save').isDisabled() && await page.getByTestId('view-source').isDisabled(), 'Start screen exposes document actions without a document');
+  check(await page.locator('.app-titlebar').evaluate(n=>n.offsetHeight) === 40 && await page.locator('.document-tab-row').evaluate(n=>n.offsetHeight) === 33, 'Empty start lost its two fixed shell rows');
+  await page.setViewportSize({width:640,height:900});
+  await page.getByRole('button',{name:'File actions',exact:true}).click();
+  const widthMenu = page.getByRole('menuitemcheckbox',{name:'Wide document',exact:true});
+  const wasWide = await widthMenu.getAttribute('aria-checked') === 'true';
+  await widthMenu.click();
+  check(await page.locator('.app-shell--wide').count() === (wasWide?0:1), 'Compact layout menu cannot toggle width on the start screen');
+  await page.getByRole('button',{name:'File actions',exact:true}).click();
+  await expect(widthMenu).toHaveAttribute('aria-checked',String(!wasWide));
+  await widthMenu.click();
+  await page.setViewportSize({width:1280,height:720});
   // Navigation memory restores order and active identity, without restoring editor state.
   await openPath(page, a);
   await openPath(page, b);
@@ -346,8 +358,17 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
 
   for (const width of [1440,640]) {
     await page.setViewportSize({width,height:900});
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    check(await page.locator('.document-tab[data-selected="true"]').evaluate(n=>{const r=n.getBoundingClientRect(),row=n.parentElement.getBoundingClientRect();return r.left>=row.left&&r.right<=row.right;}), 'Resizing hid the active tab behind fixed actions');
     await tabA.focus();
     await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowLeft');
+    const row = page.locator('.document-tabs');
+    const fixedBefore = await page.getByTestId('save').boundingBox();
+    const overflow = await row.evaluate(n=>{n.scrollLeft=n.scrollWidth;return n.scrollWidth>n.clientWidth;});
+    const fixedAfter = await page.getByTestId('save').boundingBox();
+    check(JSON.stringify(fixedBefore) === JSON.stringify(fixedAfter), 'Scrolling tabs moved the active document actions');
+    if(width===640)check(overflow, 'Narrow tablist did not own its horizontal overflow');
+    await tabA.focus();
     const current = page.locator('.document-tab[data-selected="true"]');
     await current.hover();
     const hover = await current.evaluate(n => {
@@ -361,7 +382,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
       const geometry = await control.evaluate(n => {
         const tab=n.parentElement,row=tab.parentElement,r=n.getBoundingClientRect(),t=tab.getBoundingClientRect(),list=row.getBoundingClientRect();
         const probe=document.createElement('span');tab.append(probe);probe.style.boxShadow='var(--focus-ring-inset)';
-        const focus=getComputedStyle(probe).boxShadow;probe.style.width='var(--size-icon-slot)';const expectedIcon=parseFloat(getComputedStyle(probe).width);probe.remove();
+        const focus=getComputedStyle(probe).boxShadow;probe.style.width='var(--size-icon-slot)';probe.style.flexShrink='0';const expectedIcon=parseFloat(getComputedStyle(probe).width);probe.remove();
         const icon=n.querySelector('svg')?.getBoundingClientRect();
         return {height:r.height,tabHeight:t.height,inside:r.top>=list.top&&r.bottom<=list.bottom&&r.left>=list.left&&r.right<=list.right,
           shadow:getComputedStyle(n).boxShadow,focus,icon:icon?{width:icon.width,height:icon.height}:null,

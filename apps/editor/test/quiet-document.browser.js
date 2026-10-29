@@ -899,7 +899,12 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
       const text=required('[role="tab"][aria-selected="true"] .document-tab-name'),path=text.closest('.document-tab');
       const paper=required('.document-editor').getBoundingClientRect();
       const contained=[math,table].every(n=>{const r=n.getBoundingClientRect();return r.left>=paper.left-1&&r.right<=paper.right+1&&['auto','scroll'].includes(getComputedStyle(n).overflowX);});
-      return {math:[math.clientWidth,math.scrollWidth],table:[table.clientWidth,table.scrollWidth],formulaLeft:content.getBoundingClientRect().left-math.getBoundingClientRect().left,contained,docOverflow:document.documentElement.scrollWidth>innerWidth,filenameVisible:text.getBoundingClientRect().width>100,pathTitle:path.title};
+      return {math:[math.clientWidth,math.scrollWidth],table:[table.clientWidth,table.scrollWidth],formulaLeft:content.getBoundingClientRect().left-math.getBoundingClientRect().left,contained,docOverflow:document.documentElement.scrollWidth>innerWidth,filenameVisible:(()=>{
+        const r=text.getBoundingClientRect(),row=path.parentElement.getBoundingClientRect(),close=path.querySelector('.document-tab-close').getBoundingClientRect();
+        // #695 reserves the row's right side for actions. At 640px require readable text
+        // and the complete close target inside the scroller, rather than a 100px label.
+        return r.width>=32&&r.left>=row.left&&r.right<=row.right&&close.left>=row.left&&close.right<=row.right;
+      })(),pathTitle:path.title};
     });
     check(local.math[1]>local.math[0]&&local.table[1]>local.table[0],`Long fixture did not exercise scrolling ${JSON.stringify(local)}`);
     check(local.contained&&local.formulaLeft>=-1&&!local.docOverflow&&local.filenameVisible&&local.pathTitle===scratch('아주-긴-파일명-very-long-technical-document-name-for-visual-review.md'),`Long content clipped ${JSON.stringify(local)}`);

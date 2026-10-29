@@ -179,7 +179,7 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
         if(await controls.evaluate(n=>getComputedStyle(n).opacity)!=='1') throw Error('Gutter disappears between block and button');
         const after=(await paragraph.boundingBox()).x;
         const headerOverlap=await page.locator('.top-bar').evaluate(header=>{
-          const controls=[...header.querySelectorAll('button,.status')].map(n=>({name:n.getAttribute('aria-label')||n.textContent.trim(),r:n.getBoundingClientRect()})).filter(({r})=>r.width>0&&r.height>0);
+          const controls=[...document.querySelectorAll('.command-center-trigger,.top-bar-actions button,.document-status')].map(n=>({name:n.getAttribute('aria-label')||n.textContent.trim(),r:n.getBoundingClientRect()})).filter(({r})=>r.width>0&&r.height>0);
           return controls.flatMap((a,i)=>controls.slice(i+1).filter(b=>Math.min(a.r.right,b.r.right)-Math.max(a.r.left,b.r.left)>0.5&&Math.min(a.r.bottom,b.r.bottom)-Math.max(a.r.top,b.r.top)>0.5).map(b=>`${a.name} / ${b.name}`));
         });
         if(headerOverlap.length)throw Error(`TopBar controls overlap at ${width}px: ${headerOverlap.join(', ')}`);
@@ -247,21 +247,18 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
         const matchesType=(actual,expected)=>Math.abs(actual.size-expected.size)<0.1&&Math.abs(actual.line-expected.line)<0.1;
         const expected=result.expectedTypeValues;
         const fail=result.centerDelta>1||result.blockDelta>1||result.gutterGap<11||Math.abs(before-after)>0.5||result.standard!==32||result.compact.some(h=>h!==28)||result.shellOverflow.length||!matchesType(result.body,expected.body)||result.headings.some((t,i)=>!matchesType(t,expected.headings[i])||t.weight!==expected.headings[i].weight)||!matchesType(result.caption,expected.caption)||!matchesType(result.table,expected.table)||Math.abs(result.sidebarWidth-result.expectedSidebar)>0.5||Math.abs(result.panelWidth-result.expectedPanel)>0.5||(!collapsed&&(Math.max(...result.labels)-Math.min(...result.labels)>1||!result.rowIcons.length||Math.max(...result.rowIcons)-Math.min(...result.rowIcons)>1||result.icons.some(i=>i.w!==16||i.h!==16)));
-        // The center gets its own row when the header's actual width is below 56rem,
-        // independently of how much width the sidebar and outline occupy.
+        // The title remains one row independently of sidebar and outline widths.
         if(width>=1280&&width<=1424&&result.header!==40)throw Error(`Docking boundary wrapped TopBar: ${JSON.stringify(result)}`);
         if(width>=1279&&Math.abs(await page.locator('.document-scroll[data-active="true"] .document-column').evaluate(n=>n.getBoundingClientRect().width)-928)>0.5)
           throw Error(`Docking reduced Standard column at ${width}px`);
-        const stacked=result.headerWidth<896;
-        if(fail||result.sidebarHeader!==33||result.commandCenterDelta>1||(!stacked&&result.header!==40)||
-          (stacked&&(result.header<=40||result.actionsTop<result.centerBottom+7)))throw Error(JSON.stringify(result));
+        if(fail||result.sidebarHeader!==33||result.commandCenterDelta>1||result.header!==40||result.actionsTop<40)throw Error(JSON.stringify(result));
         results.push({...result,hoverShift:after-before});
         if(collapsed)await page.getByRole('button',{name:'Expand Explorer',exact:true}).click();
       }
     }
   });
-  // In a narrow header the wrapped TopBar keeps every control inside the viewport, in order:
-  // left to right within a row, then the next row; 4px apart within a group, 12px between groups.
+  // The tab-row actions remain on one row at 640px, with 4px within / 12px between groups.
+  // The less frequent width toggle remains available in the file menu.
   for(const width of [640]) {
     await page.setViewportSize({width,height:800});
     for(const collapsed of [false,true]) {
@@ -277,6 +274,7 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
           return {name:n===views?'Visual/Source':n.getAttribute('aria-label')??n.textContent.trim(),group:n.closest('.top-bar-group')?.getAttribute('aria-label'),left:r.left,right:r.right,top:r.top,bottom:r.bottom};
         });
         if(!['Visual/Source','Outline','Save','File actions'].every(name=>buttons.some(b=>b.name===name)))throw Error('Missing TopBar controls');
+        if(buttons.some(b=>b.top<40||b.bottom>73))throw Error('Document actions left the tab row');
         const outside=buttons.filter(b=>b.left<0||b.right>innerWidth+0.5).map(b=>b.name);
         const disorder=[],gaps=[];
         buttons.slice(1).forEach((b,i)=>{
@@ -293,6 +291,7 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
       if(narrow.overflow>0||narrow.outside.length||narrow.disorder.length||narrow.gaps.length)throw Error(`Narrow TopBar ${collapsed?'collapsed':'expanded'}: ${JSON.stringify(narrow)}`);
       results.push({...narrow,collapsed});
       await page.getByRole('button',{name:'File actions',exact:true}).click();
+      await expect(page.getByRole('menuitemcheckbox',{name:'Wide document',exact:true})).toBeVisible();
       const reload=await page.getByRole('menuitem',{name:'Reload',exact:true}).boundingBox();
       if(!reload||reload.x<0||reload.x+reload.width>width||reload.y<0||reload.y+reload.height>800)throw Error('Reload menu leaves the viewport');
       await page.keyboard.press('Escape');
@@ -300,7 +299,7 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
   }
   // Opened below the docking width, the document panel overlays at its own width below the sticky
   // header: the document keeps its width, the page does not scroll sideways, and Save, Reload and the
-  // Outline toggle stay uncovered, also when the TopBar wraps. Escape closes it and returns focus.
+  // Outline toggle stay uncovered, at every supported width. Escape closes it and returns focus.
   const outlineToggle=page.getByRole('button',{name:'Outline',exact:true});
   const shell=async()=>{
     // Viewport changes complete before the next ResizeObserver delivery. Wait for its
@@ -479,15 +478,15 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
           await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
           const geometry=await page.locator('.top-bar').evaluate(header=>{
             const box=header.getBoundingClientRect(),center=header.querySelector('.command-center-trigger'),r=center.getBoundingClientRect();
-            const controls=[...header.querySelectorAll('button,.status')].map(n=>({name:n.getAttribute('aria-label')||n.textContent.trim(),r:n.getBoundingClientRect()})).filter(({r})=>r.width>0&&r.height>0);
+            const controls=[...document.querySelectorAll('.command-center-trigger,.top-bar-actions button,.document-status')].map(n=>({name:n.getAttribute('aria-label')||n.textContent.trim(),r:n.getBoundingClientRect(),bounds:(n.closest('.document-tab-row')??header).getBoundingClientRect()})).filter(({r})=>r.width>0&&r.height>0);
             const overlap=controls.flatMap((a,i)=>controls.slice(i+1).filter(b=>Math.min(a.r.right,b.r.right)-Math.max(a.r.left,b.r.left)>0.5&&Math.min(a.r.bottom,b.r.bottom)-Math.max(a.r.top,b.r.top)>0.5).map(b=>`${a.name}/${b.name}`));
             const name=center.querySelector('.command-center-action'),shortcut=center.querySelector('kbd');
             const locationShown=getComputedStyle(center.querySelector('.document-path')).display!=='none';
             const shortcutShown=getComputedStyle(shortcut).display!=='none'&&getComputedStyle(shortcut).visibility!=='hidden';
             return {height:header.closest('.app-titlebar').getBoundingClientRect().height,width:box.width,centerWidth:r.width,centerDelta:Math.abs(r.left+r.width/2-box.left-box.width/2),overlap,
-              outside:controls.filter(({r})=>r.left<box.left||r.right>box.right||r.top<box.top||r.bottom>box.bottom).map(({name})=>name),
+              outside:controls.filter(({r,bounds})=>r.left<bounds.left||r.right>bounds.right||r.top<bounds.top||r.bottom>bounds.bottom).map(({name})=>name),
               locationShown,shortcutShown,actionClipped:name.scrollWidth>name.clientWidth+1,
-              wideVisible:[...header.querySelectorAll('.top-bar-toggle')].every(n=>n.getBoundingClientRect().width===28)};
+              wideVisible:[...document.querySelectorAll('.top-bar-actions .top-bar-toggle')].length===2&&[...document.querySelectorAll('.top-bar-actions .top-bar-toggle')].every(n=>n.getBoundingClientRect().width===28)};
           });
           if(geometry.height!==40||geometry.centerWidth<160||geometry.centerDelta>1||geometry.overlap.length||geometry.outside.length||!geometry.wideVisible||
             (geometry.actionClipped&&(geometry.locationShown||geometry.shortcutShown))||(!geometry.shortcutShown&&geometry.locationShown))

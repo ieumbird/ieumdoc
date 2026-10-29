@@ -18,6 +18,7 @@ import { SaveDisplayError } from "../src/save-error.ts";
 import { SaveContentError } from "../shared/save-error.ts";
 import { NewDialog } from "../src/shell/NewDialog.tsx";
 import { Sidebar } from "../src/shell/Sidebar.tsx";
+import { DocumentActions } from "../src/shell/DocumentActions.tsx";
 import { TopBar } from "../src/shell/TopBar.tsx";
 import { i18n } from "../src/i18n.ts";
 import { MissingFileNotice, type Comparison } from "../src/shell/SourceCompare.tsx";
@@ -319,7 +320,7 @@ test("translated messages and commands follow language changes while operation i
     assert.equal(i18n.t("recoveryCount", { count: 2 }), "로컬 복구 기록 2개.");
     for (const query of ["제목", "heading"]) assert.ok(filterInsertCommands(query).some(item => item.id === "heading-2"));
     assert.equal(filterInsertCommands("heading").find(item => item.id === "heading-2")?.label, "제목 2");
-    const html = renderToStaticMarkup(<TooltipProvider><TopBar documentPath="test.md" status="saving" unsaved
+    const html = renderToStaticMarkup(<TooltipProvider><DocumentActions documentPath="test.md" status="saving" unsaved
       view="visual" onViewChange={() => {}} saveDisabled onSave={() => {}} /></TooltipProvider>);
     assert.match(html, /data-operation="saving"/);
     assert.match(html, /저장 중…/);
@@ -549,7 +550,7 @@ test("document panel offers navigation lists, and the TopBar Outline toggle show
   for (const open of [true, false]) {
     const html = renderToStaticMarkup(
       <TooltipProvider>
-        <TopBar documentPath={PATH} status="ready" view="visual" onViewChange={noop} saveDisabled={false} onSave={noop}
+        <DocumentActions documentPath={PATH} status="ready" view="visual" onViewChange={noop} saveDisabled={false} onSave={noop}
           outline={open} onToggleOutline={noop} />
       </TooltipProvider>,
     );
@@ -583,7 +584,7 @@ test("document settings summarizes current values and readonly has no editable c
 test("top bar shows filename while keeping the complete path in its title", () => {
   const html = renderToStaticMarkup(
     <TooltipProvider>
-      <TopBar documentPath={PATH} status="ready" view="visual" onViewChange={noop} saveDisabled={false} onSave={noop} />
+      <TopBar documentPath={PATH} />
     </TooltipProvider>,
   );
   assert.match(html, /title="C:\\docs\\guide.md"/);
@@ -592,7 +593,7 @@ test("top bar shows filename while keeping the complete path in its title", () =
   // Without a document, Save is disabled.
   const blocked = renderToStaticMarkup(
     <TooltipProvider>
-      <TopBar documentPath="" status="ready" view="visual" onViewChange={noop} saveDisabled onSave={noop} />
+      <TopBar documentPath="" /><DocumentActions documentPath="" status="ready" view="visual" onViewChange={noop} saveDisabled onSave={noop} />
     </TooltipProvider>,
   );
   assert.match(blocked, /No file opened/);
@@ -608,16 +609,18 @@ test("status presentation distinguishes loaded, dirty, confirmed save and in-fli
     ["saving", true, "Saving…"], ["save-conflict", true, "Save conflict"],
     ["save-failed", true, "Save failed"], ["open-failed", false, "Open failed"],
   ] as const) {
-    const html = renderToStaticMarkup(<TooltipProvider><TopBar documentPath={PATH} status={status} unsaved={unsaved}
+    const html = renderToStaticMarkup(<TooltipProvider><DocumentActions documentPath={PATH} status={status} unsaved={unsaved}
       view="visual" onViewChange={noop} saveDisabled={false} onSave={noop} /></TooltipProvider>);
-    assert.match(html, new RegExp(`role="status"[^>]*>(?:<[^>]+>)*${expected}</`), `${status}, dirty=${unsaved}`);
+    if (expected) assert.ok(html.includes(`title="${expected}"`));
+    assert.match(html, /role="status"/);
+    assert.ok(expected ? html.includes(`class="sr-only">${expected}</span>`) : html.includes('role="status"></p>'), `${status}, dirty=${unsaved}`);
   }
 });
 
 test("top bar exposes the active document view and disables both views during unavailable work", () => {
   const html = renderToStaticMarkup(
     <TooltipProvider>
-      <TopBar documentPath={PATH} status="ready" saveDisabled={false} onSave={noop} view="source" onViewChange={noop} />
+      <DocumentActions documentPath={PATH} status="ready" saveDisabled={false} onSave={noop} view="source" onViewChange={noop} />
     </TooltipProvider>,
   );
   assert.match(html, /<[^>]+\b(?=[^>]*role="group")(?=[^>]*aria-label="Document view")[^>]*>/);
@@ -627,7 +630,7 @@ test("top bar exposes the active document view and disables both views during un
   assert.match(html, />Source</);
   const blocked = renderToStaticMarkup(
     <TooltipProvider>
-      <TopBar documentPath={PATH} status="loading" saveDisabled onSave={noop} view="visual" onViewChange={noop} viewDisabled />
+      <DocumentActions documentPath={PATH} status="loading" saveDisabled onSave={noop} view="visual" onViewChange={noop} viewDisabled />
     </TooltipProvider>,
   );
   for (const view of ["visual", "source"]) {

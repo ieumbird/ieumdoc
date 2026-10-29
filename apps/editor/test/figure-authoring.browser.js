@@ -40,8 +40,8 @@ async (page, { openFolderPicker, openDocument, waitForEditorFocus, expect, scree
 
   const result = {};
   const figures = page.locator('[data-document-tab][data-active=true] [data-block="figure"]');
-  const saveEnabled = page.locator('.top-bar [data-testid="save"]:not([aria-disabled="true"])');
-  const saveDisabled = page.locator('.top-bar [data-testid="save"][aria-disabled="true"]');
+  const saveEnabled = page.locator('.document-tab-row [data-testid="save"]:not([aria-disabled="true"])');
+  const saveDisabled = page.locator('.document-tab-row [data-testid="save"][aria-disabled="true"]');
   const imageLoaded = figure => figure.locator('[data-testid="figure-image"]').evaluate(async image => {
     if (!image.complete) await new Promise(resolve => { image.onload = image.onerror = resolve; });
     return image.naturalWidth > 0 && image.getAttribute('src');

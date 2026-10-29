@@ -1,0 +1,75 @@
+{
+  "base": "bbfdd948b5a8b9bf61d72b5b64ca948bc6177f9b",
+  "host": "http://127.0.0.1:5173",
+  "runner": "pnpm browser:test tab-row-capture (temporary manual tour)",
+  "platform": "Windows installed Chrome, checkout-owned persistent profile",
+  "viewportHeight": 900,
+  "widths": [
+    640,
+    1024,
+    1234,
+    1440
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "panels": [
+    "Sidebar and Outline closed",
+    "Sidebar and Outline open"
+  ],
+  "language": "en",
+  "font": "bundled Pretendard, document.fonts.ready",
+  "dpr": 1,
+  "zoom": 1,
+  "pointer": [
+    0,
+    0
+  ],
+  "scrollTop": 0,
+  "focus": "blurred",
+  "activeDocument": "tmp/document-tabs/technical-2.md",
+  "edit": "Row actions inserted at position 1, unsaved",
+  "nativeOverlayPixels": "not verified; #694",
+  "afterSourceSha256": {
+    "apps/editor/src/App.tsx": "4d4313c0e5913c692ffc90df3951bdf98b1067e51edb7d57a1aa3b8c0f5257a0",
+    "apps/editor/src/shell/TopBar.tsx": "d47857f31e5ee05877ddfed7df0425e78efc5721b75ea1fc0d60cfef00972f3b",
+    "apps/editor/src/shell/DocumentTabs.tsx": "f5e698c733971edd1c33392bc3422ab51916bd81bcceef22afb91ab4110cb640",
+    "apps/editor/src/shell/DocumentActions.tsx": "be9010ec65c38fba93f7af012e6482bcbd225139ff535c8665eca1cb209d0111",
+    "apps/editor/src/styles.css": "bdd68e309386df63e61d030097343ae409a302191a6b2130c4bcd4ab04d5bd9e"
+  },
+  "sha256": {
+    "after-1024-dark-closed.png": "3f2bef46c18a4dfa0034910192e3da12c2df9942cc8be46d2311f05b5d010d31",
+    "after-1024-dark-open.png": "5f5519839c8fc5dc14ca59784330c73e650e36238022dca401cf4e2ebfb5e061",
+    "after-1024-light-closed.png": "72ea002ad98b911776979dc8f6dcad26b9513670be45356d0b40a3800d016dbe",
+    "after-1024-light-open.png": "e2e0daa511a9c0cc0e7f7e8bbf4e07cf2fdc401c3cf741d43de67b0227fd7505",
+    "after-1234-dark-closed.png": "03c15ec1d1e5d6e11df9559aa43faafd469af6ae9b2a7938a1eae20ab3bf2622",
+    "after-1234-dark-open.png": "59f7481b3e9d7d5747840afc553c43e599469e23eeb05c8166de2f27b2bbeb7c",
+    "after-1234-light-closed.png": "9fcea2acd58bb958bd0bdd11683198fa2a31d051ca248ea5f7b99c58e74f71ca",
+    "after-1234-light-open.png": "be4b2b1b24e5ead80157a3ec7d38c32c2902f34ed5c0786cd91d659d36c2b07e",
+    "after-1440-dark-closed.png": "cff1fa256a2aa23aa33303fd9f495dc70450cf8f9d3a305f0fcc1a67ce031e5e",
+    "after-1440-dark-open.png": "61c99fce0581af610da704c9b1ac66dc987dcd56b517517824c940243b1464ef",
+    "after-1440-light-closed.png": "398fdf3335c0787e64c96f682805fd0374cf50c43485a264983d075c1df3e055",
+    "after-1440-light-open.png": "62820bc0da44c0bd2826048b067e7d777a1636a759c3a69317fabc722c3a3eff",
+    "after-640-dark-closed.png": "62e2312189f34e49b37b8e2911d4bd94c76cea43eb6b4df19a1ae376caf5bc09",
+    "after-640-dark-open.png": "890d8ef34cfdd12c6b4932c64d7f897f795a3eb41c242bb2b5da139ffc689dca",
+    "after-640-light-closed.png": "5cb5e952b03501bb273b50e31637eeffb7c352dd5c234a15941c90fdabc0ed5d",
+    "after-640-light-open.png": "f85043529f49a491cb1e9af185632960f04bd1cb12834b9e9747ef5db0e1af2c",
+    "before-1024-dark-closed.png": "6c2a63f67ae719c7babeb5d2a7407af5369f72f98341ea9be2cbe85e7179de0b",
+    "before-1024-dark-open.png": "70dc9d46113b6550f3afb9063cb1c529379d5dfcc6bb85fcfa61d96abca13546",
+    "before-1024-light-closed.png": "1139caea32ebeb11f36152e6c4ee9e7878dd75acca405ae608bc760760d7041b",
+    "before-1024-light-open.png": "307b146f740003647debfb5d7f0ef9d33ea0150da8cb189fdc79adbceed58be5",
+    "before-1234-dark-closed.png": "3c28158bd1b25b6f43d2212024ffceae175cac26a18543107b556b2dcd4e6304",
+    "before-1234-dark-open.png": "b9f57fb3bc1148b2a2a0e94cc411af82a7f3deda6ade59d0f44615e0267eab71",
+    "before-1234-light-closed.png": "3b9d38707a83864c47bed55dbb3dd8090cf0d7fdcd3bedce3be846df49247439",
+    "before-1234-light-open.png": "e83a3edbcd2f4c1b3d2a8bbfe31d21b6e1c3269eac2895926f4b5e72a93b5fbb",
+    "before-1440-dark-closed.png": "a1ea2b0eeb990023387ee061a6e063f49cd285c677be36db84130f522a3e5645",
+    "before-1440-dark-open.png": "d26033c36ea3161293f0c582cf2263d3e7f9ad17eb1a3068cfab406b8a2ae10f",
+    "before-1440-light-closed.png": "60e175f1cfa22836d93e1f476134ac280d1a4dfa2da1097fe12b4aea8997f546",
+    "before-1440-light-open.png": "e31cb2287a9d8fa0581a5d88bca81f6dda2e2526ea54443be853a7399ae74bf8",
+    "before-640-dark-closed.png": "75d0f4f59f0165d972e4c07bf21c9833c42217774037b79712da8d6cb1806d87",
+    "before-640-dark-open.png": "c0ecbd9adea2051d8e7a1df5270a1d00b340f08104deb1f49e7c96fa285db493",
+    "before-640-light-closed.png": "17b0bbfc900f583cb903bcd7b882cb28dfa9bffd0f5c3ab743cb0197a95fe6d3",
+    "before-640-light-open.png": "9121ea7683db7b98fada552764c25aa73554077e52f1d971dc3a67ade995e886"
+  }
+}

@@ -133,21 +133,32 @@ test("started without a document, it opens none; the sample opens with its figur
       if (await outlineToggle.getAttribute("aria-pressed") === "true") await outlineToggle.click();
       const geometry = await page.evaluate(() => {
         const overlay = (navigator as Navigator & { windowControlsOverlay: { getTitlebarAreaRect(): DOMRect } }).windowControlsOverlay.getTitlebarAreaRect();
-        const controls = [...document.querySelectorAll<HTMLElement>('.top-bar button, .sidebar-header button')];
-        const header = document.querySelector('.app-titlebar')!.getBoundingClientRect();
+        const controls = [...document.querySelectorAll<HTMLElement>('.top-bar button, .document-tab-row button, .sidebar-header button')];
+        const titleStrip = document.querySelector('.app-titlebar')!;
+        const header = titleStrip.getBoundingClientRect();
+        // Resolve the same CSS-token relationship as captionPixels, retaining #711's
+        // fixed 40px title strip while native paint ends before its bottom border.
+        const probe = document.createElement('div');
+        probe.style.position = 'fixed';
+        probe.style.height = 'calc(var(--layout-header-row) - var(--border-width))';
+        document.body.append(probe);
+        const expectedOverlay = probe.getBoundingClientRect().height;
+        probe.remove();
+        const borderWidth = parseFloat(getComputedStyle(titleStrip).borderBottomWidth);
         const tabs = document.querySelector('.document-tabs')!.getBoundingClientRect();
         const captionEdgeLines = [...document.querySelectorAll('.app-titlebar, .app-titlebar *')].filter(element => {
           const r = element.getBoundingClientRect(), style = getComputedStyle(element);
           return r.left <= header.right - 0.5 && r.right >= header.right && r.bottom === tabs.top &&
             style.borderBottomStyle === 'solid' && parseFloat(style.borderBottomWidth) === 1;
         }).length;
-        return { reserved: innerWidth - overlay.right, height: overlay.height, captionEdgeLines,
+        return { reserved: innerWidth - overlay.right, height: overlay.height, headerHeight: header.height, borderWidth, expectedOverlay, captionEdgeLines,
           blocked: controls.filter(element => {
             const r = element.getBoundingClientRect();
             return r.width && (r.right > innerWidth || (r.top < overlay.bottom && r.right > overlay.right) || getComputedStyle(element).getPropertyValue('app-region') !== 'no-drag');
           }).map(element => element.getAttribute('aria-label') || element.textContent) };
       });
-      assert.ok(geometry.reserved > 0 && geometry.height === 39, JSON.stringify(geometry));
+      assert.ok(geometry.reserved > 0 && geometry.headerHeight === 40 && geometry.height === geometry.expectedOverlay &&
+        geometry.headerHeight - geometry.borderWidth === geometry.expectedOverlay, JSON.stringify(geometry));
       assert.equal(geometry.captionEdgeLines, 1, "one separator reaches the actual native caption edge with Outline closed");
       assert.deepEqual(geometry.blocked, [], "controls clear native caption buttons at each supported width");
     }

@@ -144,7 +144,9 @@ async (page, { openPath, withBlockHover }) => {
               paragraph?.contains(window.getSelection()?.anchorNode);
           }, await prose.getAttribute('data-source-path'));
         }
-        if (movement === 'round-trip') await page.locator('.app-header').click({position:{x:1,y:1}});
+        // The tab row now contains interactive tabs/actions across its width (#695).
+        // Use the unfocusable brand area for the same pointer round-trip to body.
+        if (movement === 'round-trip') await page.locator('.app-brand').click({position:{x:1,y:1}});
         if (movement !== 'programmatic-focus' && !await page.evaluate(element => document.activeElement === element, openingFocus)) throw new Error(`${fieldId}: ${movement} did not reproduce identical activeElement`);
         if (!await page.evaluate(() => window.releaseOpeningFrames())) throw new Error('Opening frame was not held');
         if (movement === 'programmatic-focus') {
@@ -293,7 +295,7 @@ async (page, { openPath, withBlockHover }) => {
     result.equationNotEditing = await equation.getAttribute('data-editing') === 'false' &&
       await page.getByTestId('equation-editor').count() === 0 && await line.count() === 0;
     result.saveStillAvailable = await page.getByTestId('status').innerText() === 'Unsaved changes' &&
-      await page.locator('.top-bar [data-testid="save"]').getAttribute('aria-disabled') === null;
+      await page.locator('.document-tab-row [data-testid="save"]').getAttribute('aria-disabled') === null;
     return movedOrder;
   });
 

@@ -1,6 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Tab-row actions update: 2026-10-29 (#695; [current contract and evidence](#title-strip-and-tab-row-actions-695)).
 - Non-overlapping roots verification: 2026-10-29 (#702: Editor 338 unit tests, typecheck/build; persistent Chrome folder-navigation/memory, layout-rules, quiet-document, document-tabs, editor-shell and reveal-folder; [behavior and captures](editor-ux-shell-v1.md#non-overlapping-opened-folders-702)).
 - Document scroll verification: 2026-10-29 (#488 phase 0; [container contract and evidence](#document-scroll-container-488-phase-0)).
 - Feature sample verification: 2026-10-28 (#528 Core read-model coverage, canonical CLI check/format, Desktop version unit tests, existing Command center browser entry and manual 1440/640px Korean/English captures; packaged execution deferred to CI).
@@ -35,6 +36,87 @@
 - Scope: existing Editor interactions. [Visual Language (current v4.8)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
 
 Historical verification records: [Verification record](#verification-record).
+
+## Title strip and tab-row actions (#695)
+
+The shared title strip is always exactly one `--layout-header-row` (40px): brand,
+Find documents and commands, and Desktop caption reservation. Search shrinks within
+its remaining width, yielding secondary location then shortcut then label; below a
+22rem available title container it becomes a named search icon button. Its tooltip,
+shortcut and accessible name remain unchanged. One 1px DOM bottom separator spans
+the entire viewport at y=39, including the native caption reservation.
+
+The second row is always 32px plus its 1px boundary, including the start screen with
+no document. Only the tablist scrolls horizontally; Visual/Source, layout toggles,
+status, Save and File actions stay fixed at the right of that row. At viewport widths
+up to 1024px the less frequent Wide document toggle moves into ⋯ as a checked menu
+item. Outline remains a direct button so its overlay Escape/focus-return path remains
+stable. The compact menu stays available without a document and during pending work
+for the width preference; document-specific commands retain their disabled guards.
+Visual/Source and Save are disabled on the empty start screen. No special tab is added.
+
+Each row receives the actions and status of its own active document. This change
+introduces no groups or split UI. Existing independent tab sessions, Save/shortcut,
+Source, Reload/discard, Compare, Copy path, Command center and error/conflict
+MessageArea paths are retained. Explorer → search → document tabs → document actions →
+content follows DOM keyboard order. Tabs retain roving navigation, close and dirty dots.
+
+A fixed 16px status slot next to Save shows a small filled dot for unsaved work,
+a check for saved, a progress glyph during operations, or a warning glyph on failure.
+The complete localized status stays in the polite live region and native tooltip.
+A clean Ready state leaves the slot blank; status transitions move no action.
+MessageArea can add notification height below these two fixed rows. It does not
+change the title-strip or tab-row height. Document semantics and CLI are unaffected.
+
+The native overlay height and actual Windows overlay pixels remain #694's scope;
+#695 preserves env(titlebar-area-*) reservation and drag/no-drag boundaries. Both
+issues touch title-strip geometry, so integration must retain this fixed 40px row
+and #694's separate overlay fix.
+
+Same-state manual captures use base master `bbfdd948` and this implementation in
+this worktree, Vite origin 127.0.0.1:5173, persistent Windows Chrome, English UI,
+Paper, bundled Pretendard/fonts ready, DPR/zoom 1 and 900px height. Three tabs are
+open; technical-2 is active with the same unsaved heading edit, scroll 0 and no
+focus/hover. Open means Sidebar and Outline open; below 1424px Outline overlays.
+Local verification: Editor 335/335; final shell/token checks 39/39, workspace typecheck,
+production Editor build and docs checks. Four persistent-Chrome launches were used:
+first manual-tour URL error, successful Before tour, After + layout-rules (then the
+old long-filename width assertion failed), final After + quiet-document (then a
+flex-shrunk test probe in document-tabs failed). The filename assertion now checks
+readable visible text, full close-target containment and exact path tooltip. The
+probe now resists flex shrinking so it measures the actual 16px token; actual icon,
+focus and target checks retain their original values. The latter correction and
+remaining browser suites are verified by PR CI. Local runs 3/4 stopped at the first
+failure to prevent worker restarts exceeding the four-launch cap; the temporary
+maxFailures setting and capture scenario are removed. No retry, timeout increase,
+skip or permanent runner change is introduced. Before each launch BadPasswordAttempts
+was 1/2/2/2. Desktop packaging/update/uninstall and Edge remain CI-only.
+
+These 16 pairs are manual evidence. Every After measures a 40px title strip plus
+33px tab row and a continuous 1px DOM separator. Before records the previous
+wrapping rather than claiming it meets the new two-row contract. Native overlay
+painting is not verified. [Before geometry](assets/tab-row-695/before-geometry.json),
+[After geometry](assets/tab-row-695/after-geometry.json), and
+[environment/source/image hashes](assets/tab-row-695/capture-metadata.json).
+
+| Width / theme / panels | Before | After |
+| --- | --- | --- |
+| 640-light-closed | [Before](assets/tab-row-695/before-640-light-closed.png) | [After](assets/tab-row-695/after-640-light-closed.png) |
+| 640-light-open | [Before](assets/tab-row-695/before-640-light-open.png) | [After](assets/tab-row-695/after-640-light-open.png) |
+| 640-dark-closed | [Before](assets/tab-row-695/before-640-dark-closed.png) | [After](assets/tab-row-695/after-640-dark-closed.png) |
+| 640-dark-open | [Before](assets/tab-row-695/before-640-dark-open.png) | [After](assets/tab-row-695/after-640-dark-open.png) |
+| 1024-light-closed | [Before](assets/tab-row-695/before-1024-light-closed.png) | [After](assets/tab-row-695/after-1024-light-closed.png) |
+| 1024-light-open | [Before](assets/tab-row-695/before-1024-light-open.png) | [After](assets/tab-row-695/after-1024-light-open.png) |
+| 1024-dark-closed | [Before](assets/tab-row-695/before-1024-dark-closed.png) | [After](assets/tab-row-695/after-1024-dark-closed.png) |
+| 1024-dark-open | [Before](assets/tab-row-695/before-1024-dark-open.png) | [After](assets/tab-row-695/after-1024-dark-open.png) |
+| 1234-light-closed | [Before](assets/tab-row-695/before-1234-light-closed.png) | [After](assets/tab-row-695/after-1234-light-closed.png) |
+| 1234-light-open | [Before](assets/tab-row-695/before-1234-light-open.png) | [After](assets/tab-row-695/after-1234-light-open.png) |
+| 1234-dark-closed | [Before](assets/tab-row-695/before-1234-dark-closed.png) | [After](assets/tab-row-695/after-1234-dark-closed.png) |
+| 1234-dark-open | [Before](assets/tab-row-695/before-1234-dark-open.png) | [After](assets/tab-row-695/after-1234-dark-open.png) |
+| 1440-light-closed | [Before](assets/tab-row-695/before-1440-light-closed.png) | [After](assets/tab-row-695/after-1440-light-closed.png) |
+| 1440-light-open | [Before](assets/tab-row-695/before-1440-light-open.png) | [After](assets/tab-row-695/after-1440-light-open.png) |
+| 1440-dark-closed | [Before](assets/tab-row-695/before-1440-dark-closed.png) | [After](assets/tab-row-695/after-1440-dark-closed.png) |
+| 1440-dark-open | [Before](assets/tab-row-695/before-1440-dark-open.png) | [After](assets/tab-row-695/after-1440-dark-open.png) |
 
 ## Explorer name (#703)
 
@@ -294,9 +376,9 @@ or dismissal. The existing References-region connection remains available.
 
 Settings still use the same editor/Core operations, dirty indication, Save and save
 failure handling. No Core/CLI operation, file format or device preference changes.
-Wide document remains its separate TopBar toggle. The 56rem TopBar breakpoint and
-40px header contract (#605) applies; the centered command trigger retains #556's reduction
-order. Verification widths follow ADR-0010: 1440px and 640px, keyboard and pointer,
+Wide document belongs to the tab-row actions, folding into ⋯ at narrow widths (#695).
+The title strip stays 40px at all supported widths; search retains #556's reduction order
+before becoming icon-only. Verification widths follow ADR-0010: 1440px and 640px, keyboard and pointer,
 light/dark and paper/white backgrounds. Current UI verification supersedes #554's
 placement; the following #554 measurements and captures are historical evidence.
 
@@ -437,7 +519,7 @@ adds no Core operation or CLI command.
 Recovery retains its explanation, count and confirmed Clear all; individual records stay
 on the start screen. Desktop channel, status, release notes and update actions keep their
 existing bridge and restart guards. Settings search remains outside the implemented scope;
-Wide document stays in TopBar.
+Wide document stays in the document tab-row actions (#695).
 
 The navigation footer explains that heading numbers, reference style and bibliography
 belong to each document. Settings has no Open document settings entry (#669).
@@ -508,13 +590,13 @@ and #425 collapse memory remain unchanged. Tab order follows the visual order fr
 through the two actions to the retained tree stop.
 
 The first row is one full-width title strip (#647): the existing Desktop SVG icon and
-**IEUMDOC** at the left, existing TopBar controls in the remaining width, and native caption
+**IEUMDOC** at the left, shared search in the remaining width, and native caption
 buttons at the right in Desktop. HTTP Host uses the same arrangement with zero caption
 reservation and no native window dragging. The brand follows the Explorer width; collapsing
 Explorer retains only the icon. The Explorer icon button (Expand Explorer, #671) stays in the 48px rail on
 the second row, directly below the icon: this preserves its Explorer-navigation location,
 28px target, accessible name, aria-expanded and keyboard focus return without making the
-brand an additional action. DOM tab order retains Explorer controls, TopBar controls, document tabs/content, then
+brand an additional action. DOM tab order follows Explorer controls, title-strip search, document tabs, document actions/content, then
 document navigation; the brand adds no tab stop.
 
 Explorer / Collapse and the Outline / Tables / Figures tab row begin directly below the title
@@ -524,8 +606,8 @@ width, overlay dismissal and list navigation are unchanged. Below the docking wi
 opened panel continues to overlay below the entire measured sticky header, leaving the
 document tabs, messages and title-strip controls usable.
 
-The title strip is 40px at sufficient width. Its TopBar retains the existing command/status/
-action wrapping at narrow widths, including 640px. CSS Window Controls Overlay geometry
+The title strip stays 40px at every supported width. Document actions and compact status
+belong to the fixed tab row ([#695](#title-strip-and-tab-row-actions-695)). CSS Window Controls Overlay geometry
 reserves native caption width in the title strip once, independently of Outline state.
 Its single 1px bottom separator spans the full viewport, including the reservation (#635/#636).
 The second-row headers are not drag regions. Title-strip empty space and brand drag the
@@ -623,9 +705,9 @@ The shell has three responsibilities: the Sidebar on the left browses opened fol
 | --- | --- |
 | Sidebar | Explorer and Collapse Explorer in the header, followed by file navigation; no duplicate New document row with opened folders (#582). There is no Explorer / Display switch. The collapsed 48px rail contains an Explorer icon button at the document-tab row and an icon-only Settings button at the bottom (#671). The Explorer icon restores file navigation; its accessible name and tooltip remain Expand Explorer (탐색기 펼치기), describing the action rather than only naming the panel. Settings uses the same entry component and screen as the expanded footer, at the same vertical position; Back/Escape returns focus to its opening button. Both rail actions are keyboard reachable, have localized names/tooltips and are Desktop no-drag targets. An always-visible Activity bar and additional panels are future work. Explorer contains the opened folders (#112, [ADR-0009](../adr/0009-multiple-opened-folders.md)), each a non-overlapping root section in opening order (ancestor absorption takes the first absorbed position; [#702](#non-overlapping-opened-folders-702)), or, without any, guidance followed by the browser's recent folders (name, full path in `title`): one click lists that folder like Open folder, without opening a document. User-controlled collapse/expand, with a 48px rail when collapsed. No workspace or placeholder navigation. Each folder heading names its folder (disclosure button and name, full path in `title`; [section visibility](#collapsible-folder-sections-425)) with `+` (New document…) and a `⋯` menu containing New folder…, Open folder…, Refresh and Close folder (removes only that folder; tabs stay open). Open folder… adds an unrelated folder; one already open is listed again in place. A descendant is revealed in its ancestor tree, and a new ancestor absorbs its descendant sections ([#702](#non-overlapping-opened-folders-702)). With no opened folder, the empty Explorer panel offers Open folder… and New document…. Below each heading is a folder tree; file listing and activation follow [Folder files and image preview](#folder-files-and-image-preview-217). A `.md` file whose leading frontmatter lacks the native marker stays listed in subtle text with its own icon, and its tooltip and accessible description say it is not an IeumDoc document; opening it still shows the refusal and why ([Folder listing](filesystem-host-boundary-v1.md#folder-listing-v1-112)). On explicit active-document path changes, the containing sections and folders above it expand in each opened folder containing it; a document elsewhere adds nothing to the trees. The opened folders' paths are browser preferences: on start they are listed again in order, and one the Host refuses or no longer has is left out quietly. Child-folder expansion is page state only. Root section collapse is an origin-specific preference restored on Reload/Desktop restart; startup document restoration respects it. Opening document settings or collapsing the sidebar retains the mounted tree, its expansion, scroll and keyboard stop, without listing again. The tree takes the remaining height and scrolls by itself; the open document uses the shared selected surface/text with 600 semibold as a non-color cue, without a left marker there and Close folder removes it. Keyboard: Up/Down, Home/End move through visible items; Right expands a folder or moves into it; Left collapses it or moves to the parent; Enter or Space opens a document or toggles a folder. Explorer does not list the open document separately: the tab row and TopBar name it. |
 | Document settings | Collapsed value summary at the top of the paper, before the title and outside ProseMirror (#580). Expands into grouped field rows for Number headings (H2–H6), Reference style (Default, Concise, Formal, Korean; unmatched values show Custom) with notation previews, and Connect bibliography…. Reuses existing operations, history, dirty indication and Save under the [numbering](heading-numbering-v1.md) and [bibliography](citations-v1.md#connect-and-disconnect-bibliography-files-438) contracts. Command center reveals/expands/focuses it. Field controls disable during pending work; Source/start omit the block and read-only shows only summary. Escape inside collapses and focuses the disclosure; the style menu handles its own Escape first. Bibliography uses the existing connection dialog with return to the row’s Connect button. Expansion is per-tab session only. Opening/collapsing preserves editor instance, selection, history and unapplied drafts. App Settings remains separate and has no document-settings entry (#669). |
-| Document panel | Outline, Tables and Figures navigation (#613), with 600 semibold, themed surface and segment shadow for the selected tab, muted inactive labels and reserved semibold label width (#620), titled Outline, with no internal close button (#590). The TopBar Outline toggle opens and closes it. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read with selected background/text and 600 semibold (no left marker, #515); a hidden semibold copy reserves its two-line text extent to prevent selection height jumps. The current item stays inside the list's visible area. The list scrolls by itself and is never written to the document. Table/Figure items reuse the body caption prefix and Core reference template (for example `Table 1. Caption`), including in Korean UI; a missing caption shows only the number. At 1424px and wider the panel is docked and starts open; below 1424px it starts closed and, opened, overlays the document below the sticky header instead of narrowing it, so Save, File actions and the Outline toggle stay usable; Escape closes it and returns focus to the TopBar Outline toggle. The docking width is independent of the 1024px narrow sidebar. Entering the overlay layout always closes it. Returning to docked restores the user's last explicit docked open/closed choice, or opens by default if none exists. Overlay interactions do not overwrite that choice. Open/closed is page memory only and resets on reload; no persistent preference is added. |
-| TopBar | Actual status in the document area on the left; the centered command-center button leads with a search icon and Find documents and commands / 문서·명령 찾기; the document location/name is muted secondary information (full path in its title); the location names the folders from the outermost opened sidebar folder containing the document down, otherwise its own folder. Visual/Source, Wide document and Outline, then Save and File actions (`⋯`) on the right. File actions contains Reload and Copy path (the full path to the clipboard, confirmed by a temporary notice, or an explanatory error where the browser has no Clipboard API); the menu is unavailable without a document or during pending work. Enter/Space opens it, arrows navigate, Escape closes and returns focus. Reload keeps its existing discard confirmation and modal boundary while loading; closing that dialog returns focus to File actions. Wide document is a pressed toggle, remembered in device preferences and available without a document, during pending work and in Source. It changes no Markdown, history or dirty state, and its existing command remains. Outline shows or hides the Document panel (pressed while shown); closing the panel returns focus to it. Sticky while document scrolls. |
-| Document tabs | A separate row inside the sticky header below TopBar. A pressed-surface track and raised white current tab reuse Visual/Source border-control/shadow/text tokens, without an underline; height and close targets are unchanged (#515). Filename, dirty dot, close button and full-path tooltip; same-named files show the shortest distinguishing parent folder after the name, which stays visible while the name ellipsizes. Only this row scrolls horizontally on narrow screens. Accessible tablist/tab/tabpanel relationships, Left/Right/Home/End switching and Delete to close. Closing selects the right neighbour, else left; an inactive close keeps the current tab. |
+| Document panel | Outline, Tables and Figures navigation (#613), with 600 semibold, themed surface and segment shadow for the selected tab, muted inactive labels and reserved semibold label width (#620), titled Outline, with no internal close button (#590). The tab-row Outline toggle opens and closes it. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read with selected background/text and 600 semibold (no left marker, #515); a hidden semibold copy reserves its two-line text extent to prevent selection height jumps. The current item stays inside the list's visible area. The list scrolls by itself and is never written to the document. Table/Figure items reuse the body caption prefix and Core reference template (for example `Table 1. Caption`), including in Korean UI; a missing caption shows only the number. At 1424px and wider the panel is docked and starts open; below 1424px it starts closed and, opened, overlays the document below the sticky header instead of narrowing it, so Save, File actions and the Outline toggle stay usable; Escape closes it and returns focus to the tab-row Outline toggle. The docking width is independent of the 1024px narrow sidebar. Entering the overlay layout always closes it. Returning to docked restores the user's last explicit docked open/closed choice, or opens by default if none exists. Overlay interactions do not overwrite that choice. Open/closed is page memory only and resets on reload; no persistent preference is added. |
+| TopBar | Shared single-row brand/search/caption strip; document actions and compact status belong to their owning tab row. See [#695](#title-strip-and-tab-row-actions-695) for responsive search, menu guards and status. Save, Source, Compare, Reload/discard, Copy path and layout preferences retain their existing operations and shortcuts. |
+| Document tabs | Fixed second row below the title strip, with a flat current accent marker (#581). Filename, dirty dot, close button and full-path tooltip; same-named files show the distinguishing parent folder. Only the tablist scrolls; its active-document actions remain fixed to its right (#695). Accessible tablist/tab/tabpanel relationships, Left/Right/Home/End switching and Delete to close remain. Closing selects the right neighbour, else left; an inactive close keeps the current tab. |
 | MessageArea | Load/save errors, conflict and temporary notices below the tab row; no reserved height when empty. Explicit table deletion shows `Table deleted` / `표를 삭제했습니다` with `Undo` / `되돌리기`, using the existing five-second temporary notice, informational surface and polite status role. It takes no focus. Undo restores the table in one editor history step and returns focus to the editor. The notice/action closes on the next document change, Save, Reload (including opening its discard prompt), Source preview request start, tab switch or timeout; a revoked action cannot undo other work. Source cannot undo the hidden Visual document, and returning to Visual does not revive the action. See [Table interaction](table-interaction-v1.md). |
 | Document | Continuous white writing surface with a subtle edge on a muted canvas, extending at least to the bottom of the viewport minus its outer gap. Block tools occupy its gutter. Empty editable documents expose a first-line hint and `+`. No fixed formatting toolbar. |
 

@@ -149,19 +149,19 @@ async (page, { screenshots = false, openPath }) => {
             const geometry = await page.evaluate(reserved => {
               const header = document.querySelector('.app-titlebar').getBoundingClientRect();
               const bar = document.querySelector('.top-bar').getBoundingClientRect();
-              const tabs = document.querySelector('.document-tabs').getBoundingClientRect();
+              const tabs = document.querySelector('.document-tab-row').getBoundingClientRect();
               const lines = [...document.querySelectorAll('.app-titlebar, .app-titlebar *')].flatMap(node => {
                 const r = node.getBoundingClientRect(), style = getComputedStyle(node), thickness = parseFloat(style.borderBottomWidth);
                 return thickness && style.borderBottomStyle === 'solid' && r.bottom >= bar.bottom && r.bottom <= tabs.top
                   ? [{left:r.left, right:r.right, bottom:r.bottom, thickness, color:style.borderBottomColor}] : [];
               });
-              const borderColor = getComputedStyle(document.querySelector('.document-tabs')).borderBottomColor;
+              const borderColor = getComputedStyle(document.querySelector('.document-tab-row')).borderBottomColor;
               const continuous = Array.from({length:Math.ceil(header.width)}, (_, i) => header.left + i + 0.5)
                 .filter(x => x < header.right).every(x => lines.filter(line => line.left <= x && line.right > x && line.bottom === tabs.top && line.thickness === 1 && line.color === borderColor).length === 1);
-              const blocked = [...document.querySelectorAll('.app-titlebar button, .top-bar button, .sidebar-header button, .sidebar-footer button, .document-panel-header button')].filter(node => {
+              const blocked = [...document.querySelectorAll('.app-titlebar button, .top-bar button, .document-tab-row button, .sidebar-header button, .sidebar-footer button, .document-panel-header button')].filter(node => {
                 const r = node.getBoundingClientRect();
                 // Preserve the former follow-up's checks even for hidden header controls.
-                const checked = r.width || node.matches('.top-bar button, .sidebar-header button');
+                const checked = r.width || node.matches('.top-bar button, .document-tab-row button, .sidebar-header button');
                 return checked && (r.right > innerWidth || (r.top < 40 && r.right > innerWidth - reserved) || getComputedStyle(node).getPropertyValue('app-region') !== 'no-drag');
               }).map(node => node.getAttribute('aria-label') || node.textContent);
               const panel = document.querySelector('.document-panel--overlay');
@@ -193,7 +193,7 @@ async (page, { screenshots = false, openPath }) => {
             }
             separatorGeometry.push({width, theme, reserved, panelOpen, collapsed, ...geometry});
             if (!geometry.aligned || !geometry.branded || !geometry.continuous || !geometry.singleLine || geometry.blocked.length || geometry.tabsTop - geometry.barBottom > 1 || geometry.drag !== 'drag' ||
-                (geometry.usableWidth >= 896 && geometry.rowHeight !== 40) ||
+                (geometry.rowHeight !== 40) ||
                 (geometry.overlayTop !== undefined && geometry.overlayTop !== geometry.headerBottom))
               captionFailures.push({width, theme, reserved, panelOpen, collapsed, ...geometry});
             if ([1440, 640].includes(width))
@@ -243,15 +243,20 @@ async (page, { screenshots = false, openPath }) => {
       captionFailures.push({width, settings:geometry});
     await page.keyboard.press('Escape');
     await settingsScreen.waitFor({state:'detached'});
-    // A short 640px window puts the Command Center's search inside the wrapped drag rectangle.
+    // A short 640px window retains the single title row and reachable portal search (#695).
     await page.setViewportSize({width, height:480});
     await page.keyboard.press('Control+Slash');
     const center = page.getByRole('dialog', {name:'Command center', exact:true});
     await inspectOverlay(center, 'command-center');
     const search = center.getByRole('combobox');
     if (width === 640) {
-      const overlap = await search.evaluate(node => node.getBoundingClientRect().top < document.querySelector('.top-bar').getBoundingClientRect().bottom);
-      check(overlap, 'Narrow-window search no longer exercises the wrapped drag area');
+      const placement = await search.evaluate(node => {
+        const title = document.querySelector('.app-titlebar').getBoundingClientRect(), r = node.getBoundingClientRect();
+        return {titleHeight:title.height, belowTitle:r.top>=title.bottom,
+          reachable:node.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2))};
+      });
+      check(placement.titleHeight === 40 && placement.belowTitle && placement.reachable,
+        'Narrow-window portal search must remain reachable below the fixed title row');
     }
     await search.click(); await search.fill('> settings');
     check(await search.inputValue() === '> settings', 'Portal search did not accept pointer focus and typing');

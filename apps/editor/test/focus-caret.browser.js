@@ -79,8 +79,14 @@ async (page, { openPath }) => {
     }, {once: true, capture: true}));
     await page.getByRole('button', {name:'Close focus.md', exact:true}).focus();
     await page.evaluate(() => getSelection().removeAllRanges());
+    // #695 places active-document controls after the tablist. Traverse their actual
+    // keyboard stops before the unchanged settings → editor caret-restoration boundary.
+    for (const name of ['Visual','Source','Wide document','Outline','Save','File actions']) {
+      await page.keyboard.press('Tab');
+      assert(await page.getByRole('button',{name,exact:true}).evaluate(n=>n===document.activeElement), `Tab-row actions retain keyboard order at ${name}`);
+    }
     await page.keyboard.press('Tab');
-    assert(await page.getByRole('button',{name:'Document settings',exact:true}).evaluate(n => n === document.activeElement), 'Tab from the final tab control reaches document settings');
+    assert(await page.getByRole('button',{name:'Document settings',exact:true}).evaluate(n => n === document.activeElement), 'Tab from the final document action reaches document settings');
     await page.keyboard.press('Tab');
     assert(await editor.evaluate(el => el.editor.view.hasFocus()), 'Tab from collapsed document settings focuses the editor');
     const reset = await page.evaluate(() => window.__focusDom);
