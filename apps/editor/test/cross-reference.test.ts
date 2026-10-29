@@ -28,6 +28,27 @@ const source = nativeSource([
 ].join("\n\n") + "\n");
 const REFERENCES = "2";
 
+test("fixed numbers cross the real editor schema and Core save replay without loss", () => {
+  const source = nativeSource(":::{figure} ./a.png\n:name: fig\n:enumerator: 17\n\nCaption.\n:::\n\n:::{table}\n:name: tbl\n:enumerator: A.3\n\n| A |\n| --- |\n| 1 |\n:::\n\n```{math}\n:label: eq\n:enumerator: 4-2\n\nx=1\n```\n\n:::{figure}\n:name: diagram\n:enumerator: B.2\n\n```{mermaid}\ngraph TD; A-->B\n```\n:::\n\nSee {numref}`fig` and {eq}`eq`.\n");
+  const schema = getSchema(editorExtensions());
+  const snapshot = loadEditableDocument(source);
+  const projected = toTiptapDocument(snapshot);
+  const state = EditorState.create({ schema, doc: schema.nodeFromJSON(projected) });
+  assert.deepEqual(referenceTargets(state.doc).map(target => target.number), ["17", "A.3", "4-2", "B.2"]);
+  const next = state.doc.toJSON() as TiptapJSON;
+  next.content![0].attrs!.imageAlt = "Edited alt";
+  next.content![1].attrs!.label = "tbl-new";
+  next.content![1].content!.at(-1)!.content = [{ type: "text", text: "Edited caption" }];
+  next.content![2].attrs!.latex = "x=2";
+  const edits = collectSupportedEdits(snapshot, next);
+  const saved = saveEdits(source, edits).markdown;
+  const reopened = loadEditableDocument(saved);
+  assert.deepEqual(reopened.blocks.flatMap(block => "enumerator" in block ? [block.enumerator] : []), ["17", "A.3", "4-2", "B.2"]);
+  assert.equal(saveEdits(saved, collectSupportedEdits(reopened, schema.nodeFromJSON(toTiptapDocument(reopened)).toJSON() as TiptapJSON)).markdown, saved);
+  next.content![0].attrs!.enumerator = "lost";
+  assert.throws(() => collectSupportedEdits(snapshot, next), /fixed numbers are preserved/);
+});
+
 test("deletion notices distinguish a remaining fragment link from a relabel or removal of both link and target", () => {
   const schema = getSchema(editorExtensions());
   const projection = toTiptapDocument(loadEditableDocument(nativeSource("See [details](#EQ-A).\n\n```{math}\n:label: eq-a\na=b\n```\n")));

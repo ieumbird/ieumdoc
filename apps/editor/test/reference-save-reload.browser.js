@@ -50,5 +50,38 @@ async (page, { openPath, openDocument }) => {
   };
   const failed = Object.entries(result).filter(([, value]) => value !== true);
   if (failed.length > 0) throw new Error(`Reference Save/Reload failed: ${JSON.stringify(result)}`);
+  // Opening and saving fixed numbers must already work before number-entry controls ship.
+  const fixedPath = [root, 'tmp', 'reference-save-reload', 'fixed.md'].join(separator);
+  await openPath(page, fixedPath);
+  const active = page.locator('[data-document-tab][data-active=true]');
+  const fixedState = async () => ({
+    captions: await active.locator('figcaption.caption, [data-testid="table-caption"]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-number'))),
+    equation: await active.getByTestId('equation-number').innerText(),
+    references: await active.locator('p.paragraph').filter({hasText:'See Figure'}).innerText(),
+  });
+  const expected = { captions: ['Figure 17', 'Table A.3', 'Figure B.2'], equation: '(4-2)',
+    references: 'See Figure\u00a017, Table\u00a0A.3, (4-2) and Figure\u00a0B.2.' };
+  const assertFixedState = async () => {
+    const state = await fixedState();
+    if (JSON.stringify(state) !== JSON.stringify(expected)) throw new Error(`Fixed number projection failed: ${JSON.stringify(state)}`);
+  };
+  await assertFixedState();
+  await active.getByText('Before.', {exact:true}).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' FixedSaveMarker');
+  await page.getByRole('button', {name:'Save', exact:true}).click();
+  await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
+  const fixedResponse = await page.request.get(`${origin}/document/fixed.md?path=${encodeURIComponent(fixedPath)}`);
+  if (!fixedResponse.ok()) throw new Error(`Fixed document read failed: ${fixedResponse.status()}`);
+  const fixedSaved = await fixedResponse.text();
+  for (const number of ['17', 'A.3', '4-2', 'B.2']) {
+    if (!fixedSaved.includes(`:enumerator: ${number}`)) throw new Error(`Fixed number lost on Save: ${number}`);
+  }
+  if (!fixedSaved.includes('FixedSaveMarker')) throw new Error('Fixed document edit was not saved');
+  await page.reload();
+  await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
+  await openPath(page, fixedPath);
+  await assertFixedState();
+  result.fixedNumbersSavedAndReloaded = true;
   return result;
 }

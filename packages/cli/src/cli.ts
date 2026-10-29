@@ -40,6 +40,7 @@ import {
   sectionRange,
   blockTargets,
   targetNumbers,
+  numberingReport,
   replaceText,
   serialize,
   updateNodeTextAtPath,
@@ -57,6 +58,7 @@ import {
   updateFigure,
   updateMediaReferences,
   updateLabel,
+  updateEnumerator,
   updateTableCell,
   updateTableCaption,
   updateHeadingNumbering,
@@ -769,6 +771,18 @@ const COMMANDS: CommandSpec[] = [
     ],
   },
   {
+    name: "update-enumerator",
+    group: "Edit — labels, footnotes and numbering",
+    summary: "Set or clear a fixed Equation, Figure or Table number through Core",
+    usage: "ieumdoc update-enumerator <file> --path <index> --enumerator <number>",
+    details: [
+      "Set an authored number string, such as 17, A.3 or 4-2. Use an empty --enumerator to clear it.",
+      "Fixed numbers survive moves and are used by references. Missing or duplicate numbers warn without blocking writes.",
+      "Saving an empty equation with a fixed number is refused: enter equation content or clear the fixed number.",
+      ...PATH_NOTE,
+    ],
+  },
+  {
     name: "update-label",
     group: "Edit — labels, footnotes and numbering",
     summary: "Set, change, or remove an Equation, Figure, Table or target label through Core",
@@ -908,6 +922,7 @@ function checkDocument(document: Document, file: string, format: OutputFormat, p
   const unresolved = unresolvedReferences(document);
   // Publish readiness, apart from writeability: a pending Figure is saved, not finished.
   const blocks = getEditableDocument(document).blocks;
+  const numbering = numberingReport(blocks);
   const pendingFigures = blocks.flatMap(block =>
     block.block === "figure" && block.contentKind === "none" ? [{ path: block.path, label: block.label }] : []);
   const missingImageFigures = blocks.flatMap(block => {
@@ -932,6 +947,7 @@ function checkDocument(document: Document, file: string, format: OutputFormat, p
       validation: { valid: true },
       writeability: writeError === undefined ? { writable: true } : { writable: false, error: writeError },
       references: { unresolved },
+      numbering,
       readiness: { pendingFigures, missingImageFigures },
       endnotes,
       citations,
@@ -940,6 +956,7 @@ function checkDocument(document: Document, file: string, format: OutputFormat, p
     if (preview) process.stdout.write(`dry run; nothing was written\nrevision: ${preview.revision}\n`);
     process.stdout.write(`${summarize(document)}\n`);
     process.stdout.write(formatCitations(citations));
+    process.stdout.write(formatNumbering(numbering));
     if (writeError === undefined) process.stdout.write("writeability ok\n");
     else process.stderr.write(`writeability failed: ${writeError}\n`);
     for (const reference of unresolved) {
@@ -1192,6 +1209,9 @@ function changeFor(command: string, flags: string[]): Change {
         flag(flags, "--to"),
       );
     }
+    case "update-enumerator": {
+      return document => updateEnumerator(document, pathFlag(flags), flag(flags, "--enumerator"));
+    }
     case "update-label": {
       const updateReferences = optionalFlag(flags, "--update-references");
       if (updateReferences !== undefined && updateReferences !== "true" && updateReferences !== "false") {
@@ -1289,7 +1309,7 @@ function applyBatch(file: string, operationsFile: string, ifRevision: string | u
     } catch (error) {
       const command = operation !== null && typeof operation === "object" && "command" in operation
         && typeof operation.command === "string" ? operation.command : "<unknown>";
-      throw new Error(`operation ${index + 1} (${command}): ${error instanceof Error ? error.message : String(error)}; nothing was written`);
+      throw new Error(`operation ${index + 1} (${command}): ${error instanceof Error ? error.message : String(error)}; nothing was written`, { cause: error });
     }
   }
   return { markdown: result, revision, applied: operations.length, references };
@@ -1402,6 +1422,7 @@ const COMMAND_OPTIONS: Record<string, readonly string[]> = {
   "update-node-text": ["--path", "--from", "--to"],
   "update-equation-latex": ["--path", "--from", "--to"],
   "update-label": ["--path", "--label", "--update-references"],
+  "update-enumerator": ["--path", "--enumerator"],
 };
 
 function isEditCommand(command: string): boolean {
@@ -1462,7 +1483,8 @@ function parseCommandArgs(command: string, args: string[]): ParsedArgs {
 
 function inspectFile(file: string, bibliographyRoot?: string): string {
   const document = parse(readFile(file));
-  return `${formatInspect(getEditableDocument(document))}\n${formatCitations(resourceReport(document, file, bibliographyRoot))}`;
+  const editable = getEditableDocument(document);
+  return `${formatInspect(editable)}\n${formatNumbering(numberingReport(editable.blocks))}${formatCitations(resourceReport(document, file, bibliographyRoot))}`;
 }
 
 function inspectFileJson(file: string, bibliographyRoot?: string): string {
@@ -1474,8 +1496,14 @@ function inspectFileJson(file: string, bibliographyRoot?: string): string {
     command: "inspect",
     revision: textRevision(source),
     nodes: machineNodes(editable),
+    numbering: numberingReport(editable.blocks),
     citations: resourceReport(document, file, bibliographyRoot),
   })}\n`;
+}
+
+function formatNumbering(report: ReturnType<typeof numberingReport>): string {
+  return [`numbering: ${report.mode}`, ...report.diagnostics.map(diagnostic =>
+    `warning: ${diagnostic.code} ${diagnostic.kind} (block ${diagnostic.path[0]})${diagnostic.enumerator !== undefined ? ` enumerator=${quote(diagnostic.enumerator)}` : ""}`)].join("\n") + "\n";
 }
 
 function resourceReport(document: Document, file: string, root?: string): CitationReport {
@@ -1517,6 +1545,7 @@ function machineNodes(document: EditableDocument): MachineNode[] {
     const [first, ...rest] = machineBlock(block);
     return [{
       ...first,
+      ...("enumerator" in block && block.enumerator !== undefined ? { enumerator: block.enumerator } : {}),
       ...(headings[index] ? { headingNumber: headings[index] } : {}),
       ...(typeof markers[index] === "number" ? { section: snapshotSection(document, index) } : {}),
       ...(Object.keys(numbers[index]).length > 0 ? { numbers: numbers[index] } : {}),
@@ -1606,7 +1635,7 @@ function formatInspect(document: EditableDocument): string {
     const [first, ...rest] = formatBlock(block);
     const section = typeof markers[index] === "number" ? snapshotSection(document, index) : undefined;
     const numbered = Object.entries(numbers[index]).map(([kind, number]) => `${kind}:${number}`).join(",");
-    return [`${first}${section ? ` section=[${section.start},${section.end})` : ""}${numbered ? ` numbers=${numbered}` : ""}`, ...rest];
+    return [`${first}${section ? ` section=[${section.start},${section.end})` : ""}${numbered ? ` numbers=${numbered}` : ""}${"enumerator" in block && block.enumerator !== undefined ? ` enumerator=${quote(block.enumerator)}` : ""}`, ...rest];
   }).join("\n");
 }
 

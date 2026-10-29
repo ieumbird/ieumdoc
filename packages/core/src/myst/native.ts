@@ -83,15 +83,16 @@ function metadata(document: MystDocument): void {
 
 function supportedBlock(node: MystNode): boolean {
   if (!isNativeTableSource(node)) return false;
+  if (node.enumerator !== undefined && (typeof node.enumerator !== "string" || !node.enumerator.trim() || /[\r\n]/.test(node.enumerator))) return false;
   if (node.type === "heading") return supportedHeadingContent(node) !== undefined;
   if (node.type === "paragraph") return fields(node, ["children"]) && projectInlineContent(node) !== undefined;
   if (node.type === "admonition") return supportedAdmonitionContent(node) !== undefined;
   if (node.type === "blockquote") return supportedQuoteContent(node) !== undefined;
   if (node.type === "footnoteDefinition") return supportedFootnoteContent(node) !== undefined;
-  if (node.type === "math") return fields(node, ["value", "label", "identifier", "html_id"]) && typeof node.value === "string" &&
+  if (node.type === "math") return fields(node, ["value", "label", "identifier", "html_id", "enumerator"]) && typeof node.value === "string" &&
     (node.html_id === undefined || (typeof node.identifier === "string" && node.html_id === createHtmlId(node.identifier)));
   if (node.type === "container" && node.kind === "figure") {
-    return fields(node, ["kind", "children", "label", "identifier"]) && supportedFigureContent(node) !== undefined &&
+    return fields(node, ["kind", "children", "label", "identifier", "enumerator"]) && supportedFigureContent(node) !== undefined &&
       (node.children ?? []).every(child => child.type === "image"
         ? fields(child, ["url", "alt"]) : child.type === "mermaid" ? fields(child, ["value"]) : fields(child, ["children"]) && (child.children ?? []).every(paragraph => fields(paragraph, ["children"])));
   }

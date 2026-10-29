@@ -669,7 +669,7 @@ export function updateTableCaption(document: MystDocument, path: NodePath, capti
   const next = cloneDocument(document);
   const label = typeof current.label === "string" ? current.label : "";
   next.children[path[0]] = tableBlockNode(tableOf(next.children[path[0]])!, content, label,
-    typeof current.identifier === "string" ? current.identifier : undefined);
+    typeof current.identifier === "string" ? current.identifier : undefined, current.enumerator as string | undefined);
   assertStableTable(next, path[0], TABLE_CAPTION_FAILURE);
   return next;
 }
@@ -907,7 +907,7 @@ export function updateLabel(document: MystDocument, path: NodePath, label: strin
   if (kind === "Table") {
     const paragraph = tableCaptionParagraph(current);
     if (paragraph && projectInlineContent(paragraph) === undefined) throw new DocumentDiagnosticError("unsupported-content", "table caption is not editable in this version");
-    next.children[path[0]] = tableBlockNode(tableOf(next.children[path[0]])!, tableCaptionContent(current), label, identifier);
+    next.children[path[0]] = tableBlockNode(tableOf(next.children[path[0]])!, tableCaptionContent(current), label, identifier, current.enumerator as string | undefined);
   }
   const node = getNode(next, path);
   // `$$ ... $$ (label)` math records an anchor derived from the old identifier.
@@ -921,6 +921,26 @@ export function updateLabel(document: MystDocument, path: NodePath, label: strin
     if (kind !== "Target") node.identifier = identifier;
   }
   assertLabelRoundTrip(next, path[0], label, `${kind} label cannot be preserved through canonical round-trip`);
+  return next;
+}
+
+/** Set an authored MyST enumerator, or clear it with "". Number consistency is diagnostic
+ * only. Session checks permit incomplete empty equations; final canonical write remains strict. */
+export function updateEnumerator(document: MystDocument, path: NodePath, enumerator: string): MystDocument {
+  if (!Array.isArray(path) || path.length !== 1) throw new DocumentDiagnosticError("invalid-operation", "updateEnumerator requires a top-level Equation, Figure or Table path [index]");
+  const current = getNode(document, path);
+  if (current.type !== "math" && !isFigure(current) && !tableOf(current)) {
+    throw new DocumentDiagnosticError("invalid-operation", "updateEnumerator requires a top-level Equation, Figure or Table");
+  }
+  if (typeof enumerator !== "string" || (enumerator !== "" && (!enumerator.trim() || /[\r\n]/.test(enumerator)))) {
+    throw new DocumentDiagnosticError("invalid-operation", "enumerator must be a non-empty single-line string, or an empty string to clear it");
+  }
+  const next = cloneDocument(document);
+  if (current.type === "table") next.children[path[0]] = tableBlockNode(next.children[path[0]], [], "");
+  const node = getNode(next, path);
+  if (enumerator === "") delete node.enumerator;
+  else node.enumerator = enumerator;
+  serializeFor(next, "Fixed number cannot be preserved through canonical round-trip");
   return next;
 }
 

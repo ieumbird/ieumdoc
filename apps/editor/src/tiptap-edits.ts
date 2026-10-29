@@ -518,6 +518,10 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
   }
   const beforeType = before.type ?? "";
   const afterType = after.type ?? "";
+  if (["figure", "table", "equation"].includes(beforeType) &&
+      normalizeAttr(before.attrs?.enumerator) !== normalizeAttr(after.attrs?.enumerator)) {
+    throw new Error("fixed numbers are preserved; editing them requires the Core enumerator operation");
+  }
   if (!KNOWN_BLOCKS.has(afterType)) {
     throw new Error(`unsupported Tiptap block "${afterType || "unknown"}"`);
   }

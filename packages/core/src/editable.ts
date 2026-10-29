@@ -91,6 +91,7 @@ export type EditableBlock =
     }
   | {
       block: "figure";
+      enumerator?: string;
       path: NodePath;
       label: string;
       /** What the Figure shows: "none", "image" or "mermaid" for supported Figures. */
@@ -106,6 +107,7 @@ export type EditableBlock =
     }
   | {
       block: "table";
+      enumerator?: string;
       path: NodePath;
       rows: EditableTableRow[];
       label?: string;
@@ -123,6 +125,7 @@ export type EditableBlock =
     } & CodeBlockContent)
   | {
       block: "equation";
+      enumerator?: string;
       path: NodePath;
       latex: string;
       label: string;
@@ -199,6 +202,7 @@ function toBlock(node: MystNode, path: NodePath): EditableBlock {
   if (node.type === "math") {
     return {
       block: "equation",
+      ...(node.enumerator !== undefined ? { enumerator: node.enumerator as string } : {}),
       path,
       latex: typeof node.value === "string" ? node.value : "",
       label: nodeLabel(node),
@@ -232,6 +236,7 @@ function figureBlock(node: MystNode, path: NodePath): EditableBlock {
   if (!supported) throw new Error("Unsupported native Figure");
   return {
     block: "figure",
+    ...(node.enumerator !== undefined ? { enumerator: node.enumerator as string } : {}),
     path,
     label: nodeLabel(node),
     contentKind: figureContentKind(node),
@@ -265,6 +270,7 @@ function tableBlock(node: MystNode, path: NodePath): EditableBlock {
   }));
   return {
     block: "table",
+    ...(node.enumerator !== undefined ? { enumerator: node.enumerator as string } : {}),
     path,
     rows,
     ...(nodeLabel(node) ? { label: nodeLabel(node) } : {}),

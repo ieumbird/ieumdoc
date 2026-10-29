@@ -24,6 +24,7 @@ comparable real-product Before/After images. No new Core operation or CLI comman
 the existing `updateTableCaption` operation already owns the persistent semantics.
 
 - Status: Implemented
+- Fixed numbering: 2026-10-29 (#720 Core/CLI); [shared number contract](heading-numbering-v1.md#fixed-numbers-720).
 - Empty-caption surface (#577): every editable table exposes its inline caption without
   an Add caption action. An empty surface uses the caption typography and a muted
   italic `Enter a table caption…` / `표 캡션을 입력하세요...` hint while the ProseMirror
@@ -41,9 +42,10 @@ the existing `updateTableCaption` operation already owns the persistent semantic
 - Scope: Core table caption/label operations and their Editor/CLI interfaces; [Table interaction](table-interaction-v1.md).
 
 Issues #94 / #584. Core owns `updateTableCaption`, table `updateLabel` and table numbering.
-Every table receives a number in document order, regardless of caption or Label, and is
+Every table receives an automatic number in document order or an authored fixed number, regardless of caption or Label, and is
 canonically written as a MyST `{table}` directive. Without caption or Label, the directive
-has neither an argument nor `:name:`. Plain GFM input remains supported and is normalized
+has neither an argument nor `:name:`; its optional fixed number uses `:enumerator:`.
+Plain GFM input remains supported and is normalized
 on any official write. Canonical writing uses the existing Markdown writer for the caption
 and GFM grid, then verifies the complete semantic round-trip. The fingerprint treats only
 the plain top-level table and its empty directive wrapper as equivalent; grid content,
@@ -117,7 +119,7 @@ and citation NodeViews are the same ones used in the body, including computed nu
 readiness, editing and navigation. MyST reads caption citations/endnotes before grid
 cells even though the caption is visually below them; numbering follows that Core order.
 No generated display text enters Markdown. Merged cells, additional legends and directive
-options other than Label (`name` / `label`) reject native admission. Only plain GFM and
+options other than Label (`name` / `label`) and fixed number (`enumerator`) reject native admission. Only plain GFM and
 the exact `{table}` directive are accepted; `{csv-table}`, `{list-table}` and other
 table directives are refused regardless of caption, Label or options. Before lifting,
 Core checks MyST's option map and refuses any VFile diagnostic within the table
@@ -127,6 +129,13 @@ including for YAML options. No new table editor engine or persistence
 architecture is introduced.
 
 CLI: `ieumdoc update-table-caption <file> --path <block> --text <caption>` (empty text removes it), or `--content <InlineContent JSON>`. `update-label` accepts tables; `inspect --format json` includes caption, label and computed table number.
+
+`updateEnumerator` / CLI `update-enumerator` sets or clears the `{table}` enumerator.
+Caption, label, cell and shape edits preserve it. Plain GFM inputs acquire the same canonical
+wrapper when a number is set; every official write already uses that wrapper, including
+without caption, label or number. The [shared fixed-number rules](heading-numbering-v1.md#fixed-numbers-720)
+define warning-only consistency checks. `{list-table}` and `{csv-table}` remain unsupported,
+following the [#597 owner decision](https://github.com/ieumbird/ieumdoc/issues/597).
 
 No new CLI option is needed for #584: `format`, `insert-table`, caption/Label edits and
 `apply-batch` already use the Core write path; `inspect` already projects Core numbers.

@@ -41,7 +41,8 @@ export function toTiptapBlockNode(block: EditableBlock): TiptapJSON {
 }
 
 export function toTiptapBlock(block: EditableBlock): TiptapJSON {
-  const attrs = { sourcePath: pathKey(block.path) };
+  const attrs = { sourcePath: pathKey(block.path),
+    ...("enumerator" in block && block.enumerator !== undefined ? { enumerator: block.enumerator } : {}) };
   switch (block.block) {
     case "heading": return { type: "heading", attrs: { ...attrs, level: block.level }, content: paragraphContent(block.content) };
     case "paragraph": return { type: "paragraph", attrs, content: paragraphContent(block.content) };

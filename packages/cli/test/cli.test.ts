@@ -22,6 +22,7 @@ import {
   validateStructure,
   citationReport,
   updateLabel,
+  numberingReport,
 } from "@ieumdoc/core";
 import { textRevision } from "@ieumdoc/file-commit";
 import { runCli } from "../src/cli.ts";
@@ -40,6 +41,43 @@ for (const [name, target] of [["document.md", fixture], ["technical-document.md"
 const FROM = "The converter regulates voltage.";
 const TO = "The converter regulates voltage and current.";
 const INSERTED = "Added by CLI.";
+
+test("fixed-number CLI edits share revision/dry-run/batch writes and expose nonblocking Core warnings", () => {
+  const file = path.join(fixtures, "fixed-numbers.md");
+  const operations = path.join(fixtures, "fixed-numbers.json");
+  const source = nativeSource(":::{figure}\n:name: fig\n:::\n\n:::{figure}\n:::\n\n| A |\n| --- |\n\nSee {numref}`fig`.\n");
+  writeFileSync(file, source);
+  const args = ["update-enumerator", file, "--path", "1", "--enumerator", "A.3"];
+  const preview = run([...args, "--dry-run", "--format", "json"]);
+  assert.equal(preview.status, 0, preview.stderr);
+  assert.equal(readFileSync(file, "utf8"), source);
+  assert.equal(JSON.parse(preview.stdout).numbering.mode, "fixed");
+  assert.equal(run([...args, "--if-revision", textRevision(source)]).status, 0);
+  const saved = readFileSync(file, "utf8");
+  assert.match(saved, /:enumerator: A\.3/);
+  assert.equal(run([...args, "--if-revision", textRevision(source)]).status, 1);
+  assert.equal(run(["update-enumerator", file, "--path", "4", "--enumerator", "17"]).status, 1);
+  assert.equal(readFileSync(file, "utf8"), saved);
+  writeFileSync(operations, JSON.stringify([{ command: "update-enumerator", path: 2, enumerator: "A.3" }, { command: "update-enumerator", path: 3, enumerator: "17" }]));
+  const batch = run(["apply-batch", file, "--operations", operations]);
+  assert.equal(batch.status, 0, batch.stderr);
+  const inspected = run(["inspect", file, "--format", "json"]);
+  assert.equal(inspected.status, 0, inspected.stderr);
+  const model = JSON.parse(inspected.stdout);
+  const figure = model.nodes.find((node: { type: string }) => node.type === "figure");
+  assert.equal(figure.enumerator, "A.3");
+  assert.deepEqual(figure.numbers, { figure: "A.3" });
+  assert.equal(figure.referenceText, "Figure\u00a0A.3");
+  const checked = run(["check", file, "--format", "json"]);
+  assert.equal(checked.status, 0, checked.stderr);
+  assert.deepEqual(JSON.parse(checked.stdout).numbering, model.numbering);
+  assert.deepEqual(model.numbering.diagnostics.map((d: { code: string }) => d.code), ["numbering-duplicate", "numbering-duplicate"]);
+  assert.match(run(["check", file]).stdout, /warning: numbering-duplicate/);
+  assert.match(run(["inspect", file]).stdout, /enumerator="A\.3"/);
+  const clear = run(["update-enumerator", file, "--path", "1", "--enumerator", ""]);
+  assert.equal(clear.status, 0, clear.stderr);
+  assert.ok(JSON.parse(run(["check", file, "--format", "json"]).stdout).numbering.diagnostics.some((d: { code: string }) => d.code === "numbering-missing"));
+});
 
 test("update-media-references supports dry-run, batch, revision conflict and failure without writes", () => {
   const file = path.join(fixtures, "media-references.md"), batchFile = path.join(fixtures, "media-batch.md"), operations = path.join(fixtures, "media-operations.json");
@@ -571,7 +609,7 @@ test("ieumdoc help exits successfully", () => {
       "Edit — text and content": ["insert-hard-break", "replace-text", "update-heading", "update-admonition-variant", "update-quote", "update-figure", "update-media-references", "update-list", "update-code-block", "update-node-text", "update-equation-latex"],
       "Edit — structure": ["split-paragraph", "merge-paragraph", "update-heading-level", "convert-block", "remove-block", "move-block", "move-section", "remove-section"],
       "Edit — tables": ["insert-table", "insert-table-row", "insert-table-column", "remove-table-row", "remove-table-column", "move-table-row", "move-table-column", "update-table-alignment", "update-table-caption", "update-table-cell"],
-      "Edit — labels, footnotes and numbering": ["insert-citation", "insert-footnote", "insert-target", "remove-citation", "update-bibliography", "update-citation", "update-footnote", "update-heading-numbering", "update-label", "update-reference-templates"],
+      "Edit — labels, footnotes and numbering": ["insert-citation", "insert-footnote", "insert-target", "remove-citation", "update-bibliography", "update-citation", "update-enumerator", "update-footnote", "update-heading-numbering", "update-label", "update-reference-templates"],
       "Format": ["format"],
       "Serve": ["serve"],
     };
@@ -1531,7 +1569,7 @@ test("inspect prints Core editable targets", () => {
     if (quotedParagraph?.block === "paragraph") {
       assert.equal(
         quoted.stdout,
-        `1 paragraph inlineEditable=${quotedParagraph.editable} text=${JSON.stringify(quotedParagraph.text)}\n`,
+        `1 paragraph inlineEditable=${quotedParagraph.editable} text=${JSON.stringify(quotedParagraph.text)}\nnumbering: automatic\n`,
       );
       assert.equal(quoted.stdout.includes("\n\n"), false);
     }
@@ -1591,6 +1629,7 @@ test("inspect and check expose stable machine-readable Core results", () => {
       validation: { valid: true },
       writeability: { writable: true },
       references: { unresolved: [] },
+      numbering: numberingReport(getEditableDocument(parse(before.toString("utf8"))).blocks),
       readiness: { pendingFigures: [], missingImageFigures: [] },
       endnotes: { inPlace: true },
       citations: { bibliography: [], citations: [], readiness: { status: "evaluated", complete: true, diagnostics: [] }, references: [], entries: [] },
