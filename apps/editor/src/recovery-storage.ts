@@ -1,6 +1,4 @@
 import type { DocumentSessionSnapshot } from "./useDocumentSession.ts";
-import type { InlineContent } from "@ieumdoc/core";
-import { toTiptapContent } from "./tiptap-inline.ts";
 
 export const RECOVERY_DAYS = 10;
 export const RECOVERY_DB = "ieumdoc-recovery";
@@ -257,8 +255,7 @@ export function recoveryText(snapshot: DocumentSessionSnapshot): string {
     if (type === "inlineMath") text = string(attrs.value);
     if (type === "crossReference" || type === "footnoteReference") text = string(attrs.label);
     if (type === "citation" && Array.isArray(attrs.keys)) text = attrs.keys.filter(key => typeof key === "string").join(", ");
-    const caption = Array.isArray(attrs.caption) ? visit(toTiptapContent(attrs.caption as InlineContent[])) : string(attrs.caption);
-    const properties = [caption, string(attrs.imageAlt), string(attrs.imageUrl)].filter(Boolean);
+    const properties = [string(attrs.imageAlt), string(attrs.imageUrl)].filter(Boolean);
     if (properties.length) text = [text, ...properties].filter(Boolean).join("\n");
     const links = (node.marks ?? []).filter(mark => mark.type === "link").map(mark => string(mark.attrs?.href));
     return text + links.filter(Boolean).map(link => ` (${link})`).join("");

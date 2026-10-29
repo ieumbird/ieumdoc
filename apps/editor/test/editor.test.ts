@@ -2214,23 +2214,6 @@ test("bibliography declarations survive recovery and acknowledged Save replay wi
   }
 });
 
-test("captionless snapshots restore an empty input surface without changing content or dirty state", () => {
-  const model = loadEditableDocument(nativeSource("| A |\n| - |\n| 1 |\n"));
-  const opening = toTiptapDocument(model);
-  const schema = getSchema(editorExtensions());
-  const saved = editorDocumentJSON(EditorState.create({schema, doc:schema.nodeFromJSON(opening),
-    plugins:[structureGuardPlugin(opening, () => assert.fail("unexpected change"))]}));
-  // Snapshots recorded before #577 legitimately omit the empty caption child.
-  saved.content![0].content = saved.content![0].content!.filter(node => node.type !== "tableCaption");
-  const snapshot = {editorDocument:structuredClone(saved), savedDocument:structuredClone(saved)};
-  const original = structuredClone(snapshot);
-  const restored = prepareEditorSnapshot(schema, opening, snapshot);
-  assert.equal(restored.editorDocument.content![0].content!.at(-1)!.type, "tableCaption");
-  assert.deepEqual(restored.editorDocument, restored.savedDocument);
-  assert.deepEqual(collectSupportedEdits(model, restored.editorDocument), {headings:[], paragraphs:[]});
-  assert.deepEqual(snapshot, original, "The stored recovery record remains unchanged");
-});
-
 test("restore reserves command and engine locators from current and saved snapshots", () => {
   const opening = toTiptapDocument(loadEditableDocument(nativeSource("Start")));
   const schema = getSchema(editorExtensions());
@@ -2313,63 +2296,39 @@ test("engine-created paragraph normalization produces a restorable snapshot", ()
   assert.deepEqual(editorDocument.attrs!.deletedPaths, []);
 });
 
-test("legacy empty deletion sentinel is ignored in both checkpoints, without accepting other damage", () => {
-  const opening = toTiptapDocument(loadEditableDocument(nativeSource("# Title\n\nText")));
-  const schema = getSchema(editorExtensions());
-  const saved = editorDocumentJSON(EditorState.create({schema, doc:schema.nodeFromJSON(opening)}));
-  for (const key of ["editorDocument", "savedDocument"] as const) {
-    const snapshot = {editorDocument:structuredClone(saved),savedDocument:structuredClone(saved)};
-    snapshot[key].attrs!.deletedPaths = [""];
-    const input = structuredClone(snapshot);
-    assert.deepEqual(prepareEditorSnapshot(schema,opening,snapshot)[key],saved);
-    assert.deepEqual(snapshot,input, "Compatibility must not mutate the stored record");
-    for (const invalid of ["999", "new:1", " ", null]) {
-      (snapshot[key].attrs as Record<string, unknown>).deletedPaths = ["",invalid];
-      assert.throws(()=>prepareEditorSnapshot(schema,opening,snapshot),/Invalid editor deletion metadata/);
-    }
-    snapshot[key].attrs!.deletedPaths = [""];
-    snapshot[key].content!.pop();
-    assert.throws(()=>prepareEditorSnapshot(schema,opening,snapshot),/Missing editor deletion metadata/);
-  }
-});
-
-test("legacy caption-attribute recovery is refused without changing the record or losing its readable caption", () => {
-  const source = nativeSource("# Recovery\n\n:::{table} Saved caption\n:name: tbl-a\n\n| Header |\n| --- |\n| Cell |\n:::\n");
+test("unsupported recovery leaves its plaintext copy and other records available", () => {
+  const source = nativeSource("# Recovery\n\nUnsent work.\n");
   const model = loadEditableDocument(source);
   const opening = toTiptapDocument(model);
   const schema = getSchema(editorExtensions());
-  const state = EditorState.create({ schema, doc: schema.nodeFromJSON(opening), plugins: [structureGuardPlugin(opening, () => assert.fail("unexpected change"))] });
-  const savedDocument = editorDocumentJSON(state);
-  const savedTable = savedDocument.content!.find(node => node.type === "table")!;
-  // The previous shipped Editor schema stored all caption content in this attribute.
-  savedTable.attrs!.caption = [{ kind: "text", text: "Saved caption" }];
-  savedTable.content = savedTable.content!.filter(node => node.type !== "tableCaption");
-  const editorDocument = structuredClone(savedDocument);
-  editorDocument.content!.find(node => node.type === "table")!.attrs!.caption = [
-    { kind: "strong", children: [{ kind: "text", text: "Unsent results" }] },
-    { kind: "text", text: " with " }, { kind: "reference", role: "numref", label: "fig-a" },
-    { kind: "text", text: " and " }, { kind: "citation", role: "cite:p", keys: ["Key"] },
-  ];
-  const filePath = path.join(tmpdir(), "legacy-caption.md");
+  const saved = editorDocumentJSON(EditorState.create({ schema, doc: schema.nodeFromJSON(opening) }));
+  const filePath = path.join(tmpdir(), "recovery.md");
   const record: RecoveryRecord = {
-    id: "legacy-caption", version: 1, path: filePath, recordedAt: Date.now(), recoveryText: "",
+    id: "current", version: 1, path: filePath, recordedAt: Date.now(), recoveryText: "",
     snapshot: { file: { path: filePath, source, document: model, revision: "a".repeat(64), endnotesInPlace: true },
-      editor: { editorDocument, savedDocument } },
+      editor: { editorDocument: structuredClone(saved), savedDocument: saved } },
   };
   record.recoveryText = recoveryText(record.snapshot);
-  const persisted = structuredClone(record); // IndexedDB records use the structured clone algorithm.
-  const original = structuredClone(persisted);
-  assert.throws(() => prepareRecovery(persisted), /Incompatible editor snapshot/);
-  assert.deepEqual(persisted, original, "refusing restore must keep the complete recorded rich caption");
-  for (const text of ["Unsent results", "fig-a", "Key", "Header", "Cell"]) assert.ok(persisted.recoveryText.includes(text), text);
+  const unsupported = structuredClone(record);
+  unsupported.id = "unsupported";
+  unsupported.snapshot.editor.editorDocument.attrs!.deletedPaths = [""];
+  // Rejection must preserve the stored copy verbatim, independently of schema traversal.
+  unsupported.recoveryText = "Unsent work.\nPreviously stored caption.";
+  // IndexedDB returns structured clones, including plain-object attribute maps.
+  const records = structuredClone([unsupported, record]);
+  const before = structuredClone(records);
+  assert.throws(() => prepareRecovery(records[0]), /Incompatible editor snapshot: Invalid editor deletion metadata/);
+  assert.equal(records[0].recoveryText, "Unsent work.\nPreviously stored caption.");
+  assert.doesNotThrow(() => prepareRecovery(records[1]));
+  assert.deepEqual(records, before, "Review cannot replace records or their opening documents");
 });
 
 test("plaintext salvage keeps readable content without dumping internal attributes", () => {
-  const editorDocument: TiptapJSON = {type:"doc",attrs:{deletedPaths:[""],headingNumbering:{enabled:[true],counts:[],enumerators:[],offset:0}},content:[
+  const editorDocument: TiptapJSON = {type:"doc",attrs:{deletedPaths:[],headingNumbering:{enabled:[true],counts:[],enumerators:[],offset:0}},content:[
     {type:"heading",attrs:{sourcePath:"new:1",level:1},content:[{type:"text",text:"Paper"}]},
     {type:"paragraph",content:[{type:"text",text:"Linked",marks:[{type:"link",attrs:{href:"https://example.com"}}]},{type:"text",text:" prose"},{type:"inlineMath",attrs:{value:"a+b"}}]},
     {type:"equation",attrs:{latex:"x^2",sourcePath:"new:2"}},
-    {type:"table",attrs:{caption:[{kind:"text",text:"Results"}]},content:[{type:"tableRow",content:[{type:"tableCell",content:[{type:"paragraph",content:[{type:"text",text:"Cell A"}]}]},{type:"tableCell",content:[{type:"paragraph",content:[{type:"text",text:"Cell B"}]}]}]}]},
+    {type:"table",content:[{type:"tableRow",content:[{type:"tableCell",content:[{type:"paragraph",content:[{type:"text",text:"Cell A"}]}]},{type:"tableCell",content:[{type:"paragraph",content:[{type:"text",text:"Cell B"}]}]}]},{type:"tableCaption",content:[{type:"text",text:"Results"}]}]},
     {type:"figure",attrs:{imageUrl:"image.png",imageAlt:"Diagram"},content:[{type:"text",text:"Figure caption"}]},
   ]};
   const text = recoveryText({editor:{editorDocument}} as DocumentSessionSnapshot);

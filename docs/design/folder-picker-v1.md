@@ -1,6 +1,7 @@
 # Folder picker v1
 
 - Status: Implemented
+- Non-overlapping roots verification: 2026-10-29 (#702: Editor 338 unit tests, typecheck/build; persistent Chrome folder-navigation/memory, layout-rules, quiet-document, document-tabs, editor-shell and reveal-folder; [behavior and captures](editor-ux-shell-v1.md#non-overlapping-opened-folders-702)).
 - New-document entry verification: 2026-10-27 (#553: existing picker/New folder → filename handoff, cancellation/focus, real-file creation/Save/Reload; Editor 291 tests, typecheck/build and targeted browser regressions; [shell contract and comparison](editor-ux-shell-v1.md#new-document-entry-553)).
 - Folder refresh verification: 2026-10-26 (#494: loaded-list refresh and asset parent updates; [behavior and verification](editor-ux-shell-v1.md#folder-refresh-494)).
 - Last verified: 2026-10-26 (#522 option A: Editor 291 tests, typecheck/build, folder/navigation-memory/image/preview/layout/language/state regressions, real HTTP and crash recovery; [fail-first and manual comparisons](#option-a-verification-522)).
@@ -46,8 +47,12 @@ Vite, Windows Desktop and the standalone [HTTP Host](http-host-v1.md) reuse this
   containing root. Paths name server folders. The path field can choose another allowed root.
   Recent folders outside current roots are hidden without deleting the preferences; Host validation
   remains authoritative for every request. No roots are merged into a Workspace.
-- Open adds the folder to the sidebar's opened folders ([ADR-0009](../adr/0009-multiple-opened-folders.md));
-  one already open is listed again in place, retaining its section collapse and child expansion
+- Open adds an unrelated folder to the sidebar's opened folders ([ADR-0009](../adr/0009-multiple-opened-folders.md));
+  a descendant is revealed and selected in its existing ancestor with a Korean/English notice;
+  a new ancestor absorbs descendant sections and transfers expansion at the first absorbed position
+  ([#702](editor-ux-shell-v1.md#non-overlapping-opened-folders-702)). Recent Open and saved-root
+  restoration apply the same containment reduction without changing Host path identity (#372).
+  One already open is listed again in place, retaining its section collapse and child expansion
   (#425). Close removes that root's collapse record, so a later Open starts expanded; this differs
   from Reload/Desktop restart, which restore remembered section collapse. Only collapsed root paths
   are stored in origin-specific `ieumdoc.collapsedFolderSections`; child expansion/listings remain
@@ -270,7 +275,7 @@ choosing a folder is interface/Host navigation, not a document semantic operatio
 - The New dialog's Location field shows and chooses the destination: all opened folders and
   every sub-folder listed in their trees so far, expanded or not. Each Host-normalized path appears
   once. In opened-folder order, then tree order, the first occurrence supplies its position and label
-  (named from that opened folder); a later overlapping tree does not rename it.
+  (named from that opened folder). Opened roots do not overlap (#702).
   It starts at the open document's folder when that is inside the chosen folder, otherwise at
   the chosen folder. No hidden state chooses it: expanding or collapsing folders does not.
   A folder deeper than the tree has listed appears once its parent is expanded.

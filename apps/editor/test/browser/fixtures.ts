@@ -255,6 +255,14 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
     files: [{ name: "updates.md", create: () => nativeSource("# Updates\n\nAlpha.\n\n:::{table} Values\n:name: tbl-a\n\n| A |\n| - |\n| 1 |\n:::\n") }],
     scenarios: ["desktop-updates"],
   },
+  "folder-memory-b": {
+    files: [{ name: "b.md", create: () => nativeSource("# B\n\nBody.\n") }],
+    scenarios: ["folder-memory", "folder-navigation"],
+  },
+  "folder-memory-c": {
+    files: [{ name: "c.md", create: () => nativeSource("# C\n\nBody.\n") }],
+    scenarios: ["folder-memory"],
+  },
   "folder-navigation": {
     files: [
       { name: "index.md", create: () => nativeSource("# Index\n\nStart here.\n") },

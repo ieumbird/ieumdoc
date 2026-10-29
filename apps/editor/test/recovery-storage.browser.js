@@ -69,8 +69,11 @@ async page => {
     try { oldDb.transaction(['records','barriers'], 'readwrite'); } catch (error) { oldWriteRefused = error.name === 'InvalidStateError'; }
     check(oldWriteRefused, 'An upgraded-out readonly-protocol connection can still write');
     const fallback = snapshot('Applied text');
-    fallback.editor.editorDocument.content[0].marks = [{type:'link',attrs:{href:'https://example.com/kept'}}];
-    fallback.editor.editorDocument.content[0].attrs = {caption:[{kind:'text',text:'Caption retained'}]};
+    fallback.editor.editorDocument.content[0].content[0].marks = [{type:'link',attrs:{href:'https://example.com/kept'}}];
+    fallback.editor.editorDocument.content.push({type:'table',content:[
+      {type:'tableRow',content:[{type:'tableCell',content:[{type:'paragraph',content:[{type:'text',text:'Cell'}]}]}]},
+      {type:'tableCaption',content:[{type:'text',text:'Caption retained'}]},
+    ]});
     check(recoveryText(fallback).includes('Caption retained') && recoveryText(fallback).includes('https://example.com/kept'), 'Plaintext fallback omitted applied caption or link properties');
     await store.delete();
     const originalTransaction = IDBDatabase.prototype.transaction;
