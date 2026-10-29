@@ -1,4 +1,4 @@
-/** The owning tab's viewport. Callers without a document use the currently visible surface. */
+/** The owning tab's viewport. Callers without a document use the focused surface. */
 export function documentScrollContainer(from: Element | null = document.querySelector('.document-scroll[data-active="true"]')): HTMLElement | null {
   return from?.closest<HTMLElement>(".document-scroll") ?? null;
 }

@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { i18n } from "./i18n.ts";
 import type { LucideIcon } from "lucide-react";
+import { Check } from "lucide-react";
 import { Fragment, useEffect, useRef, type CSSProperties } from "react";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
 
@@ -15,6 +16,8 @@ export type CommandMenuItem = {
   /** A short secondary text, such as the Markdown shortcut for the same block. */
   hint?: string;
   icon?: LucideIcon;
+  /** A single-choice row; false still reserves its radio semantics. */
+  checked?: boolean;
 };
 
 type CommandMenuProps = {
@@ -78,7 +81,8 @@ export function CommandMenu({ label, items, style, activeIndex, focusOnOpen, emp
               : null}
             <button
               type="button"
-              role="menuitem"
+              role={item.checked === undefined ? "menuitem" : "menuitemradio"}
+              aria-checked={item.checked}
               // The hint is secondary text; the item is named by its label alone.
               aria-label={item.label}
               className={`command-menu-item${index === activeIndex ? " active" : ""}${item.danger ? " danger" : ""}`}
@@ -91,6 +95,7 @@ export function CommandMenu({ label, items, style, activeIndex, focusOnOpen, emp
             >
               {Icon ? <Icon className="command-menu-icon" aria-hidden="true" size={16} /> : null}
               <span className="command-menu-label">{item.label}</span>
+              {item.checked ? <Check className="command-menu-icon" aria-hidden="true" size={16} /> : null}
               {item.hint ? <kbd className="command-menu-hint">{item.hint}</kbd> : null}
             </button>
           </Fragment>

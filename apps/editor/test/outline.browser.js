@@ -268,14 +268,14 @@ async (page, { openDocument, reloadDocument, expect }) => {
   await page.getByRole('button', {name:'Document settings', exact:true}).click();
   const toggle = page.getByRole('checkbox', {name:'Number headings', exact:true});
   await toggle.click();
-  await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor h2')?.getAttribute('data-heading-number') === '1' &&
-    document.querySelectorAll('[data-testid="outline"] button')[1]?.textContent.startsWith('1 '));
+  await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor h2')?.getAttribute('data-heading-number') === '1.1' &&
+    document.querySelectorAll('[data-testid="outline"] button')[1]?.textContent.startsWith('1.1 '));
   await page.keyboard.press('Escape');
   await page.getByRole('region', {name:'Document settings',exact:true}).locator('.display-settings').waitFor({state:'hidden'});
-  result.headingNumbersApplied = await editor.locator('h1').getAttribute('data-heading-number') === null &&
-    (await texts())[1].startsWith('1 ');
+  result.headingNumbersApplied = await editor.locator('h1').getAttribute('data-heading-number') === '1' &&
+    (await texts())[1].startsWith('1.1 ');
   await items.nth(1).click();
-  await page.waitForFunction(() => document.querySelector('.document-outline-item[aria-current="location"]')?.textContent.startsWith('1 '));
+  await page.waitForFunction(() => document.querySelector('.document-outline-item[aria-current="location"]')?.textContent.startsWith('1.1 '));
   // Generated numbers share a document color; current navigation retains its selected color.
   const numberColors = () => page.evaluate(() => {
     const root = document.documentElement;
@@ -340,7 +340,7 @@ async (page, { openDocument, reloadDocument, expect }) => {
   await page.keyboard.press('Control+z');
   result.headingNumberingUndo = await editor.locator('h2').first().getAttribute('data-heading-number') === null;
   await page.keyboard.press('Control+Shift+z');
-  result.headingNumberingRedo = await editor.locator('h2').first().getAttribute('data-heading-number') === '1';
+  result.headingNumberingRedo = await editor.locator('h2').first().getAttribute('data-heading-number') === '1.1';
   const acknowledgement = page.waitForResponse(response => response.request().method() === 'POST' && /\/api\/document(?:\?|$)/.test(response.url()));
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await acknowledgement;
@@ -351,7 +351,7 @@ async (page, { openDocument, reloadDocument, expect }) => {
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await page.getByRole('button', {name:'Document settings', exact:true}).click();
   result.headingNumberingReloaded = await toggle.isChecked() &&
-    await editor.locator('h2').first().getAttribute('data-heading-number') === '1';
+    await editor.locator('h2').first().getAttribute('data-heading-number') === '1.1';
   await toggle.click();
   result.headingNumberingDisabled = await editor.locator('h2').first().getAttribute('data-heading-number') === null;
   await page.keyboard.press('Escape');

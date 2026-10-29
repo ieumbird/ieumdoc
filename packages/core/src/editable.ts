@@ -1,6 +1,7 @@
 import type { NodePath } from "./document.ts";
 import { figureCaptionContent } from "./figure.ts";
 import { figureContentKind, supportedFigureContent, type FigureContentKind } from "./myst/figure.ts";
+import { getDocumentTitle } from "./myst/title.ts";
 import { getHeadingNumbering } from "./myst/heading-numbering.ts";
 import type { HeadingNumbering, ReferenceTemplates } from "./numbering.ts";
 import { getReferenceTemplates } from "./myst/reference-templates.ts";
@@ -91,6 +92,7 @@ export type EditableBlock =
     }
   | {
       block: "figure";
+      enumerator?: string;
       path: NodePath;
       label: string;
       /** What the Figure shows: "none", "image" or "mermaid" for supported Figures. */
@@ -106,6 +108,7 @@ export type EditableBlock =
     }
   | {
       block: "table";
+      enumerator?: string;
       path: NodePath;
       rows: EditableTableRow[];
       label?: string;
@@ -123,6 +126,7 @@ export type EditableBlock =
     } & CodeBlockContent)
   | {
       block: "equation";
+      enumerator?: string;
       path: NodePath;
       latex: string;
       label: string;
@@ -136,6 +140,7 @@ export type EditableBlock =
 
 
 export type EditableDocument = {
+  title?: string;
   referenceTemplates?: ReferenceTemplates;
   blocks: EditableBlock[];
   headingNumbering?: HeadingNumbering;
@@ -145,7 +150,8 @@ export function getEditableDocument(document: MystDocument): EditableDocument {
   const blocks = document.children.flatMap((node, index) => node[FRONT_MATTER_FIELD] === true ? [] : [toBlock(node, [index])]);
   const headingNumbering = getHeadingNumbering(document);
   const referenceTemplates = getReferenceTemplates(document);
-  return { blocks, ...(Object.keys(referenceTemplates).length ? { referenceTemplates } : {}), ...(headingNumbering ? { headingNumbering } : {}) };
+  const title = getDocumentTitle(document);
+  return { blocks, ...(title !== undefined ? { title } : {}), ...(Object.keys(referenceTemplates).length ? { referenceTemplates } : {}), ...(headingNumbering ? { headingNumbering } : {}) };
 }
 
 function toBlock(node: MystNode, path: NodePath): EditableBlock {
@@ -199,6 +205,7 @@ function toBlock(node: MystNode, path: NodePath): EditableBlock {
   if (node.type === "math") {
     return {
       block: "equation",
+      ...(node.enumerator !== undefined ? { enumerator: node.enumerator as string } : {}),
       path,
       latex: typeof node.value === "string" ? node.value : "",
       label: nodeLabel(node),
@@ -232,6 +239,7 @@ function figureBlock(node: MystNode, path: NodePath): EditableBlock {
   if (!supported) throw new Error("Unsupported native Figure");
   return {
     block: "figure",
+    ...(node.enumerator !== undefined ? { enumerator: node.enumerator as string } : {}),
     path,
     label: nodeLabel(node),
     contentKind: figureContentKind(node),
@@ -265,6 +273,7 @@ function tableBlock(node: MystNode, path: NodePath): EditableBlock {
   }));
   return {
     block: "table",
+    ...(node.enumerator !== undefined ? { enumerator: node.enumerator as string } : {}),
     path,
     rows,
     ...(nodeLabel(node) ? { label: nodeLabel(node) } : {}),

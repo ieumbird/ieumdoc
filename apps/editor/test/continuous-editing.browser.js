@@ -59,7 +59,12 @@ async (page, { openDocument }) => {
   ];
   const enterScope = async (name, selector, text) => {
     const target = scopedEditor.locator(selector).filter({hasText: text}).first();
-    if (name === 'endnote') await target.dblclick();
+    if (name === 'endnote') {
+      const definition = scopedEditor.locator('[data-testid="footnote-definition"][data-label="a"]');
+      const edit = definition.getByTestId('endnote-edit');
+      if (await edit.count()) await edit.click();
+      await target.click();
+    }
     else await target.click();
     await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.toJSON().type === 'text');
   };

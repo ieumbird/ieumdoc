@@ -1,6 +1,8 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Link opening verification: 2026-10-29 (#725; [contract and captures](#open-ordinary-links-725)).
+- Editor groups verification: 2026-10-29 (#488 phase 1; Editor 341 tests, workspace typecheck/build, related browser regressions and [group/visual evidence](#two-editor-groups-488-phase-1)).
 - Tab-row actions update: 2026-10-29 (#695; [current contract and evidence](#title-strip-and-tab-row-actions-695)).
 - Non-overlapping roots verification: 2026-10-29 (#702: Editor 338 unit tests, typecheck/build; persistent Chrome folder-navigation/memory, layout-rules, quiet-document, document-tabs, editor-shell and reveal-folder; [behavior and captures](editor-ux-shell-v1.md#non-overlapping-opened-folders-702)).
 - Document scroll verification: 2026-10-29 (#488 phase 0; [container contract and evidence](#document-scroll-container-488-phase-0)).
@@ -19,6 +21,7 @@
 - Document settings verification: 2026-10-27 (#580: inline settings, per-tab expansion, notation previews and existing document operations; [integration, checks and captures](#document-settings-placement-554)).
 - New-document entry verification: 2026-10-27 (#553: Editor 291 tests, workspace typecheck/build/docs; new-document, command-center, folder-navigation, editor-shell, ui-language, layout-rules and quiet-document; [behavior and visual comparison](#new-document-entry-553)).
 - Folder refresh verification: 2026-10-26 (#494: Editor 291 tests, typecheck/build, folder-tree failure guard and folder-navigation/image-assets/command-center/folder-memory/layout-rules/quiet-document; actual menu comparison below).
+- List-format verification: 2026-10-29 (#734: explicit handle target, all ten choices/current check, single Undo, typed clipboard and Host Save→Reload; English/Korean 1440px and 640px manual captures).
 - Menu verification: 2026-10-26 (#516: action icons/danger tokens, adjacent block movement/Undo/Save→Reload, title/endnote/draft/boundary restrictions, conversions and slash editor focus; [contract and evidence](#unified-action-menus-516)).
 - Body-heading verification: 2026-10-26 (#472: Editor 287/287, typecheck/build, docs check and new-document, structural-block-authoring, document-title, basic-blocks, markdown-input browser regressions; persistent Chrome in the implementation worktree).
 - Double-click verification: 2026-10-26 (#470: figure-authoring and equation-insertion browser regressions verify the shared Edit path, focus, draft/history preservation and native Figure-caption word selection).
@@ -36,6 +39,106 @@
 - Scope: existing Editor interactions. [Visual Language (current v4.8)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
 
 Historical verification records: [Verification record](#verification-record).
+
+## Two editor groups (#488 phase 1)
+
+There are at most two editor groups, in fixed equal columns separated by a 1px
+structural boundary. Each has its own scrolling tablist and active-document
+Visual/Source, Save/status and File actions at the right. The title strip is shared.
+Pointer or keyboard focus in a group's tabs, actions or document makes that group
+the target of Outline, Command Center and shell shortcuts. Both documents remain
+independently scrollable and editable. The focused group's tab row uses the existing
+selected-surface color as a cue; individual tab selection keeps its accent marker.
+Equal filenames keep their distinguishing parent-folder labels across both groups.
+
+Floating editor controls stay inside their owning group's native document viewport,
+excluding its scrollbar: text formatting, slash/insert/block menus and inline link,
+reference and citation forms. Their existing 8px inset applies on each side. The shared
+bounds helper caps width/height before measuring and placing the overlay, so long menus
+wrap or scroll within the group. It observes that viewport as well as the overlay;
+window resize, group resize/movement and document scrolling refit the same controls.
+Single-group mode retains the previous window/header bounds and CSS size limits.
+
+Open to the right is available in tab context menus, document File actions, Explorer
+document context menus and Command Center. It targets the right group, creating it
+when necessary. Move to other group is available from tab/File menus and Command
+Center when two groups exist. There was no tab drag interaction to extend; these
+commands provide keyboard and pointer movement. An ordinary document Open targets
+the focused group. Selecting an existing tab in Command Center focuses its owner.
+Opening an already open document in another group moves that same tab. No second
+session, editor, undo history, property draft or recovery record is created. Moving
+the last tab out of a group, closing it or deleting its file removes the empty group.
+
+Each group needs **440px**, derived from the supported 640px desktop viewport minus
+the existing 200px narrow expanded Explorer. Split documents use the existing narrow
+paper trailing inset (16px), preserving the 80px starting gutter. The available
+document area must be at least **881px** (2 × 440px + 1px boundary), after the current
+Explorer and docked Outline reservations. Split commands are disabled below this
+width. Resizing the window or opening a side panel below this limit merges both tab
+lists in left-to-right order and retains the focused active tab. Tabs stay mounted;
+unsaved content, drafts, history and each document's scroll position survive. Widening
+the window does not split again automatically.
+
+Group layout is page memory. The existing [navigation-only tab memory](editing-session-save-v1.md#tab-navigation-memory-383)
+continues to remember flattened tab order and the focused active path, without a new
+preference format or recovery mechanism. Reload restores those documents in one
+group through the existing Host validation and recovery precedence. No stored-data
+migration, Core semantic operation or CLI surface is needed for this editor interaction.
+Derived screens, a third group and divider dragging remain outside phase 1.
+
+### Group verification and visual evidence
+
+The #718 review follow-up reproduces a first-paragraph selection at the right edge
+of the left group, 1440×900 with Explorer and docked Outline open. Before correction,
+the group ended at x=711.5 but the 294px toolbar reached x=877.171875; five trailing
+buttons failed native `elementFromPoint` hit tests. The same assertion now measures
+x=409.5…703.5 and all nine actions are reachable. Tab traverses every action and Enter
+opens the final Cross-reference form; pointer activation verifies that same trailing
+action and Link. Reference/Link/Citation forms and slash/block menus also assert their
+owning group bounds, including keyboard-active menu items. These checks supplement the
+existing group/session regression without changing its timeout or retry policy.
+
+Same-state manual [before](assets/editor-groups-488/toolbar-before-1440.png) /
+[after](assets/editor-groups-488/toolbar-after-1440.png) captures use head `74cdecda`,
+then this correction, the same persistent Windows Chrome/profile, English/light,
+1440×900, DPR/zoom 1, bundled Pretendard and the selected `link` in `DC-link voltage`.
+The existing 1440/640px single-group comparisons below remain unchanged.
+The follow-up reran `quiet-document --screenshots` at both widths and matched those
+PNG hashes. `editor-groups`, `link-authoring`, `cross-reference`, `citation-authoring`,
+`basic-blocks` and `layout-rules` pass with the shared bounds correction.
+
+`editor-groups` verifies retained editor identity, content/selection/property drafts,
+Undo/Redo, independent native scroll, group Save/Source, focused shortcut/Command Center/
+Outline, ordinary Open relocation without rereading, Explorer Open to the right,
+empty-group/dirty-close guards, narrow merging and navigation-only Reload. A held
+Host Open response also verifies that actual focus can change groups during loading;
+the immediate focus assertion failed before separating focus from operation guards.
+Existing same-tab navigation-memory regression caught a misplaced early return; it
+still verifies explicit selection overwrites stale shared memory, without changing
+Save or restoration write boundaries. Neither test criterion was relaxed.
+
+Final local `editor-groups` and `quiet-document --screenshots` pass. The related
+`document-tabs`, `document-scroll`, `command-center`, `editor-shell`, `source-view`,
+`save-session` and `layout-rules` scenarios pass. Temporary local stop-after-first-failure
+prevented automatic worker relaunches during diagnosis and is absent from the PR.
+No retries or timeout changes were added. Edge and packaged Desktop remain CI-only.
+
+The same-state Quiet Document pairs below use base `7f6ba127803ad456f57b7c2d8688e638cf6040cb`
+and this implementation, Vite 127.0.0.1:5294, checkout-owned persistent installed Windows
+Chrome, English/light UI, bundled Pretendard loaded, DPR/zoom 1 and 1000px height.
+They retain the existing single-group document, panel and interaction state. The
+Before/After PNG hashes match at both widths. The
+additional 900px-high group captures show two different document scroll positions at
+1440px and their lossless single-group merge at 640px; these are feature evidence,
+not same-state comparisons. At 1440px with both side panels open, each group measures
+471.5px, separated by 1px, and both viewports end at y=900. Their shared message/header
+bottom is y=120 in the captured draft-notice state.
+
+| State | Before | After |
+| --- | --- | --- |
+| Quiet Document, 1440px | [Before](assets/editor-groups-488/before-1440.png) | [After](assets/editor-groups-488/after-1440.png) |
+| Quiet Document, 640px | [Before](assets/editor-groups-488/before-640.png) | [After](assets/editor-groups-488/after-640.png) |
+| Two groups / narrow merge | — | [1440px split](assets/editor-groups-488/groups-1440.png) · [640px merged](assets/editor-groups-488/groups-640.png) |
 
 ## Title strip and tab-row actions (#695)
 
@@ -55,8 +158,8 @@ stable. The compact menu stays available without a document and during pending w
 for the width preference; document-specific commands retain their disabled guards.
 Visual/Source and Save are disabled on the empty start screen. No special tab is added.
 
-Each row receives the actions and status of its own active document. This change
-introduces no groups or split UI. Existing independent tab sessions, Save/shortcut,
+Each row receives the actions and status of its own active document. #488 phase 1
+adds the groups described above. Existing independent tab sessions, Save/shortcut,
 Source, Reload/discard, Compare, Copy path, Command center and error/conflict
 MessageArea paths are retained. Explorer → search → document tabs → document actions →
 content follows DOM keyboard order. Tabs retain roving navigation, close and dirty dots.
@@ -148,7 +251,8 @@ Each mounted document tab owns one native `.document-scroll` viewport. Hiding a 
 its scroll position with its existing editor/session; closing it releases that element. Visual
 and Source share the tab's viewport. No scroll position is persisted across application reloads.
 `documentScrollContainer` is the single lookup for the owning viewport; shell actions can use
-the active surface, including the document start surface. There are no editor groups or new commands.
+the focused surface, including the document start surface. #488 phase 1 bounds each
+visible document's viewport to its editor group; hidden tabs keep their viewport.
 
 The viewport spans the window width **below the measured tabs/messages header** to keep its
 native scrollbar at the right edge only in the document area (#694 follow-up). The root does
@@ -704,26 +808,25 @@ The shell has three responsibilities: the Sidebar on the left browses opened fol
 | Area | Current behavior |
 | --- | --- |
 | Sidebar | Explorer and Collapse Explorer in the header, followed by file navigation; no duplicate New document row with opened folders (#582). There is no Explorer / Display switch. The collapsed 48px rail contains an Explorer icon button at the document-tab row and an icon-only Settings button at the bottom (#671). The Explorer icon restores file navigation; its accessible name and tooltip remain Expand Explorer (탐색기 펼치기), describing the action rather than only naming the panel. Settings uses the same entry component and screen as the expanded footer, at the same vertical position; Back/Escape returns focus to its opening button. Both rail actions are keyboard reachable, have localized names/tooltips and are Desktop no-drag targets. An always-visible Activity bar and additional panels are future work. Explorer contains the opened folders (#112, [ADR-0009](../adr/0009-multiple-opened-folders.md)), each a non-overlapping root section in opening order (ancestor absorption takes the first absorbed position; [#702](#non-overlapping-opened-folders-702)), or, without any, guidance followed by the browser's recent folders (name, full path in `title`): one click lists that folder like Open folder, without opening a document. User-controlled collapse/expand, with a 48px rail when collapsed. No workspace or placeholder navigation. Each folder heading names its folder (disclosure button and name, full path in `title`; [section visibility](#collapsible-folder-sections-425)) with `+` (New document…) and a `⋯` menu containing New folder…, Open folder…, Refresh and Close folder (removes only that folder; tabs stay open). Open folder… adds an unrelated folder; one already open is listed again in place. A descendant is revealed in its ancestor tree, and a new ancestor absorbs its descendant sections ([#702](#non-overlapping-opened-folders-702)). With no opened folder, the empty Explorer panel offers Open folder… and New document…. Below each heading is a folder tree; file listing and activation follow [Folder files and image preview](#folder-files-and-image-preview-217). A `.md` file whose leading frontmatter lacks the native marker stays listed in subtle text with its own icon, and its tooltip and accessible description say it is not an IeumDoc document; opening it still shows the refusal and why ([Folder listing](filesystem-host-boundary-v1.md#folder-listing-v1-112)). On explicit active-document path changes, the containing sections and folders above it expand in each opened folder containing it; a document elsewhere adds nothing to the trees. The opened folders' paths are browser preferences: on start they are listed again in order, and one the Host refuses or no longer has is left out quietly. Child-folder expansion is page state only. Root section collapse is an origin-specific preference restored on Reload/Desktop restart; startup document restoration respects it. Opening document settings or collapsing the sidebar retains the mounted tree, its expansion, scroll and keyboard stop, without listing again. The tree takes the remaining height and scrolls by itself; the open document uses the shared selected surface/text with 600 semibold as a non-color cue, without a left marker there and Close folder removes it. Keyboard: Up/Down, Home/End move through visible items; Right expands a folder or moves into it; Left collapses it or moves to the parent; Enter or Space opens a document or toggles a folder. Explorer does not list the open document separately: the tab row and TopBar name it. |
-| Document settings | Collapsed value summary at the top of the paper, before the title and outside ProseMirror (#580). Expands into grouped field rows for Number headings (H2–H6), Reference style (Default, Concise, Formal, Korean; unmatched values show Custom) with notation previews, and Connect bibliography…. Reuses existing operations, history, dirty indication and Save under the [numbering](heading-numbering-v1.md) and [bibliography](citations-v1.md#connect-and-disconnect-bibliography-files-438) contracts. Command center reveals/expands/focuses it. Field controls disable during pending work; Source/start omit the block and read-only shows only summary. Escape inside collapses and focuses the disclosure; the style menu handles its own Escape first. Bibliography uses the existing connection dialog with return to the row’s Connect button. Expansion is per-tab session only. Opening/collapsing preserves editor instance, selection, history and unapplied drafts. App Settings remains separate and has no document-settings entry (#669). |
+| Document settings | Collapsed value summary at the top of the paper, before the title and outside ProseMirror (#580). Expands into grouped field rows for Number headings (H1–H6), Reference style (Default, Concise, Formal, Korean; unmatched values show Custom) with notation previews, and Connect bibliography…. Reuses existing operations, history, dirty indication and Save under the [numbering](heading-numbering-v1.md) and [bibliography](citations-v1.md#connect-and-disconnect-bibliography-files-438) contracts. Command center reveals/expands/focuses it. Field controls disable during pending work; Source/start omit the block and read-only shows only summary. Escape inside collapses and focuses the disclosure; the style menu handles its own Escape first. Bibliography uses the existing connection dialog with return to the row’s Connect button. Expansion is per-tab session only. Opening/collapsing preserves editor instance, selection, history and unapplied drafts. App Settings remains separate and has no document-settings entry (#669). |
 | Document panel | Outline, Tables and Figures navigation (#613), with 600 semibold, themed surface and segment shadow for the selected tab, muted inactive labels and reserved semibold label width (#620), titled Outline, with no internal close button (#590). The tab-row Outline toggle opens and closes it. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read with selected background/text and 600 semibold (no left marker, #515); a hidden semibold copy reserves its two-line text extent to prevent selection height jumps. The current item stays inside the list's visible area. The list scrolls by itself and is never written to the document. Table/Figure items reuse the body caption prefix and Core reference template (for example `Table 1. Caption`), including in Korean UI; a missing caption shows only the number. At 1424px and wider the panel is docked and starts open; below 1424px it starts closed and, opened, overlays the document below the sticky header instead of narrowing it, so Save, File actions and the Outline toggle stay usable; Escape closes it and returns focus to the tab-row Outline toggle. The docking width is independent of the 1024px narrow sidebar. Entering the overlay layout always closes it. Returning to docked restores the user's last explicit docked open/closed choice, or opens by default if none exists. Overlay interactions do not overwrite that choice. Open/closed is page memory only and resets on reload; no persistent preference is added. |
 | TopBar | Shared single-row brand/search/caption strip; document actions and compact status belong to their owning tab row. See [#695](#title-strip-and-tab-row-actions-695) for responsive search, menu guards and status. Save, Source, Compare, Reload/discard, Copy path and layout preferences retain their existing operations and shortcuts. |
 | Document tabs | Fixed second row below the title strip, with a flat current accent marker (#581). Filename, dirty dot, close button and full-path tooltip; same-named files show the distinguishing parent folder. Only the tablist scrolls; its active-document actions remain fixed to its right (#695). Accessible tablist/tab/tabpanel relationships, Left/Right/Home/End switching and Delete to close remain. Closing selects the right neighbour, else left; an inactive close keeps the current tab. |
 | MessageArea | Load/save errors, conflict and temporary notices below the tab row; no reserved height when empty. Explicit table deletion shows `Table deleted` / `표를 삭제했습니다` with `Undo` / `되돌리기`, using the existing five-second temporary notice, informational surface and polite status role. It takes no focus. Undo restores the table in one editor history step and returns focus to the editor. The notice/action closes on the next document change, Save, Reload (including opening its discard prompt), Source preview request start, tab switch or timeout; a revoked action cannot undo other work. Source cannot undo the hidden Visual document, and returning to Visual does not revive the action. See [Table interaction](table-interaction-v1.md). |
 | Document | Continuous white writing surface with a subtle edge on a muted canvas, extending at least to the bottom of the viewport minus its outer gap. Block tools occupy its gutter. Empty editable documents expose a first-line hint and `+`. No fixed formatting toolbar. |
 
-General file navigation is Open folder… followed by choosing a `.md` file in the sidebar tree; there is no full-file-path dialog (#190). Closing the folder dialog returns focus to the control that opened it. Open folder uses an in-app [folder picker](folder-picker-v1.md), with path completion, breadcrumbs, Up, New folder, recent folders and starting places. Navigating never opens a folder: Enter or Open applies the typed path to the sidebar. A document clicked in the folder opens through Open and its checks ([Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112)). Source previews canonical Markdown read-only. Long source lines, including unbroken URLs/words, soft-wrap to the available width without horizontal scrolling (#476). Line numbers count Markdown lines only; continuations align with their line's text and have no new number. Wrapping changes no document text or saved content, inserts no copied characters or line breaks, and the generated numbers are never copied. Native selection/Copy retains its existing omission of the terminal newline in Chromium. Source does not replace or reconstruct that tab's visual editor state. Pending Source work blocks document switching. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
+General file navigation is Open folder… followed by choosing a `.md` file in the sidebar tree; there is no full-file-path dialog (#190). Closing the folder dialog returns focus to the control that opened it. Open folder uses an in-app [folder picker](folder-picker-v1.md), with path completion, breadcrumbs, Up, New folder, recent folders and starting places. Navigating never opens a folder: Enter or Open applies the typed path to the sidebar. A document clicked in the folder opens through Open and its checks ([Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112)). Source previews canonical Markdown read-only. Long source lines, including unbroken URLs/words, soft-wrap to the available width without horizontal scrolling (#476). Line numbers count Markdown lines only; continuations align with their line's text and have no new number. Wrapping changes no document text or saved content, inserts no copied characters or line breaks, and the generated numbers are never copied. Native selection/Copy retains its existing omission of the terminal newline in Chromium. Source does not replace or reconstruct that tab's visual editor state. Pending Source work blocks switching tabs within its group. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
 
 Opening another document or the folder heading's `+` opens a new tab after Host success; an already-open
-normalized path activates its tab without a Host GET when the requested path matches exactly. Other
+normalized path activates its existing tab in the requested group without a Host GET when the requested path matches exactly. Other
 spellings still use Host normalization. Neither Open/New nor tab switching asks to discard work. Switching
 retains history, block property drafts, selection, scroll and view; transient inline link/math inputs
-close on blur as within one document. Active pending Save/Source/assets/Open/New still
-block it. **Save / Don't save / Cancel** is used for closing one dirty tab. Failed Save, Cancel, or newer
+close on blur as within one document. Pending Save/Source/assets block tab switching within their group; Open/New and close confirmation retain their operation guards. Focus can still move between visible documents. **Save / Don't save / Cancel** is used for closing one dirty tab. Failed Save, Cancel, or newer
 applied edits after Save keep that tab. Inactive tabs keep their state with overlays and measurement
 suspended. Browser unload and Desktop close/update inspect all tabs. See the
 [editing-session contract](editing-session-save-v1.md#switching-and-recovery).
 
-On Reload or Desktop restart, tab paths, order and active identity are restored from browser
+On Reload or Desktop restart, flattened tab paths, order and focused active identity are restored in one group from browser
 preferences, after opened-folder restoration. Missing/refused/non-native documents are quietly
 excluded; no document content, cursor or undo is remembered here. Explicit URL/Desktop launch paths
 win over remembered tabs, and unsaved recovery records retain their existing review flow rather than
@@ -1255,6 +1358,38 @@ This is Editor navigation, so no Core operation or CLI command is added.
 
 Historical listed-search verification, measurements and result-limit decisions: [Listed document search verification](#listed-document-search-verification-384), [Listed search review follow-up](#listed-search-review-follow-up-384) and [Listed search result-limit follow-up](#listed-search-result-limit-follow-up-384).
 
+### Open ordinary links (#725)
+
+An ordinary click keeps editing and never opens a link. Ctrl/Cmd+single click on an ordinary
+link mark opens an absolute http(s) URL with `window.open(url, "_blank", "noopener")`.
+The web Host opens a new tab; Desktop's existing `setWindowOpenHandler` sends it to the
+system browser. Composition, selection drags, multi-clicks and read-only endnotes do not open links.
+The existing Link form also has a keyboard-accessible **Open / 열기** button using its current
+URL input, without applying that draft to the document. Relative paths, fragments, incomplete
+URLs and other schemes disable Open; its wrapper tooltip explains that only external http(s)
+links can be opened. Authoring and preserving those links remain unchanged. This is Editor-only
+interaction; no Core operation or CLI command is needed.
+
+2026-10-29 verification: Editor tests (339), workspace typecheck and Editor build passed.
+The existing `link-authoring` browser scenario covers plain/modified clicks, IME, selection
+drag, read-only endnotes, disabled destinations and the keyboard Open action without applying
+its draft. A real new tab has a null `window.opener`; existing authoring/Save/Reload checks remain.
+Local `layout-rules` and `quiet-document` checks cover the surrounding shared controls.
+Desktop's existing main-process dispatch was inspected; packaged Desktop/Edge execution is left to CI.
+
+The following manual-review captures use Windows persistent Chrome, English UI, Light/Paper,
+900px viewport height, DPR/zoom 1, bundled Pretendard ready, the same fresh `links.md` scratch
+document and selected OpenAI link, URL-input focus and pointer at (0,0). Before uses the original
+Link form from base `7f6ba127803ad456f57b7c2d8688e638cf6040cb`; After uses this implementation.
+Both use the updated fixture including the read-only endnote. Capture through
+`pnpm browser:test link-authoring --screenshots`; generated traces/logs remain in ignored `tmp/`.
+The extra compact outline button wraps with the existing form controls without widening the form.
+
+| Width | Before | After |
+| --- | --- | --- |
+| 1440px | [Before](assets/open-link-725/before-en-1440.png) | [After](assets/open-link-725/after-en-1440.png) |
+| 640px | [Before](assets/open-link-725/before-en-640.png) | [After](assets/open-link-725/after-en-640.png) |
+
 ### Shortcut contract (#381)
 
 The [shared shortcut definitions](../../apps/editor/src/shortcuts.ts) own characters, IME fallback keys, modifiers,
@@ -1326,18 +1461,18 @@ Historical layout-specific failures and browser probes: [Shortcut layout verific
 
 ## Writing interactions
 
-- The leading level-1 heading is the [document title](document-editing-v1.md#document-title-255) and stays first: its handle opens block actions but does not drag, nothing drops above it, and Enter in it continues below it. A document without one shows Add a title above its first block; an empty title shows `Title` and is removed if left empty.
+- The [document title](document-editing-v1.md#document-title-255) is a plain frontmatter string edited above the body. Empty/absent values show an empty input with Add a title placeholder. Every H1–H6 is a body section with ordinary movement, conversion and reference controls; no title is inferred from body position (#722).
 - Hover or keyboard focus reveals the current block's `+` and drag/action handle. Pointer travel into tools preserves them; hover does not change document state. On devices without hover, tools remain visible. A single empty editable paragraph is the starting-state exception: its `+` is always visible, its drag handle hidden, and a non-persistent hint says `Start writing, or type / to add a block.` Typing hides the hint; undo restores it. Clicking the paper below the content continues writing through the existing editor operation.
-- `+` and `/` share supported insert commands, grouped by dividers with an icon and, as a key chip, the Markdown shortcut that makes the same block: Text (Paragraph, Heading 2–6, including without a search query; #575), Lists, Blocks (Note, Warning, Quote, Divider), Technical (Code block, Equation, Figure, Table); slash also offers Endnote ([Endnotes](footnotes-v1.md)) and actual Equation/Figure/Table targets and section references. H1 is never an insert choice, including without a title (#472); Add a title remains the title entry point. The block menu groups conversions, table, section and block actions the same way. Slash keeps editor focus. Gutter-opened menus focus their first item. The command center has inline citation/reference insertion, but no heading insertion items.
+- `+` and `/` share supported insert commands, grouped by dividers with an icon and, as a key chip, the Markdown shortcut that makes the same block: Text (Paragraph, Heading 1–6, including without a search query; #575), Lists, Blocks (Note, Warning, Quote, Divider), Technical (Code block, Equation, Figure, Table); slash also offers Endnote ([Endnotes](footnotes-v1.md)) and actual Equation/Figure/Table targets and section references. H1 is a body insert choice; the separate title input writes frontmatter (#722). The block menu groups conversions, table, section and block actions the same way. Slash keeps editor focus. Gutter-opened menus focus their first item. The command center has inline citation/reference insertion, but no heading insertion items.
 - Slash reference choices show computed display numbers with caption summaries (Equation: label), and search caption words, labels, kinds and display prefix/number; template-based forms such as `Figure 2`, `식 (3)` and `Table 1` remain one slash query. Section choices keep their heading names and creation behavior. Ordering and overflow use the existing shared menu; see [reference search and menu names](section-references-v1.md#editor).
 - `/ref`, `/reference` and `/참조` list all reference kinds, including unlabeled headings. Figure and Table kind keywords (`figure` / `그림`, `table` / `표`) match their respective kinds. Empty queries retain labeled targets only, and unrelated queries do not list references unless their labels, captions or heading words match.
-- Body Paragraph/Heading block menus convert between prose and H2–H6 while preserving supported inline content; line breaks prevent conversion to a Heading. Existing body H1 blocks retain their level on open/edit/Save → Reload and offer H2–H6 and Paragraph. The title's own block menu and explicit title changes remain unchanged. Heading Shift+Tab stops at body H2 (and leaves existing H1 unchanged); the Markdown `# ` input rule still creates H1. This is an Editor authoring choice; Core/CLI H1 support is unchanged. See [document title](document-editing-v1.md#document-title-255). Admonition menus change among the standard kinds.
+- Body Paragraph/Heading menus convert between prose and H1–H6 while preserving inline content; line breaks prevent conversion to a Heading. Tab/Shift+Tab changes level within H1–H6; Markdown `# ` creates a body H1. Title metadata remains independent. See [document title](document-editing-v1.md#document-title-255). Admonition menus change among the standard kinds.
 - Block action menu exposes existing supported deletion, and for a table adding a row below or a column right of the caret's cell; a table's own action bar below it holds Edit (label), Table actions and Delete table; handle drag reorders through the existing editor operation. Unsupported document structures reject [native admission](document-support-v1.md). [Endnotes](footnotes-v1.md#editor) follow their first reference: their handle opens block actions but does not drag, they have no `+`, and a dragged block lands in the body.
 - Text selection in supported paragraphs, headings, quotes, simple admonitions, table cells and Figure/Table captions offers Bold, Italic, Strikethrough, Subscript, Superscript, Inline code, Link, Inline Math and Cross-reference. Each button's tooltip names it with its shortcut where one exists (Bold Ctrl/Cmd+B, Italic Ctrl/Cmd+I, Strikethrough Ctrl/Cmd+Shift+S, Inline code Ctrl/Cmd+E, Link Ctrl/Cmd+'); Cross-reference uses a bookmark icon, as do reference choices in the slash menu. Ctrl/Cmd+, and Ctrl/Cmd+. toggle subscript and superscript; applying one replaces the other. Tab moves from the selection into the toolbar (in table cells and lists Tab keeps its cell/indent meaning); Escape or Shift+Tab returns with the selection unchanged.
 - Figure selection shows the selection outline only. Explicit Edit, selected Enter or double-click on its image surface (including the pending frame and image-load error) opens Image/Alt text/Label fields. All captions are edited directly in the document; caption double-click keeps normal text selection. Metadata Apply preserves the live caption and its formatting. Editing survives selection movement and outside interaction. Core validation failure preserves values. Apply/Cancel and explicit Escape-to-Cancel retain existing behavior; Cancel never removes the Figure.
 - `/figure` and `+` insert an empty Figure without opening its properties; the caret starts in its caption. Image-less Figures, with or without caption or label, remain as pending Figures with a dashed `No content yet` frame. Clicking the frame selects the Figure; existing Edit connects an image URL later. Pending Figures retain normal Figure metadata, numbering and references and are included in Save/Source. See [Figure authoring](figure-authoring-v1.md).
 - Equations, Figures, Tables, inline math and section labels use the shared explicit properties form: selecting a block opens no panel; Edit opens its explicit form (Equation in its document block with LaTeX, draft preview, number and label; Figure in a popover with image, alt text and label), with Apply/Cancel and Escape. Figure image surfaces, block/inline formula previews and Table metadata offer double-click through the same path; Enter on a selected Figure, Table or math node also opens properties (#557). Figure/Table caption and cell double-click keeps native text selection. Inline math has an explicit Cancel button and retains its unapplied draft on outside focus, Save/Source and tab switching. Edit, double-click and selected Enter focus the first field; closing retains a text selection inside the block or returns a [caret after the block](document-editing-v1.md#continuous-editing), so subsequent typing preserves it. Opening properties and focus restoration change neither document nor history; double-click while already editing leaves the existing form untouched. Unapplied changes retain the block-local notice and an explicit applied-only Save/Source notice.
-- Authoring restrictions, reference chips, caption text and errors stay visible. Authoring metadata is hidden at rest and revealed during interaction; actual labels remain explicit in properties/editing. Figure, Equation and every Table number are computed for display and never written into their text. Table numbers do not depend on caption or Label; [all tables use numbered directives](table-caption-v1.md). The [Number headings](heading-numbering-v1.md) checkbox in Document settings optionally numbers H2–H6 in the document and Outline, leaves H1 as a title, and saves MyST numbering settings only.
+- Authoring restrictions, reference chips, caption text and errors stay visible. Authoring metadata is hidden at rest and revealed during interaction; actual labels remain explicit in properties/editing. Figure, Equation and every Table number are computed for display and never written into their text. Table numbers do not depend on caption or Label; [all tables use numbered directives](table-caption-v1.md). The [Number headings](heading-numbering-v1.md) checkbox in Document settings optionally numbers H1–H6 body sections in the document and Outline, leaves the frontmatter title unnumbered, and saves MyST numbering settings only.
 
 ### Unified action menus (#516)
 
@@ -1352,19 +1487,32 @@ and draft reasons are exposed as accessible descriptions and tooltips. Boundary 
 also explain their direction: `There is no body block above this one.` /
 `There is no body block below this one.` (Korean: `위로 이동할 본문 블록이 없습니다.` /
 `아래로 이동할 본문 블록이 없습니다.`), using both tooltip and accessible description.
-Fixed title/endnote reasons retain their priority. Otherwise an active properties
+Fixed endnote reasons retain their priority. Otherwise an active properties
 draft's Apply or Cancel reason precedes the boundary reason, so the menu explains
 the user action needed before movement can become available.
 
-Body Paragraph/Heading conversions offer H2–H6 and Paragraph for headings, excluding
-the current level. The title retains its existing explicit conversions and disabled
-current level. No body H1, Duplicate or list conversion is added.
+Body Paragraph/Heading conversions offer H1–H6 and Paragraph for headings, excluding
+the current level. Frontmatter title is not a block conversion target. No Duplicate
+or list conversion is added.
+
+Numbered-list block handles offer **List format / 목록 형식** (#734). It opens one
+shared action-menu list with `1.`, `1)`, `a.`, `a)`, `A.`, `A)`, `i.`, `i)`, `I.`,
+`I)` preview labels and a check on the current format. Bullet-list menus omit this
+entry. Selection applies to the handle's top-level list, preserving its start,
+items and nested lists' independent formats; cursor position does not retarget it.
+One format change is one engine transaction and one Undo. Save uses the existing
+Core `updateList` replay and its [ordered-format contract](document-support-v1.md#ordered-list-formats-734),
+also available through CLI `--list` JSON. Choosing the current format leaves history
+unchanged. The Editor renders each list's effective style and delimiter, including
+nested lists, and its typed clipboard retains both through paste. Split, merge,
+item deletion and Undo retain the containing list's attributes. Direct `a) ` typing
+input rules and external HTML/PDF rendering are outside this change.
 
 Move up / Move down swap the block with its adjacent body block through the same
 reorder transaction as drag, with one-step Undo. They are disabled at boundaries,
-for the title and its preceding label targets, for endnotes, and while that block
+for endnotes, and while that block
 has an active properties draft, using the drag restriction reasons. Nothing moves
-above the title or into endnotes. A heading moves as one block; the existing separately
+into endnotes. The leading H1 has no special movement restriction. A heading moves as one block; the existing separately
 named Move section up/down and Delete section retain their section meaning. Save
 uses the existing Core `moveBlock` replay (CLI `move-block`); no new Core operation
 or CLI command is needed. Delete paths, reference warnings and the table deletion
@@ -1409,7 +1557,7 @@ and accessible description before retaining the existing boundary/Undo/Save cove
 ### Default heading choices (#575)
 
 The default `+` and slash insert lists show Heading 2–6 in their existing Text
-order. Search aliases, group order, insertion and H1 restrictions stay unchanged.
+order. Search aliases and group order stay unchanged. #722 later expands body insertion to H1.
 This changes Editor command discovery only; no Core semantic operation or CLI
 surface is needed.
 
@@ -1449,7 +1597,7 @@ list item (#366), plus Editor tests, typecheck/build and documentation checks.
 | Table header/body cell | Yes; inline menu only | Yes | `updateTableCell` |
 | Figure caption | Yes; inline menu only | Yes | `updateFigure` with inline caption content |
 | Table caption | Yes; inline menu only | Yes | `updateTableCaption` with inline caption content |
-| Heading, including document title | Yes; inline menu only | Yes | `updateHeadingInlineContent` |
+| Body heading (H1–H6) | Yes; inline menu only | Yes | `updateHeadingInlineContent` |
 | Code / property fields | No menu | No menu | Code and fields keep literal input |
 
 The Editor schema mirrors these existing Core inline contracts (in particular, a definition
@@ -1974,7 +2122,7 @@ after each test. No keymap is added or overridden to make the guide match.
 | Enabled StarterKit marks, hard break and history | Bold/Italic case aliases, strike, hard breaks, Undo/Redo including Russian-layout aliases |
 | Explicit Code/Subscript/Superscript/List extensions | Inline formatting, list toggles, list indentation/split/delete, code toggle/indent/newline/boundary exit |
 | `document-interaction.ts` | Clipboard admission, heading/table Tab, Enter, deletion, document end and final-block navigation; opaque IME uses the same matcher and history dispatch |
-| `document-title.ts`, `markdown-input-rules.ts`, `DocumentEditor.tsx` | Title Enter, input-rule Undo precedence, selection-toolbar Tab, slash menu and link shortcut |
+| `document-title.tsx`, `markdown-input-rules.ts`, `DocumentEditor.tsx` | Metadata title input/history, input-rule Undo precedence, selection-toolbar Tab, slash menu and link shortcut |
 | Shell, selection/property/citation forms and shared dialogs | Navigation, completion, activation, tab close, cancellation and focus return in their existing contexts |
 
 The macOS extra document-end key is Cmd+ArrowDown; Cmd+End remains listed because it is also
@@ -2175,6 +2323,14 @@ content. The review's non-blocking record-disappearance observation was not repr
 flow; no separate recovery defect or cause is asserted. Existing recovery browser regressions
 also pass. Local follow-up: targeted unit tests 79, Editor unit tests 320, workspace typecheck,
 Editor/CLI build, docs checks and Vite image-assets/figure-authoring/file-actions/recovery pass.
+
+## Desktop log folder (#712)
+
+Desktop Settings → About & updates also offers **Open log folder** / **로그 폴더 열기**
+(#712), using the existing small secondary button. It disables during the request and
+shows a localized failure notice on error. This control is absent from HTTP Host and
+Vite; the [Desktop diagnostic contract](desktop-distribution-v1.md#log-folder-and-process-diagnostics-712)
+owns its fixed path, IPC and logging behavior.
 
 ## Settings document entry removal (#669)
 

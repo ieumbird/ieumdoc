@@ -26,7 +26,8 @@ export function pathKey(path: NodePath): string {
 export function toTiptapDocument(document: EditableDocument): TiptapJSON {
   return {
     type: "doc",
-    ...(document.headingNumbering || document.referenceTemplates ? { attrs: {
+    ...(document.title !== undefined || document.headingNumbering || document.referenceTemplates ? { attrs: {
+      ...(document.title !== undefined ? { title: document.title } : {}),
       ...(document.headingNumbering ? { headingNumbering: document.headingNumbering } : {}),
       ...(document.referenceTemplates ? { referenceTemplates: document.referenceTemplates } : {}),
     } } : {}),
@@ -41,7 +42,8 @@ export function toTiptapBlockNode(block: EditableBlock): TiptapJSON {
 }
 
 export function toTiptapBlock(block: EditableBlock): TiptapJSON {
-  const attrs = { sourcePath: pathKey(block.path) };
+  const attrs = { sourcePath: pathKey(block.path),
+    ...("enumerator" in block && block.enumerator !== undefined ? { enumerator: block.enumerator } : {}) };
   switch (block.block) {
     case "heading": return { type: "heading", attrs: { ...attrs, level: block.level }, content: paragraphContent(block.content) };
     case "paragraph": return { type: "paragraph", attrs, content: paragraphContent(block.content) };
@@ -68,7 +70,7 @@ export function toTiptapBlock(block: EditableBlock): TiptapJSON {
 function listNode(list: ListContent): TiptapJSON {
   return {
     type: list.ordered ? "orderedList" : "bulletList",
-    ...(list.ordered ? { attrs: { start: list.start } } : {}),
+    ...(list.ordered ? { attrs: { start: list.start, style: list.style ?? "decimal", delimiter: list.delimiter ?? "." } } : {}),
     content: list.items.map(item => ({
       type: "listItem",
       content: [

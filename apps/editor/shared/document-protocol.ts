@@ -114,9 +114,9 @@ export type InsertEdit =
   | { block: "quote"; content: InlineContent[] }
   | { block: "footnote"; label: string; content: InlineContent[] }
   | { block: "divider" }
-  | { block: "equation"; latex: string; label?: string }
-  | ({ block: "figure"; label?: string } & FigureContent)
-  | { block: "table"; rows: InlineContent[][][]; align?: ("left" | "center" | "right" | null)[]; caption?: InlineContent[]; label?: string }
+  | { block: "equation"; latex: string; label?: string; enumerator?: string }
+  | ({ block: "figure"; label?: string; enumerator?: string } & FigureContent)
+  | { block: "table"; rows: InlineContent[][][]; align?: ("left" | "center" | "right" | null)[]; caption?: InlineContent[]; label?: string; enumerator?: string }
   | { block: "list"; list: ListContent }
   | ({ block: "code" } & CodeBlockContent)
   /** A `(label)=` target, labeling the block after it (a section heading in the Editor). */
@@ -125,9 +125,11 @@ export type InsertEdit =
 export type OrderItem = { path: NodePath; part: number } | { insert: number };
 
 export type SupportedEdits = {
+  /** Plain frontmatter title; null removes the optional field. */
+  title?: string | null;
   /** Staged document-relative declarations; [] removes the optional field through Core. */
   bibliography?: string[];
-  /** Default document policy: H1 title, numbered H2-H6; false disables heading numbers. */
+  /** Default document policy: numbered H1-H6 body sections; false disables heading numbers. */
   headingNumbering?: boolean;
   referenceTemplates?: import("@ieumdoc/core").ReferenceTemplateUpdate;
   order?: OrderItem[];
@@ -145,6 +147,8 @@ export type SupportedEdits = {
   lists?: ListEdit[];
   codes?: CodeEdit[];
   labels?: LabelEdit[];
+  /** Authored fixed numbers; empty `to` clears through Core updateEnumerator. */
+  enumerators?: { path: NodePath; from: string; to: string }[];
   splits?: { path: NodePath; parts: InlineContent[][] }[];
   merges?: { paths: NodePath[]; parts: InlineContent[][] }[];
   inserts?: InsertEdit[];

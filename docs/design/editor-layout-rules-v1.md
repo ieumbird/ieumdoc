@@ -1,6 +1,7 @@
 # Editor Layout Rules v1
 
 - Status: Implemented
+- Editor groups verification: 2026-10-29 (#488 phase 1; 440px minimum per group, fixed equal columns, narrow merging and [1440/640px evidence](editor-ux-shell-v1.md#two-editor-groups-488-phase-1)).
 - Tab-row actions update: 2026-10-29 (#695; [contract and evidence](editor-ux-shell-v1.md#title-strip-and-tab-row-actions-695)).
 - Document scroll verification: 2026-10-29 (#488 phase 0 and #694 header follow-up; [viewport geometry and captures](editor-ux-shell-v1.md#document-scroll-container-488-phase-0)).
 - Brand title-strip update: 2026-10-28 (#647; title strip spans all columns, side headers align with document tabs).
@@ -34,6 +35,17 @@
 [ADR-0010](../adr/0010-supported-viewport-and-input.md) defines a minimum viewport width of **640px**, with keyboard and pointer input. Viewports below 640px and touch-only entry are outside support and verification. Existing no-hover fallbacks may remain without creating a touch requirement.
 
 ## Alignment and ownership
+
+- Editor groups (#488 phase 1) use equal fixed columns with a 1px structural divider.
+  Each needs 440px, the existing 640px supported viewport less the 200px narrow Explorer.
+  Available document area must therefore reach 881px before splitting. A narrower
+  area merges groups without unmounting tabs or losing their editing/scroll state.
+  Split paper uses the existing 80px starting gutter and 16px narrow trailing inset;
+  each native scrollbar belongs to its group. The shared title strip stays 40px;
+  both tab rows stay 32px plus the boundary. See the [group contract](editor-ux-shell-v1.md#two-editor-groups-488-phase-1).
+  Floating editor controls fit and cap their size to the owning group's client viewport,
+  excluding the native scrollbar, with the existing 8px edge inset. Overlay and viewport
+  resize/scroll recompute placement; one group retains its previous window bounds.
 
 - The bottom Settings icon carries an 8px update dot in the same icon slot in both expanded Sidebar and collapsed rail (#665), without changing button targets or footer placement. Dot activation opens About & updates; its update actions receive an inset accent outline and selected-surface background. See the [update contract and captures](desktop-distribution-v1.md#settings-update-cue-verification-665).
 
@@ -104,8 +116,9 @@ clearance. Sidebar and Outline retain their independent scroll regions. See the
 - B1 (#514): standard controls/inputs 32px; compact controls/actions/fields 28px; control radius 6px; UI text 14/20px; line icons 16px. Use Button/Input and existing size/radius/UI tokens; do not derive control metrics from document type. Measure actual rendered height after transitions complete. Role-specific exceptions and reasons are in [Visual Language](editor-visual-language-v1.md#deliberate-control-exceptions): document-sized title/inline/backlinks, metadata, tab/close slots, native checkbox and wrapper-owned path field, 24px inner view segment, multiline fields, wrapping breadcrumbs/list rows and content/surface radii.
 - Existing 4/8/12/16/20/24/32/48/64px spacing scale remains. The paper starts 16px below the header; its adjustable top block padding is 32px (16px at ≤1024px), keeping the content start at 48px (32px at ≤1024px), before block margins.
 - Body: 17/28.9px; UI/caption/table: 14/20px; metadata/status: 12/16px. Heading values and spacing are in Visual Language (current v4.8).
-- Paragraph/block gaps: 16px. Heading before/after: 32/12px. Figure caption gap: 8px.
+- Paragraph/block gaps: 16px. Heading before/after: 32/12px. Figure and Table caption gap: the shared adjustable `--space-document-caption` (8px by default).
 - Figure, Equation and Table authoring metadata takes no layout space: it is positioned in the block gap above its block, right-aligned and clear of the hover outline. A table's 28px row and column handles keep a 32px handle gutter (`--size-table-handle-gutter`): the column handles above the table and the row handles left of the text axis, so the table itself starts on the text axis. Its Edit (caption and label), Table actions and Delete sit together in the action bar below it, starting at the table's start beside Append row, so a table wider than the column keeps them in view before it is scrolled.
+- Table bottom actions and Append row sit after the entire native table, including its caption and empty input surface (#721). The grid reserves their compact-control height plus `--space-2` above and below; caption wrapping and caption-gap tuning cannot move text into those targets. Row handles remain centered on grid rows, outside horizontal scrolling; column handles retain their existing top gutter.
 - Table tools use compact shared Buttons with 6px radii; column width follows the column and row targets stay centered at 28px. B2 (#517) uses centered 16px horizontal column / vertical row line icons in those same hit areas, with address names/tooltips; the layout/command target is unchanged. Breadcrumbs use 28px minimum shared Button geometry with 6px radii and wrapping; the code language uses a recognizable 28px Input. Tiny inline reference/citation edit/remove controls retain the explicit line-height/neighbor-hit-area exception described in Visual Language. Expanded Sidebar Collapse has quiet transparent rest with its disclosure semantics preserved.
 - Endnote definitions: one trailing region, 16/24px text, 24px number inset and space before/after the region, 8px between definitions. Only the first has a 1px rule, 12px to the 12/16px `미주` label, then 8px to the definition. Original source disclosures keep their existing dimensions; the [Endnotes contract](footnotes-v1.md#endnotes-presentation) defines display order and source conversion.
 - `components/ui` and legacy native primitives share product tokens; refs, events and selection are preserved.

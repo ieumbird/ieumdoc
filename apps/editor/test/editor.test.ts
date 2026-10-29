@@ -1182,7 +1182,7 @@ test("Host refuses unsupported documents and Save acknowledges only the written 
       for (const invalid of [null, {}, { ...valid, path: undefined }, { ...valid, revision: undefined },
         { ...valid, revision: 123 }, { ...valid, base: undefined }, { ...valid, base: { source: 123 } },
         { ...valid, base: { source: snapshot, savedEdits: "invalid" } }, { ...valid, paragraphs: {} },
-        { ...valid, headingNumbering: "yes" }]) {
+        { ...valid, title: 42 }, { ...valid, headingNumbering: "yes" }]) {
         const rejected = await fetch(`http://127.0.0.1:${port}/api/${endpoint}`, {
           method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(invalid),
         });
@@ -1197,10 +1197,12 @@ test("Host refuses unsupported documents and Save acknowledges only the written 
         path: writable,
         revision: loadDocumentFile(writable).revision,
         base: { source: readFileSync(writable, "utf8") },
+        title: "HTTP title",
         paragraphs: [{ path: [2], content: [{ kind: "text", text: "Changed." }] }],
       }),
     });
     assert.equal(saved.status, 200);
+    assert.equal(loadDocumentFile(writable).document.title, "HTTP title");
     assert.deepEqual(await saved.json(), { revision: documentRevision(readFileSync(writable, "utf8")) });
   } finally {
     server.closeAllConnections();
@@ -2045,15 +2047,15 @@ test("reorder supports separated split siblings and merging reordered neighbors"
   assert.equal(mergedSave.markdown, nativeSource("CDAB!\n\n# Middle\n"));
 });
 
-test("Save keeps the opening snapshot's title first, wherever its steps pass", () => {
+test("Save allows insertion and movement above the first body H1", () => {
   const markdown = nativeSource("# Title\n\nIntro.\n\n# Other\n\nBody.");
   const editable = loadEditableDocument(markdown);
   const above = toTiptapDocument(editable);
   above.content!.unshift(above.content!.splice(1, 1)[0]);
-  assert.throws(() => saveEdits(markdown, collectSupportedEdits(editable, above)), /document title stays first/);
+  assert.equal(saveEdits(markdown, collectSupportedEdits(editable, above)).markdown, nativeSource("Intro.\n\n# Title\n\n# Other\n\nBody.\n"));
   const inserted = toTiptapDocument(editable);
   inserted.content!.unshift({ type: "paragraph", attrs: { sourcePath: "new:above" }, content: [{ type: "text", text: "Above." }] });
-  assert.throws(() => saveEdits(markdown, collectSupportedEdits(editable, inserted)), /document title stays first/);
+  assert.equal(saveEdits(markdown, collectSupportedEdits(editable, inserted)).markdown, nativeSource("Above.\n\n# Title\n\nIntro.\n\n# Other\n\nBody.\n"));
 });
 
 test("invalid reorder and stale reorder never invoke the writer", () => {
@@ -2148,17 +2150,6 @@ test("Equation edits participate in editor undo and redo", () => {
 });
 
 
-test("canonical reorder that adds a separator block fails before persistence", () => {
-  const markdown = nativeSource("- A\n\nMiddle\n\n- B");
-  let writes = 0;
-  assert.throws(() => commitDocumentSave(() => markdown, () => writes++, {
-    revision: documentRevision(markdown),
-    order: [{path:[1],part:0},{path:[3],part:0},{path:[2],part:0}],
-  }), /changed block boundaries/);
-  assert.equal(writes, 0);
-});
-
-
 test("restored deletion metadata survives engine initialization and acknowledged Save replay", () => {
   const openingSource = nativeSource("# Title\n\nKeep\n\nDelete\n");
   const model = loadEditableDocument(openingSource);
@@ -2248,6 +2239,7 @@ test("restore keeps schema-valid unsaveable content and rejects lossy or corrupt
     assert.throws(() => saveEdits(input, collectSupportedEdits(model, restored.editorDocument)));
   }
   for (const mutate of [
+    (doc: TiptapJSON) => { doc.attrs!.title = 42; },
     (doc: TiptapJSON) => { doc.attrs!.headingNumbering = "invalid"; },
     (doc: TiptapJSON) => { doc.content![0].attrs!.level = "two"; },
     (doc: TiptapJSON) => { doc.content![1].type = "futureNode"; },
@@ -2324,7 +2316,7 @@ test("unsupported recovery leaves its plaintext copy and other records available
 });
 
 test("plaintext salvage keeps readable content without dumping internal attributes", () => {
-  const editorDocument: TiptapJSON = {type:"doc",attrs:{deletedPaths:[],headingNumbering:{enabled:[true],counts:[],enumerators:[],offset:0}},content:[
+  const editorDocument: TiptapJSON = {type:"doc",attrs:{title:"Document title",deletedPaths:[],headingNumbering:{enabled:[true],counts:[],enumerators:[],offset:0}},content:[
     {type:"heading",attrs:{sourcePath:"new:1",level:1},content:[{type:"text",text:"Paper"}]},
     {type:"paragraph",content:[{type:"text",text:"Linked",marks:[{type:"link",attrs:{href:"https://example.com"}}]},{type:"text",text:" prose"},{type:"inlineMath",attrs:{value:"a+b"}}]},
     {type:"equation",attrs:{latex:"x^2",sourcePath:"new:2"}},
@@ -2332,7 +2324,7 @@ test("plaintext salvage keeps readable content without dumping internal attribut
     {type:"figure",attrs:{imageUrl:"image.png",imageAlt:"Diagram"},content:[{type:"text",text:"Figure caption"}]},
   ]};
   const text = recoveryText({editor:{editorDocument}} as DocumentSessionSnapshot);
-  assert.match(text,/Paper\n\nLinked \(https:\/\/example.com\) prosea\+b\n\nx\^2/);
+  assert.match(text,/Document title\n\nPaper\n\nLinked \(https:\/\/example.com\) prosea\+b\n\nx\^2/);
   for (const content of ["Cell A\tCell B", "Results", "Figure caption", "Diagram", "image.png"]) assert.ok(text.includes(content),content);
   assert.doesNotMatch(text,/\[(?:level|latex|caption|marks):|sourcePath|deletedPaths|headingNumbering|"kind"/);
 });

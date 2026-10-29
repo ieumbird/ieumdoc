@@ -1,6 +1,7 @@
 # Desktop distribution and updates v1
 
 - Status: Implemented
+- Log-folder access: 2026-10-29 (#712; [Host-only diagnostics](#log-folder-and-process-diagnostics-712)).
 - Sample safety verification: 2026-10-28 (#686 review fixes; OS-temp ownership/junction/copy/rename unit regressions and Host/client failure propagation; no additional local browser or packaged execution).
 - Feature sample verification: 2026-10-28 (#528 localized folders, Core read-model coverage and canonical CLI check/format; Desktop replacement/preservation unit tests and development browser entry/captures; no local packaged Desktop run).
 - Window startup verification: 2026-10-28 (#643 / #644 review: production-minified renderer bridge matrix, Desktop main lifecycle/strict-IPC unit tests including absent first paint; saved light/flat packaged restart regression is CI-only).
@@ -265,6 +266,41 @@ Manual checks still cover drag, native minimize/maximize/close hit targets (incl
 and press at the bottom edge), double-click maximize, non-default Windows display scaling,
 rendered light/dark symbols and taskbar/Alt+Tab presentation. CI screen pixels do not establish
 real-user Windows acceptance or all display-scale behavior.
+
+## Log folder and process diagnostics (#712)
+
+Settings → About & updates offers **Open log folder** / **로그 폴더 열기** only with
+the Desktop bridge. It uses the existing small secondary Settings button, disables
+while opening, and shows a localized failure notice with retry available. HTTP Host
+and Vite have no such control. The no-argument `desktop:open-log-folder` IPC uses the
+existing trusted main-frame check. Main creates `app.getPath("userData")/logs` recursively
+if absent, then opens it through `shell.openPath`; renderer arguments never select a path.
+Filesystem failures and nonempty OS error results reject the action. No Core/CLI changes.
+
+The existing rotating `logs/desktop.log` writer records main `uncaughtException` and
+default-mode `unhandledRejection` origins through Node's `uncaughtExceptionMonitor`.
+It installs neither an `uncaughtException` nor an `unhandledRejection` handler, preventing
+logging from swallowing a failure or changing Electron/Node's existing disposition.
+The monitor also runs before existing exception handlers. This relies on the runtime's
+default `throw` rejection mode; explicitly overriding it to `warn`/`none` is outside
+this diagnostic guarantee. Only the origin is recorded, never the error/rejection
+message, stack or value, which may contain document content or full paths.
+See [Node's monitor contract](https://nodejs.org/api/process.html#event-uncaughtexceptionmonitor).
+
+`child-process-gone` records only type, reason and exitCode. `render-process-gone`
+records reason and exitCode after normal startup as well as during the existing startup
+failure path; startup dialogs and recovery behavior are unchanged. These are minimal
+process-event records, not complete crash diagnosis. CrashReporter/minidumps, native
+fatal signals and forced process termination are outside this change.
+
+Verification: existing main-wiring tests cover trusted sender checks, fixed-path creation,
+OS/filesystem failures, private-field exclusion and renderer exits after startup. A real
+Node child-process check runs the registered monitor for both exception origins, proving
+that default failures still reach stderr and exit with code 1. The existing `desktop-updates`
+persistent-Chrome scenario covers bridge absence, no-argument calls, pending state and
+failure/retry. Same-state English/Korean 1440×900 and 640×900 captures are retained locally
+under `tmp/712/before` and `tmp/712/after`; these mock-bridge screenshots do not establish
+Windows Explorer opening or native Desktop crash behavior. Packaged Windows checks run in CI.
 
 ## Appearance (#595)
 

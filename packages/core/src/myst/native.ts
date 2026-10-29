@@ -17,6 +17,7 @@ import { tableCellContent, tableOf, tableCaptionParagraph, isNativeTableSource }
 import type { MystDocument, MystNode } from "./tree.ts";
 import { NUMBERED_KINDS, referenceTemplatesError, type NumberedKind } from "../numbering.ts";
 import { referenceTemplateValue } from "./reference-templates.ts";
+import { getDocumentTitle } from "./title.ts";
 import { declaredBibliography } from "./citation.ts";
 
 export type NativeDocumentErrorCode = "native-marker" | "native-metadata" | "native-content";
@@ -61,10 +62,14 @@ function metadata(document: MystDocument): void {
   const marker = yaml.get("ieumdoc", true);
   if (!isScalar(marker) || marker.value !== 1) throw new NativeDocumentError("native-marker", "Unsupported native document marker; expected YAML number ieumdoc: 1", [0], 1);
   for (const pair of yaml.contents.items) {
-    if (!isScalar(pair.key) || !["ieumdoc", "numbering", "bibliography"].includes(String(pair.key.value))) throw new NativeDocumentError("native-metadata", "Native frontmatter supports only ieumdoc, numbering and bibliography", [0], 1);
+    if (!isScalar(pair.key) || !["ieumdoc", "title", "numbering", "bibliography"].includes(String(pair.key.value))) throw new NativeDocumentError("native-metadata", "Native frontmatter supports only ieumdoc, title, numbering and bibliography", [0], 1);
   }
-  try { declaredBibliography(document); }
-  catch (error) { throw new NativeDocumentError("native-metadata", (error as Error).message, [0], 1); }
+  try { getDocumentTitle(document); declaredBibliography(document); }
+  catch (error) {
+    const refusal = new NativeDocumentError("native-metadata", (error as Error).message, [0], 1);
+    refusal.location.action = writeIssueOf(error).action;
+    throw refusal;
+  }
   if (yaml.has("numbering")) {
     const numbering = yaml.get("numbering", true);
     if (!isMap(numbering) || numbering.items.some(pair => {
@@ -83,15 +88,16 @@ function metadata(document: MystDocument): void {
 
 function supportedBlock(node: MystNode): boolean {
   if (!isNativeTableSource(node)) return false;
+  if (node.enumerator !== undefined && (typeof node.enumerator !== "string" || !node.enumerator.trim() || /[\r\n]/.test(node.enumerator))) return false;
   if (node.type === "heading") return supportedHeadingContent(node) !== undefined;
   if (node.type === "paragraph") return fields(node, ["children"]) && projectInlineContent(node) !== undefined;
   if (node.type === "admonition") return supportedAdmonitionContent(node) !== undefined;
   if (node.type === "blockquote") return supportedQuoteContent(node) !== undefined;
   if (node.type === "footnoteDefinition") return supportedFootnoteContent(node) !== undefined;
-  if (node.type === "math") return fields(node, ["value", "label", "identifier", "html_id"]) && typeof node.value === "string" &&
+  if (node.type === "math") return fields(node, ["value", "label", "identifier", "html_id", "enumerator"]) && typeof node.value === "string" &&
     (node.html_id === undefined || (typeof node.identifier === "string" && node.html_id === createHtmlId(node.identifier)));
   if (node.type === "container" && node.kind === "figure") {
-    return fields(node, ["kind", "children", "label", "identifier"]) && supportedFigureContent(node) !== undefined &&
+    return fields(node, ["kind", "children", "label", "identifier", "enumerator"]) && supportedFigureContent(node) !== undefined &&
       (node.children ?? []).every(child => child.type === "image"
         ? fields(child, ["url", "alt"]) : child.type === "mermaid" ? fields(child, ["value"]) : fields(child, ["children"]) && (child.children ?? []).every(paragraph => fields(paragraph, ["children"])));
   }

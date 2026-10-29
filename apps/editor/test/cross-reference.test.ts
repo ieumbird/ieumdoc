@@ -5,10 +5,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { getSchema } from "@tiptap/core";
-import { EditorState } from "@tiptap/pm/state";
+import { EditorState, NodeSelection } from "@tiptap/pm/state";
 import { addSectionLabel, isResolved, newSectionLabel, referenceCommandItems, referenceOfCommand, referenceTargets, referenceDisplay, referencesBrokenByDeletion } from "../src/cross-reference.tsx";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
-import { collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
+import { collectSupportedEdits, freshBlockPath, normalizeEngineDocument, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
 import { fromTiptapContent } from "../src/tiptap-inline.ts";
 import { loadDocumentFile, previewDocumentFile, saveDocumentFile } from "../server/document-api.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
@@ -27,6 +27,79 @@ const source = nativeSource([
   ":::{figure} ./d.svg\n:name: fig-a\n:::",
 ].join("\n\n") + "\n");
 const REFERENCES = "2";
+
+test("fixed numbers cross the real editor schema and Core save replay without loss", () => {
+  const source = nativeSource(":::{figure} ./a.png\n:name: fig\n:enumerator: 17\n\nCaption.\n:::\n\n:::{table}\n:name: tbl\n:enumerator: A.3\n\n| A |\n| --- |\n| 1 |\n:::\n\n```{math}\n:label: eq\n:enumerator: 4-2\n\nx=1\n```\n\n:::{figure}\n:name: diagram\n:enumerator: B.2\n\n```{mermaid}\ngraph TD; A-->B\n```\n:::\n\nSee {numref}`fig` and {eq}`eq`.\n");
+  const schema = getSchema(editorExtensions());
+  const snapshot = loadEditableDocument(source);
+  const projected = toTiptapDocument(snapshot);
+  const state = EditorState.create({ schema, doc: schema.nodeFromJSON(projected) });
+  assert.deepEqual(referenceTargets(state.doc).map(target => target.number), ["17", "A.3", "4-2", "B.2"]);
+  const next = state.doc.toJSON() as TiptapJSON;
+  next.content![0].attrs!.imageAlt = "Edited alt";
+  next.content![1].attrs!.label = "tbl-new";
+  next.content![1].content!.at(-1)!.content = [{ type: "text", text: "Edited caption" }];
+  next.content![2].attrs!.latex = "x=2";
+  const edits = collectSupportedEdits(snapshot, next);
+  const saved = saveEdits(source, edits).markdown;
+  const reopened = loadEditableDocument(saved);
+  assert.deepEqual(reopened.blocks.flatMap(block => "enumerator" in block ? [block.enumerator] : []), ["17", "A.3", "4-2", "B.2"]);
+  assert.equal(saveEdits(saved, collectSupportedEdits(reopened, schema.nodeFromJSON(toTiptapDocument(reopened)).toJSON() as TiptapJSON)).markdown, saved);
+  for (const enumerator of ["17", "A.3", "4-2", "B.2"]) {
+    const rejected: string[] = [];
+    let moved = EditorState.create({ schema, doc: schema.nodeFromJSON(projected), plugins: [structureGuardPlugin(projected, () => rejected.push("rejected"))] });
+    let position = -1;
+    moved.doc.forEach((node, pos) => { if (node.attrs.enumerator === enumerator) position = pos; });
+    assert.notEqual(position, -1);
+    const original = moved.doc.nodeAt(position)!;
+    moved = moved.applyTransaction(moved.tr.setSelection(NodeSelection.create(moved.doc, position)).deleteSelection()).state;
+    // The internal clipboard's freshSlice keeps attrs and assigns a new locator on paste/drop.
+    const pasted = original.type.create({ ...original.attrs, sourcePath: freshBlockPath() }, original.content, original.marks);
+    moved = moved.applyTransaction(moved.tr.insert(moved.doc.content.size, pasted)).state;
+    assert.deepEqual(rejected, []);
+    const movedEdits = collectSupportedEdits(snapshot, editorDocumentJSON(moved));
+    const movedSaved = saveEdits(source, movedEdits).markdown;
+    const movedRead = loadEditableDocument(movedSaved);
+    const last = movedRead.blocks.at(-1)!;
+    assert.equal("enumerator" in last && last.enumerator, enumerator, `new-locator Save/Reload lost ${enumerator}`);
+    assert.equal(saveEdits(movedSaved, collectSupportedEdits(movedRead, schema.nodeFromJSON(toTiptapDocument(movedRead)).toJSON() as TiptapJSON)).markdown, movedSaved);
+  }
+  // Engine-created duplicates receive fresh locators through normalization too.
+  const copySource = source.replace(":name: tbl\n", "");
+  const copySnapshot = loadEditableDocument(copySource);
+  const copyBaseline = toTiptapDocument(copySnapshot);
+  const copied = clone(copyBaseline);
+  copied.content!.push(clone(copied.content![1]));
+  const normalized = normalizeEngineDocument(copyBaseline, copied);
+  assert.notEqual(normalized.content!.at(-1)!.attrs!.sourcePath, copyBaseline.content![1].attrs!.sourcePath);
+  const copySaved = saveEdits(copySource, collectSupportedEdits(copySnapshot, normalized)).markdown;
+  assert.deepEqual(loadEditableDocument(copySaved).blocks.filter(block => block.block === "table").map(block => block.enumerator), ["A.3", "A.3"]);
+  // Property edits use the same real schema/guard, then Core's setting/clearing operation.
+  const edited = EditorState.create({ schema, doc: schema.nodeFromJSON(projected), plugins: [structureGuardPlugin(projected, () => assert.fail("number edit rejected"))] });
+  const changed = edited.applyTransaction(edited.tr.setNodeMarkup(0, undefined, { ...edited.doc.firstChild!.attrs, enumerator: "A.7" })).state;
+  const changedEdits = collectSupportedEdits(snapshot, editorDocumentJSON(changed));
+  assert.deepEqual(changedEdits.enumerators, [{ path: snapshot.blocks[0].path, from: "17", to: "A.7" }]);
+  const numberedSource = saveEdits(source, changedEdits).markdown;
+  assert.equal(referenceTargets(schema.nodeFromJSON(toTiptapDocument(loadEditableDocument(numberedSource))))[0].number, "A.7");
+  const cleared = changed.applyTransaction(changed.tr.setNodeMarkup(0, undefined, { ...changed.doc.firstChild!.attrs, enumerator: null })).state;
+  const clearedEdits = collectSupportedEdits(snapshot, editorDocumentJSON(cleared));
+  assert.deepEqual(clearedEdits.enumerators, [{ path: snapshot.blocks[0].path, from: "17", to: "" }]);
+  const clearedBlock = loadEditableDocument(saveEdits(source, clearedEdits).markdown).blocks[0];
+  assert.equal("enumerator" in clearedBlock ? clearedBlock.enumerator : undefined, undefined);
+  const emptySource = nativeSource("$$\n$$\n");
+  const emptySnapshot = loadEditableDocument(emptySource);
+  const empty = schema.nodeFromJSON(toTiptapDocument(emptySnapshot));
+  const emptyState = EditorState.create({ schema, doc: empty });
+  let emptyPosition = -1;
+  empty.forEach((node, pos) => { if (node.type.name === "equation") emptyPosition = pos; });
+  const emptyFixed = emptyState.apply(emptyState.tr.setNodeMarkup(emptyPosition, undefined, { ...empty.lastChild!.attrs, enumerator: "E.1" }));
+  assert.throws(() => saveEdits(emptySource, collectSupportedEdits(emptySnapshot, editorDocumentJSON(emptyFixed))), (error: unknown) => {
+    assert.equal((error as { code: string }).code, "fixed-number-unrepresentable");
+    assert.match(saveErrorMessage(error), /content|clear/i);
+    return true;
+  });
+  assert.throws(() => saveEdits(source, { enumerators: [{ path: snapshot.blocks[0].path, from: "wrong", to: "9" }] }), /does not match/);
+});
 
 test("deletion notices distinguish a remaining fragment link from a relabel or removal of both link and target", () => {
   const schema = getSchema(editorExtensions());
@@ -422,4 +495,17 @@ test("reference styles derive from template values and editor Save replays autho
   const reset = toTiptapDocument(reopened);
   reset.attrs!.referenceTemplates = null;
   assert.equal(loadEditableDocument(saveEdits(saved.markdown, collectSupportedEdits(reopened, reset)).markdown).referenceTemplates, undefined);
+});
+
+test("numbered section references use Core H1-H6 counters after body section changes", async () => {
+  const { defaultHeadingNumbering } = await import("@ieumdoc/core/numbering");
+  const json = toTiptapDocument(loadEditableDocument(nativeSource("(first)=\n# First\n\n(detail)=\n## Detail\n\n(second)=\n# Second\n")));
+  json.attrs = { ...json.attrs, title: "Independent title", headingNumbering: defaultHeadingNumbering(true) };
+  const schema = getSchema(editorExtensions());
+  const doc = schema.nodeFromJSON(json);
+  assert.equal(referenceDisplay(referenceTargets(doc), "ref", "first").text, "§ 1");
+  assert.equal(referenceDisplay(referenceTargets(doc), "ref", "detail").text, "§ 1.1");
+  assert.equal(referenceDisplay(referenceTargets(doc), "ref", "second").text, "§ 2");
+  json.attrs.headingNumbering = null;
+  assert.equal(referenceDisplay(referenceTargets(schema.nodeFromJSON(json)), "ref", "detail").text, "§ Detail");
 });

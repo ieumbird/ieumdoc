@@ -2,25 +2,21 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { closeHistory } from "@tiptap/pm/history";
 import { Selection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { endnoteLabel } from "./endnotes.ts";
-import { editorTitleIndex, TITLE_FIXED } from "./document-title.ts";
 import { i18n } from "./i18n.ts";
 
 /** Same fixed-block reasons for the drag handle and menu movement. */
 export function blockMoveBlockedHint(state: EditorState, index: number): string | undefined {
   const node = state.doc.maybeChild(index);
   if (node && endnoteLabel(node) !== undefined) return i18n.t("Endnotes follow the order of their first reference. Click for block actions.");
-  const title = editorTitleIndex(state.doc);
-  if (title !== undefined && index <= title) return i18n.t(TITLE_FIXED);
   return undefined;
 }
 
-/** One adjacent body block, with the same title/endnote limits as drag. */
+/** One adjacent body block, with the same endnote limits as drag. */
 export function blockMoveTarget(state: EditorState, index: number, by: -1 | 1): number | undefined {
   if (blockMoveBlockedHint(state, index)) return undefined;
   const to = index + by;
   const target = state.doc.maybeChild(to);
-  const title = editorTitleIndex(state.doc);
-  return target && endnoteLabel(target) === undefined && (title === undefined || to > title) ? to : undefined;
+  return target && endnoteLabel(target) === undefined ? to : undefined;
 }
 
 type Span = { top: number; bottom: number };

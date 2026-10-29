@@ -31,6 +31,16 @@ const technical = [document("technical-document.md"), document("diagram.svg")];
 
 /** Scratch directory under `tmp/` → the files a fresh copy holds, and the scenarios using it. */
 export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: string[] }> = {
+  "caption-selection": { files: [
+    { name: "selection.md", create: () => nativeSource("# Caption selection\n\nBefore.\n\n" +
+      ":::{figure} ./diagram.svg\n:name: fig-a\n\nUpper caption alpha\n:::\n\n" +
+      ":::{figure} ./diagram.svg\n:name: fig-b\n\nLower caption beta\n:::\n\nAfter pair.\n\n" +
+      ":::{figure} ./diagram.svg\n:name: fig-single\n\nSingle caption gamma\n:::\n\n" +
+      ":::{table} Table caption delta\n:name: tbl-a\n\n| Header |\n| --- |\n| Cell text |\n:::\n\nAfter table.\n\n" +
+      ":::{figure}\n:name: fig-mermaid\n\n```{mermaid}\ngraph LR\n  A --> B\n```\n\nMermaid caption epsilon\n:::\n\n" +
+      ":::{figure}\n:name: fig-pending\n\nPending caption zeta\n:::\n\nAfter pending.\n\n```text\nCode alpha\n```\n\nAfter code.[^note-a][^note-b]\n\n[^note-a]: First endnote alpha.\n\n[^note-b]: Second endnote beta.\n") },
+    document("diagram.svg"),
+  ], scenarios: ["caption-selection"] },
   "caption-placeholder": { files: [
     { name: "captions.md", create: () => nativeSource("# Captions\n\nBefore.\n\n:::{table}\n\n| Header |\n| --- |\n| Cell |\n:::\n\n:::{figure} ./diagram.svg\n:::\n\n:::{figure}\n:::\n\n:::{figure}\n\n```{mermaid}\ngraph LR\n  A --> B\n```\n:::\n\nAfter.\n") },
     document("diagram.svg"),
@@ -84,7 +94,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       { name: `${folder}/guide.md`, create: () => document("technical-document.md").create() },
       { name: `${folder}/diagram.svg`, create: () => document("diagram.svg").create() },
     ]),
-  ], scenarios: ["document-tabs", "pre-save-diff", "recovery", "command-center", "inline-document-settings"] },
+  ], scenarios: ["document-tabs", "editor-groups", "pre-save-diff", "recovery", "command-center", "inline-document-settings"] },
   // Preserve the parent directories: the running HTTP Host pins their filesystem identities.
   "http-host-a/fixture": { files: [
     { name: "bibliography.md", create: () => fixture("bibliography.md").create() },
@@ -139,7 +149,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
       { name: "아주-긴-파일명-very-long-technical-document-name-for-visual-review.md", create: () => fixture("quiet-document-long.md").create() }],
     scenarios: ["layout-rules", "quiet-document", "visual-states", "document-scroll"],
   },
-  "reference-save-reload": { files: technical, scenarios: ["reference-save-reload", "ui-language"] },
+  "reference-save-reload": { files: [...technical, { name: "empty-fixed.md", create: () => nativeSource("# Empty fixed equation\n\nBefore.\n\n$$\n$$\n\nAfter.\n") }, { name: "fixed.md", create: () => nativeSource("# Fixed numbers\n\nBefore.\n\n:::{figure} ./diagram.svg\n:name: fixed-image\n:enumerator: 17\n\nImage.\n:::\n\n:::{table}\n:name: fixed-table\n:enumerator: A.3\n\n| A |\n| --- |\n| 1 |\n:::\n\n```{math}\n:label: fixed-equation\n:enumerator: 4-2\n\nx=1\n```\n\n:::{figure}\n:name: fixed-diagram\n:enumerator: B.2\n\n```{mermaid}\ngraph LR\n  A --> B\n```\n\nDiagram.\n:::\n\nSee {numref}`fixed-image`, {numref}`fixed-table`, {eq}`fixed-equation` and {numref}`fixed-diagram`.\n") }], scenarios: ["reference-save-reload", "ui-language"] },
   "bibliography": { files: [
     { name: "refs.bib", create: bibliography },
     { name: "chapters/paper.md", create: () => fixture("bibliography.md").create() },
@@ -156,6 +166,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "block-move": { files: [...technical, { name: "draft-boundaries.md", create: () => nativeSource(
     "# Draft boundaries\n\n```{math}\nx = 1\n```\n\nBetween the equations.\n\n```{math}\ny = 2\n```\n") }], scenarios: ["block-move"] },
   "document-title": { files: [...technical,
+    { name: "chapter.md", create: () => '---\nieumdoc: 1\ntitle: IEEE 1547 · Chapter 7\nnumbering:\n  headings: true\n  title: false\n---\n\n(clause-7)=\n# Power quality\n\n## Detail\n\nSee {ref}`clause-7`.\n\n# Next clause\n\nBody.\n' },
     { name: "untitled.md", create: () => nativeSource("Lead paragraph.\n\n## Part\n\nBody.\n") },
     { name: "untitled-empty.md", create: () => nativeSource("Lead paragraph.\n") }], scenarios: ["document-title"] },
   "table-authoring": { files: [fixture("tables.md")], scenarios: ["table-authoring", "table-caption", "save-error"] },
@@ -210,6 +221,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   },
   "admonition-authoring": { files: [fixture("authoring.md")], scenarios: ["admonition-authoring"] },
   "list-authoring": { files: [fixture("lists.md")], scenarios: ["list-authoring"] },
+  "list-format": { files: [fixture("list-format.md")], scenarios: ["list-format"] },
   "structural-block-authoring": { files: [fixture("structural-block-authoring.md")], scenarios: ["structural-block-authoring"] },
   "markdown-input": { files: [fixture("markdown-input.md")], scenarios: ["markdown-input"] },
   "basic-blocks": { files: [fixture("basic-blocks.md")], scenarios: ["basic-blocks"] },

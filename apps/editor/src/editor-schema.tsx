@@ -29,11 +29,11 @@ import { labelError, labelKey, targetLabelError } from "@ieumdoc/core/label";
 import { Input } from "@/components/ui/input.tsx";
 import { CodeLanguageInput } from "./code-language-input.tsx";
 import { BlockProperties, PropertyForm } from "./block-properties.tsx";
+import { NumberField } from "./numbering-properties.tsx";
 import { useEditorVisible } from "./editor-visibility.ts";
 import { ADMONITION_LABELS, admonitionTone, updateFigure } from "./block-commands.ts";
 import { CrossReference, captionPrefixText, useBlockNumber, useCaptionNumberText } from "./cross-reference.tsx";
-import { Endnotes, canEditEndnoteAt, endnoteAt, endnoteEditingKey, endnoteEditorToken, revealReference, useEndnoteNumber } from "./endnotes.ts";
-import { DocumentTitle, TITLE_FIXED, titleKept } from "./document-title.ts";
+import { Endnotes, canEditEndnoteAt, cancelEndnoteEditing, endnoteAt, endnoteEditingKey, endnoteEditorToken, revealReference, useEndnoteNumber } from "./endnotes.ts";
 import { FootnoteReference } from "./footnote.tsx";
 import { Citation } from "./citation.tsx";
 import { renderEquation } from "./equation-render.ts";
@@ -198,11 +198,20 @@ const SourcedBulletList = BulletList.extend({
 
 const SourcedOrderedList = OrderedList.extend({
   addAttributes() {
-    // The Markdown list start number only; HTML list types have no Markdown form.
     return blockAttrs({
       start: {
         default: 1,
         parseHTML: (element) => element.hasAttribute("start") ? Number.parseInt(element.getAttribute("start") ?? "", 10) : 1,
+      },
+      style: {
+        default: "decimal",
+        parseHTML: element => element.getAttribute("data-list-style") ?? "decimal",
+        renderHTML: attributes => ({ "data-list-style": attributes.style }),
+      },
+      delimiter: {
+        default: ".",
+        parseHTML: element => element.getAttribute("data-list-delimiter") ?? ".",
+        renderHTML: attributes => ({ "data-list-delimiter": attributes.delimiter }),
       },
     });
   },
@@ -352,12 +361,21 @@ const FootnoteDefinition = Node.create({
 });
 
 function FootnoteDefinitionView({ node, editor, getPos, selected }: ReactNodeViewProps) {
+  useTranslation();
   const label = String(node.attrs.label ?? "");
-  const editing = useEditorState({ editor, selector: ({ editor: current }) => !!current && endnoteEditingKey.getState(current.state) === label });
+  const editing = useEditorState({ editor, selector: ({ editor: current }) => !!current && endnoteEditingKey.getState(current.state)?.label === label });
   const begin = () => {
     const pos = getPos();
     if (typeof pos !== "number" || !editor.isEditable) return;
     editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, pos + node.nodeSize - 1)).setMeta(endnoteEditingKey, label));
+    editor.view.focus();
+  };
+  const finish = (cancel: boolean) => {
+    const pos = getPos();
+    if (typeof pos !== "number") return;
+    const tr = cancel ? cancelEndnoteEditing(editor.state) : editor.state.tr
+      .setSelection(NodeSelection.create(editor.state.doc, pos)).setMeta(endnoteEditingKey, null);
+    if (tr) editor.view.dispatch(tr);
     editor.view.focus();
   };
   return (
@@ -371,26 +389,32 @@ function FootnoteDefinitionView({ node, editor, getPos, selected }: ReactNodeVie
       data-editing={String(editing)}
       data-endnote-owner={label}
       data-endnote-editor={endnoteEditorToken(editor)}
+      data-endnotes-heading={i18n.t("Endnotes")}
       role="textbox"
       aria-label={`${i18n.t("Endnote")} ${useEndnoteNumber(editor, label) ?? label}`}
       aria-readonly={!editing}
       aria-multiline="true"
       data-source-path={String(node.attrs.sourcePath ?? "")}
       onMouseDown={(event: ReactMouseEvent) => {
-        if (editing || event.button !== 0 || (event.target as HTMLElement).closest("[data-testid=footnote-number], [data-testid=cross-reference], [data-citation], [data-testid=inline-math]")) return;
+        if (event.button !== 0 || (event.target as HTMLElement).closest("button, [data-testid=footnote-number], [data-testid=cross-reference], [data-citation], [data-testid=inline-math]")) return;
+        if (editing) {
+          if (event.detail === 3) handleTextblockMouseDown(event, { editor, node, getPos });
+          return;
+        }
         const pos = getPos();
         if (typeof pos !== "number") return;
         event.preventDefault();
         editor.view.dispatch(editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, pos)));
         editor.view.focus();
       }}
-      onDoubleClick={(event: ReactMouseEvent) => {
-        if ((event.target as HTMLElement).closest("[data-testid=footnote-number], [data-testid=cross-reference], [data-citation], [data-testid=inline-math]")) return;
-        event.preventDefault();
-        begin();
-      }}
     >
       <EndnoteNumber editor={editor} label={label} />
+      {editor.isEditable ? <div className="endnote-actions" contentEditable={false}>
+        {editing ? <>
+          <Button size="sm" variant="outline" data-testid="endnote-cancel" onClick={() => finish(true)}>{i18n.t("Cancel")}</Button>
+          <Button size="sm" data-testid="endnote-apply" onClick={() => finish(false)}>{i18n.t("Apply")}</Button>
+        </> : <Button size="sm" variant="outline" data-testid="endnote-edit" onClick={begin}>{i18n.t("Edit")}</Button>}
+      </div> : null}
       <NodeViewContent<"p"> as="p" className="footnote-definition-body" />
     </NodeViewWrapper>
   );
@@ -434,6 +458,7 @@ const Figure = Node.create<{ documentPath?: string | (() => string) }>({
     return blockAttrs({
       label: hiddenAttr(""),
       imageUrl: hiddenAttr(""),
+      enumerator: { default: null, rendered: false },
       imageIdentity: hiddenAttr(""),
       imageAlt: hiddenAttr(""),
       mermaidSource: { default: null, rendered: false },
@@ -458,7 +483,7 @@ const Equation = Node.create({
   selectable: true,
   draggable: false,
   addAttributes() {
-    return blockAttrs({ latex: hiddenAttr(""), label: hiddenAttr("") });
+    return blockAttrs({ latex: hiddenAttr(""), label: hiddenAttr(""), enumerator: { default: null, rendered: false } });
   },
   parseHTML() {
     return [{ tag: "div[data-equation]" }];
@@ -511,7 +536,7 @@ const Table = Node.create({
   selectable: true,
   draggable: false,
   addAttributes() {
-    return blockAttrs({ label: hiddenAttr("") });
+    return blockAttrs({ label: hiddenAttr(""), enumerator: { default: null, rendered: false } });
   },
   parseHTML() {
     return [{ tag: "div[data-table-block]", contentElement: "table" }];
@@ -536,12 +561,16 @@ const TableCaption = Node.create({
   },
 });
 
-function focusEmptyCaption(event: ReactMouseEvent, { editor, node, getPos }: Pick<ReactNodeViewProps, "editor" | "node" | "getPos">): void {
-  if (!editor.isEditable || node.content.size !== 0 || event.button !== 0) return;
+function handleTextblockMouseDown(event: ReactMouseEvent, { editor, node, getPos }: Pick<ReactNodeViewProps, "editor" | "node" | "getPos">): void {
+  if (!editor.isEditable || event.button !== 0 || event.defaultPrevented) return;
+  if (node.content.size !== 0 && event.detail !== 3) return;
   const position = getPos();
   if (typeof position !== "number") return;
+  // Outside contentDOM, Tiptap stops the editable wrapper's mousedown. Prevent
+  // native triple-click selection from extending into the following block.
   event.preventDefault();
-  editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, position + 1)));
+  editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, position + 1,
+    event.detail === 3 ? position + node.nodeSize - 1 : position + 1)));
   editor.view.focus();
 }
 
@@ -566,7 +595,7 @@ function TableCaptionView({ node, editor, getPos }: ReactNodeViewProps) {
   const placeholder = useCaptionPlaceholder({ editor, getPos }, "table");
   const numbered = useCaptionNumberText(editor, getPos, "table");
   return <NodeViewWrapper className="caption" data-testid="table-caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}
-    onMouseDown={(event: ReactMouseEvent) => focusEmptyCaption(event, { editor, node, getPos })}>
+    onMouseDown={(event: ReactMouseEvent) => handleTextblockMouseDown(event, { editor, node, getPos })}>
     <NodeViewContent as="div" aria-label={i18n.t("Table caption")} data-empty-caption={node.content.size === 0 || undefined}
       data-placeholder={placeholder} />
   </NodeViewWrapper>;
@@ -590,11 +619,13 @@ function TableView({ node, editor, getPos, selected, onDraftChange }: ReactNodeV
   const label = String(node.attrs.label ?? "");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(label);
+  const enumerator = String(node.attrs.enumerator ?? "");
+  const [numberDraft, setNumberDraft] = useState(enumerator);
   const [error, setError] = useMessageState("");
   const sourcePath = String(node.attrs.sourcePath);
-  const dirty = editing && draft !== label;
+  const dirty = editing && (draft !== label || numberDraft !== enumerator);
   useEffect(() => { onDraftChange?.("Table", sourcePath, dirty); return () => onDraftChange?.("Table", sourcePath, false); }, [sourcePath, dirty, onDraftChange]);
-  const begin = () => { if (!editor.isEditable || editing) return; setDraft(label); setError(""); setEditing(true); };
+  const begin = () => { if (!editor.isEditable || editing) return; setDraft(label); setNumberDraft(enumerator); setError(""); setEditing(true); };
   usePropertyEntry(anchor, begin);
   const close = () => { setEditing(false); focusBlock(editor.view, getPos); };
   const apply = () => {
@@ -603,7 +634,7 @@ function TableView({ node, editor, getPos, selected, onDraftChange }: ReactNodeV
     const position = getPos();
     if (typeof position !== "number") return;
     try {
-      editor.view.dispatch(updateLabelProperties(editor.state, position, { label: draft }));
+      editor.view.dispatch(updateLabelProperties(editor.state, position, { label: draft, enumerator: numberDraft || null }));
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
     close();
   };
@@ -625,6 +656,7 @@ function TableView({ node, editor, getPos, selected, onDraftChange }: ReactNodeV
       error={error} onApply={apply} onCancel={close}>
       <label className="form-label" htmlFor={`table-label-${formId}`}>{i18n.t("Label")}</label>
       <Input ref={input} id={`table-label-${formId}`} data-testid="table-label" value={draft} onChange={event => setDraft(event.target.value)} />
+      <NumberField editor={editor} getPos={getPos} testId="table" value={numberDraft} onChange={setNumberDraft} />
     </BlockProperties>
   </NodeViewWrapper>;
 }
@@ -890,7 +922,6 @@ export function editorExtensions(
     DocumentNumbering,
     PropertyEntry,
     ImageRenames,
-    DocumentTitle,
     Endnotes.configure({ canOrder: () => !hasActiveDraft?.() }),
     TableCellFocus,
     ParagraphHardBreak,
@@ -997,11 +1028,6 @@ export function structureGuardPlugin(baseline: TiptapJSON, onReject: (reason?: U
     // save representation. This retains table/inline validation.
     filterTransaction(transaction, state) {
       if (!transaction.docChanged) return true;
-      // The title stays first (#255): nothing moves it or goes above it.
-      if (!titleKept(transaction.before, transaction.doc)) {
-        onReject({ key: TITLE_FIXED });
-        return false;
-      }
       try {
         const next = normalizeEngineDocument(baseline, {
           ...transaction.doc.toJSON(), attrs: { [DELETED_PATHS_ATTR]: commandDeletions(transaction, declaredDeletions(state)) },
@@ -1076,6 +1102,8 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
   const [draft, setDraft] = useState(applied);
   const previousImage = useRef(applied.imageUrl);
   const [labelDraft, setLabelDraft] = useState(label);
+  const enumerator = String(node.attrs.enumerator ?? "");
+  const [numberDraft, setNumberDraft] = useState(enumerator);
   const appliedStem = imageFileStem(applied.imageUrl);
   const [filename, setFilename] = useState(appliedStem ?? "");
   const canRename = !!renameImage && !!documentPath && appliedStem !== undefined && !imageFailed && draft.imageUrl === applied.imageUrl && !copied.current;
@@ -1085,12 +1113,12 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
   const captionKey = JSON.stringify(applied.caption);
   const hasUnappliedDraft = isUnappliedFigureDraft(editing,
     { ...draft, caption: applied.caption }, applied) ||
-    (editing && (labelDraft !== label || canRename && filename !== appliedStem));
+    (editing && (labelDraft !== label || numberDraft !== enumerator || canRename && filename !== appliedStem));
 
   useEffect(() => {
     if (!editing) {
       setDraft(applied);
-      setLabelDraft(label);
+      setLabelDraft(label); setNumberDraft(enumerator);
       setFilename(appliedStem ?? "");
     } else if (previousImage.current !== applied.imageUrl) {
       // A rename updates applied paths in every Figure. Follow only untouched Image
@@ -1100,7 +1128,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
       setFilename(current => current === imageFileStem(before) ? appliedStem ?? "" : current);
     }
     previousImage.current = applied.imageUrl;
-  }, [editing, applied.imageUrl, applied.imageAlt, captionKey, label]);
+  }, [editing, applied.imageUrl, applied.imageAlt, captionKey, label, enumerator]);
 
   useEffect(() => {
     onDraftChange?.("Figure", sourcePath, hasUnappliedDraft);
@@ -1110,7 +1138,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
   function beginEdit() {
     if (!editableFigure || editing) return;
     setDraft(applied);
-    setLabelDraft(label);
+    setLabelDraft(label); setNumberDraft(enumerator);
     setFilename(appliedStem ?? "");
     setError("");
     setEditing(true);
@@ -1149,7 +1177,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
     setChoosing(false);
     setValidating(false);
     setDraft(applied);
-    setLabelDraft(label);
+    setLabelDraft(label); setNumberDraft(enumerator);
     setError("");
     setEditing(false);
     focusBlock(view, getPos);
@@ -1196,7 +1224,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
     }
     // Validate the exact label/reference transaction before changing any file.
     try {
-      updateFigure(view.state, latestPosition, { imageUrl: candidate.imageUrl, imageAlt: candidate.imageAlt, label: nextLabel });
+      updateFigure(view.state, latestPosition, { imageUrl: candidate.imageUrl, imageAlt: candidate.imageAlt, label: nextLabel, enumerator: numberDraft || null });
       if (canRename && filename !== appliedStem) {
         setValidating(true);
         candidate.imageUrl = await renameImage!(documentPath!, applied.imageUrl, filename);
@@ -1220,8 +1248,8 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
     // One undo step: undo returns the form's previous value.
     try {
       const now = view.state.doc.nodeAt(latestPosition);
-      if (now?.attrs.imageUrl !== attributes.imageUrl || now.attrs.imageAlt !== attributes.imageAlt || now.attrs.label !== nextLabel) {
-        view.dispatch(updateFigure(view.state, latestPosition, { ...attributes, label: nextLabel }));
+      if (now?.attrs.imageUrl !== attributes.imageUrl || now.attrs.imageAlt !== attributes.imageAlt || now.attrs.label !== nextLabel || now.attrs.enumerator !== (numberDraft || null)) {
+        view.dispatch(updateFigure(view.state, latestPosition, { ...attributes, label: nextLabel, enumerator: numberDraft || null }));
       }
     } catch (cause) {
       copied.current = copy;
@@ -1280,7 +1308,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
         <div className="figure-no-content" data-testid="figure-no-content" contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>{i18n.t("No content yet")}</div>
       ) : null}
       <figcaption className="caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}
-        onMouseDown={event => focusEmptyCaption(event, { editor, node, getPos })}><NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")}
+        onMouseDown={event => handleTextblockMouseDown(event, { editor, node, getPos })}><NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")}
         data-empty-caption={node.content.size === 0 || undefined} data-placeholder={placeholder} /></figcaption>
       {editableFigure && !editing ? (
         <Button className="figure-edit" size="sm" variant="outline" aria-label={i18n.t("Edit figure")} contentEditable={false} onClick={beginEdit}>{i18n.t("Edit")}</Button>
@@ -1319,6 +1347,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
             }}
           />
         </label>
+        <NumberField editor={editor} getPos={getPos} testId="figure" value={numberDraft} onChange={value => { setNumberDraft(value); setError(""); }} disabled={validating} />
       </BlockProperties>
     </NodeViewWrapper>
   );
@@ -1378,6 +1407,8 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(applied.mermaidSource!);
   const [labelDraft, setLabelDraft] = useState(label);
+  const enumerator = String(node.attrs.enumerator ?? "");
+  const [numberDraft, setNumberDraft] = useState(enumerator);
   const [error, setError] = useMessageState("");
   const [busy, setBusy] = useState(false);
   const restoreInput = useRef<HTMLElement | null>(null);
@@ -1391,19 +1422,19 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
     if (target?.isConnected && !busy && editing && visible && document.hasFocus() &&
         (document.activeElement === document.body || form?.contains(document.activeElement))) target.focus();
   }, [busy, editing, error, visible]);
-  const hasDraft = editing && (draft !== applied.mermaidSource || labelDraft !== label);
+  const hasDraft = editing && (draft !== applied.mermaidSource || labelDraft !== label || numberDraft !== enumerator);
   const cancelFocus = useSourceInputFocus(input, editing);
   useEffect(() => () => { request.current++; focusTracking.current?.abort(); }, []);
   useEffect(() => {
-    if (!editing) { setDraft(applied.mermaidSource!); setLabelDraft(label); }
-  }, [editing, applied.mermaidSource, label]);
+    if (!editing) { setDraft(applied.mermaidSource!); setLabelDraft(label); setNumberDraft(enumerator); }
+  }, [editing, applied.mermaidSource, label, enumerator]);
   useEffect(() => {
     onDraftChange?.("Figure", sourcePath, hasDraft);
     return () => onDraftChange?.("Figure", sourcePath, false);
   }, [sourcePath, hasDraft, onDraftChange]);
   function beginEdit() {
     if (!view.editable || editing) return;
-    setDraft(applied.mermaidSource!); setLabelDraft(label); setError(""); setEditing(true);
+    setDraft(applied.mermaidSource!); setLabelDraft(label); setNumberDraft(enumerator); setError(""); setEditing(true);
   }
   const [openOnInsert] = useState(() => view.editable && isNewBlockPath(sourcePath));
   useEffect(() => { if (openOnInsert) beginEdit(); }, [openOnInsert]);
@@ -1411,7 +1442,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
   const cancel = () => {
     request.current++; cancelFocus(); setBusy(false);
     focusTracking.current?.abort(); restoreInput.current = null;
-    setDraft(applied.mermaidSource!); setLabelDraft(label); setError(""); setEditing(false);
+    setDraft(applied.mermaidSource!); setLabelDraft(label); setNumberDraft(enumerator); setError(""); setEditing(false);
     focusBlock(view, getPos);
   };
   const apply = async () => {
@@ -1458,7 +1489,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
     const active = document.activeElement;
     const returnFocus = !view.dom.closest("[hidden]") &&
       (active === document.body || Boolean(input.current?.closest("form")?.contains(active)));
-    try { view.dispatch(updateFigure(view.state, latestPosition, { mermaidSource: source, label: labelDraft })); }
+    try { view.dispatch(updateFigure(view.state, latestPosition, { mermaidSource: source, label: labelDraft, enumerator: numberDraft || null })); }
     catch (cause) { reject(cause instanceof Error ? cause.message : String(cause)); return; }
     cancelFocus(); setError(""); setEditing(false);
     if (returnFocus) focusBlock(view, getPos);
@@ -1486,12 +1517,13 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
           <Input data-testid="mermaid-label" disabled={busy} value={labelDraft} placeholder={i18n.t("None")}
             onChange={event => { setLabelDraft(event.target.value); setError(""); }} />
         </label>
+        <NumberField editor={editor} getPos={getPos} testId="mermaid" value={numberDraft} onChange={value => { setNumberDraft(value); setError(""); }} disabled={busy} />
       </PropertyForm>
     </div> : null : <div contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>
       <MermaidPreview source={applied.mermaidSource!} />
     </div>}
     <figcaption className="caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}
-      onMouseDown={event => focusEmptyCaption(event, { editor, node, getPos })}>
+      onMouseDown={event => handleTextblockMouseDown(event, { editor, node, getPos })}>
       <NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")}
         data-empty-caption={node.content.size === 0 || undefined} data-placeholder={placeholder} />
     </figcaption>
@@ -1506,6 +1538,8 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
  * input cannot replace the whole block. Selection changes add no history or document edits.
  */
 function focusBlock(view: ReactNodeViewProps["view"], getPos: ReactNodeViewProps["getPos"]): void {
+  // This is explicit property navigation, not native caret normalization on a preview.
+  view.dom.contentEditable = String(view.editable);
   const position = getPos();
   const node = typeof position === "number" ? view.state.doc.nodeAt(position) : null;
   const current = view.state.selection;
@@ -1540,6 +1574,8 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(latex);
   const [labelDraft, setLabelDraft] = useState(label);
+  const enumerator = String(node.attrs.enumerator ?? "");
+  const [numberDraft, setNumberDraft] = useState(enumerator);
   const [error, setError] = useMessageState("");
 
   const cancelFocus = useSourceInputFocus(latexInput, editing);
@@ -1547,9 +1583,9 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
   useEffect(() => {
     if (!editing) {
       setDraft(latex);
-      setLabelDraft(label);
+      setLabelDraft(label); setNumberDraft(enumerator);
     }
-  }, [editing, latex, label]);
+  }, [editing, latex, label, enumerator]);
 
   const [openOnInsert] = useState(() => view.editable && isNewBlockPath(String(node.attrs.sourcePath)) && latex.length === 0);
   useEffect(() => {
@@ -1559,7 +1595,7 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
 
   const sourcePath = String(node.attrs.sourcePath ?? "");
   const hasUnappliedDraft = isUnappliedEquationDraft(editing, draft, latex) ||
-    (editing && labelDraft !== label);
+    (editing && (labelDraft !== label || numberDraft !== enumerator));
   useEffect(() => {
     onDraftChange?.("Equation", sourcePath, hasUnappliedDraft);
     return () => onDraftChange?.("Equation", sourcePath, false);
@@ -1568,7 +1604,7 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
   function beginEdit() {
     if (!view.editable || editing) return;
     setDraft(latex);
-    setLabelDraft(label);
+    setLabelDraft(label); setNumberDraft(enumerator);
     setError("");
     setEditing(true);
   }
@@ -1576,7 +1612,7 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
   const cancel = () => {
     cancelFocus();
     setDraft(latex);
-    setLabelDraft(label);
+    setLabelDraft(label); setNumberDraft(enumerator);
     setError("");
     setEditing(false);
     focusBlock(view, getPos);
@@ -1591,7 +1627,7 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
     cancelFocus();
     const position = getPos();
     if (typeof position !== "number") return;
-    try { view.dispatch(updateLabelProperties(view.state, position, { latex: draft, label: labelDraft })); }
+    try { view.dispatch(updateLabelProperties(view.state, position, { latex: draft, label: labelDraft, enumerator: numberDraft || null })); }
     catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
     setError("");
     setEditing(false);
@@ -1654,6 +1690,7 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
                 }}
               />
             </label>
+            <NumberField editor={editor} getPos={getPos} testId="equation" value={numberDraft} onChange={value => { setNumberDraft(value); setError(""); }} />
           </PropertyForm>
         </div>
       ) : null}
@@ -1780,7 +1817,7 @@ function InlineMathView({ node, editor, getPos, updateAttributes, selected }: Re
   );
 }
 
-function CodeBlockView({ node, editor, updateAttributes }: ReactNodeViewProps) {
+function CodeBlockView({ node, editor, getPos, updateAttributes }: ReactNodeViewProps) {
   useTranslation();
   const editable = useEditorState({ editor, selector: ({ editor: current }) => current.isEditable });
   return (
@@ -1792,7 +1829,7 @@ function CodeBlockView({ node, editor, updateAttributes }: ReactNodeViewProps) {
     >
       <CodeLanguageInput language={String(node.attrs.language ?? "")} readOnly={!editable}
         onChange={(language) => { if (editor.isEditable) updateAttributes({ language }); }} />
-      <pre><NodeViewContent<"code"> as="code" /></pre>
+      <pre onMouseDown={event => { if (event.detail === 3) handleTextblockMouseDown(event, { editor, node, getPos }); }}><NodeViewContent<"code"> as="code" /></pre>
     </NodeViewWrapper>
   );
 }
@@ -1812,7 +1849,7 @@ function EndnoteNumber({ editor, label }: { editor: Editor; label: string }) {
 
 const DocumentNumbering = Extension.create({
   name: "documentNumbering",
-  addGlobalAttributes() { return [{ types: ["doc"], attributes: { headingNumbering: { default: null, rendered: false }, referenceTemplates: { default: null, rendered: false }, bibliography: { default: null, rendered: false } } }]; },
+  addGlobalAttributes() { return [{ types: ["doc"], attributes: { title: { default: null, rendered: false }, headingNumbering: { default: null, rendered: false }, referenceTemplates: { default: null, rendered: false }, bibliography: { default: null, rendered: false } } }]; },
   addProseMirrorPlugins() {
     return [new Plugin({ props: { decorations(state) {
       const blocks: { block: string; level?: number }[] = [];

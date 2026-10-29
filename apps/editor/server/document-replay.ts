@@ -41,16 +41,16 @@ import {
   insertDivider,
   updateFigure,
   updateLabel,
+  updateEnumerator,
   updateList,
   updateCodeBlock,
   updateTableCell,
   updateTableCaption,
+  updateDocumentTitle,
   updateHeadingNumbering,
   updateReferenceTemplates,
   updateBibliography,
   updateParagraphInlineContent,
-  sectionMarker,
-  titleHeading,
   validateFigure,
   validateStructure,
   type Document,
@@ -286,6 +286,18 @@ export function saveEdits(
       document = editAt(target, () => updateTableCaption(document, edit.path, edit.content));
     });
   }
+  for (const edit of edits.enumerators ?? []) {
+    const target = { path: edit.path, part: 0 };
+    editAt(target, () => {
+      assertPath(edit.path, "fixed number");
+      const block = blockAt(editable, edit.path);
+      if (edit.path.length !== 1 || !(block?.block === "equation" || block?.block === "table" || block?.block === "figure") ||
+          edit.from !== (block.enumerator ?? "") || typeof edit.to !== "string") {
+        throw new Error("fixed number does not match its target");
+      }
+      document = updateEnumerator(document, edit.path, edit.to);
+    });
+  }
   const labels = edits.labels ?? [];
   for (const edit of labels) {
     assertPath(edit.path, "label");
@@ -350,6 +362,7 @@ export function saveEdits(
     ...(edits.tables ?? []).map(edit => edit.path),
     ...(edits.tableCaptions ?? []).map(edit => edit.path),
     ...labels.map(edit => edit.path),
+    ...(edits.enumerators ?? []).map(edit => edit.path),
     ...groups.flatMap(group => group.paths),
   ].map(path => path.join(",")));
   const deleted = new Set<string>();
@@ -410,10 +423,8 @@ export function saveEdits(
   const locators: Locator[] = inspectDocument(document).map(block => ({ path: [block.index], part: 0 }));
   const bodyPaths = new Set(editable.blocks.map(block => block.path.join(",")));
   const metadata = locators.filter(item => "path" in item && !bodyPaths.has(item.path.join(",")));
-  // The title rule is checked once below against this snapshot; the steps between pass through
-  // orders the user never sees.
   const move = (from: number, to: number) => {
-    document = moveBlock(document, from, to, { checkTitle: false });
+    document = moveBlock(document, from, to);
     locators.splice(to, 0, locators.splice(from, 1)[0]);
   };
   for (const group of [...groups].sort((a, b) => b.paths[0][0] - a.paths[0][0])) {
@@ -489,6 +500,10 @@ export function saveEdits(
       const label = item.label;
       document = editAt(target, () => updateLabel(document, [index], label));
     }
+    if ((item.block === "equation" || item.block === "figure" || item.block === "table") && item.enumerator !== undefined) {
+      const enumerator = item.enumerator;
+      document = editAt(target, () => updateEnumerator(document, [index], enumerator));
+    }
     locators.splice(index, 0, { insert });
   }
   if (edits.order !== undefined) {
@@ -508,7 +523,7 @@ export function saveEdits(
       if (from !== to) move(from, to);
     }
   }
-  assertTitleKept(editable, document, locators);
+  if (edits.title !== undefined) document = updateDocumentTitle(document, edits.title);
   if (edits.headingNumbering !== undefined) document = updateHeadingNumbering(document, edits.headingNumbering);
   if (edits.referenceTemplates !== undefined) document = updateReferenceTemplates(document, edits.referenceTemplates);
   if (edits.bibliography !== undefined && JSON.stringify(edits.bibliography) !== JSON.stringify(citationReport(document).bibliography)) {
@@ -527,27 +542,6 @@ export function saveEdits(
 }
 
 type Locator = OrderItem;
-
-/**
- * The document title stays first (#255). If this save's snapshot opened with a title and that
- * block is still a level-1 heading, it must still be the title: no move or insertion put anything
- * but its label targets above it. Removing it or turning it into another block is allowed.
- */
-function assertTitleKept(source: EditableDocument, document: Document, locators: Locator[]): void {
-  const sourceTitle = titleHeading(source.blocks.map(block => sectionMarker(block)));
-  if (sourceTitle === undefined) return;
-  const path = source.blocks[sourceTitle]!.path;
-  const at = locators.findIndex(item => locatorKey(item) === locatorKey({ path, part: 0 }));
-  if (at < 0) return;
-  const blocks = getEditableDocument(document).blocks;
-  const block = blocks.find(entry => entry.path[0] === at);
-  if (block?.block !== "heading" || block.level !== 1) return;
-  const title = titleHeading(blocks.map(entry => sectionMarker(entry)));
-  if (title === undefined || blocks[title]!.path[0] !== at) {
-    throw new SaveContentError("the document title stays first and cannot be moved", { path, part: 0 },
-      { action: "Keep the title at the top; move other blocks below it." });
-  }
-}
 
 /** Each new row or column is a distinct snapshot index or null (added); at least one remains. */
 function isTableAxis(axis: unknown, count: number): axis is (number | null)[] {

@@ -10,6 +10,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { load } from "js-yaml";
 
 type Link = { target: string; original: string; line: number };
 export type Failure = Link & { source: string; resolved: string; reason: string };
@@ -160,10 +161,42 @@ function exactPath(root: string, relative: string): string | undefined {
   return undefined;
 }
 
+const PATCH_REGISTER = "docs/contributing/dependency-patches.md";
+
+/** The register uses one table with a code package key and a linked patch in its first two columns. */
+export function checkDependencyPatches(root: string): Failure[] {
+  const failures: Failure[] = [];
+  const fail = (source: string, line: number, target: string, reason: string) =>
+    failures.push({ source, line, original: target, target, resolved: target, reason });
+  const workspace = load(readFileSync(path.join(root, "pnpm-workspace.yaml"), "utf8")) as { patchedDependencies?: Record<string, string> };
+  const patches = workspace.patchedDependencies ?? {};
+  const rows = new Map<string, string>();
+  const lines = prose(readFileSync(path.join(root, PATCH_REGISTER), "utf8")).split("\n");
+  for (const [index, line] of lines.entries()) {
+    if (!/^\s*\|/.test(line) || /^\s*\|\s*(?:패키지@버전|---)/.test(line)) continue;
+    const cells = line.split("|").slice(1, -1).map(cell => cell.trim());
+    const key = /^`([^`]+)`$/.exec(cells[0])?.[1];
+    const link = markdownLinks(cells[1] ?? "")[0];
+    if (!key || !link || cells.length !== 8) {
+      fail(PATCH_REGISTER, index + 1, line, "invalid dependency patch register row (expected eight columns)");
+      continue;
+    }
+    const file = path.posix.normalize(path.posix.join(path.posix.dirname(PATCH_REGISTER), link.target));
+    if (rows.has(key)) fail(PATCH_REGISTER, index + 1, key, "duplicate dependency patch register row");
+    rows.set(key, file);
+    if (!(key in patches)) fail(PATCH_REGISTER, index + 1, key, "register row has no patchedDependencies entry");
+    else if (patches[key] !== file) fail(PATCH_REGISTER, index + 1, file, `patch file mismatch for ${key}: workspace has ${patches[key]}`);
+  }
+  for (const key of Object.keys(patches)) {
+    if (!rows.has(key)) fail("pnpm-workspace.yaml", 1, key, "patchedDependencies entry has no register row");
+  }
+  return failures;
+}
+
 export function checkDocs(root: string): { failures: Failure[]; files: number; links: number; documents: number } {
   const docs = markdownFiles(root, "docs");
   const files = [...ROOT_FILES, ...docs, ...markdownFiles(root, ".github")];
-  const failures: Failure[] = [];
+  const failures: Failure[] = checkDependencyPatches(root);
   const connections = new Map<string, Set<string>>();
   const anchors = new Map<string, Set<string>>();
   let linkCount = 0;

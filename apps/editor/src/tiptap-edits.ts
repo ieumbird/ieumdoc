@@ -103,6 +103,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
   const lists: ListEdit[] = [];
   const codes: CodeEdit[] = [];
   const labels: LabelEdit[] = [];
+  const enumerators: NonNullable<SupportedEdits["enumerators"]> = [];
   const splits: NonNullable<SupportedEdits["splits"]> = [];
   const merges: NonNullable<SupportedEdits["merges"]> = [];
   const inserts: InsertEdit[] = [];
@@ -140,6 +141,10 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
     const node = group[0];
     atEditorBlock(next, node, () => {
       const block = blocksByPath.get(paths[0])!;
+      if (block.block === "figure" || block.block === "table" || block.block === "equation") {
+        const to = node.attrs?.enumerator ?? "";
+        if (to !== (block.enumerator ?? "")) enumerators.push({ path: block.path, from: block.enumerator ?? "", to: String(to) });
+      }
       if (paths.length > 1) {
         merges.push({ paths: paths.map(path => path.split(",").map(Number)), parts: group.map(paragraphInline) });
       } else if (block.block === "heading" && block.editable) {
@@ -245,7 +250,10 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
   if (changedSettings && settings !== null && JSON.stringify(settings) !== JSON.stringify(defaultHeadingNumbering(true))) {
     throw new Error("unsupported heading numbering settings");
   }
+  const title = next.attrs?.title ?? null;
+  if (title !== null && typeof title !== "string") throw new Error("document title must be a string");
   return {
+    ...(title !== (document.title ?? null) ? { title } : {}),
     ...(changedSettings ? { headingNumbering: settings !== null } : {}),
     ...(changedTemplates ? { referenceTemplates: Object.fromEntries(NUMBERED_KINDS.map(kind => [kind, templates?.[kind] ?? null])) } : {}),
     ...(next.attrs?.bibliography !== null && next.attrs?.bibliography !== undefined ? { bibliography: next.attrs.bibliography as string[] } : {}),
@@ -264,6 +272,7 @@ export function collectSupportedEdits(snapshot: EditableDocument, next: TiptapJS
     ...(lists.length ? { lists } : {}),
     ...(codes.length ? { codes } : {}),
     ...(labels.length ? { labels } : {}),
+    ...(enumerators.length ? { enumerators } : {}),
     ...(splits.length ? { splits } : {}),
     ...(merges.length ? { merges } : {}),
     ...(inserts.length ? { inserts } : {}),
@@ -284,6 +293,7 @@ export function isSessionPlaceholder(node: TiptapJSON): boolean {
  * Use schema-normalized input on both sides; paths remain opening-snapshot locators. */
 export function appliedDocument(document: TiptapJSON): TiptapJSON {
   const attrs = {
+    ...(document.attrs?.title !== null && document.attrs?.title !== undefined ? { title: document.attrs.title } : {}),
     ...(document.attrs?.headingNumbering ? { headingNumbering: document.attrs.headingNumbering } : {}),
     ...(document.attrs?.referenceTemplates && Object.keys(document.attrs.referenceTemplates).length ? { referenceTemplates: document.attrs.referenceTemplates } : {}),
     ...(document.attrs?.bibliography !== null && document.attrs?.bibliography !== undefined ? { bibliography: document.attrs.bibliography } : {}),
@@ -390,7 +400,9 @@ function listContent(node: TiptapJSON): ListContent {
   if (node.type === "bulletList") return { ordered: false, items };
   const start = Number(node.attrs?.start ?? 1);
   if (!Number.isInteger(start) || start < 0) throw new Error("numbered list start must be a non-negative integer");
-  return { ordered: true, start, items };
+  return { ordered: true, start,
+    ...(node.attrs?.style && node.attrs.style !== "decimal" ? { style: node.attrs.style as ListContent["style"] } : {}),
+    ...(node.attrs?.delimiter && node.attrs.delimiter !== "." ? { delimiter: node.attrs.delimiter as ListContent["delimiter"] } : {}), items };
 }
 
 /** Code block v1 content of an editor code block: unmarked text and a language. */
@@ -418,6 +430,7 @@ function footnoteLabel(node: TiptapJSON): string {
 
 function sameList(left: ListContent, right: ListContent): boolean {
   return left.ordered === right.ordered && (left.start ?? 1) === (right.start ?? 1) && left.items.length === right.items.length &&
+    (left.style ?? "decimal") === (right.style ?? "decimal") && (left.delimiter ?? ".") === (right.delimiter ?? ".") &&
     left.items.every((item, index) => {
       const other = right.items[index];
       return sameInline(item.content, other.content) &&
@@ -451,11 +464,11 @@ function insertEdit(node: TiptapJSON): InsertEdit {
   }
   if (node.type === "equation") {
     const label = blockLabel(node);
-    return { block: "equation", latex: equationLatex(node), ...(label ? { label } : {}) };
+    return { block: "equation", latex: equationLatex(node), ...(label ? { label } : {}), ...insertEnumerator(node) };
   }
   if (node.type === "figure") {
     const label = blockLabel(node);
-    return { block: "figure", ...figureContent(node), ...(label ? { label } : {}) };
+    return { block: "figure", ...figureContent(node), ...(label ? { label } : {}), ...insertEnumerator(node) };
   }
   if (node.type === "table") {
     const grid = tableCells(node);
@@ -469,7 +482,7 @@ function insertEdit(node: TiptapJSON): InsertEdit {
     const caption = tableCaption(node);
     const label = blockLabel(node);
     return { block: "table", rows: grid.map(row => row.map(cell => cell.content)), ...(align.some(Boolean) ? { align } : {}),
-      ...(caption.length ? { caption } : {}), ...(label ? { label } : {}) };
+      ...(caption.length ? { caption } : {}), ...(label ? { label } : {}), ...insertEnumerator(node) };
   }
   if (LIST_BLOCKS.has(node.type ?? "")) {
     return { block: "list", list: listContent(node) };
@@ -481,6 +494,14 @@ function insertEdit(node: TiptapJSON): InsertEdit {
     return { block: "target", label: targetLabel(node) };
   }
   throw new Error("only paragraphs, headings, admonitions, quotes, footnote definitions, dividers, equations, figures, tables, lists, code blocks and section labels can be inserted");
+}
+
+/** Carry authored data across fresh locators; Core alone validates number semantics. */
+function insertEnumerator(node: TiptapJSON): { enumerator?: string } {
+  const value = node.attrs?.enumerator;
+  if (value == null) return {};
+  if (typeof value !== "string") throw new Error("inserted enumerator must be a string");
+  return { enumerator: value };
 }
 
 export function figureContent(node: TiptapJSON): FigureContent {
@@ -518,6 +539,10 @@ function assertBlockChange(before: TiptapJSON | undefined, after: TiptapJSON | u
   }
   const beforeType = before.type ?? "";
   const afterType = after.type ?? "";
+  if (["figure", "table", "equation"].includes(beforeType) &&
+      after.attrs?.enumerator != null && typeof after.attrs.enumerator !== "string") {
+    throw new Error("fixed number must be a string");
+  }
   if (!KNOWN_BLOCKS.has(afterType)) {
     throw new Error(`unsupported Tiptap block "${afterType || "unknown"}"`);
   }

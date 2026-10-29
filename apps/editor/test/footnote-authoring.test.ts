@@ -8,7 +8,7 @@ import { AllSelection, EditorState, TextSelection, type Transaction } from "@tip
 import { parse, serialize } from "@ieumdoc/core";
 import { BLOCK_COMMANDS, deleteBlock } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
-import { endnoteEditingKey, endnoteEditingPlugin, endnoteLabel, endnoteNumber, endnotesPlugin } from "../src/endnotes.ts";
+import { cancelEndnoteEditing, endnoteEditingKey, endnoteEditingPlugin, endnoteLabel, endnoteNumber, endnotesPlugin } from "../src/endnotes.ts";
 import { assertSupportedDocumentChange, collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
@@ -95,6 +95,13 @@ test("read-only definitions reject destination changes, including mark steps, wh
   assert.equal(edited.doc.child(2).textContent, "Edit Short note.");
   assert.ok(run(edited, undo).doc.eq(state.doc), "Undo keeps its normal behavior");
   assert.ok(run(run(edited, undo), redo).doc.eq(edited.doc), "Redo restores the definition edit");
+
+  const formattedNote = edited.apply(edited.tr.addMark(note, note + 4, schema.marks.bold.create()));
+  const withBodyEdit = formattedNote.apply(formattedNote.tr.insertText("Other ", body));
+  const cancelled = withBodyEdit.apply(cancelEndnoteEditing(withBodyEdit)!);
+  assert.ok(cancelled.doc.child(2).content.eq(state.doc.child(2).content), "Cancel restores the entire initial inline fragment, including marks");
+  assert.equal(cancelled.doc.child(1).textContent, "AOther  claim and another.", "Cancel retains independent body edits");
+  assert.equal(endnoteEditingKey.getState(cancelled), null, "Cancel closes the edit session");
 
   const deletion = BLOCK_COMMANDS.find(command => command.id === "delete")!;
   const deleted = state.apply(deletion.run(state, 2));

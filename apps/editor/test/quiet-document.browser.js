@@ -832,8 +832,8 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
   await open('quiet-document.md');
   check((await page.locator('[data-document-tab][data-active=true] .paragraph').first().textContent()).includes('한글입력')&&!(await page.locator('[data-document-tab][data-active=true] .paragraph').first().textContent()).includes('AFTER_SAVE'),'Save / Reload did not preserve only the saved composition');
 
-  // Reorder through the real drag handle, then restore through history. The leading title stays
-  // first (#255), so the paragraph after it moves below the next block.
+  // Reorder through the real drag handle, then restore through history. Move the
+  // paragraph after the first body H1 below the next block.
   const lead=page.locator('[data-document-tab][data-active=true] .document-editor > .paragraph').first();
   await lead.hover();
   const target=page.locator('[data-document-tab][data-active=true] .document-editor > :nth-child(3)');

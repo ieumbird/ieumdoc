@@ -1,6 +1,7 @@
 # Figure authoring v1
 
 - Status: Implemented
+- Fixed numbering: 2026-10-29 (#720 Core/CLI and Editor property controls/warnings); [shared number contract](heading-numbering-v1.md#fixed-numbers-720).
 - Mermaid update: 2026-10-28 (#651: Core/CLI source semantics and Editor in-document authoring/rendering).
 - Media reference verification: 2026-10-27 (#504: simultaneous exact source replacement, canonical preservation/refusal, CLI dry-run/batch/revision conflicts, real Host rename and Editor reload).
 - Property-entry update: 2026-10-27 (#557: shared selection/Enter/double-click and explicit property drafts; see [Continuous editing](document-editing-v1.md#continuous-editing)).
@@ -21,6 +22,17 @@ The MVP keeps the existing MyST Figure container and image authoring UI, adding 
 Verification covers Core canonical round-trip and fail-closed cases, CLI writes and failure without writes, Editor session collection/history, and browser insertion, Apply/Cancel, Source, Save acknowledgement and existing image authoring.
 
 ## Persistent meaning
+
+The optional outer `{figure}` `:enumerator:` stores a fixed number for image, pending and
+Mermaid Figures. Core read models, captions and references use the exact authored string;
+moving, relabeling or editing content preserves it. `updateEnumerator` and the thin CLI
+`update-enumerator` command set or clear it. Mermaid's inner directive stays option-free.
+The [shared fixed-number contract](heading-numbering-v1.md#fixed-numbers-720) defines
+warning-only missing/duplicate checks and Editor display. The image/pending and Mermaid
+property forms place Number after Label and reuse their existing draft, Apply/Cancel,
+validation-busy and Undo contracts. Empty input clears the fixed number; captions and
+references update from Core display functions. Core warnings appear beside this field and
+in a document warning Notice without blocking Save.
 
 A Figure owns its caption, label, location and number. Content is optional: `contentKind` in the Core read model is `none`, `image` or `mermaid`. Existing `imageUrl` and `imageAlt` fields remain available. Mermaid Figures additionally expose `mermaidSource`; image fields are empty. Unsupported content, including subfigures, rejects native admission.
 
@@ -44,6 +56,13 @@ See the [visual verification](editor-visual-language-v1.md#empty-caption-hints-6
 Repeated Backspace keeps the caption's editable surface and model synchronized; once empty,
 further Backspace does not edit the preceding block. Deletion that empties a caption uses the shared
 ProseMirror deletion/history boundary described in [Table caption](table-caption-v1.md).
+
+Triple-clicking anywhere on an image, pending or Mermaid caption line, including the
+generated number and blank space after the text, selects only that caption's inline
+content (#724). Subsequent typing or deletion preserves neighboring blocks. The shared
+caption mousedown handler prevents native paragraph selection on the editable wrapper
+outside contentDOM. Text clicks handled by ProseMirror and ordinary drag selection
+retain their existing behavior. This Editor interaction adds no Core or CLI operation.
 
 A pending Figure has no image. Its caption and label are optional: an empty Figure, with no image, caption or label, is a valid place reserved for content to come. Alt text requires an image. An image Figure may have neither caption nor label. Supported captions use the existing InlineContent contract. Connecting or removing an image updates the same container and preserves the label and caption. Removing an image with alt text requires clearing the alt text too.
 
@@ -171,6 +190,12 @@ Figure validation that completes after the user moves elsewhere does not take fo
 | Completed image Figure | Valid image attached; existing image behavior. | Included. |
 
 Pending/image Figure insertion is one undo step and opens no form: the caret starts in the new Figure's caption, so a caption can be typed at once or the Figure left empty. Pasting an image with the caret in an image-free Figure's caption, or dropping an image on that Figure, fills its image using the same properties update as Apply, preserving its label, caption and document position. Caption and label may both be empty. Paste/drop on a Figure that already has an image, or on any other block, inserts a new image Figure after the target; it never overwrites an existing image. If the empty target Figure is deleted or changed while upload is pending, including another image being attached, completion cancels without changing the document and rolls back the created asset through the existing upload cancellation path. Read-only and concurrent-upload rejection rules remain in force.
+
+When an image or Mermaid preview is selected as a block outside edit mode, ordinary
+character input and IME composition are ignored: the document and caption stay unchanged
+and no paragraph is created. Clicking another text surface permits normal input again.
+Direct caption editing, explicit property fields, Enter, arrow navigation, deletion and
+paste/drop keep their existing behavior; see [Continuous document editing](document-editing-v1.md).
 
 Filling an empty Figure preserves the caret at its current caption position and is one undo step: Undo restores that empty Figure, while Undo removes a newly inserted Figure. Both results persist through Save → Reload. Apply → Save → Undo → Save writes the Figure as it was before Apply, and Redo → Save writes the applied value again. Save preserves this history and the opening-snapshot replay contract. Deleting and undoing a Figure restores its attributes, including after saving the deletion. No new Core operation or CLI command is needed: filling reuses the existing Figure update path, already available as `update-figure --image`.
 

@@ -1,15 +1,15 @@
 /**
  * Numbered reference targets are computed from a document's top-level blocks, like sections:
  * MyST numbers display equations, figures and table directives in document order, and the
- * numbers are never written to the document (ADR-0002) nor used as identity (ADR-0003). This
+ * automatic numbers are never written; authored fixed enumerators remain document text.
+ * Neither is used as identity (ADR-0003). This
  * rule is the one Core's read model, the CLI and the Editor share. It has no MyST dependency.
  */
 
 export type NumberedKind = "equation" | "figure" | "table";
 
-/** How many numbered targets of each kind a block holds; or, from `targetNumbers`, the
- * number of the block's first target of each kind. */
-export type NumberedTargets = Partial<Record<NumberedKind, number>>;
+/** Input: a target count or authored fixed string. Output: the first displayed number. */
+export type NumberedTargets = Partial<Record<NumberedKind, number | string>>;
 
 export const NUMBERED_KINDS: readonly NumberedKind[] = ["equation", "figure", "table"];
 
@@ -21,9 +21,9 @@ export type HeadingNumbering = {
   enumerators: (string | null)[];
 };
 
-/** Default authoring policy: H1 is a title; H2–H6 are numbered sections. */
+/** Default authoring policy: H1–H6 are numbered body sections. */
 export function defaultHeadingNumbering(enabled: boolean): HeadingNumbering | null {
-  return enabled ? { enabled: [false, true, true, true, true, true], counts: [0, 0, 0, 0, 0, 0], offset: -1,
+  return enabled ? { enabled: [true, true, true, true, true, true], counts: [0, 0, 0, 0, 0, 0], offset: 0,
     enumerators: [null, null, null, null, null, null] } : null;
 }
 
@@ -45,15 +45,20 @@ export function headingNumbers(blocks: { block: string; level?: number }[], sett
   });
 }
 
+/** Section references share heading counters; with numbers off, retain the heading's name. */
+export function sectionReferenceText(title: string, number?: string): string {
+  return `§ ${number ?? title}`;
+}
+
 /**
  * Each equation, figure or table read-model block holds one numbered target of its kind.
  * Core and interfaces use this rule for both parsed and newly inserted blocks, independently
  * of caption or label content.
  */
-export function blockTargets(block: { block: string; label?: string; caption?: unknown }): NumberedTargets {
-  if (block.block === "equation") return { equation: 1 };
-  if (block.block === "figure") return { figure: 1 };
-  if (block.block === "table") return { table: 1 };
+export function blockTargets(block: { block: string; enumerator?: string; label?: string; caption?: unknown }): NumberedTargets {
+  if (block.block === "equation") return { equation: block.enumerator ?? 1 };
+  if (block.block === "figure") return { figure: block.enumerator ?? 1 };
+  if (block.block === "table") return { table: block.enumerator ?? 1 };
   return {};
 }
 
@@ -64,13 +69,46 @@ export function targetNumbers(blocks: NumberedTargets[]): NumberedTargets[] {
     const first: NumberedTargets = {};
     for (const kind of NUMBERED_KINDS) {
       const count = targets[kind] ?? 0;
-      if (count > 0) {
+      if (typeof count === "string") first[kind] = count;
+      else if (count > 0) {
         first[kind] = next[kind];
         next[kind] += count;
       }
     }
     return first;
   });
+}
+
+export type NumberingDiagnostic = {
+  code: "numbering-missing" | "numbering-duplicate";
+  severity: "warning";
+  kind: NumberedKind;
+  path: readonly number[];
+  enumerator?: string;
+};
+
+/** Fixed mode is inferred from authored targets, never stored as document metadata.
+ * Missing numbers retain MyST's automatic fallback until authored; diagnostics never gate writes. */
+export function numberingReport(blocks: readonly { block: string; path: readonly number[]; enumerator?: string }[]) {
+  const numbers = targetNumbers(blocks.map(blockTargets));
+  const targets = blocks.flatMap((block, index) => NUMBERED_KINDS.flatMap(kind => numbers[index][kind] === undefined ? [] : [{
+    kind, path: block.path, number: numbers[index][kind]!, ...(block.enumerator !== undefined ? { enumerator: block.enumerator } : {}),
+  }]));
+  const mode: "fixed" | "automatic" = targets.some(target => target.enumerator !== undefined) ? "fixed" : "automatic";
+  const diagnostics: NumberingDiagnostic[] = [];
+  if (mode === "fixed") {
+    const counts = new Map<NumberedKind, Map<string, number>>();
+    for (const target of targets) if (target.enumerator !== undefined) {
+      const used = counts.get(target.kind) ?? new Map<string, number>();
+      used.set(target.enumerator, (used.get(target.enumerator) ?? 0) + 1);
+      counts.set(target.kind, used);
+    }
+    for (const target of targets) {
+      if (target.enumerator === undefined) diagnostics.push({ code: "numbering-missing", severity: "warning", kind: target.kind, path: target.path });
+      else if (counts.get(target.kind)!.get(target.enumerator)! > 1) diagnostics.push({ code: "numbering-duplicate", severity: "warning", kind: target.kind, path: target.path, enumerator: target.enumerator });
+    }
+  }
+  return { mode, targets, diagnostics };
 }
 
 /** Number exact identifiers 1, 2, ... in the order their first reference is read. */
@@ -150,12 +188,12 @@ export function referenceTemplatesError(value: unknown, allowReset = false): str
 }
 
 /** MyST's numeric substitutions; native numbers have no chapter/subfigure hierarchy. */
-export function referenceNumberText(kind: NumberedKind, number: number, templates?: ReferenceTemplates | null): string {
-  return (templates?.[kind] ?? DEFAULT_REFERENCE_TEMPLATES[kind]).replace(/%s|\{number\}|\{subEnumerator\}/g, String(number));
+export function referenceNumberText(kind: NumberedKind, number: number | string, templates?: ReferenceTemplates | null): string {
+  return (templates?.[kind] ?? DEFAULT_REFERENCE_TEMPLATES[kind]).replace(/%s|\{number\}|\{subEnumerator\}/g, () => String(number));
 }
 
 /** Caption number text before its separator: authored reference templates, otherwise legacy spaces. */
-export function captionNumberText(kind: "figure" | "table", number: number, templates?: ReferenceTemplates | null): string {
+export function captionNumberText(kind: "figure" | "table", number: number | string, templates?: ReferenceTemplates | null): string {
   return templates?.[kind] === undefined
     ? `${kind === "figure" ? "Figure" : "Table"} ${number}`
     : referenceNumberText(kind, number, templates);

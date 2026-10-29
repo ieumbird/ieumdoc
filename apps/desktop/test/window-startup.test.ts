@@ -1,6 +1,7 @@
 // Execute main's actual wiring with in-memory Electron/filesystem ports. Never launch the app.
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { setImmediate } from "node:timers/promises";
@@ -16,9 +17,11 @@ const source = transformSync(readFileSync(main, "utf8"), {
   loader: "ts", format: "cjs", define: { "import.meta.url": JSON.stringify(main.href), __IEUMDOC_REQUIRE_SIGNED_UPDATES__: "false" },
 }).code;
 
-async function start(options: { startupError?: boolean; logError?: boolean; loadError?: boolean; lock?: boolean; update?: UpdateState } = {}) {
+async function start(options: { startupError?: boolean; logError?: boolean; openError?: string; loadError?: boolean; lock?: boolean; update?: UpdateState } = {}) {
   const preferences: unknown[] = [];
   const logs: string[] = [], errors: unknown[][] = [], alerts: string[] = [];
+  const directories: string[] = [], opened: string[] = [];
+  const mainProcess = Object.assign(new EventEmitter(), { argv: [], platform: "win32", env: {}, resourcesPath: "/fake-resources" });
   const timers = new Map<number, { run: () => void; ms: number }>();
   const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
   let timerId = 0, exits = 0, quits = 0;
@@ -51,10 +54,11 @@ async function start(options: { startupError?: boolean; logError?: boolean; load
       app, BrowserWindow: Window, dialog: { showErrorBox: (_title: string, message: string) => alerts.push(message) },
       ipcMain: { handle: (name: string, handler: (event: unknown, ...args: unknown[]) => unknown) => handlers.set(name, handler), on() {} },
       Menu: { setApplicationMenu() {} }, nativeTheme: {}, protocol: { registerSchemesAsPrivileged() {}, handle() {} },
-      session: { defaultSession: { setPermissionRequestHandler() { if (options.startupError) throw new Error("permission setup failed"); }, setPermissionCheckHandler() {} } }, shell: {},
+      session: { defaultSession: { setPermissionRequestHandler() { if (options.startupError) throw new Error("permission setup failed"); }, setPermissionCheckHandler() {} } },
+      shell: { openPath: async (directory: string) => { opened.push(directory); return options.openError ?? ""; } },
     },
     "node:fs": {
-      mkdirSync() { if (options.logError) throw new Error("log directory denied"); },
+      mkdirSync(directory: string) { if (options.logError) throw new Error("log directory denied"); directories.push(directory); },
       appendFileSync: (_file: string, message: string) => logs.push(message), existsSync: () => false,
     },
     "electron-updater": { autoUpdater: {} }, "js-yaml": {},
@@ -67,7 +71,7 @@ async function start(options: { startupError?: boolean; logError?: boolean; load
   };
   runInNewContext(source, {
     require: (name: string) => name in dependencies ? dependencies[name] : require(name),
-    process: { argv: [], platform: "win32", env: {}, resourcesPath: "/fake-resources" },
+    process: mainProcess,
     console: { error: (...args: unknown[]) => errors.push(args) },
     setTimeout: (run: () => void, ms: number) => { timers.set(++timerId, { run, ms }); return timerId; },
     clearTimeout: (id: number) => timers.delete(id),
@@ -86,7 +90,7 @@ async function start(options: { startupError?: boolean; logError?: boolean; load
   const invoke = (channel: string, args: unknown[], trusted = true) => handlers.get(channel)!({
     sender: window.webContents, senderFrame: trusted ? window.webContents.mainFrame : {},
   }, ...args);
-  return { app, window, logs, errors, alerts, timers, appearance, timeout, preferences, invoke,
+  return { app, mainProcess, directories, opened, window, logs, errors, alerts, timers, appearance, timeout, preferences, invoke,
     seen: (version: unknown, trusted = true) => handlers.get("desktop:seen-update")!({ sender: window.webContents, senderFrame: trusted ? window.webContents.mainFrame : {} }, version), exits: () => exits, quits: () => quits };
 }
 
@@ -240,4 +244,55 @@ test("Explorer IPC rejects untrusted senders and invalid roots/paths through mai
   }
   assert.throws(() => h.invoke("desktop:opened-folders", [["unlisted-root"]]), /Unknown opened folders/);
   await assert.rejects(async () => h.invoke("desktop:open-folder", [null]), /Invalid local folder path/);
+});
+
+test("log folder IPC creates and opens only main's fixed directory and reports failure", async () => {
+  const h = await start();
+  assert.throws(() => h.invoke("desktop:open-log-folder", [], false), /Untrusted sender/);
+  assert.equal(h.opened.length, 0);
+  h.directories.length = 0;
+  await h.invoke("desktop:open-log-folder", ["C:\\private-document"]);
+  assert.deepEqual(h.opened, h.directories);
+  assert.equal(h.opened.length, 1);
+  assert.match(h.opened[0]!, /fake-user-data[/\\]logs$/);
+  const failed = await start({ openError: "OS failed" });
+  await assert.rejects(async () => failed.invoke("desktop:open-log-folder", []), /Could not open the log folder/);
+  const denied = await start({ logError: true });
+  await assert.rejects(async () => denied.invoke("desktop:open-log-folder", []), /log directory denied/);
+  assert.equal(denied.opened.length, 0);
+});
+
+test("process diagnostics omit error content and preserve existing exception/rejection handlers", async () => {
+  const h = await start();
+  assert.equal(h.mainProcess.listenerCount("uncaughtException"), 0);
+  assert.equal(h.mainProcess.listenerCount("unhandledRejection"), 0);
+  for (const origin of ["uncaughtException", "unhandledRejection"]) {
+    h.mainProcess.emit("uncaughtExceptionMonitor", new Error("private document C:\\private.md"), origin);
+    assert.ok(h.logs.at(-1)?.includes(`main ${origin}`));
+  }
+  h.app.emit("child-process-gone", {}, { type: "GPU", reason: "crashed", exitCode: 7, name: "private", serviceName: "private" });
+  assert.match(h.logs.at(-1)!, /type=GPU reason=crashed exitCode=7/);
+  h.window.emit("ready-to-show"); h.appearance();
+  h.window.webContents.emit("render-process-gone", {}, { reason: "crashed", exitCode: 9 });
+  assert.match(h.logs.at(-1)!, /renderer exited: crashed \(9\)/);
+  assert.equal(h.alerts.length, 0, "post-start crash keeps existing UI behavior");
+  assert.ok(!h.logs.join("").includes("private"));
+});
+
+test("main's monitor observes real uncaught exceptions and default rejections without suppressing exit", async () => {
+  const h = await start();
+  const monitor = h.mainProcess.listeners("uncaughtExceptionMonitor")[0]!;
+  for (const [origin, trigger] of [
+    ["uncaughtException", 'throw new Error("private document")'],
+    ["unhandledRejection", 'Promise.reject(new Error("private document"))'],
+  ]) {
+    const result = spawnSync(process.execPath, ["-e", `
+      const log = message => process.stdout.write(message);
+      process.on("uncaughtExceptionMonitor", ${monitor.toString()});
+      ${trigger};
+    `], { encoding: "utf8", env: { ...process.env, NODE_OPTIONS: "" } });
+    assert.equal(result.status, 1, result.stderr);
+    assert.equal(result.stdout, `main ${origin}`);
+    assert.match(result.stderr, /private document/);
+  }
 });

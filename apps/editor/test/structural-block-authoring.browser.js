@@ -69,6 +69,8 @@ async (page, { openDocument }) => {
   await page.keyboard.press('Shift+Tab');
   await expectHeadingCaret('Existing heading', 2);
   await page.keyboard.press('Shift+Tab');
+  await expectHeadingCaret('Existing heading', 1);
+  await page.keyboard.press('Tab');
   await expectHeadingCaret('Existing heading', 2);
 
   await selectHeading('Structural authoring');
@@ -104,7 +106,7 @@ async (page, { openDocument }) => {
         getComputedStyle(item).borderRadius === radius;
     });
   })) throw new Error('Insert menu needs its 16px action icons and shared 6px control radius');
-  if (await page.getByRole('menuitem', {name:'Heading 1', exact:true}).count()) throw new Error('Body insert menu offers H1');
+  if (await page.getByRole('menuitem', {name:'Heading 1', exact:true}).count() !== 1) throw new Error('Body insert menu must offer H1');
   await page.getByRole('menu', {name:'Insert block'}).getByRole('menuitem', {name:'Warning', exact:true}).click();
   const warning = editor.locator('aside[data-block="admonition"][data-variant="warning"]');
   const warningBody = warning.getByTestId('admonition-body');
@@ -129,7 +131,7 @@ async (page, { openDocument }) => {
   });
   if (!blockFormat) throw new Error('Block menu needs action icons, the shared control radius and token-colored destructive rows');
   if (await page.getByRole('menuitem', {name:'Change to Heading 2', exact:true}).count()) throw new Error('Current heading level must not be offered');
-  if (await page.getByRole('menuitem', {name:'Change to Heading 1', exact:true}).count()) throw new Error('Body heading menu offers H1');
+  if (await page.getByRole('menuitem', {name:'Change to Heading 1', exact:true}).count() !== 1) throw new Error('Body heading menu must offer H1');
   await page.getByRole('menuitem', {name:'Change to Heading 4', exact:true}).click();
   const changedHeading = editor.locator('h4').filter({hasText:'Existing heading'});
   await changedHeading.waitFor({state:'visible'});
@@ -140,7 +142,7 @@ async (page, { openDocument }) => {
   const blockAction = async (block, name, action) => {
     await block.hover();
     await page.getByRole('button', {name}).click();
-    if (await page.getByRole('menuitem', {name:'Change to Heading 1', exact:true}).count()) throw new Error('Body block menu offers H1');
+    if (await page.getByRole('menuitem', {name:'Change to Heading 1', exact:true}).count() !== 1) throw new Error('Body block menu must offer H1');
     await page.getByRole('menuitem', {name:action, exact:true}).click();
   };
   const intro = editor.locator('p').filter({hasText:'Intro paragraph.'});

@@ -5,7 +5,7 @@ export type WriteIssueCode = "native-marker" | "native-metadata" | "native-conte
   | "invalid-structure" | "invalid-operation" | "unsupported-content" | "empty-content"
   | "round-trip-mismatch" | "serialization-failed" | "invalid-unicode"
   | "invalid-label" | "label-conflict" | "invalid-reference" | "invalid-footnote"
-  | "line-break" | "table-cell-whitespace" | "table-shape" | "invalid-figure";
+  | "line-break" | "table-cell-whitespace" | "table-shape" | "invalid-figure" | "fixed-number-unrepresentable";
 export type WriteIssue = { code?: WriteIssueCode; reason: string; action: string; path?: NodePath; line?: number };
 
 export class DocumentWriteError extends Error {

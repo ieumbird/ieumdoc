@@ -1,6 +1,8 @@
 # Heading numbering v1
 
 - Status: Implemented
+- Title/body contract update: 2026-10-29 (#722; H1–H6 body numbering, frontmatter-only unnumbered title, installed MyST transform boundary below).
+- Fixed numbering: 2026-10-29 (#720 Core/CLI and Editor property entry, warning display and Save/Reload).
 - Document settings verification: 2026-10-27 (#580: inline settings, per-tab expansion, notation previews and existing document operations; [integration, checks and captures](editor-ux-shell-v1.md#document-settings-placement-554)).
 - Accent verification: 2026-10-27 (#559: generated heading/Outline numbers share the local accent; all presets checked by the token contrast and existing Outline browser tests).
 - Body-heading authoring verification: 2026-10-26 (#472 Editor unit/browser checks; Core/CLI and numbering behavior unchanged). [Verification details](document-editing-v1.md).
@@ -10,12 +12,13 @@
 - Previous verification: 2026-10-14 (#232 native metadata contract).
 - Scope: Core-owned settings and Editor/CLI projection; [Native document support](document-support-v1.md).
 
-Core persists `numbering.headings: boolean` and `numbering.title: false` alongside the mandatory `ieumdoc: 1` marker. Omitted numbering means off. H1 is unnumbered (the leading one is [the document title](document-editing-v1.md#document-title-255), which stays first); H2–H6 use the default section counter policy. Heading text never contains generated numbers. Custom heading starts, prefixes and per-level settings are rejected at admission. Numbered reference templates follow the separate contract below.
-
-The Editor offers only H2–H6 for body heading insertion/conversion and stops
-Shift+Tab promotion at H2 (#472). This authoring choice leaves numbering, the
-title flow, existing body H1 content and Core/CLI's valid H1 support unchanged;
-see [document title and body authoring](document-editing-v1.md#document-title-255).
+Core persists `numbering.headings: boolean` and `numbering.title: false` alongside
+`ieumdoc: 1`. Omitted numbering remains off. The optional frontmatter `title` is
+unnumbered. All body headings H1–H6 use the Core section counter policy: H1 `1`,
+H2 `1.1`, through H6, advancing/resetting by document order. Heading text never
+contains generated numbers. Custom starts, prefixes and per-level settings are
+rejected at admission. Editor insert/conversion menus and Tab/Shift+Tab cover
+H1–H6. See [document title](document-editing-v1.md#document-title-255).
 
 `updateHeadingNumbering(document, enabled)` updates only heading settings in native frontmatter with the existing YAML library, preserving reference templates and other admitted metadata. `HeadingNumbering` and `headingNumbers` expose the editor-neutral display rule. Editor headings and Outline call the same rule; one ProseMirror document attribute participates in Undo/Redo. Save applies the Core operation without changing snapshot paths. Metadata is hidden from the body, never inserted as an editor block.
 
@@ -23,11 +26,123 @@ In the inline Document settings block above the title (#580), Number headings be
 
 CLI: `ieumdoc update-heading-numbering <file> --enabled true|false`. `inspect --format json` reports computed `headingNumber` values. Figure/equation numbering is independent.
 
-Verification covers Core default-policy equivalence to MyST, native metadata writes, CLI edits, Editor path retention, Outline agreement, Undo/Redo and Save → Reload.
+Verification covers Core logical counters and the observed difference from MyST output defaults, native metadata writes, CLI edits, Editor path retention, Outline agreement, Undo/Redo and Save → Reload.
+
+## MyST title and output boundary (#722)
+
+Installed versions: `myst-parser 1.7.4`, `myst-to-md 1.0.17`,
+`myst-transforms 1.3.51`, `myst-frontmatter 1.10.1`. Core parses and writes native
+frontmatter without calling MyST `getFrontmatter` or `headingDepthTransform`.
+Regression checks execute these installed APIs on disposable copies:
+
+- Parser/writer preserve frontmatter title and body H1/H2 levels, including when
+  title equals the first H1, and when title is absent. Core never infers a title.
+- `getFrontmatter` infers the first heading as title when title is absent/empty;
+  by default it removes a matching leading H1. `keepTitleNode: true` prevents
+  removal, but does not prevent inference. Its default title extraction is
+  therefore unsuitable for Native opening semantics.
+- `headingDepthTransform` does nothing without `firstDepth`. With `firstDepth: 2`
+  it maps a disposable H1/H2 output tree to H2/H3. That output decision never
+  rewrites stored body levels. No new export/build pipeline is introduced.
+- Raw MyST `enumerateTargetsTransform` with `headings: true, title: false`
+  excludes H1 and numbers H2 `1`. Frontmatter `title` alone does not fix that
+  output policy. Native Core intentionally counts logical H1 as `1`, H2 as
+  `1.1`; Editor, Outline, CLI inspect and section references use `headingNumbers`
+  rather than running MyST's output transform. General MyST build compatibility
+  is not claimed; a future output adapter must explicitly preserve title/body
+  roles and map its output counters/heading placement.
+
+## Fixed numbers (#720)
+
+Figures (image, Mermaid and pending), tables and display equations support automatic or fixed
+numbering. Fixed numbers are authored non-empty single-line strings such as `17`, `A.3` or
+`4-2`, stored only in the MyST directive's `:enumerator:` option. Mermaid uses the outer
+`{figure}` option; the inner directive remains option-free. Code blocks and heading numbering
+are outside this feature. `:enumerated: false` is unsupported. No document-mode frontmatter
+or private number format is introduced.
+
+`EditableBlock.enumerator` exposes the authored string. `blockTargets` / `targetNumbers`
+return that string unchanged; automatic targets still return numeric counters. A fixed
+target does not advance the automatic counter, matching MyST. Caption and reference display
+substitute the exact string into the existing templates. Moving or editing content, caption
+or label retains it. Labels remain target identity; duplicate numbers do not merge targets.
+The complete semantic fingerprint includes enumerator, and canonical writing/reopening
+preserves it. The Core writer adds the option to its existing table/Mermaid/pending writers
+and the upstream image/math directive output; no dependency patch is needed.
+
+`numberingReport(blocks)` infers `mode: "fixed"` if any numbered target has an enumerator,
+otherwise `"automatic"`. It returns numbered `targets` and warning `diagnostics` with stable
+codes, `severity: "warning"`, kind and snapshot path. In fixed mode, each missing enumerator
+reports `numbering-missing`; every target sharing an exact string within its own kind reports
+`numbering-duplicate`. Different kinds have separate namespaces. Missing targets retain
+MyST's automatic fallback display until authored. These warnings identify a document that
+mixes modes or duplicates numbers; they never prevent Save, format or CLI edits.
+
+`updateEnumerator(document, [index], string)` sets or changes a fixed number; `""` clears it.
+The operation returns a new snapshot and preserves the input. Core operations allow an empty
+equation with a fixed number as an intermediate state. Operation checks validate a disposable
+copy of that empty equation without its enumerator, keeping the actual result unchanged.
+Final canonical write refuses the state with `fixed-number-unrepresentable` and guidance to
+enter equation content or clear the fixed number. MyST 1.7.4 requires a non-empty `{math}`
+body and `$$` cannot carry options; no dummy content or parser extension is used. An empty
+equation without a fixed number is savable and merely warns in fixed mode.
+
+CLI: `ieumdoc update-enumerator <file> --path <index> --enumerator "A.3"`; an empty value
+clears it. Existing revision, dry-run and atomic file replacement rules apply. `inspect`
+reports authored enumerators and computed numbers/display text; both `inspect` and `check`
+include `numbering` with the complete Core report in JSON and mode/warnings in text.
+`apply-batch` accepts the same command. Its existing contract serializes and reparses each
+step, with one final file replacement; an unsavable intermediate step therefore refuses
+the batch without writing. This PR preserves that contract rather than changing batch paths.
+For an initially empty equation, fill its content before setting its number (reorder the batch operations): the reverse order has no MyST representation for the intermediate step.
+
+Editor projects the authored attribute through its real schema, uses Core numbers for display,
+and preserves it through existing Core save operations. New locators from typed Cut/Paste,
+drop/copy or duplicate normalization carry the enumerator in `InsertEdit`; Host replay calls
+Core `updateEnumerator` after insertion, including image/pending/Mermaid Figures, tables and
+equations. Image/pending Figure, Mermaid Figure, table and equation property forms expose
+**Number** after Label, with **Automatic** as the empty placeholder and a short explanation.
+Input is a string draft, included in existing dirty/work-loss protection; only Apply changes
+the engine attribute, in the same Undo step as the other properties. Cancel/Escape keeps the
+applied value. Empty input clears the fixed number. Save collects snapshot-relative changes
+and Host replay calls Core `updateEnumerator`; no numbering semantics are implemented in UI.
+
+The Editor adapts the live applied blocks (including inserted ones) to Core `numberingReport`.
+An existing warning Notice above the document body reports the warning count, and Number in
+the affected block's properties explains Core's missing or duplicate diagnostic. Both say
+that saving is allowed; neither gates Save. Unapplied number drafts do not alter the report.
+Automatic documents show no warning Notice. Empty fixed equations can Apply, but the existing
+located Save error explains that the author must enter equation content or clear the number,
+in English and Korean. The original file and applied work are retained on refusal.
+
+Verification covers Core exact-string round-trips, moves, content/label
+edits, MyST enumeration/reference resolution, warnings and intermediate/final-write boundaries;
+CLI covers revision/dry-run/batch and report output; Editor covers schema/save-replay setting, clearing and preservation.
+The `reference-save-reload` browser regression opens a real fixed-number document, checks
+caption/equation/reference display, edits prose, saves and reloads, then checks all four
+enumerators on disk and in the reopened display. Browser navigation waits for the exact
+active file and ready state, retaining immediate value assertions afterward. The same scenario
+uses all four property forms for number-only drafts, Cancel, Apply, Undo/Redo and real Save →
+Reload, saves missing/duplicate warnings, clears all numbers back to automatic, and verifies
+Korean empty-fixed-equation refusal and recovery by clearing the number. These interface checks
+do not repeat the Core numbering policy tests.
+
+Manual image-property captures use master base `7ee58e9e`, the same scratch
+`tmp/mermaid-authoring/diagram.md`, checkout-owned persistent Chrome, dedicated origin
+`http://127.0.0.1:5720`, 1440×1000 / 640×1000, DPR 1, zoom 1, English UI and loaded fonts.
+Only the Number field and its hint are added to this automatic document's form. Small review
+pairs: [before 1440px](assets/fixed-numbering-720/before-1440.png) /
+[after 1440px](assets/fixed-numbering-720/after-1440.png),
+[before 640px](assets/fixed-numbering-720/before-640.png) /
+[after 640px](assets/fixed-numbering-720/after-640.png). Full generated diagnostics remain
+under ignored `tmp/`. The lazy Mermaid preview finishes between the narrow captures;
+these review the form and viewport fit, not pixel equivalence. Captures are manual evidence,
+separate from behavioral assertions. The [Korean warning at 640px](assets/fixed-numbering-720/warning-ko-640.png)
+shows the same shared Notice in the document and the affected Mermaid properties.
 
 ## Generated number color (#511 / #503)
 
-When Number headings is on, H2–H6 generated numbers and non-current Outline numbers
+When Number headings is on, H1–H6 generated numbers and non-current Outline numbers
 use `--id-color-document-heading-number`, an alias of the user's chosen interaction
 accent (#559 supersedes #511's separate teal). Its values and derivatives live only
 in the Adjustable values of `styles/tokens.css`. All six validated presets exceed
@@ -117,7 +232,7 @@ and resetting the same kind together is refused. `inspect --format json` adds `r
 to labeled numbered target nodes, computed by the same Core rule. Single commands and
 `apply-batch` use the existing command/write path; failures leave original bytes unchanged.
 
-Roman numerals, chapter hierarchy, caption substitution and Korean particles remain out of scope.
+Generated Roman numerals, chapter hierarchy, caption substitution and Korean particles remain out of scope. Authored fixed strings follow the separate contract below.
 
 ### Caption number labels (#462)
 

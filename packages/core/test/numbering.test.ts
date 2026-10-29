@@ -1,15 +1,106 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { containerChildrenTransform, enumerateTargetsTransform, liftMystDirectivesAndRolesTransform, ReferenceState } from "myst-transforms";
+import { containerChildrenTransform, enumerateTargetsTransform, liftMystDirectivesAndRolesTransform, ReferenceState, resolveReferencesTransform } from "myst-transforms";
 import { mystParse } from "myst-parser";
 import { VFile } from "vfile";
 import { parseDocument } from "yaml";
 import { validateNumbering } from "myst-frontmatter";
-import { headingNumbers, blockTargets, targetNumbers, captionNumberText, referenceNumberText } from "../src/numbering.ts";
+import { headingNumbers, sectionReferenceText, blockTargets, targetNumbers, captionNumberText, referenceNumberText } from "../src/numbering.ts";
 import { updateHeadingNumbering, getHeadingNumbering } from "../src/myst/heading-numbering.ts";
 import { getEditableDocument, insertEquation, moveBlock, parse, removeBlock, serialize, type MystDocument, type MystNode } from "./core-internal.ts";
 
 const numbers = (document: MystDocument) => targetNumbers(getEditableDocument(document).blocks.map(blockTargets));
+
+test("fixed enumerators survive canonical writing, edits, moves and MyST target resolution", async () => {
+  const core = await import("../src/index.ts");
+  const source = "---\nieumdoc: 1\n---\n\n:::{figure} ./image.png\n:name: fig\n:enumerator: 17\n:alt: Image\n\nCaption with $x$ and {eq}`eq`.\n:::\n\n:::{table} Values\n:name: tbl\n:enumerator: A.3\n\n| A | B |\n| :--- | ---: |\n| $x$ | `a` |\n:::\n\n```{math}\n:label: eq\n:enumerator: 4-2\n\nx=1\n```\n\n:::{figure}\n:name: diagram\n:enumerator: A.3\n\n```{mermaid}\ngraph TD; A-->B\n```\n\nDiagram with $x$ and {eq}`eq`.\n:::\n\n:::{figure}\n:enumerator: 5\n:::\n\nSee {numref}`fig`, {numref}`tbl`, {eq}`eq` and {numref}`diagram`.\n";
+  const document = core.parse(source);
+  const saved = core.serialize(document);
+  assert.equal(core.serialize(core.parse(saved)), saved);
+  const read = (doc: import("../src/index.ts").Document) => core.getEditableDocument(doc).blocks;
+  assert.deepEqual(read(core.parse(saved)).map(block => "enumerator" in block ? block.enumerator : undefined), ["17", "A.3", "4-2", "A.3", "5", undefined]);
+  assert.deepEqual(core.numberingReport(read(document)).diagnostics, []);
+  assert.deepEqual(core.targetNumbers(read(document).map(core.blockTargets)), [{ figure: "17" }, { table: "A.3" }, { equation: "4-2" }, { figure: "A.3" }, { figure: "5" }, {}]);
+  assert.deepEqual(core.unresolvedReferences(document), []);
+  let edited = core.updateTableCaption(document, [2], "Changed");
+  edited = core.updateLabel(edited, [2], "renamed", { updateReferences: true });
+  edited = core.updateEquationLatex(edited, [3], "x=1", "x=2");
+  edited = core.updateFigure(edited, [1], { imageAlt: "New alt" });
+  edited = core.moveBlock(edited, 1, 4);
+  assert.deepEqual(read(core.parse(core.serialize(edited))).flatMap(block => "enumerator" in block ? [block.enumerator] : []), ["A.3", "4-2", "A.3", "17", "5"]);
+  assert.equal(core.serialize(document), saved);
+  const file = new VFile();
+  const tree = mystParse(saved, { vfile: file });
+  liftMystDirectivesAndRolesTransform(tree);
+  containerChildrenTransform(tree, file);
+  const state = new ReferenceState("fixed.md", { vfile: file });
+  enumerateTargetsTransform(tree as never, { state });
+  // Pending Figures are an accepted Core authoring state; MyST's container validator
+  // diagnoses that one empty container while still enumerating it.
+  assert.deepEqual(file.messages.map(message => message.ruleId), ["container-children-valid"]);
+  assert.deepEqual(tree.children.filter(node => node.kind === "figure" || node.kind === "table" || node.type === "math").map(node => node.enumerator), ["17", "A.3", "4-2", "A.3", "5"]);
+  resolveReferencesTransform(tree as never, file, { state });
+  const paragraph = tree.children.at(-1)!;
+  const referenceText = (node: MystNode): string => node.type === "text" ? String(node.value) : (node.children ?? []).map(referenceText).join("");
+  assert.equal(referenceText(paragraph as MystNode), "See Figure\u00a017, Table\u00a0A.3, (4-2) and Figure\u00a0A.3.");
+  assert.equal(core.referenceNumberText("figure", "A$&.3", { figure: "Figure %s / {number}" }), "Figure A$&.3 / A$&.3");
+});
+
+test("fixed-number operations preserve exact strings and report nonblocking missing/duplicate numbers", async () => {
+  const core = await import("../src/index.ts");
+  let document = core.parse("---\nieumdoc: 1\n---\n\n:::{figure}\n:::\n\n| A |\n| --- |\n\n$$\n$$\n\n:::{figure} ./a.png\n:::\n");
+  const original = core.serialize(document);
+  const report = () => core.numberingReport(core.getEditableDocument(document).blocks);
+  assert.equal(report().mode, "automatic");
+  document = core.updateEnumerator(document, [1], "17");
+  document = core.updateEnumerator(document, [2], "17"); // different kinds have independent namespaces
+  document = core.updateEnumerator(document, [4], "17");
+  assert.deepEqual(report().diagnostics.map(d => [d.code, d.kind, d.path]), [
+    ["numbering-duplicate", "figure", [1]], ["numbering-missing", "equation", [3]], ["numbering-duplicate", "figure", [4]],
+  ]);
+  assert.equal(core.canonicalWriteIssue(document), undefined);
+  document = core.parse(core.serialize(document));
+  for (const number of ["A.3", "4-2", "0", "A$&.3", "한글-2"]) {
+    document = core.updateEnumerator(document, [1], number);
+    const block = core.getEditableDocument(core.parse(core.serialize(document))).blocks[0];
+    assert.equal("enumerator" in block && block.enumerator, number);
+  }
+  for (const invalid of [" ", "A\nB", 17, null]) {
+    assert.throws(() => core.updateEnumerator(document, [1], invalid as never), /enumerator/);
+  }
+  assert.throws(() => core.updateEnumerator(document, [0], "1"), /metadata/);
+  assert.throws(() => core.updateEnumerator(document, [2, 0], "1"), /top-level/);
+  for (const path of [[1], [2], [4]]) document = core.updateEnumerator(document, path, "");
+  assert.equal(report().mode, "automatic");
+  assert.deepEqual(report().diagnostics, []);
+  assert.equal(core.serialize(document), original);
+});
+
+test("empty fixed equations are an intermediate state; only final writes refuse with actionable diagnostics", async () => {
+  const core = await import("../src/index.ts");
+  const empty = core.insertEquation(core.createDocument(), 1, "");
+  const fixedEmpty = core.updateEnumerator(empty, [1], "A.3");
+  assert.equal(core.numberingReport(core.getEditableDocument(fixedEmpty).blocks).targets[0].enumerator, "A.3");
+  const checkRefusal = (document: import("../src/index.ts").Document) => assert.throws(() => core.serialize(document), error => {
+    const issue = core.writeIssueOf(error);
+    assert.equal(issue.code, "fixed-number-unrepresentable");
+    assert.deepEqual(issue.path, [1]);
+    assert.match(issue.action, /Enter equation content or clear the fixed number/);
+    return true;
+  });
+  checkRefusal(fixedEmpty);
+  const filled = core.updateEquationLatex(fixedEmpty, [1], "", "x=1");
+  const emptied = core.updateEquationLatex(filled, [1], "x=1", "");
+  checkRefusal(emptied);
+  // Other session operations can proceed while the incomplete equation remains.
+  const edited = core.updateReferenceTemplates(core.insertParagraph(emptied, 2, "Continue editing."), { equation: "Eq. %s" });
+  checkRefusal(edited);
+  assert.equal(core.canonicalWriteIssue(edited)?.code, "fixed-number-unrepresentable");
+  assert.match(core.serialize(core.updateEnumerator(edited, [1], "")), /\$\$\n\$\$/);
+  assert.match(core.serialize(filled), /:enumerator: A\.3/);
+  assert.equal(core.numberingReport(core.getEditableDocument(fixedEmpty).blocks).targets[0].enumerator, "A.3");
+  assert.equal(core.canonicalWriteIssue(empty), undefined);
+});
 
 test("all tables keep official numbers through canonical directives and caption/label edits", async () => {
   const core = await import("../src/index.ts");
@@ -74,7 +165,7 @@ test("native target numbers agree with MyST and follow insertions, moves and rem
   assert.deepEqual(numbers(table), [{ table: 1 }]);
 });
 
-test("native heading policy matches MyST without writing numbers into heading text", () => {
+test("native H1 body numbering preserves stored levels independently of MyST output policy", () => {
   const source = "---\nieumdoc: 1\n# Native document\n---\n\n# Title\n\n## First\n\n### Detail\n\n## Second\n";
   const document = parse(source);
   const before = structuredClone(document);
@@ -85,14 +176,18 @@ test("native heading policy matches MyST without writing numbers into heading te
   assert.doesNotMatch(markdown, /## 1/);
   assert.deepEqual(document, before);
   const read = getEditableDocument(next);
-  assert.deepEqual(headingNumbers(read.blocks, read.headingNumbering), [undefined, "1", "1.1", "2"]);
+  assert.deepEqual(headingNumbers(read.blocks, read.headingNumbering), ["1", "1.1", "1.1.1", "1.2"]);
   const tree = structuredClone(next);
   const metadata = parseDocument(String(tree.children[0].value)).toJS();
   metadata.numbering = validateNumbering(metadata.numbering, { property: "numbering", messages: {} });
   enumerateTargetsTransform(tree as never, { state: new ReferenceState("document.md", { frontmatter: metadata, vfile: new VFile() }) });
-  assert.deepEqual(tree.children.slice(1).map(node => node.enumerator), headingNumbers(read.blocks, read.headingNumbering));
+  // Raw MyST numbering with title:false excludes H1; Native does not use that output transform.
+  assert.deepEqual(tree.children.slice(1).map(node => node.enumerator), [undefined, "1", "1.1", "2"]);
   const moved = moveBlock(next, 4, 2);
-  assert.deepEqual(headingNumbers(getEditableDocument(moved).blocks, getHeadingNumbering(moved)), [undefined, "1", "2", "2.1"]);
+  assert.deepEqual(headingNumbers(getEditableDocument(moved).blocks, getHeadingNumbering(moved)), ["1", "1.1", "1.2", "1.2.1"]);
+  assert.equal(sectionReferenceText("Title", headingNumbers(read.blocks, read.headingNumbering)[0]), "§ 1");
+  assert.equal(sectionReferenceText("Title"), "§ Title");
+  assert.deepEqual(headingNumbers([1, 2, 3, 4, 5, 6, 1].map(level => ({ block: "heading", level })), read.headingNumbering), ["1", "1.1", "1.1.1", "1.1.1.1", "1.1.1.1.1", "1.1.1.1.1.1", "2"]);
   assert.equal(getHeadingNumbering(updateHeadingNumbering(next, false)), undefined);
   assert.equal(serialize(parse(markdown)), markdown);
 });

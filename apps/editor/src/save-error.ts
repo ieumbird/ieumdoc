@@ -25,6 +25,7 @@ const diagnosticGuidance = {
   "table-cell-whitespace": "Cell starts or ends with whitespace → Trim this cell.",
   "table-shape": "Inconsistent table → Use table controls to match cell counts and column alignment.",
   "invalid-figure": "Invalid Figure → Check image, alt text, Mermaid source and caption in Edit.",
+  "fixed-number-unrepresentable": "Fixed number cannot be saved → Enter equation content or clear the fixed number.",
 } satisfies Record<WriteIssueCode, MessageKey>;
 
 const diagnosticBadges = {
@@ -46,6 +47,7 @@ const diagnosticBadges = {
   "table-cell-whitespace": "Cell whitespace → Trim cell",
   "table-shape": "Invalid table → Check columns",
   "invalid-figure": "Invalid Figure → Check properties",
+  "fixed-number-unrepresentable": "Fixed number cannot be saved → Add content or clear number",
 } satisfies Record<WriteIssueCode, MessageKey>;
 
 function emptyEndnote(code?: string, blockType?: string): boolean {

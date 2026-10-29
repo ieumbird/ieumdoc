@@ -19,6 +19,7 @@ const bridge: DesktopBridge = {
   fileDeletion: "trash",
   setOpenedFolders: roots => ipcRenderer.invoke("desktop:opened-folders", roots),
   openFolderInExplorer: folder => ipcRenderer.invoke("desktop:open-folder", folder),
+  openLogFolder: () => ipcRenderer.invoke("desktop:open-log-folder"),
   setTheme: (theme) => ipcRenderer.invoke("desktop:set-theme", theme),
   setWindowBackground: (color, overlay) => ipcRenderer.invoke("desktop:set-window-background", color, overlay),
   info: () => ipcRenderer.invoke("desktop:info"),

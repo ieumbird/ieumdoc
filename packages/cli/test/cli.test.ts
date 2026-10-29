@@ -22,6 +22,7 @@ import {
   validateStructure,
   citationReport,
   updateLabel,
+  numberingReport,
 } from "@ieumdoc/core";
 import { textRevision } from "@ieumdoc/file-commit";
 import { runCli } from "../src/cli.ts";
@@ -40,6 +41,57 @@ for (const [name, target] of [["document.md", fixture], ["technical-document.md"
 const FROM = "The converter regulates voltage.";
 const TO = "The converter regulates voltage and current.";
 const INSERTED = "Added by CLI.";
+
+test("fixed-number CLI edits share revision/dry-run/batch writes and expose nonblocking Core warnings", () => {
+  const file = path.join(fixtures, "fixed-numbers.md");
+  const operations = path.join(fixtures, "fixed-numbers.json");
+  const source = nativeSource(":::{figure}\n:name: fig\n:::\n\n:::{figure}\n:::\n\n| A |\n| --- |\n\nSee {numref}`fig`.\n");
+  writeFileSync(file, source);
+  const args = ["update-enumerator", file, "--path", "1", "--enumerator", "A.3"];
+  const preview = run([...args, "--dry-run", "--format", "json"]);
+  assert.equal(preview.status, 0, preview.stderr);
+  assert.equal(readFileSync(file, "utf8"), source);
+  assert.equal(JSON.parse(preview.stdout).numbering.mode, "fixed");
+  assert.equal(run([...args, "--if-revision", textRevision(source)]).status, 0);
+  const saved = readFileSync(file, "utf8");
+  assert.match(saved, /:enumerator: A\.3/);
+  assert.equal(run([...args, "--if-revision", textRevision(source)]).status, 1);
+  assert.equal(run(["update-enumerator", file, "--path", "4", "--enumerator", "17"]).status, 1);
+  assert.equal(readFileSync(file, "utf8"), saved);
+  writeFileSync(operations, JSON.stringify([{ command: "update-enumerator", path: 2, enumerator: "A.3" }, { command: "update-enumerator", path: 3, enumerator: "17" }]));
+  const batch = run(["apply-batch", file, "--operations", operations]);
+  assert.equal(batch.status, 0, batch.stderr);
+  const inspected = run(["inspect", file, "--format", "json"]);
+  assert.equal(inspected.status, 0, inspected.stderr);
+  const model = JSON.parse(inspected.stdout);
+  const figure = model.nodes.find((node: { type: string }) => node.type === "figure");
+  assert.equal(figure.enumerator, "A.3");
+  assert.deepEqual(figure.numbers, { figure: "A.3" });
+  assert.equal(figure.referenceText, "Figure\u00a0A.3");
+  const checked = run(["check", file, "--format", "json"]);
+  assert.equal(checked.status, 0, checked.stderr);
+  assert.deepEqual(JSON.parse(checked.stdout).numbering, model.numbering);
+  assert.deepEqual(model.numbering.diagnostics.map((d: { code: string }) => d.code), ["numbering-duplicate", "numbering-duplicate"]);
+  assert.match(run(["check", file]).stdout, /warning: numbering-duplicate/);
+  assert.match(run(["inspect", file]).stdout, /enumerator="A\.3"/);
+  const clear = run(["update-enumerator", file, "--path", "1", "--enumerator", ""]);
+  assert.equal(clear.status, 0, clear.stderr);
+  assert.ok(JSON.parse(run(["check", file, "--format", "json"]).stdout).numbering.diagnostics.some((d: { code: string }) => d.code === "numbering-missing"));
+  const emptyFile = path.join(fixtures, "fixed-empty-guidance.md");
+  const emptySource = nativeSource("$$\n$$\n");
+  writeFileSync(emptyFile, emptySource);
+  const number = { command: "update-enumerator", path: 1, enumerator: "A.3" };
+  const fill = { command: "update-equation-latex", path: 1, from: "", to: "x=1" };
+  writeFileSync(operations, JSON.stringify([number, fill]));
+  const refused = run(["apply-batch", emptyFile, "--operations", operations]);
+  assert.equal(refused.status, 1);
+  assert.match(refused.stderr, /Enter equation content before setting the fixed number; in a batch, reorder those operations/);
+  assert.equal(readFileSync(emptyFile, "utf8"), emptySource);
+  writeFileSync(operations, JSON.stringify([fill, number]));
+  const reordered = run(["apply-batch", emptyFile, "--operations", operations]);
+  assert.equal(reordered.status, 0, reordered.stderr);
+  assert.match(readFileSync(emptyFile, "utf8"), /:enumerator: A\.3/);
+});
 
 test("update-media-references supports dry-run, batch, revision conflict and failure without writes", () => {
   const file = path.join(fixtures, "media-references.md"), batchFile = path.join(fixtures, "media-batch.md"), operations = path.join(fixtures, "media-operations.json");
@@ -571,7 +623,7 @@ test("ieumdoc help exits successfully", () => {
       "Edit — text and content": ["insert-hard-break", "replace-text", "update-heading", "update-admonition-variant", "update-quote", "update-figure", "update-media-references", "update-list", "update-code-block", "update-node-text", "update-equation-latex"],
       "Edit — structure": ["split-paragraph", "merge-paragraph", "update-heading-level", "convert-block", "remove-block", "move-block", "move-section", "remove-section"],
       "Edit — tables": ["insert-table", "insert-table-row", "insert-table-column", "remove-table-row", "remove-table-column", "move-table-row", "move-table-column", "update-table-alignment", "update-table-caption", "update-table-cell"],
-      "Edit — labels, footnotes and numbering": ["insert-citation", "insert-footnote", "insert-target", "remove-citation", "update-bibliography", "update-citation", "update-footnote", "update-heading-numbering", "update-label", "update-reference-templates"],
+      "Edit — labels, footnotes and numbering": ["insert-citation", "insert-footnote", "insert-target", "remove-citation", "update-bibliography", "update-citation", "update-enumerator", "update-footnote", "update-heading-numbering", "update-label", "update-reference-templates", "update-title"],
       "Format": ["format"],
       "Serve": ["serve"],
     };
@@ -1531,7 +1583,7 @@ test("inspect prints Core editable targets", () => {
     if (quotedParagraph?.block === "paragraph") {
       assert.equal(
         quoted.stdout,
-        `1 paragraph inlineEditable=${quotedParagraph.editable} text=${JSON.stringify(quotedParagraph.text)}\n`,
+        `title: absent\n1 paragraph inlineEditable=${quotedParagraph.editable} text=${JSON.stringify(quotedParagraph.text)}\nnumbering: automatic\n`,
       );
       assert.equal(quoted.stdout.includes("\n\n"), false);
     }
@@ -1591,6 +1643,7 @@ test("inspect and check expose stable machine-readable Core results", () => {
       validation: { valid: true },
       writeability: { writable: true },
       references: { unresolved: [] },
+      numbering: numberingReport(getEditableDocument(parse(before.toString("utf8"))).blocks),
       readiness: { pendingFigures: [], missingImageFigures: [] },
       endnotes: { inPlace: true },
       citations: { bibliography: [], citations: [], readiness: { status: "evaluated", complete: true, diagnostics: [] }, references: [], entries: [] },
@@ -1960,7 +2013,7 @@ test("CLI inserts and updates lists through Core and rejects invalid lists witho
     const inserted = {
       ordered: false,
       items: [
-        { content: [{ kind: "strong", children: text("Check") }, { kind: "text", text: " wiring" }], list: { ordered: true, start: 1, items: [{ content: text("Input") }] } },
+        { content: [{ kind: "strong", children: text("Check") }, { kind: "text", text: " wiring" }], list: { ordered: true, start: 1, style: "lower-roman", delimiter: ")", items: [{ content: text("Input") }] } },
         { content: text("Power on") },
       ],
     };
@@ -1972,11 +2025,15 @@ test("CLI inserts and updates lists through Core and rejects invalid lists witho
     assert.deepEqual(node, { path: [2], type: "list", ...inserted });
 
     // The inspected shape is the update input.
-    const updated = { ordered: true, start: 3, items: node.items };
+    const updated = { ordered: true, start: 3, style: "lower-alpha", delimiter: ")", items: node.items };
     const update = run(["update-list", file, "--path", "2", "--list", JSON.stringify(updated)]);
     assert.equal(update.status, 0, update.stderr);
     const saved = readFileSync(file, "utf8");
-    assert.equal(saved, nativeSource("# Steps\n\n3.  **Check** wiring\n\n    1.  Input\n4.  Power on\n"));
+    assert.equal(saved, nativeSource("# Steps\n\n{style=lower-alpha}\n3)  **Check** wiring\n\n    {style=lower-roman}\n    1)  Input\n4)  Power on\n"));
+    const after = run(["inspect", file, "--format", "json"]);
+    assert.deepEqual(JSON.parse(after.stdout).nodes[1], { path: [2], type: "list", ...updated });
+    assert.match(run(["inspect", file]).stdout, /style=lower-alpha delimiter="\)"/);
+    assert.match(run(["inspect", file]).stdout, /style=lower-roman/);
     assert.equal(serialize(parse(saved)), saved);
 
     const valid = JSON.stringify({ ordered: false, items: [{ content: text("x") }] });
@@ -2413,21 +2470,6 @@ test("Core rejects lossy text updates before CLI overwrites a real file", () => 
   }
 });
 
-test("CLI move-block rejects a lossy canonical reorder without overwriting the file", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-lossy-reorder-"));
-  const file = path.join(dir, "document.md");
-  try {
-    writeFileSync(file, nativeSource("- A\n\nMiddle\n\n- B"));
-    const before = readFileSync(file);
-    const result = run(["move-block", file, "--from", "3", "--to", "2"]);
-    assert.equal(result.status, 1);
-    assert.match(result.stderr, /Canonical save changed block boundaries/);
-    assert.deepEqual(readFileSync(file), before);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
 test("replace-text and insert-block reject lossy text without overwriting file bytes", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-canonical-writes-"));
   const file = path.join(dir, "document.md");
@@ -2573,7 +2615,8 @@ test("CLI heading numbering persists document settings and exposes the computed 
     assert.doesNotMatch(saved, /## 1/);
     const inspected = run(["inspect", file, "--format", "json"]);
     assert.equal(inspected.status, 0, inspected.stderr);
-    assert.deepEqual(JSON.parse(inspected.stdout).nodes.filter((node: {type:string}) => node.type === "heading").map((node: {headingNumber?: string}) => node.headingNumber), [undefined, "1", "1.1"]);
+    assert.deepEqual(JSON.parse(inspected.stdout).nodes.filter((node: {type:string}) => node.type === "heading").map((node: {headingNumber?: string}) => node.headingNumber), ["1", "1.1", "1.1.1"]);
+    assert.deepEqual(JSON.parse(inspected.stdout).nodes.filter((node: {type:string}) => node.type === "heading").map((node: {referenceText?: string}) => node.referenceText), ["§ 1", "§ 1.1", "§ 1.1.1"]);
     const invalid = run(["update-heading-numbering", file, "--enabled", "yes"]);
     assert.notEqual(invalid.status, 0);
     assert.equal(readFileSync(file, "utf8"), saved);
@@ -2771,4 +2814,36 @@ test("Figure Mermaid argument input supports atomic writes, inspect, dry-run and
   const batch = run(["apply-batch", batchFile, "--operations", operationsFile]);
   assert.equal(batch.status, 0, batch.stderr);
   assert.equal(readFileSync(batchFile, "utf8"), output);
+});
+
+test("CLI title settings support inspect, revision-safe writes, removal, batches and refusal preservation", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-title-"));
+  const file = path.join(dir, "chapter.md");
+  const operations = path.join(dir, "operations.json");
+  const source = nativeSource("(clause)=\n# Power quality\n\n## Detail\n\nSee {ref}`clause`.\n");
+  writeFileSync(file, source);
+  try {
+    assert.equal(JSON.parse(run(["inspect", file, "--format", "json"]).stdout).title, null);
+    const changed = run(["update-title", file, "--text", "IEEE 1547 · Chapter 7", "--if-revision", textRevision(source)]);
+    assert.equal(changed.status, 0, changed.stderr);
+    const saved = readFileSync(file, "utf8");
+    assert.equal(JSON.parse(run(["inspect", file, "--format", "json"]).stdout).title, "IEEE 1547 · Chapter 7");
+    assert.match(run(["inspect", file]).stdout, /title: "IEEE 1547 · Chapter 7"/);
+    assert.deepEqual(getEditableDocument(parse(saved)).blocks, getEditableDocument(parse(source)).blocks);
+    for (const flags of [["--text", "**Formatted**"], ["--text", "Two\nlines"], ["--text", "Stale", "--if-revision", textRevision(source)], [], ["--text", "Both", "--remove"]]) {
+      assert.notEqual(run(["update-title", file, ...flags]).status, 0);
+      assert.equal(readFileSync(file, "utf8"), saved);
+    }
+    const preview = run(["update-title", file, "--text", "", "--dry-run", "--format", "json"]);
+    assert.equal(preview.status, 0, preview.stderr);
+    assert.equal(getEditableDocument(parse(JSON.parse(preview.stdout).markdown)).title, "");
+    assert.equal(readFileSync(file, "utf8"), saved);
+    writeFileSync(operations, JSON.stringify([{ command: "update-title", text: "Batch title" }, { command: "update-title", remove: true }]));
+    const batch = run(["apply-batch", file, "--operations", operations]);
+    assert.equal(batch.status, 0, batch.stderr);
+    assert.equal(getEditableDocument(parse(readFileSync(file, "utf8"))).title, undefined);
+    assert.equal(run(["update-title", file, "--text", "Again"]).status, 0);
+    assert.equal(run(["update-title", file, "--remove"]).status, 0);
+    assert.equal(getEditableDocument(parse(readFileSync(file, "utf8"))).title, undefined);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

@@ -100,15 +100,15 @@ test("insert command adds one new paragraph after the target and reuses an empty
   assert.equal(reused.selection.$from.index(0), 1);
 });
 
-test("body heading commands offer H2-H6 and place the caret inside the heading", () => {
+test("body heading commands offer H1-H6 and place the caret inside the heading", () => {
   const state = EditorState.create({ schema, doc: docOf(nativeSource("AB")) });
   const commands = INSERT_COMMANDS.filter(command => command.id.startsWith("heading-"));
-  assert.ok(!commands.some(command => command.id === "heading-1"));
-  for (const level of [2, 3, 4, 5, 6]) assert.ok(commands.some(command => command.id === `heading-${level}`));
-  assert.deepEqual(filterInsertCommands("h1"), []);
-  assert.deepEqual(filterInsertCommands("제목 1"), []);
+  assert.ok(commands.some(command => command.id === "heading-1"));
+  for (const level of [1, 2, 3, 4, 5, 6]) assert.ok(commands.some(command => command.id === `heading-${level}`));
+  assert.deepEqual(filterInsertCommands("h1").map(command => command.id), ["heading-1"]);
+  assert.deepEqual(filterInsertCommands("제목 1").map(command => command.id), ["heading-1"]);
   assert.deepEqual(filterInsertCommands("h2").map(command => command.id), ["heading-2"]);
-  assert.ok(!filterInsertCommands("heading").some(command => command.id === "heading-1"));
+  assert.ok(filterInsertCommands("heading").some(command => command.id === "heading-1"));
   const next = state.apply(commands.find(command => command.id === "heading-2")!.run(state, 0));
   assert.deepEqual(next.doc.content.content.map(node => node.type.name), ["paragraph", "heading"]);
   assert.equal(next.doc.child(1).attrs.level, 2);
@@ -116,14 +116,14 @@ test("body heading commands offer H2-H6 and place the caret inside the heading",
   assert.equal(next.selection.$from.parentOffset, 0);
 });
 
-test("body block menus omit H1 while the document title keeps its own menu", () => {
+test("all body text blocks offer H1 without a positional title role", () => {
   for (const markdown of ["# Title\n\nParagraph\n\n## Section\n\n# Existing body H1", "(title)=\n\n# Title\n\nParagraph\n\n## Section\n\n# Existing body H1"]) {
     const state = EditorState.create({ schema, doc: docOf(nativeSource(markdown)) });
     state.doc.forEach((node, _, index) => {
       if (!["paragraph", "heading"].includes(node.type.name)) return;
       const commands = BLOCK_COMMANDS.filter(command => !command.applies || command.applies(state, index));
-      assert.equal(commands.some(command => command.id === "heading-level-1"), node.textContent === "Title", node.textContent);
-      for (const level of [2, 3, 4, 5, 6]) assert.ok(commands.some(command => command.id === `heading-level-${level}`));
+      assert.equal(commands.some(command => command.id === "heading-level-1"), true, node.textContent);
+      for (const level of [1, 2, 3, 4, 5, 6]) assert.ok(commands.some(command => command.id === `heading-level-${level}`));
       if (node.type.name === "heading") assert.ok(commands.some(command => command.id === "paragraph"));
     });
   }
@@ -139,7 +139,7 @@ test("shared insert commands include structural blocks and select their new atom
   assert.deepEqual(groups.filter((group, index) => group !== groups[index - 1]), ["Text", "Lists", "Blocks", "Technical"]);
   // All body heading levels are discoverable without a search query.
   assert.deepEqual(filterInsertCommands("").filter(command => command.id.startsWith("heading-")).map(command => command.id),
-    ["heading-2", "heading-3", "heading-4", "heading-5", "heading-6"]);
+    ["heading-1", "heading-2", "heading-3", "heading-4", "heading-5", "heading-6"]);
   assert.deepEqual(filterInsertCommands("h5").map(command => command.id), ["heading-5"]);
   assert.deepEqual(filterInsertCommands("h2").map(command => command.id), ["heading-2"]);
   assert.deepEqual(filterInsertCommands("latex").map(command => command.id), ["equation"]);
@@ -509,9 +509,9 @@ test("heading section commands move past sibling sections and delete a section, 
   assert.equal(command("section-up").applies!(state, 3), false);
   assert.deepEqual(["section-up", "section-down", "section-delete"].map(id => command(id).enabled(state, 2)), [false, true, true]);
   assert.deepEqual(["section-up", "section-down"].map(id => command(id).enabled(state, 4)), [false, false]);
-  // One is the title: Two cannot move above it, and the title's own section does not move (#255).
-  assert.deepEqual(["section-up", "section-down"].map(id => command(id).enabled(state, 7)), [false, false]);
-  assert.deepEqual(["section-up", "section-down"].map(id => command(id).enabled(state, 0)), [false, false]);
+  // Both leading and subsequent H1 sections can move past their siblings.
+  assert.deepEqual(["section-up", "section-down"].map(id => command(id).enabled(state, 7)), [true, false]);
+  assert.deepEqual(["section-up", "section-down"].map(id => command(id).enabled(state, 0)), [false, true]);
 
   // Section A (its target, read-only paragraph and A.1) moves below B in one undoable transaction.
   let moved = state.apply(command("section-down").run(state, 2));

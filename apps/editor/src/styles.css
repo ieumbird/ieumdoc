@@ -172,7 +172,7 @@ button {
 .document-settings-control input:focus-visible { outline: none; box-shadow: var(--focus-ring-inset); }
 .document-settings-control button { max-width: 100%; white-space: normal; height: auto; min-height: var(--size-control-compact); }
 .document-settings-group:disabled { color: var(--id-color-text-subtle); }
-.display-hint { margin: 0; color: var(--id-color-text-subtle); font-size: var(--font-size-xs); line-height: var(--line-height-meta); overflow-wrap: anywhere; }
+.display-hint, .form-hint { margin: 0; color: var(--id-color-text-subtle); font-size: var(--font-size-xs); line-height: var(--line-height-meta); overflow-wrap: anywhere; }
 .document-settings-option {
   display: flex; align-items: center; gap: var(--space-2);
   min-height: var(--size-control); padding: var(--space-1) var(--space-2);
@@ -556,6 +556,28 @@ button {
 }
 .document-scroll[hidden] { display: none; }
 .document-stage { flex: 1; min-height: 0; }
+
+/* Group headers and viewports share the same equal columns. Tabs remain under their
+ * original React parent when moved, retaining the editor, drafts and native scroll. */
+.editor-group-headers { display: flex; min-width: 0; }
+.editor-group-headers > section { flex: 1; min-width: 0; }
+.editor-group-headers > section + section { border-left: var(--border-width) solid var(--id-color-border); }
+.app-shell--split { --document-scrollbar-width: 0px !important; }
+.app-shell--split .document-scroll {
+  --editor-group-width: calc((100vw - var(--shell-sidebar) - var(--shell-panel) - var(--border-width)) / 2);
+  left: calc(var(--shell-sidebar) + var(--editor-group-index) * (var(--editor-group-width) + var(--border-width)));
+  right: auto;
+  width: var(--editor-group-width);
+  padding: 0;
+}
+.app-shell--split .document-scroll[data-group-index="1"] {
+  box-shadow: calc(-1 * var(--border-width)) 0 var(--id-color-border);
+}
+.app-shell--split .document {
+  --layout-document-inline-padding: var(--space-4);
+  --layout-document-block-padding: var(--layout-document-block-padding-narrow);
+}
+.app-shell--split [data-focused="true"] .document-tab-row { background: var(--id-color-surface-selected); }
 
 .app-header {
   position: sticky;
@@ -1286,40 +1308,28 @@ body:has(.ui-portal [role="menu"]) :is(.app-titlebar, .top-bar, .settings-topbar
   pointer-events: none;
 }
 
-/* The document title (#255). An empty title says what it is for, like the empty-document hint;
- * a document without one offers Add a title in the title's place, quiet until used. */
-.document-editor > h1[data-title-placeholder]::before {
-  content: attr(data-title-placeholder);
-  float: left;
-  height: 0;
-  color: var(--id-color-text-subtle);
-  pointer-events: none;
-}
-
-.document-title-slot {
+/* Plain frontmatter title, aligned with the document text column. */
+.document-title-input {
   display: block;
+  box-sizing: border-box;
+  width: 100%;
+  field-sizing: content;
+  resize: none;
+  overflow: hidden;
   margin: 0 0 var(--space-document-heading-after);
   padding: 0;
   border: 0;
   border-radius: var(--id-radius-sm);
   background: transparent;
-  color: var(--id-color-text-subtle);
+  color: var(--id-color-text);
   font-family: var(--font-family-document);
   font-size: var(--font-size-document-h1);
   font-weight: var(--font-weight-document-heading);
   line-height: var(--line-height-document-heading);
-  text-align: left;
-  cursor: text;
+  overflow-wrap: anywhere;
 }
-
-.document-title-slot:hover {
-  color: var(--id-color-text-muted);
-}
-
-.document-title-slot:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
+.document-title-input::placeholder { color: var(--id-color-text-subtle); }
+.document-title-input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 .heading {
   margin: var(--space-document-heading-before) 0 var(--space-document-heading-after);
@@ -1400,6 +1410,15 @@ h6.heading { font-size: var(--font-size-document-h6); }
 ul.list { list-style: disc; }
 ul.list ul.list { list-style: circle; }
 ol.list { list-style: decimal; }
+ol.list[data-list-style="lower-alpha"] { list-style-type: lower-alpha; }
+ol.list[data-list-style="upper-alpha"] { list-style-type: upper-alpha; }
+ol.list[data-list-style="lower-roman"] { list-style-type: lower-roman; }
+ol.list[data-list-style="upper-roman"] { list-style-type: upper-roman; }
+ol.list[data-list-delimiter=")"] > li::marker { content: counter(list-item) ") "; }
+ol.list[data-list-delimiter=")"][data-list-style="lower-alpha"] > li::marker { content: counter(list-item, lower-alpha) ") "; }
+ol.list[data-list-delimiter=")"][data-list-style="upper-alpha"] > li::marker { content: counter(list-item, upper-alpha) ") "; }
+ol.list[data-list-delimiter=")"][data-list-style="lower-roman"] > li::marker { content: counter(list-item, lower-roman) ") "; }
+ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { content: counter(list-item, upper-roman) ") "; }
 
 .list .paragraph {
   margin: 0;
@@ -1610,7 +1629,7 @@ ol.list { list-style: decimal; }
 }
 /* The table starts on the text axis. Rows never scroll sideways, so their handles and Append row
  * live in a layer outside the scroller, left of the axis; column handles scroll with the columns. */
-.table-grid { position: relative; min-width: 100%; width: max-content; padding: var(--size-table-handle-gutter) var(--size-table-handle-gutter) 44px 0; box-sizing: border-box; }
+.table-grid { position: relative; min-width: 100%; width: max-content; padding: var(--size-table-handle-gutter) var(--size-table-handle-gutter) calc(var(--size-control-compact) + 2 * var(--space-2)) 0; box-sizing: border-box; }
 .table-row-layer {
   position: absolute;
   top: 0;
@@ -1814,6 +1833,7 @@ ol.list { list-style: decimal; }
 /* A footnote reference is a superscript reference chip; its definition shows the same number. */
 .footnote-reference sup,
 .footnote-number {
+  color: var(--id-color-interaction);
   line-height: 0;
 }
 
@@ -1843,10 +1863,10 @@ ol.list { list-style: decimal; }
   padding-top: calc(var(--border-width) + var(--space-3) + var(--line-height-meta) + var(--space-document-endnote-gap));
 }
 
-.document-editor > [data-footnote-definition="true"]:not([data-footnote-definition="true"] + [data-footnote-definition="true"])::before {
-  content: "미주";
+.document-editor > [data-footnote-definition="true"]:not([data-footnote-definition="true"] + [data-footnote-definition="true"]) > .footnote-definition::before {
+  content: attr(data-endnotes-heading);
   position: absolute;
-  inset: 0 0 auto;
+  inset: calc(-1 * (var(--border-width) + var(--space-3) + var(--line-height-meta) + var(--space-document-endnote-gap))) 0 auto;
   border-top: var(--border-width) solid var(--id-color-border-subtle);
   padding-top: var(--space-3);
   color: var(--id-color-text-muted);
@@ -1862,6 +1882,16 @@ ol.list { list-style: decimal; }
   margin: 0;
   padding-left: var(--space-document-endnote-indent);
   color: var(--id-color-text);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-3);
+}
+
+.endnote-actions {
+  display: flex;
+  gap: var(--space-2);
+  grid-area: 1 / 2;
 }
 
 .footnote-definition > .footnote-number {
@@ -1876,6 +1906,7 @@ ol.list { list-style: decimal; }
 
 .footnote-definition-body {
   margin: 0;
+  grid-area: 1 / 1;
 }
 
 /* A section label is authoring metadata, like a Figure label. It takes no layout space (its
@@ -2109,8 +2140,8 @@ ol.list { list-style: decimal; }
   font-weight: 400;
   font-style: normal;
   line-height: var(--line-height-label);
-  max-width: calc(100vw - var(--space-4));
-  max-height: calc(100dvh - var(--app-header-height, var(--layout-header-row)) - var(--space-4));
+  max-width: var(--overlay-max-width, calc(100vw - var(--space-4)));
+  max-height: var(--overlay-max-height, calc(100dvh - var(--app-header-height, var(--layout-header-row)) - var(--space-4)));
   overflow: auto;
   translate: var(--overlay-shift-x, 0px) var(--overlay-shift-y, 0px);
 }
@@ -2278,7 +2309,8 @@ ol.list { list-style: decimal; }
   text-underline-offset: var(--reference-underline-offset);
 }
 
-.cross-reference-chip:hover {
+.cross-reference-chip:hover,
+.footnote-number:hover {
   text-decoration: underline;
   text-underline-offset: var(--reference-underline-offset);
 }
@@ -3058,9 +3090,10 @@ ol.list { list-style: decimal; }
 
 
 /* The engine table owns its caption; native caption layout keeps it below the grid. */
-.table-grid:has(.table-caption) { padding-bottom: 0; }
 .table > table { width: 100%; border-collapse: collapse; }
-.table-caption { caption-side: bottom; text-align: left; padding-top: 44px; }
+.table-caption { caption-side: bottom; text-align: left; padding-top: var(--space-document-caption); }
+/* Native caption padding owns the shared gap; its inner Figure-style caption adds none. */
+.table-caption .caption { margin-top: 0; }
 .caption[data-number] [data-empty-caption], .caption [data-empty-caption] { display: inline-block; min-width: 8em; }
 .caption [data-placeholder]::before {
   content: attr(data-placeholder) / "";
@@ -3099,5 +3132,7 @@ ol.list { list-style: decimal; }
   .app-shell { display: block; width: auto; height: auto; }
   .app-titlebar, .sidebar, .app-header, .document-panel { display: none; }
   .document-scroll { position: static; overflow: visible; padding: 0; }
+  .document-scroll[data-active="false"] { display: none; }
+  .app-shell--split .document-scroll { width: auto; padding: 0; }
   .document-column, .app-shell--wide .document-column { max-width: none; min-height: 0; padding: 0; }
 }
