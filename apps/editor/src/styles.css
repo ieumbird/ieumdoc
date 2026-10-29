@@ -485,10 +485,10 @@ button {
 .document-outline-item::after {
   grid-area: 1 / 1;
   min-width: 0;
-  display: -webkit-box;
+  display: block;
   overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .document-outline-item::after {
   content: attr(data-outline-label);
@@ -497,7 +497,7 @@ button {
 }
 
 /* File and heading current add semibold as a non-color cue, independently of hover/focus.
- * Glyph widths may change; row insets, clipping and the two-line Outline clamp stay unchanged. */
+ * Glyph widths may change; row insets and the single-line Outline ellipsis stay unchanged. */
 .sidebar-tree-item:hover,
 .document-outline-item:hover {
   background: var(--id-color-surface-hover);
