@@ -388,6 +388,7 @@ plain text only, and an empty Add a title placeholder. Its value is a
 ProseMirror document attribute in the same state/history as body edits. It does
 not create an editor body block or snapshot path, and does not appear in
 Outline. Ctrl+Z/Ctrl+Y/Ctrl+Shift+Z use engine history while the input is focused.
+Tab reaches the title after document settings, then enters the body editor.
 Enter enters the existing body; Shift+Enter allows a plain line break. Save and
 Source replay the Core title operation. Recovery snapshots and their plaintext
 salvage copy retain the title. Clearing the input stores an empty string.
@@ -412,8 +413,8 @@ writes, Editor metadata history/recovery and real HTTP title Save are covered by
 existing suites. The `document-title` browser scenario verifies absent/empty titles,
 Undo/Redo, Enter, Source, actual Save → Reload, H1 movement with its label, and
 Core-numbered section references. Existing `new-document`, `structural-block-authoring`,
-`block-move`, `outline`, `recovery-structure`, `layout-rules` and `quiet-document`
-cover the interface consequences. Old fixed-H1/H2-first assertions are replaced by
+`block-move`, `outline`, `recovery-structure`, `layout-rules`, `quiet-document`,
+`focus-caret` and `equation-save-during-edit` cover the interface consequences. Old fixed-H1/H2-first assertions are replaced by
 positive movement/H1-authoring assertions under the 2026-10-29 owner decision;
 Native refusal and semantic round-trip checks are retained.
 
