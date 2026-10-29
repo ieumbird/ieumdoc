@@ -2159,11 +2159,6 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
   max-height: min(var(--layout-image-link-preview-height), calc(var(--overlay-max-height, 100dvh - var(--app-header-height, var(--layout-header-row)) - var(--space-4)) - var(--space-4)));
   object-fit: contain;
 }
-.document-editor a[tabindex="0"]:focus-visible {
-  outline: 2px solid var(--id-color-interaction);
-  outline-offset: 2px;
-}
-
 .command-menu {
   display: grid;
   min-width: 10rem;

@@ -1394,9 +1394,13 @@ The extra compact outline button wraps with the existing form controls without w
 ### Relative image link previews (#731)
 
 An ordinary Markdown link to a document-relative PNG, JPG/JPEG, GIF, WebP or SVG
-shows an image preview on pointer hover or native keyboard focus, throughout the
-Visual document, including read-only endnote definitions. Image links participate in
-Tab navigation; Enter on a focused image link does not navigate or edit the document.
+shows an image preview on pointer hover throughout the Visual document, including
+read-only endnote definitions. Keyboard reading follows the existing editor selection:
+an empty text selection inside an image-link mark shows its preview while the editor
+has focus. Moving the caret outside the link, selecting a range, editing or composition
+closes it. Links retain ordinary StarterKit rendering and editing: no extra Tab stop,
+anchor-element focus or Enter/Tab interception. Click placement, double-click word
+selection, drag selection, Korean composition, link authoring and Undo stay unchanged.
 Destinations use the existing Figure Host resolver and document locator, including
 its access boundary. Missing or undecodable images show **Image not found /
 이미지를 찾을 수 없음**. Absolute paths, fragments, http(s) destinations and other
@@ -1412,10 +1416,14 @@ transparent and never moves focus, changes selection or writes document content.
 No new syntax, Core operation, CLI command or Host API is introduced. Image rename
 retargeting, printing/export and remote images are outside this feature.
 
-The `image-link-preview` browser scenario covers hover/focus, native Tab/Enter,
+The `image-link-preview` browser scenario covers hover and keyboard caret movement,
 read-only endnotes, quote/list/table links, missing and undecodable images, zero
-remote requests, unchanged click behavior, editing/IME dismissal, scrolling and
-split-group bounds. Native Core admission and canonical round-trip were checked
+remote requests, scrolling and split-group bounds. It also compares actual pointer
+editing of body/list/table image links with an ordinary link: click then type, native
+double-click and drag selection, Korean composition through Chromium's IME protocol,
+Ctrl/Cmd+' link authoring and Undo. It never repairs focus or selection before those
+input checks. The click/caret regression fails on the original preview implementation
+(`33c3bf2b67b7f814dd4083b3a02798d3f680101d`). Native Core admission and canonical round-trip were checked
 before implementation with `[^n]: [그림 보기](assets/footnote-110.png)`; the link's
 URL/text and stable reserialization are already supported.
 

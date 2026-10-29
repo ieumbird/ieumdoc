@@ -1,4 +1,5 @@
-import type { Editor } from "@tiptap/core";
+import type { Editor, EditorEvents } from "@tiptap/core";
+import { TextSelection } from "@tiptap/pm/state";
 import { useEffect, useLayoutEffect, useState, type CSSProperties, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { documentScrollContainer } from "./document-scroll.ts";
@@ -19,44 +20,72 @@ export function ImageLinkPreview({ editor, host, documentPath }: {
   useEffect(() => {
     if (!visible) return;
     const dom = editor.view.dom;
+    let editing = false;
+    let lastPointer: { x: number; y: number } | undefined;
     const close = () => setAnchor(null);
+    const input = () => { editing = true; close(); };
     const link = (target: EventTarget | null) => {
       const candidate = target instanceof Element ? target.closest<HTMLAnchorElement>("a[href]") : null;
       return candidate && dom.contains(candidate) && isRelativeImageLink(candidate.getAttribute("href")!) ? candidate : null;
     };
-    const over = (event: PointerEvent) => {
-      if (!event.buttons && !editor.view.composing) setAnchor(link(event.target));
+    const move = (event: PointerEvent) => {
+      // DOM replacement during typing can generate hover events under a stationary
+      // pointer. Resume reading only when the user actually moves it (#744 review).
+      if (!event.isTrusted || lastPointer?.x === event.clientX && lastPointer.y === event.clientY) return;
+      lastPointer = { x: event.clientX, y: event.clientY };
+      if (!event.buttons && !editor.view.composing) { editing = false; setAnchor(link(event.target)); }
     };
     const out = (event: PointerEvent) => {
       if (link(event.target) !== link(event.relatedTarget)) close();
     };
-    const focus = (event: FocusEvent) => { if (!editor.view.composing) setAnchor(link(event.target)); };
-    const key = (event: KeyboardEvent) => {
-      // Focusing an image link must not introduce native Enter navigation (#725).
-      if (link(event.target) && !event.isComposing) {
-        if (event.key === "Enter") event.preventDefault();
-        // A focused link uses native Tab traversal, not the document's table/list keys.
-        if (event.key === "Enter" || event.key === "Tab") event.stopPropagation();
+    const caret = () => {
+      const { selection } = editor.state;
+      const mark = selection.$from.marks().find(mark => mark.type.name === "link");
+      if (editing || !editor.isFocused || editor.view.composing || !(selection instanceof TextSelection) ||
+          !selection.empty || !mark || !isRelativeImageLink(mark.attrs.href)) { close(); return; }
+      const { node } = editor.view.domAtPos(selection.from);
+      setAnchor(link(node instanceof Element ? node : node.parentElement));
+    };
+    const selection = ({ transaction }: EditorEvents["selectionUpdate"]) => {
+      if (transaction.docChanged) input();
+      else caret();
+    };
+    // Composition can normalize selection after committing. Only a subsequent
+    // reading gesture resumes caret previews; never reopen from that normalization.
+    const navigate = (event: KeyboardEvent) => {
+      if (!event.isComposing && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(event.key)) {
+        editing = false; caret();
       }
+    };
+    const pointer = (event: PointerEvent) => {
+      if (event.target instanceof globalThis.Node && dom.contains(event.target)) editing = false;
       close();
     };
-    dom.addEventListener("pointerover", over);
+    // Dismissal only: no key cancellation or propagation changes inside the editor.
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") close(); };
+    window.addEventListener("pointermove", move);
     dom.addEventListener("pointerout", out);
-    dom.addEventListener("focusin", focus);
-    dom.addEventListener("focusout", close);
-    dom.addEventListener("compositionstart", close);
-    document.addEventListener("keydown", key, true);
-    document.addEventListener("pointerdown", close, true);
-    editor.on("update", close);
+    dom.addEventListener("beforeinput", input);
+    dom.addEventListener("compositionstart", input);
+    dom.addEventListener("keyup", navigate);
+    document.addEventListener("keydown", escape);
+    document.addEventListener("pointerdown", pointer, true);
+    editor.on("selectionUpdate", selection);
+    editor.on("focus", caret);
+    editor.on("blur", close);
+    editor.on("update", input);
     return () => {
-      dom.removeEventListener("pointerover", over);
+      window.removeEventListener("pointermove", move);
       dom.removeEventListener("pointerout", out);
-      dom.removeEventListener("focusin", focus);
-      dom.removeEventListener("focusout", close);
-      dom.removeEventListener("compositionstart", close);
-      document.removeEventListener("keydown", key, true);
-      document.removeEventListener("pointerdown", close, true);
-      editor.off("update", close);
+      dom.removeEventListener("beforeinput", input);
+      dom.removeEventListener("compositionstart", input);
+      dom.removeEventListener("keyup", navigate);
+      document.removeEventListener("keydown", escape);
+      document.removeEventListener("pointerdown", pointer, true);
+      editor.off("selectionUpdate", selection);
+      editor.off("focus", caret);
+      editor.off("blur", close);
+      editor.off("update", input);
       close();
     };
   }, [editor, visible, documentPath]);
