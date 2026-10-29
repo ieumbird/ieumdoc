@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import * as core from "@ieumdoc/core";
+import { semanticFingerprint } from "../src/myst/fingerprint.ts";
 import {
   getEditableDocument,
   insertList,
@@ -222,4 +223,30 @@ test("ordered format validation refuses invalid input and every format field rem
   // The complete fingerprint must refuse a field the writer cannot preserve.
   raw.children[0].delimiter = ":";
   assert.throws(() => serialize(raw), /serializer failed|semantic|bulletOrdered/);
+});
+
+test("list style parsing preserves literal attributes and container boundaries", () => {
+  const cases = [
+    ["inline text", "Use {style=lower-alpha} literally.\n"],
+    ["before prose", "{style=lower-alpha}\nOrdinary paragraph.\n"],
+    ["before heading", "{style=lower-alpha}\n# Heading\n"],
+    ["before bullet list", "{style=lower-alpha}\n- Item\n"],
+    ["unknown style", "{style=unknown}\n1) Item\n"],
+    ["unknown attribute", "{style=lower-alpha class=extra}\n1) Item\n"],
+    ["duplicate attribute", "{style=lower-alpha style=upper-alpha}\n1) Item\n"],
+    ["quote to outer list", "> {style=lower-alpha}\n\n1) Outside\n"],
+    ["outer attribute to quoted list", "{style=lower-alpha}\n> 1) Quoted\n"],
+    ["list item to outer list", "- Parent\n  {style=lower-alpha}\n\n1) Outside\n"],
+  ];
+  for (const [name, source] of cases) {
+    // Escaping the opening brace explicitly declares the expected literal text.
+    // Compare all semantic fields so swallowing text or moving it across a container fails.
+    const expected = semanticFingerprint(parse(source.replaceAll("{style=", "\\{style=")));
+    const document = parse(source);
+    assert.deepEqual(semanticFingerprint(document), expected, name);
+    const markdown = serialize(document);
+    const reopened = parse(markdown);
+    assert.deepEqual(semanticFingerprint(reopened), expected, name);
+    assert.equal(serialize(reopened), markdown, name);
+  }
 });
