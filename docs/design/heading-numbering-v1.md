@@ -156,7 +156,7 @@ in the Adjustable values of `styles/tokens.css`. All six validated presets excee
 4.5:1 on white, panel and selected surfaces, including H4–H6 at 18px, 16px and 14px.
 Heading text retains the normal text color. The current Outline row, including its
 number, uses the chosen preset's selected text color; hover and focus retain their rules.
-See [accent settings and contrast results](editor-visual-language-v1.md#single-accent-presets-559).
+See [accent palette and contrast requirements](editor-visual-language-v1.md#tokens-and-palette) and the [Historical contrast measurements](../reviews/editor-visual-language-history-2026-10-30.md#single-accent-presets-559).
 
 The heading's existing `::before` supplies the number; Outline wraps only the
 Core-computed number in an inline span, retaining its full text/accessibility label.

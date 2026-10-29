@@ -112,7 +112,7 @@ Changing `setEditable(false)` at runtime removes the hint; reenabling editing re
 when the selection is outside, without changing document content, dirty state or Undo history.
 The shared Figure/Table rule follows ProseMirror selection, including keyboard and programmatic
 selection, independently of DOM focus. The hint is generated with an empty accessibility
-alternative; the caption retains its single accessible name. See [visual evidence](editor-visual-language-v1.md#empty-caption-hints-698).
+alternative; the caption retains its single accessible name. See [visual evidence](../reviews/editor-visual-language-history-2026-10-30.md#empty-caption-hints-698).
 
 Backspace removes caption text through the normal editor history. At an empty caption's
 start, further Backspace leaves the table and neighboring content unchanged. When a native

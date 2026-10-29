@@ -1,5 +1,7 @@
 # 반복 UI 패턴 v1
 
+역할: 반복 UI 동작의 확정 목표·현재 기준·불일치를 관리하며, 시각 표현은 [Visual Language](editor-visual-language-v1.md), 배치·치수는 [Layout Rules](editor-layout-rules-v1.md)를 따른다.
+
 - Status: Draft
 - Last verified: 2026-10-30. master `2de4e857`의 코드·현재 계약과 #777 소유자 결정 대조. 이 문서 작업에서는 브라우저를 실행하지 않았다. 화면 근거는 [1단계 인벤토리][inventory]에 보존한다.
 - Scope: Editor 반복 UI의 **확정된 목표**, 현재 기준 구현과 알려진 불일치. Draft는 미구현 목표를 Implemented 계약으로 표시하지 않기 위한 상태이며 소유자 결정을 재논의한다는 뜻이 아니다.
@@ -59,7 +61,7 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 
 - **목적·사용/비사용:** 무엇이 비었는지와 다음 행동을 보여 준다. UI 안내를 실제 문서 콘텐츠로 저장하거나 빈 작성 자리를 모두 숨기지 않는다.
 - **목표:** 빈 제목은 기존 slot 높이를 유지한 작은 ‘제목 추가(선택)’이며 입력하면 title typography를 쓴다. title과 H1은 분리한다. pending Figure에는 ‘이미지 선택 / Mermaid 작성’ 진입을 보이며 진입만으로 내용을 확정하지 않는다. 빈 caption의 muted italic hint·선택 시 숨김·번호/최소 클릭 영역은 유지한다. 빈 검색·자원 목록은 작성 빈칸과 구별한다.
-- **현재 기준:** [빈 caption hint](editor-visual-language-v1.md#empty-caption-hints-698). [DocumentTitle](../../apps/editor/src/document-title.tsx)은 현재 큰 Add a title, pending Figure는 No content yet다.
+- **현재 기준:** [빈 caption hint](editor-visual-language-v1.md#state-rules). [DocumentTitle](../../apps/editor/src/document-title.tsx)은 현재 큰 Add a title, pending Figure는 No content yet다.
 - **사용처:** U01/U03–U06 빈 그림·원문·표·미주, U12 제목·본문, U21 검색/탐색, U23/U25 파일·참고문헌 빈 상태.
 - **결정·불일치:** [소유자 결정 P06][decision]. 제목·pending 진입은 D06. 기존 caption 규칙은 유지한다.
 

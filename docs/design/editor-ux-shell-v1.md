@@ -28,8 +28,8 @@
 - Double-click verification: 2026-10-26 (#470: figure-authoring and equation-insertion browser regressions verify the shared Edit path, focus, draft/history preservation and native Figure-caption word selection).
 
 - Previous verification: 2026-10-27 (#590: internal Outline close button removed; [verification and comparison](#outline-toggle-only-590)).
-- Previous verification: 2026-10-26 (#515 P1/P3 owner review correction: contrast-qualified tab edges, 600 list cue and stable Outline row extent; targeted regressions and [1440/390px comparison](editor-visual-language-v1.md#selection-cue-review-correction-515)).
-- Previous verification: 2026-10-26 (#515: owner A1 raised tab groups and background-only current lists; targeted browser regressions, Editor tests/typecheck/build and [1440/390px manual comparison](editor-visual-language-v1.md#selection-expression-verification-515)).
+- Previous verification: 2026-10-26 (#515 P1/P3 owner review correction: contrast-qualified tab edges, 600 list cue and stable Outline row extent; targeted regressions and [1440/390px comparison](../reviews/editor-visual-language-history-2026-10-30.md#selection-cue-review-correction-515)).
+- Previous verification: 2026-10-26 (#515: owner A1 raised tab groups and background-only current lists; targeted browser regressions, Editor tests/typecheck/build and [1440/390px manual comparison](../reviews/editor-visual-language-history-2026-10-30.md#selection-expression-verification-515)).
 - Previous verification: 2026-10-26 (#496: curated shortcut guide, Windows/macOS binding validity, desktop single-line rows and phone overflow; [verification and Before/After](#curated-shortcut-guide-496)).
 - Previous verification: 2026-10-26 (#471 and #485 review follow-up after merging master d3cfd58: Editor tests, workspace typecheck, Editor build, command-center/layout-rules/quiet-document/continuous-editing/markdown-input browser regressions, input-rule parity and complete keymap audit; [verification](#shortcut-guide-verification-471)).
 - Source wrapping verification: 2026-10-26 (#476: Source soft wrapping; Editor tests/typecheck/build, Source/layout/quiet-document browser checks and [1440/375px Before/After](#source-wrapping-476)).
@@ -37,7 +37,7 @@
 - Previous verification: 2026-10-26 (#473: Display/command-center bibliography connection and conditional References; [verification and product captures](citations-v1.md#conditional-references-verification-473)).
 - Previous verification: 2026-10-26 (Sidebar summary checked against the file-listing contract and implementation; incoming heading links checked; no Editor/browser/Desktop re-execution).
 
-- Scope: existing Editor interactions. [Visual Language (current v4.8)](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
+- Scope: existing Editor interactions. [Visual Language](editor-visual-language-v1.md) and [Layout Rules v1](editor-layout-rules-v1.md) define presentation and geometry.
 
 Historical verification records: [Verification record](#verification-record).
 
@@ -618,8 +618,8 @@ and Source and at either document width. `ieumdoc.pageBackground` is profile-loc
 read before styles/UI by the existing theme initialization path. Unknown/unavailable storage
 falls back to Paper; a failed write keeps the live choice and shows a localized alert.
 The same editor instances, drafts, selection and history remain mounted across theme and page-background changes.
-See [Visual Language](editor-visual-language-v1.md#system-light-and-dark-595) for role colors,
-startup/native synchronization, contrast and visual evidence. This presentation choice
+See [Visual Language](editor-visual-language-v1.md#surfaces-and-themes) for surface roles and
+startup/native synchronization, its [palette rules](editor-visual-language-v1.md#tokens-and-palette) for contrast, and the [Historical theme record](../reviews/editor-visual-language-history-2026-10-30.md#theme-verification-and-captures) for visual evidence. This presentation choice
 adds no Core operation or CLI command.
 Recovery retains its explanation, count and confirmed Clear all; individual records stay
 on the start screen. Desktop channel, status, release notes and update actions keep their
@@ -880,7 +880,7 @@ and pointer at the top right. A Host start response with no sample/recent/recove
 both. These are manual product captures, separate from automated assertions; the temporary
 capture-only walk is removed before commit. Shared Button sizes, spacing and surfaces follow
 [Layout Rules](editor-layout-rules-v1.md#controls-and-spacing) and
-[Visual Language](editor-visual-language-v1.md#reviewing-a-visual-change); no new token or CSS is needed.
+[Visual Language](editor-visual-language-v1.md); capture procedure follows [Visual change review](../test/README.md#reviewing-a-visual-change). No new token or CSS is needed.
 
 | Language / viewport | Before | After |
 | --- | --- | --- |
@@ -1008,7 +1008,7 @@ as the actual accents. Storage failure retains the live choice and existing aler
 There is no free color picker. The choice applies immediately to interactions, selection
 background/text, focus, primary actions, links/references and generated heading/Outline numbers.
 Information states are neutral; danger and warning retain their meanings. Values and contrast
-requirements belong to [Visual Language](editor-visual-language-v1.md#single-accent-presets-559).
+requirements belong to [Visual Language](editor-visual-language-v1.md#tokens-and-palette).
 
 The existing browser/origin preference path stores only a preset ID in
 `ieumdoc.accentColor`, independent of documents and the Host. Vite, HTTP and Desktop
@@ -2148,7 +2148,7 @@ uses the same document, language, viewport, guide scroll 0 and keyboard-focused 
 The 1440px guide widens from the default 384px to the existing 672px Folder dialog token;
 labels and multiple key hints now share a row. At 375px the 343px popup retains its viewport
 inset, shows the shorter list and keeps Close reachable. Surface, font, spacing and focus
-treatment follow the existing [Visual Language](editor-visual-language-v1.md#reviewing-a-visual-change).
+treatment follow [Visual Language](editor-visual-language-v1.md); capture procedure follows [Visual change review](../test/README.md#reviewing-a-visual-change).
 Captures are review evidence, not screenshot-based automated assertions.
 
 | Language / viewport | Before | After |
