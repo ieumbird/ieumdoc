@@ -8,7 +8,8 @@
 - Empty structural elements: 2026-10-27 (#574; canonical forms and verification below).
 - Documentation verification: 2026-10-26 (Open protection and implemented Editor label rename compared with the session/reference contracts and current code; no new browser execution).
 - CLI insertion verification: 2026-10-15 (#280 Core body-end and CLI single/batch insertion tests; one-write and unchanged-file refusal).
-- Last verified: 2026-10-29 (#730 adjacent-list canonical boundaries, numbering/content preservation and stable reopen; Core regressions and Editor paragraph deletion through Host Save).
+- Last verified: 2026-10-29 (#734 all ten ordered formats, adjacency/nesting and stable reopen; Core/CLI/Editor suites, Python MyST cross-check and browser menu/Undo/clipboard/Save→Reload).
+- Previous verification: 2026-10-29 (#730 adjacent-list canonical boundaries, numbering/content preservation and stable reopen; Core regressions and Editor paragraph deletion through Host Save).
 - Previous verification: 2026-10-24 (#366 citation-only and footnote-only list admission, update and canonical reopen; Core list regressions).
 - Previous verification: 2026-10-22 (#332 citation roles and bibliography declarations; Core/CLI/Editor tests and browser Save → Reload, detailed in [Citations](citations-v1.md)).
 - Previous verification: 2026-10-20 (#328: literal @ admission, canonical escaping and bracket shorthand refusal; Core/CLI tests and Editor save-path code inspection).
@@ -50,7 +51,7 @@ Support is decided from Core semantic structure and existing authoring helpers, 
 | Equation | Display math value (including empty), optional label and fixed `:enumerator:` string. Empty equations use dollar fences, filled equations use `{math}`. A label must preserve its identity in the chosen notation. Empty equations with a fixed number are permitted only as an intermediate operation state, and refused at final canonical write. No `:enumerated: false` or arbitrary attributes. |
 | Figure | Empty/pending, one image or one option-free non-empty `mermaid` directive, optional container label, fixed `:enumerator:` string and one supported inline caption. Mermaid numbering belongs only to the outer `{figure}`. Alt text requires an image. Mermaid source is opaque; no syntax validation or image ↔ Mermaid conversion. No legends, subfigures, mixed content or extra directive/image/Mermaid attributes. |
 | Table | Rectangular GFM grid with a header row, supported inline cells without line breaks, column alignment; optional supported table caption, label and fixed number. Only plain GFM and the exact `{table}` directive are accepted. Its options may contain only `name` / `label` and `enumerator`, and any MyST VFile diagnostic within the directive's source range causes refusal, including duplicate/unknown options in colon-line or YAML syntax. `{csv-table}`, `{list-table}` and other table directives are refused with or without caption/Label. Every table is numbered and canonically saved as `{table}`, including without caption or label. No merged cells, legends or extra directive attributes. |
-| List | Ordered or unordered lists with supported paragraph content and supported nested lists; existing start and nesting rules. A list retains at least one item. Each item may be empty, including a parent with only a nested list, or contain supported inline content such as text, a citation, footnote reference, math, code or semantic reference. This applies at every nesting level. Insert/update operations normalize whitespace-only content to empty content as described below. No tasks or arbitrary nested blocks. |
+| List | Ordered or unordered lists with supported paragraph content and supported nested lists; existing start and nesting rules. Ordered lists preserve style and delimiter under the [ordered format contract](#ordered-list-formats-734). A list retains at least one item. Each item may be empty, including a parent with only a nested list, or contain supported inline content such as text, a citation, footnote reference, math, code or semantic reference. This applies at every nesting level. Insert/update operations normalize whitespace-only content to empty content as described below. No tasks or arbitrary nested blocks. |
 | Code | Plain fenced code with the existing language contract; no captioned/directive variants. |
 | Quote, divider, admonition | An empty quote or one supported paragraph; thematic break; all standard admonition kinds with an empty body or one supported paragraph. No custom titles/options or additional nested blocks. |
 | Footnote and target | One non-empty supported paragraph per definition, no footnote references inside definitions; citations and document references are supported. Label targets and semantic references follow their existing contracts. |
@@ -198,14 +199,48 @@ list-shaped highlighting/navigation contract is unchanged.
 ## Canonical output and compatibility
 
 Adjacent lists retain separate boundaries without HTML comments: canonical output
-alternates `*` / `-` for adjacent unordered lists and `.` / `)` for adjacent ordered
-lists, preserving each list's start, kind, items and nesting. Repeated writes are
-byte-stable. This also applies to the internal writer's nested list flows; Native
-List v1 still permits at most one nested list per item.
-`patches/myst-to-md@1.0.17.patch` enables the existing downstream writer options
-`bulletOther` and `bulletOrderedOther` (#730). Remove the patch when the pinned
-upstream writer preserves these boundaries without HTML and the Core adjacency
-and canonical round-trip regressions pass. No serializer guard is relaxed.
+alternates `*` / `-` for adjacent unordered lists. Ordered delimiters retain their
+meaning: when two ordered siblings use the same delimiter, the second receives a
+style line, including `{style=decimal}` for the default. Different delimiters already
+separate lists. Starts, kind, items and nesting survive repeated byte-stable writes.
+This also applies to the internal writer's nested flows; Native List v1 still permits
+at most one nested list per item. No serializer guard is relaxed.
+
+### Ordered list formats (#734)
+
+`ListContent` accepts ordered-only `style` (`decimal`, `lower-alpha`, `upper-alpha`,
+`lower-roman`, `upper-roman`) and `delimiter` (`.` or `)`). Omitted values mean
+`decimal` and `.`. The editable projection omits these default values; Core node
+creation and parsing record both effective values, and the complete fingerprint
+checks both. Bullet lists reject either field. Start bounds and nesting stay unchanged.
+The existing CLI `insert-list` / `update-list --list` JSON calls these Core operations;
+`inspect` exposes the format, including nested content, with effective top-level defaults.
+
+The saved form uses Python MyST's `attrs_block` spelling on its own line immediately
+before a numeric Markdown list (an optional blank line is accepted):
+
+```markdown
+{style=lower-alpha}
+3) Third clause
+4) Fourth clause
+```
+
+Non-decimal styles always receive this line. Decimal omits it unless needed for an
+adjacent boundary. Numeric source markers retain their delimiter. Direct `a)` source
+syntax and typing input rules are outside this contract. This is a local extension
+of the pinned **JS** MyST schema, not an official JS MyST list field. It supports only
+the five style values, unquoted or double-quoted, rather than general block attributes.
+
+`patches/myst-parser@1.7.4.patch` reuses markdown-it's list rule to read this subset
+and retain the token delimiter. `patches/myst-to-md@1.0.17.patch` delegates list bodies
+to the existing writer, chooses the semantic delimiter per list and inserts style
+lines for formats/boundaries. It retains `bulletOther` from #730, replacing ordered
+delimiter alternation. Remove these patches when upstream supports the same semantics
+and the format, adjacency and canonical round-trip regressions pass without them.
+No markdown-it version override is introduced. First-stage cross-checks against
+Python MyST-parser 4.0.1 confirmed boundary, style, delimiter and start for all ten
+formats, non-default starts, adjacency and nesting. External HTML/PDF output is outside
+this change; the Editor's display/interaction is defined in [Editor UX Shell](editor-ux-shell-v1.md#unified-action-menus-516).
 
 The [v0.1.0-beta.1 candidate release record](../releases/v0.1.0-beta.1.md) summarizes compatibility and behavior changes since beta.4. The native marker remains `ieumdoc: 1`; beta.4 native documents remain supported, while new citation and reference-template metadata is not supported by beta.4.
 

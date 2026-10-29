@@ -69,7 +69,7 @@ export function toTiptapBlock(block: EditableBlock): TiptapJSON {
 function listNode(list: ListContent): TiptapJSON {
   return {
     type: list.ordered ? "orderedList" : "bulletList",
-    ...(list.ordered ? { attrs: { start: list.start } } : {}),
+    ...(list.ordered ? { attrs: { start: list.start, style: list.style ?? "decimal", delimiter: list.delimiter ?? "." } } : {}),
     content: list.items.map(item => ({
       type: "listItem",
       content: [

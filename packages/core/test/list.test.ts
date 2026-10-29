@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import * as core from "@ieumdoc/core";
+import { semanticFingerprint } from "../src/myst/fingerprint.ts";
 import {
   getEditableDocument,
   insertList,
@@ -182,5 +183,70 @@ test("canonical writer preserves adjacent list siblings inside a list item witho
     assert.equal(parse(markdown).children[0].children?.[0].children?.filter(node => node.type === "list").length, 3);
     assert.equal(serialize(parse(markdown)), markdown);
     assert.throws(() => core.parse(`---\nieumdoc: 1\n---\n\n${markdown}`), /unsupported|not supported/i);
+  }
+});
+
+test("all ordered formats preserve style, delimiter, starts, nesting and adjacent boundaries", () => {
+  for (const style of core.LIST_STYLES) for (const delimiter of [".", ")"] as const) {
+    const nested: ListContent = { ordered: true, start: 4, style: "upper-roman", delimiter: ")", items: [{ content: text("Nested") }] };
+    const list: ListContent = { ordered: true, start: 3, style, delimiter, items: [{ content: text("First"), list: nested }, { content: [] }] };
+    let document = core.insertList(core.createDocument(), 1, list);
+    document = core.insertList(document, 2, { ordered: true, start: 7, delimiter, items: [{ content: text("Default style") }] });
+    document = core.insertList(document, 3, list);
+    const before = core.getEditableDocument(document);
+    const markdown = core.serialize(document);
+    assert.doesNotMatch(markdown, /<!--/);
+    assert.match(markdown, /\{style=decimal\}/, "default style separates same-delimiter siblings");
+    assert.deepEqual(core.getEditableDocument(core.parse(markdown)), before);
+    assert.equal(core.serialize(core.parse(markdown)), markdown);
+    const updated = core.updateList(document, [2], { ...list, start: 9 });
+    const block = core.getEditableDocument(core.parse(core.serialize(updated))).blocks[1];
+    assert.ok(block.block === "list");
+    assert.equal(block.style ?? "decimal", style);
+    assert.equal(block.delimiter ?? ".", delimiter);
+    assert.equal(block.start, 9);
+  }
+});
+
+test("ordered format validation refuses invalid input and every format field remains semantic", () => {
+  const list: ListContent = { ordered: true, items: [{ content: text("Item") }] };
+  const document = core.insertList(core.createDocument(), 1, list);
+  const before = core.serialize(document);
+  for (const invalid of [{ ...list, style: "armenian" }, { ...list, delimiter: ":" },
+    { ...list, ordered: false, style: "decimal" }, { ...list, ordered: false, delimiter: "." }]) {
+    assert.throws(() => core.updateList(document, [1], invalid as ListContent), /style and delimiter/);
+    assert.equal(core.serialize(document), before);
+  }
+  const raw = parse("{style=lower-alpha}\n3) Item\n");
+  assert.equal(raw.children[0].style, "lower-alpha");
+  assert.equal(raw.children[0].delimiter, ")");
+  // The complete fingerprint must refuse a field the writer cannot preserve.
+  raw.children[0].delimiter = ":";
+  assert.throws(() => serialize(raw), /serializer failed|semantic|bulletOrdered/);
+});
+
+test("list style parsing preserves literal attributes and container boundaries", () => {
+  const cases = [
+    ["inline text", "Use {style=lower-alpha} literally.\n"],
+    ["before prose", "{style=lower-alpha}\nOrdinary paragraph.\n"],
+    ["before heading", "{style=lower-alpha}\n# Heading\n"],
+    ["before bullet list", "{style=lower-alpha}\n- Item\n"],
+    ["unknown style", "{style=unknown}\n1) Item\n"],
+    ["unknown attribute", "{style=lower-alpha class=extra}\n1) Item\n"],
+    ["duplicate attribute", "{style=lower-alpha style=upper-alpha}\n1) Item\n"],
+    ["quote to outer list", "> {style=lower-alpha}\n\n1) Outside\n"],
+    ["outer attribute to quoted list", "{style=lower-alpha}\n> 1) Quoted\n"],
+    ["list item to outer list", "- Parent\n  {style=lower-alpha}\n\n1) Outside\n"],
+  ];
+  for (const [name, source] of cases) {
+    // Escaping the opening brace explicitly declares the expected literal text.
+    // Compare all semantic fields so swallowing text or moving it across a container fails.
+    const expected = semanticFingerprint(parse(source.replaceAll("{style=", "\\{style=")));
+    const document = parse(source);
+    assert.deepEqual(semanticFingerprint(document), expected, name);
+    const markdown = serialize(document);
+    const reopened = parse(markdown);
+    assert.deepEqual(semanticFingerprint(reopened), expected, name);
+    assert.equal(serialize(reopened), markdown, name);
   }
 });

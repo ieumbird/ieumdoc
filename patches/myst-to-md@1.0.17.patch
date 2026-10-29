@@ -1,26 +1,63 @@
 diff --git a/dist/index.js b/dist/index.js
-index 66fa25c52a0d15ee520c6446009321a29782612c..baca84133c15b8f2b6312eb71454e12f73598a81 100644
+index 66fa25c52a0d15ee520c6446009321a29782612c..e546ed5202811ca26b81c8f00b75084e12ba1107 100644
 --- a/dist/index.js
 +++ b/dist/index.js
-@@ -25,6 +25,8 @@ export function writeMd(file, node, frontmatter) {
+@@ -14,6 +14,17 @@ export function writeMd(file, node, frontmatter) {
+         ...roleHandlers,
+         ...referenceHandlers,
+         ...miscHandlers,
++        list(node, parent, state, info) {
++            if (!node.ordered) return defaultHandlers.list(node, parent, state, info);
++            const previous = parent?.children?.[parent.children.indexOf(node) - 1];
++            const boundary = previous?.type === 'list' && previous.ordered && previous.delimiter === node.delimiter;
++            const saved = state.options.bulletOrdered;
++            state.options.bulletOrdered = node.delimiter ?? '.';
++            try {
++                const body = defaultHandlers.list(node, parent, state, info);
++                return (node.style ?? 'decimal') !== 'decimal' || boundary ? '{style=' + (node.style ?? 'decimal') + '}\n' + body : body;
++            } finally { state.options.bulletOrdered = saved; }
++        },
+     };
+     const handlerKeys = [
+         ...Object.keys(handlers),
+@@ -25,6 +36,8 @@ export function writeMd(file, node, frontmatter) {
      const options = {
          fences: true,
          rule: '-',
 +        bulletOther: '-',
-+        bulletOrderedOther: ')',
++        join: [(left, right) => left.type === 'list' && right.type === 'list' && right.ordered ? 1 : undefined],
          handlers: {
              ...handlers,
              ...unsupported,
 diff --git a/src/index.ts b/src/index.ts
-index 97e785259f6c2d9cf55c9ea572f412a677a7ebc8..e10e5434d5aac9fb3dd6a1eb736244b684184346 100644
+index 97e785259f6c2d9cf55c9ea572f412a677a7ebc8..bd910793dabad1f7e818a7f5bceafd25341762d5 100644
 --- a/src/index.ts
 +++ b/src/index.ts
-@@ -32,6 +32,8 @@ export function writeMd(file: VFile, node: Root, frontmatter?: PageFrontmatter)
+@@ -21,6 +21,17 @@ export function writeMd(file: VFile, node: Root, frontmatter?: PageFrontmatter)
+     ...roleHandlers,
+     ...referenceHandlers,
+     ...miscHandlers,
++    list(node: any, parent: any, state: any, info: any) {
++      if (!node.ordered) return defaultHandlers.list(node, parent, state, info);
++      const previous = parent?.children?.[parent.children.indexOf(node) - 1];
++      const boundary = previous?.type === 'list' && previous.ordered && previous.delimiter === node.delimiter;
++      const saved = state.options.bulletOrdered;
++      state.options.bulletOrdered = node.delimiter ?? '.';
++      try {
++        const body = defaultHandlers.list(node, parent, state, info);
++        return (node.style ?? 'decimal') !== 'decimal' || boundary ? '{style=' + (node.style ?? 'decimal') + '}\n' + body : body;
++      } finally { state.options.bulletOrdered = saved; }
++    },
+   };
+   const handlerKeys = [
+     ...Object.keys(handlers),
+@@ -32,6 +43,9 @@ export function writeMd(file: VFile, node: Root, frontmatter?: PageFrontmatter)
    const options: Options = {
      fences: true,
      rule: '-',
 +    bulletOther: '-',
-+    bulletOrderedOther: ')',
++    // Ordered delimiters are semantic; a style line separates same-delimiter siblings.
++    join: [(left, right) => left.type === 'list' && right.type === 'list' && right.ordered ? 1 : undefined],
      handlers: {
        ...handlers,
        ...unsupported,
