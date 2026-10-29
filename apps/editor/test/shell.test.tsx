@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { activeAfterClose, allTabsPendingWork, openedTab, tabLabels, tabNames } from "../src/document-tabs.ts";
+import { editorGroups, initialEditorGroups, activeAfterClose, allTabsPendingWork, openedTab, tabLabels, tabNames } from "../src/document-tabs.ts";
 
 import { renderToStaticMarkup } from "react-dom/server";
 import type { FolderEntry } from "../shared/document-protocol.ts";
@@ -19,6 +19,7 @@ import { SaveContentError } from "../shared/save-error.ts";
 import { NewDialog } from "../src/shell/NewDialog.tsx";
 import { Sidebar } from "../src/shell/Sidebar.tsx";
 import { DocumentActions } from "../src/shell/DocumentActions.tsx";
+import { DocumentTabs } from "../src/shell/DocumentTabs.tsx";
 import { TopBar } from "../src/shell/TopBar.tsx";
 import { i18n } from "../src/i18n.ts";
 import { MissingFileNotice, type Comparison } from "../src/shell/SourceCompare.tsx";
@@ -36,6 +37,35 @@ import { extensions, flattenExtensions, getExtensionField, type Editor } from "@
 import { createEditorExtensions } from "../src/editor-schema.tsx";
 
 const normalizeBinding = (binding: string) => binding.toLowerCase().split("-").sort().join("-");
+
+test("group Open moves a document once, selects it, and closes an emptied group", () => {
+  let state = editorGroups(initialEditorGroups, { type: "reset", tabs: ["a", "b", "c"], active: "b" });
+  state = editorGroups(state, { type: "open", id: "b", group: 1 });
+  assert.deepEqual(state, { groups: [{ id: 0, tabs: ["a", "c"], active: "c" }, { id: 1, tabs: ["b"], active: "b" }], focused: 1 });
+  assert.equal(editorGroups(state, { type: "open", id: "x", group: 2 }), state, "Cannot create a third group");
+  state = editorGroups(state, { type: "open", id: "b", group: 0 });
+  assert.deepEqual(state, { groups: [{ id: 0, tabs: ["a", "c", "b"], active: "b" }], focused: 0 });
+});
+
+test("closing a group tab chooses its own neighbour and retains another group's active tab", () => {
+  let state = editorGroups(initialEditorGroups, { type: "reset", tabs: ["a", "b", "c"], active: "a" });
+  state = editorGroups(state, { type: "open", id: "c", group: 1 });
+  state = editorGroups(state, { type: "close", id: "a" });
+  assert.deepEqual(state.groups.map(group => group.active), ["b", "c"]);
+  assert.equal(state.focused, 1);
+  state = editorGroups(state, { type: "close", id: "c" });
+  assert.deepEqual(state, { groups: [{ id: 0, tabs: ["b"], active: "b" }], focused: 0 });
+  assert.deepEqual(editorGroups(state, { type: "close", id: "b" }), initialEditorGroups);
+});
+
+test("narrow-area merging retains flattened order and the focused active document", () => {
+  let state = editorGroups(initialEditorGroups, { type: "reset", tabs: ["a", "b", "c"], active: "a" });
+  state = editorGroups(state, { type: "open", id: "b", group: 1 });
+  state = editorGroups(state, { type: "open", id: "d" });
+  state = editorGroups(state, { type: "merge" });
+  assert.deepEqual(state, { groups: [{ id: 0, tabs: ["a", "c", "b", "d"], active: "d" }], focused: 0 });
+  assert.equal(editorGroups(state, { type: "merge" }), state);
+});
 function registeredBindings() {
   // Core enables these exported extensions; exclude the exported PluginKey, which has no type.
   // Include createEditorExtensions so application keymaps such as documentInteraction are audited.
@@ -354,6 +384,11 @@ test("same-named files use enough of their parent folders to distinguish them", 
   // The label keeps the folder apart from the name, so the name can give way to it.
   assert.deepEqual(tabLabels([{ path: "C:\\one\\guide.md" }, { path: "C:\\two\\guide.md" }, { path: "/readme.md" }]),
     [{ name: "guide.md", folder: "one" }, { name: "guide.md", folder: "two" }, { name: "readme.md" }]);
+  const allTabs = [{ id: "a", path: "/one/guide.md", dirty: false }, { id: "b", path: "/two/guide.md", dirty: false }];
+  for (const tab of allTabs) {
+    const group = renderToStaticMarkup(<DocumentTabs tabs={[tab]} allTabs={allTabs} active={tab.id} disabled={false} onActivate={() => {}} onClose={() => {}} />);
+    assert.ok(group.includes(`aria-label="guide.md — ${tab.id === "a" ? "one" : "two"}"`), "Same-named files remain distinguishable across groups");
+  }
 });
 
 test("the TopBar location names folders from the chosen folder down, else only the document's own", () => {

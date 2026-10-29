@@ -1,6 +1,7 @@
 # Editing session and Save v1
 
 - Status: Implemented
+- Editor groups verification: 2026-10-29 (#488 phase 1; one mounted session per document across group moves, group actions/focused shortcuts, dirty-close and navigation-only reload; [contract and evidence](editor-ux-shell-v1.md#two-editor-groups-488-phase-1)).
 - Recovery support verification: 2026-10-29 (#705: current-schema validation and stored plaintext refusal path; Editor tests and typecheck).
 - Pre-save comparison verification: 2026-10-28 (#655 stage 2: Save parity, read-only state, external revisions, refusal locations and missing files; [visual evidence](editor-visual-language-v1.md#pre-save-comparison-655)).
 - Save refusal verification: 2026-10-28 (#578 phase 2: structured Core codes and bilingual cause/action in the alert and badge; [diagnostic guidance](#diagnostic-guidance-578-phase-2). Phase 1: localized summaries and collapsed original details, block/cell highlighting and keyboard reveal, list-shaped state with conservative submitted-snapshot invalidation; no Host/Core validation policy change).
@@ -101,10 +102,12 @@ The Editor-internal [`useDocumentSession`](../../apps/editor/src/useDocumentSess
 source, acknowledged revision and `savedEdits`, Source content/view, status/errors/notices,
 draft/asset/dirty flags, heading numbering, outline store and keyed `DocumentEditor` lifetime.
 It handles Save, Source, Reload and image selection. Each mounted `DocumentTab` owns one hook
-and `DocumentEditor`; only the active tab is visible. `App` owns startup and Open/New requests,
+and `DocumentEditor`; each [editor group](editor-ux-shell-v1.md#two-editor-groups-488-phase-1)
+shows its active tab. `App` owns startup and Open/New requests,
 the normalized-path tab list, folder tree, preferences, shared header/outline, Desktop integration
 and the shared **Save / Don't save / Cancel** close dialog. A tab is added only after Host success.
-Opening a Host-returned path already in the list activates its existing session without replacing it.
+Opening a Host-returned path already in the list activates its existing session without replacing it,
+moving that tab into the requested group when needed.
 The Desktop first document and an explicitly chosen sample enter through this same first-tab flow.
 
 Async completions and editor callbacks belong to the session and editor generation that
@@ -557,14 +560,15 @@ goes through GET and comparison of the returned normalized path before adding a 
 
 Switching tabs never serializes/reparses content or calls `setContent`. The mounted session keeps
 content, undo/redo, property draft values (Equation, Figure, Table, section label and inline math),
-selection, per-tab window scroll and Visual/Source view. Inline math follows the same explicit
+selection, per-tab document-viewport scroll and Visual/Source view. Inline math follows the same explicit
 Apply/Cancel/Escape boundary as block properties (#557); outside focus does not dismiss its form.
 Hidden tabs and Source hide property portals without discarding their input or stealing focus when
 shown again. Transient inline link URL inputs still close without applying on outside blur, including
 a tab switch; reopening those starts from the applied URL.
 Dirty work alone never blocks Open/New or switching. Open/New and tab switching wait while the
-active session is saving, reloading, generating Source or handling assets, while startup/Open/New is
-pending, or while the tab-close confirmation is active. These operation guards prevent competing
+target group's active session is saving, reloading, generating Source or handling assets, while startup/Open/New is
+pending, or while the tab-close confirmation is active. Focus can move to the other visible document
+while an independent session is busy. These operation guards prevent competing
 requests; they are separate from the work-loss confirmation on Close. Inactive editors retain
 values but mount no property portals or block
 handles, run no geometry observers/outline measurements and cannot autofocus. Form IDs are unique
@@ -579,12 +583,14 @@ content only. Pending Save disables its actions/dismissal and shortcuts cannot b
 
 After Save succeeds, the live applied-document comparison is checked again. Newer applied edits
 keep the tab open with **Unsaved changes**; no retry or discard is automatic. Drafts alone do not
-prevent the explicitly agreed close. Closing the active tab selects its right neighbour, otherwise
-its left; closing an inactive tab keeps the current active document and scroll. Focus moves to the
-active tab after a close. The last close returns to the start screen and its first action, retaining
+prevent the explicitly agreed close. Closing a group's active tab selects its right neighbour, otherwise
+its left within that group; closing an inactive tab keeps the current active document and scroll.
+An empty group closes and focus uses the remaining group. Focus moves to the active tab after a
+close. The last document close returns to the start screen and its first action, retaining
 the folder tree, display preferences and any Host-provided sample/allowed-root information.
 
-Save, Source, Reload and the outline target the active tab. Reload retains **Keep editing / Discard
+Each group's Save, Source and Reload target its own active tab; Outline and shortcuts target the
+focused group's active tab. Reload retains **Keep editing / Discard
 and reload** and replaces only that tab's editor after a successful read; a failed read retains it.
 Browser `beforeunload` checks every tab plus pending Open/New, including hidden dirty tabs. Desktop
 window close retains the native **Close without saving / Keep editing** confirmation for unsaved or
@@ -603,7 +609,8 @@ Historical switching, dismissal and retained-error evidence: [Save, switching an
 Under [ADR-0007 decision 3](../adr/0007-editing-session-lifetime.md#3-여러-문서를-탭으로-열어-두고-탭마다-독립된-세션을-가진다)
 and the owner-approved [#380 decision](https://github.com/ieumbird/ieumdoc/issues/380),
 `ieumdoc.openTabs` in origin-local `localStorage` holds only `{ paths, activePath }`:
-Host-normalized document paths in tab order and the active document path (or null).
+Host-normalized document paths in flattened left-to-right group/tab order and the focused active
+document path (or null). Editor groups themselves are page memory; Reload restores one group.
 It stores no content, selection, cursor, undo, session snapshot, Host state or file. This is UI
 navigation, not a Core semantic operation; no CLI parity command is needed. Vite, Desktop and HTTP
 origins do not share preferences. Disabled/malformed preference storage does not block navigation.
