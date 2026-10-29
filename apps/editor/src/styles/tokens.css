@@ -76,6 +76,10 @@
   --layout-equation-input-min-height: 5rem;
   --layout-inline-math-input-min-height: 4rem;
   --layout-inline-math-popover-width: 36rem;
+  /* Figure metadata popover and its image thumbnail. */
+  --layout-figure-popover-width: 32.5rem;
+  --size-figure-property-thumbnail: 3rem;
+  --space-figure-popover-gap: 8px;
   /* Shared reference/citation underline distance, including unchecked citations. */
   --reference-underline-offset: 3px;
 

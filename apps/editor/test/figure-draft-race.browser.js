@@ -23,7 +23,7 @@ async (page, { openPath }) => {
   await figure.getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
   await figure.getByRole('button', {name:'Edit figure'}).click();
   await page.getByTestId('figure-editor').waitFor();
-  await page.waitForFunction(() => document.activeElement?.getAttribute('data-testid') === 'figure-image-url');
+  await page.waitForFunction(() => document.activeElement?.getAttribute('data-testid') === 'figure-replace');
   const beforeSelectionMove = {
     selectedFigure: await page.locator('[data-document-tab][data-active=true] .ProseMirror-selectednode').count() === 1,
     formOpen: await page.getByTestId('figure-editor').count() === 1,
@@ -47,7 +47,7 @@ async (page, { openPath }) => {
   const draftActive = await page.locator('[data-document-tab][data-active=true]').getByTestId('figure-draft-status').isVisible() &&
     await page.getByTestId("draft-notice").isVisible();
   const altStayedInField = await page.getByTestId('figure-alt').inputValue() === typedAlt &&
-    await page.getByTestId('figure-image-url').inputValue() === './diagram.svg';
+    await figure.getByTestId('figure-image').getAttribute('alt') !== typedAlt;
   await page.getByTestId('figure-apply').click();
   await page.getByTestId('figure-editor').waitFor({state:'detached'});
   await page.getByRole('button', {name:'Save', exact:true}).click();

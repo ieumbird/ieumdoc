@@ -57,7 +57,7 @@ async (page, { openPath }) => {
   // Wait for that intended autofocus before typing, as a user would, so no input lands elsewhere.
   const figureFormReady = async () => {
     await page.getByTestId('figure-editor').waitFor();
-    await page.waitForFunction(() => document.activeElement?.getAttribute('data-testid') === 'figure-image-url');
+    await page.waitForFunction(() => document.activeElement?.getAttribute('data-testid') === 'figure-replace');
   };
   const setFigureLabel = async (block, label) => {
     await block.locator('img').click();
@@ -154,6 +154,7 @@ async (page, { openPath }) => {
   await newFigure.getByRole('button', {name:'Edit figure'}).locator('..').hover({position:{x:4,y:4}});
   await newFigure.getByRole('button', {name:'Edit figure'}).click();
   await figureFormReady();
+  if (!await page.getByTestId('figure-image-url').isVisible()) await page.getByTestId('figure-replace').click();
   await page.getByTestId('figure-image-url').fill('./diagram.svg');
   await page.getByTestId('figure-label').fill('fig-new');
   await page.getByTestId('figure-apply').click();

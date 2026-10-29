@@ -1,10 +1,11 @@
-import { useId } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useEditorState } from "@tiptap/react";
 import type { Editor } from "@tiptap/core";
 import type { Node } from "@tiptap/pm/model";
 import { numberingReport } from "@ieumdoc/core/numbering";
 import { Input } from "@/components/ui/input.tsx";
+import { Button } from "@/components/ui/button.tsx";
 import { Notice } from "./ui/primitives.tsx";
 import { i18n } from "./i18n.ts";
 
@@ -17,11 +18,12 @@ export function editorNumberingReport(doc: Node) {
   return numberingReport(blocks);
 }
 
-export function NumberField({ editor, getPos, value, onChange, testId, disabled }: {
-  editor: Editor; getPos(): number | undefined; value: string; onChange(value: string): void; testId: string; disabled?: boolean;
+export function NumberField({ editor, getPos, value, onChange, testId, disabled, segmented = false }: {
+  editor: Editor; getPos(): number | undefined; value: string; onChange(value: string): void; testId: string; disabled?: boolean; segmented?: boolean;
 }) {
   useTranslation();
   const id = useId();
+  const [fixed, setFixed] = useState(!!value);
   const warnings = useEditorState({ editor, selector: ({ editor: current }) => {
     const pos = getPos();
     if (!current || typeof pos !== "number") return [];
@@ -29,6 +31,18 @@ export function NumberField({ editor, getPos, value, onChange, testId, disabled 
     return editorNumberingReport(current.state.doc).diagnostics.filter(item => item.path[0] === index);
   } }) ?? [];
   return <>
+    {segmented ? <div className="form-field figure-number-field">
+      <span id={`${id}-label`}>{i18n.t("Number")}</span>
+      <div className="view-toggle" role="group" aria-labelledby={`${id}-label`}>
+        {[false, true].map(option => <Button key={String(option)} type="button" size="sm" variant="ghost"
+          className="view-toggle-option" aria-pressed={fixed === option} disabled={disabled}
+          onClick={() => { setFixed(option); if (!option) onChange(""); }}>
+          {i18n.t(option ? "Fixed" : "Automatic")}
+        </Button>)}
+      </div>
+      {fixed ? <Input id={id} aria-labelledby={`${id}-label`} data-testid={`${testId}-enumerator`}
+        value={value} disabled={disabled} onChange={event => onChange(event.target.value)} /> : null}
+    </div> : <>
     <label className="form-field" htmlFor={id}>
       <span>{i18n.t("Number")}</span>
       <Input id={id} data-testid={`${testId}-enumerator`} value={value} disabled={disabled}
@@ -36,6 +50,7 @@ export function NumberField({ editor, getPos, value, onChange, testId, disabled 
         onChange={event => onChange(event.target.value)} />
     </label>
     <p className="form-hint" id={`${id}-hint`}>{i18n.t("Enter a fixed number; leave empty for automatic numbering.")}</p>
+    </>}
     {warnings.map(item => <Notice tone="warning" key={item.code} data-testid="numbering-block-warning">
       {item.code === "numbering-missing"
         ? i18n.t("Missing fixed number in a fixed-number document. Saving is allowed.")

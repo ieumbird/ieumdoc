@@ -1,6 +1,7 @@
 # Figure authoring v1
 
 - Status: Implemented
+- Property popover: 2026-10-29 (#757; owner decisions in #740 and implementation handoff).
 - Fixed numbering: 2026-10-29 (#720 Core/CLI and Editor property controls/warnings); [shared number contract](heading-numbering-v1.md#fixed-numbers-720).
 - Mermaid update: 2026-10-28 (#651: Core/CLI source semantics and Editor in-document authoring/rendering).
 - Mermaid image verification: 2026-10-29 (#707: newline label decoding, XML/XHTML serialization, decoder failure notice and recovery in `mermaid-authoring`; unchanged source/disk/history).
@@ -30,7 +31,7 @@ moving, relabeling or editing content preserves it. `updateEnumerator` and the t
 `update-enumerator` command set or clear it. Mermaid's inner directive stays option-free.
 The [shared fixed-number contract](heading-numbering-v1.md#fixed-numbers-720) defines
 warning-only missing/duplicate checks and Editor display. The image/pending and Mermaid
-property forms place Number after Label and reuse their existing draft, Apply/Cancel,
+property forms place Number after Label and reuse their existing draft,
 validation-busy and Undo contracts. Empty input clears the fixed number; captions and
 references update from Core display functions. Core warnings appear beside this field and
 in a document warning Notice without blocking Save.
@@ -156,7 +157,9 @@ as its initial source, and opens editing immediately. The insertion is one undo 
 savable; Cancel keeps the inserted Figure. At rest the rendered diagram, number and directly
 editable caption use the same placement as image Figures, including Outline and references.
 
-Edit, selected-node Enter and diagram double-click open a full-column code-style textarea,
+Edit, selected-node Enter and diagram double-click open the shared Figure metadata popover.
+Its **Edit source** action applies the metadata draft through Core validation, then closes the
+popover and opens the existing full-column code-style textarea,
 debounced draft preview, label and shared explicit Apply/Cancel actions. Plain Enter adds a
 line; Ctrl/Cmd+Enter applies and Escape cancels. Outside click, blur and selection movement
 retain the form. Source/label drag events stay inside native controls. Apply validates through
@@ -207,8 +210,9 @@ Closing properties retains a text selection inside the caption, otherwise return
 a text/gap caret after the Figure ([Continuous editing](document-editing-v1.md#continuous-editing)).
 Apply changes attributes without replacing an unchanged caption, preserving its
 caret and formatting. Captions are edited directly in the document, with the shared inline formatting tools.
-The image properties form contains image path, eligible local file name, alt text and label;
-Mermaid properties contain only diagram source and label. Apply always validates
+The image properties popover contains a thumbnail and Replace entry, alt text, label and Number;
+Mermaid metadata contains Edit source, label and Number. Diagram alt text remains unsupported.
+The source editor retains its existing source, preview, label, Number and Apply/Cancel controls. Completion always validates
 and preserves the live caption; it never replaces caption content.
 Figure validation that completes after the user moves elsewhere does not take focus back.
 
@@ -227,15 +231,68 @@ paste/drop keep their existing behavior; see [Continuous document editing](docum
 
 Filling an empty Figure preserves the caret at its current caption position and is one undo step: Undo restores that empty Figure, while Undo removes a newly inserted Figure. Both results persist through Save → Reload. Apply → Save → Undo → Save writes the Figure as it was before Apply, and Redo → Save writes the applied value again. Save preserves this history and the opening-snapshot replay contract. Deleting and undoing a Figure restores its attributes, including after saving the deletion. No new Core operation or CLI command is needed: filling reuses the existing Figure update path, already available as `update-figure --image`.
 
-Edit or Enter on a selected Figure opens its properties (#557). Single-click selects only. Double-clicking its rendered image, pending no-content frame or image-load error uses the same Edit path, including initial Image-field focus and focus restoration on closing (#470). Caption double-click keeps normal text selection/caret behavior. Opening properties changes neither document nor history; double-click while already editing preserves the existing form, draft and validation error. Apply accepts label and image properties through Core validation, all-empty included; the caption remains direct document content. Alt without an image shows a validation error and retains the form. Edit connects or removes the image URL. Unapplied form fields survive Save/Source and are never implicitly applied. Save acknowledges only the submitted applied snapshot; later edits remain dirty under the existing session contract.
+Edit or Enter on a selected Figure opens its properties (#557). Single-click selects only. Double-clicking its rendered image, pending no-content frame or image-load error uses the same Edit path, including initial Replace-button focus and focus restoration on closing (#470). Caption double-click keeps normal text selection/caret behavior. Opening properties changes neither document nor history; keyboard re-entry while already editing preserves the existing form, draft and validation error; a pointer click outside the popover follows completion. Apply accepts label and image properties through Core validation, all-empty included; the caption remains direct document content. Alt without an image shows a validation error and retains the form. Edit connects or removes the image URL. Save/Source operate on applied content only; keyboard activation and tab focus retain unapplied fields. Pointer dismissal applies through the popover completion path. Save acknowledges only the submitted applied snapshot; later edits remain dirty under the existing session contract.
 
-Choose… beside the Image field opens the [folder picker](folder-picker-v1.md#choosing-an-image) to choose an image on the Host, starting in the document's folder ([#208](https://github.com/ieumbird/ieumdoc/issues/208)). The [active image preview](folder-picker-v1.md#active-image-preview-480) shows the keyboard-active or clicked image before choosing it (#480). Clicking an image marks it selected while sibling images remain listed; editing the path resumes filtering (owner decision, 2026-10-26, #461). Use or Enter only fills the Image field; Apply validates and commits it like a typed value. An image inside the document's folder fills its relative path, such as `./figures/diagram.svg`, and nothing is copied. One elsewhere is copied into `assets/` as a pasted image is, and the field gets that copy's path. Cancel, choosing again, or the form going away unapplied (Reload, closing the document, deleting the Figure) removes a copy the form made; a copy Apply put in the Figure stays. Closing the picker without choosing leaves the field unchanged. No CLI command is added: choosing is Host navigation, and `update-figure --image` already sets the path.
+Replace reveals the existing Image path and explicit Choose… action. Choose… beside that field opens the [folder picker](folder-picker-v1.md#choosing-an-image) to choose an image on the Host, starting in the document's folder ([#208](https://github.com/ieumbird/ieumdoc/issues/208)). The [active image preview](folder-picker-v1.md#active-image-preview-480) shows the keyboard-active or clicked image before choosing it (#480). Clicking an image marks it selected while sibling images remain listed; editing the path resumes filtering (owner decision, 2026-10-26, #461). Use or Enter only fills the Image field; Apply validates and commits it like a typed value. An image inside the document's folder fills its relative path, such as `./figures/diagram.svg`, and nothing is copied. One elsewhere is copied into `assets/` as a pasted image is, and the field gets that copy's path. Cancel, choosing again, or the form going away unapplied (Reload, closing the document, deleting the Figure) removes a copy the form made; a copy Apply put in the Figure stays. Closing the picker without choosing leaves the field unchanged. No CLI command is added: choosing is Host navigation, and `update-figure --image` already sets the path.
 
 Relative image sources remain unchanged in document attributes and Markdown. Both the live NodeView and the editor's HTML serializer resolve document-relative paths through the Host media URL, with or without `./` (`assets/diagram.svg` and `./assets/diagram.svg` display the same image). Sources with a URL scheme, protocol-relative sources (`//host/...`), root-absolute paths and Windows drive/UNC paths retain their existing browser handling. Relative `../` paths still pass through the Host, which rejects access outside the document directory, including encoded traversal and symlink escapes; URL encoding must not let browser dot-segment normalization bypass that check. No path is normalized or prefixed in saved content.
 
 After removing the optional leading `./` for display, ordinary paths use segment-by-segment encoding and keep `/` separators (`/document/assets/diagram.svg`), avoiding encoded-slash rejection by reverse proxies. Only paths with a literal `.` or `..` segment encode the complete path. A standalone dot segment receives a trailing slash in the request before encoding: `.` becomes `/document/.%2F`, while `..` and `./..` become `/document/..%2F`. The Host decodes and resolves these to the same filesystem location as the original path; the Editor makes no access decision. Literal percent escapes are encoded as text, so `%2e%2e/x` becomes `/document/%252e%252e/x` and reaches the existing Host rejection. All examples omit the document locator query. A proxy that blocks encoded slashes can still reject dot-segment requests before forwarding; normal image paths require no such proxy option. Query-based media transport was not added because this display fix can reuse the existing shared Vite/HTTP/Desktop handler unchanged.
 
 If an image cannot load, the Figure shows `Image could not be loaded. Check the image path or URL.` in the existing error Notice, including at rest. The broken image is hidden; caption, numbering and properties remain available. Successful loading or changing the source clears the failed-source display state. This state never changes document attributes, dirty state, Source or Save, and adds no Core asset-existence check. CLI filesystem warnings are described below.
+
+## Anchored Figure properties (#757)
+
+Image, pending and Mermaid metadata use one popover attached to the entire Figure, including
+its caption. It opens below and flips above when space is insufficient. It fits the owning
+editor group's content viewport, excluding single-group Sidebar/Outline insets and the native
+scrollbar, at both 1440px and the supported 640px minimum. Its scrollable height is capped to
+the available side, so it does not cover the Figure or caption; following prose may be covered.
+Resize, scroll and group changes update placement through the existing Base UI positioner.
+
+There is one **Done** action. Escape cancels, and pointer clicks outside apply via the same
+Core validation and asynchronous lifetime guards. Rejection retains draft values and errors;
+keyboard focus/selection movement alone does not apply. Pointer completion does not force
+focus back to the Figure; the existing preview/caret input behavior is unchanged. The image chooser suspends dismissal
+until it returns. Save still acknowledges only its submitted applied snapshot; later metadata
+completion remains a separate edit. Unapplied properties retain the existing close/unload guard
+and remain outside applied-content recovery. Caption editing stays directly in the document.
+
+Image replacement is an explicit disclosure with the existing path/chooser and copied-asset
+cleanup. File name lives in **Advanced**, initially collapsed on each entry; a retained filename
+draft or error opens it. Only its explicit **Rename** action invokes the Host filesystem rename.
+Done/outside completion never renames a file: an unconfirmed filename survives closing and
+reopening, remains an unapplied draft, and Escape discards it. Rename retains existing validation,
+checkpoint and history contracts. See [filename](document-editing-v1.md#figure-file-name-652).
+
+Number uses Automatic/Fixed segments, with an input only for Fixed. Empty fixed input clears the
+fixed number as before. Core warning Notices appear only when needed. Fields have transparent
+rest borders with hover/focus boundaries. There is no repeated title, path summary, caption field
+or section heading. Width, thumbnail size and anchor gap are adjustable tokens; other controls reuse shared
+spacing and state tokens. Equation, table, endnote and Mermaid source forms retain their UI.
+This is Editor interaction only; no Core or CLI operation is added.
+
+### Popover comparison and verification (#757)
+
+Same-state manual captures use Windows installed Chrome, checkout-owned persistent profiles,
+English UI, bundled Pretendard, DPR 1 and default zoom, at 1440/640 × 900. Before is clean
+`777368e1`; After is this PR. Both use the Mermaid/image fixture with sixteen preceding plain
+context paragraphs so each target can be placed near the viewport's top or bottom. The
+selected target and its caption remain visible in After; following document content may be covered.
+The separate capture traversal waits for real Mermaid image rendering. It is presentation evidence,
+not an additional pixel gate. Large traces/build outputs and the temporary capture driver stay
+outside Git. Existing preview-to-prose first-click behavior is separately tracked in #760.
+
+| Target / viewport / placement | Before | After |
+| --- | --- | --- |
+| image / 1440px / below | [Before](assets/figure-properties-757/before-image-1440-below.png) | [After](assets/figure-properties-757/after-image-1440-below.png) |
+| image / 1440px / above | [Before](assets/figure-properties-757/before-image-1440-above.png) | [After](assets/figure-properties-757/after-image-1440-above.png) |
+| image / 640px / below | [Before](assets/figure-properties-757/before-image-640-below.png) | [After](assets/figure-properties-757/after-image-640-below.png) |
+| image / 640px / above | [Before](assets/figure-properties-757/before-image-640-above.png) | [After](assets/figure-properties-757/after-image-640-above.png) |
+| mermaid / 1440px / below | [Before](assets/figure-properties-757/before-mermaid-1440-below.png) | [After](assets/figure-properties-757/after-mermaid-1440-below.png) |
+| mermaid / 1440px / above | [Before](assets/figure-properties-757/before-mermaid-1440-above.png) | [After](assets/figure-properties-757/after-mermaid-1440-above.png) |
+| mermaid / 640px / below | [Before](assets/figure-properties-757/before-mermaid-640-below.png) | [After](assets/figure-properties-757/after-mermaid-640-below.png) |
+| mermaid / 640px / above | [Before](assets/figure-properties-757/before-mermaid-640-above.png) | [After](assets/figure-properties-757/after-mermaid-640-above.png) |
 
 ## CLI and readiness
 

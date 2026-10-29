@@ -261,6 +261,8 @@ A changed document recomputes numbering; source semantics and canonical output a
   cancel the pending source focus. Listeners are removed on execution, cancellation and unmount.
   New Equation and Diagram insertion still hands focus to their source field on the next frame.
   Escape in a focused block menu closes that menu and preserves the property draft (#664).
+- Figure metadata uses [anchored properties](figure-authoring-v1.md#anchored-figure-properties-757):
+  Done/outside pointer completion applies and Escape cancels. Existing preview typing guards remain.
 - Mermaid Figures reuse the block Equation's in-document source editing surface and shared
   PropertyForm, with draft preview, label and explicit Apply/Cancel. Caption editing stays in
   the document. The [Figure contract](figure-authoring-v1.md#mermaid-editor) defines rendering,
@@ -724,7 +726,10 @@ the full document, selection, focus and the existing paste Undo/Redo steps.
 
 ### Figure file name (#652)
 
-Figure properties offer File name (stem only) for the already applied, loadable document-relative
+Figure properties offer File name (stem only) in collapsed Advanced, with an explicit Rename
+action (#757). Done/outside completion never performs this filesystem action; an unconfirmed
+filename remains an unapplied draft across reopening, while Escape discards it. Advanced opens
+when such a draft or error exists. The field is available for the already applied, loadable document-relative
 image. External/absolute URLs, paths containing `..` or backslashes, missing images and a newly
 chosen/unapplied Image path hide the field. Apply that image first to rename it. The Host checks
 actual regular-image existence, real document-folder containment and #504 root/symlink policy;

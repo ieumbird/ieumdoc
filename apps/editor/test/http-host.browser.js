@@ -138,9 +138,10 @@ async (page, { openFolderPicker, openPath, waitForActivePath, reloadDocument, bi
   check(disk.source.includes('Created over HTTP.') && disk.source.includes('./assets/pasted.png'), 'Root B new file and portable image are on disk');
   const figure = page.locator('[data-document-tab][data-active=true] [data-block="figure"]');
   await figure.hover(); await figure.getByRole('button', {name:'Edit figure', exact:true}).click();
+  await page.getByTestId('figure-editor').getByText('Advanced', {exact:true}).click();
   await page.getByTestId('figure-file-name').fill('http-image');
   await page.getByTestId('figure-alt').fill('HTTP renamed image');
-  await page.getByTestId('figure-apply').click();
+  await page.getByTestId('figure-rename').click();
   await page.getByTestId('figure-editor').waitFor({state:'detached'});
   await save();
   await reloadDocument(page); await ready();
@@ -148,11 +149,11 @@ async (page, { openFolderPicker, openPath, waitForActivePath, reloadDocument, bi
   check(renamedDisk.source.includes('./assets/http-image.png') && renamedDisk.source.includes('HTTP renamed image'), 'Production HTTP Figure rename, properties, Save and Reload');
   await figure.getByTestId('figure-image').dblclick();
   await page.getByTestId('figure-alt').fill('Unapplied HTTP draft');
-  await openPath(page, fileA);
-  await page.getByRole('tab', {name:'fresh.md, Unsaved changes',exact:true}).click();
+  await page.getByRole('tab', {name:/^a\.md(?:,|$)/}).focus(); await page.keyboard.press('Enter');
+  await page.getByRole('tab', {name:'fresh.md, Unsaved changes',exact:true}).focus(); await page.keyboard.press('Enter');
   check(await page.getByTestId('figure-alt').inputValue() === 'Unapplied HTTP draft', 'Cross-root switching lost a property draft');
   check(await page.getByTestId('current-file').getAttribute('title') === fresh, 'Draft tab was replaced');
-  await page.getByTestId('figure-cancel').click();
+  await page.getByTestId('figure-alt').press('Escape');
   await openPath(page, fileA);
   // Another client commits using the same real API; the Editor's stale baseline must get 409.
   const loaded = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(fileA)}`)).json();

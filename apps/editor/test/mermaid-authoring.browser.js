@@ -42,10 +42,35 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument
   };
   const edit = async () => {
     await figure.hover({position:{x:4,y:4}}); await figure.getByRole('button',{name:'Edit figure'}).click();
+    await page.getByTestId('mermaid-edit-source').click();
     await expect(field()).toBeFocused();
     await expect(figure.getByTestId('figure-file-name')).toHaveCount(0);
   };
   await rendered(figure.getByTestId('mermaid-preview'), '>A<');
+  // #757: metadata entry keeps the diagram visible; only Edit source opens the existing source form.
+  const metadataBefore = await model();
+  await figure.getByTestId('mermaid-preview').dblclick();
+  const properties = page.getByTestId('mermaid-property-editor');
+  await expect(properties.getByRole('button', {name:'Done',exact:true})).toBeVisible();
+  await expect(field()).toHaveCount(0);
+  await expect(figure.getByTestId('mermaid-preview')).toBeVisible();
+  await page.getByTestId('mermaid-property-label').fill('fig-image');
+  await page.getByTestId('mermaid-edit-source').click();
+  await expect(properties.locator('[role=alert]')).toBeVisible();
+  await expect(field()).toHaveCount(0);
+  expect(await model()).toEqual(metadataBefore);
+  await page.getByTestId('mermaid-property-label').press('Escape');
+  expect(await model()).toEqual(metadataBefore);
+  await figure.getByTestId('mermaid-preview').dblclick();
+  await page.getByTestId('mermaid-property-label').fill('fig-metadata');
+  await page.getByTestId('mermaid-edit-source').click();
+  await expect(field()).toBeFocused();
+  expect(await active.getByTestId('mermaid-label').inputValue()).toBe('fig-metadata');
+  expect(await field().inputValue()).toBe('graph LR\n  A --> B');
+  await active.getByTestId('mermaid-cancel').click();
+  await editor.evaluate(el => el.editor.commands.undo());
+  expect(await editor.evaluate(el => el.editor.getJSON())).toEqual(metadataBefore.doc);
+
   // A visible <img> can still be broken: decode the real SVG image, including HTML labels.
   const beforeLabels = await model(), diskBeforeLabels = await disk();
   await edit();
@@ -178,7 +203,7 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument
   await page.setViewportSize({width:1440,height:1000});
   await page.evaluate(async ()=>(await import('/src/theme.ts')).applyTheme('light'));
   const opening=await model(), originalDisk=await disk();
-  await figure.getByTestId('mermaid-preview').dblclick(); await expect(field()).toBeFocused();
+  await figure.getByTestId('mermaid-preview').dblclick(); await page.getByTestId('mermaid-edit-source').click(); await expect(field()).toBeFocused();
   await field().fill('graph LR'); await field().press('End'); await field().press('Enter'); await field().pressSequentially('  A --> C');
   expect(await field().inputValue()).toBe('graph LR\n  A --> C');
   const height=(await field().boundingBox()).height;

@@ -29,6 +29,7 @@ import { labelError, labelKey, targetLabelError } from "@ieumdoc/core/label";
 import { Input } from "@/components/ui/input.tsx";
 import { CodeLanguageInput } from "./code-language-input.tsx";
 import { BlockProperties, PropertyForm } from "./block-properties.tsx";
+import { FigureProperties } from "./figure-properties.tsx";
 import { NumberField } from "./numbering-properties.tsx";
 import { useEditorVisible } from "./editor-visibility.ts";
 import { ADMONITION_LABELS, admonitionTone, updateFigure } from "./block-commands.ts";
@@ -1103,9 +1104,11 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
   const anchor = useRef<HTMLParagraphElement>(null);
   const imageInput = useRef<HTMLInputElement>(null);
   const chooseButton = useRef<HTMLButtonElement>(null);
+  const replaceButton = useRef<HTMLButtonElement>(null);
   // A copy the chooser made for this form; discarded unless Apply puts it in the Figure.
   const copied = useRef<ImageChoice | undefined>(undefined);
   const [choosing, setChoosing] = useState(false);
+  const [replacing, setReplacing] = useState(false);
   const applied = figureAttrs(node);
   const src = resolveFigureSource(applied.imageUrl, documentPath);
   const [failedSource, setFailedSource] = useState<string>();
@@ -1121,6 +1124,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
   const [numberDraft, setNumberDraft] = useState(enumerator);
   const appliedStem = imageFileStem(applied.imageUrl);
   const [filename, setFilename] = useState(appliedStem ?? "");
+  const filenameDraft = appliedStem !== undefined && filename !== appliedStem;
   const canRename = !!renameImage && !!documentPath && appliedStem !== undefined && !imageFailed && draft.imageUrl === applied.imageUrl && !copied.current;
   const [error, setError] = useMessageState("");
   const [validating, setValidating] = useState(false);
@@ -1128,19 +1132,19 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
   const captionKey = JSON.stringify(applied.caption);
   const hasUnappliedDraft = isUnappliedFigureDraft(editing,
     { ...draft, caption: applied.caption }, applied) ||
-    (editing && (labelDraft !== label || numberDraft !== enumerator || canRename && filename !== appliedStem));
+    (editing && (labelDraft !== label || numberDraft !== enumerator)) || filenameDraft;
 
   useEffect(() => {
     if (!editing) {
       setDraft(applied);
       setLabelDraft(label); setNumberDraft(enumerator);
-      setFilename(appliedStem ?? "");
-    } else if (previousImage.current !== applied.imageUrl) {
+    }
+    if (previousImage.current !== applied.imageUrl) {
       // A rename updates applied paths in every Figure. Follow only untouched Image
       // and filename inputs; preserve the user's independent Image/Alt/Label drafts.
       const before = previousImage.current;
-      setDraft(current => current.imageUrl === before ? { ...current, imageUrl: applied.imageUrl } : current);
-      setFilename(current => current === imageFileStem(before) ? appliedStem ?? "" : current);
+      if (editing) setDraft(current => current.imageUrl === before ? { ...current, imageUrl: applied.imageUrl } : current);
+      setFilename(current => current === (imageFileStem(before) ?? "") ? appliedStem ?? "" : current);
     }
     previousImage.current = applied.imageUrl;
   }, [editing, applied.imageUrl, applied.imageAlt, captionKey, label, enumerator]);
@@ -1154,11 +1158,12 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
     if (!editableFigure || editing) return;
     setDraft(applied);
     setLabelDraft(label); setNumberDraft(enumerator);
-    setFilename(appliedStem ?? "");
-    setError("");
+    setReplacing(false);
+    if (!filenameDraft) setError("");
     setEditing(true);
   }
-  useSourceInputFocus(imageInput, editing);
+  useSourceInputFocus(replaceButton, editing);
+  useSourceInputFocus(imageInput, editing && replacing);
   usePropertyEntry(anchor, beginEdit);
   const releaseCopy = () => {
     const copy = copied.current;
@@ -1193,13 +1198,15 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
     setValidating(false);
     setDraft(applied);
     setLabelDraft(label); setNumberDraft(enumerator);
+    setFilename(appliedStem ?? "");
     setError("");
     setEditing(false);
     focusBlock(view, getPos);
   };
   // Apply commits only a value Core accepts as persistent; an invalid draft keeps the form open.
   // Core checks the live target/reference context before committing a label rename.
-  const apply = async () => {
+  const apply = async (rename = false, returnCaret = true) => {
+    if (validating || choosing) return;
     const position = getPos();
     const current = typeof position === "number" ? view.state.doc.nodeAt(position) : null;
     if (!current) return;
@@ -1240,7 +1247,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
     // Validate the exact label/reference transaction before changing any file.
     try {
       updateFigure(view.state, latestPosition, { imageUrl: candidate.imageUrl, imageAlt: candidate.imageAlt, label: nextLabel, enumerator: numberDraft || null });
-      if (canRename && filename !== appliedStem) {
+      if (rename && canRename && filenameDraft) {
         setValidating(true);
         candidate.imageUrl = await renameImage!(documentPath!, applied.imageUrl, filename);
         setDraft(value => ({ ...value, imageUrl: candidate.imageUrl }));
@@ -1256,7 +1263,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
     // Validation may finish after the user has moved on; only focus left in this form returns.
     const active = document.activeElement;
     const returnFocus = !view.dom.closest("[hidden]") &&
-      (active === document.body || Boolean(imageInput.current?.closest("form")?.contains(active)));
+      returnCaret && (active === document.body || Boolean(replaceButton.current?.closest("form")?.contains(active)));
     // The copy passes to the document before dispatch, which may replace this view.
     const copy = copied.current;
     copied.current = undefined;
@@ -1312,7 +1319,9 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
     >
       <p ref={anchor} className="block-kind block-metadata" contentEditable={false}>{[numbered ?? i18n.t("Figure"), label].filter(Boolean).join(" · ")}</p>
       {hasUnappliedDraft ? (
-        <p className="draft-status" role="status" data-testid="figure-draft-status" contentEditable={false}>{i18n.t("Unapplied changes are not saved. Apply to include them, or Cancel.")}</p>
+        <p className="draft-status" role="status" data-testid="figure-draft-status" contentEditable={false}>{i18n.t(filenameDraft
+          ? "File name changes require Rename in Advanced. Press Esc to discard them."
+          : "Unapplied figure properties are not saved. Choose Done or press Esc to cancel.")}</p>
       ) : null}
       {src ? <img key={src} src={src} alt={applied.imageAlt} hidden={imageFailed} data-testid="figure-image" contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}
         onError={() => setFailedSource(src)} onLoad={() => setFailedSource(undefined)} /> : null}
@@ -1328,27 +1337,30 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
       {editableFigure && !editing ? (
         <Button className="figure-edit" size="sm" variant="outline" aria-label={i18n.t("Edit figure")} contentEditable={false} onClick={beginEdit}>{i18n.t("Edit")}</Button>
       ) : null}
-      <BlockProperties
+      <FigureProperties
         anchor={anchor}
         kind={numbered ?? i18n.t("Figure")}
         testId="figure"
         open={editing}
         error={error}
         busy={validating}
-        onApply={() => void apply()}
+        choosing={choosing}
+        onApply={outside => void apply(false, !outside)}
         onCancel={cancel}
       >
-        {chooseImage && documentPath ? (
+        <div className="figure-property-media">
+          {src && !imageFailed ? <img src={src} alt="" /> : null}
+          <Button ref={replaceButton} type="button" size="sm" variant="outline" disabled={validating || choosing}
+            data-testid="figure-replace" onClick={() => setReplacing(value => !value)}>{i18n.t("Replace")}</Button>
+        </div>
+        {replacing ? chooseImage && documentPath ? (
           <div className="figure-image-field">
             {field("imageUrl", i18n.t("Image"), "figure-image-url")}
             <Button ref={chooseButton} type="button" variant="outline" disabled={validating || choosing} onClick={() => void pickImage()}>{i18n.t("Choose…")}</Button>
           </div>
-        ) : field("imageUrl", i18n.t("Image"), "figure-image-url")}
-        {canRename ? <label className="form-field"><span>{i18n.t("File name")}</span>
-          <Input data-testid="figure-file-name" value={filename} disabled={validating}
-            onChange={event => { setFilename(event.target.value); setError(""); }} />
-        </label> : null}
+        ) : field("imageUrl", i18n.t("Image"), "figure-image-url") : null}
         {field("imageAlt", i18n.t("Alt text"), "figure-alt")}
+        <div className="figure-property-columns">
         <label className="form-field">
           <span>{i18n.t("Label")}</span>
           <Input
@@ -1362,8 +1374,17 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
             }}
           />
         </label>
-        <NumberField editor={editor} getPos={getPos} testId="figure" value={numberDraft} onChange={value => { setNumberDraft(value); setError(""); }} disabled={validating} />
-      </BlockProperties>
+        <NumberField segmented editor={editor} getPos={getPos} testId="figure" value={numberDraft} onChange={value => { setNumberDraft(value); setError(""); }} disabled={validating} />
+        </div>
+        {canRename ? <details key={String(editing)} open={filenameDraft || !!error || undefined}>
+          <summary>{i18n.t("Advanced")}</summary>
+          <div className="figure-image-field"><label className="form-field"><span>{i18n.t("File name")}</span>
+            <Input data-testid="figure-file-name" value={filename} disabled={validating}
+              onChange={event => { setFilename(event.target.value); setError(""); }} />
+          </label><Button type="button" size="sm" variant="outline" disabled={validating || !filenameDraft}
+            data-testid="figure-rename" onClick={() => void apply(true)}>{i18n.t("Rename")}</Button></div>
+        </details> : null}
+      </FigureProperties>
     </NodeViewWrapper>
   );
 }
@@ -1418,6 +1439,8 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
   const sourcePath = String(node.attrs.sourcePath ?? "");
   const anchor = useRef<HTMLParagraphElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
+  const sourceButton = useRef<HTMLButtonElement>(null);
+  const [properties, setProperties] = useState(false);
   const request = useRef(0);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(applied.mermaidSource!);
@@ -1433,35 +1456,37 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
   useLayoutEffect(() => {
     const target = restoreInput.current;
     restoreInput.current = null;
-    const form = input.current?.closest("form");
-    if (target?.isConnected && !busy && editing && visible && document.hasFocus() &&
+    const form = (input.current ?? sourceButton.current)?.closest("form");
+    if (target?.isConnected && !busy && (editing || properties) && visible && document.hasFocus() &&
         (document.activeElement === document.body || form?.contains(document.activeElement))) target.focus();
-  }, [busy, editing, error, visible]);
-  const hasDraft = editing && (draft !== applied.mermaidSource || labelDraft !== label || numberDraft !== enumerator);
+  }, [busy, editing, properties, error, visible]);
+  const hasDraft = (editing || properties) && (draft !== applied.mermaidSource || labelDraft !== label || numberDraft !== enumerator);
   const cancelFocus = useSourceInputFocus(input, editing);
+  useSourceInputFocus(sourceButton, properties);
   useEffect(() => () => { request.current++; focusTracking.current?.abort(); }, []);
   useEffect(() => {
-    if (!editing) { setDraft(applied.mermaidSource!); setLabelDraft(label); setNumberDraft(enumerator); }
-  }, [editing, applied.mermaidSource, label, enumerator]);
+    if (!editing && !properties) { setDraft(applied.mermaidSource!); setLabelDraft(label); setNumberDraft(enumerator); }
+  }, [editing, properties, applied.mermaidSource, label, enumerator]);
   useEffect(() => {
     onDraftChange?.("Figure", sourcePath, hasDraft);
     return () => onDraftChange?.("Figure", sourcePath, false);
   }, [sourcePath, hasDraft, onDraftChange]);
   function beginEdit() {
-    if (!view.editable || editing) return;
-    setDraft(applied.mermaidSource!); setLabelDraft(label); setNumberDraft(enumerator); setError(""); setEditing(true);
+    if (!view.editable || editing || properties) return;
+    setDraft(applied.mermaidSource!); setLabelDraft(label); setNumberDraft(enumerator); setError(""); setProperties(true);
   }
   const [openOnInsert] = useState(() => view.editable && isNewBlockPath(sourcePath));
-  useEffect(() => { if (openOnInsert) beginEdit(); }, [openOnInsert]);
+  useEffect(() => { if (openOnInsert) setEditing(true); }, [openOnInsert]);
   usePropertyEntry(anchor, beginEdit);
   const cancel = () => {
     request.current++; cancelFocus(); setBusy(false);
     focusTracking.current?.abort(); restoreInput.current = null;
     setDraft(applied.mermaidSource!); setLabelDraft(label); setNumberDraft(enumerator); setError(""); setEditing(false);
+    setProperties(false);
     focusBlock(view, getPos);
   };
-  const apply = async () => {
-    if (!view.editable) return;
+  const apply = async (openSource = false, returnCaret = true) => {
+    if (!view.editable || busy) return;
     const position = getPos();
     const current = typeof position === "number" ? view.state.doc.nodeAt(position) : null;
     if (!current) return;
@@ -1472,9 +1497,9 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
       (validateFigure ? undefined : "Figure validation is unavailable.");
     if (local) { setError(local); input.current?.focus(); return; }
     const pending = ++request.current;
-    const form = input.current?.closest("form");
+    const form = (input.current ?? sourceButton.current)?.closest("form");
     const activeBefore = document.activeElement;
-    const target = activeBefore instanceof HTMLInputElement || activeBefore instanceof HTMLTextAreaElement ? activeBefore : input.current;
+    const target = activeBefore instanceof HTMLInputElement || activeBefore instanceof HTMLTextAreaElement ? activeBefore : input.current ?? sourceButton.current;
     let movedFocus = !form?.contains(activeBefore);
     const trackFocus = (event: FocusEvent) => {
       if (event.target instanceof globalThis.Node && event.target !== document.body && !form?.contains(event.target)) movedFocus = true;
@@ -1503,11 +1528,14 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
     }
     const active = document.activeElement;
     const returnFocus = !view.dom.closest("[hidden]") &&
-      (active === document.body || Boolean(input.current?.closest("form")?.contains(active)));
-    try { view.dispatch(updateFigure(view.state, latestPosition, { mermaidSource: source, label: labelDraft, enumerator: numberDraft || null })); }
+      (active === document.body || Boolean(form?.contains(active)));
+    try {
+      if (latest.attrs.mermaidSource !== source || latest.attrs.label !== labelDraft || latest.attrs.enumerator !== (numberDraft || null))
+        view.dispatch(updateFigure(view.state, latestPosition, { mermaidSource: source, label: labelDraft, enumerator: numberDraft || null }));
+    }
     catch (cause) { reject(cause instanceof Error ? cause.message : String(cause)); return; }
-    cancelFocus(); setError(""); setEditing(false);
-    if (returnFocus) focusBlock(view, getPos);
+    cancelFocus(); setError(""); setProperties(false); setEditing(openSource);
+    if (returnFocus && !openSource && returnCaret) focusBlock(view, getPos);
   };
   const selectFigure = (event: ReactMouseEvent) => {
     const position = getPos();
@@ -1516,10 +1544,11 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
     view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, position))); view.focus();
   };
   return <NodeViewWrapper as="figure" className="figure mermaid-figure" data-block="figure"
-    data-content-kind="mermaid" data-editing={editing} data-selected={selected} data-source-path={sourcePath}>
+    data-content-kind="mermaid" data-editing={editing || properties} data-selected={selected} data-source-path={sourcePath}>
     <p ref={anchor} className="block-kind block-metadata" contentEditable={false}>{[kind, label].filter(Boolean).join(" · ")}</p>
     {hasDraft ? <p className="draft-status" role="status" data-testid="figure-draft-status" contentEditable={false}>
-      {i18n.t("Unapplied changes are not saved. Apply to include them, or Cancel.")}</p> : null}
+      {i18n.t(editing ? "Unapplied changes are not saved. Apply to include them, or Cancel."
+        : "Unapplied figure properties are not saved. Choose Done or press Esc to cancel.")}</p> : null}
     {editing ? visible ? <div contentEditable={false} data-testid="mermaid-properties" onDragStart={isolateInputDrag}
       onDragEnter={isolateInputDrag} onDragOver={isolateInputDrag} onDragLeave={isolateInputDrag} onDrop={isolateInputDrag} onDragEnd={isolateInputDrag}>
       <PropertyForm kind={kind} testId="mermaid" error={error} busy={busy} onApply={() => void apply()} onCancel={cancel}>
@@ -1542,8 +1571,21 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
       <NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")}
         data-empty-caption={node.content.size === 0 || undefined} data-placeholder={placeholder} />
     </figcaption>
-    {view.editable && !editing ? <Button className="figure-edit" size="sm" variant="outline" aria-label={i18n.t("Edit figure")}
+    {view.editable && !editing && !properties ? <Button className="figure-edit" size="sm" variant="outline" aria-label={i18n.t("Edit figure")}
       contentEditable={false} onClick={beginEdit}>{i18n.t("Edit")}</Button> : null}
+    <FigureProperties anchor={anchor} kind={kind} testId="mermaid-property" open={properties} error={error} busy={busy}
+      onApply={outside => void apply(false, !outside)} onCancel={cancel}>
+      <Button ref={sourceButton} type="button" size="sm" variant="outline" data-testid="mermaid-edit-source"
+        disabled={busy} onClick={() => void apply(true)}>{i18n.t("Edit source")}</Button>
+      <div className="figure-property-columns">
+        <label className="form-field"><span>{i18n.t("Label")}</span>
+          <Input data-testid="mermaid-property-label" disabled={busy} value={labelDraft} placeholder={i18n.t("None")}
+            onChange={event => { setLabelDraft(event.target.value); setError(""); }} />
+        </label>
+        <NumberField segmented editor={editor} getPos={getPos} testId="mermaid-property" value={numberDraft}
+          onChange={value => { setNumberDraft(value); setError(""); }} disabled={busy} />
+      </div>
+    </FigureProperties>
   </NodeViewWrapper>;
 }
 

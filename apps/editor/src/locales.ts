@@ -1,5 +1,12 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Unapplied figure properties are not saved. Choose Done or press Esc to cancel.": "Unapplied figure properties are not saved. Choose Done or press Esc to cancel.",
+  "File name changes require Rename in Advanced. Press Esc to discard them.": "File name changes require Rename in Advanced. Press Esc to discard them.",
+  "Done": "Done",
+  "Fixed": "Fixed",
+  "Advanced": "Advanced",
+  "Replace": "Replace",
+  "Edit source": "Edit source",
   "Image not found": "Image not found",
   "Number": "Number",
   "Automatic": "Automatic",
@@ -678,6 +685,13 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Unapplied figure properties are not saved. Choose Done or press Esc to cancel.": "미적용 그림 속성은 저장되지 않습니다. 완료를 누르거나 Esc로 취소하세요.",
+  "File name changes require Rename in Advanced. Press Esc to discard them.": "파일 이름은 고급의 이름 변경으로 확정하세요. Esc로 초안을 취소할 수 있습니다.",
+  "Done": "완료",
+  "Fixed": "고정",
+  "Advanced": "고급",
+  "Replace": "교체",
+  "Edit source": "원문 편집",
   "Image not found": "이미지를 찾을 수 없음",
   "Number": "번호",
   "Automatic": "자동",

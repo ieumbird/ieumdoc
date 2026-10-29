@@ -704,10 +704,11 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
       await shot(`${width}-figure-selected`);
     }
     await page.getByRole('button',{name:'Edit figure'}).click();
-    await page.waitForFunction(()=>document.activeElement?.getAttribute('data-testid')==='figure-image-url');
+    await page.waitForFunction(()=>document.activeElement?.getAttribute('data-testid')==='figure-replace');
     await bounds(page.getByTestId('figure-properties'), `Figure ${width}`);
+    await page.getByTestId('figure-alt').focus();
     const colors=await page.evaluate(()=>{
-      const root=getComputedStyle(document.documentElement),input=document.querySelector('[data-testid="figure-image-url"]');
+      const root=getComputedStyle(document.documentElement),input=document.querySelector('[data-testid="figure-alt"]');
       const interaction=root.getPropertyValue('--id-color-interaction').trim();
       const probe=document.createElement('span');probe.style.color=interaction;document.body.append(probe);const color=getComputedStyle(probe).color;probe.remove();
       return {color,outline:getComputedStyle(document.querySelector('[data-document-tab][data-active=true] .figure'), '::after').boxShadow,border:getComputedStyle(input).borderColor,ring:getComputedStyle(input).boxShadow};
@@ -728,7 +729,8 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
     await page.locator('[data-document-tab][data-active=true] .document-editor').press('ArrowDown');
     check(await page.getByTestId('figure-alt').inputValue()==='수정 중인 caption','Selection movement lost the Figure draft');
     check(await page.locator('[data-document-tab][data-active=true] .figure[data-selected="false"][data-editing="true"]').count()===1,'Independent selected/editing axes missing');
-    await page.getByTestId('figure-cancel').click();
+    await page.getByTestId('figure-alt').press('Escape');
+    await page.getByTestId('figure-editor').waitFor({state:'detached'});
     await page.locator('[data-document-tab][data-active=true] .paragraph').first().click();
     // Equation Apply/Cancel is exercised by the dedicated Equation regressions.
     if (screenshots) {
@@ -779,8 +781,9 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
   check(keyboardFigure,'Figure Edit unreachable or invisible with Tab');
   check(await page.locator('[data-document-tab][data-active=true] .figure .block-metadata').evaluate(n=>getComputedStyle(n).visibility==='visible'),'Keyboard focus metadata missing');
   await page.keyboard.press('Enter');
-  await page.waitForFunction(()=>document.activeElement?.getAttribute('data-testid')==='figure-image-url');
-  await page.getByTestId('figure-cancel').click();
+  await page.waitForFunction(()=>document.activeElement?.getAttribute('data-testid')==='figure-replace');
+  await page.getByTestId('figure-alt').press('Escape');
+    await page.getByTestId('figure-editor').waitFor({state:'detached'});
 
   // Gutter menu takes focus; Escape restores the opening control.
   await page.locator('[data-document-tab][data-active=true] .heading').first().hover();

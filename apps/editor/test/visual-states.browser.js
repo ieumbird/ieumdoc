@@ -268,12 +268,12 @@ async (page, { withBlockHover, reloadDocument, recoveryRecords, expect }) => {
   });
   await page.locator('[data-document-tab][data-active=true]').getByTestId('figure-image').click();
   await page.getByRole('button', {name:'Edit figure', exact:true}).click();
-  const nativeCancel = page.getByTestId('figure-cancel');
+  const nativeCancel = page.getByTestId('figure-replace');
   await nativeCancel.hover(); await page.mouse.move(0,0); await settle();
   const native = await state(nativeCancel);
   check(native.background === secondary.background && native.border === secondary.border && native.radius === secondary.radius,
     'Native and Base UI secondary controls disagree');
-  await nativeCancel.click();
+  await page.getByTestId('figure-alt').press('Escape');
 
   // Preview layout must not override the Notice's error role.
   await page.locator('[data-document-tab][data-active=true] .equation').hover();
