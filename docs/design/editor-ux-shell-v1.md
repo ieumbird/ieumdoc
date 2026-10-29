@@ -1,6 +1,7 @@
 # Editor UX Shell v1
 
 - Status: Implemented
+- Link opening verification: 2026-10-29 (#725; [contract and captures](#open-ordinary-links-725)).
 - Editor groups verification: 2026-10-29 (#488 phase 1; Editor 341 tests, workspace typecheck/build, related browser regressions and [group/visual evidence](#two-editor-groups-488-phase-1)).
 - Tab-row actions update: 2026-10-29 (#695; [current contract and evidence](#title-strip-and-tab-row-actions-695)).
 - Non-overlapping roots verification: 2026-10-29 (#702: Editor 338 unit tests, typecheck/build; persistent Chrome folder-navigation/memory, layout-rules, quiet-document, document-tabs, editor-shell and reveal-folder; [behavior and captures](editor-ux-shell-v1.md#non-overlapping-opened-folders-702)).
@@ -1355,6 +1356,38 @@ keeps #386's synchronous tab activation and Dialog final-focus behavior, includi
 This is Editor navigation, so no Core operation or CLI command is added.
 
 Historical listed-search verification, measurements and result-limit decisions: [Listed document search verification](#listed-document-search-verification-384), [Listed search review follow-up](#listed-search-review-follow-up-384) and [Listed search result-limit follow-up](#listed-search-result-limit-follow-up-384).
+
+### Open ordinary links (#725)
+
+An ordinary click keeps editing and never opens a link. Ctrl/Cmd+single click on an ordinary
+link mark opens an absolute http(s) URL with `window.open(url, "_blank", "noopener")`.
+The web Host opens a new tab; Desktop's existing `setWindowOpenHandler` sends it to the
+system browser. Composition, selection drags, multi-clicks and read-only endnotes do not open links.
+The existing Link form also has a keyboard-accessible **Open / 열기** button using its current
+URL input, without applying that draft to the document. Relative paths, fragments, incomplete
+URLs and other schemes disable Open; its wrapper tooltip explains that only external http(s)
+links can be opened. Authoring and preserving those links remain unchanged. This is Editor-only
+interaction; no Core operation or CLI command is needed.
+
+2026-10-29 verification: Editor tests (339), workspace typecheck and Editor build passed.
+The existing `link-authoring` browser scenario covers plain/modified clicks, IME, selection
+drag, read-only endnotes, disabled destinations and the keyboard Open action without applying
+its draft. A real new tab has a null `window.opener`; existing authoring/Save/Reload checks remain.
+Local `layout-rules` and `quiet-document` checks cover the surrounding shared controls.
+Desktop's existing main-process dispatch was inspected; packaged Desktop/Edge execution is left to CI.
+
+The following manual-review captures use Windows persistent Chrome, English UI, Light/Paper,
+900px viewport height, DPR/zoom 1, bundled Pretendard ready, the same fresh `links.md` scratch
+document and selected OpenAI link, URL-input focus and pointer at (0,0). Before uses the original
+Link form from base `7f6ba127803ad456f57b7c2d8688e638cf6040cb`; After uses this implementation.
+Both use the updated fixture including the read-only endnote. Capture through
+`pnpm browser:test link-authoring --screenshots`; generated traces/logs remain in ignored `tmp/`.
+The extra compact outline button wraps with the existing form controls without widening the form.
+
+| Width | Before | After |
+| --- | --- | --- |
+| 1440px | [Before](assets/open-link-725/before-en-1440.png) | [After](assets/open-link-725/after-en-1440.png) |
+| 640px | [Before](assets/open-link-725/before-en-640.png) | [After](assets/open-link-725/after-en-640.png) |
 
 ### Shortcut contract (#381)
 

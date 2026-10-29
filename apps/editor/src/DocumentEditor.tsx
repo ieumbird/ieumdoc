@@ -1,5 +1,6 @@
 import { DocumentSettings, type DocumentSettingsHandle } from "./shell/DocumentSettings.tsx";
 import { documentScrollContainer } from "./document-scroll.ts";
+import { handleLinkClick, handleLinkMouseDown } from "./link-opening.ts";
 import { ImageRenameContext, imageRenameKey, renameSnapshot, type ImageRenamer } from "./image-rename.ts";
 import type { MediaReplacement } from "../shared/file-operations.ts";
 import { EDITOR_SHORTCUTS, LINK_SHORTCUT } from "./shortcuts.ts";
@@ -286,6 +287,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         }
       },
       editorProps: {
+        handleClick: handleLinkClick,
+        handleDOMEvents: { mousedown: handleLinkMouseDown },
         handleKeyDown: (_view, event) => linkKey.current(event) || slashKeys.current(event),
         scrollThreshold: caretRoom(host, 0),
         scrollMargin: caretRoom(host, 5),

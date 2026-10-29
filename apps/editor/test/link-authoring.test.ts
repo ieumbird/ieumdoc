@@ -1,4 +1,5 @@
 import { nativeSource } from "./helpers/document.ts";
+import { externalLinkUrl } from "../src/link-opening.ts";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -16,6 +17,15 @@ import { saveEdits } from "../server/document-replay.ts";
 
 const source = nativeSource("See [OpenAI](https://openai.com) for **bold [docs](https://a.example/docs) text**.\n");
 const text = (value: string): InlineContent => ({ kind: "text", text: value });
+
+test("opening links accepts only complete absolute http(s) URLs, independently of authoring", () => {
+  for (const value of ["./other.md", "#section", "//example.com", "mailto:a@example.com", "file:///a.md",
+    "javascript:alert(1)", "data:text/html,test", "https://", "https://example.com/a b", "https://example.com/\na", "http:example.com", ""]) {
+    assert.equal(externalLinkUrl(value), undefined, value);
+  }
+  assert.equal(externalLinkUrl(" https://example.com/path?q=1#part "), "https://example.com/path?q=1#part");
+  assert.equal(externalLinkUrl("HTTP://example.com"), "http://example.com/");
+});
 
 function editorDoc(markdown: string): { baseline: TiptapJSON; doc: ProseMirrorNode; schema: ReturnType<typeof getSchema> } {
   const baseline = toTiptapDocument(loadEditableDocument(markdown));
