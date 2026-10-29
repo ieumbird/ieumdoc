@@ -583,10 +583,15 @@ ordinary paragraph composition, Undo/Redo, original Equation/label and surroundi
 content preservation, real disk Save/Reload, and explicit Backspace/Delete.
 The CDP path models the keyboard-before-composition ordering described in
 [UI Events](https://www.w3.org/TR/uievents/#events-composition-key-events).
-It does not verify a Windows Korean OS IME, candidate selection, or input methods
-that start composition without a preceding `Process`/229 keydown. Those methods
-still use the engine's default composition path; adjacent-paragraph placement is
-not guaranteed there. Manual Windows Korean IME review remains: select the
+It does not verify a Windows Korean OS IME or candidate selection. Input methods
+that start composition without a preceding `Process`/229 keydown are rejected on
+selected Equation, image/Mermaid Figure and read-only endnote previews by the shared
+`rejectPreviewComposition` handler at `compositionstart` and `compositionupdate`.
+It aborts the native range by blurring the editor and temporarily making its native
+input target noneditable. The next animation frame restores engine editability and
+returns focus only if focus is still on the document body. This keydown-less path
+does not create an adjacent paragraph; `footnotes` and `mermaid-authoring` cover its
+protection and subsequent input. Manual Windows Korean IME review remains: select the
 Equation preview, type and commit `한글`, cancel another composition, then check
 single input, Equation/label, Undo/Redo and Save/Reload.
 

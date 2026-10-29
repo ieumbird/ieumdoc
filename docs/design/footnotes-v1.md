@@ -94,7 +94,7 @@ The Editor presents the Core order; it does not keep a source order of its own.
 
 ### Endnotes presentation
 
-All top-level definitions follow the body in the one editor state. The first has a subtle 1px rule, a 12/16px muted `미주` label, and 24px space from the body; subsequent definitions have an 8px gap. Text keeps the 16px font and 1.5 line-height (24px), normal document text color and baseline number in a 24px inset. Inline reference chips stay superscript. The `미주` label is display only: it is not a heading, an Outline entry, selected text or Markdown. Whole-definition copying keeps the existing lossless-copy restriction; Source remains available for copying actual Markdown.
+All top-level definitions follow the body in the one editor state. The first has a subtle 1px rule, a 12/16px muted label (`Endnotes` in English / `미주` in Korean), and 24px space from the body; subsequent definitions have an 8px gap. Text keeps the 16px font and 1.5 line-height (24px), normal document text color and baseline number in a 24px inset. Inline reference chips stay superscript. The localized region label is display only: it is not a heading, an Outline entry, selected text or Markdown. Whole-definition copying keeps the existing lossless-copy restriction; Source remains available for copying actual Markdown.
 
 ## Scope
 
