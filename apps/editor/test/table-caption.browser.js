@@ -28,6 +28,15 @@ async (page, { openPath, expect, reloadDocument, screenshots }) => {
   if (screenshots) {
     // Same scratch document and interaction state before and after the visual change.
     await openPath(page, [root, 'tmp', 'caption-placeholder', 'captions.md'].join(separator));
+    for (const width of [1440, 640]) {
+      await page.setViewportSize({width, height:1000});
+      await page.evaluate(() => document.fonts.ready);
+      const figures = page.locator('[data-document-tab][data-active=true] [data-block="figure"]');
+      await figures.nth(2).locator('.mermaid-preview img').waitFor();
+      await figures.locator('img').evaluateAll(images => Promise.all(images.map(image => image.decode())));
+      await table.hover();
+      await page.screenshot({path:`tmp/caption-gap-721/comparison-${width}.png`});
+    }
     const cases = [
       {selector:'[data-block="table"]', index:0, name:'table', width:1440, language:'en', theme:'light'},
       {selector:'[data-block="figure"]', index:0, name:'image', width:640, language:'ko', theme:'dark'},
@@ -48,6 +57,32 @@ async (page, { openPath, expect, reloadDocument, screenshots }) => {
   }
   // One shared rule covers table, image, pending and Mermaid captions.
   await openPath(page, [root, 'tmp', 'caption-placeholder', 'captions.md'].join(separator));
+  const imageFigure = page.locator('[data-document-tab][data-active=true] [data-block="figure"]').first();
+  await imageFigure.locator('img').evaluate(image => image.decode());
+  // Compare relationships, including a changed public tuning value, rather than freezing pixels.
+  for (const width of [1440, 640]) {
+    await page.setViewportSize({width, height:1000});
+    for (const gap of ['', 'var(--space-4)']) {
+      await editor.evaluate((element, gap) => element.style.setProperty('--space-document-caption', gap), gap);
+      await table.hover();
+      await expect.poll(() => table.evaluate(block => {
+        const rect = selector => block.querySelector(selector).getBoundingClientRect();
+        const native = block.querySelector('table');
+        const row = native.rows[native.rows.length - 1].getBoundingClientRect();
+        const caption = rect('.table-caption .caption');
+        const figure = block.closest('.document-editor').querySelector('[data-block="figure"]');
+        const figureGap = figure.querySelector('figcaption').getBoundingClientRect().top - figure.querySelector('img').getBoundingClientRect().bottom;
+        const actions = rect('.table-action-bar'), append = rect('[aria-label="Append row"]');
+        const scroll = rect('.table-scroll');
+        return Math.abs(caption.top - row.bottom - figureGap) < 1 && figureGap > 0 &&
+          actions.top >= caption.bottom && append.top >= caption.bottom &&
+          Math.abs(actions.top - append.top) < 1 && actions.bottom <= scroll.bottom &&
+          scroll.right <= innerWidth && document.documentElement.scrollWidth <= innerWidth;
+      }), `Shared caption gap and unobscured bottom tools at ${width}px (${gap || 'default'})`).toBe(true);
+    }
+  }
+  await editor.evaluate(element => element.style.removeProperty('--space-document-caption'));
+  await page.setViewportSize({width:1280, height:720});
   const surfaces = [
     page.locator('[data-document-tab][data-active=true] [data-block="table"] [data-testid="table-caption"] [data-node-view-content]'),
     ...[0,1,2].map(index => page.locator('[data-document-tab][data-active=true] [data-block="figure"]').nth(index).getByTestId('figure-caption-content')),
