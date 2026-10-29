@@ -74,6 +74,7 @@ async (page, { openFolderPicker, openPath, openDocument, screenshots, recoveryRe
   const beforeDelete = JSON.stringify(await documentJSON());
   await select('typed Alpha.');
   await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.press('ControlOrMeta+a');
   await page.keyboard.press('Backspace');
   assert(await figures.count() === 0, 'Select all removes the pasted Figure');
   await page.keyboard.press('ControlOrMeta+z');

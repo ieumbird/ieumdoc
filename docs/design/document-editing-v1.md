@@ -1,6 +1,7 @@
 # Continuous document editing v1
 
 - Status: Implemented
+- Select-all verification: 2026-10-29 (#751: Editor tests, typecheck/build, docs and targeted persistent Windows Chrome continuous-editing, footnotes, figure-authoring and image-assets regressions; Cmd+A uses Apple platform emulation).
 - Title contract update: 2026-10-29 (#722; frontmatter-only title and H1–H6 body sections replace the #255/#472 leading-H1 policy).
 - Last verified: 2026-10-28 (#637: in-document block equation form, native input drag/paste isolation and wider wrapping inline math form; targeted Editor and browser checks and same-state 1440/640px captures).
 - Property Apply verification: 2026-10-27 (#576: shared Ctrl/Cmd+Enter submission, validation/busy guards, IME/modifier exclusions and prose hard-break isolation; Editor tests and targeted Windows Chrome browser regressions, with Apple platform emulation rather than native macOS).
@@ -126,25 +127,36 @@ persistent changes and canonical semantic validation.
 
 ### Select all within an editing surface (#723)
 
-In a table cell, table caption, Figure caption (image, pending or Mermaid), or
-explicitly edited endnote definition, the first Ctrl+A (Cmd+A on macOS) selects
-that surface's inline content, including formatting, inline atoms and supported
-line breaks. It excludes the displayed number, block properties, adjacent cells,
-other definitions and other blocks. An empty surface retains its empty caret.
-Pressing the shortcut again without an intervening editor transaction selects the
-whole document with the engine's AllSelection. Typing, selection movement or Undo
-starts a new first press. Cross-surface selections and ordinary prose retain the
-engine's whole-document behavior. Read-only endnotes retain their existing node
-selection, input protection and default whole-document shortcut; Ctrl+A does not
-enter endnote editing. During composition inside an editable scoped surface the
-shortcut is consumed without changing its content or composition selection.
+Every textblock (paragraph, heading, list-item paragraph, code block, paragraph
+inside a quote/admonition, table cell, table/Figure/Mermaid caption and explicitly
+edited endnote body) uses the same Ctrl+A (Cmd+A on macOS) policy (#751).
+The first press selects only that block's inline content, including formatting,
+inline atoms and supported line breaks. Displayed numbers, properties and other
+blocks stay outside it. An empty block retains its caret on the first press.
+A consecutive second press, with no intervening editor transaction, selects the
+whole document with AllSelection. Any intervening transaction resets this state.
+An already complete nonempty block selection (in either direction) expands
+immediately, even when made independently; empty blocks require two presses.
+
+NodeSelection (including a Figure/table), cross-block selections and read-only
+endnotes retain the engine's whole-document selection on the first press.
+Ctrl+A does not enter endnote editing or change its input protection. During
+composition inside an editable textblock the shortcut is consumed without
+changing its content or composing selection. Mouse drag and Shift+click
+multi-block selection remain engine-owned and unchanged.
+
+`EXPAND_SELECT_ALL_TO_DOCUMENT` in `document-interaction.ts` is the single product
+policy switch, currently true, with no settings UI. When false, repeated presses
+and already complete ranges stay inside the current textblock; node, cross-block
+and read-only-endnote selections are retained instead of expanding. This switch
+controls this Editor shortcut, not pointer selection or Core/CLI semantics.
 
 Replacement and Backspace use the engine's normal text transactions and history;
 one Undo restores the rich content. This is Editor-only selection behavior and
 adds no Core operation or CLI surface. The existing `continuous-editing` browser
-regression covers selection on all five surfaces. Replacement, Backspace, empty
-surfaces, Undo and Chromium composition cover image/table captions, cells and
-edited endnotes. Mermaid input/model checks are tracked separately in
+regression covers selection across these textblocks. Replacement, Backspace, empty
+surfaces, Undo and Chromium composition cover all these editable blocks except
+Mermaid captions. Mermaid input/model checks are tracked separately in
 [#750](https://github.com/ieumbird/ieumdoc/issues/750), which reproduces DOM/model
 divergence even without Ctrl+A; this is an explicit scope split. Native Windows IME and native macOS
 keyboard behavior remain manual verification boundaries.
