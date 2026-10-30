@@ -328,8 +328,8 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, waitForActiveP
   await page.evaluate(async ()=>(await import('/src/theme.ts')).applyTheme('light'));await rendered(preview(),'Latest');
   expect(await preview().locator('img').getAttribute('src')).not.toBe(darkSvg);
   await field().fill('this is not Mermaid');await expect(preview().getByTestId('mermaid-error')).toBeVisible();
-  await active.getByTestId('mermaid-apply').click();await expect(field()).toHaveCount(0);await expect(figure.getByTestId('mermaid-error')).toBeVisible();
-  await save();expect(await disk()).toContain('this is not Mermaid');await reloadDocument(page);await expect(figure.getByTestId('mermaid-error')).toBeVisible();
+  await active.getByTestId('mermaid-apply').click();await expect(field()).toHaveCount(0);await expect(page.locator('.notification-center').getByTestId('mermaid-error')).toBeVisible();
+  await save();expect(await disk()).toContain('this is not Mermaid');await reloadDocument(page);await expect(page.locator('.notification-center').getByTestId('mermaid-error')).toBeVisible();
   await edit();await field().fill('graph LR\n  Safe["<img src=x onerror=alert(1)>"] --> B\n  click B "javascript:alert(1)"');await rendered(preview(),'Safe');
   expect(await figure.locator('script,svg,foreignObject').count()).toBe(0);await active.getByTestId('mermaid-cancel').click();
   await active.getByText('After.',{exact:true}).click();await page.keyboard.press('End');await page.keyboard.press('Enter');await page.keyboard.type('/mermaid');
@@ -411,7 +411,7 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, waitForActiveP
   });
   const rendererResponse=page.waitForResponse(response=>response.url().startsWith(`${origin}/src/mermaid-render.ts`));
   await page.reload();await waitForActivePath(page,file);
-  await expect(diagrams.first().getByTestId('mermaid-error')).toBeVisible();
+  await expect(page.locator('.notification-center').getByTestId('mermaid-error').first()).toBeVisible();
   expect(await (await rendererResponse).text()).toBe(rendererFailure);
   expect(rendererFulfilled).toBe(true);
   await edit();await field().fill('graph TD\n  Offline --> Saved');await active.getByTestId('mermaid-apply').click();

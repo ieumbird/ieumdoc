@@ -13,7 +13,8 @@ import { DocumentPanel } from "../src/shell/DocumentPanel.tsx";
 import { DisplaySettings } from "../src/shell/DisplaySettings.tsx";
 import { DocumentSettings } from "../src/shell/DocumentSettings.tsx";
 import { documentLocation, splitDocumentPath, unquotePath } from "../src/shell/document-path.ts";
-import { MessageArea } from "../src/shell/MessageArea.tsx";
+import { MessageArea, SaveErrorContent } from "../src/shell/MessageArea.tsx";
+import { NotificationCenter } from "../src/components/ui/notification-center.tsx";
 import { SaveDisplayError } from "../src/save-error.ts";
 import { SaveContentError } from "../shared/save-error.ts";
 import { NewDialog } from "../src/shell/NewDialog.tsx";
@@ -673,26 +674,24 @@ test("top bar exposes the active document view and disables both views during un
   }
 });
 
-test("message area separates dismissible errors from expiring notices", () => {
-  assert.equal(renderToStaticMarkup(<MessageArea error="" notice="" onDismissError={noop} onNoticeExpired={noop} />), "");
-  const html = renderToStaticMarkup(
-    <MessageArea error="Save failed" notice="Table deleted" noticeAction={noop} onDismissError={noop} onNoticeExpired={noop} />,
-  );
-  assert.match(html, /<[^>]+\b(?=[^>]*data-testid="error")(?=[^>]*role="alert")[^>]*>/);
-  assert.match(html, />Save failed</);
-  assert.match(html, /aria-label="Dismiss error"/);
-  assert.match(html, /<[^>]+\b(?=[^>]*data-testid="notice")(?=[^>]*role="status")[^>]*>/);
-  assert.match(html, />Table deleted</);
-  assert.match(html, /<button[^>]*>Undo<\/button>/);
+test("message producers have no duplicate shell banners", () => {
+  assert.equal(renderToStaticMarkup(<MessageArea error="Save failed" notice="Table deleted" warning="Cannot save"
+    onNoticeExpired={noop} />), "");
 });
 
-test("message area keeps the writeability warning without a dismiss control", () => {
-  const html = renderToStaticMarkup(
-    <MessageArea error="" notice="" warning="Cannot save: reason" onDismissError={noop} onNoticeExpired={noop} />,
-  );
-  assert.match(html, /role="status"/);
-  assert.match(html, />Cannot save: reason</);
-  assert.doesNotMatch(html, /Dismiss/);
+test("window center reports severity and count, with optional location navigation", () => {
+  const html = renderToStaticMarkup(<NotificationCenter items={[
+    { id: "number", severity: "warning", message: "Missing number", reveal: noop },
+    { id: "host", severity: "error", message: "Host failed" },
+  ]} />);
+  assert.match(html, /data-severity="error"/);
+  assert.match(html, /Error · 2/);
+  assert.match(html, /Missing number/);
+  assert.equal((html.match(/>Go to problem</g) ?? []).length, 1);
+  const info = renderToStaticMarkup(<NotificationCenter items={[{ id: "copy", severity: "info", message: "Path copied" }]} />);
+  assert.match(info, /aria-expanded="false"/);
+  assert.match(info, /<ul[^>]*hidden/);
+  assert.equal(renderToStaticMarkup(<NotificationCenter items={[]} />), "");
 });
 
 test("save failures expose a list of navigation targets and collapsed unchanged technical details", async () => {
@@ -702,8 +701,7 @@ test("save failures expose a list of navigation targets and collapsed unchanged 
   ]);
   try {
     await i18n.changeLanguage("ko");
-    const html = renderToStaticMarkup(<MessageArea error={failure.message} notice=""
-      saveError={{ failure, locations: failure.locations, onReveal: noop }} onDismissError={noop} onNoticeExpired={noop} />);
+    const html = renderToStaticMarkup(<SaveErrorContent failure={failure} locations={failure.locations} onReveal={noop} />);
     assert.match(html, /\(표\)/);
     assert.match(html, /\(제목\)/);
     assert.match(html, /문제 위치로 이동/);
@@ -711,8 +709,7 @@ test("save failures expose a list of navigation targets and collapsed unchanged 
     assert.match(html, /aria-label="다음 문제"/);
     assert.match(html, /<details[^>]*><summary>기술적 세부 정보<\/summary><p>Original Core reason\. Original action\./);
     assert.doesNotMatch(html, /<details[^>]*\bopen/);
-    const stale = renderToStaticMarkup(<MessageArea error={failure.message} notice=""
-      saveError={{ failure, locations: [], onReveal: noop }} onDismissError={noop} onNoticeExpired={noop} />);
+    const stale = renderToStaticMarkup(<SaveErrorContent failure={failure} locations={[]} onReveal={noop} />);
     assert.match(stale, /문서가 변경되었습니다/);
     assert.doesNotMatch(stale, /문제 위치로 이동|aria-label="다음 문제"/);
   } finally { await i18n.changeLanguage("en"); }

@@ -120,10 +120,11 @@ mixed/duplicate warnings. Save collects snapshot-relative changes
 and Host replay calls Core `updateEnumerator`; no numbering semantics are implemented in UI.
 
 The Editor adapts the live applied blocks (including inserted ones) to Core `numberingReport`.
-An existing warning Notice above the document body reports the warning count, and Number in
-the affected block's properties explains Core's missing or duplicate diagnostic. Both say
-that saving is allowed; neither gates Save. Unapplied number drafts do not alter the report.
-Automatic documents show no warning Notice. Empty fixed equations can Apply, but the existing
+The window [notification center](ui-patterns-v1.md#p07-입력-오류와-알림-센터) lists each missing/duplicate
+warning with its document name and Go to problem action (#792). It explicitly says **Applied document**
+and that these numbering warnings allow saving; it does not predict overall writeability. The former
+document-top count and per-form warning Notices are removed. Unapplied number drafts do not alter
+the report. Automatic documents have no numbering notifications. Empty fixed equations can Apply, but the existing
 located Save error explains that the author must enter equation content or clear the number,
 in English and Korean. The original file and applied work are retained on refusal.
 

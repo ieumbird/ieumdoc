@@ -1,5 +1,8 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Information": "Information",
+  "Applied document": "Applied document",
+  "Diagram preview unavailable": "Diagram preview unavailable",
   "Server setup guide": "Server setup guide",
   "IeumDoc could not create the conversion bundle. Check the PDF, result folder permissions and server logs.": "IeumDoc could not create the conversion bundle. Check the PDF, result folder permissions and server logs.",
   "The Docling server could not process the PDF. Ask its operator to check this task in the server logs and verify the profile models.": "The Docling server could not process the PDF. Ask its operator to check this task in the server logs and verify the profile models.",
@@ -763,6 +766,9 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Information": "안내",
+  "Applied document": "적용된 문서 기준",
+  "Diagram preview unavailable": "다이어그램 미리보기 사용 불가",
   "Server setup guide": "서버 구성 안내",
   "IeumDoc could not create the conversion bundle. Check the PDF, result folder permissions and server logs.": "변환 묶음을 만들지 못했습니다. PDF, 결과 폴더의 쓰기 권한과 서버 로그를 확인하세요.",
   "The Docling server could not process the PDF. Ask its operator to check this task in the server logs and verify the profile models.": "Docling 서버가 PDF를 처리하지 못했습니다. 서버 운영자에게 작업 ID로 서버 로그와 프로필 모델을 확인해 달라고 요청하세요.",

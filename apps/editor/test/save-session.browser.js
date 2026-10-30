@@ -297,7 +297,7 @@ async (page, { openDocument, waitForActivePath, reloadDocument }) => {
   await equation.hover(); await equation.getByRole('button', {name:'Edit', exact:true}).click();
   await page.getByTestId('equation-latex').fill('x + 40');
   await save();
-  check('draftSaveIsExplicit', (await page.getByTestId('status').innerText()) === 'Unsaved changes' && await page.getByTestId('draft-notice').isVisible());
+  check('draftSaveIsExplicit', (await page.getByTestId('status').innerText()) === 'Unsaved changes' && await page.getByTestId('draft-notice').count() === 1);
   check('onlyAppliedContentWritten', (await read(technical)).source.includes('BodySaved') && !(await read(technical)).source.includes('x + 40'));
   await page.getByTestId('view-source').click(); await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').waitFor();
   check('sourceExcludesDraft', !(await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').innerText()).includes('x + 40'));

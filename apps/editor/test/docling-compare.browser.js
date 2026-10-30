@@ -114,7 +114,7 @@ async (page, { expect }) => {
   await center.getByRole('button', { name: 'Go to problem' }).click();
   await expect(stale).toBeFocused();
   await center.getByRole('button', { name: 'Notifications', exact: true }).click();
-  await expect(center.locator('ul')).toHaveCount(0);
+  await expect(center.locator('ul')).toBeHidden();
   await center.getByRole('button', { name: 'Notifications', exact: true }).click();
   await center.getByRole('button', { name: 'Dismiss notification' }).click();
   await expect(center).toHaveCount(0);

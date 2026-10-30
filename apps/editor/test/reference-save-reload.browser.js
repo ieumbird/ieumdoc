@@ -160,7 +160,7 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
     expect(await page.getByTestId(`${kind}-automatic-number`).innerText()).toBe('Automatic number: 1');
     await page.getByTestId(`${kind}-editor`).getByRole('button',{name:'Fixed',exact:true}).click();
     await page.getByTestId(`${kind}-enumerator`).fill('discard');
-    await expect(page.getByTestId('draft-notice')).toBeVisible();
+    await expect(page.getByTestId('draft-notice')).toHaveCount(1);
     expect((await attrs(label)).enumerator).toBe(previous);
     if (kind === 'figure' || kind === 'mermaid-property') await page.getByTestId(kind === 'figure' ? 'figure-alt' : 'mermaid-property-label').press('Escape');
     else await page.getByTestId(`${kind}-cancel`).click();
@@ -195,31 +195,25 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
   // The Core report supplies missing/duplicate warnings; neither disables Save.
   await applyNumber('fixed-table','table','');
   await edit('fixed-table','table');
-  expect(await page.getByTestId('numbering-block-warning').innerText()).toContain('Missing fixed number');
+  await expect(page.getByTestId('numbering-warning').filter({hasText:'Missing fixed number'})).toHaveCount(1);
+  await expect(page.getByTestId('numbering-block-warning')).toHaveCount(0);
   await page.getByTestId('table-cancel').click();
   await applyNumber('fixed-diagram','mermaid-property','18');
   await edit('fixed-diagram','mermaid-property');
-  expect(await page.getByTestId('numbering-block-warning').innerText()).toContain('18 is duplicated');
-  const warningStyle = await page.getByTestId('numbering-block-warning').evaluate(el => {
-    const control=el.closest('.figure-number-field'), label=control.querySelector('span'), s=getComputedStyle(el), l=getComputedStyle(label);
-    return {size:s.fontSize,line:s.lineHeight,labelSize:l.fontSize,labelLine:l.lineHeight,
-      left:el.getBoundingClientRect().left,fieldLeft:control.getBoundingClientRect().left};
-  });
-  expect(warningStyle.size).toBe(warningStyle.labelSize);
-  expect(warningStyle.line).toBe(warningStyle.labelLine);
-  expect(warningStyle.left).toBe(warningStyle.fieldLeft);
+  await expect(page.getByTestId('numbering-warning').filter({hasText:'18 is duplicated'})).toHaveCount(2);
   await page.getByTestId('mermaid-property-label').press('Escape');
-  expect(await active.getByTestId('numbering-warnings').innerText()).toContain('Saving is allowed');
+  await expect(page.getByTestId('numbering-warning').first()).toContainText('Applied document');
+  await expect(page.getByTestId('numbering-warning').first()).toContainText('Saving is allowed');
   await save();
   await reloadDocument(page);
-  expect(await active.getByTestId('numbering-warnings').innerText()).toContain('Numbering warnings: 3.');
+  await expect(page.getByTestId('numbering-warning')).toHaveCount(3);
   expect((await attrs('fixed-table')).enumerator).toBeNull();
   expect((await attrs('fixed-diagram')).enumerator).toBe('18');
   for (const [label, kind] of [['fixed-image','figure'],['fixed-diagram','mermaid-property'],['fixed-equation','equation']]) await applyNumber(label,kind,'');
-  expect(await active.getByTestId('numbering-warnings').count()).toBe(0);
+  expect(await page.getByTestId('numbering-warning').count()).toBe(0);
   await save();
   await reloadDocument(page);
-  expect(await active.getByTestId('numbering-warnings').count()).toBe(0);
+  expect(await page.getByTestId('numbering-warning').count()).toBe(0);
   expect(await active.getByTestId('equation-number').innerText()).toBe('(1)');
   await edit('fixed-diagram','mermaid-property',false);
   await expect(page.getByTestId('mermaid-property-editor').getByRole('button',{name:'Automatic',exact:true})).toHaveAttribute('aria-pressed','true');

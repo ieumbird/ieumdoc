@@ -194,7 +194,7 @@ async (page, { openPath, expect, screenshots }) => {
   await editor.locator('p.paragraph', {hasText:'The current is'}).click({position:{x:4,y:4}});
   expect(await forms.count(), 'Outside focus keeps both drafts').toBe(2);
   expect(await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON()))).toBe(appliedBeforeDraft);
-  await page.getByTestId('draft-notice').waitFor();
+  await page.getByTestId('draft-notice').waitFor({state:'attached'});
   expect(await page.evaluate(() => {const e = new Event('beforeunload',{cancelable:true});window.dispatchEvent(e);return e.defaultPrevented;})).toBe(true);
   await page.getByTestId('save').click();
   await page.locator('[data-testid="status"][data-operation^="saved"]').waitFor();
@@ -241,7 +241,7 @@ async (page, { openPath, expect, screenshots }) => {
   await forms.filter({has:page.locator(`[id="${firstSourceId}"]`)}).waitFor({state:'detached'});
   expect(await forms.count(), 'Cancelling one instance keeps the other').toBe(1);
   expect(await forms.getByTestId('inline-math-source').inputValue()).toBe('uncommitted-second');
-  expect(await page.getByTestId('draft-notice').isVisible()).toBe(true);
+  expect(await page.getByTestId('draft-notice').count() === 1).toBe(true);
   await forms.getByTestId('inline-math-source').press('Escape');
   await forms.waitFor({state:'detached'});
   await page.getByTestId('draft-notice').waitFor({state:'detached'});

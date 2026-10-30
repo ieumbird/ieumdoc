@@ -505,9 +505,10 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
         </label>
         <NumberField editor={editor} getPos={getPos} testId="mermaid" draft={numberDraft} onChange={() => setError("")} disabled={busy} />
       </PropertyForm>
-    </div> : null : <div contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>
-      <MermaidPreview source={applied.mermaidSource ?? ""} />
-    </div>}
+    </div> : null : null}
+    {typeof applied.mermaidSource === "string" ? <div hidden={editing} contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>
+      <MermaidPreview source={applied.mermaidSource ?? ""} onReveal={() => { focusBlock(view, getPos); anchor.current?.scrollIntoView({ block: "center" }); }} />
+    </div> : null}
     <figcaption className="caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}
       onMouseDown={event => handleTextblockMouseDown(event, { editor, node, getPos })}>
       <NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")}

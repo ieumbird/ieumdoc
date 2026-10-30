@@ -1,65 +1,58 @@
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
+import { UiError, type UiMessage } from "../ui-message.ts";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { SaveDisplayError, SaveErrorLocation } from "../save-error.ts";
 import { Button } from "@/components/ui/button.tsx";
-import { Notice } from "../ui/primitives.tsx";
+import { useNotifications, type Notification } from "../components/ui/notification-center.tsx";
 
 export const NOTICE_TIMEOUT_MS = 5000;
-
 type MessageAreaProps = {
   error: string;
+  errorCause?: UiMessage;
+  noticeCause?: UiMessage;
   saveError?: { failure: SaveDisplayError; locations: readonly SaveErrorLocation[]; onReveal(index: number): void };
   notice: string;
   noticeAction?: (() => void) | null;
-  /** Standing condition of the open document (e.g. it cannot be saved); not dismissible. */
   warning?: string;
   draftNotice?: string;
-  /** Standing information about the open document (e.g. what its first Save changes). */
   documentNotice?: string;
-  onDismissError(): void;
+  onReveal?(): void;
   onNoticeExpired(): void;
 };
 
-/**
- * Application messages below the top bar, outside the document column.
- * Warnings stay while their condition holds; errors stay until dismissed or resolved;
- * notices expire.
- */
-export function MessageArea({ error, saveError, notice, noticeAction = null, warning = "", draftNotice = "", documentNotice = "", onDismissError, onNoticeExpired }: MessageAreaProps) {
+/** Existing message producers register with the window center; notices keep their five-second lifetime. */
+export function MessageArea({ error, errorCause = error, noticeCause, saveError, notice, noticeAction = null, warning = "", draftNotice = "", documentNotice = "", onReveal, onNoticeExpired }: MessageAreaProps) {
   useTranslation();
+  const expire = useRef(onNoticeExpired);
+  expire.current = onNoticeExpired;
   useEffect(() => {
     if (!notice) return;
-    const timer = setTimeout(onNoticeExpired, NOTICE_TIMEOUT_MS);
+    const timer = setTimeout(() => expire.current(), NOTICE_TIMEOUT_MS);
     return () => clearTimeout(timer);
   }, [notice, noticeAction]);
-  if (!error && !notice && !warning && !draftNotice && !documentNotice) return null;
-  return (
-    <div className="message-area" data-testid="message-area">
-      {draftNotice ? <Notice className="message" data-testid="draft-notice"><span className="message-text">{draftNotice}</span></Notice> : null}
-      {documentNotice ? <Notice className="message" data-testid="document-notice"><span className="message-text">{documentNotice}</span></Notice> : null}
-      {warning ? (
-        <Notice tone="warning" className="message" data-testid="writeability-warning">
-          <span className="message-text">{warning}</span>
-        </Notice>
-      ) : null}
-      {error ? (
-        <Notice tone="error" className="message" data-testid="error">
-          {saveError ? <SaveErrorContent {...saveError} /> : <span className="message-text">{error}</span>}
-          <Button variant="ghost" size="icon-sm" className="message-dismiss" aria-label={i18n.t("Dismiss error")} onClick={onDismissError}>×</Button>
-        </Notice>
-      ) : null}
-      {notice ? (
-        <Notice className="message" data-testid="notice">
-          <span className="message-text">{notice}</span>
-          {noticeAction ? <span className="message-actions"><Button variant="ghost" size="sm" onClick={noticeAction}>{i18n.t("Undo")}</Button></span> : null}
-        </Notice>
-      ) : null}
-    </div>
-  );
+  const items: Notification[] = [];
+  if (error) items.push({ id: `error:${saveError?.failure.details ?? causeId(errorCause)}`, message: error, severity: "error", testId: "error",
+    dismissLabel: i18n.t("Dismiss error"),
+    revision: JSON.stringify(saveError?.locations),
+    ...(saveError ? { render: () => <SaveErrorContent {...saveError} /> } : { reveal: onReveal }),
+  });
+  for (const [testId, message, severity] of [
+    ["writeability-warning", warning, "warning"], ["draft-notice", draftNotice, "info"], ["document-notice", documentNotice, "info"], ["notice", notice, "info"],
+  ] as const) if (message) items.push({ id: testId === "notice" ? `notice:${causeId(noticeCause ?? notice)}` : testId, message, severity, testId, reveal: onReveal,
+    ...(testId === "notice" && noticeAction ? { render: () => <><p>{message}</p><Button variant="ghost" size="sm" onClick={noticeAction}>{i18n.t("Undo")}</Button></> } : {}),
+  });
+  useNotifications(items);
+  return null;
 }
 
-function SaveErrorContent({ failure, locations, onReveal }: NonNullable<MessageAreaProps["saveError"]>) {
+// Translation changes presentation, never the identity of an unresolved cause.
+function causeId(message: UiMessage): string {
+  if (message instanceof UiError) return JSON.stringify(message.detail);
+  return message instanceof Error ? message.message : JSON.stringify(message);
+}
+
+export function SaveErrorContent({ failure, locations, onReveal }: NonNullable<MessageAreaProps["saveError"]>) {
   const [current, setCurrent] = useState(0);
   const details = useRef<HTMLDetailsElement>(null);
   useLayoutEffect(() => { setCurrent(0); if (details.current) details.current.open = false; }, [failure]);

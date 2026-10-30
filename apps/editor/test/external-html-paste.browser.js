@@ -54,7 +54,7 @@ async (page, { openPath }) => {
     'text/html': new Blob([html], {type:'text/html'}), 'text/plain': new Blob(['Web heading'], {type:'text/plain'}),
   })]), web);
   await page.keyboard.press('Control+v');
-  await notice.filter({hasText:'Pasted with normalization: unsupported semantic formatting became plain text; unsupported visual styles were removed.'}).waitFor();
+  await notice.filter({hasText:'Pasted with normalization: unsupported semantic formatting became plain text; unsupported visual styles were removed.'}).waitFor({state:'attached'});
   const pasted = await state();
   assert(pasted.doc !== before.doc, 'External HTML must paste');
   assert(await editor.locator('[data-block="table"]').getByLabel('Table caption', {exact:true}).count() === 1,
@@ -140,7 +140,7 @@ async (page, { openPath }) => {
     await select('Omega.', true);
     const before = await state();
     await syntheticPaste(html);
-    await notice.filter({hasText:`Nothing was pasted: ${reason}. The clipboard and your selection are kept.`}).waitFor();
+    await notice.filter({hasText:`Nothing was pasted: ${reason}. The clipboard and your selection are kept.`}).waitFor({state:'attached'});
     const after = await state();
     assert(after.doc === before.doc && after.selection.join() === before.selection.join(), `${reason}: document and selection must stay`);
   }
@@ -152,7 +152,7 @@ async (page, { openPath }) => {
     data.setData('text/html', args.html); data.setData('text/plain', 'Merged');
     el.dispatchEvent(new DragEvent('drop', {dataTransfer:data, clientX:args.x, clientY:args.y, bubbles:true, cancelable:true}));
   }, {html:refused['merged table cells are not supported'], x:target.x + 5, y:target.y + target.height / 2});
-  await notice.filter({hasText:'Nothing was pasted: merged table cells are not supported.'}).waitFor();
+  await notice.filter({hasText:'Nothing was pasted: merged table cells are not supported.'}).waitFor({state:'attached'});
   assert((await state()).doc === beforeDrop.doc, 'A refused drop must keep the document');
   result.refused = true;
   return result;

@@ -519,7 +519,9 @@ async (page, { openPath, reloadDocument }) => {
   };
   await page.getByRole('button', {name:'File actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Copy path', exact:true}).click();
-  await notice.filter({hasText:'Copied the file path.'}).waitFor();
+  await notice.filter({hasText:'Copied the file path.'}).waitFor({state:'attached'});
+  const notificationToggle = page.locator('.notification-center > button[aria-expanded=false]');
+  if (await notificationToggle.count()) await notificationToggle.click();
   await finalTable.locator('td').first().click();
   await finalTable.getByRole('button', {name:'Delete table', exact:true}).click();
   result.deleteTable = await tables.count() === 1;

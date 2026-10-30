@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Notice } from "./ui/primitives.tsx";
 import { i18n } from "./i18n.ts";
+import { useNotifications } from "./components/ui/notification-center.tsx";
 
 /** Only adapt the live engine document to Core's editor-neutral report. Paths here are
  * current display positions, including newly inserted blocks, not opening-snapshot locators. */
@@ -50,15 +51,9 @@ export function NumberField({ editor, getPos, draft, onChange, testId, disabled 
     if (!current || typeof pos !== "number") return undefined;
     const index = current.state.doc.resolve(pos).index(0);
     return {
-      warnings: editorNumberingReport(current.state.doc).diagnostics.filter(item => item.path[0] === index),
       automatic: editorNumberingReport(current.state.doc, index).targets.find(item => item.path[0] === index)?.number,
     };
   } });
-  const notices = report?.warnings.map(item => <Notice tone="warning" key={item.code} data-testid="numbering-block-warning">
-    {item.code === "numbering-missing"
-      ? i18n.t("Missing fixed number in a fixed-number document. Saving is allowed.")
-      : i18n.t("Fixed number {{number}} is duplicated for this kind. Saving is allowed.", { number: item.enumerator ?? "" })}
-  </Notice>);
   return <div className="form-field figure-number-field">
       <span id={`${id}-label`}>{i18n.t("Number")}</span>
       <div className="view-toggle" role="group" aria-labelledby={`${id}-label`}>
@@ -75,15 +70,24 @@ export function NumberField({ editor, getPos, draft, onChange, testId, disabled 
         value={value} disabled={disabled} onChange={event => { draft.change(event.target.value); onChange?.(); }} />
         : <p className="form-hint" data-testid={`${testId}-automatic-number`}>{i18n.t("Automatic number: {{number}}", { number: report?.automatic ?? "" })}</p>}
       {invalid ? <Notice tone="error" id={`${id}-error`}>{i18n.t("Enter a fixed number or choose Automatic.")}</Notice> : null}
-      {notices}
     </div>;
 }
 
-export function NumberingNotice({ editor }: { editor: Editor }) {
+export function NumberingNotice({ editor, onReveal }: { editor: Editor; onReveal(index: number, type: string): void }) {
   useTranslation();
-  const count = useEditorState({ editor, selector: ({ editor: current }) =>
-    current ? editorNumberingReport(current.state.doc).diagnostics.length : 0 }) ?? 0;
-  return count ? <Notice tone="warning" data-testid="numbering-warnings">
-    {i18n.t("Numbering warnings: {{count}}. Review Number in block properties for missing or duplicate fixed numbers. Saving is allowed.", { count })}
-  </Notice> : null;
+  const warnings = useEditorState({ editor, selector: ({ editor: current }) =>
+    editorNumberingReport(current.state.doc).diagnostics.map(item => {
+      const index = item.path[0]!;
+      const node = current.state.doc.child(index);
+      return { ...item, locator: node.attrs.sourcePath as string, type: node.type.name };
+    }) }) ?? [];
+  useNotifications(warnings.map(item => ({
+    id: `${item.locator}:${item.code}:${item.enumerator ?? ""}`,
+    severity: "warning", testId: "numbering-warning",
+    message: `${i18n.t("Applied document")}: ${item.code === "numbering-missing"
+      ? i18n.t("Missing fixed number in a fixed-number document. Saving is allowed.")
+      : i18n.t("Fixed number {{number}} is duplicated for this kind. Saving is allowed.", { number: item.enumerator ?? "" })}`,
+    revision: String(item.path[0]), reveal: () => onReveal(item.path[0]!, item.type),
+  })));
+  return null;
 }

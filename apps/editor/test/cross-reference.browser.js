@@ -543,6 +543,8 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
     await page.screenshot({path:'tmp/375/deleted-table-ko-640.png'});
     await page.setViewportSize({width:1280, height:720});
   }
+  const notificationToggle = page.locator('.notification-center > button[aria-expanded=false]');
+  if (await notificationToggle.count()) await notificationToggle.click();
   await page.getByTestId('notice').getByRole('button', {name:'되돌리기', exact:true}).click();
   result.koreanTableUndoResolves = await active.locator('[data-label="tbl-a"][data-resolved="true"]').count() > 0;
   await page.getByRole('button', {name:'설정', exact:true}).click();

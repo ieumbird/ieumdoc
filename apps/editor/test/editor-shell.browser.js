@@ -171,11 +171,11 @@ async page => {
     await page.getByTestId('equation-latex').fill('x + 1');
     result.equationDraftInBlock = await page.locator('[data-document-tab][data-active=true]').getByTestId('equation-draft-status').isVisible();
     result.saveAvailableDuringDraft = await page.getByTestId('save').isEnabled();
-    result.draftScopeExplained = await page.getByTestId('draft-notice').isVisible();
+    result.draftScopeExplained = await page.getByTestId('draft-notice').count() === 1;
     await settings.click();
     await page.keyboard.press('Escape'); await settingsDialog.waitFor({state:'hidden'});
     result.settingsKeepsEquationDraft = await page.getByTestId('equation-latex').inputValue() === 'x + 1' &&
-      await page.getByTestId('draft-notice').isVisible();
+      await page.getByTestId('draft-notice').count() === 1;
     await fileActions.click();
     await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
     await page.getByRole('dialog', {name:'Discard local changes?', exact:true}).waitFor();
@@ -245,7 +245,7 @@ async page => {
       el.dispatchEvent(new ClipboardEvent('paste', {clipboardData:data, bubbles:true, cancelable:true}));
     });
     await page.getByTestId('notice').waitFor();
-    result.noticeInMessageArea = await page.locator('[data-testid="message-area"] [data-testid="notice"]').count() === 1;
+    result.noticeInMessageArea = await page.locator('.notification-center [data-testid="notice"]').count() === 1;
     result.figureKept = await page.locator('[data-document-tab][data-active=true] [data-block="figure"]').count() === 1;
     await page.getByTestId('notice').waitFor({state:'detached', timeout:8000});
     result.noticeExpired = true;

@@ -191,7 +191,7 @@ async (page, { openDocument }) => {
   // A line break cannot go into a heading: the reason is shown and nothing changes.
   const twoLines = editor.locator('p').filter({hasText:'Line one'});
   await blockAction(twoLines, 'Move paragraph block 8', 'Change to Heading 2');
-  await page.getByTestId('notice').filter({hasText:'line breaks'}).waitFor({state:'visible'});
+  await page.getByTestId('notice').filter({hasText:'line breaks'}).waitFor({state:'attached'});
   const lineBreakConversionRejected = await twoLines.count() === 1 && await twoLines.locator('br').count() === 1;
 
   // Legacy body H1 remains editable; inspect its normal conversions, then leave its level intact.
