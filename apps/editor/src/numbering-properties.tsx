@@ -6,7 +6,7 @@ import type { Node } from "@tiptap/pm/model";
 import { numberingReport } from "@ieumdoc/core/numbering";
 import { Input } from "@/components/ui/input.tsx";
 import { Button } from "@/components/ui/button.tsx";
-import { Notice } from "./ui/primitives.tsx";
+import { FieldError } from "./ui/primitives.tsx";
 import { i18n } from "./i18n.ts";
 import { useNotifications } from "./components/ui/notification-center.tsx";
 
@@ -69,7 +69,7 @@ export function NumberField({ editor, getPos, draft, onChange, testId, disabled 
         placeholder={i18n.t("None")}
         value={value} disabled={disabled} onChange={event => { draft.change(event.target.value); onChange?.(); }} />
         : <p className="form-hint" data-testid={`${testId}-automatic-number`}>{i18n.t("Automatic number: {{number}}", { number: report?.automatic ?? "" })}</p>}
-      {invalid ? <Notice tone="error" id={`${id}-error`}>{i18n.t("Enter a fixed number or choose Automatic.")}</Notice> : null}
+      {invalid ? <FieldError id={`${id}-error`}>{i18n.t("Enter a fixed number or choose Automatic.")}</FieldError> : null}
     </div>;
 }
 

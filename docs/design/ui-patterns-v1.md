@@ -58,9 +58,9 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 
 - **목적·사용/비사용:** 짧은 속성 입력을 찾기 쉽게 하되 중첩 경계를 줄인다. 문서 입력·원문·모달 전체에 경계 제거를 전파하지 않는다.
 - **목표:** 짧은 text field는 subtle fill + hover/focus border, label은 항상 표시한다. 원문은 code surface, 경로·새 이름 같은 독립 모달 핵심 입력은 상시 경계를 유지한다. placeholder는 예시/빈 값 표시이며 label·필수 조건을 대신하지 않는다. 필요한 제약은 label 가까이, 오류는 P07을 따른다.
-- **현재 기준:** [그림 속성 필드][figure-view]와 FigureProperties의 표면, 모달의 공용 Input. 기존 32px field·28px action·6px radius와 token을 사용한다.
+- **현재 기준:** [그림 속성 필드][figure-view]의 subtle fill·hover/focus border를 `PropertyForm`/`BlockProperties`의 표·절 label·수식/원문 metadata와 링크의 짧은 text field에 공유한다(#789). label은 상시 표시하며 기존 32px field·28px action·6px radius와 token을 사용한다. 원문 textarea(인라인 LaTeX 포함), 제목·caption과 독립 모달의 핵심 입력은 기존 경계를 유지한다. 교차참조의 target은 text field가 아닌 select로 기존 경계·후보 동작을 유지한다. 인용은 전용 변경 없이 공용 스타일만 따른다(ADR-0008 동결).
 - **사용처:** U01–U14 문서 속성·inline·설정, U19 코드 언어·callout, U22–U23 앱 설정·파일 모달.
-- **결정·불일치:** [소유자 결정 P05][decision]. 표·절 label·inline·원문 metadata의 상시 경계와 hint 차이는 D09.
+- **결정·불일치:** [소유자 결정 P05][decision]. D09의 구현·검증은 #789. `short-field-errors`가 1440px Light·영어 / 640px Dark·한국어에서 필드 rest·hover·focus, 오류 연결·위치와 값 보존을 검사한다. 같은 scratch 문서·잘못된 label로 비교한 [1440px 표 Before](assets/short-fields-789/before-1440-table.png) / [After](assets/short-fields-789/after-1440-table.png), [640px 그림 Before](assets/short-fields-789/before-640-figure.png) / [After](assets/short-fields-789/after-640-figure.png)는 [촬영 스크립트](assets/short-fields-789/capture.browser.js)와 [metadata·해시](assets/short-fields-789/capture-metadata.json)로 묶은 수동 시각 검토 근거다. 오류문 축소에 따른 폼 높이·위치 차이는 실제 배치 결과이며 이미지 재배치가 아니다.
 
 ## P06 빈 상태와 작성 시작
 
@@ -80,6 +80,7 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 - **현재 생명주기:** 새 경고·오류만 focus 없이 목록을 펼친다. 원인별 안정적인 ID를 쓰며 샘플 준비·복구 저장소 등 독립 원인을 합치지 않는다. 접힌 토글의 접근성 이름에 최고 심각도·개수를 포함하고, 새 항목은 펼침과 독립된 polite live region에서 한 번 알린다. 접은 목록은 항목 제거·안내 추가로 다시 펼쳐지지 않는다. 일회 안내는 기존 5초 수명과 Undo를 유지한다. 원인 제거 시 항목을 없애고, 닫은 원인은 탭 전환·무관한 편집에서 숨김을 유지하다가 제거 후 재발하면 다시 표시한다. 탭을 닫으면 그 탭의 원인도 제거한다. 알림·접힘·숨김은 창 메모리에만 두고 문서·복구 기록에 쓰지 않는다. 저장 실패는 기존 계약대로 다음 성공한 Save가 해소하며, 편집 후 위치가 낡으면 재저장을 안내한다. Core/Host의 저장 허용·거부를 재판정하지 않는다.
 - **남기는 문맥 표시:** 미적용 초안의 Save/Source 범위 설명은 일회 안내가 아닌 상시 문맥 정보여서 기존 상단 위치에 유지한다. 입력칸 오류·Mermaid **초안** 미리보기 오류는 폼에 유지한다. 파일 picker의 경로/이름 오류·Settings 선택값 저장 오류는 해당 입력 피드백이다. 열린 Source/Recovery 비교 등의 읽기 실패는 그 화면 상태를 설명하는 P12 문맥 정보여서 화면 안에 둔다. 참고문헌 completeness는 ADR-0008 동결 범위를 유지한다. 블록의 짧은 미리보기 불가 표시는 위치 표식이며 상세 실패를 중복 출력하지 않는다. 폼 입력칸 연결은 기존 연결과 D09 범위를 따른다.
 - **검증:** `notification-center`는 심각도·개수, 자동 펼침/접기, focus/selection 유지, 해결·닫기·재발, 비활성 탭 위치 이동, 창 격리와 일회 안내를 검증한다. 1440/640px·light/dark·한국어 [시각 근거](#notification-center-792)를 함께 확인한다.
+- **현재 기준 — 입력칸 (#789):** `FieldError`의 짧은 오류문을 해당 입력 바로 아래에 두고, 입력의 `aria-invalid`와 고유한 `aria-describedby`로 연결하며 거절된 값을 보존한다. 그림의 label·이미지 경로·alt·파일 이름, Mermaid 원문의 빈 값·label, 수식·표·절 label, 인라인 LaTeX·링크 URL과 기존 NumberField 오류가 이 표현을 쓴다. label 중복은 Core 거절을 표시하고 번호 제출 규칙은 #776 그대로다. 특정 입력으로 귀속할 수 없는 폼 내부 Host/검증 실패 Notice는 폼 문맥에 유지하고, 적용 문서 경고는 위 창 단위 센터로 보낸다. 기존 인용 오류 동작은 동결 범위로 유지한다. `short-field-errors`에서 수정 전 오류 연결 검사 실패와 수정 후 통과를 확인했다(2026-10-30).
 - **사용처:** U01–U16 문서 폼·번호·메시지·렌더 실패, U22–U25 설정·파일·복구·참고문헌 알림.
 - **결정·불일치:** [소유자 결정 P07][decision]이 인벤토리의 scope별 요약 추천을 대체한다. 알림 센터의 추적은 D07, 입력칸 오류는 D09다.
 

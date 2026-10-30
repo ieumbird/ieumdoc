@@ -1,0 +1,28 @@
+{
+  "beforeCommit": "644b2d7b3e5639b3be000bced5cf048a7ccb9532",
+  "after": "PR implementation",
+  "date": "2026-10-30",
+  "browser": "installed Chrome, checkout persistent profile, DPR 1, zoom 1",
+  "fixture": "tmp/short-fields/fields.md from SCRATCH_DIRS.short-fields",
+  "state": "label draft \" bad-label\", rejected Apply/Done, pointer at (0,0), document fonts and images ready",
+  "alignment": "table top 400px at 1440x900 Light English; figure top 550px at 640x900 Dark Korean; scrolling is clamped by the real viewport",
+  "purpose": "manual comparison, not regression pass evidence",
+  "files": {
+    "after-1440-table.png": {
+      "bytes": 83350,
+      "sha256": "618330920f77fd1b3933fa11cc09d214f8c34be11a92aba6df928aae7458208a"
+    },
+    "after-640-figure.png": {
+      "bytes": 67673,
+      "sha256": "95083063ccad8e1fc42e8febb48731c1cb6872c1e487f349a9e6e3ebc96a7fbe"
+    },
+    "before-1440-table.png": {
+      "bytes": 83677,
+      "sha256": "c290e0589a20b3a54355572c105d3aee66983612c0ca67c98c7db3c5e23c2d37"
+    },
+    "before-640-figure.png": {
+      "bytes": 66867,
+      "sha256": "fc2acfba347c24fcb9c5a15be374c4075f9cdedcb51214422ab28348b8cba1ae"
+    }
+  }
+}

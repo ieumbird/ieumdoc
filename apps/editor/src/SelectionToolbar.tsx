@@ -4,7 +4,8 @@ import { useTranslation } from "react-i18next";
 import { i18n } from "./i18n.ts";
 import type { Editor } from "@tiptap/core";
 import { Bold, Bookmark, Code, Italic, Link2, Sigma, Strikethrough, Subscript, Superscript } from "lucide-react";
-import { useState, type CSSProperties, type RefObject } from "react";
+import { useId, useState, type CSSProperties, type RefObject } from "react";
+import { FieldError } from "./ui/primitives.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { externalLinkUrl, openExternalLink } from "./link-opening.ts";
 import { Button } from "@/components/ui/button.tsx";
@@ -180,6 +181,7 @@ export function LinkForm({ editor, draft, style, onClose }: {
   onClose: () => void;
 }) {
   useTranslation();
+  const formId = useId();
   const [href, setHref] = useState(draft.href);
   const bounds = useOverlayBounds<HTMLFormElement>();
   const [error, setError] = useMessageState("");
@@ -224,20 +226,24 @@ export function LinkForm({ editor, draft, style, onClose }: {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) onClose();
       }}
     >
-      <label className="form-label" htmlFor="link-url">{i18n.t("Link URL")}</label>
-      <Input
-        id="link-url"
-        autoFocus
-        aria-label={i18n.t("Link URL")}
-        data-testid="link-url"
-        placeholder="https://"
-        value={href}
-        aria-invalid={error ? true : undefined}
-        onChange={(event) => {
-          setHref(event.target.value);
-          setError("");
-        }}
-      />
+      <div className="form-field link-url-field">
+        <label className="form-label" htmlFor={formId}>{i18n.t("Link URL")}</label>
+        <Input
+          id={formId}
+          autoFocus
+          aria-label={i18n.t("Link URL")}
+          data-testid="link-url"
+          placeholder="https://"
+          value={href}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${formId}-error` : undefined}
+          onChange={(event) => {
+            setHref(event.target.value);
+            setError("");
+          }}
+        />
+        <FieldError id={`${formId}-error`}>{error}</FieldError>
+      </div>
       <Button size="sm" type="submit" data-testid="link-apply">{i18n.t("Apply")}</Button>
       <span title={externalLinkUrl(href) ? i18n.t("Open") : i18n.t("Only external http(s) links can be opened.")}>
         <Button size="sm" variant="outline" type="button" data-testid="link-open"
@@ -246,7 +252,6 @@ export function LinkForm({ editor, draft, style, onClose }: {
       {draft.href ? (
         <Button size="sm" variant="outline" data-testid="link-remove" onClick={remove}>{i18n.t("Remove")}</Button>
       ) : null}
-      {error ? <p className="link-form-error" role="alert">{error}</p> : null}
     </form>
   );
 }

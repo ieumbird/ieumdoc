@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NodeSelection } from "@tiptap/pm/state";
 import { NodeViewWrapper, useEditorState, type ReactNodeViewProps } from "@tiptap/react";
+import { FieldError } from "../ui/primitives.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { useMessageState } from "../ui-message.ts";
 import { i18n } from "../i18n.ts";
@@ -81,7 +82,8 @@ export function InlineMathView({ node, editor, getPos, updateAttributes, selecte
       />
       <BlockProperties anchor={anchor} initialFocus={input} kind={i18n.t("Inline math")} testId="inline-math" className="inline-math-properties"
         endnoteOwner={endnoteOwner ? { label: endnoteOwner, editor: endnoteEditorToken(editor) } : undefined}
-        open={editing} error={error} busy={!canEdit} onApply={apply} onCancel={close}>
+        open={editing} busy={!canEdit} onApply={apply} onCancel={close}>
+        <div className="form-field">
           <label className="form-label" htmlFor={formId}>LaTeX</label>
           <textarea
             id={formId}
@@ -92,6 +94,7 @@ export function InlineMathView({ node, editor, getPos, updateAttributes, selecte
             value={draft}
             disabled={!canEdit}
             aria-invalid={error ? true : undefined}
+            aria-describedby={error ? `${formId}-error` : undefined}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.ctrlKey && !event.metaKey && !event.nativeEvent.isComposing) {
                 event.preventDefault();
@@ -103,7 +106,9 @@ export function InlineMathView({ node, editor, getPos, updateAttributes, selecte
               setError("");
             }}
           />
-          <Button type="button" size="sm" variant="outline" data-testid="inline-math-remove" disabled={!canEdit} onClick={remove}>{i18n.t("Remove")}</Button>
+          <FieldError id={`${formId}-error`}>{error}</FieldError>
+        </div>
+        <Button type="button" size="sm" variant="outline" data-testid="inline-math-remove" disabled={!canEdit} onClick={remove}>{i18n.t("Remove")}</Button>
       </BlockProperties>
     </NodeViewWrapper>
   );

@@ -263,17 +263,6 @@ async (page, { openPath }) => {
       await page.mouse.move(geometry.start, geometry.y);
       await page.mouse.down();
       await page.mouse.move(geometry.end, geometry.y, {steps:12});
-      const dropProbe = await page.evaluate(point => {
-        const center = document.querySelector('.notification-center');
-        const hit = document.elementFromPoint(point.x, point.y);
-        return { point, hit: hit ? {tag:hit.tagName, testId:hit.getAttribute('data-testid'), class:hit.className,
-          inCenter:!!hit.closest('.notification-center')} : null,
-          center: center ? { severity:center.dataset.severity,
-            expanded:center.querySelector(':scope > button')?.getAttribute('aria-expanded'),
-            icon:center.querySelector(':scope > button')?.getBoundingClientRect().toJSON(),
-            panel:center.querySelector('ul')?.getBoundingClientRect().toJSON(),
-            items:[...center.querySelectorAll('li')].map(item => ({severity:item.dataset.severity,text:item.textContent})) } : null };
-      }, {x:geometry.end,y:geometry.y});
       await page.mouse.up();
       const events = await page.evaluate(() => window.equationDragEvents);
       const after = await state();
@@ -295,7 +284,7 @@ async (page, { openPath }) => {
           draft !== ' beta gammaalpha' || pasted !== ' beta gammaalpha PASTE' ||
           JSON.stringify(after) !== JSON.stringify(before) || JSON.stringify(afterPaste) !== JSON.stringify(before) ||
           JSON.stringify(afterCancel) !== JSON.stringify(before) || status !== 200 || saved !== original) {
-        problems.push({fieldName, dropProbe, events, draft, pasted, before, after, afterPaste, afterCancel, status, savedUnchanged:saved === original});
+        problems.push({fieldName, events, draft, pasted, before, after, afterPaste, afterCancel, status, savedUnchanged:saved === original});
       }
     }
     if (problems.length) throw new Error('Equation native input drag/paste isolation failed: ' + JSON.stringify(problems));

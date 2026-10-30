@@ -3,7 +3,7 @@
 Role: current visual rules for tokens, palette, typography, surfaces, themes and states; [Layout Rules](editor-layout-rules-v1.md) owns placement/control dimensions and [UI patterns](ui-patterns-v1.md) owns repeated interaction targets.
 
 - Status: Implemented
-- Last verified: 2026-10-30 (#785: document/code comparison at master `e6eb3282`; no product changes or browser execution).
+- Last verified: 2026-10-30 (#789: short property field surfaces and input errors; `short-field-errors`, `layout-rules` and `quiet-document` in persistent Chrome, with 1440px Light/English and 640px Dark/Korean field captures).
 - Scope: Editor presentation. Core semantics, source format, Host persistence and editing state follow [ADR-0001](../adr/0001-single-document-editor-architecture.md) and [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md).
 - Authority: [AGENTS.md](../../AGENTS.md), Accepted ADRs and [documentation governance](../contributing/documentation-governance.md). [ADR-0010](../adr/0010-supported-viewport-and-input.md) sets a minimum 640px with keyboard and pointer input.
 - History: [Original rules, issue verification and captures through 2026-10-30](../reviews/editor-visual-language-history-2026-10-30.md) are Historical evidence. The v1 filename remains stable.
@@ -116,7 +116,7 @@ Page style / 페이지 모양 offers Paper / 종이 (default) and Flat / 평면.
 
 Use existing Button/Input and `components/ui` primitives, preserving refs, events and editor selection. Base UI owns shared button/focusable-disabled behavior; document-specific native controls retain their owner. [Control sizes, spacing and deliberate exceptions](editor-layout-rules-v1.md#controls-and-spacing) have one current home in Layout Rules. UI typography stays independent of document preferences.
 
-Ghost rest is transparent; neutral hover is visible on panel/paper. Open-menu faces use neutral pressed fill without a control boundary. Secondary/Cancel has a themed outlined face and neutral hover. Input/select/outlined controls retain `border-control`; Command Center uses `surface-subtle` and structural `border`, and selected segments use surface/shadow/weight instead of a control edge.
+Ghost rest is transparent; neutral hover is visible on panel/paper. Open-menu faces use neutral pressed fill without a control boundary. Secondary/Cancel has a themed outlined face and neutral hover. Select/outlined controls and modal inputs retain `border-control`; short property text fields use `surface-subtle`, a transparent rest border and visible hover/focus borders under [P05](ui-patterns-v1.md#p05-입력칸placeholder위계). Invalid fields retain a danger border and a connected short error under [P07](ui-patterns-v1.md#p07-입력-오류와-알림-센터); Command Center uses `surface-subtle` and structural `border`, and selected segments use surface/shadow/weight instead of a control edge.
 
 Destructive Buttons use danger text/border on `surface`, then `surface-danger` on hover. Keyboard focus retains danger text and adds the chosen-accent ring. Native disabled destructive buttons have an opaque muted face, readable secondary text and structural boundary; other native disabled controls retain dimming. Focusable `aria-disabled` keeps its muted face, secondary text, structural boundary, tooltip, focus ring and activation guard.
 

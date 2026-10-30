@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
+import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { NodeViewContent, NodeViewWrapper, type ReactNodeViewProps } from "@tiptap/react";
 import { type Node as ProseMirrorNode } from "@tiptap/pm/model";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button.tsx";
 import { i18n } from "../i18n.ts";
 import { type UiMessage, useMessageState } from "../ui-message.ts";
 import { ImageRenameContext, imageFileStem } from "../image-rename.ts";
+import { validFileStem } from "../../shared/file-operations.ts";
 import { figureMediaPath } from "../../shared/figure-media-path.ts";
 import { PropertyForm } from "../block-properties.tsx";
 import { FigureProperties } from "../figure-properties.tsx";
@@ -22,7 +23,7 @@ import { captionPrefixText, useCaptionNumberText } from "../cross-reference.tsx"
 import { MermaidPreview } from "../mermaid-preview.tsx";
 import { normalizeMermaidSource } from "../mermaid-source.ts";
 import { figureContent, isNewBlockPath, type TiptapJSON } from "../tiptap-document.ts";
-import { Notice } from "../ui/primitives.tsx";
+import { FieldError, Notice } from "../ui/primitives.tsx";
 import { focusBlock, handleTextblockMouseDown, isolateInputDrag, useCaptionPlaceholder, usePropertyEntry, useSourceInputFocus, type DraftListener } from "./shared.ts";
 
 /** Core's persistent validation of a Figure Apply: its properties and its label. */
@@ -95,6 +96,8 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
   const [filename, setFilename] = useState(appliedStem ?? "");
   const filenameDraft = appliedStem !== undefined && filename !== appliedStem;
   const canRename = !!renameImage && !!documentPath && appliedStem !== undefined && !imageFailed && draft.imageUrl === applied.imageUrl && !copied.current;
+  const formId = useId();
+  const [errorField, setErrorField] = useState<"label" | "imageUrl" | "imageAlt" | "filename">();
   const [error, setError] = useMessageState("");
   const [validating, setValidating] = useState(false);
   const pendingRequest = useRef(0);
@@ -176,16 +179,29 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
   // Core checks the live target/reference context before committing a label rename.
   const apply = async (rename = false, returnCaret = true) => {
     if (validating || choosing) return;
+    setErrorField(undefined);
     if (!numberDraft.validate()) return;
+    if (rename && canRename && filenameDraft && !validFileStem(filename)) {
+      setErrorField("filename");
+      setError({ key: "Enter a valid file name without an extension or directory path." });
+      return;
+    }
     const position = getPos();
     const current = typeof position === "number" ? view.state.doc.nodeAt(position) : null;
     if (!current) return;
     const liveCaption = figureAttrs(current).caption;
     const candidate = { ...draft, caption: liveCaption };
     const nextLabel = labelDraft;
-    const local = labelError(nextLabel) ?? figureContentError(candidate) ??
-      (validateFigure ? undefined : "Figure validation is unavailable.");
+    const invalidLabel = labelError(nextLabel);
+    const invalidContent = figureContentError(candidate);
+    const local = invalidLabel ?? invalidContent ?? (validateFigure ? undefined : "Figure validation is unavailable.");
     if (local) {
+      if (invalidLabel) setErrorField("label");
+      else if (invalidContent) {
+        const invalidImage = figureContentError({ ...candidate, imageAlt: "" });
+        setErrorField(invalidImage ? "imageUrl" : "imageAlt");
+        if (invalidImage) setReplacing(true);
+      }
       setError(local);
       return;
     }
@@ -217,6 +233,12 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
     // Validate the exact label/reference transaction before changing any file.
     try {
       updateFigure(view.state, latestPosition, { imageUrl: candidate.imageUrl, imageAlt: candidate.imageAlt, label: nextLabel, enumerator: numberDraft.value || null });
+    } catch (cause) {
+      setErrorField("label");
+      setError(cause instanceof Error ? cause.message : String(cause));
+      return;
+    }
+    try {
       if (rename && canRename && filenameDraft) {
         setValidating(true);
         candidate.imageUrl = await renameImage!(documentPath!, applied.imageUrl, filename);
@@ -255,9 +277,11 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
     if (returnFocus) focusBlock(view, getPos);
   };
   const field = (key: "imageUrl" | "imageAlt", name: string, testId: string) => (
-    <label className="form-field">
-      <span>{name}</span>
-      <Input
+    <div className="form-field">
+      <label className="form-label" htmlFor={`${formId}-${key}`}>{name}</label>
+      <Input id={`${formId}-${key}`}
+        aria-invalid={!!error && errorField === key || undefined}
+        aria-describedby={error && errorField === key ? `${formId}-${key}-error` : undefined}
         ref={key === "imageUrl" ? imageInput : undefined}
         data-testid={testId}
         disabled={validating}
@@ -268,7 +292,8 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
           setError("");
         }}
       />
-    </label>
+      <FieldError id={`${formId}-${key}-error`}>{errorField === key ? error : ""}</FieldError>
+    </div>
   );
 
   // Image surfaces select the Figure; double-click uses the explicit Edit path.
@@ -320,7 +345,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
         kind={numbered ?? i18n.t("Figure")}
         testId="figure"
         open={editing}
-        error={error}
+        error={errorField ? undefined : error}
         busy={validating}
         choosing={choosing}
         onApply={outside => void apply(false, !outside)}
@@ -339,9 +364,11 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
         ) : field("imageUrl", i18n.t("Image"), "figure-image-url") : null}
         {field("imageAlt", i18n.t("Alt text"), "figure-alt")}
         <div className="figure-property-columns">
-        <label className="form-field">
-          <span>{i18n.t("Label")}</span>
-          <Input
+        <div className="form-field">
+          <label className="form-label" htmlFor={`${formId}-label`}>{i18n.t("Label")}</label>
+          <Input id={`${formId}-label`}
+            aria-invalid={!!error && errorField === "label" || undefined}
+            aria-describedby={error && errorField === "label" ? `${formId}-label-error` : undefined}
             data-testid="figure-label"
             disabled={validating}
             value={labelDraft}
@@ -351,16 +378,20 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
               setError("");
             }}
           />
-        </label>
+          <FieldError id={`${formId}-label-error`}>{errorField === "label" ? error : ""}</FieldError>
+        </div>
         <NumberField editor={editor} getPos={getPos} testId="figure" draft={numberDraft} onChange={() => setError("")} disabled={validating} />
         </div>
         {canRename ? <details key={String(editing)} open={filenameDraft || !!error || undefined}>
           <summary><ChevronRight aria-hidden="true" />{i18n.t("Advanced")}</summary>
-          <div className="figure-image-field"><label className="form-field"><span>{i18n.t("File name")}</span>
-            <Input data-testid="figure-file-name" value={filename} disabled={validating}
+          <div className="figure-image-field"><div className="form-field"><label className="form-label" htmlFor={`${formId}-filename`}>{i18n.t("File name")}</label>
+            <Input id={`${formId}-filename`} aria-invalid={!!error && errorField === "filename" || undefined}
+              aria-describedby={error && errorField === "filename" ? `${formId}-filename-error` : undefined}
+              data-testid="figure-file-name" value={filename} disabled={validating}
               placeholder={i18n.t("None")}
               onChange={event => { setFilename(event.target.value); setError(""); }} />
-          </label><Button type="button" size="sm" variant="outline" disabled={validating || !filenameDraft}
+            <FieldError id={`${formId}-filename-error`}>{errorField === "filename" ? error : ""}</FieldError>
+          </div><Button className="figure-rename" type="button" size="sm" variant="outline" disabled={validating || !filenameDraft}
             data-testid="figure-rename" onClick={() => void apply(true)}>{i18n.t("Rename")}</Button></div>
         </details> : null}
       </FigureProperties>
@@ -387,6 +418,8 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
   const [labelDraft, setLabelDraft] = useState(label);
   const enumerator = String(node.attrs.enumerator ?? "");
   const numberDraft = useNumberDraft(enumerator);
+  const formId = useId();
+  const [errorField, setErrorField] = useState<"label" | "source">();
   const [error, setError] = useMessageState("");
   const [busy, setBusy] = useState(false);
   const restoreInput = useRef<HTMLElement | null>(null);
@@ -428,6 +461,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
   };
   const apply = async (openSource = false, returnCaret = true) => {
     if (!view.editable || busy) return;
+    setErrorField(undefined);
     if (!numberDraft.validate()) return;
     const position = getPos();
     const current = typeof position === "number" ? view.state.doc.nodeAt(position) : null;
@@ -435,9 +469,15 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
     const caption = figureAttrs(current).caption;
     const source = normalizeMermaidSource(draft);
     const candidate = { ...figureAttrs(current), mermaidSource: source, caption };
-    const local = labelError(labelDraft) ?? figureContentError(candidate) ??
-      (validateFigure ? undefined : "Figure validation is unavailable.");
-    if (local) { setError(local); input.current?.focus(); return; }
+    const invalidLabel = labelError(labelDraft);
+    const invalidContent = figureContentError(candidate);
+    const local = invalidLabel ?? invalidContent ?? (validateFigure ? undefined : "Figure validation is unavailable.");
+    if (local) {
+      setErrorField(invalidLabel ? "label" : invalidContent ? "source" : undefined);
+      setError(local);
+      if (invalidContent) input.current?.focus();
+      return;
+    }
     const pending = ++request.current;
     const form = (input.current ?? sourceButton.current)?.closest("form");
     const activeBefore = document.activeElement;
@@ -475,7 +515,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
       if (latest.attrs.mermaidSource !== source || latest.attrs.label !== labelDraft || latest.attrs.enumerator !== (numberDraft.value || null))
         view.dispatch(updateFigure(view.state, latestPosition, { mermaidSource: source, label: labelDraft, enumerator: numberDraft.value || null }));
     }
-    catch (cause) { reject(cause instanceof Error ? cause.message : String(cause)); return; }
+    catch (cause) { setErrorField("label"); reject(cause instanceof Error ? cause.message : String(cause)); return; }
     cancelFocus(); setError(""); setProperties(false); setEditing(openSource);
     if (returnFocus && !openSource && returnCaret) focusBlock(view, getPos);
   };
@@ -493,16 +533,20 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
         : "Unapplied figure properties are not saved. Choose Done or press Esc to cancel.")}</p> : null}
     {editing ? visible ? <div contentEditable={false} data-testid="mermaid-properties" onDragStart={isolateInputDrag}
       onDragEnter={isolateInputDrag} onDragOver={isolateInputDrag} onDragLeave={isolateInputDrag} onDrop={isolateInputDrag} onDragEnd={isolateInputDrag}>
-      <PropertyForm kind={kind} testId="mermaid" error={error} busy={busy} onApply={() => void apply()} onCancel={cancel}>
-        <label className="form-field"><span>{i18n.t("Mermaid source")}</span>
-          <textarea ref={input} className="document-source-input" data-testid="mermaid-source" disabled={busy}
+      <PropertyForm kind={kind} testId="mermaid" error={errorField ? undefined : error} busy={busy} onApply={() => void apply()} onCancel={cancel}>
+        <div className="form-field"><label className="form-label" htmlFor={`${formId}-source`}>{i18n.t("Mermaid source")}</label>
+          <textarea id={`${formId}-source`} aria-invalid={!!error && errorField === "source" || undefined}
+            aria-describedby={error && errorField === "source" ? `${formId}-source-error` : undefined} ref={input} className="document-source-input" data-testid="mermaid-source" disabled={busy}
             value={draft} spellCheck={false} onChange={event => { setDraft(event.target.value.replace(/\r\n?/g, "\n")); setError(""); }} />
-        </label>
+          <FieldError id={`${formId}-source-error`}>{errorField === "source" ? error : ""}</FieldError>
+        </div>
         {!onCancelPending || draft.trim() ? <MermaidPreview source={draft} draft /> : null}
-        <label className="form-field"><span>{i18n.t("Label")}</span>
-          <Input data-testid="mermaid-label" disabled={busy} value={labelDraft} placeholder={i18n.t("None")}
+        <div className="form-field"><label className="form-label" htmlFor={`${formId}-label`}>{i18n.t("Label")}</label>
+          <Input id={`${formId}-label`} aria-invalid={!!error && errorField === "label" || undefined}
+            aria-describedby={error && errorField === "label" ? `${formId}-label-error` : undefined} data-testid="mermaid-label" disabled={busy} value={labelDraft} placeholder={i18n.t("None")}
             onChange={event => { setLabelDraft(event.target.value); setError(""); }} />
-        </label>
+          <FieldError id={`${formId}-label-error`}>{errorField === "label" ? error : ""}</FieldError>
+        </div>
         <NumberField editor={editor} getPos={getPos} testId="mermaid" draft={numberDraft} onChange={() => setError("")} disabled={busy} />
       </PropertyForm>
     </div> : null : null}
@@ -516,7 +560,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
     </figcaption>
     {view.editable && !editing && !properties ? <Button className="figure-edit" size="sm" variant="outline" aria-label={i18n.t("Edit figure")}
       contentEditable={false} onClick={beginEdit}>{i18n.t("Edit")}</Button> : null}
-    <FigureProperties anchor={anchor} kind={kind} testId="mermaid-property" open={properties} error={error} busy={busy}
+    <FigureProperties anchor={anchor} kind={kind} testId="mermaid-property" open={properties} error={errorField ? undefined : error} busy={busy}
       onApply={outside => void apply(false, !outside)} onCancel={cancel}>
       <div className="figure-property-media">
         <div className="figure-property-thumbnail"><MermaidPreview source={applied.mermaidSource ?? ""} /></div>
@@ -524,10 +568,12 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
           disabled={busy} onClick={() => void apply(true)}>{i18n.t("Edit source")}</Button>
       </div>
       <div className="figure-property-columns">
-        <label className="form-field"><span>{i18n.t("Label")}</span>
-          <Input data-testid="mermaid-property-label" disabled={busy} value={labelDraft} placeholder={i18n.t("None")}
+        <div className="form-field"><label className="form-label" htmlFor={`${formId}-label`}>{i18n.t("Label")}</label>
+          <Input id={`${formId}-label`} aria-invalid={!!error && errorField === "label" || undefined}
+            aria-describedby={error && errorField === "label" ? `${formId}-label-error` : undefined} data-testid="mermaid-property-label" disabled={busy} value={labelDraft} placeholder={i18n.t("None")}
             onChange={event => { setLabelDraft(event.target.value); setError(""); }} />
-        </label>
+          <FieldError id={`${formId}-label-error`}>{errorField === "label" ? error : ""}</FieldError>
+        </div>
         <NumberField editor={editor} getPos={getPos} testId="mermaid-property" draft={numberDraft}
           onChange={() => setError("")} disabled={busy} />
       </div>
