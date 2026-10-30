@@ -215,7 +215,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const [editorOptions] = useState<UseEditorOptions>(() => {
     const initialDeletedPaths: string[] = [];
     const extensions = createEditorExtensions(projection, onStructuralReject, reportDraft, () => documentPathRef.current, validateFigure, onAssetPendingChange, onAssetError,
-      () => activeDrafts.current.size > 0, chooseImage, initialDeletedPaths, onAssetChange);
+      sourcePath => sourcePath === undefined ? activeDrafts.current.size > 0
+        : [...activeDrafts.current.values()].some(draft => draft.path === sourcePath), chooseImage, initialDeletedPaths, onAssetChange);
     const restored = initialSnapshot && prepareEditorSnapshot(getSchema(extensions), projection, initialSnapshot);
     if (restored) {
       saved.current = restored.savedDocument;

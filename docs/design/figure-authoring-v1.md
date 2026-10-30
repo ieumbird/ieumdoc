@@ -170,6 +170,13 @@ Core, retains rejected input/reason and preserves the live caption. A rejected A
 keyboard editing after the busy inputs re-enable, unless focus moved outside the form or to
 another tab while validation was pending. Apply/Cancel return the block caret; late validation
 never steals focus from another location. Read-only views cannot edit.
+Image paste/drop into a pending Figure checks the existing per-Figure unapplied-draft
+registry again when the Host upload completes. If that Figure has an unapplied edit,
+the fill is cancelled and the uploaded asset is rolled back through the existing
+compensation path. The source form, typed draft, warning and work-loss registration
+remain intact. This includes a draft started during upload; unrelated Figure drafts
+do not block an image insertion elsewhere. Apply or Cancel the target edit before
+filling it with an image.
 CRLF/CR input becomes LF in the textarea. Before Apply, Editor removes leading whitespace-only
 lines and trims whitespace from the end of the whole source, matching MyST directive reading.
 This includes trailing blank lines and the last content line's trailing whitespace. It does not

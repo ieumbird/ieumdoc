@@ -908,7 +908,7 @@ export function editorExtensions(
   onDraftChange?: DraftListener,
   documentPath?: string | (() => string),
   validateFigure?: FigureValidator,
-  hasActiveDraft?: () => boolean,
+  hasActiveDraft?: (sourcePath?: string) => boolean,
   chooseImage?: ImageChooser,
 ): Extensions {
   return [
@@ -983,13 +983,13 @@ export function createEditorExtensions(
   validateFigure?: FigureValidator,
   onAssetPendingChange?: (active: boolean) => void,
   onAssetError?: (reason: string) => void,
-  hasActiveDraft?: () => boolean,
+  hasActiveDraft?: (sourcePath?: string) => boolean,
   chooseImage?: ImageChooser,
   initialDeletedPaths: readonly string[] = [],
   onAssetChange?: (path: string) => void,
 ): Extensions {
   return [...editorExtensions(onDraftChange, documentPath, validateFigure, hasActiveDraft, chooseImage),
-    ...(documentPath ? [imageAssets({ documentPath, reject: onAssetError ?? onReject, pending: onAssetPendingChange, changed: onAssetChange })] : []),
+    ...(documentPath ? [imageAssets({ documentPath, reject: onAssetError ?? onReject, pending: onAssetPendingChange, changed: onAssetChange, hasActiveDraft })] : []),
     documentInteraction(onReject), structureGuard(baseline, onReject, initialDeletedPaths)];
 }
 
