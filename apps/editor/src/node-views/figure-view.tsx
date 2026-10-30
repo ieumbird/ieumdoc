@@ -5,6 +5,7 @@ import { type Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection } from "@tiptap/pm/state";
 import { type FigureContent } from "@ieumdoc/core";
 import { figureContentError } from "@ieumdoc/core/figure";
+import { labelPropertyError } from "../label-rename.ts";
 import { labelError } from "@ieumdoc/core/label";
 import { ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input.tsx";
@@ -235,7 +236,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
       updateFigure(view.state, latestPosition, { imageUrl: candidate.imageUrl, imageAlt: candidate.imageAlt, label: nextLabel, enumerator: numberDraft.value || null });
     } catch (cause) {
       setErrorField("label");
-      setError(cause instanceof Error ? cause.message : String(cause));
+      setError(labelPropertyError(cause));
       return;
     }
     try {
@@ -515,7 +516,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
       if (latest.attrs.mermaidSource !== source || latest.attrs.label !== labelDraft || latest.attrs.enumerator !== (numberDraft.value || null))
         view.dispatch(updateFigure(view.state, latestPosition, { mermaidSource: source, label: labelDraft, enumerator: numberDraft.value || null }));
     }
-    catch (cause) { setErrorField("label"); reject(cause instanceof Error ? cause.message : String(cause)); return; }
+    catch (cause) { setErrorField("label"); reject(labelPropertyError(cause)); return; }
     cancelFocus(); setError(""); setProperties(false); setEditing(openSource);
     if (returnFocus && !openSource && returnCaret) focusBlock(view, getPos);
   };

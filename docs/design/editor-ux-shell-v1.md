@@ -1004,6 +1004,10 @@ The mounted editor, document, tabs, selection, history and unapplied property dr
 
 Application messages retain translation keys and parameters when stored. Save failures retain their submitted snapshot and are formatted at display time, so their location still refers to the failed submission. Core/Host/library diagnostic details retain their original text; the UI translates the surrounding context and phase-specific guidance without interpreting English reasons or duplicating validation rules. CLI diagnostics and OS-owned dialogs are outside this UI translation boundary.
 
+Short input errors (#819) translate known Core label syntax messages at the shared `FieldError` display boundary. Label-property refusals use the existing structured `label-conflict`, `invalid-label` and `invalid-reference` codes to select Editor copy, including duplicate automatic heading IDs and labels that cannot name a reference target; no validation rule or Core/CLI diagnostic is changed. Unknown field errors retain their original detail. Citation-specific forms remain frozen under ADR-0008.
+
+640px Dark/Korean, the same rejected Figure label and persistent Chrome on port 5281: [Before](assets/label-errors-819/before-640-dark-ko.png) / [After](assets/label-errors-819/after-640-dark-ko.png).
+
 Verification and implementation scope are recorded in the [#256 plan](ui-language-256-plan.md).
 
 ## Local accent color (#559)

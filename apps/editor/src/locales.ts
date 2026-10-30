@@ -1,5 +1,13 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "This label cannot name a reference target. Choose another label.": "This label cannot name a reference target. Choose another label.",
+  "The label and its references cannot be preserved. Check the label and reference targets.": "The label and its references cannot be preserved. Check the label and reference targets.",
+  "Label must be a string.": "Label must be a string.",
+  "Label cannot contain line breaks.": "Label cannot contain line breaks.",
+  "Label cannot have leading or trailing spaces.": "Label cannot have leading or trailing spaces.",
+  "A section label uses 1-100 ASCII letters, digits or | @ < > * . / _ - + : characters.": "A section label uses 1-100 ASCII letters, digits or | @ < > * . / _ - + : characters.",
+  "This label already names another target, including an automatic heading ID.": "This label already names another target, including an automatic heading ID.",
+  "Label target changed.": "Label target changed.",
   "Notifications: {{severity}}, {{count}}": "Notifications: {{severity}}, {{count}}",
   "Information": "Information",
   "Applied document": "Applied document",
@@ -769,6 +777,14 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "This label cannot name a reference target. Choose another label.": "이 레이블은 참조 대상을 지정할 수 없습니다. 다른 레이블을 입력하세요.",
+  "The label and its references cannot be preserved. Check the label and reference targets.": "레이블과 참조의 연결을 보존할 수 없습니다. 레이블과 참조 대상을 확인하세요.",
+  "Label must be a string.": "레이블은 문자열이어야 합니다.",
+  "Label cannot contain line breaks.": "레이블에 줄바꿈을 넣을 수 없습니다.",
+  "Label cannot have leading or trailing spaces.": "레이블 앞뒤에 공백을 넣을 수 없습니다.",
+  "A section label uses 1-100 ASCII letters, digits or | @ < > * . / _ - + : characters.": "절 레이블은 영문자, 숫자 또는 | @ < > * . / _ - + : 문자 1~100자로 입력하세요.",
+  "This label already names another target, including an automatic heading ID.": "이 레이블은 이미 다른 대상에 사용 중입니다. 제목의 자동 ID도 중복될 수 없습니다.",
+  "Label target changed.": "레이블 대상이 변경되었습니다.",
   "Notifications: {{severity}}, {{count}}": "알림: {{severity}} {{count}}개",
   "Information": "안내",
   "Applied document": "적용된 문서 기준",

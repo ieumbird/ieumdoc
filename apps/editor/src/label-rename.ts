@@ -1,4 +1,5 @@
-import { planLabelRename, type LabelRenameBlock, type LabelRenameReference } from "@ieumdoc/core";
+import { writeIssueOf, planLabelRename, type LabelRenameBlock, type LabelRenameReference } from "@ieumdoc/core";
+import type { UiMessage } from "./ui-message.ts";
 import { closeHistory } from "@tiptap/pm/history";
 import type { Fragment } from "@tiptap/pm/model";
 import type { EditorState, Transaction } from "@tiptap/pm/state";
@@ -45,4 +46,14 @@ export function updateLabelProperties(state: EditorState, position: number, attr
     for (const edit of plan) apply[edit.index](edit.reference);
   }
   return tr.setNodeMarkup(position, undefined, { ...tr.doc.nodeAt(position)!.attrs, label }).setMeta(LABEL_PROPERTIES_META, true);
+}
+
+/** Format a label-property refusal for the Editor without parsing Core's English reason. */
+export function labelPropertyError(cause: unknown): UiMessage {
+  switch (writeIssueOf(cause).code) {
+    case "label-conflict": return { key: "This label already names another target, including an automatic heading ID." };
+    case "invalid-label": return { key: "This label cannot name a reference target. Choose another label." };
+    case "invalid-reference": return { key: "The label and its references cannot be preserved. Check the label and reference targets." };
+  }
+  return cause instanceof Error ? cause.message : String(cause);
 }

@@ -4,7 +4,7 @@ import { NodeViewWrapper, type ReactNodeViewProps } from "@tiptap/react";
 import { labelError } from "@ieumdoc/core/label";
 import { Input } from "@/components/ui/input.tsx";
 import { Button } from "@/components/ui/button.tsx";
-import { updateLabelProperties } from "../label-rename.ts";
+import { labelPropertyError, updateLabelProperties } from "../label-rename.ts";
 import { useMessageState } from "../ui-message.ts";
 import { i18n } from "../i18n.ts";
 import { PropertyForm } from "../block-properties.tsx";
@@ -114,7 +114,7 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
         }));
       }
     }
-    catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
+    catch (cause) { setError(labelPropertyError(cause)); return; }
     setError("");
     setProperties(false);
     if (openSource) setDraft(String(view.state.doc.nodeAt(position)?.attrs.latex ?? ""));

@@ -5,7 +5,7 @@ import { NodeSelection } from "@tiptap/pm/state";
 import { labelError } from "@ieumdoc/core/label";
 import { FieldError } from "../ui/primitives.tsx";
 import { Input } from "@/components/ui/input.tsx";
-import { updateLabelProperties } from "../label-rename.ts";
+import { labelPropertyError, updateLabelProperties } from "../label-rename.ts";
 import { useMessageState } from "../ui-message.ts";
 import { i18n } from "../i18n.ts";
 import { MetadataProperties } from "../metadata-properties.tsx";
@@ -55,7 +55,7 @@ export function TableView({ node, editor, getPos, selected, onDraftChange }: Rea
     if (typeof position !== "number") return;
     try {
       editor.view.dispatch(updateLabelProperties(editor.state, position, { label: draft, enumerator: numberDraft.value || null }));
-    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
+    } catch (cause) { setError(labelPropertyError(cause)); return; }
     close(!outside);
   };
   return <NodeViewWrapper className="table-block" data-block="table" data-table-block="" data-source-path={sourcePath}
