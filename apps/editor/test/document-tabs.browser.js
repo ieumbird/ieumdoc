@@ -264,6 +264,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
   const equation = () => activeDocument(page).locator('[data-block="equation"]');
   await equation().hover();
   await equation().getByRole('button',{name:'Edit',exact:true}).click();
+  await page.getByTestId('equation-edit-source').click();
   await page.getByTestId('equation-latex').fill('A property draft');
   // Preserve an engine selection independently of the property input's DOM focus.
   await editor().evaluate(n => n.editor.commands.setTextSelection({from:3,to:10}));
@@ -277,6 +278,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
     n.editor.commands.setTextSelection({from:2,to:5});
   });
   await equation().hover(); await equation().getByRole('button',{name:'Edit',exact:true}).click();
+  await page.getByTestId('equation-edit-source').click();
   await page.getByTestId('equation-latex').fill('B property draft');
   await editor().evaluate(n => n.editor.commands.setTextSelection({from:2,to:5}));
   await page.evaluate(() => document.querySelector('.document-scroll[data-active="true"]').scrollTo(0, 180));

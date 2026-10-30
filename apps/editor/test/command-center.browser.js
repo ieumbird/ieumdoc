@@ -510,6 +510,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await page.keyboard.type('command center edit ');
   const equation = activeDocument(page).locator('[data-block="equation"]').first();
   await equation.hover(); await equation.getByRole('button',{name:'Edit',exact:true}).click();
+  await page.getByTestId('equation-edit-source').click();
   await page.getByTestId('equation-latex').fill('command center draft');
   const dirty = await editor().evaluate(n => JSON.stringify(n.editor.getJSON()));
   await openPath(page, file('technical-2.md'));

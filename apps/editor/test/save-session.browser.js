@@ -295,6 +295,7 @@ async (page, { openDocument, waitForActivePath, reloadDocument }) => {
   await body.click(); await page.keyboard.press('End'); await page.keyboard.type(' BodySaved');
   const equation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').first();
   await equation.hover(); await equation.getByRole('button', {name:'Edit', exact:true}).click();
+  await page.getByTestId('equation-edit-source').click();
   await page.getByTestId('equation-latex').fill('x + 40');
   await save();
   check('draftSaveIsExplicit', (await page.getByTestId('status').innerText()) === 'Unsaved changes' && await page.getByTestId('draft-notice').isVisible());

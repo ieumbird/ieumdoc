@@ -25,9 +25,9 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 - **목적·사용/비사용:** 짧은 속성은 대상 문맥 안에서 고친다. 긴 원문, 미주 본문, 문서·앱 전체 설정을 작은 속성 팝오버에 넣지 않는다.
 - **목표:** 짧은 metadata는 대상 전체에 붙는 팝오버, 긴 수식·Mermaid 원문은 본문 폭, 미주는 현재 자리. 문서 설정은 문서 상단, 앱 Settings는 전용 화면이다. 모든 작은 편집면은 Sidebar·Outline을 제외한 해당 문서 콘텐츠 viewport 안에 둔다. 자동 우측 inspector를 열지 않는다.
 - **목표:** 블록 수식 label·번호의 작은 진입을 원문 편집과 분리하되 원문 폼에서 둘을 함께 고치는 경로도 유지한다.
-- **현재 기준:** [MetadataProperties](../../apps/editor/src/metadata-properties.tsx)를 그림·표·절 label이 공유하며 대상 전체(절 label은 연결된 제목)에 붙인다(#791). `documentContentBounds`를 공유하는 작은 폼의 콘텐츠 경계(#782), Mermaid 원문의 본문 폭, 미주 in-place와 문서/앱 설정의 범위 분리.
+- **현재 기준:** [MetadataProperties](../../apps/editor/src/metadata-properties.tsx)를 그림·표·수식·절 label이 공유하며 대상 전체(절 label은 연결된 제목)에 붙인다(#791). `documentContentBounds`를 공유하는 작은 폼의 콘텐츠 경계(#782), Mermaid 원문의 본문 폭, 미주 in-place와 문서/앱 설정의 범위 분리.
 - **사용처:** U01–U11 그림·수식·표·미주·inline/절 label, U12 제목, U13 문서 설정, U22 앱 설정.
-- **결정·불일치:** [소유자 결정 P01][decision]. 표·절 label의 [D03](#알려진-불일치)은 #791에서 구현했다. 수식 진입은 D04, 작은 폼의 가용 영역·교차참조 가림 D02는 #782에서 해결했다. 단일/두 그룹 모두 Sidebar·Outline·스크롤바를 제외하며 겹쳐 열린 Outline도 제외한다. [검증·전후 캡처](editor-layout-rules-v1.md#form-content-viewport-782)를 따른다.
+- **결정·불일치:** [소유자 결정 P01][decision]. 표·절 label의 [D03](#알려진-불일치)은 #791에서 구현했다. 수식의 상단 metadata 진입과 직접 원문 진입 D04는 #788에서 분리했다([현재 계약](document-editing-v1.md#continuous-editing)). 작은 폼의 가용 영역·교차참조 가림 D02는 #782에서 해결했다. 단일/두 그룹 모두 Sidebar·Outline·스크롤바를 제외하며 겹쳐 열린 Outline도 제외한다. [검증·전후 캡처](editor-layout-rules-v1.md#form-content-viewport-782)를 따른다.
 
 ## P02 자동·고정 번호
 
@@ -43,17 +43,19 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 - **목표:** 일반 블록은 hover·키보드 focus·선택에서 같은 위치의 Edit를 제공한다. 그림·수식·표의 위치는 P09로 맞춘다. 미주는 상시 Edit와 버튼 전용 진입을 유지한다. inline 콘텐츠 자체를 큰 UI 버튼으로 바꾸지 않는다.
 - **현재 기준:** [그림][figure-view]·[수식][equation-view] NodeView와 [표](table-interaction-v1.md#whole-table-tools-793)의 상단 Edit 노출, [미주][footnote-view] 상시 버튼과 [미주 계약](footnotes-v1.md#editor)의 예외.
 - **사용처:** U01–U12 그림·원문·표·미주·inline·절 label·직접 본문 입력, U17 선택 toolbar.
-- **결정·불일치:** [소유자 결정 P03][decision]. 표는 #793에서 상단 Edit/metadata 행으로 맞췄으며 D08은 원래 목표의 추적 연결로 보존한다. 수식의 작은 metadata 진입은 D04. 미주 예외는 불일치가 아니다.
+- **결정·불일치:** [소유자 결정 P03][decision]. 표는 #793에서 상단 Edit/metadata 행으로 맞췄으며 D08은 원래 목표의 추적 연결로 보존한다. 수식의 상단 Edit는 작은 metadata, 본문 수식 더블클릭·선택 후 Enter는 직접 원문 진입이다(#788/D04). 미주 예외는 불일치가 아니다.
 
 ## P04 적용·취소·완료
 
 - **목적·사용/비사용:** 편집을 언제 문서에 반영하는지 드러낸다. 파일 생성·삭제·복구에 metadata의 바깥 클릭 적용 규칙을 쓰지 않는다(P12).
 - **목표:** 짧은 metadata는 Done·Esc 취소·유효한 바깥 pointer 클릭 적용이다. keyboard focus 이동만으로 적용하지 않고 오류면 초안을 유지한다. 원문·복합 inline은 Apply/Cancel·Esc 취소·바깥 클릭 초안 유지다. 링크·교차참조에도 Cancel을 보이고 명시적으로 마칠 때까지 초안을 유지한다. 인용은 [ADR-0008 동결](../adr/0008-citations-and-bibliography.md)에 따라 기존 동작을 유지한다. 직접 본문·제목·caption·문서 설정은 즉시 적용+Undo이며 디스크 저장은 Save다.
 - **목표·예외:** 미주는 in-place·바깥 적용·취소와 Enter 적용/Shift+Enter 줄바꿈을 유지하고 버튼을 완료/취소(Done/Cancel)로 부른다.
-- **현재 기준:** 그림·표·절 label이 공유하는 `MetadataProperties`의 Done·Esc 취소·유효한 바깥 pointer 적용(#791). 키보드 focus/Save만으로 적용하지 않으며 오류 때 폼·값을 유지하고, 바깥 적용은 클릭한 위치의 focus를 유지하며, 포인터 탭 전환으로 문서가 숨겨져도 해당 문서의 완료를 마친다. 별도 dialog 안의 Cancel·Keep editing·Settings 클릭은 바깥 완료에서 제외하고 폼·초안을 유지한다. 표의 번호 입력은 P02 그대로다. 기존 [FigureProperties][figure]의 image chooser·busy guard와 [PropertyForm][forms]을 쓰는 원문/인라인 수식의 명시적 적용·취소. [미주](footnotes-v1.md#editor)의 완료/취소(Done/Cancel)와 기존 in-place·바깥 적용·키보드 동작. 링크·교차참조는 Apply/Cancel·Esc 취소·바깥 클릭 유지이며, 변경된 초안은 같은 문서의 다른 폼과 독립적으로 기존 draft 안내·Save/Source의 적용 내용 구분·탭 전환 보존·close 보호에 참여한다([초안 계약](editing-session-save-v1.md#applied-content-and-drafts)). 인용은 보이는 Cancel 없이 blur로 닫히는 기존 동작을 유지한다.
+- **현재 기준:** 그림·표·수식·절 label이 공유하는 `MetadataProperties`의 Done·Esc 취소·유효한 바깥 pointer 적용(#791). 키보드 focus/Save만으로 적용하지 않으며 오류 때 폼·값을 유지하고, 바깥 적용은 클릭한 위치의 focus를 유지하며, 포인터 탭 전환으로 문서가 숨겨져도 해당 문서의 완료를 마친다. 별도 dialog 안의 Cancel·Keep editing·Settings 클릭은 바깥 완료에서 제외하고 폼·초안을 유지한다. 표의 번호 입력은 P02 그대로다. 기존 [FigureProperties][figure]의 image chooser·busy guard와 [PropertyForm][forms]을 쓰는 원문/인라인 수식의 명시적 적용·취소. [미주](footnotes-v1.md#editor)의 완료/취소(Done/Cancel)와 기존 in-place·바깥 적용·키보드 동작. 링크·교차참조는 Apply/Cancel·Esc 취소·바깥 클릭 유지이며, 변경된 초안은 같은 문서의 다른 폼과 독립적으로 기존 draft 안내·Save/Source의 적용 내용 구분·탭 전환 보존·close 보호에 참여한다([초안 계약](editing-session-save-v1.md#applied-content-and-drafts)). 인용은 보이는 Cancel 없이 blur로 닫히는 기존 동작을 유지한다.
 - **사용처:** U01–U13 문서 안 편집·설정, U23–U24 파일 작업·미저장 확인과의 경계.
-- **결정·불일치:** [소유자 결정 P04][decision]. 표·절 label D03은 #791에서 구현했다(`property-drafts`의 Done·오류 유지·바깥 클릭 뒤 본문 입력·키보드 Save 검사와 [1440px 표 Before](assets/label-popover-791/before/table-1440.png)/[After](assets/label-popover-791/after/table-1440.png)·[640px 절 label Before](assets/label-popover-791/before/section-640.png)/[After](assets/label-popover-791/after/section-640.png); Light/영어·Dark/한국어 [촬영 metadata](assets/label-popover-791/capture-metadata.json)). 수식 metadata D04는 별도 작업이며, 링크·교차참조 초안 D05는 #790에서 구현했다. 미주 명칭 D10은 #787에서 해결했다.
+- **결정·불일치:** [소유자 결정 P04][decision]. 표·절 label D03은 #791에서 구현했다(`property-drafts`의 Done·오류 유지·바깥 클릭 뒤 본문 입력·키보드 Save 검사와 [1440px 표 Before](assets/label-popover-791/before/table-1440.png)/[After](assets/label-popover-791/after/table-1440.png)·[640px 절 label Before](assets/label-popover-791/before/section-640.png)/[After](assets/label-popover-791/after/section-640.png); Light/영어·Dark/한국어 [촬영 metadata](assets/label-popover-791/capture-metadata.json)). 수식 metadata D04는 #788에서 분리했다. metadata의 원문 편집은 유효한 label·번호를 먼저 적용하고 원문 폼을 열며, 원문 취소는 그 뒤의 초안만 버린다. 오류·열린 폼 재진입은 초안을 유지하고 원문 편집 중에는 metadata 진입을 숨긴다([현재 계약](document-editing-v1.md#continuous-editing)). `equation-insertion`·`property-drafts`가 경로 전환·취소·Undo, Done·바깥 pointer·dialog 제외·키보드 Save를 검증한다. 링크·교차참조 초안 D05는 #790에서 구현했다. 미주 명칭 D10은 #787에서 해결했다.
 - **링크·교차참조 검증 #790:** `link-authoring`/`cross-reference`가 바깥 이동·재진입·독립 폼·미주·Save/Source·탭·close 보호와 실제 Save/Reload를 확인한다. [1440px 링크 Before](assets/inline-forms-790/before-1440-link.png) / [After](assets/inline-forms-790/after-1440-link.png), [640px 한국어 Dark 교차참조 Before](assets/inline-forms-790/before-640-reference.png) / [After](assets/inline-forms-790/after-640-reference.png)는 수동 시각 근거다. 두 폼의 두 폭 전체 캡처·해시는 [촬영 정보](assets/inline-forms-790/capture-metadata.json), 재현 절차는 [촬영 스크립트](assets/inline-forms-790/capture.browser.js)에 있다. 기존 draft 안내로 늘어난 높이는 실제 레이아웃 결과다.
+
+- **수식 화면 근거 #788:** [1440px Before](assets/equation-metadata-788/before-1440.png) / [After](assets/equation-metadata-788/after-1440.png), [640px Dark·한국어 Before](assets/equation-metadata-788/before-640.png) / [After](assets/equation-metadata-788/after-640.png). 같은 문서·label·고정 번호로 촬영했으며 원문 폼과 팝오버의 배치·스크롤 차이는 실제 제품 결과다. [촬영 정보·해시](assets/equation-metadata-788/capture-metadata.json)와 [재현 스크립트](assets/equation-metadata-788/capture.browser.js)를 보존한다.
 
 ## P05 입력칸·placeholder·위계
 
@@ -116,7 +118,7 @@ After는 #792 작업 소스로 촬영했다. source/disk 쓰기 없이 번호 �
 
 - **목적·사용/비사용:** 짧은 속성과 구조 작업의 진입을 구분한다. 표의 행·열 선택 도구나 미주 복귀 번호를 일반 metadata 도구로 대체하지 않는다.
 - **목표:** 그림·수식·표 속성 진입은 같은 위쪽 Edit/metadata 행에 둔다. 표 행·열·Append 도구는 grid에, 하단 독립 Delete는 More/actions에 둔다. 도구 표시로 본문 높이를 바꾸지 않고 번호/label을 폼 제목에 반복하지 않는다. 미주 우측 버튼과 복귀 번호는 예외다. 넓은 표에서도 가로 스크롤 전에 도구에 접근하고 caption을 가리지 않아야 한다.
-- **현재 기준:** [그림][figure-view]·[수식][equation-view] NodeView의 상단 도구와 metadata. [표 #793](table-interaction-v1.md#whole-table-tools-793)은 가로 스크롤 밖 상단 행에 Edit/More·metadata를 두고, Delete는 More 메뉴에 둔다. 표는 앞 문단·열 핸들과 겹치지 않도록 상단 행의 공간을 항상 확보하며 도구 표시로 본문 높이를 바꾸지 않는다. 행·열·Append와 caption 간격은 유지한다. 수식의 속성/원문 진입 분리는 아직 없다.
+- **현재 기준:** [그림][figure-view]·[수식][equation-view] NodeView의 상단 도구와 높이를 차지하지 않는 metadata. [표 #793](table-interaction-v1.md#whole-table-tools-793)은 가로 스크롤 밖 상단 행에 Edit/More·metadata를 두고, Delete는 More 메뉴에 둔다. 표는 앞 문단·열 핸들과 겹치지 않도록 상단 행의 공간을 항상 확보하며 도구 표시로 본문 높이를 바꾸지 않는다. 행·열·Append와 caption 간격은 유지한다. 수식도 같은 상단 Edit/metadata 행에서 작은 속성을 열며, 본문 폭 원문 폼은 별도 경로로 유지한다(#788).
 - **사용처:** U01–U06 그림·수식·표·미주, U11 절 label, U18 블록/표 구조 도구.
 - **결정·불일치:** [소유자 결정 P09][decision]은 #517/#721 배치를 바꾼다. 표 배치 D08의 현재 계약·1440/640px 캡처·키보드/가로 스크롤 검증은 [표 도구 기록](table-interaction-v1.md#whole-table-tools-793)에 연결한다. 수식 metadata D04와 미주 예외는 유지한다.
 
@@ -154,7 +156,7 @@ After는 #792 작업 소스로 촬영했다. source/disk 쓰기 없이 번호 �
 | D01 · P02/P11 | U01–U05 다섯 폼의 자동/고정 세그먼트·빈 고정 차단·자동 표시 번호를 공용 NumberField로 통일 | [#776](https://github.com/ieumbird/ieumdoc/issues/776) |
 | D02 · P01 | U10 교차참조·U08 링크와 U05/U07/U11 폼의 경계를 가용 콘텐츠 viewport로 통일. U09 인용은 공용 훅 변경만 포함하며 동결 기능 전용 변경은 제외 | [#782](https://github.com/ieumbird/ieumdoc/issues/782) |
 | D03 · P01/P04 | U05 표·U11 절 label의 대상 전체 팝오버·Done/바깥 pointer 적용·Esc 취소 ([현재 계약](#p04-적용취소완료)) | [#791](https://github.com/ieumbird/ieumdoc/issues/791) |
-| D04 · P01/P03/P04/P09 | U04 수식의 작은 metadata 진입을 원문 폼 진입과 분리 | [#788](https://github.com/ieumbird/ieumdoc/issues/788) |
+| D04 · P01/P03/P04/P09 | U04 수식의 작은 metadata 진입을 원문 폼 진입과 분리 ([현재 계약](document-editing-v1.md#continuous-editing)) | [#788](https://github.com/ieumbird/ieumdoc/issues/788) |
 | D05 · P04 | U08 링크·U10 교차참조의 명시적 적용/취소와 초안 유지. U09 인용은 ADR-0008 동결로 제외 | [#790](https://github.com/ieumbird/ieumdoc/issues/790) |
 | D06 · P06 | U12 빈 제목에 선택적 제목 추가 안내, U01 pending Figure에 이미지 선택 / Mermaid 작성 진입 제공. 기존 caption·본문·목록의 빈 상태와 선택·clipboard 의미 유지 | [#786](https://github.com/ieumbird/ieumdoc/issues/786) |
 | D07 · P02/P07/P12 | U03/U14/U16의 적용 문서·지속 앱 문제를 Docling과 같은 창별 센터로 집계하고 위치 이동·해결/닫기/재발 처리. 입력·열린 비교 화면의 문맥 오류는 유지 | [#792](https://github.com/ieumbird/ieumdoc/issues/792) |

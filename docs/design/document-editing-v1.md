@@ -5,6 +5,7 @@
 - Title contract update: 2026-10-29 (#722; frontmatter-only title and H1–H6 body sections replace the #255/#472 leading-H1 policy).
 - Empty-title entry: 2026-10-30 (#786; small bilingual optional-title hint, preserved slot height and immediate title typography; document-title browser regression and [captures](figure-authoring-v1.md#empty-authoring-entry-786)).
 - Last verified: 2026-10-28 (#637: in-document block equation form, native input drag/paste isolation and wider wrapping inline math form; targeted Editor and browser checks and same-state 1440/640px captures).
+- Equation metadata verified: 2026-10-30 (#788: separate metadata/source entry, explicit completion boundaries and Undo, dialog exclusion, pointer caret, tab switching and applied-only Save; targeted browser checks and [1440/640px captures](ui-patterns-v1.md#p04-적용취소완료)).
 - Property Apply verification: 2026-10-27 (#576: shared Ctrl/Cmd+Enter submission, validation/busy guards, IME/modifier exclusions and prose hard-break isolation; Editor tests and targeted Windows Chrome browser regressions, with Apple platform emulation rather than native macOS).
 - Code-language verification: 2026-10-28 (#645: selection-only menu, common grammar choices, preserved unlisted values, typeahead, language/body Undo/Redo and exact disk Save/Reload; [verification](#code-language-selection-verification-645)).
 - Native focus selection: 2026-10-26 (#542: restore the retained selection before the observer can accept Chromium's native focus caret; real-click Command center and held-check browser regressions. #502 remains separate).
@@ -251,6 +252,15 @@ A changed document recomputes numbering; source semantics and canonical output a
   submits as before. Both forms use explicit Apply, Cancel and Escape. Outside
   click, blur and selection movement neither apply nor discard drafts. Save/Source and tab
   switching retain them under the [editing-session contract](editing-session-save-v1.md#applied-content-and-drafts).
+  Block Equation's upper Edit opens a separate label/number metadata popover (#788).
+  Formula double-click and node-selected Enter still enter the source form directly (#637).
+  Only one of these forms can be open: keyboard re-entry while metadata is open retains its
+  draft/error; source editing hides the metadata entry. Metadata's Edit source first applies
+  valid label/number values, then opens source with those applied values and the current LaTeX.
+  Invalid values keep metadata open. A pointer on the formula completes valid metadata like
+  any outside click; once it is closed, double-click enters source. Cancelling source discards only that source
+  form's changes, preserving metadata already applied before entering it. Entering source with
+  unchanged metadata adds no document change or Undo step.
   Native text drag/drop and paste within a block Equation source or label field change only
   that draft; they do not create document content or history and Cancel leaves Save unchanged.
   Deferred opening focus for Equation, Mermaid and image Figure properties is cancelled by
@@ -262,7 +272,7 @@ A changed document recomputes numbering; source semantics and canonical output a
   cancel the pending source focus. Listeners are removed on execution, cancellation and unmount.
   New Equation and Diagram insertion still hands focus to their source field on the next frame.
   Escape in a focused block menu closes that menu and preserves the property draft (#664).
-- Figure, Table and section-label metadata share the target-wide metadata popover (#791;
+- Figure, Table, block Equation and section-label metadata share the target-wide metadata popover (#791, #788;
   [Figure placement/completion](figure-authoring-v1.md#anchored-figure-properties-757)).
   Done/outside pointer completion applies and Escape cancels. Invalid input retains the
   form and values. Keyboard focus movement alone does not apply; keyboard Save includes

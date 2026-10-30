@@ -101,6 +101,7 @@ async (page, { openPath, screenshots }) => {
   const equation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').first();
   await equation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
   await equation.getByRole('button', {name:'Edit', exact:true}).click();
+  await page.getByTestId('equation-edit-source').click();
   await page.getByTestId('equation-latex').fill('x + SourceDraft');
   await showSource();
   result.sourceExcludesEquationDraft = !(await sourceText()).includes('SourceDraft') && await page.getByTestId('draft-notice').isVisible();

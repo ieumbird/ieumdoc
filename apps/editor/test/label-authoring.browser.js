@@ -49,6 +49,7 @@ async (page, { openPath }) => {
   const setEquationLabel = async (block, label) => {
     await block.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
     await block.getByRole('button', {name:'Edit', exact:true}).click();
+    await page.getByTestId('equation-edit-source').click();
     await page.getByTestId('equation-label').fill(label);
     await page.getByTestId('equation-apply').click();
     await page.getByTestId('equation-editor').waitFor({state:'detached'});
@@ -88,6 +89,7 @@ async (page, { openPath }) => {
   // A. Change both labels in the editor forms; Source shows them before Save; the file is untouched.
   await equation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
   await equation.getByRole('button', {name:'Edit', exact:true}).click();
+  await page.getByTestId('equation-edit-source').click();
   result.equationFormShowsLabel = await page.getByTestId('equation-label').inputValue() === 'eq-current';
   await page.getByTestId('equation-label').fill('eq-reference');
   // The draft reaches the top bar through a React effect after the input event; wait for it.
@@ -118,6 +120,7 @@ async (page, { openPath }) => {
   const beforeDuplicate = await markdown();
   await equation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
   await equation.getByRole('button', {name:'Edit', exact:true}).click();
+  await page.getByTestId('equation-edit-source').click();
   await page.getByTestId('equation-label').fill('FIG-Diagram');
   await page.getByTestId('equation-apply').click();
   await page.getByTestId('equation-editor').getByText(/already names another target/).waitFor();
@@ -128,6 +131,7 @@ async (page, { openPath }) => {
   // D. A label with surrounding spaces is refused at Apply and keeps the form open.
   await equation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
   await equation.getByRole('button', {name:'Edit', exact:true}).click();
+  await page.getByTestId('equation-edit-source').click();
   await page.getByTestId('equation-label').fill(' eq-x');
   await page.getByTestId('equation-apply').click();
   result.invalidLabelRefusedAtApply = await page.getByTestId('equation-editor').getByText('Label cannot have leading or trailing spaces.').isVisible();

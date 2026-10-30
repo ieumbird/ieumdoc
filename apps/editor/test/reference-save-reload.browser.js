@@ -225,6 +225,7 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
   await openPath(page,emptyPath);
   await active.locator('[data-block="equation"]').hover();
   await active.locator('[data-block="equation"]').getByRole('button',{name:'Edit',exact:true}).click();
+  await page.getByTestId('equation-edit-source').click();
   await page.getByTestId('equation-editor').getByRole('button',{name:'Fixed',exact:true}).click();
   await page.getByTestId('equation-editor').getByTestId('equation-enumerator').fill('E.1');
   await page.getByTestId('equation-apply').click();
@@ -241,6 +242,7 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
   expect(await readEmpty()).toBe(emptyBefore);
   await active.locator('[data-block="equation"]').hover();
   await active.locator('[data-block="equation"]').getByRole('button',{name:'편집',exact:true}).click();
+  await page.getByTestId('equation-edit-source').click();
   await page.getByTestId('equation-editor').getByRole('button',{name:'자동',exact:true}).click();
   expect(await page.getByTestId('equation-automatic-number').innerText()).toBe('자동 번호: 1');
   await page.getByTestId('equation-apply').click();
@@ -248,6 +250,7 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
   await save();
   await active.locator('[data-block="equation"]').hover();
   await active.locator('[data-block="equation"]').getByRole('button',{name:'편집',exact:true}).click();
+  await page.getByTestId('equation-edit-source').click();
   await expect(page.getByTestId('equation-editor').getByRole('button',{name:'자동',exact:true})).toHaveAttribute('aria-pressed','true');
   expect(await page.getByTestId('equation-automatic-number').innerText()).toBe('자동 번호: 1');
   await page.getByTestId('equation-cancel').click();

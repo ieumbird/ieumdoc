@@ -377,6 +377,7 @@ async (page, { showNotifications, openDocument }) => {
 
   await selectEquation();
   await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').getByRole('button', {name:'Edit', exact:true}).click();
+  await page.getByTestId('equation-edit-source').click();
   await page.getByTestId('equation-label').fill('eq-move');
   await page.getByTestId('equation-apply').click();
   await save();

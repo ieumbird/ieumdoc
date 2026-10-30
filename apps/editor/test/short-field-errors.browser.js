@@ -56,6 +56,7 @@ async (page, { openPath, expect, screenshots }) => {
     const edit = language === 'en' ? 'Edit' : '편집';
     const equation = active.locator('[data-block="equation"]').first();
     await openEditor(equation, equation.getByRole('button', { name: edit, exact: true }));
+    await page.getByTestId('equation-edit-source').click();
     await checkSurface('equation-label');
     await page.getByTestId('equation-label').fill(' bad-label');
     await page.getByTestId('equation-apply').click();

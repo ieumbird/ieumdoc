@@ -82,6 +82,7 @@ async (page, { openPath, expect, screenshots }) => {
       await equation.scrollIntoViewIfNeeded();
       await equation.hover();
       await equation.getByRole('button', {name:'Edit',exact:true}).click();
+      await page.getByTestId('equation-edit-source').click();
       stage = await equation.getByTestId('equation-editor').count() ? 'after' : 'before';
       await page.getByTestId('equation-latex').fill('x = a + b\n  = c + d');
       await page.evaluate(() => document.fonts.ready);
