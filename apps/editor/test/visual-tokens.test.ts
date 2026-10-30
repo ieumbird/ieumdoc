@@ -91,6 +91,24 @@ test("product tokens and Tailwind adapters have unique, acyclic definitions in e
   assert.doesNotMatch(tokens + adapters, /!important/);
 });
 
+test("shared UI prose reuses eojeol wrapping without changing document and literal surfaces", () => {
+  const tokens = readFileSync(new URL("../src/styles/tokens.css", import.meta.url), "utf8");
+  assert.match(tokens, /--word-break-document:\s*keep-all;/);
+  const css = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+  const prose = rules.find(([, selector, body]) => selector.includes(".app-shell") && /word-break:\s*var\(--word-break-document\)/.test(body));
+  assert.ok(prose, "shell UI must share the existing word-break token");
+  for (const surface of [".ui-portal", ".block-properties-form", ".ui-notice", ".form-hint", ".display-hint"]) {
+    assert.ok(prose[1].includes(surface), `${surface} shares the prose boundary, including embedded forms`);
+  }
+  assert.match(prose[2], /overflow-wrap:\s*anywhere;/, "long UI tokens retain emergency wrapping");
+  const literal = rules.find(([, selector, body]) => selector.includes(".document-editor") && /word-break:\s*normal;/.test(body));
+  assert.ok(literal, "the UI default must stop at the document/literal boundary");
+  for (const surface of [".source-view-text", ".recovery-diff", "pre", "code", "input", "textarea", "button"]) {
+    assert.ok(literal[1].includes(surface), `${surface} retains its own wrapping`);
+  }
+});
+
 test("accent presets leave resolved native appearance roles unchanged", () => {
   const tokens = readFileSync(new URL("../src/styles/tokens.css", import.meta.url), "utf8");
   const palettes = accentPalettes(tokens);
