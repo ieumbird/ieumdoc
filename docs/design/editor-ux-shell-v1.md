@@ -2649,3 +2649,8 @@ Collapse Explorer. The new Color mode: System legitimately occupies that positio
 The regression now derives the actual preceding enabled result and retains both
 the active-descendant and single-highlight checks after hover → ArrowUp. No command
 ordering, product keyboard behavior, timeout or retry policy changes.
+
+Shard 1 of the same run also retained the pre-feature Settings → search Tab
+expectation. The shell regression now checks Settings → Color mode → search,
+retaining search → active tab and the existing reverse-navigation checks. The
+color-mode scenario verifies the new sequence in both expanded and rail layouts.

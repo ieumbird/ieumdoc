@@ -44,6 +44,11 @@ async (page, { expect, screenshots = false }) => {
   // Keyboard open, current radio, arrow selection and focus return in expanded and rail states.
   for (const collapsed of [false,true]) {
     if (collapsed) await page.getByRole('button',{name:'Collapse Explorer',exact:true}).click();
+    await settings().focus();
+    await page.keyboard.press('Tab');
+    await expect(mode()).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('button',{name:'Find documents and commands',exact:true})).toBeFocused();
     await mode().focus();
     await page.keyboard.press('Enter');
     await expect(menu().getByRole('menuitemradio',{name:'System',exact:true})).toHaveAttribute('aria-checked','true');
