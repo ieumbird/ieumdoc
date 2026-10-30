@@ -106,17 +106,17 @@ async (page, { openPath, expect }) => {
 
   async function dialogDrafts() {
     const focusFile = file.replace('drafts.md', 'focus.md');
-    for (const [kind, field, first] of [['figure','figure-label','figure-replace'], ['table','table-label','table-label'], ['label-target','label-target-input','label-target-input']]) {
+    for (const [kind, field, first] of [['figure','figure-label','figure-replace'], ['table','table-label','table-label'], ['label-target','label-target-input','label-target-input'], ['equation-property','equation-property-label','equation-property-label']]) {
       await openPath(page, focusFile);
       const active = page.locator('[data-document-tab][data-active=true]');
-      const target = active.locator(`[data-block="${kind}"]`);
+      const target = active.locator(`[data-block="${kind === 'equation-property' ? 'equation' : kind}"]`);
       const before = await json();
       if (kind === 'label-target') {
         await editor.locator('h2').hover();
         await active.getByTestId('label-target-edit').click();
       } else {
         await target.hover({position:{x:4,y:4}});
-        await target.getByRole('button',{name:kind === 'figure' ? 'Edit figure' : 'Edit table',exact:true}).click();
+        await target.getByRole('button',{name:kind === 'figure' ? 'Edit figure' : kind === 'table' ? 'Edit table' : 'Edit',exact:true}).click();
       }
       check(await focused(first), `${kind}: opening dialog draft focus`);
       const draft = `${kind}-dialog-draft`;
@@ -163,16 +163,16 @@ async (page, { openPath, expect }) => {
 
   async function metadataCompletion() {
     const focusFile = file.replace('drafts.md', 'focus.md');
-    for (const [kind, type, field] of [['table','table','table-label'], ['label-target','labelTarget','label-target-input']]) {
+    for (const [kind, type, field] of [['table','table','table-label'], ['label-target','labelTarget','label-target-input'], ['equation-property','equation','equation-property-label']]) {
       await openPath(page, focusFile);
       const active = page.locator('[data-document-tab][data-active=true]');
-      const target = active.locator(`[data-block="${kind}"]`);
+      const target = active.locator(`[data-block="${type === 'equation' ? 'equation' : kind}"]`);
       const attrs = () => editor.evaluate((element, type) => element.editor.getJSON().content.find(node => node.type === type).attrs, type);
       const original = await attrs();
       const begin = async () => {
-        if (kind === 'table') {
+        if (kind === 'table' || type === 'equation') {
           await target.hover({position:{x:4,y:4}});
-          await activate(target.getByRole('button', {name:'Edit table',exact:true}));
+          await activate(target.getByRole('button', {name:kind === 'table' ? 'Edit table' : 'Edit',exact:true}));
         } else {
           await editor.locator('h2').hover();
           await activate(active.getByTestId('label-target-edit'));
@@ -193,16 +193,21 @@ async (page, { openPath, expect }) => {
       await expect(page.getByTestId(field)).toHaveAttribute('aria-invalid','true');
       expect(await attrs()).toEqual(original);
       await page.getByTestId(field).fill(`${kind}-done`);
-      if (kind === 'table') {
-        await page.getByTestId('table-editor').getByRole('button',{name:'Fixed',exact:true}).click();
+      if (kind === 'table' || type === 'equation') {
+        await page.getByTestId(`${kind}-editor`).getByRole('button',{name:'Fixed',exact:true}).click();
         await page.getByText('Before.', {exact:true}).filter({visible:true}).click({position:{x:20,y:12}});
-        await expect(page.getByTestId('table-enumerator')).toHaveAttribute('aria-invalid','true');
+        await expect(page.getByTestId(`${kind}-enumerator`)).toHaveAttribute('aria-invalid','true');
         expect(await attrs()).toEqual(original);
-        await page.getByTestId('table-editor').getByRole('button',{name:'Automatic',exact:true}).click();
+        await page.getByTestId(`${kind}-editor`).getByRole('button',{name:'Automatic',exact:true}).click();
+        if (type === 'equation') {
+          await page.getByTestId(`${kind}-editor`).getByRole('button',{name:'Fixed',exact:true}).click();
+          await page.getByTestId(`${kind}-enumerator`).fill('E.8');
+        }
       }
       await page.getByTestId(`${kind}-apply`).click();
       await page.getByTestId(`${kind}-editor`).waitFor({state:'detached'});
       expect((await attrs()).label).toBe(`${kind}-done`);
+      if (type === 'equation') expect(await attrs()).toEqual({...original, label:`${kind}-done`, enumerator:'E.8'});
       await begin();
       await page.getByTestId(field).fill(`${kind}-keyboard-draft`);
       // Keyboard Save saves only applied state and leaves the metadata draft open.
@@ -213,6 +218,10 @@ async (page, { openPath, expect }) => {
       expect(await page.getByTestId(field).inputValue()).toBe(`${kind}-keyboard-draft`);
       const disk = await (await page.request.get(`${origin}/document/focus.md?path=${encodeURIComponent(focusFile)}`)).text();
       expect(disk).toContain(`${kind}-done`);
+      if (type === 'equation') {
+        expect(disk).toContain(':enumerator: E.8');
+        expect(disk).toContain('{eq}`equation-property-done`');
+      }
       expect(disk).not.toContain(`${kind}-keyboard-draft`);
       await page.getByTestId(field).press('Escape');
       expect((await attrs()).label).toBe(`${kind}-done`);
@@ -232,7 +241,7 @@ async (page, { openPath, expect }) => {
       const ownedPanel = page.locator(`[data-document-tab="${panelId}"]`);
       await page.getByRole('tab',{name:'drafts.md',exact:true}).click();
       // Pointer completion must finish even when that click hides its document.
-      await expect(ownedPanel.locator(`[data-block="${kind}"]`)).toHaveAttribute('data-editing','false');
+      await expect(ownedPanel.locator(`[data-block="${type === 'equation' ? 'equation' : kind}"]`)).toHaveAttribute('data-editing','false');
       expect(await ownedPanel.locator('.document-editor').evaluate((element, type) => element.editor.getJSON().content.find(node => node.type === type).attrs.label, type)).toBe(`${kind}-pointer-tab`);
       await activate(page.getByRole('tab',{name:'focus.md, Unsaved changes',exact:true}));
       expect(await page.getByTestId(`${kind}-editor`).count()).toBe(0);

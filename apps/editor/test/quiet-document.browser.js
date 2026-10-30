@@ -736,6 +736,7 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
     if (screenshots) {
       await page.locator('[data-document-tab][data-active=true] .equation').hover();
       await page.locator('[data-document-tab][data-active=true] .equation').getByRole('button',{name:'Edit',exact:true}).click();
+      await page.getByTestId('equation-edit-source').click();
       await page.getByTestId('equation-editor').waitFor();
       await page.evaluate(()=>document.querySelector('.document-scroll[data-active="true"]').scrollTo(0,0));
       await page.mouse.move(0,0);

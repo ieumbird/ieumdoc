@@ -168,6 +168,7 @@ async page => {
     // Drafts stay visible and explicitly separate from applied Save content.
     await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
     await page.getByRole('button',{name:'Edit',exact:true}).click();
+    await page.getByTestId('equation-edit-source').click();
     await page.getByTestId('equation-latex').fill('x + 1');
     result.equationDraftInBlock = await page.locator('[data-document-tab][data-active=true]').getByTestId('equation-draft-status').isVisible();
     result.saveAvailableDuringDraft = await page.getByTestId('save').isEnabled();
@@ -222,6 +223,7 @@ async page => {
     // without resetting another block's in-progress Equation draft.
     await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
     await page.getByRole('button',{name:'Edit',exact:true}).click();
+    await page.getByTestId('equation-edit-source').click();
     await page.getByTestId('equation-latex').fill('x + 2');
     // Hover the table while the Equation draft remains open.
     await page.locator('[data-document-tab][data-active=true] [data-block="table"]').hover({position:{x:8,y:8}});

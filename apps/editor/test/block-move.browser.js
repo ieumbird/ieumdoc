@@ -67,6 +67,7 @@ async (page, { openPath, withBlockHover }) => {
     await holdOpeningFrames();
     try {
       await block.getByRole('button', {name:editName, exact:true}).click();
+      if (fieldId === 'equation-latex') await page.getByTestId('equation-edit-source').click();
       if (fieldId === 'mermaid-source') await page.getByTestId('mermaid-edit-source').click();
       await page.getByTestId(fieldId).waitFor();
       await waitForOpeningFrame();
@@ -107,6 +108,7 @@ async (page, { openPath, withBlockHover }) => {
       try {
         if (enter) await page.keyboard.press('Enter');
         else await block.getByRole('button', {name:editName, exact:true}).click();
+        if (!enter && fieldId === 'equation-latex') await page.getByTestId('equation-edit-source').click();
         if (fieldId === 'mermaid-source') await page.getByTestId('mermaid-edit-source').click();
         const field = page.getByTestId(fieldId);
         await field.waitFor();
@@ -339,6 +341,7 @@ async (page, { openPath, withBlockHover }) => {
   // 6. An unapplied Equation draft pins its block: the handle says why, a drag does nothing, and the draft stays.
   await equation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4, y:4}});
   await equation.getByRole('button', {name:'Edit', exact:true}).click();
+  await page.getByTestId('equation-edit-source').click();
   await page.getByTestId('equation-latex').fill('x + BlockMoveDraft');
   // The draft is reported from an effect, so the handle follows it a render later.
   const handle = page.getByRole('button', {name:/^Move equation block \d+$/});
@@ -400,6 +403,7 @@ async (page, { openPath, withBlockHover }) => {
     const block = name === 'Move up' ? equations.first() : equations.last();
     await block.hover();
     await block.getByRole('button', {name:'Edit', exact:true}).click();
+    await page.getByTestId('equation-edit-source').click();
     await page.getByTestId('equation-latex').fill('x + BoundaryDraft');
     // Programmatic handle.focus() is deliberately not a user cancellation signal.
     // Let entry focus finish before preparing this keyboard-menu scenario.

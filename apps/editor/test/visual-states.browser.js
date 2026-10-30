@@ -278,6 +278,7 @@ async (page, { withBlockHover, reloadDocument, recoveryRecords, expect }) => {
   // Preview layout must not override the Notice's error role.
   await page.locator('[data-document-tab][data-active=true] .equation').hover();
   await page.locator('[data-document-tab][data-active=true] .equation').getByRole('button', {name:'Edit', exact:true}).click();
+  await page.getByTestId('equation-edit-source').click();
   const preview = await state(page.getByTestId('equation-edit-preview'));
   await page.getByTestId('equation-latex').fill('\\frac{');
   const previewError = await state(page.getByTestId('equation-edit-preview-error'));

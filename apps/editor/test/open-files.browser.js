@@ -257,6 +257,7 @@ async (page, { showNotifications, openDocument, openPath, screenshots = false })
     const equation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]');
     await equation.hover();
     await equation.getByRole('button', {name:'Edit',exact:true}).click();
+    await page.getByTestId('equation-edit-source').click();
     await page.getByTestId('equation-latex').fill('x + draftClose');
     await closeA();
     await confirmation.getByText(/Unapplied property drafts will be lost with both Save and Don't save/).waitFor();
@@ -279,6 +280,7 @@ async (page, { showNotifications, openDocument, openPath, screenshots = false })
     // Closing a hidden dirty tab keeps B active, including Cancel and draft discard.
     await openPath(page, pathA);
     await equation.hover(); await equation.getByRole('button',{name:'Edit',exact:true}).click();
+    await page.getByTestId('equation-edit-source').click();
     await page.getByTestId('equation-latex').fill('hiddenDraft');
     await page.getByRole('tab',{name:'ieumdoc-b.md',exact:true}).click();
     await closeA();

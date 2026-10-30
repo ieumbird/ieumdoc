@@ -8,6 +8,7 @@ import { updateLabelProperties } from "../label-rename.ts";
 import { useMessageState } from "../ui-message.ts";
 import { i18n } from "../i18n.ts";
 import { PropertyForm } from "../block-properties.tsx";
+import { MetadataProperties } from "../metadata-properties.tsx";
 import { NumberField, useNumberDraft } from "../numbering-properties.tsx";
 import { useEditorVisible } from "../editor-visibility.ts";
 import { useBlockNumber, useCaptionNumberText } from "../cross-reference.tsx";
@@ -38,7 +39,9 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
   const latex = String(node.attrs.latex ?? "");
   const anchor = useRef<HTMLParagraphElement>(null);
   const latexInput = useRef<HTMLTextAreaElement>(null);
+  const labelInput = useRef<HTMLInputElement>(null);
   const [editing, setEditing] = useState(false);
+  const [properties, setProperties] = useState(false);
   const [draft, setDraft] = useState(latex);
   const [labelDraft, setLabelDraft] = useState(label);
   const enumerator = String(node.attrs.enumerator ?? "");
@@ -48,11 +51,11 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
   const cancelFocus = useSourceInputFocus(latexInput, editing);
 
   useEffect(() => {
-    if (!editing) {
+    if (!editing && !properties) {
       setDraft(latex);
       setLabelDraft(label); numberDraft.reset(enumerator);
     }
-  }, [editing, latex, label, enumerator]);
+  }, [editing, properties, latex, label, enumerator]);
 
   const [openOnInsert] = useState(() => view.editable && isNewBlockPath(String(node.attrs.sourcePath)) && latex.length === 0);
   useEffect(() => {
@@ -62,18 +65,25 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
 
   const sourcePath = String(node.attrs.sourcePath ?? "");
   const hasUnappliedDraft = isUnappliedEquationDraft(editing, draft, latex) ||
-    (editing && (labelDraft !== label || numberDraft.changedFrom(enumerator)));
+    ((editing || properties) && (labelDraft !== label || numberDraft.changedFrom(enumerator)));
   useEffect(() => {
     onDraftChange?.("Equation", sourcePath, hasUnappliedDraft);
     return () => onDraftChange?.("Equation", sourcePath, false);
   }, [sourcePath, hasUnappliedDraft, onDraftChange]);
 
   function beginEdit() {
-    if (!view.editable || editing) return;
+    // Re-entry never replaces an open metadata/source draft with the other form.
+    if (!view.editable || editing || properties) return;
     setDraft(latex);
     setLabelDraft(label); numberDraft.reset(enumerator);
     setError("");
     setEditing(true);
+  }
+  function beginProperties() {
+    if (!view.editable || editing || properties) return;
+    setLabelDraft(label); numberDraft.reset(enumerator);
+    setError("");
+    setProperties(true);
   }
   usePropertyEntry(anchor, beginEdit);
   const cancel = () => {
@@ -82,10 +92,11 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
     setLabelDraft(label); numberDraft.reset(enumerator);
     setError("");
     setEditing(false);
+    setProperties(false);
     focusBlock(view, getPos);
   };
   // Core checks the live target/reference context before committing a label rename.
-  const apply = () => {
+  const apply = (openSource = false, returnCaret = true) => {
     if (!numberDraft.validate()) return;
     const invalidLabel = labelError(labelDraft);
     if (invalidLabel) {
@@ -95,25 +106,36 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
     cancelFocus();
     const position = getPos();
     if (typeof position !== "number") return;
-    try { view.dispatch(updateLabelProperties(view.state, position, { latex: draft, label: labelDraft, enumerator: numberDraft.value || null })); }
+    try {
+      // Merely following Edit → Edit source must not add an empty Undo step.
+      if (editing || labelDraft !== label || numberDraft.changedFrom(enumerator)) {
+        view.dispatch(updateLabelProperties(view.state, position, {
+          ...(editing ? { latex: draft } : {}), label: labelDraft, enumerator: numberDraft.value || null,
+        }));
+      }
+    }
     catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
     setError("");
-    setEditing(false);
-    focusBlock(view, getPos);
+    setProperties(false);
+    if (openSource) setDraft(String(view.state.doc.nodeAt(position)?.attrs.latex ?? ""));
+    setEditing(openSource);
+    if (!openSource && returnCaret) focusBlock(view, getPos);
   };
 
   return (
     <NodeViewWrapper
       className="equation"
       data-block="equation"
-      data-editing={editing}
+      data-editing={editing || properties}
       data-selected={selected}
       data-source-path={String(node.attrs.sourcePath ?? "")}
       contentEditable={false}
     >
       <p ref={anchor} className="block-kind block-metadata">{[kind, label].filter(Boolean).join(" · ")}</p>
       {hasUnappliedDraft ? (
-        <p className="draft-status" role="status" data-testid="equation-draft-status">{i18n.t("Unapplied changes are not saved. Apply to include them, or Cancel.")}</p>
+        <p className="draft-status" role="status" data-testid="equation-draft-status">{i18n.t(editing
+          ? "Unapplied changes are not saved. Apply to include them, or Cancel."
+          : "Unapplied equation properties are not saved. Choose Done or press Esc to cancel.")}</p>
       ) : null}
       {!editing ? (
         <>
@@ -122,12 +144,12 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
             {latex.length === 0 ? <div className="equation-math empty-equation" data-testid="equation-empty" onDoubleClick={beginEdit}>{i18n.t("Enter an equation")}</div> : <EquationFormula className="equation-math" latex={latex} testId="equation-preview" onDoubleClick={beginEdit} />}
             {number === undefined ? null : <span className="equation-number" data-testid="equation-number">({number})</span>}
           </div>
-          {view.editable ? <Button className="equation-edit" size="sm" variant="outline" onClick={beginEdit}>{i18n.t("Edit")}</Button> : null}
+          {view.editable && !properties ? <Button className="equation-edit" size="sm" variant="outline" onClick={beginProperties}>{i18n.t("Edit")}</Button> : null}
         </>
       ) : visible ? (
         <div data-testid="equation-properties" onDragStart={isolateInputDrag} onDragEnter={isolateInputDrag}
           onDragOver={isolateInputDrag} onDragLeave={isolateInputDrag} onDrop={isolateInputDrag} onDragEnd={isolateInputDrag}>
-          <PropertyForm kind={kind} testId="equation" onApply={apply} onCancel={cancel}>
+          <PropertyForm kind={kind} testId="equation" onApply={() => apply()} onCancel={cancel}>
             <label className="form-field">
               <span>LaTeX</span>
               <textarea
@@ -164,6 +186,21 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
           </PropertyForm>
         </div>
       ) : null}
+      <MetadataProperties anchor={anchor} target={() => anchor.current?.closest('[data-block="equation"]') ?? null}
+        initialFocus={labelInput} kind={kind} testId="equation-property" open={properties}
+        onApply={outside => apply(false, !outside)} onCancel={cancel}>
+        <Button type="button" size="sm" variant="outline" data-testid="equation-edit-source" onClick={() => apply(true)}>{i18n.t("Edit source")}</Button>
+        <div className="figure-property-columns">
+          <div className="form-field">
+            <label className="form-label" htmlFor={`${formId}-property-label`}>{i18n.t("Label")}</label>
+            <Input ref={labelInput} id={`${formId}-property-label`} data-testid="equation-property-label"
+              aria-invalid={!!error || undefined} aria-describedby={error ? `${formId}-property-error` : undefined}
+              value={labelDraft} placeholder={i18n.t("None")} onChange={event => { setLabelDraft(event.target.value); setError(""); }} />
+            <FieldError id={`${formId}-property-error`}>{error}</FieldError>
+          </div>
+          <NumberField editor={editor} getPos={getPos} testId="equation-property" draft={numberDraft} onChange={() => setError("")} />
+        </div>
+      </MetadataProperties>
     </NodeViewWrapper>
   );
 }

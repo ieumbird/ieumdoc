@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-30",
+  "beforeCommit": "b9b2b8e9a4b9fc959177b1755369ff3caf1013ba",
+  "afterEquationViewSHA256": "53e308f177c34bf3572af453b02100804e427d3f627f00ba17ef11547fe1e0d5",
+  "fixture": "tmp/short-fields/fields.md (browser fixtures)",
+  "fixtureSHA256": "a7f104c148b7db05962eeb50094830893c72431ab721af9df058a2adce2fe96e",
+  "browser": "156.0.8078.49",
+  "platform": "Windows persistent Chrome, headless, DPR 1, 100% zoom, bundled Pretendard",
+  "states": [
+    "1440x900 Light/en",
+    "640x900 Dark/ko"
+  ],
+  "input": {
+    "fixedNumber": "A.1",
+    "label": "eq-example"
+  },
+  "notes": [
+    "Same scratch document and metadata values; before uses full source form, after uses metadata popover.",
+    "Source form and popover cause different document scrolling; screenshots are unmodified full viewport PNGs.",
+    "Unrelated startup sample-preparation EPERM warning was dismissed with the real notification action; source fixtures unchanged."
+  ],
+  "images": [
+    {
+      "file": "after-1440.png",
+      "sha256": "04edd6c1d5f63be120fe065a36ecd74a2c0450e20819c47d5443dad1b5998e03"
+    },
+    {
+      "file": "after-640.png",
+      "sha256": "9711ee6b849015129708cd2dc954da3120539d1ab39e42d3d512eccfb2f5bc3d"
+    },
+    {
+      "file": "before-1440.png",
+      "sha256": "bfa55f9c9da97d3fd64a146ef0e8a12d56c9400bd9175d387b3f20a203bbc2af"
+    },
+    {
+      "file": "before-640.png",
+      "sha256": "f88620eb9f2ec9846ae22294e0bb5fb12df8288b3e0b0cf5f082ef09c0ed2261"
+    }
+  ]
+}

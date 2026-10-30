@@ -76,6 +76,7 @@ async (page, { openPath, activeDocument, screenshots = false, removeTabFixture }
   check((await read()).source === preview.markdown, 'Preview differs from real Save');
   const equation = editor().locator('[data-block="equation"]').first();
   await equation.hover(); await equation.getByRole('button', { name: 'Edit', exact: true }).click();
+  await page.getByTestId('equation-edit-source').click();
   await page.getByTestId('equation-latex').fill('x + 41');
   await compare();
   await dialog().getByText('0 changes', { exact: true }).waitFor();

@@ -59,6 +59,7 @@ async (page, { openDocument }) => {
   await paragraph.click(); await page.keyboard.press('End'); await page.keyboard.type(' Unsaved.');
   const equation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').first();
   await equation.hover(); await equation.getByRole('button', {name:'Edit', exact:true}).click();
+  await page.getByTestId('equation-edit-source').click();
   await page.getByTestId('equation-latex').fill('x + draft');
   const local = await snapshot();
   // Failed Open adds no tab and preserves current applied work and property drafts.

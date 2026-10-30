@@ -76,12 +76,56 @@ async (page, { expect }) => {
     const existingEquation = documentEditor.locator('[data-block="equation"]').first();
     const existingPath = await existingEquation.getAttribute('data-source-path');
     const preview = existingEquation.getByTestId('equation-preview');
+    await existingEquation.hover();
+    await existingEquation.getByRole('button', {name:'Edit', exact:true}).click();
+    expect(await page.getByTestId('equation-latex').count(), 'Metadata entry must not open the source form').toBe(0);
+    await expect(page.getByTestId('equation-property-label')).toBeFocused();
+    await page.getByTestId('equation-property-label').fill(' bad-label');
+    await page.getByTestId('equation-edit-source').click();
+    await expect(page.getByTestId('equation-property-label')).toHaveAttribute('aria-invalid','true');
+    expect(await page.getByTestId('equation-latex').count(), 'Invalid metadata cannot open source').toBe(0);
+    // Keyboard re-entry must not replace the metadata draft or clear its error.
+    await preview.click({position:{x:8,y:8}});
+    await page.keyboard.press('Enter');
+    expect(await page.getByTestId('equation-property-label').inputValue()).toBe(' bad-label');
+    expect(await snapshot()).toEqual(withProbe);
+    await page.getByTestId('equation-property-label').press('Escape');
+    await existingEquation.hover();
+    await existingEquation.getByRole('button', {name:'Edit', exact:true}).click();
+    await page.getByTestId('equation-property-label').fill('eq-pointer-source');
+    // Finish metadata with the outside pointer, then use direct source entry.
+    await preview.click({position:{x:8,y:8}});
+    await page.getByTestId('equation-property-editor').waitFor({state:'detached'});
+    await preview.dblclick({position:{x:8,y:8}});
+    await expect(page.getByTestId('equation-latex')).toBeFocused();
+    expect(await page.getByTestId('equation-label').inputValue(), 'Outside metadata completion precedes direct source entry').toBe('eq-pointer-source');
+    await page.getByTestId('equation-cancel').click();
+    await page.keyboard.press('ControlOrMeta+z');
+    expect(await snapshot()).toEqual(withProbe);
+    await existingEquation.hover();
+    await existingEquation.getByRole('button', {name:'Edit', exact:true}).click();
+    await page.getByTestId('equation-property-label').fill('eq-entry');
+    await page.getByTestId('equation-edit-source').click();
+    await expect(page.getByTestId('equation-latex')).toBeFocused();
+    expect(await page.getByTestId('equation-property-editor').count()).toBe(0);
+    expect(await page.getByTestId('equation-label').inputValue()).toBe('eq-entry');
+    const appliedMetadata = await snapshot();
+    await page.getByTestId('equation-latex').fill('Unapplied source');
+    await page.getByTestId('equation-label').fill('unapplied-source-label');
+    await prose.click();
+    expect(await page.getByTestId('equation-latex').inputValue(), 'Outside pointer retains source draft').toBe('Unapplied source');
+    expect(await existingEquation.getByRole('button', {name:'Edit',exact:true}).count(), 'Source edit hides metadata entry').toBe(0);
+    await page.getByTestId('equation-cancel').click();
+    expect(await snapshot(), 'Source Cancel keeps the preceding metadata Apply').toEqual(appliedMetadata);
+    await page.keyboard.press('ControlOrMeta+z');
+    expect(await snapshot(), 'Metadata and source use separate Apply boundaries').toEqual(withProbe);
     for (const close of ['cancel', 'escape']) {
       let editFocus;
       for (const entry of ['Edit', 'double-click', 'Enter']) {
         if (entry === 'Edit') {
           await preview.click({position:{x:8,y:8}});
           await existingEquation.getByRole('button', {name:'Edit', exact:true}).click();
+          await page.getByTestId('equation-edit-source').click();
         } else if (entry === 'Enter') {
           await preview.click({position:{x:8,y:8}});
           await page.keyboard.press('Enter');
@@ -150,6 +194,7 @@ async (page, { expect }) => {
     expect(await emptyEquation.getByTestId('equation-empty').innerText()).toBe('Enter an equation');
     await emptyEquation.hover();
     await emptyEquation.getByRole('button',{name:'Edit',exact:true}).click();
+    await page.getByTestId('equation-edit-source').click();
     await latex.fill('x');
     for (const key of ['Enter', 'Control+Shift+Enter', 'Control+Alt+Enter']) {
       await latex.press(key);
@@ -167,16 +212,19 @@ async (page, { expect }) => {
     // Clearing an applied new equation must close Apply and keep the empty block.
     await newEquation.hover();
     await newEquation.getByRole('button',{name:'Edit',exact:true}).click();
+    await page.getByTestId('equation-edit-source').click();
     await page.getByTestId('equation-latex').fill('');
     await page.getByTestId('equation-apply').click();
     await page.getByTestId('equation-editor').waitFor({state:'detached'});
     expect(await newEquation.getByTestId('equation-empty').innerText()).toBe('Enter an equation');
     await newEquation.hover();
     await newEquation.getByRole('button',{name:'Edit',exact:true}).click();
+    await page.getByTestId('equation-edit-source').click();
     await page.getByTestId('equation-latex').fill('x');
     await page.getByTestId('equation-apply').click();
     await newEquation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
     await newEquation.getByRole('button', {name:'Edit', exact:true}).click();
+    await page.getByTestId('equation-edit-source').click();
     await page.getByTestId('equation-latex').fill('x + 1');
     await page.getByTestId('equation-cancel').click();
     const appliedCancelKeepsBlock = await newEquation.count() === 1;
@@ -184,6 +232,7 @@ async (page, { expect }) => {
     // The returned caret no longer selects the Equation; reveal its tools before Edit.
     await newEquation.hover({position:{x:4,y:4}});
     await newEquation.getByRole('button', {name:'Edit', exact:true}).click();
+    await page.getByTestId('equation-edit-source').click();
     await page.getByTestId('equation-latex').press('Escape');
     await page.getByTestId('equation-editor').waitFor({state:'detached'});
     // Closing the properties panel and handing focus back are separate browser tasks.
@@ -199,6 +248,7 @@ async (page, { expect }) => {
     const reloadedEquation = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').last();
     await reloadedEquation.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
     await reloadedEquation.getByRole('button', {name:'Edit', exact:true}).click();
+    await page.getByTestId('equation-edit-source').click();
     const reloadedLatex = await page.getByTestId('equation-latex').inputValue();
     await page.getByTestId('equation-cancel').click();
     const result = {

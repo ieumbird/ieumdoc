@@ -409,6 +409,7 @@ async (page, { showNotifications, openPath, screenshots, expect, recoveryRecords
   const equationB = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').nth(1);
   await equationB.getByRole('button', {name:'Edit', exact:true}).locator('..').hover({position:{x:4,y:4}});
   await equationB.getByRole('button', {name:'Edit', exact:true}).click();
+  await page.getByTestId('equation-edit-source').click();
   await page.getByTestId('equation-label').fill('eq-c');
   await page.getByTestId('equation-apply').click();
   await page.getByTestId('equation-editor').waitFor({state:'detached'});
