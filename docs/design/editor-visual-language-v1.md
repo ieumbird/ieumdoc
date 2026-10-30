@@ -76,7 +76,7 @@ Pretendard `1.3.9` is bundled through its official variable dynamic-subset CSS; 
 | --- | --- |
 | Body, including callout prose | 17/28.9px, 400, document stack |
 | H1–H6 | 34/45.9, 24/32.4, 20/27, 18/24.3, 16/21.6, 14/18.9px, document stack, 700 |
-| Frontmatter title | H1 type; subtle Add a title placeholder, normal text; no box at rest |
+| Frontmatter title | H1 type while typing; empty `Add a title (optional)` / `제목 추가(선택)` uses subtle 14px normal UI type centered vertically within the same title slot; outward focus outline leaves breathing room without changing layout; no box at rest (#786) |
 | UI labels/controls and Figure/Table captions | 14/20px, UI stack |
 | Metadata/status/helpers | 12/16px, UI stack |
 | Dialog title / start or Settings title | 16px semibold / 24px semibold UI type |
@@ -140,7 +140,8 @@ These are independent axes. Visual interactions never write document attributes.
 | Dirty/invalid | Notices distinguish applied Save content from unapplied form input; errors preserve values. Labels/helpers/errors remain associated. Invalid field boundaries coexist with focus; operation failure does not mislabel a valid field. |
 | Save refusal | Danger block/cell strokes and localized Cannot save badge identify the cause. They paint above selection/hover in the document's isolated stacking context below the header, without interactive hit targets. The danger message gives localized cause/action and collapsed keyboard-accessible Technical details retaining the original diagnostic. [Save](editing-session-save-v1.md#refused-block-highlighting-and-navigation-578-phase-1) owns lifetime/navigation. |
 | Read-only | Source soft-wraps unbroken words, with one subtle gutter number per source line and aligned continuations. Numbers/wrapping add no copied/stored characters. Foreign file rows remain subtle with crossed-file icon and native-marker description; admission follows the [support contract](document-support-v1.md). |
-| Empty document | A lone empty editable paragraph shows the subtle document-type starting hint on the text axis and first `+`; its drag handle stays hidden. The hint is decoration, absent from selection/clipboard/Source/Save/dirty comparison. Title uses subtle Add a title. |
+| Empty document | A lone empty editable paragraph shows the subtle document-type starting hint on the text axis and first `+`; its drag handle stays hidden. The hint is decoration, absent from selection/clipboard/Source/Save/dirty comparison. Title uses the small optional-title hint above. |
+| Pending Figure | Dashed subtle frame contains compact `Choose image` / `Write Mermaid` actions (`이미지 선택` / `Mermaid 작성`). The actions open existing authoring flows; only completion commits content. Frame-background selection and caption behavior stay unchanged (#786). |
 | Empty caption | Editable Table/image/pending/Mermaid captions use a muted italic hint only while selection is elsewhere. Number prefix/click surface remain. Generated text has an empty accessibility alternative and is absent from clipboard/Source/Save; read-only omits it. |
 | Accent swatch | Checked native radio uses a 2px interaction-color circle outline with a 2px offset exposing the Settings surface; keyboard focus independently rings the transparent target. Hover subtly brightens the circle. Only the selected translated name is visible, muted metadata; all swatches keep accessible names/tooltips. No option box/background/check icon or per-circle visible name. |
 

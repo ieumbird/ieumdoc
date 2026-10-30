@@ -908,7 +908,7 @@ export function editorExtensions(
   onDraftChange?: DraftListener,
   documentPath?: string | (() => string),
   validateFigure?: FigureValidator,
-  hasActiveDraft?: () => boolean,
+  hasActiveDraft?: (sourcePath?: string) => boolean,
   chooseImage?: ImageChooser,
 ): Extensions {
   return [
@@ -983,13 +983,13 @@ export function createEditorExtensions(
   validateFigure?: FigureValidator,
   onAssetPendingChange?: (active: boolean) => void,
   onAssetError?: (reason: string) => void,
-  hasActiveDraft?: () => boolean,
+  hasActiveDraft?: (sourcePath?: string) => boolean,
   chooseImage?: ImageChooser,
   initialDeletedPaths: readonly string[] = [],
   onAssetChange?: (path: string) => void,
 ): Extensions {
   return [...editorExtensions(onDraftChange, documentPath, validateFigure, hasActiveDraft, chooseImage),
-    ...(documentPath ? [imageAssets({ documentPath, reject: onAssetError ?? onReject, pending: onAssetPendingChange, changed: onAssetChange })] : []),
+    ...(documentPath ? [imageAssets({ documentPath, reject: onAssetError ?? onReject, pending: onAssetPendingChange, changed: onAssetChange, hasActiveDraft })] : []),
     documentInteraction(onReject), structureGuard(baseline, onReject, initialDeletedPaths)];
 }
 
@@ -1093,10 +1093,15 @@ function figureAttrs(node: ProseMirrorNode): FigureContent {
 type FigureViewProps = ReactNodeViewProps & { documentPath?: string | (() => string); onDraftChange?: DraftListener; validateFigure?: FigureValidator; chooseImage?: ImageChooser };
 
 function FigureView(props: FigureViewProps) {
-  return typeof props.node.attrs.mermaidSource === "string" ? <MermaidFigureView {...props} /> : <ImageFigureView {...props} />;
+  const [writingMermaid, setWritingMermaid] = useState(false);
+  const pending = !props.node.attrs.imageUrl && props.node.attrs.mermaidSource == null;
+  useEffect(() => { if (!pending) setWritingMermaid(false); }, [pending]);
+  return typeof props.node.attrs.mermaidSource === "string" || (pending && writingMermaid)
+    ? <MermaidFigureView {...props} onCancelPending={pending ? () => setWritingMermaid(false) : undefined} />
+    : <ImageFigureView {...props} onWriteMermaid={() => setWritingMermaid(true)} />;
 }
 
-function ImageFigureView({ node, editor, selected, getPos, view, documentPath: initialDocumentPath, onDraftChange, validateFigure, chooseImage }: FigureViewProps) {
+function ImageFigureView({ node, editor, selected, getPos, view, documentPath: initialDocumentPath, onDraftChange, validateFigure, chooseImage, onWriteMermaid }: FigureViewProps & { onWriteMermaid(): void }) {
   const renameImage = useContext(ImageRenameContext);
   const documentPath = useContext(DocumentPathContext) ?? (typeof initialDocumentPath === "function" ? initialDocumentPath() : initialDocumentPath);
   useTranslation();
@@ -1333,7 +1338,14 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
         <Notice tone="error" className="figure-image-error" data-testid="figure-image-error" contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>{i18n.t("Image could not be loaded. Check the image path or URL.")}</Notice>
       ) : null}
       {editableFigure && !src ? (
-        <div className="figure-no-content" data-testid="figure-no-content" contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>{i18n.t("No content yet")}</div>
+        <div className="figure-no-content" data-testid="figure-no-content" contentEditable={false}
+          onMouseDown={event => { if (!(event.target as HTMLElement).closest("button")) selectFigure(event); }}
+          onDoubleClick={event => { if (!(event.target as HTMLElement).closest("button")) beginEdit(); }}>
+          <Button size="sm" variant="outline" disabled={editing || choosing} onClick={() => {
+            beginEdit(); setReplacing(true); void pickImage();
+          }}>{i18n.t("Choose image")}</Button>
+          <Button size="sm" variant="outline" disabled={editing || choosing} onClick={onWriteMermaid}>{i18n.t("Write Mermaid")}</Button>
+        </div>
       ) : null}
       <figcaption className="caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}
         onMouseDown={event => handleTextblockMouseDown(event, { editor, node, getPos })}><NodeViewContent data-testid="figure-caption-content" aria-label={i18n.t("Figure caption")}
@@ -1433,7 +1445,7 @@ function useSourceInputFocus(input: RefObject<HTMLElement | null>, editing: bool
   return cancel;
 }
 
-function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange, validateFigure }: FigureViewProps) {
+function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange, validateFigure, onCancelPending }: FigureViewProps & { onCancelPending?(): void }) {
   useTranslation();
   const placeholder = useCaptionPlaceholder({ editor, getPos }, "figure");
   const visible = useEditorVisible();
@@ -1447,8 +1459,8 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
   const sourceButton = useRef<HTMLButtonElement>(null);
   const [properties, setProperties] = useState(false);
   const request = useRef(0);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(applied.mermaidSource!);
+  const [editing, setEditing] = useState(!!onCancelPending);
+  const [draft, setDraft] = useState(applied.mermaidSource ?? "");
   const [labelDraft, setLabelDraft] = useState(label);
   const enumerator = String(node.attrs.enumerator ?? "");
   const numberDraft = useNumberDraft(enumerator);
@@ -1465,12 +1477,12 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
     if (target?.isConnected && !busy && (editing || properties) && visible && document.hasFocus() &&
         (document.activeElement === document.body || form?.contains(document.activeElement))) target.focus();
   }, [busy, editing, properties, error, visible]);
-  const hasDraft = (editing || properties) && (draft !== applied.mermaidSource || labelDraft !== label || numberDraft.changedFrom(enumerator));
+  const hasDraft = (editing || properties) && (draft !== (applied.mermaidSource ?? "") || labelDraft !== label || numberDraft.changedFrom(enumerator));
   const cancelFocus = useSourceInputFocus(input, editing);
   useSourceInputFocus(sourceButton, properties);
   useEffect(() => () => { request.current++; focusTracking.current?.abort(); }, []);
   useEffect(() => {
-    if (!editing && !properties) { setDraft(applied.mermaidSource!); setLabelDraft(label); numberDraft.reset(enumerator); }
+    if (!editing && !properties) { setDraft(applied.mermaidSource ?? ""); setLabelDraft(label); numberDraft.reset(enumerator); }
   }, [editing, properties, applied.mermaidSource, label, enumerator]);
   useEffect(() => {
     onDraftChange?.("Figure", sourcePath, hasDraft);
@@ -1478,7 +1490,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
   }, [sourcePath, hasDraft, onDraftChange]);
   function beginEdit() {
     if (!view.editable || editing || properties) return;
-    setDraft(applied.mermaidSource!); setLabelDraft(label); numberDraft.reset(enumerator); setError(""); setProperties(true);
+    setDraft(applied.mermaidSource ?? ""); setLabelDraft(label); numberDraft.reset(enumerator); setError(""); setProperties(true);
   }
   const [openOnInsert] = useState(() => view.editable && isNewBlockPath(sourcePath));
   useEffect(() => { if (openOnInsert) setEditing(true); }, [openOnInsert]);
@@ -1486,8 +1498,9 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
   const cancel = () => {
     request.current++; cancelFocus(); setBusy(false);
     focusTracking.current?.abort(); restoreInput.current = null;
-    setDraft(applied.mermaidSource!); setLabelDraft(label); numberDraft.reset(enumerator); setError(""); setEditing(false);
+    setDraft(applied.mermaidSource ?? ""); setLabelDraft(label); numberDraft.reset(enumerator); setError(""); setEditing(false);
     setProperties(false);
+    onCancelPending?.();
     focusBlock(view, getPos);
   };
   const apply = async (openSource = false, returnCaret = true) => {
@@ -1562,7 +1575,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
           <textarea ref={input} className="document-source-input" data-testid="mermaid-source" disabled={busy}
             value={draft} spellCheck={false} onChange={event => { setDraft(event.target.value.replace(/\r\n?/g, "\n")); setError(""); }} />
         </label>
-        <MermaidPreview source={draft} draft />
+        {!onCancelPending || draft.trim() ? <MermaidPreview source={draft} draft /> : null}
         <label className="form-field"><span>{i18n.t("Label")}</span>
           <Input data-testid="mermaid-label" disabled={busy} value={labelDraft} placeholder={i18n.t("None")}
             onChange={event => { setLabelDraft(event.target.value); setError(""); }} />
@@ -1570,7 +1583,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
         <NumberField editor={editor} getPos={getPos} testId="mermaid" draft={numberDraft} onChange={() => setError("")} disabled={busy} />
       </PropertyForm>
     </div> : null : <div contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>
-      <MermaidPreview source={applied.mermaidSource!} />
+      <MermaidPreview source={applied.mermaidSource ?? ""} />
     </div>}
     <figcaption className="caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}
       onMouseDown={event => handleTextblockMouseDown(event, { editor, node, getPos })}>
@@ -1582,7 +1595,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
     <FigureProperties anchor={anchor} kind={kind} testId="mermaid-property" open={properties} error={error} busy={busy}
       onApply={outside => void apply(false, !outside)} onCancel={cancel}>
       <div className="figure-property-media">
-        <div className="figure-property-thumbnail"><MermaidPreview source={applied.mermaidSource!} /></div>
+        <div className="figure-property-thumbnail"><MermaidPreview source={applied.mermaidSource ?? ""} /></div>
         <Button ref={sourceButton} type="button" size="sm" variant="outline" data-testid="mermaid-edit-source"
           disabled={busy} onClick={() => void apply(true)}>{i18n.t("Edit source")}</Button>
       </div>

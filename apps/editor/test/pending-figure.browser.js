@@ -1,6 +1,6 @@
 // Real user session regression: empty → pending with caption/label → image → pending,
 // including Source, native history and edits made during a real-file Save.
-async (page, { openPath }) => {
+async (page, { openPath, expect }) => {
   await page.unrouteAll();
   await page.reload();
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
@@ -35,6 +35,8 @@ async (page, { openPath }) => {
     return value;
   };
   const figures = page.locator('[data-document-tab][data-active=true] [data-block="figure"]');
+  const entryDocument = () => page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n => n.editor.getJSON());
+
   const reference = page.locator('[data-testid="cross-reference"][data-label="fig-pfc-control"]').first();
   const form = page.getByTestId('figure-editor');
   const edit = async figure => {
@@ -68,13 +70,72 @@ async (page, { openPath }) => {
     check(await figures.count() === 1 && await form.count() === 0, 'Figure insertion opened its form');
     check(await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(element => element.editor.state.selection.$from.parent.type.name) === 'figure',
       'Figure insertion did not place the caret in its caption');
-    check(await figures.first().getByTestId('figure-no-content').innerText() === 'No content yet', 'Empty state is invisible');
+    await expect(figures.first().getByRole('button', {name:'Choose image',exact:true})).toBeVisible();
+    await expect(figures.first().getByRole('button', {name:'Write Mermaid',exact:true})).toBeVisible();
     check(await page.getByTestId('status').innerText() === 'Unsaved changes', 'Insertion did not mark the Figure dirty');
     check((await source()).includes(':::{figure}\n:::'), 'Empty Figure omitted from Source');
     await save();
     let empty = (await diskFigures())[0];
     check(empty?.contentKind === 'none' && empty.label === '' && empty.caption.text === '' &&
       await page.getByTestId('status').innerText() === 'Saved', 'Empty Figure was not saved or acknowledged');
+    const beforePaste = await entryDocument();
+    await figures.first().getByRole('button', {name:'Write Mermaid',exact:true}).click();
+    const importantDraft = 'graph LR\n  ImportantDraft --> MustSurvive';
+    await page.getByTestId('mermaid-source').fill(importantDraft);
+    // Native PNG paste into the same pending caption must not unmount its source draft.
+    await page.context().grantPermissions(['clipboard-read','clipboard-write']);
+    await page.evaluate(async () => {
+      const canvas = document.createElement('canvas'); canvas.width = canvas.height = 8;
+      canvas.getContext('2d').fillRect(0,0,8,8);
+      const png = await new Promise(resolve => canvas.toBlob(resolve,'image/png'));
+      await navigator.clipboard.write([new ClipboardItem({'image/png':png})]);
+    });
+    await expect(page.getByTestId('mermaid-edit-preview')).toHaveAttribute('aria-busy','false');
+    await figures.first().getByTestId('figure-caption-content').click({position:{x:8,y:8}});
+    expect(await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n => ({
+      parent:n.editor.state.selection.$from.parent.type.name,
+      path:n.editor.state.selection.$from.parent.attrs.sourcePath,
+    }))).toEqual({parent:'figure',path:await figures.first().getAttribute('data-source-path')});
+    const uploaded = page.waitForResponse(r => r.request().method() === 'POST' && r.url().includes('/api/asset?'));
+    await page.keyboard.press('Control+v');
+    const upload = await uploaded;
+    expect(upload.status()).toBe(201);
+    const receipt = await upload.json();
+    await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') !== 'adding-image');
+    // Inspect immediately after upload/compensation finishes; no delayed form-reappearance poll.
+    const retained = await figures.first().evaluate(n => ({
+      source:n.querySelector('[data-testid="mermaid-source"]')?.value,
+      warning:!!n.querySelector('[data-testid="figure-draft-status"]'),
+    }));
+    expect(retained).toEqual({source:importantDraft,warning:true});
+    expect(await entryDocument()).toEqual(beforePaste);
+    expect(await page.evaluate(() => {
+      const event = new Event('beforeunload',{cancelable:true}); window.dispatchEvent(event); return event.defaultPrevented;
+    })).toBe(true);
+    const asset = await page.request.get(`${origin}/document/${receipt.path.slice(2)}?path=${encodeURIComponent(file)}`);
+    expect(asset.status()).toBe(404);
+    await page.getByRole('button',{name:'Dismiss error',exact:true}).click();
+    // The same draft must not block an image inserted in another block, including its Undo.
+    await page.getByText('Intro.',{exact:true}).filter({visible:true}).click();
+    // Native selection can reach Intro before ProseMirror consumes selectionchange.
+    await page.waitForFunction(() => {
+      const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+      const {selection} = editor.state;
+      return editor.view.hasFocus() && selection.empty && selection.$from.parent.type.name === 'paragraph' &&
+        selection.$from.parent.textContent === 'Intro.';
+    });
+    const insertedElsewhere = page.waitForResponse(r => r.request().method() === 'POST' && r.url().includes('/api/asset?'));
+    await page.keyboard.press('Control+v');
+    expect((await insertedElsewhere).status()).toBe(201);
+    await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') !== 'adding-image');
+    expect(await figures.count()).toBe(2);
+    expect(await page.getByTestId('mermaid-source').inputValue()).toBe(importantDraft);
+    await historyKey('ControlOrMeta+z');
+    expect(await entryDocument()).toEqual(beforePaste);
+    expect(await page.getByTestId('mermaid-source').inputValue()).toBe(importantDraft);
+    await page.getByTestId('mermaid-cancel').click();
+    expect(await entryDocument()).toEqual(beforePaste);
+
     await figures.first().getByTestId('figure-caption-content').evaluate(element => {
       const editor = element.closest('.document-editor').editor;
       const path = element.closest('[data-block="figure"]').getAttribute('data-source-path');
@@ -89,7 +150,7 @@ async (page, { openPath }) => {
     await edit(figures.first());
     await page.getByTestId('figure-label').fill('fig-pfc-control');
     await apply();
-    check(await figures.first().getByTestId('figure-no-content').innerText() === 'No content yet', 'Pending state is invisible');
+    await expect(figures.first().getByRole('button', {name:'Write Mermaid',exact:true})).toBeVisible();
     check((await source()).includes(':name: fig-pfc-control'), 'Applied pending Figure omitted from Source');
     check(await page.getByTestId('status').innerText() === 'Unsaved changes', 'Apply did not mark the Figure dirty');
     await save();
@@ -134,6 +195,49 @@ async (page, { openPath }) => {
       'Applied pending Figure lost on Reload');
     check((await read()).includes('[Figure](#fig-pfc-control)') && await reference.getAttribute('data-resolved') === 'true',
       'Reload lost the link or numbered reference');
+    const appliedSource = await source();
+    const beforeEntry = await entryDocument();
+    await figures.first().getByRole('button', {name:'Choose image',exact:true}).click();
+    const picker = page.getByRole('dialog', {name:'Choose image',exact:true});
+    await expect(picker).toBeVisible();
+    expect(await entryDocument()).toEqual(beforeEntry);
+    await picker.getByRole('option', {name:'diagram.svg',exact:true}).click();
+    await picker.getByRole('button', {name:'Use “diagram.svg”',exact:true}).click();
+    await expect(page.getByTestId('figure-image-url')).toHaveValue('./diagram.svg');
+    expect(await entryDocument()).toEqual(beforeEntry);
+    await page.keyboard.press('Escape');
+    await expect(form).toHaveCount(0);
+    expect(await source()).toBe(appliedSource);
+    await figures.first().getByRole('button', {name:'Write Mermaid',exact:true}).click();
+    await expect(page.getByTestId('mermaid-source')).toBeFocused();
+    await expect(page.getByTestId('mermaid-source')).toHaveValue('');
+    expect(await entryDocument()).toEqual(beforeEntry);
+    const mermaidForm = page.getByTestId('mermaid-editor');
+    await mermaidForm.getByRole('button', {name:'Fixed',exact:true}).click();
+    await page.getByTestId('mermaid-apply').click();
+    await expect(page.getByTestId('mermaid-enumerator')).toHaveAttribute('aria-invalid','true');
+    expect(await entryDocument()).toEqual(beforeEntry);
+    await mermaidForm.getByRole('button', {name:'Automatic',exact:true}).click();
+    await expect(page.getByTestId('mermaid-automatic-number')).toBeVisible();
+    await page.getByTestId('mermaid-source').fill('graph LR\n  A --> B');
+    await page.getByTestId('mermaid-cancel').click();
+    expect(await source()).toBe(appliedSource);
+    await figures.first().getByRole('button', {name:'Write Mermaid',exact:true}).click();
+    await page.getByTestId('mermaid-source').fill('graph LR\n  A --> B');
+    await mermaidForm.getByRole('button', {name:'Fixed',exact:true}).click();
+    await page.getByTestId('mermaid-enumerator').fill('M.7');
+    await page.getByTestId('mermaid-apply').click();
+    await expect(page.getByTestId('mermaid-properties')).toHaveCount(0);
+    await save();
+    const filledMermaid = (await diskFigures())[0];
+    check(filledMermaid.contentKind === 'mermaid' && filledMermaid.mermaidSource === 'graph LR\n  A --> B' && filledMermaid.enumerator === 'M.7' &&
+      filledMermaid.label === pending.label && filledMermaid.caption.text === pending.caption.text &&
+      JSON.stringify(filledMermaid.path) === JSON.stringify(position), 'Mermaid entry changed Figure identity or failed Save/Reload');
+    await historyKey('ControlOrMeta+z');
+    await expect(figures.first().getByRole('button', {name:'Write Mermaid',exact:true})).toBeVisible();
+    await save();
+    await open();
+    check((await diskFigures())[0].contentKind === 'none', 'Undo/Save/Reload did not restore pending content');
     await figures.first().getByTestId('figure-no-content').click();
     check(await page.getByTestId('figure-properties').count() === 0 && await figures.first().getAttribute('data-selected') === 'true',
       'Pending Figure selection opened properties');

@@ -1314,6 +1314,7 @@ body:has(.ui-portal [role="menu"]) :is(.app-titlebar, .top-bar, .settings-topbar
   box-sizing: border-box;
   width: 100%;
   field-sizing: content;
+  min-height: calc(var(--font-size-document-h1) * var(--line-height-document-heading));
   resize: none;
   overflow: hidden;
   margin: 0 0 var(--space-document-heading-after);
@@ -1328,8 +1329,21 @@ body:has(.ui-portal [role="menu"]) :is(.app-titlebar, .top-bar, .settings-topbar
   line-height: var(--line-height-document-heading);
   overflow-wrap: anywhere;
 }
-.document-title-input::placeholder { color: var(--id-color-text-subtle); }
-.document-title-input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.document-title-input:placeholder-shown {
+  /* Keep the original slot despite different intrinsic rounding for the small hint. */
+  height: calc(var(--font-size-document-h1) * var(--line-height-document-heading));
+}
+.document-title-input::placeholder {
+  color: var(--id-color-text-subtle);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 400;
+  line-height: calc(var(--font-size-document-h1) * var(--line-height-document-heading));
+}
+.document-title-input:focus-visible {
+  outline: 2px solid var(--id-color-border-focus);
+  outline-offset: var(--space-1);
+}
 
 .heading {
   margin: var(--space-document-heading-before) 0 var(--space-document-heading-after);
@@ -1564,6 +1578,10 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
 
 /* A pending Figure's content place: unfinished, like an unresolved reference (dashed, subtle). */
 .figure-no-content {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
   padding: var(--space-8) var(--space-4);
   border: var(--border-width) dashed var(--id-color-border-strong);
   border-radius: var(--id-radius-md);
