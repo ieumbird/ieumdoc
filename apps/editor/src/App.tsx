@@ -1205,6 +1205,7 @@ function EditorApp() {
       }))]} />
       <FolderDialog open={comparePicker} title={i18n.t("Docling comparison")}
         description={i18n.t("Choose a conversion folder containing document.md and document.docling-map.json.")}
+        showSidebarHint={false}
         initialPath={folders.roots.at(-1) ?? splitDocumentPath(openedPath).directory} recent={visibleRecent}
         restricted={allowedRoots !== undefined} browse={browseHostFolder} places={folderPlaces} onOpen={openComparison}
         returnFocus={compareReturn} onClose={() => setComparePicker(false)} />

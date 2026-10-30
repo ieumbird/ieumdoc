@@ -6,6 +6,41 @@ async (page, { expect, screenshots }) => {
   const separator = initial.path.includes('\\') ? '\\' : '/';
   const root = initial.path.split(separator).slice(0, -4).join(separator);
   const folder = name => [root, 'tmp', 'docling-compare', name].join(separator);
+  // The shared picker keeps sidebar guidance for folder opening, never comparison.
+  const comparisonHints = [];
+  for (const [width, theme, language] of [[1440, 'light', 'en'], [640, 'dark', 'ko']]) {
+    await page.evaluate(({ theme, language }) => {
+      localStorage.setItem('ieumdoc.uiLanguage', language);
+      localStorage.setItem('ieumdoc.theme', theme);
+    }, { theme, language });
+    await page.setViewportSize({ width, height: 1000 });
+    await page.reload();
+    const korean = language === 'ko';
+    const hint = korean ? '문서는 폴더를 연 뒤 사이드바에서 선택합니다.' : 'Choose documents in the sidebar after opening a folder.';
+    await page.getByRole('button', { name: korean ? '폴더 열기…' : 'Open folder…', exact: true }).click();
+    const folderDialog = page.getByRole('dialog');
+    await expect(folderDialog.getByText(hint, { exact: true })).toBeVisible();
+    await folderDialog.press('Escape');
+    await expect(folderDialog).toBeHidden();
+    await page.getByTestId('sidebar').getByRole('button', { name: korean ? '새 문서…' : 'New document…', exact: true }).click();
+    await expect(folderDialog.getByText(hint, { exact: true })).toBeVisible();
+    await folderDialog.press('Escape');
+    await expect(folderDialog).toBeHidden();
+    await page.getByRole('button', { name: korean ? 'Docling 대조' : 'Docling comparison', exact: true }).click();
+    const picker = page.getByRole('dialog');
+    await expect(picker).toContainText(korean ? '변환 결과가 저장된 폴더를 선택하세요.' : 'Choose a conversion folder containing document.md and document.docling-map.json.');
+    if (screenshots) {
+      await page.evaluate(async () => { await document.fonts.ready; });
+      await page.screenshot({ path: `tmp/840-evidence/picker-${width}-${theme}-${language}.png` });
+    }
+    comparisonHints.push(await picker.getByText(hint, { exact: true }).count());
+    await picker.press('Escape');
+    await expect(picker).toBeHidden();
+  }
+  expect(comparisonHints).toEqual([0, 0]);
+  await page.evaluate(() => { localStorage.setItem('ieumdoc.uiLanguage', 'en'); localStorage.setItem('ieumdoc.theme', 'light'); });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.reload();
   const open = async name => {
     await page.getByRole('button', { name: 'Docling comparison', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Docling comparison' });

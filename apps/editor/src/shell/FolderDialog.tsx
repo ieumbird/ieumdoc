@@ -14,6 +14,7 @@ type FolderDialogProps = {
   open: boolean;
   title?: string;
   description?: string;
+  showSidebarHint?: boolean;
   /** File pickers list only the chosen kind beside folders; selection admits that file. */
   choose?: "folder" | "image" | "pdf";
   /** Where browsing starts, usually the open document's folder. */
@@ -50,7 +51,7 @@ const folderName = (folder: string) => splitDocumentPath(folder.replace(/(?<=.)[
  * source: the list shows the folder up to its last separator, filtered by typed text after it; Open
  * opens exactly the typed path. Moving into a folder never opens it.
  */
-export function FolderDialog({ open, title, description, choose = "folder", initialPath, recent, restricted, browse, places, onOpen, onCreateFolder, returnFocus, finalFocus, onClose, onClosed }: FolderDialogProps) {
+export function FolderDialog({ open, title, description, showSidebarHint = true, choose = "folder", initialPath, recent, restricted, browse, places, onOpen, onCreateFolder, returnFocus, finalFocus, onClose, onClosed }: FolderDialogProps) {
   useTranslation();
   const [input, setInput] = useState("");
   const [pathFromClick, setPathFromClick] = useState(false);
@@ -363,7 +364,7 @@ export function FolderDialog({ open, title, description, choose = "folder", init
         ) : null}
         {image ? placesSection : null}
         {error ? <p id="open-folder-error" className="text-sm text-destructive" role="alert" data-testid="open-error">{error}</p> : null}
-        {!image ? <p className="folder-picker-meta">{i18n.t("Choose documents in the sidebar after opening a folder.")}</p> : null}
+        {!image && showSidebarHint ? <p className="folder-picker-meta">{i18n.t("Choose documents in the sidebar after opening a folder.")}</p> : null}
         <div className="folder-picker-footer">
           {choose === "image" ? <p>{i18n.t("Images outside the document's folder are copied into its assets folder.")}</p> : null}
           <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={onClose}>{i18n.t("Cancel")}</Button>
