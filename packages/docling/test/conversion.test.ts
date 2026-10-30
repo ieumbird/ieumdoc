@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 import { getEditableDocument, parse, serialize, type EditableBlock } from "@ieumdoc/core";
 import { convertDoclingDocument, readDoclingMap } from "../src/index.ts";
 import type { Cell, SourceDocument, SourceItem } from "../src/source.ts";
+import profile from "../profiles/ieumdoc-pdf-en-v1.json" with { type: "json" };
 
 const fixture = (name: string): string => readFileSync(new URL(`./fixtures/${name}/document.json`, import.meta.url), "utf8");
 const ref = (self_ref: string) => ({ $ref: self_ref });
@@ -34,6 +36,31 @@ function tableRows(markdown: string): string[][] {
 for (const name of ["nist-sp1108r4", "synthetic"]) test(`${name}: whole saved Docling output has complete, canonical correspondence`, () => {
   const input = fixture(name), original = JSON.parse(input);
   const result = convertDoclingDocument(input);
+  const root = new URL(`./fixtures/${name}/`, import.meta.url);
+  const read = (file: string) => readFileSync(new URL(file, root));
+  const digest = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+  const record = JSON.parse(read("conversion-record.json").toString("utf8"));
+  assert.equal(record.format, "ieumdoc-docling-conversion");
+  assert.equal(record.version, 1);
+  assert.equal(record.status, "success");
+  assert.deepEqual(record.profile, profile);
+  assert.equal(record.source.sha256, digest(read("source.pdf")));
+  assert.equal(record.source.bytes, read("source.pdf").length);
+  assert.equal(record.document.sha256, digest(read("document.json")));
+  assert.equal(record.document.pages, Object.keys(original.pages).length);
+  assert.equal(record.verification.imageBytesMatchEmbedded, true);
+  assert.equal(record.verification.jsonExceptImageUrisMatches, true);
+  for (const image of record.images) {
+    const bytes = read(image.path);
+    assert.equal(bytes.length, image.bytes);
+    assert.equal(digest(bytes), image.sha256);
+    const uri = image.pointer.slice(1).split("/").reduce((value: any, key: string) => value[key.replaceAll("~1", "/").replaceAll("~0", "~")], original);
+    assert.equal(uri, image.path);
+  }
+  assert.deepEqual(readdirSync(root, { recursive: true }).filter(file => /\.(?:png|jpg|webp)$/u.test(String(file))).map(String).map(file => file.replaceAll("\\", "/")).sort(),
+    record.images.map((image: { path: string }) => image.path).sort());
+  assert.equal(read("document.md").toString("utf8"), result.markdown);
+  assert.deepEqual(readDoclingMap(read("document.docling-map.json").toString("utf8"), result.markdown), result.map);
   const map = readDoclingMap(JSON.stringify(result.map), result.markdown);
   assert.equal(serialize(parse(result.markdown)), result.markdown);
   assert.equal(getEditableDocument(parse(result.markdown)).headingNumbering, undefined);

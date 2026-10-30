@@ -1,0 +1,109 @@
+{
+  "format": "ieumdoc-docling-conversion",
+  "version": 1,
+  "status": "success",
+  "startedAt": "2026-10-30T06:13:13.731Z",
+  "completedAt": "2026-10-30T06:13:55.742Z",
+  "elapsedMs": 42011,
+  "source": {
+    "path": "C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\784-docling-fixtures\\packages\\docling\\test\\fixtures\\synthetic\\source.pdf",
+    "sha256": "c12e081b7e2cbc2625a431a5964f70a6843a778d7dcb66b5004213c75f31f4af",
+    "bytes": 2650
+  },
+  "server": {
+    "url": "http://127.0.0.1:8001/",
+    "versions": {
+      "docling-serve": "1.32.0",
+      "docling-jobkit": "3.5.0",
+      "docling": "2.124.0",
+      "docling-core": "2.93.0",
+      "docling-ibm-models": "4.0.1",
+      "docling-parse": "7.16.0",
+      "python": "cpython-312 (3.12.13)",
+      "plaform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.34"
+    },
+    "openapiSha256": "24274f3c2e6a3981c447e64356c3efc196394961ae02523d69fd88f67c1733db",
+    "baselineOpenapiMatches": true
+  },
+  "profile": {
+    "profile_id": "ieumdoc-pdf-en-v1",
+    "server_version": "1.32.0",
+    "document_version": "1.10.0",
+    "provenance": {
+      "project": "crd-engine",
+      "profile": "profiles/crd-pdf-rest-v1.json",
+      "adr": "docs/adr/0003-official-rest-conversion-contract.md",
+      "sha256": "44f386dfd50639c7601b477bbc9ac2929e8cdebbe804c2232e7dba3ccc700526",
+      "openapi_sha256": "24274f3c2e6a3981c447e64356c3efc196394961ae02523d69fd88f67c1733db",
+      "note": "Request values copied verbatim. Full PDF uses the official API default page_range instead of parsing page count locally."
+    },
+    "request": {
+      "target_type": "inbody",
+      "from_formats": [
+        "pdf"
+      ],
+      "to_formats": [
+        "json"
+      ],
+      "image_export_mode": "embedded",
+      "pipeline": "standard",
+      "pdf_backend": "threaded_docling_parse",
+      "do_ocr": true,
+      "force_ocr": false,
+      "ocr_preset": "rapidocr",
+      "ocr_lang": [
+        "en"
+      ],
+      "do_table_structure": true,
+      "table_structure_preset": "tableformer_v1_accurate",
+      "table_mode": "accurate",
+      "table_cell_matching": true,
+      "layout_preset": "default",
+      "do_pdf_heading_hierarchy": true,
+      "pdf_heading_hierarchy_options": {
+        "use_bookmarks": true,
+        "use_numbering": true,
+        "use_style": true,
+        "use_font_style": true,
+        "style_size_tolerance": 0.05,
+        "max_level": 6,
+        "bookmark_match_threshold": 0.8
+      },
+      "include_images": true,
+      "include_page_images": true,
+      "images_scale": 2,
+      "do_code_enrichment": true,
+      "do_formula_enrichment": true,
+      "code_formula_preset": "codeformulav2",
+      "do_picture_classification": true,
+      "picture_classification_preset": "document_figure_classifier_v2",
+      "do_chart_extraction": false,
+      "do_picture_description": false,
+      "abort_on_error": false
+    }
+  },
+  "taskId": "69a5fc2f-b2f2-4c06-a4af-9924921c0bfc",
+  "response": {
+    "sha256": "00142f94668088f78e05ca1b09cdd71a1cbb2d45d622f79bdf2b5711f8fdd261",
+    "bytes": 328044
+  },
+  "document": {
+    "path": "document.json",
+    "sha256": "0122e7c86148279a926e2d0625bf3a62d509e81afeefe65a97c4011e48bf9e87",
+    "version": "1.10.0",
+    "pages": 1
+  },
+  "images": [
+    {
+      "pointer": "/pages/1/image/uri",
+      "path": "pages/page-001.png",
+      "sha256": "6d579f3ec70fc971b64dcfb11de991689773cc8891c48f16bebef75fadec9bf5",
+      "bytes": 232539
+    }
+  ],
+  "verification": {
+    "imageBytesMatchEmbedded": true,
+    "jsonExceptImageUrisMatches": true,
+    "contentSha256": "5f0c4d6b9ad2d6a530240a9a35a001529288a6fc55832b77ef6b995f06ec514b"
+  }
+}

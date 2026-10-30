@@ -1,0 +1,738 @@
+{
+  "format": "ieumdoc-docling-map",
+  "version": 1,
+  "source": {
+    "schema_name": "DoclingDocument",
+    "version": "1.10.0",
+    "name": "source",
+    "sha256": "0122e7c86148279a926e2d0625bf3a62d509e81afeefe65a97c4011e48bf9e87"
+  },
+  "document": {
+    "file": "document.md",
+    "sha256": "4b3a7b0293cf0d83ad7234aa639cdbb7246b7f1a0b57ea1e118e79bfc3cd2e5d"
+  },
+  "pages": {
+    "1": {
+      "size": {
+        "width": 612,
+        "height": 792
+      },
+      "image": {
+        "mimetype": "image/png",
+        "dpi": 144,
+        "size": {
+          "width": 1224,
+          "height": 1584
+        },
+        "uri": "pages/page-001.png"
+      },
+      "page_no": 1
+    }
+  },
+  "items": [
+    {
+      "self_ref": "#/body",
+      "label": "unspecified",
+      "content_layer": "body",
+      "parent": null,
+      "provenance": [],
+      "status": "converted",
+      "targets": [
+        {
+          "path": [
+            1
+          ],
+          "block": "heading",
+          "role": "group"
+        },
+        {
+          "path": [
+            2
+          ],
+          "block": "heading",
+          "role": "group"
+        },
+        {
+          "path": [
+            3
+          ],
+          "block": "table",
+          "role": "group"
+        },
+        {
+          "path": [
+            4
+          ],
+          "block": "paragraph",
+          "role": "group"
+        },
+        {
+          "path": [
+            5
+          ],
+          "block": "paragraph",
+          "role": "group"
+        },
+        {
+          "path": [
+            6
+          ],
+          "block": "heading",
+          "role": "group"
+        },
+        {
+          "path": [
+            7
+          ],
+          "block": "equation",
+          "role": "group"
+        },
+        {
+          "path": [
+            8
+          ],
+          "block": "heading",
+          "role": "group"
+        },
+        {
+          "path": [
+            9
+          ],
+          "block": "paragraph",
+          "role": "group"
+        },
+        {
+          "path": [
+            10
+          ],
+          "block": "paragraph",
+          "role": "group"
+        },
+        {
+          "path": [
+            11
+          ],
+          "block": "paragraph",
+          "role": "group"
+        },
+        {
+          "path": [
+            12
+          ],
+          "block": "paragraph",
+          "role": "group"
+        },
+        {
+          "path": [
+            13
+          ],
+          "block": "heading",
+          "role": "group"
+        },
+        {
+          "path": [
+            14
+          ],
+          "block": "paragraph",
+          "role": "group"
+        },
+        {
+          "path": [
+            15
+          ],
+          "block": "paragraph",
+          "role": "group"
+        }
+      ],
+      "notes": [
+        "Reading-order container; children supply native targets."
+      ]
+    },
+    {
+      "self_ref": "#/furniture",
+      "label": "unspecified",
+      "content_layer": "furniture",
+      "parent": null,
+      "provenance": [],
+      "status": "decoration",
+      "reason": "furniture",
+      "targets": [],
+      "notes": []
+    },
+    {
+      "self_ref": "#/texts/0",
+      "label": "section_header",
+      "content_layer": "body",
+      "parent": "#/body",
+      "provenance": [
+        {
+          "page_no": 1,
+          "bbox": {
+            "l": 48,
+            "t": 756.206,
+            "r": 307.777,
+            "b": 740.481,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            31
+          ]
+        }
+      ],
+      "status": "converted",
+      "targets": [
+        {
+          "path": [
+            1
+          ],
+          "block": "heading",
+          "role": "block"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "self_ref": "#/texts/1",
+      "label": "section_header",
+      "content_layer": "body",
+      "parent": "#/body",
+      "provenance": [
+        {
+          "page_no": 1,
+          "bbox": {
+            "l": 48,
+            "t": 722.052,
+            "r": 285.2999999999999,
+            "b": 709.102,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            34
+          ]
+        }
+      ],
+      "status": "converted",
+      "targets": [
+        {
+          "path": [
+            2
+          ],
+          "block": "heading",
+          "role": "block"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "self_ref": "#/texts/2",
+      "label": "text",
+      "content_layer": "body",
+      "parent": "#/body",
+      "provenance": [
+        {
+          "page_no": 1,
+          "bbox": {
+            "l": 48,
+            "t": 539.898,
+            "r": 190.46100000000013,
+            "b": 529.723,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            28
+          ]
+        }
+      ],
+      "status": "converted",
+      "targets": [
+        {
+          "path": [
+            4
+          ],
+          "block": "paragraph",
+          "role": "block"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "self_ref": "#/texts/3",
+      "label": "text",
+      "content_layer": "body",
+      "parent": "#/body",
+      "provenance": [
+        {
+          "page_no": 1,
+          "bbox": {
+            "l": 48,
+            "t": 519.898,
+            "r": 302.9250000000002,
+            "b": 509.723,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            49
+          ]
+        }
+      ],
+      "status": "converted",
+      "targets": [
+        {
+          "path": [
+            5
+          ],
+          "block": "paragraph",
+          "role": "block"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "self_ref": "#/texts/4",
+      "label": "section_header",
+      "content_layer": "body",
+      "parent": "#/body",
+      "provenance": [
+        {
+          "page_no": 1,
+          "bbox": {
+            "l": 48,
+            "t": 482.052,
+            "r": 345.20599999999985,
+            "b": 469.102,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            42
+          ]
+        }
+      ],
+      "status": "converted",
+      "targets": [
+        {
+          "path": [
+            6
+          ],
+          "block": "heading",
+          "role": "block"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "self_ref": "#/texts/5",
+      "label": "formula",
+      "content_layer": "body",
+      "parent": "#/body",
+      "provenance": [
+        {
+          "page_no": 1,
+          "bbox": {
+            "l": 100,
+            "t": 444.142,
+            "r": 323.5379999999999,
+            "b": 432.09544070278184,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            47
+          ]
+        }
+      ],
+      "status": "converted",
+      "targets": [
+        {
+          "path": [
+            7
+          ],
+          "block": "equation",
+          "role": "block"
+        }
+      ],
+      "notes": [
+        "Docling formula text retained as LaTeX; equation-number and OCR correctness require source review."
+      ]
+    },
+    {
+      "self_ref": "#/texts/6",
+      "label": "section_header",
+      "content_layer": "body",
+      "parent": "#/body",
+      "provenance": [
+        {
+          "page_no": 1,
+          "bbox": {
+            "l": 48,
+            "t": 405.052,
+            "r": 258.09799999999996,
+            "b": 392.102,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            31
+          ]
+        }
+      ],
+      "status": "converted",
+      "targets": [
+        {
+          "path": [
+            8
+          ],
+          "block": "heading",
+          "role": "block"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "self_ref": "#/texts/7",
+      "label": "list_item",
+      "content_layer": "body",
+      "parent": "#/groups/0",
+      "provenance": [
+        {
+          "page_no": 1,
+          "bbox": {
+            "l": 60,
+            "t": 373.898,
+            "r": 190.83400000000015,
+            "b": 363.723,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            28
+          ]
+        }
+      ],
+      "status": "converted",
+      "targets": [
+        {
+          "path": [
+            9
+          ],
+          "block": "paragraph",
+          "role": "block"
+        }
+      ],
+      "notes": [
+        "Source marker retained literally in prose."
+      ]
+    },
+    {
+      "self_ref": "#/texts/8",
+      "label": "list_item",
+      "content_layer": "body",
+      "parent": "#/groups/0",
+      "provenance": [
+        {
+          "page_no": 1,
+          "bbox": {
+            "l": 84,
+            "t": 349.898,
+            "r": 223.3920000000001,
+            "b": 339.723,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            29
+          ]
+        }
+      ],
+      "status": "converted",
+      "targets": [
+        {
+          "path": [
+            10
+          ],
+          "block": "paragraph",
+          "role": "block"
+        }
+      ],
+      "notes": [
+        "Source marker retained literally in prose."
+      ]
+    },
+    {
+      "self_ref": "#/texts/9",
+      "label": "list_item",
+      "content_layer": "body",
+      "parent": "#/groups/0",
+      "provenance": [
+        {
+          "page_no": 1,
+          "bbox": {
+            "l": 84,
+            "t": 325.898,
+            "r": 241.13500000000016,
+            "b": 315.723,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            30
+          ]
+        }
+      ],
+      "status": "converted",
+      "targets": [
+        {
+          "path": [
+            11
+          ],
+          "block": "paragraph",
+          "role": "block"
+        }
+      ],
+      "notes": [
+        "Source marker retained literally in prose."
+      ]
+    },
+    {
+      "self_ref": "#/texts/10",
+      "label": "list_item",
+      "content_layer": "body",
+      "parent": "#/groups/0",
+      "provenance": [
+        {
+          "page_no": 1,
+          "bbox": {
+            "l": 60,
+            "t": 301.898,
+            "r": 207.34500000000014,
+            "b": 291.723,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            30
+          ]
+        }
+      ],
+      "status": "converted",
+      "targets": [
+        {
+          "path": [
+            12
+          ],
+          "block": "paragraph",
+          "role": "block"
+        }
+      ],
+      "notes": [
+        "Source marker retained literally in prose."
+      ]
+    },
+    {
+      "self_ref": "#/texts/11",
+      "label": "section_header",
+      "content_layer": "body",
+      "parent": "#/body",
+      "provenance": [
+        {
+          "page_no": 1,
+          "bbox": {
+            "l": 48,
+            "t": 264.052,
+            "r": 193.46,
+            "b": 251.10199999999998,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            21
+          ]
+        }
+      ],
+      "status": "converted",
+      "targets": [
+        {
+          "path": [
+            13
+          ],
+          "block": "heading",
+          "role": "block"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "self_ref": "#/texts/12",
+      "label": "text",
+      "content_layer": "body",
+      "parent": "#/body",
+      "provenance": [
+        {
+          "page_no": 1,
+          "bbox": {
+            "l": 48,
+            "t": 232.89800000000002,
+            "r": 438.0379999999999,
+            "b": 222.72299999999996,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            81
+          ]
+        }
+      ],
+      "status": "converted",
+      "targets": [
+        {
+          "path": [
+            14
+          ],
+          "block": "paragraph",
+          "role": "block"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "self_ref": "#/texts/13",
+      "label": "text",
+      "content_layer": "body",
+      "parent": "#/body",
+      "provenance": [
+        {
+          "page_no": 1,
+          "bbox": {
+            "l": 48,
+            "t": 202.89800000000002,
+            "r": 399.5489999999999,
+            "b": 192.72299999999996,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            74
+          ]
+        }
+      ],
+      "status": "converted",
+      "targets": [
+        {
+          "path": [
+            15
+          ],
+          "block": "paragraph",
+          "role": "block"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "self_ref": "#/texts/14",
+      "label": "page_footer",
+      "content_layer": "furniture",
+      "parent": "#/body",
+      "provenance": [
+        {
+          "page_no": 1,
+          "bbox": {
+            "l": 48,
+            "t": 43.898000000000025,
+            "r": 168.83500000000004,
+            "b": 33.722999999999956,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            25
+          ]
+        }
+      ],
+      "status": "decoration",
+      "reason": "furniture",
+      "targets": [],
+      "notes": []
+    },
+    {
+      "self_ref": "#/tables/0",
+      "label": "table",
+      "content_layer": "body",
+      "parent": "#/body",
+      "provenance": [
+        {
+          "page_no": 1,
+          "bbox": {
+            "l": 47.03227233886719,
+            "t": 671.0886917114258,
+            "r": 498.67523193359375,
+            "b": 549.4736175537109,
+            "coord_origin": "BOTTOMLEFT"
+          },
+          "charspan": [
+            0,
+            0
+          ]
+        }
+      ],
+      "status": "converted",
+      "targets": [
+        {
+          "path": [
+            3
+          ],
+          "block": "table",
+          "role": "block"
+        }
+      ],
+      "notes": [
+        "Flattened 1 merged source cells across 3 grid positions; repeated text in every covered position.",
+        "Combined 2 leading column header rows into one using \" / \"; consecutive repeated labels appear once."
+      ]
+    },
+    {
+      "self_ref": "#/groups/0",
+      "label": "list",
+      "content_layer": "body",
+      "parent": "#/body",
+      "provenance": [],
+      "status": "converted",
+      "targets": [
+        {
+          "path": [
+            9
+          ],
+          "block": "paragraph",
+          "role": "block"
+        },
+        {
+          "path": [
+            10
+          ],
+          "block": "paragraph",
+          "role": "block"
+        },
+        {
+          "path": [
+            11
+          ],
+          "block": "paragraph",
+          "role": "block"
+        },
+        {
+          "path": [
+            12
+          ],
+          "block": "paragraph",
+          "role": "block"
+        }
+      ],
+      "notes": [
+        "Native list unavailable: Nonsequential or mixed list markers; item markers retained as prose."
+      ]
+    }
+  ]
+}

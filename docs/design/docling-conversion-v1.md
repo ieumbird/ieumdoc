@@ -125,9 +125,13 @@ requires a complete JSON string/object in memory; there is no new streaming
 parser dependency. Embedded strings are released as images are externalized and
 no raw response is retained. The existing `docling convert` path remains intact.
 
-The #768 saved fixtures retain their historical resized, hash-named images and
-manifests. Applying readable names when regenerating those fixtures is follow-up
-work; this change does not rewrite their recorded source evidence.
+The public NIST excerpt and synthetic fixtures were regenerated in #784 through
+`convert-pdf` with this fixed profile. They contain unresized images with readable
+names, `conversion-record.json` and the native Markdown/map, alongside unchanged
+source PDFs. The old #768 resized, hash-named images and manifests are replaced;
+the [fixture README](../../packages/docling/test/fixtures/README.md) records rights,
+sizes and reproduction steps. Saved JSON and conversion records are unedited CLI
+output; integrity checks do not certify OCR or semantic fidelity.
 
 ## App PDF conversion (#797)
 
