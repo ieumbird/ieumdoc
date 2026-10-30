@@ -80,7 +80,8 @@ async (page, { openPath, reloadDocument, expect, screenshots }) => {
   if (!(await error.innerText()).startsWith('Block 1 (heading):') || await overlay.innerText() !== 'Cannot save: Empty text → Enter text or delete') throw new Error('Visible errors did not switch language');
   await page.getByRole('button', {name:'Go to problem',exact:true}).focus();
   await page.keyboard.press('Enter');
-  if (!await editor.evaluate(el => el.editor.view.hasFocus() && el.editor.state.selection.$from.parent.type.name === 'heading')) throw new Error('Keyboard navigation missed heading');
+  // Notification navigation hands focus to the owning editor on the next animation frame.
+  await expect.poll(() => editor.evaluate(el => el.editor.view.hasFocus() && el.editor.state.selection.$from.parent.type.name === 'heading'), {message:'Keyboard navigation missed heading'}).toBe(true);
   await page.keyboard.type('Tables');
   if (await overlay.count() || await page.getByRole('button',{name:'Go to problem',exact:true}).count()) throw new Error('Editing retained stale locations');
   await save();
@@ -104,7 +105,7 @@ async (page, { openPath, reloadDocument, expect, screenshots }) => {
   await page.setViewportSize({width:640,height:500});
   await page.evaluate(() => document.querySelector('.document-scroll[data-active="true"]').scrollTo(0,0));
   await page.getByRole('button',{name:'문제 위치로 이동',exact:true}).click();
-  if (!await editor.evaluate(el => el.editor.view.hasFocus() && el.editor.state.selection.$from.parent.type.name === 'tableCell')) throw new Error('Cell navigation missed the cell');
+  await expect.poll(() => editor.evaluate(el => el.editor.view.hasFocus() && el.editor.state.selection.$from.parent.type.name === 'tableCell'), {message:'Cell navigation missed the cell'}).toBe(true);
   if (!await page.evaluate(() => document.querySelector('.document-scroll[data-active="true"]').scrollTop > 0)) throw new Error('Navigation did not scroll to the offscreen cell');
   const geometry = await overlay.evaluate(outline => {
     const e = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
