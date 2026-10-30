@@ -160,8 +160,10 @@ async (page, { showNotifications, openPath, screenshots, expect, recoveryRecords
   await selectText('Reference text');
   await page.getByTestId('selection-toolbar').getByRole('button', {name:'Cross-reference', exact:true}).click();
   await page.getByTestId('reference-form').waitFor();
-  await page.locator('.app-header').click({position:{x:2,y:2}});
-  expect(await page.getByTestId('reference-form').count(), 'Outside click dismisses a reference form with no targets').toBe(0);
+  await page.locator('.app-brand').click({position:{x:2,y:2}});
+  expect(await page.getByTestId('reference-form').count(), 'Outside click retains a reference form with no targets').toBe(1);
+  await page.getByTestId('reference-cancel').click();
+  expect(await page.getByTestId('reference-form').count()).toBe(0);
   await paragraph(0).click();
   await page.keyboard.press('End');
   await page.keyboard.type(' /');
@@ -225,9 +227,63 @@ async (page, { showNotifications, openPath, screenshots, expect, recoveryRecords
   expect(await page.getByTestId('reference-form').count()).toBe(0);
   await broken.locator('.cross-reference-chip').click();
   await page.getByTestId('reference-form').waitFor();
-  await page.locator('.app-header').click({position:{x:2,y:2}});
+  await page.locator('.app-brand').click({position:{x:2,y:2}});
+  expect(await page.getByTestId('reference-form').count()).toBe(1);
+  await page.getByTestId('reference-cancel').click();
   expect(await page.getByTestId('reference-form').count()).toBe(0);
   result.fragmentLinkStaysLink = await paragraph(1).locator('a', {hasText: 'details'}).count() === 1;
+
+  // #790: two references in the same paragraph own independent registered drafts.
+  const appliedBeforeDraft = await paragraph(0).evaluate(() => JSON.stringify(document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.getJSON()));
+  const referenceTab = await page.getByRole('tab',{name:'refs.md',exact:true}).getAttribute('id');
+  await broken.locator('.cross-reference-chip').click();
+  await page.getByTestId('reference-target').selectOption('reference:eq:eq-b');
+  const second = chip(paragraph(2),'Eq. eq-a');
+  await editReference(second);
+  await second.getByTestId('reference-target').selectOption('reference:numref:fig-a');
+  await page.locator('.app-brand').click({position:{x:2,y:2}});
+  expect(await page.getByTestId('reference-target').evaluateAll(nodes => nodes.map(node => node.value).sort())).toEqual(['reference:eq:eq-b','reference:numref:fig-a']);
+  await page.getByTestId('draft-notice').waitFor();
+  await page.evaluate(() => {
+    const instance = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+    let target;
+    instance.state.doc.forEach((node,pos) => { if (node.attrs.label === 'eq-b') target = pos; });
+    instance.commands.setNodeSelection(target);
+    instance.view.focus();
+  });
+  await page.keyboard.press('Delete');
+  expect(await broken.getByTestId('reference-target').inputValue(), 'A removed target stays selected as an unresolved draft').toBe('reference:eq:eq-b');
+  await page.keyboard.press('ControlOrMeta+z');
+  const appliedDraftSource = await sourceText();
+  await page.getByTestId('save').click();
+  await page.locator('[data-testid="status"][data-operation^="saved"]').waitFor();
+  const appliedDiskCheckpoint = await markdown();
+  expect(appliedDiskCheckpoint).toBe(appliedDraftSource);
+  expect(await markdown()).not.toContain('{eq}`eq-b`');
+  expect(await page.getByTestId('status').innerText()).toBe('Unsaved changes');
+  expect(await sourceText()).not.toContain('{eq}`eq-b`');
+  await page.getByRole('tab',{name:'technical-document.md',exact:true}).click();
+  expect(await page.getByTestId('reference-form').count()).toBe(0);
+  expect(await page.evaluate(() => {const event = new Event('beforeunload',{cancelable:true});window.dispatchEvent(event);return event.defaultPrevented;})).toBe(true);
+  await page.locator(`#${referenceTab}`).click();
+  expect(await page.getByTestId('reference-target').evaluateAll(nodes => nodes.map(node => node.value).sort())).toEqual(['reference:eq:eq-b','reference:numref:fig-a']);
+  // A sibling inline form must neither replace nor clear those registrations.
+  await selectText('control law');
+  await page.keyboard.press('Control+Quote');
+  await page.getByTestId('link-url').fill('https://example.com/unapplied');
+  await page.getByTestId('link-cancel').click();
+  expect(await page.getByTestId('reference-form').count()).toBe(2);
+  // Keyboard activation reaches independently overlapping retained forms.
+  const cancelBroken = broken.getByTestId('reference-cancel');
+  await cancelBroken.focus();
+  await cancelBroken.press('Enter');
+  expect(await page.getByTestId('reference-form').count()).toBe(1);
+  expect(await second.getByTestId('reference-target').inputValue()).toBe('reference:numref:fig-a');
+  expect(await page.getByTestId('draft-notice').isVisible()).toBe(true);
+  await second.getByTestId('reference-target').press('Escape');
+  await page.getByTestId('draft-notice').waitFor({state:'detached'});
+  expect(await paragraph(0).evaluate(() => JSON.stringify(document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.getJSON()))).toBe(appliedBeforeDraft);
+  result.explicitDraftLifecycle = true;
 
   // A2. Chips and their targets show computed numbers; clicking a resolved chip goes to the target.
   result.numbersShown = await chip(paragraph(1), 'Eq. eq-a').locator('.cross-reference-chip').innerText() === '(1)' &&
@@ -246,9 +302,66 @@ async (page, { showNotifications, openPath, screenshots, expect, recoveryRecords
   await selectText('control law');
   await page.getByTestId('selection-toolbar').getByRole('button', {name:'Cross-reference', exact:true}).click();
   await page.getByTestId('reference-target').selectOption('reference:eq:eq-b');
+  await page.locator('.app-brand').click({position:{x:2,y:2}});
+  expect(await page.getByTestId('reference-target').inputValue()).toBe('reference:eq:eq-b');
+  // Outside Enter splits the retained selection. Failed Apply must preserve the draft;
+  // Undo restores the original range so the same form can apply successfully.
+  await page.evaluate(() => {
+    const instance = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+    let cursor;
+    instance.state.doc.descendants((node,pos) => {
+      if (node.isText && node.text.includes('control law')) cursor = pos + node.text.indexOf('control law') + 'control'.length;
+    });
+    instance.view.focus();
+    instance.commands.setTextSelection(cursor);
+  });
+  await page.keyboard.press('Enter');
+  const splitContent = await paragraph(0).evaluate(() => JSON.stringify(document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.getJSON()));
+  await page.getByTestId('reference-apply').click();
+  expect(await page.getByTestId('reference-form').count(), 'Failed Apply keeps the form mounted').toBe(1);
+  expect(await page.getByTestId('reference-target').inputValue(), 'Failed Apply retains the chosen target').toBe('reference:eq:eq-b');
+  expect(await paragraph(0).evaluate(() => JSON.stringify(document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.getJSON()))).toBe(splitContent);
+  expect(await page.getByTestId('draft-notice').isVisible()).toBe(true);
+  const target = page.getByTestId('reference-target');
+  expect(await target.getAttribute('aria-invalid')).toBe('true');
+  const errorId = await target.getAttribute('aria-describedby');
+  expect(await page.locator(`[id="${errorId}"]`).innerText()).toBe('Selection is no longer within one text block. Undo the outside edit and try again.');
+  await page.evaluate(async () => (await import('/src/i18n.ts')).i18n.changeLanguage('ko'));
+  await expect(page.locator(`[id="${errorId}"]`)).toHaveText('선택 범위가 한 블록 안에 있지 않습니다. 바깥 편집을 되돌리고 다시 적용하세요.');
+  await expect(page.getByTestId('draft-notice')).toHaveText('저장과 소스에는 적용된 내용만 포함됩니다. 편집 초안은 적용해야 저장됩니다.');
+  await page.evaluate(async () => (await import('/src/i18n.ts')).i18n.changeLanguage('en'));
+  await page.evaluate(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.focus());
+  await page.keyboard.press('ControlOrMeta+z');
+  expect(await paragraph(0).innerText()).toContain('control law');
+  expect(await target.inputValue()).toBe('reference:eq:eq-b');
+  // Deleting the entire paragraph collapses both mapped endpoints onto a block boundary.
+  // Undo must restore both the original document and this same form's original range.
+  const beforeDeletion = await paragraph(0).evaluate(() => JSON.stringify(document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.getJSON()));
+  await page.evaluate(() => {
+    const instance = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+    let position;
+    instance.state.doc.forEach((node,pos) => { if (node.type.name === 'paragraph' && node.textContent.includes('control law')) position = pos; });
+    instance.view.focus();
+    instance.commands.setNodeSelection(position);
+  });
+  await page.keyboard.press('Delete');
+  const deletedContent = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => JSON.stringify(el.editor.getJSON()));
+  await page.getByTestId('reference-apply').click();
+  expect(await page.getByTestId('reference-form').count()).toBe(1);
+  expect(await target.inputValue()).toBe('reference:eq:eq-b');
+  expect(await target.getAttribute('aria-invalid')).toBe('true');
+  expect(await page.getByTestId('draft-notice').isVisible()).toBe(true);
+  expect(await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => JSON.stringify(el.editor.getJSON()))).toBe(deletedContent);
+  await page.evaluate(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.focus());
+  await page.keyboard.press('ControlOrMeta+z');
+  expect(await paragraph(0).evaluate(() => JSON.stringify(document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.getJSON()))).toBe(beforeDeletion);
+  expect(await target.inputValue()).toBe('reference:eq:eq-b');
   await page.getByTestId('reference-apply').click();
   result.insertedFromSelection = await chip(paragraph(0), 'Eq. eq-b').count() === 1 &&
     !(await paragraph(0).innerText()).includes('control law');
+  expect(result.insertedFromSelection, 'Undo restores the retained range for successful Apply').toBe(true);
+  expect(await page.getByTestId('reference-form').count()).toBe(0);
+  expect(await page.getByTestId('draft-notice').count()).toBe(0);
 
   // C. A Figure reference at the caret from the slash menu.
   // End after a pointer click means the end of a *visual line*, which changes with
@@ -330,7 +443,7 @@ async (page, { showNotifications, openPath, screenshots, expect, recoveryRecords
     ':::{figure} ./diagram.svg\n:name: fig-a\n\nConverter control summary.\n:::',
   ];
   result.sourceShowsUnsavedReferences = expectedLines.every(line => preview.includes(line));
-  result.fileUntouchedBeforeSave = await markdown() === fresh;
+  result.fileUntouchedBeforeSave = await markdown() === appliedDiskCheckpoint;
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   result.saveMatchesSource = await markdown() === preview;

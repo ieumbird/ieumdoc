@@ -1,0 +1,83 @@
+{
+  "baseline": "5c2ba246b39b832a963917b379ec464f43418474",
+  "comparison": "Unapplied URL and target; actual draft notice changes document/form position after registration. No image rearrangement.",
+  "capture": "pnpm browser:test inline-form-capture with checkout persistent Chrome profile; manual captures separate from stable regression scenarios",
+  "baselineOutsideRetention": {
+    "reference1440": false,
+    "link1440": false,
+    "reference640": false,
+    "link640": false
+  },
+  "files": [
+    {
+      "file": "after-1440-link.png",
+      "bytes": 81480,
+      "sha256": "de0a06cf3c0c975913ab6bd0ab9d3fbb585a33ed10fddd9868210847ffdda1b0"
+    },
+    {
+      "file": "after-1440-reference.png",
+      "bytes": 100675,
+      "sha256": "56cb3d9c3c8055e3153682390ba29bfb90a2bf455fbbca03b4e1634c0bf1f9df"
+    },
+    {
+      "file": "after-640-link.png",
+      "bytes": 70888,
+      "sha256": "181d73f4d58c86a4c52b4e129774be3da337a7bd5dada912cb4c96be58e6d7ba"
+    },
+    {
+      "file": "after-640-reference.png",
+      "bytes": 75387,
+      "sha256": "e4230ff6709dee7cf095a3041ac1aa675fe32ce9f326d07b6d0c0cc36abd2116"
+    },
+    {
+      "file": "before-1440-link.png",
+      "bytes": 73175,
+      "sha256": "fea0ff58eb975a34311224b50ef652535e71dbe5afb2948955ccc5d285e89e51"
+    },
+    {
+      "file": "before-1440-reference.png",
+      "bytes": 93216,
+      "sha256": "50bf15fc45e31b564fc88d91fa670c1644dfa11dd74a58a9e8d21b11718e737b"
+    },
+    {
+      "file": "before-640-link.png",
+      "bytes": 63608,
+      "sha256": "4335beb1d4e9a2951a289b94afad885e0e51affa4694a124626df4e6905e6f16"
+    },
+    {
+      "file": "before-640-reference.png",
+      "bytes": 68358,
+      "sha256": "6a33e3154ac92037c17df5a9c588cca3e08c96dee5a27593222d8b14e96e5d79"
+    }
+  ],
+  "afterOutsideRetention": {
+    "link1440": true,
+    "reference1440": true,
+    "reference640": true,
+    "link640": true
+  },
+  "environment": {
+    "dpr": 1,
+    "fonts": "loaded",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "zoom": "1"
+  },
+  "viewports": [
+    {
+      "width": 1440,
+      "theme": "light",
+      "height": 900,
+      "language": "en"
+    },
+    {
+      "width": 640,
+      "theme": "dark",
+      "height": 900,
+      "language": "ko"
+    }
+  ],
+  "outsideClickTargets": {
+    "baseline": ".app-header (can activate another tab)",
+    "after": ".app-brand"
+  }
+}

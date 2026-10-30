@@ -48,11 +48,12 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 ## P04 적용·취소·완료
 
 - **목적·사용/비사용:** 편집을 언제 문서에 반영하는지 드러낸다. 파일 생성·삭제·복구에 metadata의 바깥 클릭 적용 규칙을 쓰지 않는다(P12).
-- **목표:** 짧은 metadata는 Done·Esc 취소·유효한 바깥 pointer 클릭 적용이다. keyboard focus 이동만으로 적용하지 않고 오류면 초안을 유지한다. 원문·복합 inline은 Apply/Cancel·Esc 취소·바깥 클릭 초안 유지다. 링크·인용·교차참조에도 Cancel을 보이고 명시적으로 마칠 때까지 초안을 유지한다. 직접 본문·제목·caption·문서 설정은 즉시 적용+Undo이며 디스크 저장은 Save다.
+- **목표:** 짧은 metadata는 Done·Esc 취소·유효한 바깥 pointer 클릭 적용이다. keyboard focus 이동만으로 적용하지 않고 오류면 초안을 유지한다. 원문·복합 inline은 Apply/Cancel·Esc 취소·바깥 클릭 초안 유지다. 링크·교차참조에도 Cancel을 보이고 명시적으로 마칠 때까지 초안을 유지한다. 인용은 [ADR-0008 동결](../adr/0008-citations-and-bibliography.md)에 따라 기존 동작을 유지한다. 직접 본문·제목·caption·문서 설정은 즉시 적용+Undo이며 디스크 저장은 Save다.
 - **목표·예외:** 미주는 in-place·바깥 적용·취소와 Enter 적용/Shift+Enter 줄바꿈을 유지하고 버튼을 완료/취소(Done/Cancel)로 부른다.
-- **현재 기준:** [FigureProperties][figure]의 metadata 완료 방식, [PropertyForm][forms]을 쓰는 원문/인라인 수식의 명시적 적용·취소. [미주](footnotes-v1.md#editor)의 완료/취소(Done/Cancel)와 기존 in-place·바깥 적용·키보드 동작. 링크·인용·교차참조는 보이는 Cancel 없이 blur로 미적용 폼이 닫힌다.
+- **현재 기준:** [FigureProperties][figure]의 metadata 완료 방식, [PropertyForm][forms]을 쓰는 원문/인라인 수식의 명시적 적용·취소. [미주](footnotes-v1.md#editor)의 완료/취소(Done/Cancel)와 기존 in-place·바깥 적용·키보드 동작. 링크·교차참조는 Apply/Cancel·Esc 취소·바깥 클릭 유지이며, 변경된 초안은 같은 문서의 다른 폼과 독립적으로 기존 draft 안내·Save/Source의 적용 내용 구분·탭 전환 보존·close 보호에 참여한다([초안 계약](editing-session-save-v1.md#applied-content-and-drafts)). 인용은 보이는 Cancel 없이 blur로 닫히는 기존 동작을 유지한다.
 - **사용처:** U01–U13 문서 안 편집·설정, U23–U24 파일 작업·미저장 확인과의 경계.
 - **결정·불일치:** [소유자 결정 P04][decision]. 표·절 label D03, 수식 metadata D04, inline 초안 D05, 미주 명칭 D10은 #787에서 해결.
+- **링크·교차참조 검증 #790:** `link-authoring`/`cross-reference`가 바깥 이동·재진입·독립 폼·미주·Save/Source·탭·close 보호와 실제 Save/Reload를 확인한다. [1440px 링크 Before](assets/inline-forms-790/before-1440-link.png) / [After](assets/inline-forms-790/after-1440-link.png), [640px 한국어 Dark 교차참조 Before](assets/inline-forms-790/before-640-reference.png) / [After](assets/inline-forms-790/after-640-reference.png)는 수동 시각 근거다. 두 폼의 두 폭 전체 캡처·해시는 [촬영 정보](assets/inline-forms-790/capture-metadata.json), 재현 절차는 [촬영 스크립트](assets/inline-forms-790/capture.browser.js)에 있다. 기존 draft 안내로 늘어난 높이는 실제 레이아웃 결과다.
 
 ## P05 입력칸·placeholder·위계
 
@@ -154,7 +155,7 @@ After는 #792 작업 소스로 촬영했다. source/disk 쓰기 없이 번호 �
 | D02 · P01 | U10 교차참조·U08 링크와 U05/U07/U11 폼의 경계를 가용 콘텐츠 viewport로 통일. U09 인용은 공용 훅 변경만 포함하며 동결 기능 전용 변경은 제외 | [#782](https://github.com/ieumbird/ieumdoc/issues/782) |
 | D03 · P01/P04 | U05 표·U11 절 label을 대상 팝오버·Done/밖에서 적용으로 통일 | [#791](https://github.com/ieumbird/ieumdoc/issues/791) |
 | D04 · P01/P03/P04/P09 | U04 수식의 작은 metadata 진입을 원문 폼 진입과 분리 | [#788](https://github.com/ieumbird/ieumdoc/issues/788) |
-| D05 · P04 | U08–U10 링크·인용·교차참조의 명시적 적용/취소와 초안 유지 | [#790](https://github.com/ieumbird/ieumdoc/issues/790) |
+| D05 · P04 | U08 링크·U10 교차참조의 명시적 적용/취소와 초안 유지. U09 인용은 ADR-0008 동결로 제외 | [#790](https://github.com/ieumbird/ieumdoc/issues/790) |
 | D06 · P06 | U12 빈 제목에 선택적 제목 추가 안내, U01 pending Figure에 이미지 선택 / Mermaid 작성 진입 제공. 기존 caption·본문·목록의 빈 상태와 선택·clipboard 의미 유지 | [#786](https://github.com/ieumbird/ieumdoc/issues/786) |
 | D07 · P02/P07/P12 | U03/U14/U16의 적용 문서·지속 앱 문제를 Docling과 같은 창별 센터로 집계하고 위치 이동·해결/닫기/재발 처리. 입력·열린 비교 화면의 문맥 오류는 유지 | [#792](https://github.com/ieumbird/ieumdoc/issues/792) |
 | D08 · P03/P09/P10 | U05 표의 상단 속성 진입·동작 메뉴 삭제 | [#793](https://github.com/ieumbird/ieumdoc/issues/793) |

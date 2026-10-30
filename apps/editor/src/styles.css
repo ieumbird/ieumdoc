@@ -2281,6 +2281,7 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
 }
 
 .link-url-field { flex-basis: 100%; min-width: 0; }
+.link-form .form-actions, .reference-form .form-actions { flex-basis: 100%; flex-wrap: wrap; }
 
 .form-error, .link-form-error {
   flex-basis: 100%;

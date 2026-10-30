@@ -697,7 +697,7 @@ export function editorExtensions(
     TableCell,
     LabelTarget.configure({ onDraftChange }),
     InlineMath.configure({ onDraftChange }),
-    CrossReference,
+    CrossReference.configure({ onDraftChange }),
     FootnoteReference,
     Citation,
     MarkdownInputRules,
