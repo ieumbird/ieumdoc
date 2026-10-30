@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NodeViewWrapper, type ReactNodeViewProps } from "@tiptap/react";
 import { labelError } from "@ieumdoc/core/label";
@@ -13,7 +13,7 @@ import { useEditorVisible } from "../editor-visibility.ts";
 import { useBlockNumber, useCaptionNumberText } from "../cross-reference.tsx";
 import { renderEquation } from "../equation-render.ts";
 import { isNewBlockPath } from "../tiptap-document.ts";
-import { Notice } from "../ui/primitives.tsx";
+import { FieldError, Notice } from "../ui/primitives.tsx";
 import { focusBlock, isolateInputDrag, usePropertyEntry, useSourceInputFocus, type DraftListener } from "./shared.ts";
 
 /** An open Equation form is unsaved only when its source changed. */
@@ -29,6 +29,7 @@ export function createEquationNodeView(onDraftChange?: DraftListener) {
 
 function EquationView({ node, editor, selected, getPos, view, onDraftChange }: ReactNodeViewProps & { onDraftChange?: DraftListener }) {
   useTranslation();
+  const formId = useId();
   const visible = useEditorVisible();
   const label = String(node.attrs.label ?? "");
   const number = useBlockNumber(editor, getPos, "equation");
@@ -126,7 +127,7 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
       ) : visible ? (
         <div data-testid="equation-properties" onDragStart={isolateInputDrag} onDragEnter={isolateInputDrag}
           onDragOver={isolateInputDrag} onDragLeave={isolateInputDrag} onDrop={isolateInputDrag} onDragEnd={isolateInputDrag}>
-          <PropertyForm kind={kind} testId="equation" error={error} onApply={apply} onCancel={cancel}>
+          <PropertyForm kind={kind} testId="equation" onApply={apply} onCancel={cancel}>
             <label className="form-field">
               <span>LaTeX</span>
               <textarea
@@ -145,9 +146,10 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
               <EquationFormula className="equation-math equation-preview" latex={draft} testId="equation-edit-preview" />
               {number === undefined ? null : <span className="equation-number" data-testid="equation-number">({number})</span>}
             </div>
-            <label className="form-field">
-              <span>{i18n.t("Label")}</span>
-              <Input
+            <div className="form-field">
+              <label className="form-label" htmlFor={`${formId}-label`}>{i18n.t("Label")}</label>
+              <Input id={`${formId}-label`}
+                aria-invalid={!!error || undefined} aria-describedby={error ? `${formId}-error` : undefined}
                 data-testid="equation-label"
                 value={labelDraft}
                 placeholder={i18n.t("None")}
@@ -156,7 +158,8 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
                   setError("");
                 }}
               />
-            </label>
+              <FieldError id={`${formId}-error`}>{error}</FieldError>
+            </div>
             <NumberField editor={editor} getPos={getPos} testId="equation" draft={numberDraft} onChange={() => setError("")} />
           </PropertyForm>
         </div>
