@@ -66,8 +66,10 @@ async (page, { openPath, withBlockHover }) => {
     await block.hover();
     await holdOpeningFrames();
     try {
-      await block.getByRole('button', {name:editName, exact:true}).click();
-      if (fieldId === 'equation-latex') await page.getByTestId('equation-edit-source').click();
+      // This probe holds all animation frames. Use direct source entry so a metadata
+      // portal's closing animation does not become part of the source-focus experiment.
+      if (fieldId === 'equation-latex') await block.getByTestId('equation-preview').dblclick();
+      else await block.getByRole('button', {name:editName, exact:true}).click();
       if (fieldId === 'mermaid-source') await page.getByTestId('mermaid-edit-source').click();
       await page.getByTestId(fieldId).waitFor();
       await waitForOpeningFrame();
@@ -107,8 +109,8 @@ async (page, { openPath, withBlockHover }) => {
       await holdOpeningFrames();
       try {
         if (enter) await page.keyboard.press('Enter');
+        else if (fieldId === 'equation-latex') await block.getByTestId('equation-preview').dblclick();
         else await block.getByRole('button', {name:editName, exact:true}).click();
-        if (!enter && fieldId === 'equation-latex') await page.getByTestId('equation-edit-source').click();
         if (fieldId === 'mermaid-source') await page.getByTestId('mermaid-edit-source').click();
         const field = page.getByTestId(fieldId);
         await field.waitFor();
@@ -159,7 +161,12 @@ async (page, { openPath, withBlockHover }) => {
         }
         // The tab row now contains interactive tabs/actions across its width (#695).
         // Use the unfocusable brand area for the same pointer round-trip to body.
-        if (movement === 'round-trip') await page.locator('.app-brand').click({position:{x:1,y:1}});
+        if (movement === 'round-trip') {
+          await page.locator('.app-brand').click({position:{x:1,y:1}});
+          // Formula double-click retains the editor focus owner; return to that
+          // same owner after visiting body, still using real pointer input.
+          if (fieldId === 'equation-latex') await prose.click();
+        }
         if (movement !== 'programmatic-focus' && !await page.evaluate(element => document.activeElement === element, openingFocus)) throw new Error(`${fieldId}: ${movement} did not reproduce identical activeElement`);
         if (!await page.evaluate(() => window.releaseOpeningFrames())) throw new Error('Opening frame was not held');
         if (movement === 'programmatic-focus') {
