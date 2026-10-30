@@ -445,6 +445,10 @@ HTTP/Desktop execution details and native-dialog automation limits: [Host persis
 
 ## Applied content and drafts
 
+Undo/Redo from nonediting shell focus (#772) uses only the active editor's applied
+history. It neither applies nor discards unrelated drafts; input/textarea/contenteditable
+fields retain native Undo, and existing target-change/draft lifecycle rules remain in force.
+
 Mermaid source and label forms register Figure drafts through the same NodeView draft lifecycle.
 Save, Source and tab changes preserve unapplied input and include only applied source; closing
 or reloading uses the existing work-loss guards. Preview loading, syntax errors and theme changes

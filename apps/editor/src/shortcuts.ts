@@ -15,14 +15,14 @@ function editorShortcut(binding: string) {
     aria: ariaKey.includes("Mod") ? ["Control", "Meta"].map(mod => ariaKey.replace("Mod", mod)).join(" ") : ariaKey };
 }
 
-function shortcut(code: string, key: string, virtualKey: number) {
-  const definition = editorShortcut(`Mod-${key}`);
+function shortcut(code: string, key: string, virtualKey: number, shift = false) {
+  const definition = editorShortcut(`Mod-${shift ? "Shift-" : ""}${key}`);
   return {
     ...definition,
     get label() { return definition.label; },
     key: key.toLowerCase(),
     matches: (event: KeyboardEvent, { opaqueOnly = false }: { opaqueOnly?: boolean } = {}) => {
-      if (event.isComposing || !(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return false;
+      if (event.isComposing || !(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey !== shift) return false;
       const opaque = event.key === "Process" || event.key === "Unidentified";
       if (opaqueOnly && (!opaque || (event.keyCode !== 0 && event.keyCode !== 229))) return false;
       // Chromium browser accelerators use the virtual key, even when an IME hides the character.
@@ -55,7 +55,7 @@ export const PROPERTY_APPLY_SHORTCUT = {
 export const EDITOR_SHORTCUTS = {
   undo: UNDO_SHORTCUT,
   redo: REDO_SHORTCUT,
-  redoAlternative: editorShortcut("Mod-Shift-z"),
+  redoAlternative: shortcut("KeyZ", "Z", 90, true),
   bold: editorShortcut("Mod-b"),
   italic: editorShortcut("Mod-i"),
   strike: editorShortcut("Mod-Shift-s"),

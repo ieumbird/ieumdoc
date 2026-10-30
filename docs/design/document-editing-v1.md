@@ -166,6 +166,16 @@ keyboard behavior remain manual verification boundaries.
 
 ### Shared history and editing boundaries
 
+With focus on a nonediting surface in the active document window (paper margin,
+gray background, sidebar or tab chrome), Undo/Redo also dispatches to that active
+Visual editor's existing keymap (#772). It uses the same focus return and engine
+selection restoration as command-center Undo/Redo, including input-rule precedence.
+Native input/textarea/contenteditable history remains local. Open dialogs, command
+center and Settings, Source/comparison/read-only tabs, busy sessions and IME composition
+exclude this shell dispatch. Other tabs/windows are untouched. Keyboard dispatch does
+not apply or discard unrelated property drafts; the existing draft lifecycle still
+governs changes to their own target. This is Editor interaction, with no Core/CLI change.
+
 Undo uses Ctrl+Z; Redo uses Ctrl+Y or Ctrl+Shift+Z on Windows (Cmd+Z and
 Cmd+Shift+Z on macOS). In the editor, a Hangul IME's opaque Ctrl+Y/Z keydown
 (`Process`/`Unidentified`, keyCode 229/0) uses physical `KeyY`/`KeyZ` only as
