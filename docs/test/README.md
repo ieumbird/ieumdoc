@@ -433,3 +433,28 @@ test's `tmp/browser-results/http-recovery-*/host-recovery-proof.json` (also atta
 The prior final-v3 two-page
 ticket p95 around 2.4s remains a limitation, not a recording deadline.
 This prior measurement was documented on 2026-10-16 in [the Host recovery verification commit](https://github.com/ieumbird/ieumdoc/commit/ef1c09a63002827a38f2ea230e134c973cdb9344); the [recovery contract](../design/editing-session-save-v1.md#local-recovery-records-296-pr2) identifies it as a known limitation, not a guarantee or a new PR3 measurement.
+
+## Docling app conversion (#797)
+
+`pnpm browser:test docling-server` uses a worker-owned fake HTTP service and
+scratch PDF, with the real Host routes. The same scenario can target a running
+production HTTP Host via `IEUMDOC_BROWSER_URL`; no external Docling is used in
+normal CI. Browser profiles follow the existing persistent-profile rules.
+
+For manual real-service verification, first prepare the pinned local service
+using the [administrator guide](../guides/docling-server.md), then run from the
+checkout in PowerShell:
+
+```powershell
+$env:IEUMDOC_DOCLING_LIVE = "1"
+try { pnpm browser:test docling-server --screenshots }
+finally { Remove-Item Env:IEUMDOC_DOCLING_LIVE }
+```
+
+This explicitly selected mode uses the committed NIST PDF, copies it into
+`tmp/797-real`, converts through the app and checks automatic comparison opening.
+It never starts/stops Docker for the caller. Results remain in that scratch
+folder; captures are in `tmp/docling-797-captures`. The caller owns the external
+service's startup/model preparation and cleanup. Ordinary `--screenshots` uses
+the fake service to collect Settings success/failure, PDF-menu, progress and
+completion Light/Korean/Dark review states separately from normal CI assertions.

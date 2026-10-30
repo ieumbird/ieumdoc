@@ -14,8 +14,8 @@ type FolderDialogProps = {
   open: boolean;
   title?: string;
   description?: string;
-  /** An image picker lists images beside the folders, and Open chooses an image file. */
-  choose?: "folder" | "image";
+  /** File pickers list only the chosen kind beside folders; selection admits that file. */
+  choose?: "folder" | "image" | "pdf";
   /** Where browsing starts, usually the open document's folder. */
   initialPath: string;
   recent: string[];
@@ -73,13 +73,15 @@ export function FolderDialog({ open, title, description, choose = "folder", init
   const directory = cut < 0 ? "" : path.slice(0, cut + 1);
   const partial = path.slice(cut + 1).toLowerCase();
   const result = listing.directory === directory ? listing.result : undefined;
-  const image = choose === "image";
+  const pdf = choose === "pdf";
+  const image = choose === "image" || pdf;
+  const matchesFile = (entry: FolderEntry) => pdf ? /\.pdf$/i.test(entry.name) && entry.kind !== "folder" : entry.kind === "image";
   // Choosing an image needs an image the listing shows; a typed folder is a place to look.
   const named = partial ? result?.entries.find(entry => entry.name.toLowerCase() === partial) : undefined;
-  const ready = image ? named?.kind === "image" : Boolean(path);
-  const options = result?.entries.filter(entry => (entry.kind === "folder" || (image && entry.kind === "image")) && (pathFromClick || entry.name.toLowerCase().startsWith(partial))) ?? [];
+  const ready = image ? !!named && matchesFile(named) : Boolean(path);
+  const options = result?.entries.filter(entry => (entry.kind === "folder" || (image && matchesFile(entry))) && (pathFromClick || entry.name.toLowerCase().startsWith(partial))) ?? [];
   const activeIndex = highlight < 0 && pathFromClick ? options.findIndex(entry => entry.path === path) : highlight;
-  const activeImage = image && options[activeIndex]?.kind === "image" ? options[activeIndex] : undefined;
+  const activeImage = choose === "image" && options[activeIndex]?.kind === "image" ? options[activeIndex] : undefined;
   const files = result?.entries.filter(entry => entry.kind === "image").length ?? 0;
   const crumbs = result?.crumbs ?? [];
   const parent = crumbs.at(-2);
@@ -200,12 +202,12 @@ export function FolderDialog({ open, title, description, choose = "folder", init
   };
 
   const target = folderName(path);
-  const meta = !directory ? image ? i18n.t("Type an image path or choose a starting place.") : i18n.t("Type a folder path or choose a starting place.")
+  const meta = !directory ? pdf ? i18n.t("Type a PDF path or choose a starting place.") : image ? i18n.t("Type an image path or choose a starting place.") : i18n.t("Type a folder path or choose a starting place.")
     : listing.directory === directory && listing.error ? listing.error
     : !result ? i18n.t("Reading…")
-    : [options.length === 0 ? (partial ? (image ? i18n.t("No matching folders or images") : i18n.t("No matching folders")) : i18n.t("No sub-folders")) : "",
-      image && !partial ? i18n.t("imagesHere", { count: files }) : ""].filter(Boolean).join(" · ");
-  const pathLabel = image ? i18n.t("Image path") : restricted ? i18n.t("Server folder path") : i18n.t("Folder path");
+    : [options.length === 0 ? (partial ? (pdf ? i18n.t("No matching folders or PDFs") : image ? i18n.t("No matching folders or images") : i18n.t("No matching folders")) : i18n.t("No sub-folders")) : "",
+      choose === "image" && !partial ? i18n.t("imagesHere", { count: files }) : ""].filter(Boolean).join(" · ");
+  const pathLabel = pdf ? i18n.t("PDF path") : image ? i18n.t("Image path") : restricted ? i18n.t("Server folder path") : i18n.t("Folder path");
   const placeLabel = image ? i18n.t("Start from") : restricted ? i18n.t("Server shared folders") : i18n.t("Shortcuts");
   const placesSection = placeList.length > 0 ? (
     <section className={image ? "folder-picker-section" : "folder-picker-shortcuts"} aria-label={placeLabel}>
@@ -251,7 +253,7 @@ export function FolderDialog({ open, title, description, choose = "folder", init
         <div className="form-field">
           <label className="form-label" htmlFor="folder-path">{pathLabel}</label>
           <div className="folder-picker-field">
-            {image ? <ImageIcon aria-hidden="true" /> : <Folder aria-hidden="true" />}
+            {pdf ? <FileText aria-hidden="true" /> : image ? <ImageIcon aria-hidden="true" /> : <Folder aria-hidden="true" />}
             <input
               ref={field}
               id="folder-path"
@@ -318,7 +320,7 @@ export function FolderDialog({ open, title, description, choose = "folder", init
             {createError ? <p id="new-folder-error" className="text-sm text-destructive" role="alert" data-testid="new-error">{createError}</p> : null}
           </form>
         ) : null}
-        <ul ref={list} id="folder-picker-list" className="folder-picker-list" role="listbox" aria-label={image ? i18n.t("Folders and images") : i18n.t("Folders")}>
+        <ul ref={list} id="folder-picker-list" className="folder-picker-list" role="listbox" aria-label={pdf ? i18n.t("Folders and PDFs") : image ? i18n.t("Folders and images") : i18n.t("Folders")}>
           {options.map((entry, index) => (
             <li
               key={entry.path}
@@ -330,7 +332,7 @@ export function FolderDialog({ open, title, description, choose = "folder", init
               onMouseDown={event => event.preventDefault()}
               onClick={() => enter(entry, true)}
             >
-              {entry.kind === "folder" ? <Folder aria-hidden="true" /> : <ImageIcon aria-hidden="true" />}
+              {entry.kind === "folder" ? <Folder aria-hidden="true" /> : pdf ? <FileText aria-hidden="true" /> : <ImageIcon aria-hidden="true" />}
               <span>{entry.name}</span>
               {entry.kind === "folder" ? <ChevronRight aria-hidden="true" /> : null}
             </li>
@@ -363,7 +365,7 @@ export function FolderDialog({ open, title, description, choose = "folder", init
         {error ? <p id="open-folder-error" className="text-sm text-destructive" role="alert" data-testid="open-error">{error}</p> : null}
         {!image ? <p className="folder-picker-meta">{i18n.t("Choose documents in the sidebar after opening a folder.")}</p> : null}
         <div className="folder-picker-footer">
-          {image ? <p>{i18n.t("Images outside the document's folder are copied into its assets folder.")}</p> : null}
+          {choose === "image" ? <p>{i18n.t("Images outside the document's folder are copied into its assets folder.")}</p> : null}
           <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={onClose}>{i18n.t("Cancel")}</Button>
           <Button type="button" size="sm" data-testid="folder-open" title={path} disabled={!ready || pending} onClick={() => void submit()}>
             <span>{ready ? image ? `${i18n.t("Use")} “${target}”` : i18n.t("Open “{{name}}”", { name: target }) : image ? i18n.t("Use") : i18n.t("Open")}</span>

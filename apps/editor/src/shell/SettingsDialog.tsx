@@ -1,3 +1,7 @@
+import { DoclingServerSettings } from "@ieumdoc/docling/server-ui";
+import { Input } from "@/components/ui/input.tsx";
+import type { MessageKey } from "../i18n.ts";
+import { openExternalLink } from "../link-opening.ts";
 import { useMessageState } from "../ui-message.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
@@ -52,7 +56,7 @@ export function updateStatusText(info: DesktopInfo): string {
   }
 }
 
-export type SettingsCategory = "appearance" | "recovery" | "about";
+export type SettingsCategory = "appearance" | "recovery" | "docling" | "about";
 
 function CliSettings({ desktop }: { desktop: DesktopBridge }) {
   const [state, setState] = useState<CliIntegrationState | null>(null);
@@ -144,6 +148,7 @@ export function SettingsDialog({ open, highlightUpdate = false, category, onCate
   const categories = [
     { id: "appearance", label: i18n.t("Appearance & language"), icon: Palette },
     { id: "recovery", label: i18n.t("Saving & recovery"), icon: History },
+    { id: "docling", label: i18n.t("Docling"), icon: FileText },
     ...(desktop ? [{ id: "about" as const, label: i18n.t("About & updates"), icon: Info }] : []),
   ] as const;
 
@@ -180,8 +185,10 @@ export function SettingsDialog({ open, highlightUpdate = false, category, onCate
                 <h2 id={`settings-category-${category}`}>{categories.find(item => item.id === category)?.label}</h2>
                 <p>{category === "appearance" ? i18n.t("How IeumDoc looks on this device.")
                   : category === "recovery" ? i18n.t("Local recovery keeps applied edits on this device.")
+                  : category === "docling" ? i18n.t("PDF conversion on the Host device.")
                   : i18n.t("Version and how IeumDoc Desktop receives updates.")}</p>
               </header>
+              {category === "docling" ? <DoclingServerSettings base={import.meta.env.BASE_URL} text={key => i18n.t(key as MessageKey)} Input={Input} Button={DoclingSettingsButton} GuideLink={DoclingGuideLink} /> : null}
               {category === "appearance" ? <>
                 <section className="settings-section" aria-labelledby="settings-theme">
                   <div className="settings-label">
@@ -344,4 +351,12 @@ export function SettingsDialog({ open, highlightUpdate = false, category, onCate
       </DialogContent>
     </Dialog>
   );
+}
+
+function DoclingSettingsButton(props: { children?: React.ReactNode; onClick(): void; disabled?: boolean }) {
+  return <Button size="sm" variant="secondary" {...props} />;
+}
+function DoclingGuideLink({ children }: { children?: React.ReactNode }) {
+  const href = "https://github.com/ieumbird/ieumdoc/blob/master/docs/guides/docling-server.md";
+  return <a href={href} className="w-fit text-primary underline underline-offset-4" onClick={event => { event.preventDefault(); openExternalLink(href); }}>{children}</a>;
 }

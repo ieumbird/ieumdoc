@@ -2596,3 +2596,14 @@ root after opening that descendant. Its helper now accepts the surviving root or
 folder row and explicitly checks one section with alpha expanded. This correction is left to
 required PR CI; no fifth local browser execution is performed. The final local counter is 2.
 Final focused folder-tree/shell tests (48), Editor typecheck and production build pass.
+
+## Docling server and conversion (#797)
+
+Settings includes the module's Docling category for Host-owned server configuration,
+connection checking and the Korean administration guide. Explorer PDF context menus
+and Command Center's Convert with Docling share a PDF picker/explicit conversion
+flow, progress and Stop waiting. The shared notification center handles conversion
+failures alongside stale comparison warnings; other alert migration remains #792.
+See the [conversion contract](docling-conversion-v1.md#app-pdf-conversion-797) for
+setting lifetime, output naming, limits and automatic comparison tabs. Existing
+Appearance/recovery settings and ordinary document actions retain their contracts.

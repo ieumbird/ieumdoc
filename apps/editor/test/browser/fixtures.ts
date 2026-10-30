@@ -32,6 +32,7 @@ const technical = [document("technical-document.md"), document("diagram.svg")];
 
 /** Scratch directory under `tmp/` → the files a fresh copy holds, and the scenarios using it. */
 export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: string[] }> = {
+  "docling-server": { files: [{ name: "paper.pdf", create: () => readFileSync(path.join(REPOSITORY_ROOT, "packages/docling/test/fixtures/synthetic/source.pdf")) }], scenarios: ["docling-server"] },
   "docling-compare": { files: [], scenarios: ["docling-compare"] },
   "caption-selection": { files: [
     { name: "selection.md", create: () => nativeSource("# Caption selection\n\nBefore.\n\n" +

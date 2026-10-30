@@ -22,6 +22,9 @@ export default defineConfig({
       name: "ieumdoc-document",
       configureServer(server: ViteDevServer) {
         const assetSigningKey = randomBytes(32);
+        let docling: Promise<ReturnType<typeof import("./server/docling.ts").createDoclingHost>> | undefined;
+        const doclingHost = () => docling ??= server.ssrLoadModule("/server/docling.ts").then(mod => mod.createDoclingHost());
+        server.httpServer?.once("close", () => { void docling?.then(host => host.close()); });
         const sampleAvailability = prepareSampleDocuments(fileURLToPath(new URL("./samples", import.meta.url)), fileURLToPath(new URL("../../tmp/sample-native-v1", import.meta.url)));
         server.middlewares.use((req, res, next) => {
           const requestUrl = req.url ?? "";
@@ -36,15 +39,15 @@ export default defineConfig({
             });
             return;
           }
-          if (url !== "/api/file" && url !== "/api/bibliography" && url !== "/api/file-preview" && url !== "/api/document" && url !== "/api/folder" && url !== "/api/folder-browse" && url !== "/api/folder-places" && url !== "/api/document-source" && url !== "/api/docling-compare" && url !== "/api/figure-validation" && !url.startsWith("/document/")) {
+          if (url !== "/api/docling-settings" && url !== "/api/docling-check" && url !== "/api/docling-conversion" && url !== "/api/file" && url !== "/api/bibliography" && url !== "/api/file-preview" && url !== "/api/document" && url !== "/api/folder" && url !== "/api/folder-browse" && url !== "/api/folder-places" && url !== "/api/document-source" && url !== "/api/docling-compare" && url !== "/api/figure-validation" && !url.startsWith("/document/")) {
             next();
             return;
           }
           req.url = localUrl;
-          void server.ssrLoadModule("/server/document-api.ts").then((mod) => {
+          void server.ssrLoadModule("/server/document-api.ts").then(async (mod) => {
             const handle = (mod as { handleDocumentRequest: typeof import("./server/document-api.ts").handleDocumentRequest })
               .handleDocumentRequest;
-            return handle(req, res, next, LOCAL_FILE_ACCESS, Infinity, undefined, sampleAvailability);
+            return handle(req, res, next, LOCAL_FILE_ACCESS, Infinity, undefined, sampleAvailability, await doclingHost());
           }).catch((error: unknown) => {
             res.statusCode = 500;
             res.setHeader("Content-Type", "application/json; charset=utf-8");

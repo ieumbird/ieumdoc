@@ -1,3 +1,4 @@
+import { createDoclingHost } from "./docling.ts";
 import { randomBytes } from "node:crypto";
 import { realpathSync, statSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -10,7 +11,7 @@ import { RootAccess } from "./file-access.ts";
 import { requestQuery } from "./request-query.ts";
 
 export const MAX_JSON_BYTES = 32 * 1024 * 1024;
-const DOCUMENT_ROUTES = new Set(["/api/file", "/api/bibliography", "/api/file-preview", "/api/document", "/api/folder", "/api/folder-browse", "/api/folder-places",
+const DOCUMENT_ROUTES = new Set(["/api/docling-settings", "/api/docling-check", "/api/docling-conversion", "/api/file", "/api/bibliography", "/api/file-preview", "/api/document", "/api/folder", "/api/folder-browse", "/api/folder-places",
   "/api/document-source", "/api/docling-compare", "/api/figure-validation"]);
 
 export type HttpHostOptions = {
@@ -41,6 +42,7 @@ function json(res: ServerResponse, status: number, message: string): void {
 /** The only TCP Host: fixed roots and production assets, without a document/session store. */
 export async function startHttpHost(options: HttpHostOptions) {
   const access = new RootAccess(options.roots);
+  const docling = createDoclingHost(access);
   const host = options.host ?? "127.0.0.1";
   const port = options.port ?? 5180;
   if (!isIP(host)) throw new Error("--host must be an IP address (default: 127.0.0.1).");
@@ -93,7 +95,7 @@ export async function startHttpHost(options: HttpHostOptions) {
     }
     if (url.pathname === "/api/asset") return handleAssetRequest(req, res, key, access);
     if (DOCUMENT_ROUTES.has(url.pathname) || media) {
-      return handleDocumentRequest(req, res, () => json(res, 404, "Not found."), access, MAX_JSON_BYTES);
+      return handleDocumentRequest(req, res, () => json(res, 404, "Not found."), access, MAX_JSON_BYTES, undefined, undefined, docling);
     }
     if (api) return json(res, 404, "Not found.");
     if (req.method !== "GET" && req.method !== "HEAD") return json(res, 405, "Method not allowed.");
@@ -131,6 +133,7 @@ export async function startHttpHost(options: HttpHostOptions) {
     roots: access.roots,
     url: external ?? `http://${authority(host, address.port)}`,
     async close(): Promise<void> {
+      await docling.close();
       if (!server.listening) return;
       const forced = setTimeout(() => server.closeAllConnections(), 5_000);
       forced.unref();
