@@ -1,7 +1,7 @@
 import { useDoclingConversion } from "@ieumdoc/docling/server-ui";
 import { doclingFailureMessage } from "@ieumdoc/docling/server-types";
 import { DoclingConversionDialog } from "./shell/DoclingConversionDialog.tsx";
-import { COMMAND_CENTER_SHORTCUT, EDITOR_SHORTCUTS, SAVE_SHORTCUT } from "./shortcuts.ts";
+import { COMMAND_CENTER_SHORTCUT, EDITOR_SHORTCUTS, SAVE_SHORTCUT, isMac } from "./shortcuts.ts";
 import type { ComparisonSnapshot } from "@ieumdoc/docling/compare";
 import { DoclingComparisonTab } from "./DoclingComparisonTab.tsx";
 import { NotificationProvider, NotificationSource } from "./components/ui/notification-center.tsx";
@@ -792,6 +792,29 @@ function EditorApp() {
     const listener = (event: KeyboardEvent) => saveShortcut.current(event);
     window.addEventListener("keydown", listener, true);
     return () => window.removeEventListener("keydown", listener, true);
+  }, []);
+
+  // Nonediting shell focus shares the active document's existing keymap and focus policy.
+  const historyShortcut = useRef<(event: KeyboardEvent) => void>(() => {});
+  historyShortcut.current = event => {
+    if (event.defaultPrevented || event.isComposing || busy || !document || view !== "visual" ||
+        (isMac() ? !event.metaKey || event.ctrlKey : !event.ctrlKey || event.metaKey)) return;
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || (target !== globalThis.document.body && !shell.current?.contains(target) && !target.closest('.notification-center')) ||
+        target.closest('input, textarea, select, .document-editor, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="menu"]') ||
+        globalThis.document.querySelector('[data-slot="dialog-content"], [aria-modal="true"], dialog[open], .settings-screen')) return;
+    const action = EDITOR_SHORTCUTS.undo.matches(event) ? "undo"
+      : EDITOR_SHORTCUTS.redo.matches(event) || EDITOR_SHORTCUTS.redoAlternative.matches(event) ? "redo" : undefined;
+    const editor = editorRef.current;
+    if (!action || !editor?.getFocusTarget()) return;
+    event.preventDefault();
+    editor[action]();
+  };
+  useEffect(() => {
+    // Bubble after native editable surfaces and local handlers have had their turn.
+    const listener = (event: KeyboardEvent) => historyShortcut.current(event);
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
   }, []);
 
   const restartCheck = useRef<() => RestartCheck>(() => ({ ok: false, reason: i18n.t("The editor is not ready.") }));

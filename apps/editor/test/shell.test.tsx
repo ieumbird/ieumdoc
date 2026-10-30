@@ -167,6 +167,14 @@ test("shell shortcuts follow characters and preserve layout-specific browser acc
     metaKey: false, altKey: false, shiftKey: false, isComposing: false, ...overrides }) as KeyboardEvent;
   assert.equal(COMMAND_CENTER_SHORTCUT.matches(key({})), true);
   assert.equal(COMMAND_CENTER_SHORTCUT.matches(key({ ctrlKey: false, metaKey: true })), true);
+  for (const modifiers of [{ctrlKey:true,metaKey:false}, {ctrlKey:false,metaKey:true}]) {
+    const redo = (overrides: Partial<KeyboardEvent>) => EDITOR_SHORTCUTS.redoAlternative.matches(
+      key({key:'Z',code:'KeyZ',keyCode:90,shiftKey:true,...modifiers,...overrides}));
+    assert.equal(redo({}), true);
+    for (const guard of [{shiftKey:false}, {isComposing:true}, {altKey:true}, {key:'q'}, {keyCode:81}]) {
+      assert.equal(redo(guard), false);
+    }
+  }
   assert.equal(LINK_SHORTCUT.matches(key({ code: "Quote", key: "'", keyCode: 222 })), true);
   assert.equal(LINK_SHORTCUT.matches(key({ code: "Quote", key: "'", keyCode: 222, ctrlKey: false, metaKey: true })), true);
   assert.equal(COMMAND_CENTER_SHORTCUT.matches(key({ key: "-", keyCode: 189 })), false, "German zoom out");

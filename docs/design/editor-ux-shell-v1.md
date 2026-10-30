@@ -1504,6 +1504,12 @@ ignored `tmp/`; only these small review PNGs are retained.
 
 ### Shortcut contract (#381)
 
+Undo/Redo from nonediting shell focus targets only the active Visual document (#772),
+using the existing editor keymap and focus/selection policy. Editable fields and open
+modal/Settings surfaces keep their own keys; Source/comparison/read-only tabs, busy
+sessions and composition do not dispatch document history. The authoritative boundaries
+are in [Shared history](document-editing-v1.md#shared-history-and-editing-boundaries).
+
 The [shared shortcut definitions](../../apps/editor/src/shortcuts.ts) own characters, IME fallback keys, modifiers,
 platform labels and `aria-keyshortcuts`. TopBar, selection toolbar, shortcut guide and command-center
 items consume those definitions. Existing Bold/Italic tooltip notation is retained. Outline still has no shortcut.

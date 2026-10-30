@@ -47,9 +47,143 @@ async (page, { showNotifications, openDocument }) => {
     el.dispatchEvent(event);
     return event.defaultPrevented;
   }, overrides);
+  // #772: a real block deletion remains undoable after clicking nonediting chrome.
+  const historyEditor = page.locator('[data-document-tab][data-active=true] .document-editor');
+  // The nonmodal notification center is a sibling of the shell, with the same history owner.
+  await openDocument(page, [root, 'tmp', 'reference-save-reload', 'fixed.md'].join(separator));
+  await historyEditor.locator('h1').filter({hasText:'Fixed numbers'}).waitFor();
+  await historyEditor.evaluate(el => {
+    const e = el.editor;
+    e.state.doc.forEach((node, pos) => {
+      if (node.attrs.label === 'fixed-table') e.view.dispatch(e.state.tr.setNodeMarkup(pos, undefined, {...node.attrs, enumerator:null}));
+    });
+  });
+  const notificationToggle = page.locator('.notification-center > button');
+  await notificationToggle.waitFor();
+  const beforeNotificationEdit = await snapshot();
+  // Engine formatting gives this regression history without a native typing Undo fallback.
+  await select(['Before.', 0], ['Before.', 6]);
+  await page.keyboard.press('Control+b');
+  const notificationEdit = await snapshot();
+  for (const [key, expected] of [['Control+z', beforeNotificationEdit], ['Control+y', notificationEdit]]) {
+    await notificationToggle.focus();
+    assert(await notificationToggle.evaluate(el => el === document.activeElement && !el.closest('.app-shell')),
+      'Notification history must start outside the shell with toggle focus');
+    await page.keyboard.press(key);
+    assert(await snapshot() === expected, `Notification toggle ${key} did not dispatch active document history`);
+    assert(await historyEditor.evaluate(el => el.editor.view.hasFocus()), 'Notification history did not return editor focus');
+  }
+  await page.keyboard.press('Control+z'); // Formatting edit.
+  await page.keyboard.press('Control+z'); // Numbering warning.
+  await notificationToggle.waitFor({state:'detached'});
+  await openDocument(page, file);
+  await historyEditor.locator('h2').filter({hasText:'Heading'}).waitFor();
+  const outsideHistory = [];
+  for (const [name, selector] of [
+    ['paper margin', '[data-document-tab][data-active=true] article.document'],
+    ['gray background', '[data-document-tab][data-active=true]'],
+    ['sidebar blank', '.sidebar-content'],
+    ['tab bar blank', '.document-tabs'],
+  ]) {
+    const before = await snapshot();
+    await historyEditor.evaluate(el => {
+      el.editor.state.doc.forEach((node, pos) => {
+        if (node.textContent === 'Beta plain.') el.editor.commands.setNodeSelection(pos);
+      });
+      el.editor.view.focus();
+    });
+    await page.keyboard.press('Delete');
+    const deleted = await snapshot();
+    assert(deleted !== before, `${name}: block deletion did not apply`);
+    const surface = page.locator(selector);
+    const box = await surface.boundingBox();
+    const clickOutside = () => page.mouse.click(box.x + (name === 'tab bar blank' ? box.width - 4 : 4), box.y + (name === 'sidebar blank' ? box.height - 8 : 8));
+    await clickOutside();
+    const focus = await page.evaluate(() => ({tag:document.activeElement.tagName, className:document.activeElement.className,
+      editor:!!document.activeElement.closest('.document-editor')}));
+    assert(!focus.editor, `${name}: click did not leave the editor`);
+    const composingAllowed = await page.evaluate(() => document.activeElement.dispatchEvent(new KeyboardEvent('keydown',
+      {key:'z',code:'KeyZ',keyCode:90,ctrlKey:true,isComposing:true,bubbles:true,cancelable:true})));
+    assert(composingAllowed && await snapshot() === deleted, 'Shell Undo interrupted composition');
+    await page.keyboard.press('Control+z');
+    const restored = await snapshot() === before;
+    outsideHistory.push({name, focus, restored});
+    // Restore the fixture even on unchanged product code, so all click locations are observed.
+    if (!restored) { await historyEditor.focus(); await page.keyboard.press('Control+z'); }
+    assert(await snapshot() === before, `${name}: cleanup Undo failed`);
+    if (restored) {
+      assert(await historyEditor.evaluate(el => el.editor.view.hasFocus()), `${name}: Undo did not restore editor focus`);
+      const selection = await historyEditor.evaluate(el => JSON.stringify(el.editor.state.selection.toJSON()));
+      for (const redo of ['Control+y', 'Control+Shift+z']) {
+        await clickOutside(); await page.keyboard.press(redo);
+        assert(await snapshot() === deleted, `${name}: ${redo} did not redo exactly the deletion`);
+        assert(await historyEditor.evaluate(el => el.editor.view.hasFocus()), `${name}: Redo did not restore editor focus`);
+        await clickOutside(); await page.keyboard.press('Control+z');
+        assert(await snapshot() === before && await historyEditor.evaluate(el => JSON.stringify(el.editor.state.selection.toJSON())) === selection,
+          `${name}: Undo changed the engine's restored document/selection`);
+      }
+    }
+  }
+  console.log('Outside-editor history:', JSON.stringify(outsideHistory));
+  assert(outsideHistory.every(result => result.restored), `Outside-editor Undo failed: ${JSON.stringify(outsideHistory)}`);
+  // Settings must block document history independently of native input undo history.
+  const beforeSettings = await snapshot();
+  await page.getByRole('button', {name:'Settings',exact:true}).click();
+  const settings = page.getByTestId('settings-dialog');
+  await settings.waitFor();
+  await settings.getByRole('heading', {name:'Settings',exact:true}).click();
+  for (const key of ['Control+z', 'Control+y', 'Control+Shift+z']) {
+    await page.keyboard.press(key);
+    assert(await snapshot() === beforeSettings && await settings.isVisible(), 'Settings leaked document history');
+  }
+  await page.keyboard.press('Escape'); await settings.waitFor({state:'detached'});
+  // Native property-field history, retained source drafts and Settings own their keys.
+  await historyEditor.evaluate(el => {
+    el.editor.state.doc.forEach((node, pos) => { if (node.type.name === 'equation') el.editor.commands.setNodeSelection(pos); });
+    el.editor.view.focus();
+  });
+  await page.keyboard.press('Enter');
+  await page.getByTestId('equation-latex').and(page.locator(':focus')).waitFor();
+  const beforeDraft = await snapshot();
+  for (const id of ['equation-label', 'equation-latex']) {
+    const field = page.getByTestId(id);
+    const original = await field.inputValue();
+    // Native textarea grouping is browser-owned; one inserted character is one unambiguous edit.
+    await field.focus(); await page.keyboard.press('End'); await page.keyboard.type('x');
+    await page.keyboard.press('Control+z');
+    const undone = await field.inputValue();
+    assert(undone === original && await snapshot() === beforeDraft, `${id}: native Undo expected ${JSON.stringify(original)}, got ${JSON.stringify(undone)}; document unchanged: ${await snapshot() === beforeDraft}`);
+    assert(await field.evaluate(el => el === document.activeElement), `${id}: Undo stole focus`);
+  }
+  await page.keyboard.type('retained772');
+  const retainedDraft = await page.getByTestId('equation-latex').inputValue();
+  // Keyboard focus changes preserve the draft; shell Undo/Redo must do the same.
+  await page.getByRole('button', {name:'Settings',exact:true}).focus();
+  await page.keyboard.press('Control+y');
+  assert(await page.getByTestId('equation-latex').count() === 1, 'Shell Redo discarded the source form');
+  await page.keyboard.press('Control+z');
+  assert(await page.getByTestId('equation-latex').count() === 1, 'Undo after shell Redo discarded the source form');
+  assert(await snapshot() === beforeDraft && await page.getByTestId('equation-latex').inputValue() === retainedDraft,
+    'Shell history applied or discarded an unrelated source draft');
+  await page.getByTestId('equation-cancel').click();
+  await page.getByTestId('view-source').click();
+  await page.locator('[data-document-tab][data-active=true] [data-testid="source-view"]').waitFor();
+  for (const key of ['Control+z', 'Control+y', 'Control+Shift+z']) {
+    await page.keyboard.press(key);
+    assert(await snapshot() === beforeDraft, 'Source dispatched hidden editor history');
+  }
+  await page.getByTestId('view-visual').click();
   // Ctrl+A starts in every clicked textblock, then expands to the document (#723/#751).
   await openDocument(page, file.replace('continuous-editing.md', 'scoped-select-all.md'));
   const scopedEditor = page.locator('[data-document-tab][data-active=true] .document-editor');
+  await scopedEditor.locator('h2').filter({hasText:'Body heading'}).waitFor();
+  const allDocuments = () => page.locator('[data-document-tab] .document-editor').evaluateAll(nodes => nodes.map(el => JSON.stringify(el.editor.getJSON())));
+  const beforeInactiveHistory = JSON.stringify(await allDocuments());
+  await page.locator('.sidebar-content').click({position:{x:4,y:4}});
+  for (const key of ['Control+z', 'Control+y', 'Control+Shift+z']) {
+    await page.keyboard.press(key);
+    assert(JSON.stringify(await allDocuments()) === beforeInactiveHistory, 'Shell history changed an inactive document');
+  }
   const scopes = [
     ['paragraph', 'p.paragraph', 'After.'],
     ['heading', 'h2', 'Body heading'],
@@ -214,7 +348,11 @@ async (page, { showNotifications, openDocument }) => {
   }
   await page.getByRole('button', {name:'File actions', exact:true}).dispatchEvent('keydown',
     {key:'Process', code:'KeyY', keyCode:229, ctrlKey:true, bubbles:true, cancelable:true});
-  assert(await snapshot() === first, 'Opaque history shortcuts outside the editor must not change the document');
+  // #772 extends the same opaque-IME fallback to nonediting shell controls.
+  assert(await snapshot() === second && await historyEditor.evaluate(el => el.editor.view.hasFocus()),
+    'Opaque shell Ctrl+Y must redo one step and restore editor focus');
+  await page.keyboard.press('Control+z');
+  assert(await snapshot() === first, 'Undo after opaque shell Redo must restore the first step');
   for (const key of ['Process', 'Unidentified']) {
     for (const keyCode of [229, 0]) {
       assert(await historyKey({key, keyCode}), 'Opaque Ctrl+Y must consume the key event');
@@ -520,5 +658,19 @@ async (page, { showNotifications, openDocument }) => {
     await page.keyboard.press('Meta+a');
     assert(await scopedEditor.evaluate(el => el.editor.state.selection.toJSON().type) === 'all', `${name}: second Cmd+A must select the document`);
   }
-  return {scopedSelectAll:true, scopedReplacementAndUndo:true, scopedComposition:true, appleSelectAllKeymap:true, headingBoundary:true, crossBlockDeletion:true, cutPasteRichText:true, typedBlockClipboard:true, formattedTypedClipboard:true, undoRedoAcrossSave:true, tableNavigation:true, rejectedPasteRetainsInput:true, compositionSaveReload:true, atomEdges:true, continuation};
+  const appleOriginal = await snapshot();
+  await scopedEditor.evaluate(el => {
+    el.editor.state.doc.forEach((node, pos) => { if (node.textContent === 'After.') el.editor.commands.setNodeSelection(pos); });
+    el.editor.view.focus();
+  });
+  await page.keyboard.press('Delete');
+  const appleDeleted = await snapshot();
+  assert(appleDeleted !== appleOriginal, 'Apple history fixture did not delete a block');
+  for (const [key, expected] of [['Meta+z',appleOriginal], ['Meta+Shift+z',appleDeleted], ['Meta+z',appleOriginal]]) {
+    await page.locator('.sidebar-content').click({position:{x:4,y:4}});
+    await page.keyboard.press(key);
+    assert(await snapshot() === expected && await scopedEditor.evaluate(el => el.editor.view.hasFocus()), `${key}: shell history/focus failed`);
+  }
+  return {notificationShellHistory:true, outsideHistory, nativeFieldUndo:true, settingsHistoryExcluded:true, retainedHistoryDraft:true, sourceHistoryExcluded:true,
+    inactiveHistoryExcluded:true, appleShellHistory:true, scopedSelectAll:true, scopedReplacementAndUndo:true, scopedComposition:true, appleSelectAllKeymap:true, headingBoundary:true, crossBlockDeletion:true, cutPasteRichText:true, typedBlockClipboard:true, formattedTypedClipboard:true, undoRedoAcrossSave:true, tableNavigation:true, rejectedPasteRetainsInput:true, compositionSaveReload:true, atomEdges:true, continuation};
 }
