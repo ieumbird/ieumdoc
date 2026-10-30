@@ -372,7 +372,10 @@ async (page, { openPath, expect, reloadDocument, screenshots }) => {
     await page.getByTestId('table-apply').click();
   } else {
     await expect(page.getByTestId('table-editor').getByRole('textbox', {name:'Label', exact:true})).toBeVisible();
-    await expect(page.getByTestId('table-editor').getByRole('textbox', {name:'Number', exact:true})).toBeVisible();
+    const numbers = page.getByTestId('table-editor').getByRole('group', {name:'Number', exact:true});
+    await expect(numbers.getByRole('button', {name:'Automatic',exact:true})).toHaveAttribute('aria-pressed','true');
+    await expect(page.getByTestId('table-enumerator')).toHaveCount(0);
+    await expect(page.getByTestId('table-automatic-number')).toHaveText('Current number: 1');
     await page.getByTestId('table-cancel').click();
     await page.evaluate(() => {
       const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;

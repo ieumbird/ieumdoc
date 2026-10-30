@@ -2601,6 +2601,7 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
 .figure-property-thumbnail .mermaid-preview img { margin: 0; }
 .figure-property-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: var(--space-3); }
 .figure-number-field .view-toggle { width: fit-content; height: var(--size-control); align-items: center; }
+.figure-number-field [data-slot="input"][aria-invalid="true"] { border-color: var(--id-color-danger); }
 .figure-properties details > summary {
   display: flex;
   align-items: center;

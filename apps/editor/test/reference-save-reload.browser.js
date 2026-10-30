@@ -111,13 +111,15 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
       editor.view.focus();
     }, label);
     await page.keyboard.press('Enter');
-    if ((kind === 'figure' || kind === 'mermaid-property') && !await page.getByTestId(`${kind}-enumerator`).isVisible())
+    if (kind === 'mermaid') await page.getByTestId('mermaid-edit-source').click();
+    if (!await page.getByTestId(`${kind}-enumerator`).isVisible())
       await page.getByTestId(`${kind}-editor`).getByRole('button', {name:'Fixed',exact:true}).click();
     await page.getByTestId(`${kind}-enumerator`).waitFor();
   };
   const applyNumber = async (label, kind, value) => {
     await edit(label, kind);
-    await page.getByTestId(`${kind}-enumerator`).fill(value);
+    if (value) await page.getByTestId(`${kind}-enumerator`).fill(value);
+    else await page.getByTestId(`${kind}-editor`).getByRole('button', {name:'Automatic',exact:true}).click();
     await page.getByTestId(`${kind}-apply`).click();
     await page.getByTestId(`${kind}-editor`).waitFor({state:'detached'});
     expect((await attrs(label)).enumerator).toBe(value || null);
@@ -133,6 +135,30 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
   ]) {
     await edit(label, kind);
     expect(await page.getByTestId(`${kind}-enumerator`).inputValue()).toBe(previous);
+    // Fixed mode must survive an empty draft and block every form's completion path.
+    await page.getByTestId(`${kind}-enumerator`).fill('');
+    await page.getByTestId(`${kind}-apply`).click();
+    await expect(page.getByTestId(`${kind}-enumerator`)).toHaveAttribute('aria-invalid','true');
+    await expect(page.getByTestId(`${kind}-enumerator`)).toBeFocused();
+    expect((await attrs(label)).enumerator).toBe(previous);
+    const errorId = await page.getByTestId(`${kind}-enumerator`).getAttribute('aria-describedby');
+    expect(await page.locator(`[id="${errorId}"]`).innerText()).toBe('Enter a fixed number or choose Automatic.');
+    if (kind === 'figure' || kind === 'mermaid-property') {
+      // Outside pointer completion also keeps an invalid number draft open.
+      await active.getByText('Before. FixedSaveMarker',{exact:true}).click();
+      await expect(page.getByTestId(`${kind}-enumerator`)).toBeFocused();
+      expect((await attrs(label)).enumerator).toBe(previous);
+    }
+    if (kind === 'mermaid-property') {
+      await page.getByTestId('mermaid-edit-source').click();
+      await expect(page.getByTestId('mermaid-source')).toHaveCount(0);
+      await expect(page.getByTestId('mermaid-property-enumerator')).toBeFocused();
+    }
+    // Automatic previews the Core counter with this block's fixed enumerator removed.
+    await page.getByTestId(`${kind}-editor`).getByRole('button',{name:'Automatic',exact:true}).click();
+    await expect(page.getByTestId(`${kind}-enumerator`)).toHaveCount(0);
+    expect(await page.getByTestId(`${kind}-automatic-number`).innerText()).toBe('Current number: 1');
+    await page.getByTestId(`${kind}-editor`).getByRole('button',{name:'Fixed',exact:true}).click();
     await page.getByTestId(`${kind}-enumerator`).fill('discard');
     await expect(page.getByTestId('draft-notice')).toBeVisible();
     expect((await attrs(label)).enumerator).toBe(previous);
@@ -151,6 +177,18 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
   expected = {captions:['Figure 18','Table A.4','Figure C.2'], equation:'(5-1)',
     references:'See Figure\u00a018, Table\u00a0A.4, (5-1) and Figure\u00a0C.2.'};
   await assertFixedState();
+  // Mermaid source is a separate form and uses the same fixed-mode gate.
+  await edit('fixed-diagram','mermaid');
+  await page.getByTestId('mermaid-enumerator').fill('   ');
+  await page.getByTestId('mermaid-apply').click();
+  await expect(page.getByTestId('mermaid-enumerator')).toHaveAttribute('aria-invalid','true');
+  expect((await attrs('fixed-diagram')).enumerator).toBe('C.2');
+  await page.getByTestId('mermaid-editor').getByRole('button',{name:'Automatic',exact:true}).click();
+  expect(await page.getByTestId('mermaid-automatic-number').innerText()).toBe('Current number: 1');
+  await page.getByTestId('mermaid-apply').click();
+  await page.getByTestId('mermaid-editor').waitFor({state:'detached'});
+  expect((await attrs('fixed-diagram')).enumerator).toBeNull();
+  await applyNumber('fixed-diagram','mermaid','C.2');
   await save();
   await reloadDocument(page);
   await assertFixedState();
@@ -183,11 +221,16 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
   await reloadDocument(page);
   expect(await active.getByTestId('numbering-warnings').count()).toBe(0);
   expect(await active.getByTestId('equation-number').innerText()).toBe('(1)');
+  await edit('fixed-diagram','mermaid-property');
+  await page.getByTestId('mermaid-property-editor').getByRole('button',{name:'Automatic',exact:true}).click();
+  expect(await page.getByTestId('mermaid-property-automatic-number').innerText()).toBe('Current number: 2');
+  await page.getByTestId('mermaid-property-label').press('Escape');
   // Empty fixed equations can Apply; the existing final-save error path must explain both remedies.
   const emptyPath = [root,'tmp','reference-save-reload','empty-fixed.md'].join(separator);
   await openPath(page,emptyPath);
   await active.locator('[data-block="equation"]').hover();
   await active.locator('[data-block="equation"]').getByRole('button',{name:'Edit',exact:true}).click();
+  await page.getByTestId('equation-editor').getByRole('button',{name:'Fixed',exact:true}).click();
   await page.getByTestId('equation-editor').getByTestId('equation-enumerator').fill('E.1');
   await page.getByTestId('equation-apply').click();
   await page.getByTestId('equation-editor').waitFor({state:'detached'});
@@ -203,7 +246,7 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
   expect(await readEmpty()).toBe(emptyBefore);
   await active.locator('[data-block="equation"]').hover();
   await active.locator('[data-block="equation"]').getByRole('button',{name:'편집',exact:true}).click();
-  await page.getByTestId('equation-editor').getByTestId('equation-enumerator').fill('');
+  await page.getByTestId('equation-editor').getByRole('button',{name:'자동',exact:true}).click();
   await page.getByTestId('equation-apply').click();
   await page.getByTestId('equation-editor').waitFor({state:'detached'});
   await save();
