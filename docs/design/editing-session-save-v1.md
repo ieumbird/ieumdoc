@@ -449,6 +449,11 @@ Undo/Redo from nonediting shell focus (#772) uses only the active editor's appli
 history. It neither applies nor discards unrelated drafts; input/textarea/contenteditable
 fields retain native Undo, and existing target-change/draft lifecycle rules remain in force.
 
+An open modal isolates native Undo/Redo from outside form drafts (#831), even when
+the modal input has exhausted its own native history. Escape dismisses only the
+active modal; unapplied source and other outside form drafts remain mounted and
+unchanged. See [modal history boundaries](document-editing-v1.md#shared-history-and-editing-boundaries).
+
 Mermaid source and label forms register Figure drafts through the same NodeView draft lifecycle.
 Save, Source and tab changes preserve unapplied input and include only applied source; closing
 or reloading uses the existing work-loss guards. Preview loading, syntax errors and theme changes

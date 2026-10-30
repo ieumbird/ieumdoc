@@ -143,6 +143,7 @@ After는 #792 작업 소스로 촬영했다. source/disk 쓰기 없이 번호 �
 - **목적·사용/비사용:** 파일·복구·파괴 작업은 대상과 결과를 확인한다. metadata의 Done/바깥 적용을 이식하거나 기기 설정을 문서 Save에 묶지 않는다.
 - **목표·현재 기준:** 기존 [UnsavedChangesDialog](../../apps/editor/src/shell/UnsavedChangesDialog.tsx), [DangerConfirmation](../../apps/editor/src/components/ui/danger-confirmation.tsx), 파일 dialog·비교 화면을 유지한다. 제목→대상→설명/문제→명시적 동사 action, 안전한 취소·focus 복귀, busy 중 중복 실행 방지가 기준이다. 앱 Settings는 즉시 반영하는 별도 화면, file preview·단축키는 읽기 dialog다.
 - **사용처:** U22 앱 설정, U23 파일/폴더 picker·새 이름, U24 미저장·삭제·저장/복구 비교, U25 미리보기·단축키·참고문헌 연결.
+- **키보드 경계 (#831):** 공용 Dialog는 native Undo/Redo가 modal 밖 입력·초안으로 이동하거나 수정하는 것을 차단한다. modal 안 입력의 자체 Undo/Redo는 유지하고, Escape는 활성 modal만 닫아 바깥 미적용 초안을 보존한다. 명령 센터도 같은 경계를 쓰며 비모달 알림 센터의 문서 history는 유지한다. [현재 Undo 계약](document-editing-v1.md#shared-history-and-editing-boundaries).
 - **추가 사용처:** #797 Docling 서버 Settings는 Host 기기 설정·field exit 저장, PDF 선택은 기존 FolderDialog, 실행은 명시적 변환 확인·진행·대기 중단 dialog다. 연결 확인 실패 뒤에도 서버 구성 안내 링크를 유지한다. 같은 Settings/파일 dialog 패턴을 재사용한다.
 - **추가 사용처:** [Docling 대조](docling-compare-v1.md)는 기존 FolderDialog로 변환 폴더를 명시적으로 연다. 문서 쓰기·미저장 확인과 연결하지 않는다. bbox·연결선·변환 메모 띠는 비교 전용 새 표현이며 기존 편집 패턴을 바꾸지 않는다.
 - **결정·불일치:** [소유자 결정 P12][decision], [현재 저장·복구 계약](editing-session-save-v1.md#switching-and-recovery). 이 작업·확정 경계의 알려진 불일치 없음. 메시지 표시는 P07/D07에서 별도 추적한다.
