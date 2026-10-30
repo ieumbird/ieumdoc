@@ -1,0 +1,217 @@
+{
+  "format": "ieumdoc-docling-conversion",
+  "version": 1,
+  "status": "success",
+  "startedAt": "2026-10-30T06:12:55.833Z",
+  "completedAt": "2026-10-30T06:13:53.429Z",
+  "elapsedMs": 57596,
+  "source": {
+    "path": "C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\784-docling-fixtures\\packages\\docling\\test\\fixtures\\nist-sp1108r4\\source.pdf",
+    "sha256": "5be90726ae6ff9cf0383fbb5ad76167c0f51328545782c37411fb27892143820",
+    "bytes": 4768831
+  },
+  "server": {
+    "url": "http://127.0.0.1:8001/",
+    "versions": {
+      "docling-serve": "1.32.0",
+      "docling-jobkit": "3.5.0",
+      "docling": "2.124.0",
+      "docling-core": "2.93.0",
+      "docling-ibm-models": "4.0.1",
+      "docling-parse": "7.16.0",
+      "python": "cpython-312 (3.12.13)",
+      "plaform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.34"
+    },
+    "openapiSha256": "24274f3c2e6a3981c447e64356c3efc196394961ae02523d69fd88f67c1733db",
+    "baselineOpenapiMatches": true
+  },
+  "profile": {
+    "profile_id": "ieumdoc-pdf-en-v1",
+    "server_version": "1.32.0",
+    "document_version": "1.10.0",
+    "provenance": {
+      "project": "crd-engine",
+      "profile": "profiles/crd-pdf-rest-v1.json",
+      "adr": "docs/adr/0003-official-rest-conversion-contract.md",
+      "sha256": "44f386dfd50639c7601b477bbc9ac2929e8cdebbe804c2232e7dba3ccc700526",
+      "openapi_sha256": "24274f3c2e6a3981c447e64356c3efc196394961ae02523d69fd88f67c1733db",
+      "note": "Request values copied verbatim. Full PDF uses the official API default page_range instead of parsing page count locally."
+    },
+    "request": {
+      "target_type": "inbody",
+      "from_formats": [
+        "pdf"
+      ],
+      "to_formats": [
+        "json"
+      ],
+      "image_export_mode": "embedded",
+      "pipeline": "standard",
+      "pdf_backend": "threaded_docling_parse",
+      "do_ocr": true,
+      "force_ocr": false,
+      "ocr_preset": "rapidocr",
+      "ocr_lang": [
+        "en"
+      ],
+      "do_table_structure": true,
+      "table_structure_preset": "tableformer_v1_accurate",
+      "table_mode": "accurate",
+      "table_cell_matching": true,
+      "layout_preset": "default",
+      "do_pdf_heading_hierarchy": true,
+      "pdf_heading_hierarchy_options": {
+        "use_bookmarks": true,
+        "use_numbering": true,
+        "use_style": true,
+        "use_font_style": true,
+        "style_size_tolerance": 0.05,
+        "max_level": 6,
+        "bookmark_match_threshold": 0.8
+      },
+      "include_images": true,
+      "include_page_images": true,
+      "images_scale": 2,
+      "do_code_enrichment": true,
+      "do_formula_enrichment": true,
+      "code_formula_preset": "codeformulav2",
+      "do_picture_classification": true,
+      "picture_classification_preset": "document_figure_classifier_v2",
+      "do_chart_extraction": false,
+      "do_picture_description": false,
+      "abort_on_error": false
+    }
+  },
+  "taskId": "38f88209-cfa4-411f-ae25-c750eaa3f993",
+  "response": {
+    "sha256": "e882cf43406d4c48be2b9ccc50394e7379e4562b4412a1164da0aca7424f7d19",
+    "bytes": 12772392
+  },
+  "document": {
+    "path": "document.json",
+    "sha256": "9940863e6110fea3ca065e65d3dc9da573b7f807a7b2a8edcf32688a67f3927d",
+    "version": "1.10.0",
+    "pages": 11
+  },
+  "images": [
+    {
+      "pointer": "/pictures/0/image/uri",
+      "path": "pictures/picture-000.png",
+      "sha256": "1c59a29dbc410eb585dddfcd6c7f2eabb1c5cb851cbe10f6899b8321ff59f7a6",
+      "bytes": 457561
+    },
+    {
+      "pointer": "/pictures/1/image/uri",
+      "path": "pictures/picture-001.png",
+      "sha256": "368b420f94018112ea442a9c3d7328fe0a819109435bd999498ff36321692393",
+      "bytes": 1817
+    },
+    {
+      "pointer": "/pictures/2/image/uri",
+      "path": "pictures/picture-002.png",
+      "sha256": "94a8e4216e9ead065feea0fe76e7d5ad4b57a41e3e9e91e216cc8d10fb4f9e98",
+      "bytes": 473
+    },
+    {
+      "pointer": "/pictures/3/image/uri",
+      "path": "pictures/picture-003.png",
+      "sha256": "3dfa4b2344bc25754d92c400182c5729fd9615152cf7a5378c83d7582c8edc84",
+      "bytes": 604
+    },
+    {
+      "pointer": "/pictures/4/image/uri",
+      "path": "pictures/picture-004.png",
+      "sha256": "4c76776c103ecfb43d06e506e2f33c44ab29e17a7e22235e721813bfd765cdee",
+      "bytes": 599
+    },
+    {
+      "pointer": "/pictures/5/image/uri",
+      "path": "pictures/picture-005.png",
+      "sha256": "3b5554c52778895ab4fd4a9fa1a586a04c278fb7c27eecadcea8457ae2985734",
+      "bytes": 818
+    },
+    {
+      "pointer": "/pictures/6/image/uri",
+      "path": "pictures/picture-006.png",
+      "sha256": "23f3c22baac96163a60107c9c92a0519d1391e26342f8e043bc058427464f108",
+      "bytes": 434416
+    },
+    {
+      "pointer": "/pictures/7/image/uri",
+      "path": "pictures/picture-007.png",
+      "sha256": "028dc762fe36f80b41932eb487ef86a3cfa82da8c76e63ab96c92f1c97797998",
+      "bytes": 520737
+    },
+    {
+      "pointer": "/pages/1/image/uri",
+      "path": "pages/page-001.png",
+      "sha256": "7d993f35aee25264a365a6f323c9107f479a17ddb3474c6eebc4a7bfda19d549",
+      "bytes": 687624
+    },
+    {
+      "pointer": "/pages/2/image/uri",
+      "path": "pages/page-002.png",
+      "sha256": "1d7fdb9655d81b3777195297a9e75b03833cb360d34e32d185e4e42873d2193b",
+      "bytes": 895241
+    },
+    {
+      "pointer": "/pages/3/image/uri",
+      "path": "pages/page-003.png",
+      "sha256": "28200d0e04d7ea75f6c92911f61992ef9fcffd4f463bb3d094811140c2b2f877",
+      "bytes": 714638
+    },
+    {
+      "pointer": "/pages/4/image/uri",
+      "path": "pages/page-004.png",
+      "sha256": "878fd8d1db981beb400b5856e79e368a258af6befc52581b77146364accfab95",
+      "bytes": 846060
+    },
+    {
+      "pointer": "/pages/5/image/uri",
+      "path": "pages/page-005.png",
+      "sha256": "8234ed14703a9cc58f4a2a34a9e53b23d44e72f03d0a1119797ce0b99d733b67",
+      "bytes": 813193
+    },
+    {
+      "pointer": "/pages/6/image/uri",
+      "path": "pages/page-006.png",
+      "sha256": "dbbe302b94c826ff88cfdb61fbffaf305f4938586e03ba89016f87abdcf7b36a",
+      "bytes": 878810
+    },
+    {
+      "pointer": "/pages/7/image/uri",
+      "path": "pages/page-007.png",
+      "sha256": "118d95c10dd827e3b6314c0f27743d7ce6cd0a4a7759e8b825677ab2d6d99b18",
+      "bytes": 670350
+    },
+    {
+      "pointer": "/pages/8/image/uri",
+      "path": "pages/page-008.png",
+      "sha256": "cd41288ca3ec367dac64a38e103cfbbd19c240f94f25c343714464020beeb2a9",
+      "bytes": 621363
+    },
+    {
+      "pointer": "/pages/9/image/uri",
+      "path": "pages/page-009.png",
+      "sha256": "0ffdf0f1ec7133f4532d4388649109ae9be329c188cc46b5e3980c9c78846068",
+      "bytes": 751277
+    },
+    {
+      "pointer": "/pages/10/image/uri",
+      "path": "pages/page-010.png",
+      "sha256": "1bd5a8fe6ee8d2fe407e4c76fa37c3105298ca1d815cadec6c2814bf0cbae6aa",
+      "bytes": 519712
+    },
+    {
+      "pointer": "/pages/11/image/uri",
+      "path": "pages/page-011.png",
+      "sha256": "6356a3da7619d2bbcb54f506fac1ce7743df97012c6e64a0829fa5046a8cd4a1",
+      "bytes": 545270
+    }
+  ],
+  "verification": {
+    "imageBytesMatchEmbedded": true,
+    "jsonExceptImageUrisMatches": true,
+    "contentSha256": "bbf2823d8e6ed066162dc7280bba634005e57ee214f4a97941405db5ec675efe"
+  }
+}
