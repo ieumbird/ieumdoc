@@ -14,7 +14,7 @@
     },
     {
       "file": "after-640-draft-form.png",
-      "sha256": "a460ad4911c5af06acd000933333af6503081530509e0148049f2e4c4e488d24"
+      "sha256": "c999ddbf589aaa40937ba91c5004734430a5efca7b587486b015fbe717fe1a3b"
     },
     {
       "file": "after-640-long-token.png",
@@ -520,5 +520,198 @@
     "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36"
   },
   "issue": 833,
-  "afterState": "Uncommitted styles.css change; final PR commit contains captured CSS blob"
+  "afterState": "Uncommitted styles.css change; final PR commit contains captured CSS blob",
+  "followup": {
+    "beforeComputed": [
+      {
+        "className": "ui-notice ui-notice--info message",
+        "text": "저장과 소스에는 적용된 내용만 포함됩니다. 편집 초안은 적용해야 저장됩니다.",
+        "wordBreak": "keep-all",
+        "overflowWrap": "anywhere",
+        "ancestors": [
+          "DIV.message-area",
+          "DIV.app-header",
+          "DIV.app-main",
+          "DIV.app-shell app-shell--panel-closed",
+          "DIV.",
+          "BODY.",
+          "HTML."
+        ]
+      },
+      {
+        "className": "draft-status",
+        "text": "적용하지 않은 변경은 저장되지 않습니다. 포함하려면 적용하고, 되돌리려면 취소하세요.",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word",
+        "ancestors": [
+          "DIV.equation",
+          "DIV.react-renderer node-equation",
+          "DIV.tiptap ProseMirror document-editor",
+          "DIV.",
+          "ARTICLE.document",
+          "DIV.",
+          "DIV.document-column",
+          "DIV.document-scroll",
+          "MAIN.document-stage",
+          "DIV.app-main",
+          "DIV.app-shell app-shell--panel-closed",
+          "DIV.",
+          "BODY.",
+          "HTML."
+        ]
+      },
+      {
+        "className": "block-properties-form",
+        "text": "LaTeXx + yx+yx + yx+y(1)레이블번호자동고정자동 번호: 1취소적용",
+        "wordBreak": "keep-all",
+        "overflowWrap": "anywhere",
+        "ancestors": [
+          "DIV.",
+          "DIV.equation",
+          "DIV.react-renderer node-equation",
+          "DIV.tiptap ProseMirror document-editor",
+          "DIV.",
+          "ARTICLE.document",
+          "DIV.",
+          "DIV.document-column",
+          "DIV.document-scroll",
+          "MAIN.document-stage",
+          "DIV.app-main",
+          "DIV.app-shell app-shell--panel-closed",
+          "DIV.",
+          "BODY.",
+          "HTML."
+        ]
+      },
+      {
+        "className": "form-hint",
+        "text": "자동 번호: 1",
+        "wordBreak": "keep-all",
+        "overflowWrap": "anywhere",
+        "ancestors": [
+          "DIV.form-field figure-number-field",
+          "FORM.block-properties-form",
+          "DIV.",
+          "DIV.equation",
+          "DIV.react-renderer node-equation",
+          "DIV.tiptap ProseMirror document-editor",
+          "DIV.",
+          "ARTICLE.document",
+          "DIV.",
+          "DIV.document-column",
+          "DIV.document-scroll",
+          "MAIN.document-stage",
+          "DIV.app-main",
+          "DIV.app-shell app-shell--panel-closed",
+          "DIV.",
+          "BODY.",
+          "HTML."
+        ]
+      }
+    ],
+    "changedImage": "after-640-draft-form.png",
+    "regression": "Replaced selector-string unit guard with ui-prose-wrap browser regression. Without draft-status boundary it fails: expected keep-all, received normal. Korean glyph rectangles also assert no eojeol split.",
+    "beforeHead": "425c6bc13d80f16238abe7559b13bf5812ef2b61",
+    "otherBlocks": "Table uses metadata form without sibling draft status; computed form/hint keep-all. Code edits in place without property/draft-status form; pre/code/language control remain normal. In-document preview Notice and hints compute keep-all.",
+    "environment": "640x900 Dark Korean, persistent Chrome, DPR 1, zoom 100%, bundled Pretendard loaded. Only changed After image recaptured.",
+    "afterComputed": {
+      "results": [
+        {
+          "name": "equation draft",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": "embedded property form",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": "embedded hint",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": "shell draft",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": "embedded preview notice",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": "image draft",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": "image hint",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": "table metadata form",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": "table hint",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": "Mermaid draft",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": "Mermaid hint",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": ".document-editor",
+          "wordBreak": "normal"
+        },
+        {
+          "name": ".paragraph",
+          "wordBreak": "keep-all"
+        },
+        {
+          "name": "[data-table-cell]",
+          "wordBreak": "keep-all"
+        },
+        {
+          "name": ".code-block pre",
+          "wordBreak": "normal"
+        },
+        {
+          "name": ".code-block code",
+          "wordBreak": "normal"
+        },
+        {
+          "name": ".code-language",
+          "wordBreak": "normal"
+        }
+      ]
+    },
+    "captureCommand": "IEUMDOC_BROWSER_URL=http://127.0.0.1:5287 pnpm browser:test ui-prose-wrap --screenshots",
+    "rootCause": "Equation/image/Mermaid draft-status is a sibling of PropertyForm. PropertyForm and form-hint already computed keep-all; sibling draft-status inherited normal from document-editor. Same-specificity source order was not the cause.",
+    "afterState": "Working tree fix: add sibling .draft-status to shared UI prose boundary",
+    "afterCssBlob": "c2ebb2da5d679901fbadfc4fe4fde0548dfcedb5",
+    "override": "This follow-up CSS/capture state overrides initial metadata only for after-640-draft-form.png; other images retain initial evidence."
+  }
 }

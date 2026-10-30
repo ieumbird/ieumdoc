@@ -302,6 +302,8 @@ pnpm --filter @ieumdoc/desktop test:update:github
 
 공개 버전 안내는 실제 게시 결과를 확인한 뒤 갱신한다. 서명 인증·SmartScreen reputation 검증은 이 unsigned 경로의 판정 범위가 아니다.
 
+`pnpm browser:test ui-prose-wrap` checks 640px Dark/Korean draft feedback next to Equation/image/Mermaid forms, embedded notices/helpers and table metadata forms using actual computed `word-break` and Korean word rectangles. It also checks that document prose/table cells and literal code/control boundaries retain their wrapping. `--screenshots` replaces only `tmp/ui-wrap-833/after-640-draft-form.png`. The former selector-string unit guard missed feedback rendered beside the form: the form computed to `keep-all` while the sibling status inherited `normal`. Removing the explicit draft-feedback boundary must fail the computed-style assertion.
+
 ## Manual review
 
 - [TEST_GUIDE](TEST_GUIDE.md): 실행 옵션, CI, OS IME·실제 앱 clipboard 등 자동화가 판정하지 않는 시나리오.

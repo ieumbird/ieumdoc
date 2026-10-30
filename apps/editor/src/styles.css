@@ -24,8 +24,9 @@ button {
 }
 
 /* UI prose shares Korean eojeol wrapping across the shell, portals and embedded forms.
+ * Draft status is a sibling of those forms inside the editor, so owns a prose boundary too.
  * Low specificity leaves each surface's existing nowrap/ellipsis and overflow rules in charge. */
-:where(.app-shell, .ui-portal, .block-properties-form, .ui-notice, .form-hint, .display-hint) {
+:where(.app-shell, .ui-portal, .block-properties-form, .ui-notice, .draft-status, .form-hint, .display-hint) {
   word-break: var(--word-break-document);
   overflow-wrap: anywhere;
 }
