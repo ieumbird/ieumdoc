@@ -1,7 +1,13 @@
 import { useRef, useState } from "react";
 
 export type AiStatus = { enabled: boolean; installed?: boolean; version?: string | null; loggedIn?: boolean; authMethod?: string | null;
-  model?: string | null; modelLabel?: string; modelAvailable?: boolean | null; cliAvailable?: boolean; readBoundary?: string; problem?: string };
+  model?: string | null; selectedModel?: string; models?: { model: string; displayName: string }[]; modelLabel?: string; modelAvailable?: boolean | null; cliAvailable?: boolean; readBoundary?: string; problem?: string };
+export async function selectAiModel(model: string): Promise<AiStatus> {
+  const response = await fetch("/api/ai/model", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model }) });
+  const value = await response.json();
+  if (!response.ok) throw new Error(value.error ?? "모델을 바꾸지 못했습니다.");
+  return value;
+}
 export type AiMessage = { role: "user" | "assistant" | "host"; text: string; report?: string };
 export async function readAiStatus(): Promise<AiStatus> {
   try { const response = await fetch("/api/ai/status"); if (!response.ok) return { enabled: false }; return await response.json(); }

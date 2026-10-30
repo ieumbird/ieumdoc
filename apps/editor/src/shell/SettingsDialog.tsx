@@ -10,7 +10,7 @@ import { RecoveryDeleteDialog } from "./Recovery.tsx";
 import { Notice } from "../ui/primitives.tsx";
 import { PAGE_BACKGROUNDS, readPageBackground, writePageBackground, type PageBackground, ACCENT_COLORS, readAccentColor, writeAccentColor, writeUiLanguage, THEMES, writeTheme, type UiLanguage, type ThemePreference } from "../preferences.ts";
 import { applyPageBackground, applyTheme, currentTheme } from "../theme.ts";
-import type { AiStatus } from "../ai.ts";
+import { selectAiModel, type AiStatus } from "../ai.ts";
 
 const ACCENT_LABELS = { blue: "Blue", violet: "Violet", plum: "Plum", teal: "Teal", green: "Green", graphite: "Graphite" } as const;
 const PAGE_LABELS = { paper: "Paper", flat: "Flat" } as const;
@@ -57,16 +57,23 @@ export type SettingsCategory = "appearance" | "recovery" | "about" | "ai";
 
 function AiSettings({ status, refresh }: { status: AiStatus | null; refresh(): Promise<void> }) {
   const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState("");
   return <section className="settings-group" data-testid="ai-settings">
     <h3>AI · Codex</h3>
     <dl className="settings-facts settings-section">
       <dt>Codex</dt><dd>{status?.version ?? "미확인"}</dd>
       <dt>로그인</dt><dd>{status?.loggedIn ? status.authMethod : "로그인 필요 · codex login"}</dd>
-      <dt>모델</dt><dd>{status?.modelLabel} {status?.model ? `(${status.model})` : ""} · {status?.modelAvailable ? "사용 가능" : "미확인 또는 사용 불가"}</dd>
+      <dt>모델</dt><dd>{status?.models?.length
+        ? <select aria-label="AI 모델" value={status.selectedModel ?? ""} disabled={busy}
+            onChange={event => { setBusy(true); setProblem(""); void selectAiModel(event.target.value).then(() => refresh()).catch(error => setProblem(String(error instanceof Error ? error.message : error))).finally(() => setBusy(false)); }}>
+            {status.models.some(item => item.model === status.selectedModel) ? null : <option value={status.selectedModel}>{status.selectedModel} (사용 불가)</option>}
+            {status.models.map(item => <option key={item.model} value={item.model}>{item.displayName === item.model ? item.model : `${item.displayName} (${item.model})`}</option>)}
+          </select>
+        : <>{status?.modelLabel} · 미확인 또는 사용 불가</>} {status?.modelAvailable ? "· 사용 가능" : ""}</dd>
       <dt>이음독 CLI</dt><dd>{status?.cliAvailable ? "준비됨" : "빌드 필요"}</dd>
     </dl>
     <p>사용자의 ChatGPT Codex 로그인을 사용합니다. 새 문서만 만들고 Host 검증 통과 후 엽니다.</p>
-    <p>{status?.readBoundary}</p>{status?.problem ? <Notice tone="error">{status.problem}</Notice> : null}
+    <p>{status?.readBoundary}</p>{status?.problem ? <Notice tone="error">{status.problem}</Notice> : null}{problem ? <Notice tone="error">{problem}</Notice> : null}
     <Button variant="secondary" disabled={busy} onClick={() => { setBusy(true); void refresh().finally(() => setBusy(false)); }}>상태 새로 고침</Button>
   </section>;
 }

@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { decodeUtf8, textRevision } from "@ieumdoc/file-commit";
 import { RootAccess, inside } from "../file-access.ts";
 import { readRequestBody } from "../request-body.ts";
-import { AI_MODEL_LABEL, requiredModel, CodexAppServer } from "./codex-app-server.ts";
+import { AI_MODEL, AI_MODEL_LABEL, CodexAppServer } from "./codex-app-server.ts";
 import { CLI_RUNNER } from "./cli-runner.ts";
 import { REPORT_STDIN_EXAMPLE } from "./report-example.ts";
 
@@ -55,6 +55,8 @@ export class AiHost {
   private running: { thread: string; turn: string | null } | null = null;
   private preparing = false;
   private history: string[] = [];
+  // SPIKE: model chosen in Settings; kept for this server process only. Default is the owner-confirmed model.
+  private selected = AI_MODEL;
   constructor(private readonly access: RootAccess | null, codex?: CodexAppServer, private readonly observe?: Send) {
     writeFileSync(path.join(this.shim, "runner.cjs"), CLI_RUNNER);
     if (process.platform === "win32") writeFileSync(path.join(this.shim, "ieumdoc.cmd"), `@echo off\r\n"${process.execPath}" "${path.join(this.shim, "runner.cjs")}" %*\r\n`);
@@ -65,7 +67,7 @@ export class AiHost {
   async status() {
     const version = await this.codex.version();
     const base = { enabled: true, installed: !!version, version, loggedIn: false, authMethod: null as string | null,
-      model: null as string | null, modelLabel: AI_MODEL_LABEL, modelAvailable: null as boolean | null, cliAvailable: existsSync(this.cli),
+      model: null as string | null, selectedModel: this.selected, models: [] as { model: string; displayName: string }[], modelLabel: AI_MODEL_LABEL, modelAvailable: null as boolean | null, cliAvailable: existsSync(this.cli),
       readBoundary: "Codex 0.164.0 has no readableRoots; shell reads are not confined to the opened folder." };
     if (!version) return base;
     try {
@@ -76,7 +78,9 @@ export class AiHost {
         const page: { data: { id: string; model: string; displayName: string }[]; nextCursor: string | null } = await this.codex.request("model/list", { includeHidden: true, cursor });
         models.push(...page.data); cursor = page.nextCursor;
       } while (cursor);
-      base.model = requiredModel(models); base.modelAvailable = base.model !== null;
+      base.models = models.map(item => ({ model: item.model, displayName: item.displayName }));
+      const chosen = models.find(item => item.model === this.selected);
+      base.model = chosen ? chosen.model : null; base.modelLabel = chosen?.displayName ?? this.selected; base.modelAvailable = base.model !== null;
       return base;
     } catch (error) { return { ...base, problem: String(error) }; }
   }
@@ -106,7 +110,7 @@ export class AiHost {
       if (!existsSync(this.cli)) throw new Error("Build the CLI first: pnpm --filter @ieumdoc/cli build");
       const status = await this.status();
       if (status.authMethod !== "chatgpt") throw new Error("A ChatGPT Codex login is required.");
-      if (!status.model) throw new Error(`${AI_MODEL_LABEL} is unavailable in the Codex model catalog. No other model will be used.`);
+      if (!status.model) throw new Error(`${this.selected} is unavailable in the Codex model catalog. Choose another model in Settings.`);
       model = status.model;
       target = path.join(output, `report-${randomUUID()}.md`);
       const env = { IEUMDOC_AI_ROOT: root, IEUMDOC_AI_OUTPUT: output, IEUMDOC_AI_TARGET: target,
@@ -183,6 +187,13 @@ export class AiHost {
       }).then(({ turn }) => { current.turn ??= turn.id; }).catch(finish);
     });
   }
+  async selectModel(model: string) {
+    if (this.running || this.preparing) throw new Error("Wait for the current AI request to finish.");
+    const status = await this.status();
+    if (!status.models.some(item => item.model === model)) throw new Error(`Model ${model} is not in the Codex model catalog.`);
+    this.selected = model;
+    return this.status();
+  }
   async interrupt() {
     if (this.running?.turn) await this.codex.request("turn/interrupt", { threadId: this.running.thread, turnId: this.running.turn });
   }
@@ -196,6 +207,12 @@ export async function handleAiRequest(req: IncomingMessage, res: ServerResponse,
   if (pathname === "/api/ai/status" && req.method === "GET") return json(res, 200, host ? await host.status() : { enabled: false });
   if (!host) return json(res, 404, { error: "AI is disabled. Start ieumdoc serve --ai." });
   if (req.method !== "POST") return json(res, 405, { error: "Method not allowed." });
+  if (pathname === "/api/ai/model") {
+    const body = JSON.parse((await readRequestBody(req, 4 * 1024)).toString("utf8"));
+    if (typeof body.model !== "string" || !body.model.trim()) return json(res, 400, { error: "model is required." });
+    try { return json(res, 200, await host.selectModel(body.model.trim())); }
+    catch (error) { return json(res, 409, { error: error instanceof Error ? error.message : String(error) }); }
+  }
   if (pathname === "/api/ai/interrupt") { await host.interrupt(); return json(res, 200, { ok: true }); }
   if (pathname !== "/api/ai/turn") return json(res, 404, { error: "Not found." });
   const body = JSON.parse((await readRequestBody(req, 64 * 1024)).toString("utf8"));
