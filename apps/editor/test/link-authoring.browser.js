@@ -3,7 +3,7 @@
 // reloads a real file, and checks that cross-references stay read-only and invalid links fail
 // closed. The file is a scratch copy under the repository's ignored tmp/ directory; prepare it
 // first (see docs/test/TEST_GUIDE.md). The scenario writes that copy only.
-async (page, { openPath, screenshots }) => {
+async (page, { openPath, screenshots, expect }) => {
   page.setDefaultTimeout(15000);
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
@@ -87,7 +87,75 @@ async (page, { openPath, screenshots }) => {
     await page.setViewportSize({width:1280, height:720});
   }
 
-  await page.getByTestId('link-url').press('Escape');
+  // #790: an unapplied URL belongs to the same draft/work-loss path as source properties.
+  const applied = () => editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON()));
+  const appliedBeforeDraft = await applied();
+  const linkTab = await page.getByRole('tab', {name:'links.md',exact:true}).getAttribute('id');
+  await page.getByTestId('link-url').fill('https://example.com/unapplied');
+  await editor.locator('p.paragraph', {hasText:'A plain paragraph'}).click({position:{x:4,y:4}});
+  expect(await page.getByTestId('link-url').inputValue(), 'Outside click retains URL').toBe('https://example.com/unapplied');
+  expect(await applied()).toBe(appliedBeforeDraft);
+  await page.keyboard.press('Control+Quote');
+  expect(await page.getByTestId('link-url').inputValue(), 'Shortcut re-entry keeps original draft').toBe('https://example.com/unapplied');
+  await page.getByTestId('draft-notice').waitFor();
+  expect(await page.getByTestId('draft-notice').innerText()).toBe('Save and Source include applied content only. Unapplied edit drafts stay unsaved until you apply them.');
+  expect(await page.evaluate(() => { const event = new Event('beforeunload',{cancelable:true}); window.dispatchEvent(event); return event.defaultPrevented; })).toBe(true);
+  await page.getByTestId('save').click();
+  await page.locator('[data-testid="status"][data-operation^="saved"]').waitFor();
+  expect(await markdown()).not.toContain('unapplied');
+  expect(await page.getByTestId('status').innerText()).toBe('Unsaved changes');
+  await page.getByTestId('view-source').click();
+  const source = page.locator('[data-document-tab][data-active=true]').getByTestId('source-view');
+  await source.waitFor();
+  expect(await source.innerText()).not.toContain('unapplied');
+  expect(await page.getByTestId('link-form').count()).toBe(0);
+  await page.getByTestId('view-visual').click();
+  expect(await page.getByTestId('link-url').inputValue()).toBe('https://example.com/unapplied');
+  await page.getByRole('tab',{name:'technical-document.md',exact:true}).click();
+  expect(await page.getByTestId('link-form').count()).toBe(0);
+  await page.locator(`#${linkTab}`).click();
+  expect(await page.getByTestId('link-url').inputValue()).toBe('https://example.com/unapplied');
+  expect(await page.getByTestId('link-url').evaluate(el => el === document.activeElement), 'Returning tab does not autofocus the retained draft').toBe(false);
+  const closeLink = page.getByRole('button',{name:'Close links.md',exact:true});
+  await closeLink.click();
+  const closeGuard = page.getByRole('dialog',{name:'Save changes?',exact:true});
+  await expect(closeGuard).toContainText('Unapplied property drafts will be lost');
+  await closeGuard.getByRole('button',{name:'Cancel',exact:true}).click();
+  await closeGuard.waitFor({state:'detached'});
+  await expect(closeLink).toBeFocused();
+  expect(await page.getByTestId('link-url').inputValue()).toBe('https://example.com/unapplied');
+  await page.getByTestId('link-cancel').click();
+  expect(await applied()).toBe(appliedBeforeDraft);
+  await page.getByTestId('draft-notice').waitFor({state:'detached'});
+  result.explicitDraftLifecycle = true;
+
+  // Editing before a retained link must not shift Apply onto different text.
+  await select('OpenAI', 'mapped link');
+  await page.keyboard.press('Control+Quote');
+  await page.getByTestId('link-url').fill('https://example.com/mapped');
+  await page.evaluate(() => {
+    const instance = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+    instance.view.focus();
+    instance.commands.setTextSelection(1);
+  });
+  await page.keyboard.type('Prefix ');
+  const beforeLinkDeletion = await applied();
+  await page.evaluate(() => {
+    const instance = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+    let position;
+    instance.state.doc.forEach((node,pos) => { if (node.type.name === 'paragraph' && node.textContent.includes('OpenAI')) position = pos; });
+    instance.commands.setNodeSelection(position);
+    instance.view.focus();
+  });
+  await page.keyboard.press('Delete');
+  expect(await page.getByTestId('link-url').inputValue()).toBe('https://example.com/mapped');
+  await page.keyboard.press('ControlOrMeta+z');
+  expect(await applied()).toBe(beforeLinkDeletion);
+  await page.getByTestId('link-apply').click();
+  expect(await editor.locator('a[href="https://example.com/mapped"]').innerText()).toBe('OpenAI');
+  await page.keyboard.press('ControlOrMeta+z');
+  await page.keyboard.press('ControlOrMeta+z');
+  expect(await applied()).toBe(appliedBeforeDraft);
 
   // Observe attempted opens without leaving the edited document; one open below uses a real tab.
   const pagesBeforeOpening = page.context().pages().length;
@@ -141,7 +209,6 @@ async (page, { openPath, screenshots }) => {
     await page.getByTestId('link-url').fill(url);
     await page.getByTestId('link-url').focus();
     await page.keyboard.press('Tab');
-    await page.keyboard.press('Tab');
     if (!await page.getByTestId('link-open').evaluate(node => node === document.activeElement)) throw Error('Open is not reachable by Tab');
     await page.keyboard.press('Enter');
     if ((await opens()).at(-1)[0] !== url) throw Error('Open did not use current draft URL');
@@ -164,6 +231,26 @@ async (page, { openPath, screenshots }) => {
   await assertOpens(countBeforeNote);
   if (page.context().pages().length !== pagesBeforeOpening) throw Error('An ignored click opened an unwanted tab');
   result.externalOpening = true;
+
+  // Endnote edit sessions can end on outside focus too; the nested reference form must
+  // keep its values and Cancel action just like the existing inline-math source form.
+  const note = editor.getByTestId('footnote-definition');
+  const beforeNoteDraft = await applied();
+  await note.getByTestId('endnote-edit').click();
+  await select('External note', 'nested reference draft');
+  await page.getByTestId('selection-toolbar').getByRole('button',{name:'Cross-reference',exact:true}).click();
+  await page.getByTestId('reference-apply').click();
+  await note.getByTestId('cross-reference').hover();
+  await note.getByTestId('cross-reference-edit').click();
+  await editor.locator('p.paragraph', {hasText:'A plain paragraph'}).click({position:{x:4,y:4}});
+  expect(await note.getByTestId('reference-form').count(), 'Ending endnote editing retains its reference form').toBe(1);
+  expect(await note.getByTestId('reference-apply').isDisabled()).toBe(true);
+  await note.getByTestId('endnote-edit').click();
+  expect(await note.getByTestId('reference-target').inputValue()).toBe('reference:eq:eq-a');
+  expect(await note.getByTestId('reference-apply').isEnabled()).toBe(true);
+  await note.getByTestId('reference-cancel').click();
+  await page.keyboard.press('ControlOrMeta+z');
+  expect(await applied()).toBe(beforeNoteDraft);
 
   // Retarget an existing link: the form opens with its current URL.
   await select('OpenAI', 'initial retarget');
@@ -197,7 +284,7 @@ async (page, { openPath, screenshots }) => {
   result.physicalKeyLinkShortcut = true;
 
   result.formPrefilled = await page.getByTestId('link-url').inputValue() === 'https://openai.com';
-  // Transient inline input closes without Apply on any outside blur, including tab switches.
+  // Outside focus and tab switches retain input; only explicit Cancel discards it.
   const appliedBeforeBlur = await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON()));
   for (const destination of ['same document', 'another tab']) {
     await page.getByTestId('link-url').press('Control+a');
@@ -207,15 +294,17 @@ async (page, { openPath, screenshots }) => {
     } else {
       await page.getByRole('tab', {name:'technical-document.md',exact:true}).click();
       await page.getByTestId('link-form').waitFor({state:'detached'});
-      await page.getByRole('tab', {name:'links.md',exact:true}).click();
+      await page.locator(`#${linkTab}`).click();
     }
-    await page.getByTestId('link-form').waitFor({state:'detached'});
+    expect(await page.getByTestId('link-url').inputValue()).toBe('https://uncommitted.example');
     if (await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON())) !== appliedBeforeBlur) throw new Error(`Link blur applied input on ${destination}`);
+    await page.getByTestId('link-cancel').click();
+    await page.getByTestId('link-form').waitFor({state:'detached'});
     await select('OpenAI', `after blur to ${destination}`);
     await page.getByRole('button', {name:'Link',exact:true}).click();
-    if (await page.getByTestId('link-url').inputValue() !== 'https://openai.com') throw new Error(`Link input survived blur on ${destination}`);
+    if (await page.getByTestId('link-url').inputValue() !== 'https://openai.com') throw new Error(`Cancel retained link input on ${destination}`);
   }
-  result.inlineBlurClosesWithoutApply = true;
+  result.inlineBlurRetainsWithoutApply = true;
   await page.getByTestId('link-url').fill('https://openai.com/research');
   await page.getByTestId('link-apply').click();
   await page.getByTestId('link-form').waitFor({state:'detached'});
