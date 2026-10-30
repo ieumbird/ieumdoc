@@ -65,7 +65,7 @@ export function NotificationCenter({ items }: { items: Notification[] }) {
   const visible = items.filter(item => !hidden.includes(item.id));
   const severity = visible.some(item => item.severity === "error") ? "error" : visible.some(item => item.severity === "warning") ? "warning" : "info";
   const label = i18n.t(severity === "error" ? "Error" : severity === "warning" ? "Warning" : "Information");
-  const accessibleLabel = i18n.t("Notifications: {{severity}}, {{count}}", { severity: label, count: visible.length });
+  const accessibleLabel = visible.length ? i18n.t("Notifications: {{severity}}, {{count}}", { severity: label, count: visible.length }) : i18n.t("Notifications: none");
   const causes = JSON.stringify(items.map(item => [item.id, item.severity]));
   useLayoutEffect(() => {
     const ids = items.map(item => item.id);
@@ -80,7 +80,7 @@ export function NotificationCenter({ items }: { items: Notification[] }) {
     <div className="sr-only" aria-live="polite" aria-atomic="true" data-testid="notification-announcement">
       {announcement ? <span key={announcement.sequence}>{announcement.text}</span> : null}
     </div>
-    {visible.length ? <aside className="notification-center" data-severity={severity} aria-label={i18n.t("Notifications")}>
+    <aside className="notification-center" data-severity={visible.length ? severity : undefined} aria-label={i18n.t("Notifications")}>
     <ul hidden={!expanded} id="notification-list" aria-label={i18n.t("Notifications")}>{visible.map(item => <li key={item.id} data-severity={item.severity}>
       <div className="notification-content">
         {item.context ? <p className="notification-context">{item.context}</p> : null}
@@ -91,8 +91,8 @@ export function NotificationCenter({ items }: { items: Notification[] }) {
       </div>
       <Button size="icon-sm" variant="ghost" aria-label={item.dismissLabel ?? i18n.t("Dismiss notification")}
         onClick={() => setHidden(value => [...value, item.id])}><X /></Button>
-    </li>)}</ul>
+    </li>)}{visible.length ? null : <li>{i18n.t("No notifications")}</li>}</ul>
     <Button size="sm" variant="outline" aria-label={accessibleLabel} aria-expanded={expanded} aria-controls={expanded ? "notification-list" : undefined}
-      onClick={() => setExpanded(value => !value)}><Bell /><span>{label} · {visible.length}</span></Button>
-  </aside> : null}</>;
+      onClick={() => setExpanded(value => !value)}><Bell />{visible.length ? <span>{label} · {visible.length}</span> : null}</Button>
+  </aside></>;
 }

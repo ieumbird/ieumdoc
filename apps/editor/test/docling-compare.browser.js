@@ -165,11 +165,15 @@ async (page, { expect, screenshots }) => {
   await expect(center.locator('ul')).toBeHidden();
   await center.getByRole('button', { name: /^Notifications:/ }).click();
   await center.getByRole('button', { name: 'Dismiss notification' }).click();
-  await expect(center).toHaveCount(0);
+  await expect(center).toBeVisible();
+  await expect(center.locator(':scope > button')).toHaveAccessibleName('Notifications: none');
+  await expect(center.locator('li[data-severity]')).toHaveCount(0);
   const staleTabId = await stale.getAttribute('aria-labelledby');
   await page.getByRole('tab', { name: 'technical-document.md', exact: true }).click();
   await page.locator('#' + staleTabId).click();
-  await expect(center).toHaveCount(0);
+  await expect(center).toBeVisible();
+  await expect(center.locator(':scope > button')).toHaveAccessibleName('Notifications: none');
+  await expect(center.locator('li[data-severity]')).toHaveCount(0);
   await page.getByRole('tab', { selected: true }).press('Delete');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   if (screenshots) {

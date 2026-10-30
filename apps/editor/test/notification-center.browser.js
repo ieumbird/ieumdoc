@@ -13,6 +13,101 @@ async (page, { openPath, expect, screenshots }) => {
   const engine = page.locator('[data-document-tab][data-active=true] .document-editor');
   const center = page.locator('.notification-center');
   const toggle = () => center.locator(':scope > button');
+  const expectEmpty = async (target = center, name = 'Notifications: none') => {
+    await expect(target).toBeVisible();
+    await expect(target.locator(':scope > button')).toHaveAccessibleName(name);
+    await expect(target.locator(':scope > button')).toHaveText('');
+    expect(await target.getAttribute('data-severity')).toBeNull();
+    expect(await target.evaluate(el => {
+      const probe = document.createElement('span');
+      probe.style.color = 'var(--id-color-text-muted)';
+      el.append(probe);
+      const neutral = getComputedStyle(probe).color === getComputedStyle(el).color;
+      probe.remove();
+      return neutral;
+    })).toBe(true);
+    await expect(target.locator('li[data-severity]')).toHaveCount(0);
+  };
+  await expectEmpty();
+  await expect(toggle()).toHaveAttribute('aria-expanded','false');
+  await expect(page.getByTestId('notification-announcement')).toBeEmpty();
+  await engine.locator('p.paragraph').first().click();
+  await expect(toggle()).toHaveAttribute('aria-expanded','false');
+  expect(await engine.evaluate(el => el.contains(document.activeElement))).toBe(true);
+  await toggle().click();
+  await expect(center.locator('ul')).toHaveText('No notifications');
+  await expect(center.locator('ul')).toBeVisible();
+  await toggle().click();
+  if (screenshots) {
+    for (const language of ['en','ko']) {
+      if (language === 'ko') {
+        await page.getByRole('button', {name:'Settings',exact:true}).click();
+        await page.getByTestId('ui-language').selectOption('ko');
+        await page.keyboard.press('Escape');
+        await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+      }
+      const theme = language === 'ko' ? 'dark' : 'light';
+      await page.emulateMedia({colorScheme:theme});
+      for (const width of [1440,640]) {
+        await page.setViewportSize({width,height:900});
+        await page.evaluate(async () => {
+          await document.fonts.ready;
+          document.querySelector('.document-scroll[data-active=true]').scrollTo(0,0);
+        });
+        await expectEmpty(center, language === 'ko' ? '알림: 없음' : 'Notifications: none');
+        for (const state of ['closed','open']) {
+          if (state === 'open') await toggle().click();
+          await expect(toggle()).toHaveAttribute('aria-expanded',String(state === 'open'));
+          if (state === 'open') await expect(center.locator('ul')).toHaveText(language === 'ko' ? '알림 없음' : 'No notifications');
+          const bounds = await center.boundingBox();
+          expect(bounds.x).toBeGreaterThanOrEqual(0);
+          expect(bounds.x + bounds.width).toBeLessThanOrEqual(width - 16);
+          expect(bounds.y + bounds.height).toBeLessThanOrEqual(900);
+          expect(await center.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+          await page.mouse.move(0,0);
+          await page.screenshot({path:`tmp/notification-837-after-${width}-${theme}-${language}-${state}.png`});
+        }
+        await toggle().click();
+        // Document end spacing keeps the last caret above the persistent button.
+        await engine.evaluate(el => el.editor.commands.focus('end'));
+        const caret = await engine.evaluate(el => el.editor.view.coordsAtPos(el.editor.state.selection.to));
+        const button = await toggle().boundingBox();
+        expect(caret.bottom).toBeLessThanOrEqual(button.y);
+        await engine.evaluate(el => {
+          const e = el.editor;
+          let range;
+          e.state.doc.descendants((node,pos) => {
+            if (node.isTextblock && node.textContent.length > 5) range = {from:pos+1,to:pos+6};
+          });
+          e.commands.setTextSelection(range);
+        });
+        const toolbar = page.locator('.selection-toolbar');
+        await expect(toolbar).toBeVisible();
+        const tools = await toolbar.boundingBox();
+        expect(tools.y + tools.height <= button.y || tools.x + tools.width <= button.x).toBe(true);
+        await engine.evaluate(el => el.editor.commands.setTextSelection(el.editor.state.selection.to));
+      }
+    }
+    await page.getByRole('button', {name:'설정',exact:true}).click();
+    await page.getByTestId('ui-language').selectOption('en');
+    await page.keyboard.press('Escape');
+    await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+    await page.setViewportSize({width:1440,height:900});
+    await page.emulateMedia({colorScheme:'light'});
+    await page.evaluate(() => document.querySelector('.document-scroll[data-active=true]').scrollTo(0,0));
+    // The same window-wide empty center also accompanies the read-only comparison.
+    await page.getByRole('button', {name:'Docling comparison',exact:true}).click();
+    const picker = page.getByRole('dialog', {name:'Docling comparison',exact:true});
+    await picker.getByTestId('folder-path').fill([root,'tmp','docling-compare','nist-sp1108r4'].join(sep));
+    await picker.getByTestId('folder-open').click();
+    await expect(page.locator('.docling-tab[data-active=true] .docling-source img').first()).toBeVisible();
+    await expectEmpty();
+    await toggle().click();
+    await expect(center.locator('ul')).toHaveText('No notifications');
+    await page.screenshot({path:'tmp/notification-837-docling-1440.png'});
+    await toggle().click();
+    await page.getByRole('tab', {name:'fixed.md',exact:true}).click();
+  }
   const change = async value => engine.evaluate((el, value) => {
     const e = el.editor;
     e.state.doc.forEach((node, pos) => {
@@ -26,6 +121,10 @@ async (page, { openPath, expect, screenshots }) => {
     });
   }, source);
   await engine.locator('p.paragraph').first().click();
+  // Comparison-tab focus restoration can still be queued when its tab becomes active.
+  // Read the selection only after the pointer click has reached the engine's first paragraph.
+  await expect.poll(() => engine.evaluate(el => el.editor.state.selection.$from.parent.textContent))
+    .toBe(await engine.locator('p.paragraph').first().textContent());
   const selection = await engine.evaluate(el => JSON.stringify(el.editor.state.selection.toJSON()));
   await change(null);
   await expect(center).toContainText('Applied document');
@@ -88,13 +187,13 @@ async (page, { openPath, expect, screenshots }) => {
   await expect(center.getByTestId('mermaid-error')).toHaveCount(0);
   await expect(center.locator('ul')).toBeHidden(); // Removing an error must not reopen the remaining warning.
   await change('A.3');
-  await expect(center).toHaveCount(0);
+  await expectEmpty();
   await change(null);
   await expect(center.locator('ul')).toBeVisible();
   await center.getByRole('button', { name:'Dismiss notification' }).click();
-  await expect(center).toHaveCount(0);
+  await expectEmpty();
   await engine.evaluate(el => el.editor.commands.insertContent('unrelated'));
-  await expect(center).toHaveCount(0);
+  await expectEmpty();
   await change('A.3');
   await change(null);
   await expect(center.locator('ul')).toBeVisible();
@@ -108,11 +207,11 @@ async (page, { openPath, expect, screenshots }) => {
   try {
     await other.goto(`${origin}/?path=${encodeURIComponent(initial.path)}`);
     await other.locator('[data-testid="status"][data-operation="ready"]').waitFor();
-    await expect(other.locator('.notification-center')).toHaveCount(0);
+    await expectEmpty(other.locator('.notification-center'));
   } finally { await other.close(); }
   await toggle().click();
   await change('A.3');
-  await expect(center).toHaveCount(0);
+  await expectEmpty();
   // Pending Mermaid has no applied source. Only its draft preview reports input feedback.
   await diagram(null);
   await engine.getByRole('button', {name:'Write Mermaid',exact:true}).click();
@@ -120,7 +219,7 @@ async (page, { openPath, expect, screenshots }) => {
   await expect(page.getByTestId('mermaid-edit-preview').getByTestId('mermaid-error')).toBeVisible();
   await expect(center.getByTestId('mermaid-error')).toHaveCount(0);
   await page.getByTestId('mermaid-cancel').click();
-  await expect(center).toHaveCount(0);
+  await expectEmpty();
   await page.getByRole('button', {name:'File actions',exact:true}).click();
   await page.getByRole('menuitem', {name:'Copy path',exact:true}).click();
   await expect(center).toHaveAttribute('data-severity','info');
@@ -130,7 +229,8 @@ async (page, { openPath, expect, screenshots }) => {
   await expect(page.getByTestId('notification-announcement')).toHaveText('Notifications: Information, 1');
   await toggle().click();
   await expect(center.getByTestId('notice')).toContainText('Copied the file path.');
-  await expect(center).toHaveCount(0, {timeout:6500}); // Existing one-shot lifetime, no focus change.
+  await expect(center.getByTestId('notice')).toHaveCount(0, {timeout:6500});
+  await expectEmpty(); // Existing one-shot lifetime, no focus change.
   // Localizing an unresolved app cause must not revive a dismissed item.
   await page.evaluate(() => {
     window.__notificationClipboard = Object.getOwnPropertyDescriptor(Navigator.prototype, 'clipboard');
@@ -145,7 +245,7 @@ async (page, { openPath, expect, screenshots }) => {
     await page.getByTestId('ui-language').selectOption('ko');
     await page.keyboard.press('Escape');
     await page.getByTestId('settings-dialog').waitFor({state:'detached'});
-    await expect(center).toHaveCount(0);
+    await expectEmpty(center, '알림: 없음');
   } finally {
     await page.evaluate(() => Object.defineProperty(Navigator.prototype, 'clipboard', window.__notificationClipboard));
   }
@@ -153,7 +253,7 @@ async (page, { openPath, expect, screenshots }) => {
   await page.getByTestId('ui-language').selectOption('en');
   await page.keyboard.press('Escape');
   await page.getByTestId('settings-dialog').waitFor({state:'detached'});
-  await expect(center).toHaveCount(0);
+  await expectEmpty();
   // Independently caused standing warnings must never share a dismissal identity.
   const warningWindow = await page.context().newPage();
   try {
@@ -163,7 +263,7 @@ async (page, { openPath, expect, screenshots }) => {
     const warnings = warningWindow.locator('.notification-center');
     await expect(warnings.getByTestId('writeability-warning')).toContainText('Sample documents are unavailable');
     await warnings.getByRole('button', {name:'Dismiss notification',exact:true}).click();
-    await expect(warnings).toHaveCount(0);
+    await expectEmpty(warnings);
     const settings = warningWindow.getByRole('button', {name:'Settings',exact:true});
     await settings.focus();
     await warningWindow.evaluate(async () => {
@@ -183,7 +283,7 @@ async (page, { openPath, expect, screenshots }) => {
       recoveryStorage.list = window.originalRecoveryList;
       window.dispatchEvent(new Event('focus'));
     });
-    await expect(warnings).toHaveCount(0);
+    await expectEmpty(warnings);
   } finally { await warningWindow.close(); }
   return { lifecycle:true, focusPreserved:true, inactiveNavigation:true, windowIsolation:true };
 }
