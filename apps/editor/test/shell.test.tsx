@@ -734,7 +734,12 @@ test("window center reports severity and count, with optional location navigatio
   const info = renderToStaticMarkup(<NotificationCenter items={[{ id: "copy", severity: "info", message: "Path copied" }]} />);
   assert.match(info, /aria-expanded="false"/);
   assert.match(info, /<ul[^>]*hidden/);
-  assert.doesNotMatch(renderToStaticMarkup(<NotificationCenter items={[]} />), /<aside|<button/);
+  const empty = renderToStaticMarkup(<NotificationCenter items={[]} />);
+  assert.match(empty, /<aside/);
+  assert.match(empty, /aria-label="Notifications: none"/);
+  assert.match(empty, /aria-expanded="false"/);
+  assert.match(empty, />No notifications</);
+  assert.doesNotMatch(empty, /data-severity=| · 0/);
   assert.match(html, /aria-label="Notifications: Error, 2"/);
 });
 

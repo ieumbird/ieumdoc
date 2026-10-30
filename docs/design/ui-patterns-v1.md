@@ -78,14 +78,28 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 - **목적·사용/비사용:** 고칠 입력과 문서·앱 문제를 구별하고 문제 위치로 이동시킨다. 입력칸 오류를 알림 센터만으로 대체하지 않으며 저장 거부/허용 정책을 바꾸지 않는다.
 - **목표 — 입력칸:** 고칠 수 있는 오류는 입력 아래의 짧은 오류문, `aria-invalid`·설명 연결과 값 보존을 따른다. 색만으로 상태를 구별하지 않고 적용 불가·저장 가능을 문장으로 구분한다.
 - **목표 — 창 단위:** 오른쪽 아래 둥근 아이콘 **하나**가 가장 높은 심각도(경고 주황·오류 빨강)와 개수를 나타내며 스크롤바와 겹치지 않는다. 문서·앱 알림(번호 경고, 저장 실패, 파일·Host 오류, Mermaid 렌더 실패, 앱 메시지)을 모으고 항목마다 ‘문제 위치로 이동’을 둔다. 번호 경고는 적용된 문서 기준임을 명시한다.
-- **목표 — 생명주기:** 새 경고·오류가 생기면 포커스를 가져오지 않고 목록을 자동으로 펼치며 사용자가 접을 수 있다. 일회성 안내는 펼치지 않는다. 알림이 없으면 아이콘을 숨긴다. 해결된 항목은 자동 제거하고 사용자가 닫은 항목은 같은 원인이 다시 생길 때까지 숨긴다.
-- **현재 기준:** [NotificationCenter](../../apps/editor/src/components/ui/notification-center.tsx)는 창의 App 인스턴스에 하나만 둔다(#792). 열린 모든 문서의 적용된 번호 경고·저장 실패·지속 파일/Host 오류·앱 메시지와 적용된 Mermaid 렌더 실패를 [Docling 대조](docling-compare-v1.md)의 낡은 대응표 경고(#769)·[Docling 변환](docling-conversion-v1.md#app-pdf-conversion-797)의 실행 오류(#797)와 함께 모은다. 문서 이름과 문제 위치 이동을 제공하며 위치 없는 앱 메시지는 이동 없이 표시한다. [MessageArea](../../apps/editor/src/shell/MessageArea.tsx)는 기존 메시지의 등록·일회 안내 만료를 맡는다. 미적용 초안의 Save/Source 범위 설명은 기존 상단 위치에 상시 표시한다. 문서 상단/번호 폼 경고는 센터로 옮겼으며 저장 실패의 기술적 상세·다중 위치 탐색과 문서 안 빨간 테두리는 유지한다.
-- **현재 생명주기:** 새 경고·오류만 focus 없이 목록을 펼친다. 원인별 안정적인 ID를 쓰며 샘플 준비·복구 저장소 등 독립 원인을 합치지 않는다. 접힌 토글의 접근성 이름에 최고 심각도·개수를 포함하고, 새 항목은 펼침과 독립된 polite live region에서 한 번 알린다. 접은 목록은 항목 제거·안내 추가로 다시 펼쳐지지 않는다. 일회 안내는 기존 5초 수명과 Undo를 유지한다. 원인 제거 시 항목을 없애고, 닫은 원인은 탭 전환·무관한 편집에서 숨김을 유지하다가 제거 후 재발하면 다시 표시한다. 탭을 닫으면 그 탭의 원인도 제거한다. 알림·접힘·숨김은 창 메모리에만 두고 문서·복구 기록에 쓰지 않는다. 저장 실패는 기존 계약대로 다음 성공한 Save가 해소하며, 편집 후 위치가 낡으면 재저장을 안내한다. Core/Host의 저장 허용·거부를 재판정하지 않는다.
+- **목표 — 생명주기:** 새 경고·오류가 생기면 포커스를 가져오지 않고 목록을 자동으로 펼치며 사용자가 접을 수 있다. 일회성 안내는 펼치지 않는다. 알림이 없어도 버튼을 항상 표시하고 심각도 색·개수 없이 중립 상태로 둔다. 접근성 이름은 알림이 없음을 말하며, 사용자가 열면 한·영으로 짧은 빈 상태 안내를 보인다. 빈 상태 자체는 focus를 가져가거나 자동으로 펼쳐지지 않는다. 해결된 항목은 자동 제거하고 사용자가 닫은 항목은 같은 원인이 다시 생길 때까지 숨긴다.
+- **현재 기준:** [NotificationCenter](../../apps/editor/src/components/ui/notification-center.tsx)는 창의 App 인스턴스에 하나만 둔다(#792). #837의 소유자 결정(2026-10-31)에 따라 알림이 없어도 중립 버튼이 항상 보이고, 열면 “알림 없음” / “No notifications”를 표시한다. 열린 모든 문서의 적용된 번호 경고·저장 실패·지속 파일/Host 오류·앱 메시지와 적용된 Mermaid 렌더 실패를 [Docling 대조](docling-compare-v1.md)의 낡은 대응표 경고(#769)·[Docling 변환](docling-conversion-v1.md#app-pdf-conversion-797)의 실행 오류(#797)와 함께 모은다. 문서 이름과 문제 위치 이동을 제공하며 위치 없는 앱 메시지는 이동 없이 표시한다. [MessageArea](../../apps/editor/src/shell/MessageArea.tsx)는 기존 메시지의 등록·일회 안내 만료를 맡는다. 미적용 초안의 Save/Source 범위 설명은 기존 상단 위치에 상시 표시한다. 문서 상단/번호 폼 경고는 센터로 옮겼으며 저장 실패의 기술적 상세·다중 위치 탐색과 문서 안 빨간 테두리는 유지한다.
+- **현재 생명주기:** 새 경고·오류만 focus 없이 목록을 펼친다. 원인별 안정적인 ID를 쓰며 샘플 준비·복구 저장소 등 독립 원인을 합치지 않는다. 토글의 접근성 이름은 알림이 있으면 최고 심각도·개수, 없으면 “알림: 없음” / “Notifications: none”을 포함하고, 새 항목은 펼침과 독립된 polite live region에서 한 번 알린다. 접은 목록은 항목 제거·안내 추가로 다시 펼쳐지지 않는다. 일회 안내는 기존 5초 수명과 Undo를 유지한다. 원인 제거 시 항목을 없애고, 닫은 원인은 탭 전환·무관한 편집에서 숨김을 유지하다가 제거 후 재발하면 다시 표시한다. 탭을 닫으면 그 탭의 원인도 제거한다. 알림·접힘·숨김은 창 메모리에만 두고 문서·복구 기록에 쓰지 않는다. 저장 실패는 기존 계약대로 다음 성공한 Save가 해소하며, 편집 후 위치가 낡으면 재저장을 안내한다. Core/Host의 저장 허용·거부를 재판정하지 않는다.
 - **남기는 문맥 표시:** 미적용 초안의 Save/Source 범위 설명은 일회 안내가 아닌 상시 문맥 정보여서 기존 상단 위치에 유지한다. 입력칸 오류·Mermaid **초안** 미리보기 오류는 폼에 유지한다. 파일 picker의 경로/이름 오류·Settings 선택값 저장 오류는 해당 입력 피드백이다. 열린 Source/Recovery 비교 등의 읽기 실패는 그 화면 상태를 설명하는 P12 문맥 정보여서 화면 안에 둔다. 참고문헌 completeness는 ADR-0008 동결 범위를 유지한다. 블록의 짧은 미리보기 불가 표시는 위치 표식이며 상세 실패를 중복 출력하지 않는다. 폼 입력칸 연결은 기존 연결과 D09 범위를 따른다.
-- **검증:** `notification-center`는 심각도·개수, 자동 펼침/접기, focus/selection 유지, 해결·닫기·재발, 비활성 탭 위치 이동, 창 격리와 일회 안내를 검증한다. 1440/640px·light/dark·한국어 [시각 근거](#notification-center-792)를 함께 확인한다.
+- **검증:** `notification-center`는 항상 보이는 중립 빈 상태·한영 안내·초기 접힘·무음 live region, 심각도·개수, 자동 펼침/접기, focus/selection 유지, 해결·닫기·재발, 비활성 탭 위치 이동, 창 격리와 일회 안내를 검증한다. 1440/640px·light/dark·한국어 [시각 근거](#notification-center-792)를 함께 확인한다.
 - **현재 기준 — 입력칸 (#789):** `FieldError`의 짧은 오류문을 해당 입력 바로 아래에 두고, 입력의 `aria-invalid`와 고유한 `aria-describedby`로 연결하며 거절된 값을 보존한다. 그림의 label·이미지 경로·alt·파일 이름, Mermaid 원문의 빈 값·label, 수식·표·절 label, 인라인 LaTeX·링크 URL과 기존 NumberField 오류가 이 표현을 쓴다. label 중복은 Core 거절을 표시하고 번호 제출 규칙은 #776 그대로다. 특정 입력으로 귀속할 수 없는 폼 내부 Host/검증 실패 Notice는 폼 문맥에 유지하고, 적용 문서 경고는 위 창 단위 센터로 보낸다. 기존 인용 오류 동작은 동결 범위로 유지한다. `short-field-errors`에서 수정 전 오류 연결 검사 실패와 수정 후 통과를 확인했다(2026-10-30).
 - **사용처:** U01–U16 문서 폼·번호·메시지·렌더 실패, U22–U25 설정·파일·복구·참고문헌 알림.
-- **결정·불일치:** [소유자 결정 P07][decision]이 인벤토리의 scope별 요약 추천을 대체한다. 알림 센터의 추적은 D07, 입력칸 오류는 D09다.
+- **결정·불일치:** [소유자 결정 P07][decision]이 인벤토리의 scope별 요약 추천을 대체한다. 알림이 없으면 숨긴다는 이전 목표는 [#837](https://github.com/ieumbird/ieumdoc/issues/837)의 소유자 결정으로 대체했다. 알림 센터의 추적은 D07, 입력칸 오류는 D09다.
+
+### 빈 알림 센터 시각 근거 (#837)
+
+Windows Chrome의 checkout별 persistent profile, Vite `http://127.0.0.1:5281`,
+DPR 1·100% 확대, Pretendard 로드 후 같은 `fixed.md`의 알림 없는 상태다.
+Before는 시작 HEAD `1b4cff58d5ac7f432ac74b4ed886ddc814d14dbc`에서 빈 센터 표시 단언이 실패한 상태이며, After는 #837 구현이다.
+기존 오른쪽 32px 간격과 문서 끝 여백을 유지한다. `notification-center` 시나리오에서
+빈 안내·중립색·초기 접힘·focus 유지·문서 끝 caret와 선택 도구 여유를 확인하고,
+같은 창 센터가 [Docling 대조 화면](assets/notification-center-837/docling-1440.png)에도 나타나는지 함께 확인했다.
+
+| 폭 | Before dark (한국어) | After dark 닫힘 (한국어) | After dark 열림 (한국어) | After light 열림 (영어) |
+| --- | --- | --- | --- | --- |
+| 1440 | [PNG](assets/notification-center-837/before-1440-dark-ko.png) | [PNG](assets/notification-center-837/after-1440-dark-ko-closed.png) | [PNG](assets/notification-center-837/after-1440-dark-ko-open.png) | [PNG](assets/notification-center-837/after-1440-light-en-open.png) |
+| 640 | [PNG](assets/notification-center-837/before-640-dark-ko.png) | [PNG](assets/notification-center-837/after-640-dark-ko-closed.png) | [PNG](assets/notification-center-837/after-640-dark-ko-open.png) | [PNG](assets/notification-center-837/after-640-light-en-open.png) |
 
 <a id="notification-center-792"></a>
 
