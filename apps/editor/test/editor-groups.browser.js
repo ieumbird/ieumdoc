@@ -128,6 +128,10 @@ async (page, { openPath, activeDocument, expect, screenshots = false }) => {
     n.editor.view.focus(); n.editor.commands.setTextSelection(range);
   });
   const rightToolbar=surface(aid).getByTestId('selection-toolbar');
+  // This group is still scrolled to its equation draft: selecting text headlessly
+  // does not reveal it. Offscreen tools must stay hidden until the anchor is shown.
+  await expect(rightToolbar).toBeHidden();
+  await surface(aid).locator('.document-editor').evaluate(n => n.editor.commands.scrollIntoView());
   await rightToolbar.getByRole('button',{name:'Cross-reference',exact:true}).click();
   await overlayBounds(surface(aid).getByTestId('reference-form'),'Right group reference form',true);
   await page.keyboard.press('Escape');

@@ -68,6 +68,9 @@ Role: alignment, spacing, control dimensions and deliberate geometry exceptions;
   the content viewport; scrolling back restores them without changing the engine
   selection. Editing forms retain their existing draft and viewport access when
   their anchor is offscreen; reading previews retain their existing dismissal.
+  Hidden selection tools do not intercept Tab. A height-constrained slash menu
+  reveals its keyboard-active choice through its own scroll, preserving the
+  document's scroll position and the menu's scroll offset during refitting.
   [#782 verification and captures](#form-content-viewport-782) cover the former
   single-group mismatch with [P01](ui-patterns-v1.md#p01-속성-편집-표면과-위치).
 

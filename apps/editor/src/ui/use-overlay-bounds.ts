@@ -20,6 +20,7 @@ export function useOverlayBounds<T extends HTMLElement>(open = true, anchor?: Ov
     let y = parseFloat(element.style.getPropertyValue("--overlay-shift-y")) || 0;
     const viewport = documentScrollContainer(element);
     const fit = () => {
+      const scrollTop = element.scrollTop;
       const inset = 8;
       const bounds = viewport ? documentContentBounds(viewport) : null;
       const leftEdge = bounds?.x ?? 0;
@@ -59,6 +60,9 @@ export function useOverlayBounds<T extends HTMLElement>(open = true, anchor?: Ov
       }
       element.style.setProperty("--overlay-shift-x", `${x}px`);
       element.style.setProperty("--overlay-shift-y", `${y}px`);
+      // Measuring the unconstrained height can temporarily remove overflow. Preserve
+      // the menu/form's internal position when restoring its available-side cap.
+      element.scrollTop = scrollTop;
     };
     fit();
     const resize = new ResizeObserver(fit);

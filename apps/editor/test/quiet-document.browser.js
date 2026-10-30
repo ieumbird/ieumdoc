@@ -875,6 +875,7 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
     if (!range) throw new Error(`text not found: ${text}`);
     editor.commands.setTextSelection(range);
     editor.view.focus();
+    editor.commands.scrollIntoView();
   }, 'This document describes');
   await bounds(page.getByTestId('selection-toolbar'),'Selection toolbar 704');
   await page.getByRole('button',{name:'Link',exact:true}).click();

@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { i18n } from "./i18n.ts";
 import type { LucideIcon } from "lucide-react";
 import { Check } from "lucide-react";
-import { Fragment, useEffect, useRef, type CSSProperties } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, type CSSProperties } from "react";
 import { useOverlayBounds, type OverlayAnchor } from "./ui/use-overlay-bounds.ts";
 
 export type CommandMenuItem = {
@@ -39,6 +39,22 @@ export function CommandMenu({ label, items, style, anchor, activeIndex, focusOnO
   useTranslation();
   const root = useOverlayBounds<HTMLDivElement>(true, anchor);
   const returnFocus = useRef<Element | null>(null);
+  useLayoutEffect(() => {
+    const menu = root.current;
+    if (!menu || activeIndex === undefined) return;
+    const reveal = () => {
+      const active = menu.querySelector<HTMLElement>(".command-menu-item.active")?.getBoundingClientRect();
+      if (!active) return;
+      const rect = menu.getBoundingClientRect();
+      const top = rect.top + menu.clientTop, bottom = top + menu.clientHeight;
+      if (active.top < top) menu.scrollTop -= top - active.top;
+      else if (active.bottom > bottom) menu.scrollTop += active.bottom - bottom;
+    };
+    reveal();
+    const resize = new ResizeObserver(reveal);
+    resize.observe(menu);
+    return () => resize.disconnect();
+  });
   useEffect(() => {
     // StrictMode repeats effects; never replace the opener with our own first item.
     if (!root.current?.contains(document.activeElement)) returnFocus.current = document.activeElement;

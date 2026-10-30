@@ -44,6 +44,13 @@ async (page, { openPath, activeDocument, expect, screenshots }) => {
       return o.top >= v.top && o.bottom <= v.bottom && o.left >= v.left && o.right <= v.right;
     }), 'Overlay stays inside its document viewport').toBe(true);
   };
+  const clearsSelection = overlay => overlay.evaluate(node => {
+    const instance = node.closest('.document').querySelector('.ProseMirror').editor;
+    const { from, to } = instance.state.selection;
+    const start = instance.view.coordsAtPos(from), end = instance.view.coordsAtPos(to);
+    const o = node.getBoundingClientRect();
+    return o.bottom <= Math.min(start.top, end.top) || o.top >= Math.max(start.bottom, end.bottom);
+  });
   const states = screenshots ? [[1440, 'light', 'en'], [640, 'light', 'en'], [1440, 'dark', 'ko'], [640, 'dark', 'ko']] : [[1440, 'light', 'en'], [640, 'light', 'en'], [640, 'dark', 'ko']];
   for (const [width, theme, language] of states) {
     await page.setViewportSize({ width, height: 900 });
@@ -91,13 +98,7 @@ async (page, { openPath, activeDocument, expect, screenshots }) => {
     await expect(linkForm).toBeVisible();
     await settle();
     // Form autofocus can scroll, but the engine's selected text must remain unobscured.
-    expect(await linkForm.evaluate(node => {
-      const instance = node.closest('.document').querySelector('.ProseMirror').editor;
-      const { from, to } = instance.state.selection;
-      const start = instance.view.coordsAtPos(from), end = instance.view.coordsAtPos(to);
-      const o = node.getBoundingClientRect();
-      return o.bottom <= Math.min(start.top, end.top) || o.top >= Math.max(start.bottom, end.bottom);
-    })).toBe(true);
+    expect(await clearsSelection(linkForm)).toBe(true);
     await page.getByTestId('link-url').fill('https://example.com/unapplied');
     await page.keyboard.press('Escape');
     await expect(surface.getByTestId('link-form')).toHaveCount(0);
@@ -151,11 +152,18 @@ async (page, { openPath, activeDocument, expect, screenshots }) => {
     const menu = surface.getByRole('menu');
     await expect(menu).toBeVisible();
     await position(paragraph, height - 36);
-    await clearOf(menu, paragraph);
+    // Home addresses the current visual line, which can be the paragraph's second line.
+    expect(await clearsSelection(menu)).toBe(true);
     await position(editor.locator('p.paragraph', { hasText: 'Following paragraph 10.' }), 20);
     await expect(menu).toBeHidden();
     await page.keyboard.press('Escape');
     await page.keyboard.press('Backspace');
+    await position(text, 200);
+    await selectLine();
+    await position(editor.locator('p.paragraph', { hasText: 'Following paragraph 10.' }), 20);
+    await expect(toolbar).toBeHidden();
+    await page.keyboard.press('Tab');
+    expect(await editor.evaluate(dom => dom === document.activeElement), 'Hidden toolbar must not swallow Tab').toBe(false);
     result[width] = 'selection clear; offscreen toolbar does not intercept heading click; Esc discards URL';
   }
   return result;

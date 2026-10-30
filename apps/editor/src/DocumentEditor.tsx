@@ -238,6 +238,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           priority: 50,
           addKeyboardShortcuts: () => ({
             Tab: () => {
+              if (toolbar.current && getComputedStyle(toolbar.current).visibility === "hidden") return false;
               const first = toolbar.current?.querySelector("button");
               first?.focus();
               return Boolean(first);
