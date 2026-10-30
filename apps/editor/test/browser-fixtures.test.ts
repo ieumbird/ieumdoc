@@ -10,9 +10,11 @@ import { classifyConsoleErrors } from "./browser/console-errors.ts";
 
 test("conversion fault injection permits only its explicitly expected network failures", () => {
   const message = "Failed to load resource: net::ERR_FAILED @ http://127.0.0.1:5173/api/docling-conversion";
-  assert.deepEqual(classifyConsoleErrors("docling-server", [message, message]).unexpected, []);
-  assert.deepEqual(classifyConsoleErrors("docling-server", [message, message]).missing, []);
-  assert.equal(classifyConsoleErrors("docling-server", []).missing.length, 1);
+  const rejected = "Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:5173/api/docling-conversion";
+  const injected = [message, message, message, message, rejected];
+  assert.deepEqual(classifyConsoleErrors("docling-server", injected).unexpected, []);
+  assert.deepEqual(classifyConsoleErrors("docling-server", injected).missing, []);
+  assert.equal(classifyConsoleErrors("docling-server", []).missing.length, 2);
   assert.deepEqual(classifyConsoleErrors("docling-live", [message]).unexpected, [message]);
   const unrelated = message.replace("/api/docling-conversion", "/api/document");
   assert.deepEqual(classifyConsoleErrors("docling-server", [unrelated]).unexpected, [unrelated]);

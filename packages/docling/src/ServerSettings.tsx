@@ -90,12 +90,14 @@ export function DoclingServerSettings({ base, text, Input, Button, GuideLink }: 
 export function useDoclingConversion(base: string) {
   const [job, setJob] = useState<ConversionJob | null>(null);
   const [problem, setProblem] = useState("");
+  const [readProblem, setReadProblem] = useState("");
   const [pending, setPending] = useState(false);
   const [recovering, setRecovering] = useState(false);
+  const [observedReady, setObservedReady] = useState(false);
   const pendingRef = useRef(false);
   const generation = useRef(0);
   const observed = useRef<ConversionJob | null>(null);
-  const recovery = useRef<{ input: string; previousId?: string } | null>(null);
+  const recovery = useRef<{ input: string; previousId: string | null } | null>(null);
   useEffect(() => {
     let active = true, timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
@@ -105,16 +107,19 @@ export function useDoclingConversion(base: string) {
         const value = await request<ConversionJob | null>(base, "conversion");
         if (active && version === generation.current) {
           observed.current = value;
+          setObservedReady(true);
           const recovered = value && recovery.current && value.input === recovery.current.input && value.id !== recovery.current.previousId;
           // Only in-flight work is observed after a page reload. Completed tabs are not restored.
           // An uncertain POST can already have completed before this recovery read.
           if (job || value?.state === "running" || recovered) setJob(value);
-          setProblem("");
+          setReadProblem("");
+          // An unchanged older snapshot does not resolve a rejected/lost start.
+          if (recovered) setProblem("");
           recovery.current = null; setRecovering(false);
           keepPolling = value?.state === "running";
         }
       } catch (error) {
-        if (active && version === generation.current) { setProblem(error instanceof Error ? error.message : String(error)); keepPolling = true; }
+        if (active && version === generation.current) { setReadProblem(error instanceof Error ? error.message : String(error)); keepPolling = true; }
       }
       finally { if (active && keepPolling) timer = setTimeout(() => void poll(), 1000); }
     };
@@ -122,14 +127,15 @@ export function useDoclingConversion(base: string) {
     return () => { active = false; clearTimeout(timer); };
   }, [base, job?.id, job?.state, recovering]);
   const start = async (path: string) => {
-    if (pendingRef.current || recovering) return;
+    // A successful snapshot (including null) establishes which IDs predate this request.
+    if (pendingRef.current || recovering || !observedReady) return;
     generation.current++; pendingRef.current = true; setPending(true); setProblem("");
     try {
       const value = await request<ConversionJob>(base, "conversion", "POST", { path });
       observed.current = value; setJob(value);
     } catch (error) {
       setProblem(error instanceof Error ? error.message : String(error));
-      recovery.current = { input: path, previousId: observed.current?.id ?? job?.id };
+      recovery.current = { input: path, previousId: observed.current?.id ?? null };
       setRecovering(true); // Re-observe the Host; never resubmit an uncertain POST.
       throw error;
     }
@@ -142,5 +148,5 @@ export function useDoclingConversion(base: string) {
     catch (error) { setProblem(error instanceof Error ? error.message : String(error)); }
     finally { pendingRef.current = false; setPending(false); }
   };
-  return { job, problem, pending: pending || recovering, start, cancel };
+  return { job, problem: readProblem || problem, pending: pending || recovering || !observedReady, start, cancel };
 }

@@ -168,11 +168,14 @@ Command Center opens it again. **Stop waiting** aborts IeumDoc requests/waiting,
 waits for local cleanup and explicitly says the server task may continue. There
 is no API cancellation call, retry, persisted queue or resume service. The CLI
 still has no interactive cancellation UI. Completed jobs/tabs are not restored
-on page startup. A page may observe a still-running Host job. Failed status reads
-are retried as GETs. If a start response is lost, the UI re-reads the Host's
+on page startup. A page may observe a still-running Host job. The UI and hook refuse Start until the first successful Host status snapshot
+(including a known null/no-job snapshot). Failed status reads are retried as GETs,
+so an unavailable initial read cannot leave Start permanently disabled. If a start response is lost, the UI re-reads the Host's
 current snapshot before allowing another start; it never automatically repeats
 the POST. This can recover a newly accepted job, including one already completed,
-while ignoring an older completed snapshot. A delayed comparison response may
+while ignoring an older completed snapshot. Reading that same older success
+does not clear the new request's rejection/transport error; read failures and
+action failures have separate lifetimes. A delayed comparison response may
 change tabs/dialogs/notifications only while its conversion is still current;
 it cannot clear or replace a newer task's failure.
 

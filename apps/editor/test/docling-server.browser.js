@@ -116,7 +116,8 @@ async (page, { expect, openFolderPicker, doclingFixture: fixture, screenshots })
   await progress.getByRole('button', { name: /Start conversion|Convert again/ }).click();
   await expect(progress).toContainText('Docling conversion failed.');
   await progress.getByRole('button', { name: 'Close', exact: true }).last().click();
-  const center = page.getByRole('complementary', { name: 'Notifications' });
+  // A modal can make the retained window center inert; its cause must still be stored/rendered.
+  const center = page.getByRole('complementary', { name: 'Notifications', includeHidden: true });
   await expect(center).toContainText('required model is missing');
   expect(await center.textContent()).not.toContain('secret-server-path');
   await expect(center).toContainText('Server task');
@@ -149,6 +150,54 @@ async (page, { expect, openFolderPicker, doclingFixture: fixture, screenshots })
   await expect(page.locator('.docling-source img')).toBeVisible();
   await expect(center).toHaveCount(0);
   await capture('completed-en-1440');
+  // A prior success is a baseline, never evidence that a rejected/lost new start succeeded.
+  const endpoint = page.url().split('/').slice(0, 3).join('/') + '/api/docling-conversion';
+  const oldSuccess = await (await page.request.get(endpoint)).json();
+  let releaseInitial, readRetried, reads = 0, refusedPosts = 0, refuse = '';
+  const initialGate = new Promise(resolve => { releaseInitial = resolve; });
+  const retried = new Promise(resolve => { readRetried = resolve; });
+  const oldSnapshot = async route => {
+    if (route.request().method() === 'GET') {
+      if (++reads === 1) return route.abort('failed');
+      if (reads === 2) { readRetried(); await initialGate; }
+    }
+    if (route.request().method() === 'POST' && refuse) {
+      refusedPosts++;
+      return refuse === 'reject' ? route.fulfill({ status: 400, json: { error: 'Rejected new conversion' } }) : route.abort('failed');
+    }
+    return route.fallback();
+  };
+  await page.route('**/api/docling-conversion', oldSnapshot);
+  try {
+    await page.reload(); await retried;
+    await page.keyboard.press('Control+Slash');
+    await page.getByRole('dialog', { name: 'Command center' }).getByRole('combobox').fill('> Convert with Docling');
+    await page.getByRole('option', { name: 'Convert with Docling', exact: true }).click();
+    await page.getByRole('combobox', { name: 'PDF path' }).fill(fixture.input);
+    await page.getByTestId('folder-open').click();
+    await expect(progress.getByRole('button', { name: 'Start conversion' })).toBeDisabled();
+    expect(refusedPosts).toBe(0);
+    releaseInitial();
+    await expect(progress.getByRole('button', { name: 'Start conversion' })).toBeEnabled();
+    expect(await page.getByRole('tab', { name: /Docling comparison ·/ }).count()).toBe(0);
+    for (const mode of ['reject', 'lost']) {
+      refuse = mode;
+      const readBack = page.waitForResponse(response => response.url() === endpoint && response.request().method() === 'GET' && response.ok());
+      await progress.getByRole('button', { name: 'Start conversion' }).click();
+      await (await readBack).finished();
+      await expect(progress.getByRole('button', { name: 'Start conversion' })).toBeEnabled();
+      const reason = mode === 'reject' ? 'Rejected new conversion' : 'Failed to fetch';
+      expect(await progress.textContent()).toContain(reason);
+      expect(await center.textContent()).toContain(reason);
+      expect(await page.getByRole('tab', { name: /Docling comparison ·/ }).count()).toBe(0);
+      expect((await (await page.request.get(endpoint)).json()).id).toBe(oldSuccess.id);
+    }
+    expect(refusedPosts).toBe(2); // Exactly the two explicit user attempts; no automatic POST retry.
+    refuse = '';
+    await progress.getByRole('button', { name: 'Start conversion' }).click();
+    await expect(page.getByRole('tab', { name: /Docling comparison · Fixture PDF/ })).toBeVisible();
+    await expect(center).toHaveCount(0);
+  } finally { releaseInitial(); await page.unroute('**/api/docling-conversion', oldSnapshot); }
   if (screenshots) {
     await page.evaluate(() => localStorage.setItem('ieumdoc.uiLanguage', 'ko'));
     await page.reload();

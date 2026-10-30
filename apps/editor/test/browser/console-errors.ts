@@ -12,7 +12,8 @@ type ExpectedConsoleErrorRule = {
 
 const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
   "docling-server": [
-    { networkError: "net::ERR_FAILED", pathname: "/api/docling-conversion", minimum: 2, description: "one initial GET and one accepted POST response are deliberately lost" },
+    { networkError: "net::ERR_FAILED", pathname: "/api/docling-conversion", minimum: 4, description: "two status reads, one accepted response and one undelivered start are deliberately lost" },
+    { status: 400, pathname: "/api/docling-conversion", minimum: 1, description: "a rejected new start cannot reopen an older successful job" },
   ],
   "reference-save-reload": [
     {status:400, pathname:"/api/document", minimum:1, description:"final Save refuses a fixed number on an empty equation"},
