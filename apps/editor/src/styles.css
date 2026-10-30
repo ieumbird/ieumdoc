@@ -2303,6 +2303,7 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
   color: var(--id-color-danger);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-label);
+  word-break: var(--word-break-document);
   overflow-wrap: anywhere;
 }
 
