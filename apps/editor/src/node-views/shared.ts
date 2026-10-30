@@ -4,7 +4,7 @@ import { TextSelection, type EditorState } from "@tiptap/pm/state";
 import { i18n } from "../i18n.ts";
 
 /** Reports whether the block at a source path holds an unapplied draft. */
-export type DraftKind = "Equation" | "Figure" | "Table" | "Section label" | "Inline math";
+export type DraftKind = "Equation" | "Figure" | "Table" | "Section label" | "Inline math" | "Link" | "Cross-reference";
 export type DraftListener = (kind: DraftKind, path: string, active: boolean, id?: string) => void;
 
 export const EDIT_PROPERTIES = "ieumdoc-edit-properties";

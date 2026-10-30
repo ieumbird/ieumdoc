@@ -12,8 +12,10 @@ import { labelKey, resolveLabelReference, targetLabelError } from "@ieumdoc/core
 import { referenceNumberText, captionNumberText, headingNumbers, sectionReferenceText, type ReferenceTemplates, blockTargets, targetNumbers, type NumberedKind, type NumberedTargets } from "@ieumdoc/core/numbering";
 import { Button } from "@/components/ui/button.tsx";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
+import { PROPERTY_APPLY_SHORTCUT } from "./shortcuts.ts";
+import type { DraftListener } from "./node-views/shared.ts";
 import { tableCaption } from "./tiptap-edits.ts";
-import { canEditEndnoteAt } from "./endnotes.ts";
+import { canEditEndnoteAt, endnoteEditorToken } from "./endnotes.ts";
 
 /** A labeled Equation, Figure, Table or section in the current editor document that a reference
  * can name, with its computed number or, for a section, its heading text. */
@@ -342,7 +344,7 @@ export function insertReference(editor: Editor, range: { from: number; to: numbe
 
 // A local {eq}/{numref} cross-reference is an atomic inline node holding its role and label.
 // Bold and italic apply to it like to text; a link cannot contain it.
-export const CrossReference = Node.create({
+export const CrossReference = Node.create<{ onDraftChange?: DraftListener }>({
   name: "crossReference",
   group: "inline",
   inline: true,
@@ -380,11 +382,12 @@ function CrossReferenceView({ node, editor, getPos, updateAttributes, selected }
   const role = node.attrs.role as ReferenceRole;
   const label = String(node.attrs.label ?? "");
   const [editing, setEditing] = useState(false);
+  const position = getPos();
+  const path = typeof position === "number" ? String(editor.state.doc.resolve(position).node(1).attrs.sourcePath) : "";
   const canEdit = useEditorState({ editor, selector: ({ editor: current }) => {
     const pos = getPos();
     return !!current && typeof pos === "number" && canEditEndnoteAt(current.state, pos);
   } });
-  useEffect(() => { if (!canEdit) setEditing(false); }, [canEdit]);
   // Resolution follows label changes anywhere in the document, including unsaved ones.
   const targets = useEditorState({
     editor,
@@ -424,18 +427,20 @@ function CrossReferenceView({ node, editor, getPos, updateAttributes, selected }
         data-testid="cross-reference-edit" onMouseDown={(event) => event.preventDefault()} onClick={() => setEditing(true)}>
         <Pencil aria-hidden="true" size={12} />
       </button> : null}
-      {editing && canEdit ? (
+      {editing ? (
         <ReferenceForm
           className="cross-reference-form"
           editor={editor}
           current={{ role, label }}
+          busy={!canEdit}
           onApply={(target) => {
             updateAttributes({ role: target.role, label: target.label });
             close();
           }}
           onRemove={remove}
           onClose={close}
-          onDismiss={() => setEditing(false)}
+          sourcePath={path}
+          onDraftChange={editor.extensionManager.extensions.find(extension => extension.name === "crossReference")?.options.onDraftChange}
         />
       ) : null}
     </NodeViewWrapper>
@@ -446,7 +451,7 @@ function CrossReferenceView({ node, editor, getPos, updateAttributes, selected }
  * Pick a target among the document's labeled Equations and Figures. An existing reference
  * whose target is missing stays selectable as it is, so opening the form changes nothing.
  */
-export function ReferenceForm({ editor, current, preferredLabel, className, style, onApply, onRemove, onClose, onDismiss }: {
+export function ReferenceForm({ editor, current, preferredLabel, className, style, onApply, onRemove, onClose, sourcePath, onDraftChange, busy, endnoteOwner }: {
   editor: Editor;
   current?: ReferenceTarget;
   /** Preselects a target with this label, e.g. the selected text a new reference replaces. */
@@ -456,7 +461,10 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
   onApply: (target: ReferenceTarget) => void;
   onRemove?: () => void;
   onClose: () => void;
-  onDismiss?: () => void;
+  sourcePath: string;
+  onDraftChange?: DraftListener;
+  busy?: boolean;
+  endnoteOwner?: string;
 }) {
   useTranslation();
   const visible = useEditorVisible();
@@ -464,33 +472,24 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
   const mounted = useRef(false);
   useEffect(() => { mounted.current = true; }, []);
   const targets = referenceTargets(editor.state.doc);
-  const options = current && !targets.some((target) => referenceCommandId(target) === referenceCommandId(current))
-    ? [current, ...targets] : targets;
   const preferred = targets.find((target) => preferredLabel !== undefined && labelKey(target.label) === labelKey(preferredLabel));
-  const initial = current ?? preferred ?? options[0];
+  const [initial] = useState(current ?? preferred ?? targets[0]);
   const [value, setValue] = useState(initial ? referenceCommandId(initial) : "");
+  const chosen = referenceOfCommand(value);
+  // Outside edits can remove or rename a target while its draft stays open. Keep that
+  // choice visible as unresolved instead of letting the native select display another one.
+  const options = [...targets];
+  for (const target of [current, chosen]) {
+    if (target && !("heading" in target) && !options.some(option => referenceCommandId(option) === referenceCommandId(target))) options.unshift(target);
+  }
   const bounds = useOverlayBounds<HTMLFormElement>();
+  const dirty = value !== (initial ? referenceCommandId(initial) : "");
   useEffect(() => {
-    if (!visible) return;
-    // An empty target list has no autofocus control. Dismiss independently of focus/blur,
-    // including clicks on non-focusable surfaces, without taking focus from the clicked target.
-    const outside = (event: PointerEvent) => {
-      if (!bounds.current?.contains(event.target as globalThis.Node)) (onDismiss ?? onClose)();
-    };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      event.stopPropagation();
-      onClose();
-    };
-    document.addEventListener("pointerdown", outside, true);
-    document.addEventListener("keydown", escape, true);
-    return () => {
-      document.removeEventListener("pointerdown", outside, true);
-      document.removeEventListener("keydown", escape, true);
-    };
-  }, [visible, onDismiss, onClose, bounds]);
+    onDraftChange?.("Cross-reference", sourcePath, dirty, formId);
+    return () => onDraftChange?.("Cross-reference", sourcePath, false, formId);
+  }, [sourcePath, dirty, onDraftChange, formId]);
   const apply = () => {
+    if (busy) return;
     const target = referenceOfCommand(value);
     if (target && !("heading" in target)) onApply(target);
   };
@@ -503,13 +502,24 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
       role="dialog"
       aria-label={i18n.t("Cross-reference")}
       data-testid="reference-form"
+      data-endnote-editor={endnoteEditorToken(editor)}
+      data-endnote-owner={endnoteOwner}
       style={style}
       onSubmit={(event) => {
         event.preventDefault();
         apply();
       }}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as globalThis.Node | null)) (onDismiss ?? onClose)();
+      onKeyDown={(event) => {
+        if (PROPERTY_APPLY_SHORTCUT.matches(event.nativeEvent)) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.currentTarget.requestSubmit();
+        }
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          onClose();
+        }
       }}
     >
       <label className="form-label" htmlFor={formId}>{i18n.t("Reference target")}</label>
@@ -522,6 +532,7 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
             aria-label={i18n.t("Reference target")}
             data-testid="reference-target"
             value={value}
+            disabled={busy}
             onChange={(event) => setValue(event.target.value)}
           >
             {options.map((target) => {
@@ -533,12 +544,15 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
               );
             })}
           </select>
-          <Button size="sm" type="submit" data-testid="reference-apply">{i18n.t("Apply")}</Button>
         </>
       ) : (
         <span className="reference-empty">{i18n.t("Label an Equation, Figure, Table or heading to reference it.")}</span>
       )}
-      {onRemove ? <Button size="sm" variant="outline" data-testid="reference-remove" onClick={onRemove}>{i18n.t("Remove")}</Button> : null}
+      <div className="form-actions">
+        {onRemove ? <Button size="sm" variant="outline" disabled={busy} data-testid="reference-remove" onClick={onRemove}>{i18n.t("Remove")}</Button> : null}
+        <Button size="sm" type="button" variant="outline" autoFocus={!mounted.current && !options.length} data-testid="reference-cancel" onClick={onClose}>{i18n.t("Cancel")}</Button>
+        <Button size="sm" type="submit" disabled={busy || !value} data-testid="reference-apply">{i18n.t("Apply")}</Button>
+      </div>
     </form>
   );
 }

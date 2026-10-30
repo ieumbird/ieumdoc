@@ -34,7 +34,7 @@ import { DocumentTitle } from "./document-title.tsx";
 import { CommandMenu, type CommandMenuItem } from "./CommandMenu.tsx";
 import { insertCommandIcon, blockCommandAppearance } from "./command-icons.ts";
 import { insertReference, referenceCommandItems, referenceOfCommand, ReferenceForm, referencesBrokenByDeletion, referenceTargets, isResolved, type ReferenceTarget } from "./cross-reference.tsx";
-import { ENDNOTE_COMMAND, ENDNOTE_DRAFT_CLOSED, endnoteAt, endnoteCommandItems, endnoteEditingKey, endnoteEditorToken, insertEndnote, setEndnoteEditing } from "./endnotes.ts";
+import { ENDNOTE_COMMAND, ENDNOTE_DRAFT_CLOSED, canEditEndnoteAt, endnoteAt, endnoteCommandItems, endnoteEditingKey, endnoteEditorToken, insertEndnote, setEndnoteEditing } from "./endnotes.ts";
 import { LinkForm, linkDraftOf, SelectionToolbar, type LinkDraft } from "./SelectionToolbar.tsx";
 import { Extension, getSchema, type Editor } from "@tiptap/core";
 import { EditorContent, useEditor, useEditorState, type UseEditorOptions } from "@tiptap/react";
@@ -185,7 +185,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const toolbar = useRef<HTMLDivElement>(null);
   const [linkDraft, setLinkDraft] = useState<LinkDraft | null>(null);
   // The selected paragraph text a new cross-reference will replace.
-  const [referenceDraft, setReferenceDraft] = useState<{ from: number; to: number; text: string } | null>(null);
+  const [referenceDraft, setReferenceDraft] = useState<{ from: number; to: number; text: string; path: string } | null>(null);
   // The retained caret for the Citation form.
   const [citationDraft, setCitationDraft] = useState<number | null>(null);
   const commandInsertion = useRef(false);
@@ -253,6 +253,16 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         }
         // Block indexes are snapshot positions; a document change invalidates an open menu.
         if (transaction.docChanged) {
+          // Outside editing keeps the forms open. Let the engine map their retained ranges
+          // so Apply still edits the original inline content after insertions/deletions.
+          const mapRange = <T extends { from: number; to: number }>(draft: T | null): T | null => {
+            if (!draft) return null;
+            const from = transaction.mapping.map(draft.from, 1);
+            const to = transaction.mapping.map(draft.to, draft.from === draft.to ? 1 : -1);
+            return { ...draft, from: Math.min(from, to), to: Math.max(from, to) };
+          };
+          setLinkDraft(mapRange);
+          setReferenceDraft(mapRange);
           // All locators belong to the submitted snapshot. Invalidate rather than guess
           // after typing, insertion, deletion, split/merge or a move (including Undo).
           if (saveLocationsRef.current.length) updateSaveLocations([]);
@@ -409,6 +419,10 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       openBibliographyConnection(returnFocus) { bibliographyControls.current?.connect(returnFocus); },
       openInlineInsertion(kind) {
         if (!editor?.isEditable) return;
+        if (kind === "reference" && referenceDraft) {
+          host.current?.querySelector<HTMLElement>('[data-testid="reference-target"], [data-testid="reference-cancel"]')?.focus();
+          return;
+        }
         const caret = inlineInsertionAt(editor.state);
         if (!caret) return;
         // CommandCenter calls this after releasing its modal focus/inertness.
@@ -416,7 +430,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         setBlockMenu(null);
         commandInsertion.current = true;
         if (kind === "citation") setCitationDraft(caret.from);
-        else setReferenceDraft({ from: caret.from, to: caret.to, text: "" });
+        else setReferenceDraft({ from: caret.from, to: caret.to, text: "", path: String(editor.state.doc.resolve(caret.from).node(1).attrs.sourcePath) });
       },
       setReferenceStyle,
       toggleHeadingNumbering,
@@ -470,7 +484,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         return editorDocumentJSON(editor.state);
       },
     }),
-    [editor],
+    [editor, referenceDraft],
   );
 
   useEffect(() => {
@@ -637,6 +651,10 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const slashIndex = Math.min(slashActive, Math.max(slashItems.length - 1, 0));
   // Both entry points reuse the engine selection and existing link draft/form.
   const editLink = () => {
+    if (linkDraft) {
+      host.current?.querySelector<HTMLElement>('[data-testid="link-url"]')?.focus();
+      return;
+    }
     setFocused(editor.view.hasFocus());
     setLinkDraft(linkDraftOf(editor));
   };
@@ -714,16 +732,18 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         moveBlockedHint={moveBlockedHint}
       /> : null}
       <div style={{ display: "contents" }} data-endnote-editor={endnoteEditorToken(editor)} data-endnote-owner={
-        referenceDraft ? endnoteAt(editor.state, referenceDraft.from) ?? undefined :
-          citationDraft !== null && citationDraft <= editor.state.doc.content.size ? endnoteAt(editor.state, citationDraft) ?? undefined :
-            linkDraft ? endnoteAt(editor.state, linkDraft.from) ?? undefined :
-              formatting ? endnoteAt(editor.state, formatting.from) ?? undefined : undefined
+        citationDraft !== null && citationDraft <= editor.state.doc.content.size ? endnoteAt(editor.state, citationDraft) ?? undefined :
+          formatting ? endnoteAt(editor.state, formatting.from) ?? undefined : undefined
       }>
-      {referenceDraft && referenceStyle ? (
+      {referenceDraft ? (
         <ReferenceForm
           editor={editor}
           style={referenceStyle}
           preferredLabel={referenceDraft.text.trim()}
+          busy={!canEditEndnoteAt(editor.state, referenceDraft.from)}
+          endnoteOwner={endnoteAt(editor.state, referenceDraft.from) ?? ""}
+          sourcePath={referenceDraft.path}
+          onDraftChange={reportDraft}
           onApply={(target) => {
             if (commandInsertion.current) editor.view.dispatch(closeHistory(editor.state.tr));
             insertReference(editor, referenceDraft, target);
@@ -735,9 +755,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
             setReferenceDraft(null);
             editor.view.focus();
           }}
-          onDismiss={() => setReferenceDraft(null)}
         />
-      ) : citationDraft !== null && citationStyle ? (
+      ) : null}
+      {citationDraft !== null && citationStyle ? (
         <CitationForm
           entries={citationEntries}
           style={citationStyle}
@@ -754,9 +774,11 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           }}
           onDismiss={() => setCitationDraft(null)}
         />
-      ) : linkDraft && linkStyle ? (
-        <LinkForm editor={editor} draft={linkDraft} style={linkStyle} onClose={() => setLinkDraft(null)} />
-      ) : toolbarStyle ? (
+      ) : null}
+      {linkDraft ? (
+        <LinkForm editor={editor} draft={linkDraft} style={linkStyle} onClose={() => setLinkDraft(null)} onDraftChange={reportDraft} />
+      ) : null}
+      {citationDraft === null && toolbarStyle ? (
         <SelectionToolbar
           editor={editor}
           style={toolbarStyle}
@@ -766,10 +788,14 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           // The form takes focus; opened from the toolbar by keyboard, the editor had none.
           onEditLink={editLink}
           onEditReference={() => {
+            if (referenceDraft) {
+              host.current?.querySelector<HTMLElement>('[data-testid="reference-target"], [data-testid="reference-cancel"]')?.focus();
+              return;
+            }
             setFocused(editor.view.hasFocus());
             const { from, to } = editor.state.selection;
             commandInsertion.current = false;
-            setReferenceDraft({ from, to, text: editor.state.doc.textBetween(from, to, "\n", "\n") });
+            setReferenceDraft({ from, to, text: editor.state.doc.textBetween(from, to, "\n", "\n"), path: String(editor.state.selection.$from.node(1).attrs.sourcePath) });
           }}
         />
       ) : null}

@@ -160,8 +160,10 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   await selectText('Reference text');
   await page.getByTestId('selection-toolbar').getByRole('button', {name:'Cross-reference', exact:true}).click();
   await page.getByTestId('reference-form').waitFor();
-  await page.locator('.app-header').click({position:{x:2,y:2}});
-  expect(await page.getByTestId('reference-form').count(), 'Outside click dismisses a reference form with no targets').toBe(0);
+  await page.locator('.app-brand').click({position:{x:2,y:2}});
+  expect(await page.getByTestId('reference-form').count(), 'Outside click retains a reference form with no targets').toBe(1);
+  await page.getByTestId('reference-cancel').click();
+  expect(await page.getByTestId('reference-form').count()).toBe(0);
   await paragraph(0).click();
   await page.keyboard.press('End');
   await page.keyboard.type(' /');
@@ -225,9 +227,63 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   expect(await page.getByTestId('reference-form').count()).toBe(0);
   await broken.locator('.cross-reference-chip').click();
   await page.getByTestId('reference-form').waitFor();
-  await page.locator('.app-header').click({position:{x:2,y:2}});
+  await page.locator('.app-brand').click({position:{x:2,y:2}});
+  expect(await page.getByTestId('reference-form').count()).toBe(1);
+  await page.getByTestId('reference-cancel').click();
   expect(await page.getByTestId('reference-form').count()).toBe(0);
   result.fragmentLinkStaysLink = await paragraph(1).locator('a', {hasText: 'details'}).count() === 1;
+
+  // #790: two references in the same paragraph own independent registered drafts.
+  const appliedBeforeDraft = await paragraph(0).evaluate(() => JSON.stringify(document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.getJSON()));
+  const referenceTab = await page.getByRole('tab',{name:'refs.md',exact:true}).getAttribute('id');
+  await broken.locator('.cross-reference-chip').click();
+  await page.getByTestId('reference-target').selectOption('reference:eq:eq-b');
+  const second = chip(paragraph(2),'Eq. eq-a');
+  await editReference(second);
+  await second.getByTestId('reference-target').selectOption('reference:numref:fig-a');
+  await page.locator('.app-brand').click({position:{x:2,y:2}});
+  expect(await page.getByTestId('reference-target').evaluateAll(nodes => nodes.map(node => node.value).sort())).toEqual(['reference:eq:eq-b','reference:numref:fig-a']);
+  await page.getByTestId('draft-notice').waitFor();
+  await page.evaluate(() => {
+    const instance = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+    let target;
+    instance.state.doc.forEach((node,pos) => { if (node.attrs.label === 'eq-b') target = pos; });
+    instance.commands.setNodeSelection(target);
+    instance.view.focus();
+  });
+  await page.keyboard.press('Delete');
+  expect(await broken.getByTestId('reference-target').inputValue(), 'A removed target stays selected as an unresolved draft').toBe('reference:eq:eq-b');
+  await page.keyboard.press('ControlOrMeta+z');
+  const appliedDraftSource = await sourceText();
+  await page.getByTestId('save').click();
+  await page.locator('[data-testid="status"][data-operation^="saved"]').waitFor();
+  const appliedDiskCheckpoint = await markdown();
+  expect(appliedDiskCheckpoint).toBe(appliedDraftSource);
+  expect(await markdown()).not.toContain('{eq}`eq-b`');
+  expect(await page.getByTestId('status').innerText()).toBe('Unsaved changes');
+  expect(await sourceText()).not.toContain('{eq}`eq-b`');
+  await page.getByRole('tab',{name:'technical-document.md',exact:true}).click();
+  expect(await page.getByTestId('reference-form').count()).toBe(0);
+  expect(await page.evaluate(() => {const event = new Event('beforeunload',{cancelable:true});window.dispatchEvent(event);return event.defaultPrevented;})).toBe(true);
+  await page.locator(`#${referenceTab}`).click();
+  expect(await page.getByTestId('reference-target').evaluateAll(nodes => nodes.map(node => node.value).sort())).toEqual(['reference:eq:eq-b','reference:numref:fig-a']);
+  // A sibling inline form must neither replace nor clear those registrations.
+  await selectText('control law');
+  await page.keyboard.press('Control+Quote');
+  await page.getByTestId('link-url').fill('https://example.com/unapplied');
+  await page.getByTestId('link-cancel').click();
+  expect(await page.getByTestId('reference-form').count()).toBe(2);
+  // Keyboard activation reaches independently overlapping retained forms.
+  const cancelBroken = broken.getByTestId('reference-cancel');
+  await cancelBroken.focus();
+  await cancelBroken.press('Enter');
+  expect(await page.getByTestId('reference-form').count()).toBe(1);
+  expect(await second.getByTestId('reference-target').inputValue()).toBe('reference:numref:fig-a');
+  expect(await page.getByTestId('draft-notice').isVisible()).toBe(true);
+  await second.getByTestId('reference-target').press('Escape');
+  await page.getByTestId('draft-notice').waitFor({state:'detached'});
+  expect(await paragraph(0).evaluate(() => JSON.stringify(document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.getJSON()))).toBe(appliedBeforeDraft);
+  result.explicitDraftLifecycle = true;
 
   // A2. Chips and their targets show computed numbers; clicking a resolved chip goes to the target.
   result.numbersShown = await chip(paragraph(1), 'Eq. eq-a').locator('.cross-reference-chip').innerText() === '(1)' &&
@@ -246,6 +302,8 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   await selectText('control law');
   await page.getByTestId('selection-toolbar').getByRole('button', {name:'Cross-reference', exact:true}).click();
   await page.getByTestId('reference-target').selectOption('reference:eq:eq-b');
+  await page.locator('.app-brand').click({position:{x:2,y:2}});
+  expect(await page.getByTestId('reference-target').inputValue()).toBe('reference:eq:eq-b');
   await page.getByTestId('reference-apply').click();
   result.insertedFromSelection = await chip(paragraph(0), 'Eq. eq-b').count() === 1 &&
     !(await paragraph(0).innerText()).includes('control law');
@@ -328,7 +386,7 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
     ':::{figure} ./diagram.svg\n:name: fig-a\n\nConverter control summary.\n:::',
   ];
   result.sourceShowsUnsavedReferences = expectedLines.every(line => preview.includes(line));
-  result.fileUntouchedBeforeSave = await markdown() === fresh;
+  result.fileUntouchedBeforeSave = await markdown() === appliedDiskCheckpoint;
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   result.saveMatchesSource = await markdown() === preview;

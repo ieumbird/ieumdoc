@@ -1,10 +1,14 @@
-import { EDITOR_SHORTCUTS, LINK_SHORTCUT } from "./shortcuts.ts";
+import { EDITOR_SHORTCUTS, LINK_SHORTCUT, PROPERTY_APPLY_SHORTCUT } from "./shortcuts.ts";
 import { useMessageState } from "./ui-message.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "./i18n.ts";
 import type { Editor } from "@tiptap/core";
+import { useEditorState } from "@tiptap/react";
+import { canEditEndnoteAt, endnoteAt, endnoteEditorToken } from "./endnotes.ts";
 import { Bold, Bookmark, Code, Italic, Link2, Sigma, Strikethrough, Subscript, Superscript } from "lucide-react";
-import { useId, useState, type CSSProperties, type RefObject } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type RefObject } from "react";
+import { useEditorVisible } from "./editor-visibility.ts";
+import type { DraftListener } from "./node-views/shared.ts";
 import { FieldError } from "./ui/primitives.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { externalLinkUrl, openExternalLink } from "./link-opening.ts";
@@ -155,7 +159,7 @@ function editableInlineContext(editor: Editor): boolean {
 }
 
 /** The paragraph text range a link form edits, and the link already there, if any. */
-export type LinkDraft = { from: number; to: number; href: string; title: string | null };
+export type LinkDraft = { from: number; to: number; path: string; href: string; title: string | null };
 
 /** Open a link draft for the selection, widened to the whole link when it is inside one. */
 export function linkDraftOf(editor: Editor): LinkDraft {
@@ -165,6 +169,7 @@ export function linkDraftOf(editor: Editor): LinkDraft {
   return {
     from,
     to,
+    path: String(editor.state.selection.$from.node(1).attrs.sourcePath),
     href: typeof attrs.href === "string" ? attrs.href : "",
     title: typeof attrs.title === "string" ? attrs.title : null,
   };
@@ -174,17 +179,29 @@ export function linkDraftOf(editor: Editor): LinkDraft {
  * Add, change or remove an ordinary Markdown link on the selected text. The change is an
  * ordinary editor transaction; Core validates the link when the document is saved.
  */
-export function LinkForm({ editor, draft, style, onClose }: {
+export function LinkForm({ editor, draft, style, onClose, onDraftChange }: {
   editor: Editor;
   draft: LinkDraft;
-  style: CSSProperties;
+  style?: CSSProperties;
   onClose: () => void;
+  onDraftChange: DraftListener;
 }) {
   useTranslation();
+  const visible = useEditorVisible();
   const formId = useId();
+  const mounted = useRef(false);
+  useEffect(() => { mounted.current = true; }, []);
   const [href, setHref] = useState(draft.href);
   const bounds = useOverlayBounds<HTMLFormElement>();
   const [error, setError] = useMessageState("");
+  const path = draft.path;
+  const dirty = href !== draft.href;
+  const canEdit = useEditorState({ editor, selector: ({ editor: current }) =>
+    !!current?.isEditable && canEditEndnoteAt(current.state, draft.from) });
+  useEffect(() => {
+    onDraftChange("Link", path, dirty, formId);
+    return () => onDraftChange("Link", path, false, formId);
+  }, [path, dirty, onDraftChange, formId]);
   const close = () => {
     onClose();
     // Finish this form's focus return now. A queued Tiptap focus can otherwise blur a
@@ -192,6 +209,7 @@ export function LinkForm({ editor, draft, style, onClose }: {
     editor.view.focus();
   };
   const apply = () => {
+    if (!canEdit) return;
     const url = href.trim();
     if (url.length === 0) return setError({ key: "Enter a URL." });
     if (/\s/.test(url)) return setError({ key: "A URL cannot contain spaces." });
@@ -202,9 +220,11 @@ export function LinkForm({ editor, draft, style, onClose }: {
     close();
   };
   const remove = () => {
+    if (!canEdit) return;
     editor.chain().setTextSelection({ from: draft.from, to: draft.to }).unsetLink().run();
     close();
   };
+  if (!visible) return null;
   return (
     <form
       ref={bounds}
@@ -212,29 +232,35 @@ export function LinkForm({ editor, draft, style, onClose }: {
       role="dialog"
       aria-label={i18n.t("Link")}
       data-testid="link-form"
+      data-endnote-editor={endnoteEditorToken(editor)}
+      data-endnote-owner={endnoteAt(editor.state, draft.from) ?? ""}
       style={style}
       onSubmit={(event) => {
         event.preventDefault();
         apply();
       }}
       onKeyDown={(event) => {
+        if (PROPERTY_APPLY_SHORTCUT.matches(event.nativeEvent)) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.currentTarget.requestSubmit();
+        }
         if (event.key !== "Escape") return;
         event.preventDefault();
+        event.stopPropagation();
         close();
-      }}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) onClose();
       }}
     >
       <div className="form-field link-url-field">
         <label className="form-label" htmlFor={formId}>{i18n.t("Link URL")}</label>
         <Input
           id={formId}
-          autoFocus
+          autoFocus={!mounted.current}
           aria-label={i18n.t("Link URL")}
           data-testid="link-url"
           placeholder="https://"
           value={href}
+          disabled={!canEdit}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${formId}-error` : undefined}
           onChange={(event) => {
@@ -244,14 +270,17 @@ export function LinkForm({ editor, draft, style, onClose }: {
         />
         <FieldError id={`${formId}-error`}>{error}</FieldError>
       </div>
-      <Button size="sm" type="submit" data-testid="link-apply">{i18n.t("Apply")}</Button>
-      <span title={externalLinkUrl(href) ? i18n.t("Open") : i18n.t("Only external http(s) links can be opened.")}>
-        <Button size="sm" variant="outline" type="button" data-testid="link-open"
-          disabled={!externalLinkUrl(href)} onClick={() => openExternalLink(href)}>{i18n.t("Open")}</Button>
-      </span>
-      {draft.href ? (
-        <Button size="sm" variant="outline" data-testid="link-remove" onClick={remove}>{i18n.t("Remove")}</Button>
-      ) : null}
+      <div className="form-actions">
+        <span title={externalLinkUrl(href) ? i18n.t("Open") : i18n.t("Only external http(s) links can be opened.")}>
+          <Button size="sm" variant="outline" type="button" data-testid="link-open"
+            disabled={!externalLinkUrl(href)} onClick={() => openExternalLink(href)}>{i18n.t("Open")}</Button>
+        </span>
+        {draft.href ? (
+          <Button size="sm" variant="outline" disabled={!canEdit} data-testid="link-remove" onClick={remove}>{i18n.t("Remove")}</Button>
+        ) : null}
+        <Button size="sm" type="button" variant="outline" data-testid="link-cancel" onClick={close}>{i18n.t("Cancel")}</Button>
+        <Button size="sm" type="submit" disabled={!canEdit} data-testid="link-apply">{i18n.t("Apply")}</Button>
+      </div>
     </form>
   );
 }
