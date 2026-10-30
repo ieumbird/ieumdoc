@@ -39,6 +39,7 @@ Decision date와 historical measurement의 날짜는 Last verified로 덮어쓰�
 ## Update rules
 
 - current behavior contract를 바꾸는 구현은 같은 PR에서 관련 design document를 갱신한다.
+- [UI 패턴](../design/ui-patterns-v1.md#사용과-갱신)의 구현 PR은 해당 패턴 절의 현재 기준·관련 계약·검증 근거를 갱신한다. 공유 불일치 목록은 ID·패턴·사용처·목표·후속 이슈 연결만 유지하며, 진행 상태는 GitHub 이슈의 열림·닫힘으로 관리한다. 구현 진행에 따른 표 수정·행 삭제는 하지 않는다. 새 불일치나 목표·범위·이슈 연결 변경은 목록에 반영한다.
 - 새로운 주요 architecture decision은 ADR로 남긴다. 단순 구현 상세마다 ADR을 만들지 않는다.
 - historical review를 현재 계약으로 계속 덧붙이지 않는다. 오래된 기록은 Historical/Superseded 상태와 현재 authority를 연결하고 당시 측정값·commit·결과를 보존한다.
 - 현재 계약과 구현 연대기가 함께 있으면 현재 계약을 앞에, history/evidence를 뒤에 둔다.

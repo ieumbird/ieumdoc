@@ -12,7 +12,9 @@
 
 ## 사용과 갱신
 
-UI 작업 전에 해당 패턴과 **같은 패턴을 쓰는 다른 사용처**를 읽고 확인한다. 패턴에서 벗어나면 같은 PR에서 이 문서를 고치거나 알려진 불일치에 사용처·이유·후속 이슈를 올린다. 일부 화면에만 먼저 적용하면 나머지 화면의 후속 이슈를 등록한다. 구현한 항목은 기준 구현·현재 계약·불일치 목록을 함께 갱신한다.
+UI 작업 전에 해당 패턴과 **같은 패턴을 쓰는 다른 사용처**를 읽고 확인한다. 새 불일치를 발견하면 같은 PR에서 아래 목록에 ID·패턴·사용처·목표·후속 이슈를 등록한다. 일부 화면에만 먼저 적용하면 나머지 화면의 후속 이슈를 등록한다.
+
+구현 PR은 해당 패턴 절의 현재 기준과 관련 Implemented 계약·검증 근거를 갱신한다. 불일치의 진행 상태는 연결된 GitHub 이슈의 열림·닫힘으로 관리하며 공유 표에 해결/미해결을 표시하거나 구현 진행에 따라 행을 수정·삭제하지 않는다. 목록은 고정된 추적 정보만 유지하고, 새 불일치나 목표·범위·이슈 연결이 바뀔 때 갱신한다([#806](https://github.com/ieumbird/ieumdoc/issues/806)).
 
 U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사용한다. 아래 기준 구현은 **명시한 부분만** 목표에 맞는 현재 구현이며, 컴포넌트 전체가 모든 패턴을 충족한다는 뜻이 아니다. 알려진 불일치 없음은 이 조사 범위에서의 판단이며 전체 동작 재검증을 뜻하지 않는다. 목표의 대안과 과거 근거는 인벤토리에 남긴다.
 
@@ -120,19 +122,20 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 
 ## 알려진 불일치
 
-현재 코드·1단계 관찰과 확정 목표 사이의 차이다. 해결 항목은 상태와 현재 계약을 명시한다. 아래 이슈의 등록은 구현 완료가 아니다. #777은 이 문서와 추적 등록까지이며 첫 구현은 #776이다.
+1단계 관찰에서 식별한 차이와 후속 목표의 추적 목록이다. 해결된 항목도 ID와 이슈 연결을 유지한다. 진행 상태는 후속 이슈의 열림·닫힘으로, 현재 구현·계약·검증은 해당 패턴 절에서 확인한다. #777은 이 문서와 추적 등록까지이며 첫 구현은 #776이다.
 
-| ID · 패턴 | 현재 다른 사용처 → 목표 | 후속 이슈 |
+| ID · 패턴 | 사용처 · 목표 | 후속 이슈 |
 | --- | --- | --- |
-| D01 · P02/P11 · 해소 | U01–U05 다섯 폼의 자동/고정 세그먼트·빈 고정 차단·자동 표시 번호를 공용 NumberField로 통일 | [#776](https://github.com/ieumbird/ieumdoc/issues/776) |
-| D02 · P01 · 해결 | U10 교차참조·U08 링크의 창 경계와 U05/U07/U11의 전체 scroll 요소 경계를 가용 콘텐츠 viewport로 통일. U09 인용은 공용 훅 변경만 함께 적용; 동결 기능 전용 변경 없음 | [#782](https://github.com/ieumbird/ieumdoc/issues/782), [현재 검증](editor-layout-rules-v1.md#form-content-viewport-782) |
-| D03 · P01/P04 | U05 표·U11 절 label의 anchor 끝 정렬·Apply/Cancel·밖에서 유지 → 대상 팝오버·Done/밖에서 적용 | [#791](https://github.com/ieumbird/ieumdoc/issues/791) |
-| D04 · P01/P03/P04/P09 | U04 수식은 원문 폼 진입만 있음 → 작은 metadata 진입 분리 | [#788](https://github.com/ieumbird/ieumdoc/issues/788) |
-| D05 · P04 | U08–U10 링크·인용·교차참조는 Cancel 없음·blur dismissal → 명시적 적용/취소와 초안 유지 | [#790](https://github.com/ieumbird/ieumdoc/issues/790) |
-| D07 · P02/P07/P12 | #769의 낡은 대응표 경고와 #797 Docling 실행 오류가 공용 센터를 사용. U14/U16 등의 문서·블록·shell 메시지 분산 → 같은 창별 센터로 집계·위치 이동·해결/닫기/재발 | [#792](https://github.com/ieumbird/ieumdoc/issues/792) |
-| D08 · P03/P09/P10 | U05 하단 Edit·독립 Delete → 상단 속성 진입·동작 메뉴 삭제 | [#793](https://github.com/ieumbird/ieumdoc/issues/793) |
-| D09 · P05/P07 | U03–U05/U07–U11 짧은 필드의 상시 경계, U01–U11의 폼 Notice/필드 오류 차이 → 속성 fill·필드 오류 연결(기존 연결은 보존) | [#789](https://github.com/ieumbird/ieumdoc/issues/789) |
-| D10 · P04 · 해결 | U06 완료/취소(Done/Cancel), 그림과 같은 번역 재사용·기존 동작 유지 | [#787](https://github.com/ieumbird/ieumdoc/issues/787) |
+| D01 · P02/P11 | U01–U05 다섯 폼의 자동/고정 세그먼트·빈 고정 차단·자동 표시 번호를 공용 NumberField로 통일 | [#776](https://github.com/ieumbird/ieumdoc/issues/776) |
+| D02 · P01 | U10 교차참조·U08 링크와 U05/U07/U11 폼의 경계를 가용 콘텐츠 viewport로 통일. U09 인용은 공용 훅 변경만 포함하며 동결 기능 전용 변경은 제외 | [#782](https://github.com/ieumbird/ieumdoc/issues/782) |
+| D03 · P01/P04 | U05 표·U11 절 label을 대상 팝오버·Done/밖에서 적용으로 통일 | [#791](https://github.com/ieumbird/ieumdoc/issues/791) |
+| D04 · P01/P03/P04/P09 | U04 수식의 작은 metadata 진입을 원문 폼 진입과 분리 | [#788](https://github.com/ieumbird/ieumdoc/issues/788) |
+| D05 · P04 | U08–U10 링크·인용·교차참조의 명시적 적용/취소와 초안 유지 | [#790](https://github.com/ieumbird/ieumdoc/issues/790) |
+| D06 · P06 | U12 빈 제목에 선택적 제목 추가 안내, U01 pending Figure에 이미지 선택 / Mermaid 작성 진입 제공. 기존 caption·본문·목록의 빈 상태와 선택·clipboard 의미 유지 | [#786](https://github.com/ieumbird/ieumdoc/issues/786) |
+| D07 · P02/P07/P12 | U14/U16 등의 문서·블록·shell 메시지를 같은 창별 센터로 집계하고 위치 이동·해결/닫기/재발 처리 | [#792](https://github.com/ieumbird/ieumdoc/issues/792) |
+| D08 · P03/P09/P10 | U05 표의 상단 속성 진입·동작 메뉴 삭제 | [#793](https://github.com/ieumbird/ieumdoc/issues/793) |
+| D09 · P05/P07 | U03–U05/U07–U11 짧은 속성 필드의 fill과 U01–U11 필드 오류 연결 통일(기존 연결은 보존) | [#789](https://github.com/ieumbird/ieumdoc/issues/789) |
+| D10 · P04 | U06 완료/취소(Done/Cancel), 그림과 같은 번역 재사용·기존 동작 유지 | [#787](https://github.com/ieumbird/ieumdoc/issues/787) |
 
 [decision]: https://github.com/ieumbird/ieumdoc/issues/777#issuecomment-6510554436
 [inventory]: ../reviews/ui-pattern-inventory-777.md
