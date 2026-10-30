@@ -117,9 +117,10 @@ syntax or render it.
 
 `insertFigure(document, index, { imageUrl: "", imageAlt: "", caption, mermaidSource })`
 creates a Mermaid Figure. `updateFigure(document, path, { mermaidSource })` replaces source
-only on an existing Mermaid Figure; omitted properties retain their values. Caption/label
-operations preserve source. Image or alt text on a Mermaid Figure, and adding Mermaid source
-to an image or pending Figure, are refused. Image ↔ Mermaid conversion and diagram alt text
+on an existing Mermaid Figure or fills a pending Figure (#786); omitted properties retain
+their values, including caption, label and fixed number. Caption/label operations preserve
+source. Image or alt text on a Mermaid Figure, and adding Mermaid source to an image Figure,
+are refused. Image ↔ Mermaid conversion and diagram alt text
 are outside this contract.
 
 Canonical output uses an unindented colon Figure container, `:name:` for an optional label,
@@ -219,7 +220,7 @@ Figure validation that completes after the user moves elsewhere does not take fo
 
 | State | Session behavior | Save and Source |
 | --- | --- | --- |
-| Pending Figure | `/figure` and `+` insert an empty Figure; caption or label may be added later. Shows `No content yet`, normal metadata and caption. | Included from insertion; Reload restores a Figure with no image. |
+| Pending Figure | `/figure` and `+` insert an empty Figure; caption or label may be added later. Shows `Choose image` / `Write Mermaid` (`이미지 선택` / `Mermaid 작성`), normal metadata and caption. | Included from insertion; Reload restores a Figure with no image. |
 | Completed image Figure | Valid image attached; existing image behavior. | Included. |
 
 Pending/image Figure insertion is one undo step and opens no form: the caret starts in the new Figure's caption, so a caption can be typed at once or the Figure left empty. Pasting an image with the caret in an image-free Figure's caption, or dropping an image on that Figure, fills its image using the same properties update as Apply, preserving its label, caption and document position. Caption and label may both be empty. Paste/drop on a Figure that already has an image, or on any other block, inserts a new image Figure after the target; it never overwrites an existing image. If the empty target Figure is deleted or changed while upload is pending, including another image being attached, completion cancels without changing the document and rolls back the created asset through the existing upload cancellation path. Read-only and concurrent-upload rejection rules remain in force.
@@ -241,6 +242,35 @@ Relative image sources remain unchanged in document attributes and Markdown. Bot
 After removing the optional leading `./` for display, ordinary paths use segment-by-segment encoding and keep `/` separators (`/document/assets/diagram.svg`), avoiding encoded-slash rejection by reverse proxies. Only paths with a literal `.` or `..` segment encode the complete path. A standalone dot segment receives a trailing slash in the request before encoding: `.` becomes `/document/.%2F`, while `..` and `./..` become `/document/..%2F`. The Host decodes and resolves these to the same filesystem location as the original path; the Editor makes no access decision. Literal percent escapes are encoded as text, so `%2e%2e/x` becomes `/document/%252e%252e/x` and reaches the existing Host rejection. All examples omit the document locator query. A proxy that blocks encoded slashes can still reject dot-segment requests before forwarding; normal image paths require no such proxy option. Query-based media transport was not added because this display fix can reuse the existing shared Vite/HTTP/Desktop handler unchanged.
 
 If an image cannot load, the Figure shows `Image could not be loaded. Check the image path or URL.` in the existing error Notice, including at rest. The broken image is hidden; caption, numbering and properties remain available. Successful loading or changing the source clears the failed-source display state. This state never changes document attributes, dirty state, Source or Save, and adds no Core asset-existence check. CLI filesystem warnings are described below.
+
+## Empty authoring entry (#786)
+
+The pending frame's `Choose image` button opens the existing image picker and Image
+properties together. Choosing fills only the property draft; Done commits through existing
+validation. `Write Mermaid` opens the existing source editor with an empty draft,
+without inserting an example diagram. Apply fills the same pending Figure through Core's
+`updateFigure`, preserving caption, label, fixed number and position. Cancelling either flow
+keeps the applied pending Figure unchanged. Opening a flow alone changes neither document
+nor history. Undo after filling restores the pending frame and its two entries. Frame
+background selection/double-click and caption selection/clipboard behavior stay unchanged.
+The CLI already exposes this Core operation as `update-figure --mermaid`, including batch;
+no new command or Editor-specific semantic operation is needed.
+
+Manual Before/After review uses the same scratch `pending-figure/pending.md` with its body
+H1 kept separate from the title. It covers the empty title, typing title and pending Figure
+at 1440×900 Light/Dark in English and 640×900 Light in Korean. Title slot height is
+45.89px before and after; the empty hint changes from 34px to 14px while entered title
+text stays 34px. The Figure's two actions fit the narrow document column; the existing
+caption number and selection presentation remain. These screenshots are presentation
+evidence, separate from automated behavior assertions. The [manual capture script](assets/empty-entry-786/manual-capture.browser.js)
+records these states through the repository runner; [metadata and SHA-256 hashes](assets/empty-entry-786/capture-metadata.json)
+identify the PNGs. Before UI is master `ceead74c`.
+
+| View | Before: empty / typing / Figure | After: empty / typing / Figure |
+| --- | --- | --- |
+| 1440 Light EN | [Empty](assets/empty-entry-786/before-1440-light-en-empty-title.png) · [Typing](assets/empty-entry-786/before-1440-light-en-typing-title.png) · [Figure](assets/empty-entry-786/before-1440-light-en-pending-figure.png) | [Empty](assets/empty-entry-786/after-1440-light-en-empty-title.png) · [Typing](assets/empty-entry-786/after-1440-light-en-typing-title.png) · [Figure](assets/empty-entry-786/after-1440-light-en-pending-figure.png) |
+| 1440 Dark EN | [Empty](assets/empty-entry-786/before-1440-dark-en-empty-title.png) · [Typing](assets/empty-entry-786/before-1440-dark-en-typing-title.png) · [Figure](assets/empty-entry-786/before-1440-dark-en-pending-figure.png) | [Empty](assets/empty-entry-786/after-1440-dark-en-empty-title.png) · [Typing](assets/empty-entry-786/after-1440-dark-en-typing-title.png) · [Figure](assets/empty-entry-786/after-1440-dark-en-pending-figure.png) |
+| 640 Light KO | [Empty](assets/empty-entry-786/before-640-light-ko-empty-title.png) · [Typing](assets/empty-entry-786/before-640-light-ko-typing-title.png) · [Figure](assets/empty-entry-786/before-640-light-ko-pending-figure.png) | [Empty](assets/empty-entry-786/after-640-light-ko-empty-title.png) · [Typing](assets/empty-entry-786/after-640-light-ko-typing-title.png) · [Figure](assets/empty-entry-786/after-640-light-ko-pending-figure.png) |
 
 ## Anchored Figure properties (#757)
 

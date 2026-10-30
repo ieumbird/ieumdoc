@@ -1,0 +1,166 @@
+{
+  "beforeTitleFont": "34px",
+  "beforePlaceholderFont": "34px",
+  "beforeUi": "ceead74c",
+  "issue": 786,
+  "beforeTitleHeight": 45.890625,
+  "browser": "Persistent installed Chrome, DPR 1",
+  "viewportHeight": 900,
+  "files": [
+    {
+      "file": "after-1440-dark-en-empty-title.png",
+      "sha256": "5e318546365d32cadef751b2d1510733282fe91857335e367209b59d96c11dbe"
+    },
+    {
+      "file": "after-1440-dark-en-pending-figure.png",
+      "sha256": "d514de295c741467f8b2f47ab02c2b74ad5ab36968a35c48532dabe6473a3e85"
+    },
+    {
+      "file": "after-1440-dark-en-typing-title.png",
+      "sha256": "8963d88b2568b44eeffb3cf4059af694dcb0980c19195d5a64ebbd2af0466ba9"
+    },
+    {
+      "file": "after-1440-light-en-empty-title.png",
+      "sha256": "8f74f78f00786c5c076c1faf490557b8c8651d0064f072ace993d74d1ed13dca"
+    },
+    {
+      "file": "after-1440-light-en-pending-figure.png",
+      "sha256": "4ab3d33ba7e91f5c6d46ba6e9c7be07340591789173c53e41e2512dbd1ee1fc4"
+    },
+    {
+      "file": "after-1440-light-en-typing-title.png",
+      "sha256": "999e16ae2d829b80c7bc06f989b3f8562a85072697784c2c9ef09e3eda2ea70c"
+    },
+    {
+      "file": "after-640-light-ko-empty-title.png",
+      "sha256": "77fed1ad29033ee40fe4ca32784a831aa59e8b465167eb3ef038ce0508fcedb6"
+    },
+    {
+      "file": "after-640-light-ko-pending-figure.png",
+      "sha256": "fe2fb1a868838c24e6a071aefa769728ae4dafb7d65a78545b33061cc3efaa61"
+    },
+    {
+      "file": "after-640-light-ko-typing-title.png",
+      "sha256": "1b17b0d475def4748df462d27cd0a728f0ff7c078af4e8f06250a5f706a76ece"
+    },
+    {
+      "file": "before-1440-dark-en-empty-title.png",
+      "sha256": "8fb24e52cee77ba794036d0010cc26f9c5d077447113b07762e06ae104e6b20c"
+    },
+    {
+      "file": "before-1440-dark-en-pending-figure.png",
+      "sha256": "10061e93005b7ce01868e4bd8e09e9e7ef5543b8c83fc4a5079d6532e21e8ee6"
+    },
+    {
+      "file": "before-1440-dark-en-typing-title.png",
+      "sha256": "8963d88b2568b44eeffb3cf4059af694dcb0980c19195d5a64ebbd2af0466ba9"
+    },
+    {
+      "file": "before-1440-light-en-empty-title.png",
+      "sha256": "13002b7a52d57f5a5dd55dc8fdcb3501619658bb0e99f07b0a8fc4c599912168"
+    },
+    {
+      "file": "before-1440-light-en-pending-figure.png",
+      "sha256": "d37c267460656a7f75b35e0a5694d11bcc5efbb018d1400dea899691f5a4f50f"
+    },
+    {
+      "file": "before-1440-light-en-typing-title.png",
+      "sha256": "999e16ae2d829b80c7bc06f989b3f8562a85072697784c2c9ef09e3eda2ea70c"
+    },
+    {
+      "file": "before-640-light-ko-empty-title.png",
+      "sha256": "1941fb7ce666a9282ec21a596bc9b3bc1cce136056909dcb3a617027bd2159de"
+    },
+    {
+      "file": "before-640-light-ko-pending-figure.png",
+      "sha256": "2cb5f25713697c0d23d591180f03f7ef57ec0458ebd769b6e4f9d1f2fb569763"
+    },
+    {
+      "file": "before-640-light-ko-typing-title.png",
+      "sha256": "1b17b0d475def4748df462d27cd0a728f0ff7c078af4e8f06250a5f706a76ece"
+    }
+  ],
+  "afterMeasurements": [
+    {
+      "width": 1440,
+      "theme": "light",
+      "language": "en",
+      "state": "empty-title",
+      "height": 45.890625,
+      "font": "34px",
+      "placeholderFont": "14px"
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "language": "en",
+      "state": "typing-title",
+      "height": 45.890625,
+      "font": "34px",
+      "placeholderFont": "14px"
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "language": "en",
+      "state": "pending-figure",
+      "height": 45.890625,
+      "font": "34px",
+      "placeholderFont": "14px"
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "language": "en",
+      "state": "empty-title",
+      "height": 45.890625,
+      "font": "34px",
+      "placeholderFont": "14px"
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "language": "en",
+      "state": "typing-title",
+      "height": 45.890625,
+      "font": "34px",
+      "placeholderFont": "14px"
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "language": "en",
+      "state": "pending-figure",
+      "height": 45.890625,
+      "font": "34px",
+      "placeholderFont": "14px"
+    },
+    {
+      "width": 640,
+      "theme": "light",
+      "language": "ko",
+      "state": "empty-title",
+      "height": 45.890625,
+      "font": "34px",
+      "placeholderFont": "14px"
+    },
+    {
+      "width": 640,
+      "theme": "light",
+      "language": "ko",
+      "state": "typing-title",
+      "height": 45.890625,
+      "font": "34px",
+      "placeholderFont": "14px"
+    },
+    {
+      "width": 640,
+      "theme": "light",
+      "language": "ko",
+      "state": "pending-figure",
+      "height": 45.890625,
+      "font": "34px",
+      "placeholderFont": "14px"
+    }
+  ]
+}

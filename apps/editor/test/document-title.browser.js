@@ -31,6 +31,17 @@ async (page, { openPath, reloadDocument, expect, screenshots, waitForEditorFocus
   // Same original source as the Before capture: H1 stays body, with an empty title input.
   await openPath(page, scratch('technical-document.md'));
   await expect(title).toHaveValue('');
+  await expect(title).toHaveAttribute('placeholder','Add a title (optional)');
+  const titleStyle = () => title.evaluate(n => ({ height:n.getBoundingClientRect().height,
+    font:getComputedStyle(n).fontSize, placeholderFont:getComputedStyle(n,'::placeholder').fontSize }));
+  const emptyStyle = await titleStyle();
+  expect(parseFloat(emptyStyle.placeholderFont)).toBeLessThan(parseFloat(emptyStyle.font));
+  await title.fill('Optional document title');
+  expect((await titleStyle()).height).toBe(emptyStyle.height);
+  expect(await title.evaluate(n => n.matches(':placeholder-shown'))).toBe(false);
+  await title.fill('');
+  expect(await title.evaluate(n => n.matches(':placeholder-shown'))).toBe(true);
+  expect((await titleStyle()).height).toBe(emptyStyle.height);
   await expect(editor.locator('h1')).toHaveText('Converter Control');
   await expect(editor.locator('[data-document-title]')).toHaveCount(0);
   await editor.locator('h1').hover();

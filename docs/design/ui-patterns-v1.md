@@ -3,7 +3,8 @@
 역할: 반복 UI 동작의 확정 목표·현재 기준·불일치를 관리하며, 시각 표현은 [Visual Language](editor-visual-language-v1.md), 배치·치수는 [Layout Rules](editor-layout-rules-v1.md)를 따른다.
 
 - Status: Draft
-- Last verified: 2026-10-30. master `2de4e857`의 코드·현재 계약과 #777 소유자 결정 대조. 이 문서 작업에서는 브라우저를 실행하지 않았다. 화면 근거는 [1단계 인벤토리][inventory]에 보존한다.
+- P06 verified: 2026-10-30 (#786; title slot/typography, pending Figure entry/cancel/Apply/Undo/Save and existing caption/body/list patterns; [evidence](figure-authoring-v1.md#empty-authoring-entry-786)).
+- Inventory baseline: 2026-10-30. master `2de4e857`의 코드·현재 계약과 #777 소유자 결정 대조. 인벤토리 문서 작업에서는 브라우저를 실행하지 않았다. 화면 근거는 [1단계 인벤토리][inventory]에 보존하며 후속 구현 검증은 해당 패턴에 기록한다.
 - Scope: Editor 반복 UI의 **확정된 목표**, 현재 기준 구현과 알려진 불일치. Draft는 미구현 목표를 Implemented 계약으로 표시하지 않기 위한 상태이며 소유자 결정을 재논의한다는 뜻이 아니다.
 - Authority: [AGENTS.md](../../AGENTS.md), [ADR-0001](../adr/0001-single-document-editor-architecture.md), [ADR-0010](../adr/0010-supported-viewport-and-input.md), [#777 소유자 결정][decision]. 현재 동작은 각 Implemented 계약을 따른다. 이 목표가 바꾸는 현재 동작은 아래 후속 이슈에서 구현하고 같은 PR에서 해당 계약을 갱신한다.
 
@@ -61,9 +62,9 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 
 - **목적·사용/비사용:** 무엇이 비었는지와 다음 행동을 보여 준다. UI 안내를 실제 문서 콘텐츠로 저장하거나 빈 작성 자리를 모두 숨기지 않는다.
 - **목표:** 빈 제목은 기존 slot 높이를 유지한 작은 ‘제목 추가(선택)’이며 입력하면 title typography를 쓴다. title과 H1은 분리한다. pending Figure에는 ‘이미지 선택 / Mermaid 작성’ 진입을 보이며 진입만으로 내용을 확정하지 않는다. 빈 caption의 muted italic hint·선택 시 숨김·번호/최소 클릭 영역은 유지한다. 빈 검색·자원 목록은 작성 빈칸과 구별한다.
-- **현재 기준:** [빈 caption hint](editor-visual-language-v1.md#state-rules). [DocumentTitle](../../apps/editor/src/document-title.tsx)은 현재 큰 Add a title, pending Figure는 No content yet다.
+- **현재 기준:** [DocumentTitle](../../apps/editor/src/document-title.tsx)은 기존 title slot 높이를 유지하며 작은 UI 서체의 `제목 추가(선택)` / `Add a title (optional)`을 보이고, 입력 즉시 제목 서체로 전환한다. [pending Figure][schema]는 `이미지 선택` / `Mermaid 작성` 버튼으로 기존 picker·원문 편집을 연다. 선택 진입·취소만으로 문서 내용을 확정하지 않는다. [빈 caption hint](editor-visual-language-v1.md#state-rules), 빈 본문의 작성 안내와 빈 목록의 항목 안내는 기존 규칙을 유지한다. 검색·자원 목록의 빈 결과와는 구별한다.
 - **사용처:** U01/U03–U06 빈 그림·원문·표·미주, U12 제목·본문, U21 검색/탐색, U23/U25 파일·참고문헌 빈 상태.
-- **결정·불일치:** [소유자 결정 P06][decision]. 제목·pending 진입은 D06. 기존 caption 규칙은 유지한다.
+- **결정·불일치:** [소유자 결정 P06][decision]. D06은 [#786](https://github.com/ieumbird/ieumdoc/issues/786)에서 해소했다. [제목 계약](document-editing-v1.md#document-title-255)·[그림 계약](figure-authoring-v1.md#editor-session-states)과 [전후 캡처](figure-authoring-v1.md#empty-authoring-entry-786)를 따른다. 기존 caption·선택·clipboard 규칙은 유지한다.
 
 ## P07 입력 오류와 알림 센터
 
@@ -123,7 +124,6 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 | D03 · P01/P04 | U05 표·U11 절 label의 anchor 끝 정렬·Apply/Cancel·밖에서 유지 → 대상 팝오버·Done/밖에서 적용 | [#791](https://github.com/ieumbird/ieumdoc/issues/791) |
 | D04 · P01/P03/P04/P09 | U04 수식은 원문 폼 진입만 있음 → 작은 metadata 진입 분리 | [#788](https://github.com/ieumbird/ieumdoc/issues/788) |
 | D05 · P04 | U08–U10 링크·인용·교차참조는 Cancel 없음·blur dismissal → 명시적 적용/취소와 초안 유지 | [#790](https://github.com/ieumbird/ieumdoc/issues/790) |
-| D06 · P06 | U12 큰 빈 제목·U01 pending 상태 문구 → 작은 선택 제목·보이는 그림 작성 진입 | [#786](https://github.com/ieumbird/ieumdoc/issues/786) |
 | D07 · P02/P07/P12 | U14/U16 등의 문서·블록·shell 메시지 분산 → 창별 알림 센터·위치 이동·해결/닫기/재발 | [#792](https://github.com/ieumbird/ieumdoc/issues/792) |
 | D08 · P03/P09/P10 | U05 하단 Edit·독립 Delete → 상단 속성 진입·동작 메뉴 삭제 | [#793](https://github.com/ieumbird/ieumdoc/issues/793) |
 | D09 · P05/P07 | U03–U05/U07–U11 짧은 필드의 상시 경계, U01–U11의 폼 Notice/필드 오류 차이 → 속성 fill·필드 오류 연결(기존 연결은 보존) | [#789](https://github.com/ieumbird/ieumdoc/issues/789) |

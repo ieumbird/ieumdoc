@@ -10,7 +10,7 @@ export function DocumentTitle({ editor }: { editor: Editor }) {
   const title = useEditorState({ editor, selector: ({ editor }) => editor.state.doc.attrs.title as string | null });
   const boundary = () => editor.view.dispatch(closeHistory(editor.state.tr));
   return <textarea className="document-title-input" data-document-title="true" rows={1}
-    aria-label={t("Title")} placeholder={t("Add a title")} value={title ?? ""}
+    aria-label={t("Title")} placeholder={t("Add a title (optional)")} value={title ?? ""}
     readOnly={!editor.isEditable} spellCheck={false}
     onFocus={boundary} onBlur={boundary}
     onChange={event => editor.view.dispatch(editor.state.tr.setDocAttribute("title", event.target.value.replace(/[\r\n\v\f\u0085\u2028\u2029]+/gu, " ")))}
