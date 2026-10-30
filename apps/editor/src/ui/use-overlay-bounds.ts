@@ -2,8 +2,15 @@ import { useEditorVisible } from "../editor-visibility.ts";
 import { documentContentBounds, documentScrollContainer } from "../document-scroll.ts";
 import { useLayoutEffect, useRef } from "react";
 
+export type OverlayAnchor = {
+  rect: (overlay: HTMLElement) => Pick<DOMRect, "top" | "bottom" | "left" | "right">;
+  side: "top" | "bottom";
+  /** Transient tools disappear offscreen; editing forms retain their draft and viewport access. */
+  hideWhenDetached?: boolean;
+};
+
 /** Fit overlays to their owning document content viewport in every group layout. */
-export function useOverlayBounds<T extends HTMLElement>(open = true) {
+export function useOverlayBounds<T extends HTMLElement>(open = true, anchor?: OverlayAnchor) {
   const visible = useEditorVisible();
   const ref = useRef<T>(null);
   useLayoutEffect(() => {
@@ -22,12 +29,34 @@ export function useOverlayBounds<T extends HTMLElement>(open = true) {
       element.style.setProperty("--overlay-max-width", `${Math.max(0, rightEdge - leftEdge - inset * 2)}px`);
       element.style.setProperty("--overlay-max-height", `${Math.max(0, bottomEdge - topEdge - inset * 2)}px`);
       // Apply the size cap before measuring so forms and menus can wrap/scroll, then fit.
-      const rect = element.getBoundingClientRect();
+      let rect = element.getBoundingClientRect();
       // Subtract our previous translation so repeated fitting never accumulates offsets.
       const left = rect.left - x;
       const above = rect.top - y;
       x = Math.max(leftEdge + inset, Math.min(left, rightEdge - rect.width - inset)) - left;
       y = Math.max(topEdge + inset, Math.min(above, bottomEdge - rect.height - inset)) - above;
+      element.style.visibility = "";
+      if (anchor) {
+        const target = anchor.rect(element);
+        const detached = target.bottom <= topEdge || target.top >= bottomEdge || target.right <= leftEdge || target.left >= rightEdge;
+        if (detached) {
+          if (anchor.hideWhenDetached) element.style.visibility = "hidden";
+        } else {
+          const gap = 4;
+          const room = {
+            top: Math.max(0, target.top - gap - topEdge - inset),
+            bottom: Math.max(0, bottomEdge - inset - target.bottom - gap),
+          };
+          const opposite = anchor.side === "top" ? "bottom" : "top";
+          const side = rect.height <= room[anchor.side] || room[anchor.side] >= room[opposite] ? anchor.side : opposite;
+          // Flip rather than pushing an overlay through its anchor. Tall forms scroll on
+          // the roomier side; a selection filling the viewport leaves no safe tool space.
+          element.style.setProperty("--overlay-max-height", `${room[side]}px`);
+          rect = element.getBoundingClientRect();
+          y = (side === "top" ? target.top - gap - rect.height : target.bottom + gap) - above;
+          if (rect.height > room[side]) element.style.visibility = "hidden";
+        }
+      }
       element.style.setProperty("--overlay-shift-x", `${x}px`);
       element.style.setProperty("--overlay-shift-y", `${y}px`);
     };

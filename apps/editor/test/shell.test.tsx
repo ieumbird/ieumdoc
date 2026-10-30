@@ -113,7 +113,7 @@ test("the guide retains the curated IeumDoc editing commands", () => {
 test("shortcut guide and formatting tooltips display shared labels for existing bindings", async () => {
   const escape = (text: string) => text.replaceAll("&", "&amp;").replaceAll("'", "&#x27;").replaceAll('"', "&quot;");
   const toolbar = renderToStaticMarkup(<SelectionToolbar editor={{ isActive: () => false } as unknown as Editor}
-    style={{}} toolbarRef={{current:null}} onLeave={() => {}} onReject={() => {}} onEditLink={() => {}} onEditReference={() => {}} />);
+    style={{}} anchor={{side:"top", rect: () => ({top:0,bottom:0,left:0,right:0})}} toolbarRef={{current:null}} onLeave={() => {}} onReject={() => {}} onEditLink={() => {}} onEditReference={() => {}} />);
   for (const shortcut of Object.values(EDITOR_SHORTCUTS)) {
     assert.equal(shortcut.label, shortcutLabel(shortcut.binding));
   }
@@ -138,7 +138,7 @@ test("shortcut guide and formatting tooltips display shared labels for existing 
     shortcuts.forEach((shortcut, index) => Object.defineProperty(shortcut, "label", { configurable: true, value: `shared label ${index}` }));
     const guide = renderToStaticMarkup(<KeyboardShortcutGroups />);
     const sharedToolbar = renderToStaticMarkup(<SelectionToolbar editor={{ isActive: () => false } as unknown as Editor}
-      style={{}} toolbarRef={{current:null}} onLeave={() => {}} onReject={() => {}} onEditLink={() => {}} onEditReference={() => {}} />);
+      style={{}} anchor={{side:"top", rect: () => ({top:0,bottom:0,left:0,right:0})}} toolbarRef={{current:null}} onLeave={() => {}} onReject={() => {}} onEditLink={() => {}} onEditReference={() => {}} />);
     for (const shortcut of keyboardShortcutGroups().flatMap(group => group.entries.flatMap(entry => entry.shortcuts))) assert.ok(guide.includes(shortcut.label));
     for (const key of ["bold", "italic", "strike", "code", "subscript", "superscript"] as const) {
       assert.ok(sharedToolbar.includes(EDITOR_SHORTCUTS[key].label), `${key} tooltip must read the shared label`);

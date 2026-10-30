@@ -11,7 +11,7 @@ import type { ReferenceRole } from "@ieumdoc/core";
 import { labelKey, resolveLabelReference, targetLabelError } from "@ieumdoc/core/label";
 import { referenceNumberText, captionNumberText, headingNumbers, sectionReferenceText, type ReferenceTemplates, blockTargets, targetNumbers, type NumberedKind, type NumberedTargets } from "@ieumdoc/core/numbering";
 import { Button } from "@/components/ui/button.tsx";
-import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
+import { useOverlayBounds, type OverlayAnchor } from "./ui/use-overlay-bounds.ts";
 import { FieldError } from "./ui/primitives.tsx";
 import { useMessageState } from "./ui-message.ts";
 import { PROPERTY_APPLY_SHORTCUT } from "./shortcuts.ts";
@@ -453,13 +453,14 @@ function CrossReferenceView({ node, editor, getPos, updateAttributes, selected }
  * Pick a target among the document's labeled Equations and Figures. An existing reference
  * whose target is missing stays selectable as it is, so opening the form changes nothing.
  */
-export function ReferenceForm({ editor, current, preferredLabel, className, style, onApply, onRemove, onClose, sourcePath, onDraftChange, busy, endnoteOwner }: {
+export function ReferenceForm({ editor, current, preferredLabel, className, style, anchor, onApply, onRemove, onClose, sourcePath, onDraftChange, busy, endnoteOwner }: {
   editor: Editor;
   current?: ReferenceTarget;
   /** Preselects a target with this label, e.g. the selected text a new reference replaces. */
   preferredLabel?: string;
   className?: string;
   style?: CSSProperties;
+  anchor?: OverlayAnchor;
   /** A refused insertion keeps the draft and reports its invalid range beside the target. */
   onApply: (target: ReferenceTarget) => boolean | void;
   onRemove?: () => void;
@@ -486,7 +487,9 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
   for (const target of [current, chosen]) {
     if (target && !("heading" in target) && !options.some(option => referenceCommandId(option) === referenceCommandId(target))) options.unshift(target);
   }
-  const bounds = useOverlayBounds<HTMLFormElement>();
+  const bounds = useOverlayBounds<HTMLFormElement>(true, anchor ?? {
+    side: "bottom", rect: element => element.closest(".cross-reference")!.querySelector(".cross-reference-chip")!.getBoundingClientRect(),
+  });
   const dirty = value !== (initial ? referenceCommandId(initial) : "");
   useEffect(() => {
     onDraftChange?.("Cross-reference", sourcePath, dirty, formId);

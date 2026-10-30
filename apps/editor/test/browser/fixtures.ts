@@ -32,6 +32,13 @@ const technical = [document("technical-document.md"), document("diagram.svg")];
 
 /** Scratch directory under `tmp/` → the files a fresh copy holds, and the scenarios using it. */
 export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: string[] }> = {
+  "selection-toolbar": { files: [{ name: "overlays.md", create: () => nativeSource(
+    "# Overlay positioning\n\n" + Array.from({ length: 12 }, (_, i) => `Opening paragraph ${i}. Ordinary document content.\n\n`).join("") +
+    "Select this [linked text](https://example.com/original) near the viewport edge. Note[^detail].\n\n" +
+    "## Click destination\n\nExisting reference {eq}`eq-overlay` and citation {cite}`missing`.\n\n" +
+    Array.from({ length: 25 }, (_, i) => `Following paragraph ${i}. Ordinary document content.\n\n`).join("") +
+    "```{math}\n:label: eq-overlay\nx=1\n```\n\n" +
+    "[^detail]: A reading preview near the viewport edge.\n") }], scenarios: ["selection-toolbar"] },
   "short-fields": { files: [
     { name: "fields.md", create: () => nativeSource("# Property fields\n\n(section-one)=\n## Section one\n\nA [link](https://example.com) and $x+1$.\n\n```{math}\n:label: eq-one\n\nx=1\n```\n\n:::{figure} ./diagram.svg\n:name: fig-one\n:alt: Diagram\n\nImage caption\n:::\n\n:::{table} Table caption\n:name: tbl-one\n\n| Header |\n| --- |\n| Cell |\n:::\n\n:::{figure}\n:name: fig-flow\n\n```{mermaid}\ngraph LR\n  A --> B\n```\n\nFlow caption\n:::\n") },
     document("diagram.svg"),

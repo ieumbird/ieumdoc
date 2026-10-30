@@ -127,6 +127,8 @@ After는 #792 작업 소스로 촬영했다. source/disk 쓰기 없이 번호 �
 - **목적·사용/비사용:** 동작·값 선택·검색을 구별한다. combobox·tree·toolbar를 모양 때문에 하나의 menu로 합치지 않는다.
 - **목표·현재 기준:** [CommandMenu](../../apps/editor/src/CommandMenu.tsx)와 [공용 메뉴 행](editor-ux-shell-v1.md#unified-action-menus-516)을 유지한다. 같은 action의 icon·문구·disabled 이유를 맞춘다. 값 선택에는 current check, 서식에는 pressed, 실행에는 동사를 쓴다. 검색 active와 선택된 값은 구별한다.
 - **사용처:** U17 서식 toolbar, U18 블록·표 메뉴, U19 코드 언어/callout, U20 파일·탭 메뉴, U21 검색·탐색, U09–U10 인용·참조 후보.
+- **선택·overlay 위치 (#838):** 선택 툴바는 선택 글자를 가리지 않도록 위 공간이 부족하면 아래로 뒤집고, 선택이 콘텐츠 viewport 밖이면 숨긴다. 스크롤로 돌아오면 기존 선택의 툴바를 다시 보인다. 같은 경계 훅의 링크·교차참조·인용 폼, slash 메뉴와 읽기 미리보기도 대상과 겹치지 않는 쪽에 배치한다. 초안의 유지·적용·Esc 취소는 P04 그대로다. 치수·화면 밖 폼의 기존 접근은 [Layout Rules](editor-layout-rules-v1.md#alignment-and-ownership)를 따른다.
+- **#838 검증·시각 근거:** `selection-toolbar`가 상단 선택 가림, 스크롤 밖 숨김·복귀, 링크 Esc 뒤 실제 제목 클릭·URL 보존, 하단 읽기 미리보기·기존 참조/인용 폼·slash 메뉴의 위치를 검사한다. [1440px Before](assets/selection-toolbar-838/before-1440.png) / [After](assets/selection-toolbar-838/after-1440.png), [640px Before](assets/selection-toolbar-838/before-640.png) / [After](assets/selection-toolbar-838/after-640.png), [640px 한국어 Dark](assets/selection-toolbar-838/after-640-dark-ko.png)에서 정렬·패딩·선택 가림·경계 잘림을 자체 점검했다. [촬영 조건·해시](assets/selection-toolbar-838/capture-metadata.json)는 수동 시각 근거이며 소유자 승인을 대신하지 않는다.
 - **결정·불일치:** [소유자 결정 P10][decision]. 메뉴 역할 자체의 알려진 불일치 없음. 표 Delete는 #793에서 상단 More의 기존 공용 danger 메뉴 항목으로 통합했다. 행·열의 명시적 대상, disabled 제한, 삭제·Undo 의미와 키보드 Enter/화살표/Esc 동작은 유지한다(P09/D08).
 
 ## P11 선택값·보기·탐색

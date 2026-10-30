@@ -61,6 +61,13 @@ Role: alignment, spacing, control dimensions and deliberate geometry exceptions;
   existing 8px edge inset for inline forms, menus and reading previews; property
   popovers retain their existing library collision spacing and placement rules.
   Resize, group movement and panel/Sidebar changes recompute the boundary.
+  Selection tools, inline link/reference/citation forms, slash menus and reading
+  previews clear their text/chip anchor vertically (#838). Prefer the existing
+  side, flip when space is insufficient, and constrain tall content to the
+  roomier side. Selection tools and slash menus hide when their anchor leaves
+  the content viewport; scrolling back restores them without changing the engine
+  selection. Editing forms retain their existing draft and viewport access when
+  their anchor is offscreen; reading previews retain their existing dismissal.
   [#782 verification and captures](#form-content-viewport-782) cover the former
   single-group mismatch with [P01](ui-patterns-v1.md#p01-속성-편집-표면과-위치).
 

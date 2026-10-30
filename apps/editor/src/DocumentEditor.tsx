@@ -1,6 +1,7 @@
 import { DocumentSettings, type DocumentSettingsHandle } from "./shell/DocumentSettings.tsx";
 import { NumberingNotice } from "./numbering-properties.tsx";
 import { documentScrollContainer } from "./document-scroll.ts";
+import type { OverlayAnchor } from "./ui/use-overlay-bounds.ts";
 import { handleLinkClick, handleLinkMouseDown } from "./link-opening.ts";
 import { ReadingPreview } from "./ReadingPreview.tsx";
 import { ImageRenameContext, imageRenameKey, renameSnapshot, type ImageRenamer } from "./image-rename.ts";
@@ -713,6 +714,14 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       : { top: coords.top - hostRect.top - 4, left: coords.left - hostRect.left };
   };
   const formatting = focused ? formattableSelection(editor.state) : null;
+  const caretAnchor = (from: number, to = from, side: OverlayAnchor["side"] = "top", hideWhenDetached = false): OverlayAnchor => ({
+    side, hideWhenDetached,
+    rect: () => {
+      const start = editor.view.coordsAtPos(from), end = editor.view.coordsAtPos(to);
+      return { top: Math.min(start.top, end.top), bottom: Math.max(start.bottom, end.bottom),
+        left: Math.min(start.left, end.left), right: Math.max(start.right, end.right) };
+    },
+  });
   const toolbarStyle = formatting ? caretStyle(formatting.from, false) : undefined;
   const linkStyle = linkDraft ? caretStyle(linkDraft.from, false) : undefined;
   const referenceStyle = referenceDraft ? caretStyle(referenceDraft.from, false) : undefined;
@@ -754,6 +763,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         <ReferenceForm
           editor={editor}
           style={referenceStyle}
+          anchor={caretAnchor(referenceDraft.from, referenceDraft.to)}
           preferredLabel={referenceDraft.text.trim()}
           busy={!canEditEndnoteAt(editor.state, referenceDraft.from)}
           endnoteOwner={endnoteAt(editor.state, referenceDraft.from) ?? ""}
@@ -777,6 +787,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         <CitationForm
           entries={citationEntries}
           style={citationStyle}
+          anchor={caretAnchor(citationDraft)}
           onApply={(citation) => {
             if (commandInsertion.current) editor.view.dispatch(closeHistory(editor.state.tr));
             insertCitation(editor, { from: citationDraft, to: citationDraft }, citation);
@@ -792,12 +803,13 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         />
       ) : null}
       {linkDraft ? (
-        <LinkForm editor={editor} draft={linkDraft} style={linkStyle} onClose={() => setLinkDraft(null)} onDraftChange={reportDraft} />
+        <LinkForm editor={editor} draft={linkDraft} style={linkStyle} anchor={caretAnchor(linkDraft.from, linkDraft.to)} onClose={() => setLinkDraft(null)} onDraftChange={reportDraft} />
       ) : null}
       {citationDraft === null && toolbarStyle ? (
         <SelectionToolbar
           editor={editor}
           style={toolbarStyle}
+          anchor={caretAnchor(formatting!.from, formatting!.to, "top", true)}
           onReject={onStructuralReject}
           toolbarRef={toolbar}
           onLeave={() => setFocused(false)}
@@ -821,6 +833,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         <div style={{ display: "contents" }} data-endnote-editor={endnoteEditorToken(editor)} data-endnote-owner={endnoteAt(editor.state, slash.from) ?? undefined}>
         <CommandMenu
           key={`slash-${slash.from}`}
+          anchor={caretAnchor(slash.from, slash.to, "bottom", true)}
           label={i18n.t("Insert block")}
           items={slashItems}
           activeIndex={slashIndex}

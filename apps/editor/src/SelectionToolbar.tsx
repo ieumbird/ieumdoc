@@ -13,7 +13,7 @@ import { FieldError } from "./ui/primitives.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { externalLinkUrl, openExternalLink } from "./link-opening.ts";
 import { Button } from "@/components/ui/button.tsx";
-import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
+import { useOverlayBounds, type OverlayAnchor } from "./ui/use-overlay-bounds.ts";
 
 /** Icon buttons name their action, and its shortcut when one exists, in a tooltip. */
 const tip = (label: string, shortcut?: { label: string }) => (shortcut ? `${label} (${shortcut.label})` : label);
@@ -23,9 +23,10 @@ const tip = (label: string, shortcut?: { label: string }) => (shortcut ? `${labe
  * Tab from the selection enters it; Escape, or Shift+Tab from its first button, returns to the
  * editor and its selection.
  */
-export function SelectionToolbar({ editor, style, toolbarRef, onLeave, onReject, onEditLink, onEditReference }: {
+export function SelectionToolbar({ editor, style, anchor, toolbarRef, onLeave, onReject, onEditLink, onEditReference }: {
   editor: Editor;
   style: CSSProperties;
+  anchor: OverlayAnchor;
   toolbarRef: RefObject<HTMLDivElement | null>;
   /** Focus left both the toolbar and the editor. */
   onLeave: () => void;
@@ -34,7 +35,7 @@ export function SelectionToolbar({ editor, style, toolbarRef, onLeave, onReject,
   onEditReference: () => void;
 }) {
   useTranslation();
-  const bounds = useOverlayBounds<HTMLDivElement>();
+  const bounds = useOverlayBounds<HTMLDivElement>(true, anchor);
   return (
     <div ref={element => { bounds.current = element; toolbarRef.current = element; }}
       className="selection-toolbar" role="toolbar" aria-label={i18n.t("Text formatting")} style={style} data-testid="selection-toolbar"
@@ -183,10 +184,11 @@ export function linkDraftOf(editor: Editor): LinkDraft {
  * Add, change or remove an ordinary Markdown link on the selected text. The change is an
  * ordinary editor transaction; Core validates the link when the document is saved.
  */
-export function LinkForm({ editor, draft, style, onClose, onDraftChange }: {
+export function LinkForm({ editor, draft, style, anchor, onClose, onDraftChange }: {
   editor: Editor;
   draft: LinkDraft;
   style?: CSSProperties;
+  anchor: OverlayAnchor;
   onClose: () => void;
   onDraftChange: DraftListener;
 }) {
@@ -196,7 +198,7 @@ export function LinkForm({ editor, draft, style, onClose, onDraftChange }: {
   const mounted = useRef(false);
   useEffect(() => { mounted.current = true; }, []);
   const [href, setHref] = useState(draft.href);
-  const bounds = useOverlayBounds<HTMLFormElement>();
+  const bounds = useOverlayBounds<HTMLFormElement>(true, anchor);
   const [error, setError] = useMessageState("");
   const path = draft.path;
   const dirty = href !== draft.href;

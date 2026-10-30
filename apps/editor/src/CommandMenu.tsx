@@ -3,7 +3,7 @@ import { i18n } from "./i18n.ts";
 import type { LucideIcon } from "lucide-react";
 import { Check } from "lucide-react";
 import { Fragment, useEffect, useRef, type CSSProperties } from "react";
-import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
+import { useOverlayBounds, type OverlayAnchor } from "./ui/use-overlay-bounds.ts";
 
 export type CommandMenuItem = {
   id: string;
@@ -24,6 +24,7 @@ type CommandMenuProps = {
   label: string;
   items: CommandMenuItem[];
   style: CSSProperties;
+  anchor?: OverlayAnchor;
   /** Controlled highlight while focus stays in the editor (slash command). */
   activeIndex?: number;
   /** Move focus into the menu when opened from a button. */
@@ -34,9 +35,9 @@ type CommandMenuProps = {
 };
 
 /** Presentational menu shared by the insert menu (`+` and `/`) and the block menu. */
-export function CommandMenu({ label, items, style, activeIndex, focusOnOpen, emptyText, onSelect, onClose }: CommandMenuProps) {
+export function CommandMenu({ label, items, style, anchor, activeIndex, focusOnOpen, emptyText, onSelect, onClose }: CommandMenuProps) {
   useTranslation();
-  const root = useOverlayBounds<HTMLDivElement>();
+  const root = useOverlayBounds<HTMLDivElement>(true, anchor);
   const returnFocus = useRef<Element | null>(null);
   useEffect(() => {
     // StrictMode repeats effects; never replace the opener with our own first item.
