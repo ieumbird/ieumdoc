@@ -45,9 +45,9 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 - **목적·사용/비사용:** 편집을 언제 문서에 반영하는지 드러낸다. 파일 생성·삭제·복구에 metadata의 바깥 클릭 적용 규칙을 쓰지 않는다(P12).
 - **목표:** 짧은 metadata는 Done·Esc 취소·유효한 바깥 pointer 클릭 적용이다. keyboard focus 이동만으로 적용하지 않고 오류면 초안을 유지한다. 원문·복합 inline은 Apply/Cancel·Esc 취소·바깥 클릭 초안 유지다. 링크·인용·교차참조에도 Cancel을 보이고 명시적으로 마칠 때까지 초안을 유지한다. 직접 본문·제목·caption·문서 설정은 즉시 적용+Undo이며 디스크 저장은 Save다.
 - **목표·예외:** 미주는 in-place·바깥 적용·취소와 Enter 적용/Shift+Enter 줄바꿈을 유지하고 버튼을 완료/취소(Done/Cancel)로 부른다.
-- **현재 기준:** [FigureProperties][figure]의 metadata 완료 방식, [PropertyForm][forms]을 쓰는 원문/인라인 수식의 명시적 적용·취소. 미주는 현재 Apply/Cancel이고 링크·인용·교차참조는 보이는 Cancel 없이 blur로 미적용 폼이 닫힌다.
+- **현재 기준:** [FigureProperties][figure]의 metadata 완료 방식, [PropertyForm][forms]을 쓰는 원문/인라인 수식의 명시적 적용·취소. [미주](footnotes-v1.md#editor)의 완료/취소(Done/Cancel)와 기존 in-place·바깥 적용·키보드 동작. 링크·인용·교차참조는 보이는 Cancel 없이 blur로 미적용 폼이 닫힌다.
 - **사용처:** U01–U13 문서 안 편집·설정, U23–U24 파일 작업·미저장 확인과의 경계.
-- **결정·불일치:** [소유자 결정 P04][decision]. 표·절 label D03, 수식 metadata D04, inline 초안 D05, 미주 명칭 D10.
+- **결정·불일치:** [소유자 결정 P04][decision]. 표·절 label D03, 수식 metadata D04, inline 초안 D05, 미주 명칭 D10은 #787에서 해결.
 
 ## P05 입력칸·placeholder·위계
 
@@ -127,7 +127,7 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 | D07 · P02/P07/P12 | U14/U16 등의 문서·블록·shell 메시지 분산 → 창별 알림 센터·위치 이동·해결/닫기/재발 | [#792](https://github.com/ieumbird/ieumdoc/issues/792) |
 | D08 · P03/P09/P10 | U05 하단 Edit·독립 Delete → 상단 속성 진입·동작 메뉴 삭제 | [#793](https://github.com/ieumbird/ieumdoc/issues/793) |
 | D09 · P05/P07 | U03–U05/U07–U11 짧은 필드의 상시 경계, U01–U11의 폼 Notice/필드 오류 차이 → 속성 fill·필드 오류 연결(기존 연결은 보존) | [#789](https://github.com/ieumbird/ieumdoc/issues/789) |
-| D10 · P04 | U06 Apply/Cancel → 완료/취소 명칭, 기존 동작 유지 | [#787](https://github.com/ieumbird/ieumdoc/issues/787) |
+| D10 · P04 · 해결 | U06 완료/취소(Done/Cancel), 그림과 같은 번역 재사용·기존 동작 유지 | [#787](https://github.com/ieumbird/ieumdoc/issues/787) |
 
 [decision]: https://github.com/ieumbird/ieumdoc/issues/777#issuecomment-6510554436
 [inventory]: ../reviews/ui-pattern-inventory-777.md
