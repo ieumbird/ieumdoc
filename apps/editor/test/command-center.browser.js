@@ -396,6 +396,11 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     probe.style.background='var(--id-color-surface-selected-hover)';result.selectedHover=getComputedStyle(probe).backgroundColor;probe.remove();return result;
   });
   const settings = center().getByRole('option',{name:'Settings',exact:true});
+  const previousSettingsId = await center().locator('[role=option]:not([aria-disabled=true])').evaluateAll(nodes => {
+    const index = nodes.findIndex(node => node.getAttribute('aria-label') === 'Settings');
+    return nodes[index - 1]?.id;
+  });
+  check(Boolean(previousSettingsId), 'Settings needs a preceding enabled search result for keyboard navigation');
   await settings.hover();
   check(await settings.getAttribute('data-highlighted') !== null &&
     await center().locator('[data-highlighted]').count() === 1 &&
@@ -405,8 +410,9 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
     'Command center must use selected background/text, selected-hover and control radius without a marker');
   if (screenshots) await page.screenshot({path:'tmp/command-center/keyboard-hover-386.png'});
   await page.keyboard.press('ArrowUp');
-  check(await center().getByRole('option',{name:'Collapse Explorer',exact:true}).getAttribute('data-highlighted') !== null,
-    'Keyboard did not continue from the hovered result');
+  check(await input().getAttribute('aria-activedescendant') === previousSettingsId &&
+    await center().locator('[role=option][data-highlighted]').getAttribute('id') === previousSettingsId,
+    'Keyboard did not continue to the preceding enabled result from the hovered result');
   await page.keyboard.press('Escape'); await center().waitFor({state:'detached'});
   result.searchArrowsAndHover = true;
 

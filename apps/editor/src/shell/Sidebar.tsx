@@ -1,12 +1,14 @@
+import { Menu } from "@base-ui/react/menu";
+import { THEME_LABELS, THEMES, type ThemePreference } from "../preferences.ts";
 import { ContextMenu, type ContextMenuAction } from "@/components/ui/context-menu.tsx";
 import { FileActionDialog, type FileAction, type FileActionHandler } from "./FileActionDialog.tsx";
 import { FilePreviewDialog } from "./FilePreviewDialog.tsx";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
-import { Pencil, Trash2, ChevronRight, Ellipsis, File, Files as FilesIcon, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelRightOpen, Plus, RotateCw, Settings, X } from "lucide-react";
+import { Check, Monitor, Pencil, Trash2, ChevronRight, Ellipsis, File, Files as FilesIcon, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelRightOpen, Plus, RotateCw, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
+import { MENU_ITEM_CLASS, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { splitDocumentPath } from "./document-path.ts";
 import { treeKey, visibleTreeItems, type FolderTreeState, type TreeItem } from "./folder-tree.ts";
 
@@ -43,8 +45,10 @@ type SidebarProps = {
   onCloseFolder?(root: string): void;
   onRefreshFolder?(root: string): void;
   onRevealFolder?(path: string): void;
-  /** App Settings, separate from document settings. Names the control focus returns to. */
+  theme?: ThemePreference;
+  onThemeChange?(theme: ThemePreference): void;
   updateVersion?: string;
+  /** App Settings, separate from document settings. Names the control focus returns to. */
   onSettings?(returnFocus: HTMLElement): void;
 };
 
@@ -52,7 +56,7 @@ type SidebarProps = {
 export function Sidebar({
   onFileAction, fileActionsDisabled, isFileDirty, open, documentPath, onToggle, toggleRef, onOpenFolder, onNewDocument, recent = [], onOpenRecent, onNew, onNewFolder,
   folders = [], focusFolder, onFolderFocused, onToggleFolder, onToggleSection, onOpenDocument, onOpenRight, openRightDisabled, onCloseFolder, onRefreshFolder, onRevealFolder, onSettings, updateVersion,
-  onDoclingCompare, onDoclingConvert, doclingBusy,
+  theme = "system", onThemeChange, onDoclingCompare, onDoclingConvert, doclingBusy,
 }: SidebarProps) {
   useTranslation();
   return (
@@ -129,7 +133,20 @@ export function Sidebar({
         <div className="sidebar-footer">
           {open && onDoclingCompare ? <Button size="sm" variant="ghost" className="min-w-0 justify-start" disabled={fileActionsDisabled}
             onClick={event => onDoclingCompare(event.currentTarget)}><FileText aria-hidden="true" />{i18n.t("Docling comparison")}</Button> : null}
-          {onSettings ? <SettingsEntry iconOnly={!open} onOpen={onSettings} updateVersion={updateVersion} /> : null}
+          <div className="sidebar-preferences">
+            {onSettings ? <SettingsEntry iconOnly={!open} onOpen={onSettings} updateVersion={updateVersion} /> : null}
+            {onThemeChange ? <DropdownMenu>
+              <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={i18n.t("Color mode")} title={i18n.t("Color mode")} />}><Monitor aria-hidden="true" /></DropdownMenuTrigger>
+              <DropdownMenuContent side="top" aria-label={i18n.t("Color mode")}>
+                <Menu.RadioGroup value={theme} onValueChange={value => onThemeChange(value as ThemePreference)}>
+                  {THEMES.map(value => <Menu.RadioItem key={value} value={value} closeOnClick className={MENU_ITEM_CLASS}>
+                    <span className="size-[var(--size-icon-slot)]">{theme === value ? <Check aria-hidden="true" /> : null}</span>
+                    {i18n.t(THEME_LABELS[value])}
+                  </Menu.RadioItem>)}
+                </Menu.RadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu> : null}
+          </div>
         </div>
       ) : null}
     </nav>

@@ -47,8 +47,9 @@ The sidebar opens the read-only module tab described in
 [Docling comparison](docling-compare-v1.md), under [ADR-0011](../adr/0011-code-module-boundary.md).
 Its entry sits in the sidebar footer above Settings, separate from Explorer's
 empty-state help and folder navigation. Collapse Explorer → Open folder retains
-its existing Tab order; the collapsed rail still exposes only Explorer and Settings.
-After Explorer's file navigation, the footer's Tab order is Docling comparison → Settings.
+its existing Tab order; the collapsed rail exposes Explorer, Color mode and Settings.
+After Explorer's file navigation, the footer's Tab order is Docling comparison → Settings → Color mode.
+The rail keeps Settings bottom-aligned and places Color mode immediately above it.
 It shares tab navigation/closing while remaining outside document editing,
 Save/recovery sessions and startup tab restoration.
 
@@ -2619,3 +2620,60 @@ failures alongside stale comparison warnings; other alert migration remains #792
 See the [conversion contract](docling-conversion-v1.md#app-pdf-conversion-797) for
 setting lifetime, output naming, limits and automatic comparison tabs. Existing
 Appearance/recovery settings and ordinary document actions retain their contracts.
+
+## Color mode entry (#798)
+
+Expanded Explorer places a compact Color mode button beside Settings; the 48px rail
+stacks it immediately above Settings without moving the Settings update dot. It opens
+the shared nonmodal menu with System / Light / Dark radio choices and a current check.
+Enter/Space opens it, arrows move focus, Enter selects and Escape cancels; closing
+returns focus to the trigger. Command Center offers the same three choices with
+English and Korean labels/search aliases.
+
+All three entry points use one live App choice, existing `writeTheme` storage and
+`applyTheme` application (including the Desktop bridge). Settings remains synchronized
+when closed and reopened. Failed storage retains the live choice and displays the
+existing localized alert in Settings or the notification center outside Settings.
+Accent and page style remain in Settings. No Core operation or CLI parity is needed
+for this device display preference.
+
+`pnpm browser:test color-mode --screenshots` verifies keyboard/current/focus behavior,
+Settings and bilingual command parity, reload persistence, live System appearance,
+update-dot separation and viewport containment. Manual captures are written to
+`tmp/color-mode-798/` at 1440px Light/English and 640px Dark/Korean, expanded and rail;
+the PR records the clean-base Before and changed After evidence.
+
+The first CI run (41111712377, shard 3) exposed an obsolete Command Center test
+assumption: the result immediately before Settings for `> s` was hard-coded as
+Collapse Explorer. The new Color mode: System legitimately occupies that position.
+The regression now derives the actual preceding enabled result and retains both
+the active-descendant and single-highlight checks after hover → ArrowUp. No command
+ordering, product keyboard behavior, timeout or retry policy changes.
+
+Shard 1 of the same run also retained the pre-feature Settings → search Tab
+expectation. The shell regression now checks Settings → Color mode → search,
+retaining search → active tab and the existing reverse-navigation checks. The
+color-mode scenario verifies the new sequence in both expanded and rail layouts.
+
+
+### Color mode keyboard readiness (#798)
+
+Merge-group run 41119102438, shard 3 recorded Home/ArrowDown/Enter on the
+Color mode trigger before Base UI's next-animation-frame initial radio focus.
+The final Enter therefore closed the menu with System still selected. The three
+navigation/selection keydowns followed the opening keydown within 22ms (4ms and
+2ms between the final keys); this was automated input before menu readiness,
+not evidence of a persisted theme being reapplied after selection. Console errors
+were empty. The same local preceding sequence (reveal-folder → footnotes →
+document-scroll → color-mode) passed before the adjustment, so order-dependent
+storage contamination was not reproduced.
+
+The scenario now waits for the actual System radio focus before navigation and
+Light focus before Enter. Its rail pass holds the real library focus call and
+asserts keyboard readiness is still pending despite a mounted, checked System
+radio, then releases that call and retains all storage/appearance/focus checks.
+No product code, timeouts, retries or choice assertions change.
+
+The adjusted four-scenario sequence passed locally. Removing only the initial
+System-focus wait made the held-focus regression fail with readiness already
+resolved (`Expected false, Received true`); the focus wait was then restored.

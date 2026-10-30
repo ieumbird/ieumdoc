@@ -871,6 +871,10 @@ button {
   app-region: no-drag;
 }
 
+/* Shared compact controls; the rail stacks them while keeping Settings bottom-aligned. */
+.sidebar-preferences { display: flex; align-items: center; gap: var(--space-1); }
+.sidebar--collapsed .sidebar-preferences { flex-direction: column-reverse; }
+
 /* Portal boundaries also exclude library-created transparent backdrops. Popups are nested
  * inside positioners; Settings restores drag only on its own header below. */
 .ui-portal > *,

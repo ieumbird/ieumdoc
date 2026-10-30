@@ -22,6 +22,7 @@ export function writePageBackground(page: PageBackground): boolean {
   } catch { return false; }
 }
 
+export const THEME_LABELS = { system: "System", light: "Light", dark: "Dark" } as const;
 export const THEMES = ["system", "light", "dark"] as const;
 export type ThemePreference = typeof THEMES[number];
 export const THEME_KEY = "ieumdoc.theme";
