@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Decision date: 2026-10-30
-- Last verified: 2026-10-30 (Docling module and CLI implementation; package boundary tests).
+- Last verified: 2026-10-30 (Docling module/CLI, comparison tab/reading surface and shared Host; package boundary and browser tests).
 - Authority: owner decisions in [Discussion #766](https://github.com/ieumbird/ieumdoc/discussions/766) and [Discussion #767](https://github.com/ieumbird/ieumdoc/discussions/767), under [AGENTS.md](../../AGENTS.md).
 
 ## Decision
@@ -31,7 +31,26 @@ are in [Docling conversion](../design/docling-conversion-v1.md).
 This records the package, dependency direction, external module data and CLI
 boundary demonstrated by the first module. No registration framework, dynamic
 loading, marketplace, database or compatibility infrastructure is introduced.
-Editor extension points and Host integration will be decided with
-[#769](https://github.com/ieumbird/ieumdoc/issues/769); this ADR does not establish
-those interfaces. Unsupported source meaning must be reported explicitly by the
+[#769](https://github.com/ieumbird/ieumdoc/issues/769) establishes two explicit
+Editor connections: a sidebar action choosing a conversion folder and a read-only
+comparison tab in the existing tab groups. The shell owns tab lifetime, folder
+selection, translation and shared notification controls. Comparison tabs have no
+editing/recovery session and are not restored at startup.
+
+The module's `./ui` entry receives shared controls and product tokens, plus an
+Editor-owned reading surface through `ReadingSurfaceProps`: a public Core read
+model, document path and block/list-item position callback. Editor engine types,
+DOM and CSS remain private to Editor. The module measures only its own pane and
+source-page DOM. Its `./compare` entry contains browser-safe types/geometry;
+Node parsing and hash checks stay behind `./compare-host`.
+
+`GET /api/docling-compare?path=…` uses the existing stateless file handler in
+Vite, Desktop and HTTP Host. Ordinary Root and document-relative real-path
+boundaries apply before reading Markdown/sidecar or serving lazy page images
+through the existing media route. The sidecar contains the necessary information
+from document.json; the UI does not fetch/repeatedly parse that large source JSON.
+No write endpoint or persistence service is introduced. See the
+[comparison contract](../design/docling-compare-v1.md).
+
+Unsupported source meaning must be reported explicitly by the
 converter rather than silently claimed as preserved native meaning.

@@ -12,6 +12,8 @@ import { FileImagePreview } from "./FilePreviewDialog.tsx";
 
 type FolderDialogProps = {
   open: boolean;
+  title?: string;
+  description?: string;
   /** An image picker lists images beside the folders, and Open chooses an image file. */
   choose?: "folder" | "image";
   /** Where browsing starts, usually the open document's folder. */
@@ -48,7 +50,7 @@ const folderName = (folder: string) => splitDocumentPath(folder.replace(/(?<=.)[
  * source: the list shows the folder up to its last separator, filtered by typed text after it; Open
  * opens exactly the typed path. Moving into a folder never opens it.
  */
-export function FolderDialog({ open, choose = "folder", initialPath, recent, restricted, browse, places, onOpen, onCreateFolder, returnFocus, finalFocus, onClose, onClosed }: FolderDialogProps) {
+export function FolderDialog({ open, title, description, choose = "folder", initialPath, recent, restricted, browse, places, onOpen, onCreateFolder, returnFocus, finalFocus, onClose, onClosed }: FolderDialogProps) {
   useTranslation();
   const [input, setInput] = useState("");
   const [pathFromClick, setPathFromClick] = useState(false);
@@ -240,10 +242,10 @@ export function FolderDialog({ open, choose = "folder", initialPath, recent, res
       <DialogContent className={`folder-picker ${image ? "" : "folder-picker-folder"} sm:max-w-[var(--layout-folder-picker-width)]`} showCloseButton={!pending}
         finalFocus={finalFocus ?? (() => returnFocus?.current ?? true)}>
         <DialogHeader>
-          <DialogTitle>{image ? i18n.t("Choose image") : i18n.t("Open folder")}</DialogTitle>
-          <DialogDescription>{image
+          <DialogTitle>{title ?? (image ? i18n.t("Choose image") : i18n.t("Open folder"))}</DialogTitle>
+          <DialogDescription>{description ?? (image
             ? (restricted ? i18n.t("Choose an image on the server for this Figure.") : i18n.t("Choose an image for this Figure."))
-            : (restricted ? i18n.t("Add a server-shared folder to the sidebar.") : i18n.t("Add a folder to the sidebar."))}</DialogDescription>
+            : (restricted ? i18n.t("Add a server-shared folder to the sidebar.") : i18n.t("Add a folder to the sidebar.")))}</DialogDescription>
         </DialogHeader>
         {!image ? placesSection : null}
         <div className="form-field">

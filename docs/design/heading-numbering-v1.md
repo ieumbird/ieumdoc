@@ -1,7 +1,7 @@
 # Heading numbering v1
 
 - Status: Implemented
-- Contract cross-check: 2026-10-30 (#777 inventory; Figure segmented controls distinguished from the remaining empty-input forms, without changing numbering behavior).
+- Number form verification: 2026-10-30 (#776; five shared Automatic/Fixed forms, empty fixed input refusal, automatic preview, existing draft/Undo and Save/Reload browser regression; Core/CLI semantics unchanged).
 - Title/body contract update: 2026-10-29 (#722; H1–H6 body numbering, frontmatter-only unnumbered title, installed MyST transform boundary below).
 - Fixed numbering: 2026-10-29 (#720 Core/CLI and Editor property entry, warning display and Save/Reload).
 - Document settings verification: 2026-10-27 (#580: inline settings, per-tab expansion, notation previews and existing document operations; [integration, checks and captures](editor-ux-shell-v1.md#document-settings-placement-554)).
@@ -101,17 +101,22 @@ Editor projects the authored attribute through its real schema, uses Core number
 and preserves it through existing Core save operations. New locators from typed Cut/Paste,
 drop/copy or duplicate normalization carry the enumerator in `InsertEdit`; Host replay calls
 Core `updateEnumerator` after insertion, including image/pending/Mermaid Figures, tables and
-equations. All numbered-block forms expose **Number** after Label. Image/pending and Mermaid
-metadata use Automatic/Fixed segments, revealing an input only for Fixed, under
-[Figure properties #757](figure-authoring-v1.md#anchored-figure-properties-757).
-Table, block Equation and Mermaid source still use an input with **Automatic** as its empty
-placeholder and a short explanation. This remaining difference is tracked in
-[#776](https://github.com/ieumbird/ieumdoc/issues/776), pending the owner's target decision in
-[#777](https://github.com/ieumbird/ieumdoc/issues/777).
-Input is a string draft, included in existing dirty/work-loss protection. Explicit Apply or
+equations. All five numbered-block forms expose **Number** after Label: image/pending Figure
+properties, Mermaid properties, Table properties, block Equation and Mermaid source.
+They share Automatic/Fixed segments (#776 / [P02](ui-patterns-v1.md#p02-자동고정-번호)),
+revealing a value input only for Fixed. Selecting Fixed retains that mode when its value is
+cleared; empty or whitespace-only fixed input blocks completion and focuses the input with
+an associated localized error. Only choosing Automatic clears a fixed number. Automatic shows
+"Automatic number: N" / "자동 번호: N": the Core-computed number this block would receive
+with its fixed enumerator omitted. The same wording applies when the block is already
+automatic. Other applied blocks retain their numbers and counter behavior. This display is
+derived, never authored.
+Number value and mode are drafts included in existing dirty/work-loss protection. Explicit Apply or
 Figure Done/valid outside pointer completion changes the engine attribute in the same Undo
-step as the other properties. Cancel/Escape keeps the applied value. Empty input clears the
-fixed number, including an empty Fixed field in the current Figure UI. Save collects snapshot-relative changes
+step as the other properties. Invalid fixed input also blocks Figure outside pointer completion
+and switching from Mermaid properties to source. Cancel/Escape keeps the applied value.
+This UI gate does not change Core/CLI's `updateEnumerator("")` removal semantics or nonblocking
+mixed/duplicate warnings. Save collects snapshot-relative changes
 and Host replay calls Core `updateEnumerator`; no numbering semantics are implemented in UI.
 
 The Editor adapts the live applied blocks (including inserted ones) to Core `numberingReport`.

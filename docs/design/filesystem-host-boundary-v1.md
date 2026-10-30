@@ -43,6 +43,14 @@ OS action, with no document write, Core semantic operation or CLI parity command
 
 ## Purpose
 
+The read-only `GET /api/docling-compare?path=…` route uses the same handler and
+Root/media real-path checks in Vite, Desktop and HTTP Host. It admits the native
+Markdown through Core and delegates correspondence interpretation/hash checking
+to `@ieumdoc/docling`. Page images use the ordinary document-relative media route;
+remote/data image URIs and paths escaping the conversion folder are refused.
+No large source document.json is sent to the UI: correspondence v1 already carries
+the needed page/item data. See [Docling comparison](docling-compare-v1.md).
+
 Recovery source review and pre-save comparison (#655 stages 1/2) use a read-only mode of the existing endpoint:
 `POST /api/document-source?recovery=1` accepts `{ path, save? }`, where `save`, when present,
 contains the normal revision/opening source/savedEdits/edit payload. The shared Vite/Desktop/HTTP

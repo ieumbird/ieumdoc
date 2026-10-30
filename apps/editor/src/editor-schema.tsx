@@ -30,7 +30,7 @@ import { Input } from "@/components/ui/input.tsx";
 import { CodeLanguageInput } from "./code-language-input.tsx";
 import { BlockProperties, PropertyForm } from "./block-properties.tsx";
 import { FigureProperties } from "./figure-properties.tsx";
-import { NumberField } from "./numbering-properties.tsx";
+import { NumberField, useNumberDraft } from "./numbering-properties.tsx";
 import { ChevronRight } from "lucide-react";
 import { useEditorVisible } from "./editor-visibility.ts";
 import { ADMONITION_LABELS, admonitionTone, updateFigure } from "./block-commands.ts";
@@ -414,7 +414,7 @@ function FootnoteDefinitionView({ node, editor, getPos, selected }: ReactNodeVie
       {editor.isEditable ? <div className="endnote-actions" contentEditable={false}>
         {editing ? <>
           <Button size="sm" variant="outline" data-testid="endnote-cancel" onClick={() => finish(true)}>{i18n.t("Cancel")}</Button>
-          <Button size="sm" data-testid="endnote-apply" onClick={() => finish(false)}>{i18n.t("Apply")}</Button>
+          <Button size="sm" data-testid="endnote-apply" onClick={() => finish(false)}>{i18n.t("Done")}</Button>
         </> : <Button size="sm" variant="outline" data-testid="endnote-edit" onClick={begin}>{i18n.t("Edit")}</Button>}
       </div> : null}
       <NodeViewContent<"p"> as="p" className="footnote-definition-body" />
@@ -637,21 +637,22 @@ function TableView({ node, editor, getPos, selected, onDraftChange }: ReactNodeV
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(label);
   const enumerator = String(node.attrs.enumerator ?? "");
-  const [numberDraft, setNumberDraft] = useState(enumerator);
+  const numberDraft = useNumberDraft(enumerator);
   const [error, setError] = useMessageState("");
   const sourcePath = String(node.attrs.sourcePath);
-  const dirty = editing && (draft !== label || numberDraft !== enumerator);
+  const dirty = editing && (draft !== label || numberDraft.changedFrom(enumerator));
   useEffect(() => { onDraftChange?.("Table", sourcePath, dirty); return () => onDraftChange?.("Table", sourcePath, false); }, [sourcePath, dirty, onDraftChange]);
-  const begin = () => { if (!editor.isEditable || editing) return; setDraft(label); setNumberDraft(enumerator); setError(""); setEditing(true); };
+  const begin = () => { if (!editor.isEditable || editing) return; setDraft(label); numberDraft.reset(enumerator); setError(""); setEditing(true); };
   usePropertyEntry(anchor, begin);
   const close = () => { setEditing(false); focusBlock(editor.view, getPos); };
   const apply = () => {
+    if (!numberDraft.validate()) return;
     const invalid = labelError(draft);
     if (invalid) { setError(invalid); return; }
     const position = getPos();
     if (typeof position !== "number") return;
     try {
-      editor.view.dispatch(updateLabelProperties(editor.state, position, { label: draft, enumerator: numberDraft || null }));
+      editor.view.dispatch(updateLabelProperties(editor.state, position, { label: draft, enumerator: numberDraft.value || null }));
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
     close();
   };
@@ -673,7 +674,7 @@ function TableView({ node, editor, getPos, selected, onDraftChange }: ReactNodeV
       error={error} onApply={apply} onCancel={close}>
       <label className="form-label" htmlFor={`table-label-${formId}`}>{i18n.t("Label")}</label>
       <Input ref={input} id={`table-label-${formId}`} data-testid="table-label" value={draft} onChange={event => setDraft(event.target.value)} />
-      <NumberField editor={editor} getPos={getPos} testId="table" value={numberDraft} onChange={setNumberDraft} />
+      <NumberField editor={editor} getPos={getPos} testId="table" draft={numberDraft} />
     </BlockProperties>
   </NodeViewWrapper>;
 }
@@ -1122,7 +1123,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
   const previousImage = useRef(applied.imageUrl);
   const [labelDraft, setLabelDraft] = useState(label);
   const enumerator = String(node.attrs.enumerator ?? "");
-  const [numberDraft, setNumberDraft] = useState(enumerator);
+  const numberDraft = useNumberDraft(enumerator);
   const appliedStem = imageFileStem(applied.imageUrl);
   const [filename, setFilename] = useState(appliedStem ?? "");
   const filenameDraft = appliedStem !== undefined && filename !== appliedStem;
@@ -1133,12 +1134,12 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
   const captionKey = JSON.stringify(applied.caption);
   const hasUnappliedDraft = isUnappliedFigureDraft(editing,
     { ...draft, caption: applied.caption }, applied) ||
-    (editing && (labelDraft !== label || numberDraft !== enumerator)) || filenameDraft;
+    (editing && (labelDraft !== label || numberDraft.changedFrom(enumerator))) || filenameDraft;
 
   useEffect(() => {
     if (!editing) {
       setDraft(applied);
-      setLabelDraft(label); setNumberDraft(enumerator);
+      setLabelDraft(label); numberDraft.reset(enumerator);
     }
     if (previousImage.current !== applied.imageUrl) {
       // A rename updates applied paths in every Figure. Follow only untouched Image
@@ -1158,7 +1159,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
   function beginEdit() {
     if (!editableFigure || editing) return;
     setDraft(applied);
-    setLabelDraft(label); setNumberDraft(enumerator);
+    setLabelDraft(label); numberDraft.reset(enumerator);
     setReplacing(false);
     if (!filenameDraft) setError("");
     setEditing(true);
@@ -1198,7 +1199,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
     setChoosing(false);
     setValidating(false);
     setDraft(applied);
-    setLabelDraft(label); setNumberDraft(enumerator);
+    setLabelDraft(label); numberDraft.reset(enumerator);
     setFilename(appliedStem ?? "");
     setError("");
     setEditing(false);
@@ -1208,6 +1209,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
   // Core checks the live target/reference context before committing a label rename.
   const apply = async (rename = false, returnCaret = true) => {
     if (validating || choosing) return;
+    if (!numberDraft.validate()) return;
     const position = getPos();
     const current = typeof position === "number" ? view.state.doc.nodeAt(position) : null;
     if (!current) return;
@@ -1247,7 +1249,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
     }
     // Validate the exact label/reference transaction before changing any file.
     try {
-      updateFigure(view.state, latestPosition, { imageUrl: candidate.imageUrl, imageAlt: candidate.imageAlt, label: nextLabel, enumerator: numberDraft || null });
+      updateFigure(view.state, latestPosition, { imageUrl: candidate.imageUrl, imageAlt: candidate.imageAlt, label: nextLabel, enumerator: numberDraft.value || null });
       if (rename && canRename && filenameDraft) {
         setValidating(true);
         candidate.imageUrl = await renameImage!(documentPath!, applied.imageUrl, filename);
@@ -1271,8 +1273,8 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
     // One undo step: undo returns the form's previous value.
     try {
       const now = view.state.doc.nodeAt(latestPosition);
-      if (now?.attrs.imageUrl !== attributes.imageUrl || now.attrs.imageAlt !== attributes.imageAlt || now.attrs.label !== nextLabel || now.attrs.enumerator !== (numberDraft || null)) {
-        view.dispatch(updateFigure(view.state, latestPosition, { ...attributes, label: nextLabel, enumerator: numberDraft || null }));
+      if (now?.attrs.imageUrl !== attributes.imageUrl || now.attrs.imageAlt !== attributes.imageAlt || now.attrs.label !== nextLabel || now.attrs.enumerator !== (numberDraft.value || null)) {
+        view.dispatch(updateFigure(view.state, latestPosition, { ...attributes, label: nextLabel, enumerator: numberDraft.value || null }));
       }
     } catch (cause) {
       copied.current = copy;
@@ -1376,7 +1378,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
             }}
           />
         </label>
-        <NumberField segmented editor={editor} getPos={getPos} testId="figure" value={numberDraft} onChange={value => { setNumberDraft(value); setError(""); }} disabled={validating} />
+        <NumberField editor={editor} getPos={getPos} testId="figure" draft={numberDraft} onChange={() => setError("")} disabled={validating} />
         </div>
         {canRename ? <details key={String(editing)} open={filenameDraft || !!error || undefined}>
           <summary><ChevronRight aria-hidden="true" />{i18n.t("Advanced")}</summary>
@@ -1449,7 +1451,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
   const [draft, setDraft] = useState(applied.mermaidSource!);
   const [labelDraft, setLabelDraft] = useState(label);
   const enumerator = String(node.attrs.enumerator ?? "");
-  const [numberDraft, setNumberDraft] = useState(enumerator);
+  const numberDraft = useNumberDraft(enumerator);
   const [error, setError] = useMessageState("");
   const [busy, setBusy] = useState(false);
   const restoreInput = useRef<HTMLElement | null>(null);
@@ -1463,12 +1465,12 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
     if (target?.isConnected && !busy && (editing || properties) && visible && document.hasFocus() &&
         (document.activeElement === document.body || form?.contains(document.activeElement))) target.focus();
   }, [busy, editing, properties, error, visible]);
-  const hasDraft = (editing || properties) && (draft !== applied.mermaidSource || labelDraft !== label || numberDraft !== enumerator);
+  const hasDraft = (editing || properties) && (draft !== applied.mermaidSource || labelDraft !== label || numberDraft.changedFrom(enumerator));
   const cancelFocus = useSourceInputFocus(input, editing);
   useSourceInputFocus(sourceButton, properties);
   useEffect(() => () => { request.current++; focusTracking.current?.abort(); }, []);
   useEffect(() => {
-    if (!editing && !properties) { setDraft(applied.mermaidSource!); setLabelDraft(label); setNumberDraft(enumerator); }
+    if (!editing && !properties) { setDraft(applied.mermaidSource!); setLabelDraft(label); numberDraft.reset(enumerator); }
   }, [editing, properties, applied.mermaidSource, label, enumerator]);
   useEffect(() => {
     onDraftChange?.("Figure", sourcePath, hasDraft);
@@ -1476,7 +1478,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
   }, [sourcePath, hasDraft, onDraftChange]);
   function beginEdit() {
     if (!view.editable || editing || properties) return;
-    setDraft(applied.mermaidSource!); setLabelDraft(label); setNumberDraft(enumerator); setError(""); setProperties(true);
+    setDraft(applied.mermaidSource!); setLabelDraft(label); numberDraft.reset(enumerator); setError(""); setProperties(true);
   }
   const [openOnInsert] = useState(() => view.editable && isNewBlockPath(sourcePath));
   useEffect(() => { if (openOnInsert) setEditing(true); }, [openOnInsert]);
@@ -1484,12 +1486,13 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
   const cancel = () => {
     request.current++; cancelFocus(); setBusy(false);
     focusTracking.current?.abort(); restoreInput.current = null;
-    setDraft(applied.mermaidSource!); setLabelDraft(label); setNumberDraft(enumerator); setError(""); setEditing(false);
+    setDraft(applied.mermaidSource!); setLabelDraft(label); numberDraft.reset(enumerator); setError(""); setEditing(false);
     setProperties(false);
     focusBlock(view, getPos);
   };
   const apply = async (openSource = false, returnCaret = true) => {
     if (!view.editable || busy) return;
+    if (!numberDraft.validate()) return;
     const position = getPos();
     const current = typeof position === "number" ? view.state.doc.nodeAt(position) : null;
     if (!current) return;
@@ -1533,8 +1536,8 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
     const returnFocus = !view.dom.closest("[hidden]") &&
       (active === document.body || Boolean(form?.contains(active)));
     try {
-      if (latest.attrs.mermaidSource !== source || latest.attrs.label !== labelDraft || latest.attrs.enumerator !== (numberDraft || null))
-        view.dispatch(updateFigure(view.state, latestPosition, { mermaidSource: source, label: labelDraft, enumerator: numberDraft || null }));
+      if (latest.attrs.mermaidSource !== source || latest.attrs.label !== labelDraft || latest.attrs.enumerator !== (numberDraft.value || null))
+        view.dispatch(updateFigure(view.state, latestPosition, { mermaidSource: source, label: labelDraft, enumerator: numberDraft.value || null }));
     }
     catch (cause) { reject(cause instanceof Error ? cause.message : String(cause)); return; }
     cancelFocus(); setError(""); setProperties(false); setEditing(openSource);
@@ -1564,7 +1567,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
           <Input data-testid="mermaid-label" disabled={busy} value={labelDraft} placeholder={i18n.t("None")}
             onChange={event => { setLabelDraft(event.target.value); setError(""); }} />
         </label>
-        <NumberField editor={editor} getPos={getPos} testId="mermaid" value={numberDraft} onChange={value => { setNumberDraft(value); setError(""); }} disabled={busy} />
+        <NumberField editor={editor} getPos={getPos} testId="mermaid" draft={numberDraft} onChange={() => setError("")} disabled={busy} />
       </PropertyForm>
     </div> : null : <div contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>
       <MermaidPreview source={applied.mermaidSource!} />
@@ -1588,8 +1591,8 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
           <Input data-testid="mermaid-property-label" disabled={busy} value={labelDraft} placeholder={i18n.t("None")}
             onChange={event => { setLabelDraft(event.target.value); setError(""); }} />
         </label>
-        <NumberField segmented editor={editor} getPos={getPos} testId="mermaid-property" value={numberDraft}
-          onChange={value => { setNumberDraft(value); setError(""); }} disabled={busy} />
+        <NumberField editor={editor} getPos={getPos} testId="mermaid-property" draft={numberDraft}
+          onChange={() => setError("")} disabled={busy} />
       </div>
     </FigureProperties>
   </NodeViewWrapper>;
@@ -1638,7 +1641,7 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
   const [draft, setDraft] = useState(latex);
   const [labelDraft, setLabelDraft] = useState(label);
   const enumerator = String(node.attrs.enumerator ?? "");
-  const [numberDraft, setNumberDraft] = useState(enumerator);
+  const numberDraft = useNumberDraft(enumerator);
   const [error, setError] = useMessageState("");
 
   const cancelFocus = useSourceInputFocus(latexInput, editing);
@@ -1646,7 +1649,7 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
   useEffect(() => {
     if (!editing) {
       setDraft(latex);
-      setLabelDraft(label); setNumberDraft(enumerator);
+      setLabelDraft(label); numberDraft.reset(enumerator);
     }
   }, [editing, latex, label, enumerator]);
 
@@ -1658,7 +1661,7 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
 
   const sourcePath = String(node.attrs.sourcePath ?? "");
   const hasUnappliedDraft = isUnappliedEquationDraft(editing, draft, latex) ||
-    (editing && (labelDraft !== label || numberDraft !== enumerator));
+    (editing && (labelDraft !== label || numberDraft.changedFrom(enumerator)));
   useEffect(() => {
     onDraftChange?.("Equation", sourcePath, hasUnappliedDraft);
     return () => onDraftChange?.("Equation", sourcePath, false);
@@ -1667,7 +1670,7 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
   function beginEdit() {
     if (!view.editable || editing) return;
     setDraft(latex);
-    setLabelDraft(label); setNumberDraft(enumerator);
+    setLabelDraft(label); numberDraft.reset(enumerator);
     setError("");
     setEditing(true);
   }
@@ -1675,13 +1678,14 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
   const cancel = () => {
     cancelFocus();
     setDraft(latex);
-    setLabelDraft(label); setNumberDraft(enumerator);
+    setLabelDraft(label); numberDraft.reset(enumerator);
     setError("");
     setEditing(false);
     focusBlock(view, getPos);
   };
   // Core checks the live target/reference context before committing a label rename.
   const apply = () => {
+    if (!numberDraft.validate()) return;
     const invalidLabel = labelError(labelDraft);
     if (invalidLabel) {
       setError(invalidLabel);
@@ -1690,7 +1694,7 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
     cancelFocus();
     const position = getPos();
     if (typeof position !== "number") return;
-    try { view.dispatch(updateLabelProperties(view.state, position, { latex: draft, label: labelDraft, enumerator: numberDraft || null })); }
+    try { view.dispatch(updateLabelProperties(view.state, position, { latex: draft, label: labelDraft, enumerator: numberDraft.value || null })); }
     catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
     setError("");
     setEditing(false);
@@ -1753,7 +1757,7 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
                 }}
               />
             </label>
-            <NumberField editor={editor} getPos={getPos} testId="equation" value={numberDraft} onChange={value => { setNumberDraft(value); setError(""); }} />
+            <NumberField editor={editor} getPos={getPos} testId="equation" draft={numberDraft} onChange={() => setError("")} />
           </PropertyForm>
         </div>
       ) : null}

@@ -152,6 +152,10 @@ async (page, { openFolderPicker, openDocument, waitForEditorFocus, expect, scree
     await expect(page.getByTestId('figure-image-url')).toHaveCount(0);
     await expect(page.getByTestId('figure-enumerator')).toHaveCount(0);
     await editor.getByRole('button', {name:'Fixed',exact:true}).click();
+    await expect(page.getByTestId('draft-notice')).toBeVisible();
+    await page.getByTestId('figure-apply').click();
+    await expect(page.getByTestId('figure-enumerator')).toHaveAttribute('aria-invalid','true');
+    expect(await snapshot()).toEqual(beforeShortcut);
     await page.getByTestId('figure-enumerator').fill('A.2');
     await editor.getByRole('button', {name:'Automatic',exact:true}).click();
     await expect(page.getByTestId('figure-enumerator')).toHaveCount(0);

@@ -29,12 +29,25 @@ export function createMap(source: SourceDocument, input: string, markdown: strin
 
 /** Validate correspondence against the exact reopened snapshot, including list items and endnotes. */
 export function readDoclingMap(json: string, markdown: string): DoclingMap {
+  return inspectDoclingMap(json, markdown, false).map;
+}
+
+/** A stale snapshot can still show source regions, but its targets must never be followed. */
+export function inspectDoclingMap(json: string, markdown: string, allowStale = true): { map: DoclingMap; stale: boolean } {
   const map = JSON.parse(json) as DoclingMap;
   if (!map || map.format !== "ieumdoc-docling-map" || map.version !== 1) throw new Error("Unsupported Docling map format/version");
-  if (map.document?.sha256 !== sha256(markdown)) throw new Error("Stale Docling map: document SHA-256 mismatch");
+  const stale = map.document?.sha256 !== sha256(markdown);
+  if (stale && !allowStale) throw new Error("Stale Docling map: document SHA-256 mismatch");
   if (!Array.isArray(map.items) || !map.source || map.source.schema_name !== "DoclingDocument" || map.source.version !== "1.10.0" ||
       typeof map.source.name !== "string" || !/^[a-f0-9]{64}$/u.test(map.source.sha256) ||
       !map.pages || typeof map.pages !== "object" || Array.isArray(map.pages) || map.document.file !== "document.md") throw new Error("Invalid Docling map");
+  if (!/^[a-f0-9]{64}$/u.test(map.document.sha256)) throw new Error("Invalid document hash");
+  for (const [key, page] of Object.entries(map.pages)) {
+    if (!page || String(page.page_no) !== key || !Number.isInteger(page.page_no) || page.page_no < 1 ||
+        !page.size || !Number.isFinite(page.size.width) || !Number.isFinite(page.size.height) ||
+        page.size.width <= 0 || page.size.height <= 0 ||
+        (page.image != null && (typeof page.image !== "object" || typeof page.image.uri !== "string"))) throw new Error("Invalid mapping page");
+  }
   const blocks = getEditableDocument(parse(markdown)).blocks;
   const byPath = new Map(blocks.map(block => [JSON.stringify(block.path), block]));
   const seen = new Set<string>();
@@ -55,6 +68,7 @@ export function readDoclingMap(json: string, markdown: string): DoclingMap {
     for (const target of item.targets) {
       if (!Array.isArray(target.path) || target.path.length !== 1 || !Number.isInteger(target.path[0]) ||
           !["block", "caption", "image-content", "list-item", "endnote", "group"].includes(target.role)) throw new Error(`Invalid target: ${item.self_ref}`);
+      if (stale) continue;
       const block = byPath.get(JSON.stringify(target.path));
       if (!block || block.block !== target.block) throw new Error(`Missing target block: ${item.self_ref}`);
       if (target.role === "caption" && !["figure", "table"].includes(block.block)) throw new Error("Invalid caption target");
@@ -70,5 +84,5 @@ export function readDoclingMap(json: string, markdown: string): DoclingMap {
       }
     }
   }
-  return map;
+  return { map, stale };
 }

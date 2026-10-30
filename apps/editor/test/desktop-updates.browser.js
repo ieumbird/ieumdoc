@@ -162,7 +162,8 @@ async (page, { screenshots = false, openPath }) => {
               const shell = document.querySelector('.app-shell');
               return parseFloat(shell.style.getPropertyValue('--app-header-height')) === document.querySelector('.app-titlebar').offsetHeight + document.querySelector('.app-header').offsetHeight;
             });
-            const geometry = await page.evaluate(reserved => {
+            // Measure the Settings action in both states, independent of other footer entries.
+            const geometry = await page.getByTestId('sidebar').getByRole('button', {name:'Settings', exact:true}).evaluate((settings, reserved) => {
               const header = document.querySelector('.app-titlebar').getBoundingClientRect();
               const bar = document.querySelector('.top-bar').getBoundingClientRect();
               const tabs = document.querySelector('.document-tab-row').getBoundingClientRect();
@@ -187,7 +188,6 @@ async (page, { screenshots = false, openPath }) => {
               const docked = document.querySelector('.document-panel:not(.document-panel--overlay) .document-panel-navigation')?.getBoundingClientRect();
               const aligned = sidebar.top === tabs.top && sidebar.bottom === tabs.bottom && (!docked || docked.top === tabs.top && docked.bottom === tabs.bottom);
               const branded = brand.querySelector('img').complete && !!brand.querySelector('span') === !document.querySelector('.sidebar--collapsed');
-              const settings = document.querySelector('.sidebar-footer button');
               const settingsBox = settings.getBoundingClientRect();
               const rail = document.querySelector('.sidebar').getBoundingClientRect();
               const settingsBounded = settingsBox.left >= rail.left && settingsBox.right <= rail.right && settingsBox.bottom <= innerHeight;
@@ -307,7 +307,10 @@ async (page, { screenshots = false, openPath }) => {
 
   // Settings → About, by keyboard: version, the Stable default, a channel change, and focus back.
   await page.keyboard.press('Tab');
-  check(await settings.evaluate(node => node === document.activeElement), 'Tab from Open file did not reach Settings');
+  const comparison = page.getByTestId('sidebar').getByRole('button', {name:'Docling comparison', exact:true});
+  check(await comparison.evaluate(node => node === document.activeElement), 'Tab from the Explorer document did not reach Docling comparison');
+  await page.keyboard.press('Tab');
+  check(await settings.evaluate(node => node === document.activeElement), 'Tab from Docling comparison did not reach Settings');
   await page.keyboard.press('Enter');
   await dialog.waitFor();
   await page.waitForFunction(() => document.activeElement?.textContent === 'Back to document', undefined, {timeout:5_000});
