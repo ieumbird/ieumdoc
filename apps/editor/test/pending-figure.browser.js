@@ -117,6 +117,13 @@ async (page, { openPath, expect }) => {
     await page.getByRole('button',{name:'Dismiss error',exact:true}).click();
     // The same draft must not block an image inserted in another block, including its Undo.
     await page.getByText('Intro.',{exact:true}).filter({visible:true}).click();
+    // Native selection can reach Intro before ProseMirror consumes selectionchange.
+    await page.waitForFunction(() => {
+      const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+      const {selection} = editor.state;
+      return editor.view.hasFocus() && selection.empty && selection.$from.parent.type.name === 'paragraph' &&
+        selection.$from.parent.textContent === 'Intro.';
+    });
     const insertedElsewhere = page.waitForResponse(r => r.request().method() === 'POST' && r.url().includes('/api/asset?'));
     await page.keyboard.press('Control+v');
     expect((await insertedElsewhere).status()).toBe(201);
