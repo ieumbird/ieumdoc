@@ -3,6 +3,7 @@
 - Status: Implemented
 - Select-all verification: 2026-10-29 (#751: Editor tests, typecheck/build, docs and targeted persistent Windows Chrome continuous-editing, footnotes, figure-authoring and image-assets regressions; Cmd+A uses Apple platform emulation).
 - Title contract update: 2026-10-29 (#722; frontmatter-only title and H1–H6 body sections replace the #255/#472 leading-H1 policy).
+- Empty-title entry: 2026-10-30 (#786; small bilingual optional-title hint, preserved slot height and immediate title typography; document-title browser regression and [captures](figure-authoring-v1.md#empty-authoring-entry-786)).
 - Last verified: 2026-10-28 (#637: in-document block equation form, native input drag/paste isolation and wider wrapping inline math form; targeted Editor and browser checks and same-state 1440/640px captures).
 - Property Apply verification: 2026-10-27 (#576: shared Ctrl/Cmd+Enter submission, validation/busy guards, IME/modifier exclusions and prose hard-break isolation; Editor tests and targeted Windows Chrome browser regressions, with Apple platform emulation rather than native macOS).
 - Code-language verification: 2026-10-28 (#645: selection-only menu, common grammar choices, preserved unlisted values, typeahead, language/body Undo/Redo and exact disk Save/Reload; [verification](#code-language-selection-verification-645)).
@@ -434,8 +435,12 @@ empty `--text` stores an empty title. It supports the existing revision guard,
 dry-run and `apply-batch` (`text` or `remove: true`). `inspect` displays the title
 separately from body nodes (JSON `title: null` means absent).
 
-Editor keeps the title input above the body. It uses the document font/H1 size,
-plain text only, and an empty Add a title placeholder. Its value is a
+Editor keeps the title input above the body, preserving its one-line title slot height
+when empty (#786). The empty placeholder is vertically centered small UI text: `Add a title (optional)` /
+`제목 추가(선택)`. Input uses the document font/H1 size immediately; clearing it restores
+the small hint. The focus outline sits outside the slot with the existing spacing token,
+leaving visible room around both hint and title without moving the input or body. Both are
+plain text only. Its value is a
 ProseMirror document attribute in the same state/history as body edits. It does
 not create an editor body block or snapshot path, and does not appear in
 Outline. Ctrl+Z/Ctrl+Y/Ctrl+Shift+Z use engine history while the input is focused.

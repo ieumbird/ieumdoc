@@ -22,3 +22,14 @@ export function scrollDocumentFromShell(event: KeyboardEvent): void {
   viewport.scrollTo({ top });
   event.preventDefault();
 }
+
+/** Visible content area, excluding shell panels, padding and the native scrollbar. */
+export function documentContentBounds(viewport: HTMLElement) {
+  const rect = viewport.getBoundingClientRect(), style = getComputedStyle(viewport);
+  const x = rect.left + viewport.clientLeft + parseFloat(style.paddingLeft);
+  const y = rect.top + viewport.clientTop;
+  // Below the docking width Outline covers content without changing its padding.
+  const panel = viewport.closest(".app-shell")?.querySelector(".document-panel")?.getBoundingClientRect();
+  const right = Math.min(rect.right, rect.left + viewport.clientLeft + viewport.clientWidth - parseFloat(style.paddingRight), panel?.left ?? window.innerWidth);
+  return { x, y, width: Math.max(0, right - x), height: Math.min(rect.bottom - y, viewport.clientHeight) };
+}

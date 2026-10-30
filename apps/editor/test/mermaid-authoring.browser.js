@@ -1,5 +1,5 @@
 // Real scratch-file persistence, explicit drafts, native input dragging and real delayed renders.
-async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument }) => {
+async (page, { openPath, screenshots, expect, waitForEditorFocus, waitForActivePath, reloadDocument }) => {
   const origin = page.url().split('/').slice(0, 3).join('/');
   const initial = await (await page.request.get(origin + '/api/document')).json();
   const separator = initial.path.includes('\\') ? '\\' : '/';
@@ -36,9 +36,10 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument
     return {doc:e.getJSON(),undo:h.done.eventCount,redo:h.undone.eventCount};
   });
   const disk = async () => (await (await page.request.get(`${origin}/document/diagram.md?path=${encodeURIComponent(file)}`)).text()).replaceAll('\r\n','\n');
-  const save = async () => {
+  const save = async (status = 'saved') => {
     const response=page.waitForResponse(r=>r.request().method()==='POST' && /\/api\/document(?:\?|$)/.test(r.url()));
     await page.getByTestId('save').click(); expect((await response).status()).toBe(200);
+    await page.locator(`[data-testid="status"][data-operation="${status}"]`).waitFor();
   };
   const edit = async () => {
     await figure.hover({position:{x:4,y:4}}); await figure.getByRole('button',{name:'Edit figure'}).click();
@@ -258,7 +259,7 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument
   await active.getByText('Before.',{exact:true}).click();await expect(field()).toBeVisible();
   await expect(active.getByTestId('figure-draft-status')).toBeVisible();
   expect(await page.evaluate(()=>{const e=new Event('beforeunload',{cancelable:true});window.dispatchEvent(e);return e.defaultPrevented;})).toBe(true);
-  await save();expect(await disk()).toBe(originalDisk);
+  await save('saved-pending');expect(await disk()).toBe(originalDisk);
   await page.getByRole('button',{name:'Source',exact:true}).click();
   const source=await active.getByTestId('source-view').locator('pre').textContent();
   expect(source).toContain('graph LR');expect(source).not.toContain('Draft --> Next');
@@ -402,8 +403,17 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, reloadDocument
   await save();
   // A rejected lazy import is a block error, while source editing and real Save still work.
   await page.unroute('**/src/mermaid-render.ts*');
-  await page.route('**/src/mermaid-render.ts*',route=>route.fulfill({contentType:'application/javascript',body:'throw new Error("Renderer chunk unavailable");'}));
-  await page.reload();await expect(diagrams.first().getByTestId('mermaid-error')).toBeVisible();
+  const rendererFailure='throw new Error("Renderer chunk unavailable");';
+  let rendererFulfilled=false;
+  await page.route('**/src/mermaid-render.ts*',async route=>{
+    await route.fulfill({contentType:'application/javascript',body:rendererFailure});
+    rendererFulfilled=true;
+  });
+  const rendererResponse=page.waitForResponse(response=>response.url().startsWith(`${origin}/src/mermaid-render.ts`));
+  await page.reload();await waitForActivePath(page,file);
+  await expect(diagrams.first().getByTestId('mermaid-error')).toBeVisible();
+  expect(await (await rendererResponse).text()).toBe(rendererFailure);
+  expect(rendererFulfilled).toBe(true);
   await edit();await field().fill('graph TD\n  Offline --> Saved');await active.getByTestId('mermaid-apply').click();
   await expect(field()).toHaveCount(0);await save();expect(await disk()).toContain('Offline --> Saved');
   // MyST drops only these boundaries. Keep first-line indentation, interior whitespace-only

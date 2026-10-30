@@ -1,0 +1,202 @@
+{
+  "beforeTitleFont": "34px",
+  "beforePlaceholderFont": "34px",
+  "beforeUi": "ceead74c",
+  "issue": 786,
+  "beforeTitleHeight": 45.890625,
+  "browser": "Persistent installed Chrome, DPR 1",
+  "viewportHeight": 900,
+  "files": [
+    {
+      "sha256": "f992ceda758dad045f56be6fc043b79a89e6e831bc82eb2ee3d24b31582c9713",
+      "file": "after-1440-dark-en-empty-title.png"
+    },
+    {
+      "sha256": "11d57929fee1ca0d3ff1479fcc9107212c1c2fb7030049ef7b9548ff4154aabf",
+      "file": "after-1440-dark-en-pending-figure.png"
+    },
+    {
+      "sha256": "2a57476ca8088d0452014f4a40ffd2593da41fcb4b9ae4a48ba17148895a7790",
+      "file": "after-1440-dark-en-typing-title.png"
+    },
+    {
+      "sha256": "c3f48864c02b75278a71d19b584cc8663ae711398db8ddf4c7c25a287ac1dcb2",
+      "file": "after-1440-light-en-empty-title.png"
+    },
+    {
+      "sha256": "8af98293ef6717111238b34d0492cecd40b966be9b3dcb29805947d4c46be2a3",
+      "file": "after-1440-light-en-pending-figure.png"
+    },
+    {
+      "sha256": "ca4331ccd891b335ae4a95bac4db7860b58e31a3174fb02ba329ae98becaefda",
+      "file": "after-1440-light-en-typing-title.png"
+    },
+    {
+      "sha256": "2b6ac7181b00f07177d47656787696ffeb88fb26323fe7812040341842b7f79a",
+      "file": "after-640-light-ko-empty-title.png"
+    },
+    {
+      "sha256": "0c4e3c6deb6b7787dee8e9cd4c57fc9700e2c347ea03ab742ec2ea2e37faaab2",
+      "file": "after-640-light-ko-pending-figure.png"
+    },
+    {
+      "sha256": "4f13edad5acda6004407ad693ff5b90c668bdfa9dda7ccb02ab5b8f1dcbfff0d",
+      "file": "after-640-light-ko-typing-title.png"
+    },
+    {
+      "sha256": "8fb24e52cee77ba794036d0010cc26f9c5d077447113b07762e06ae104e6b20c",
+      "file": "before-1440-dark-en-empty-title.png"
+    },
+    {
+      "sha256": "10061e93005b7ce01868e4bd8e09e9e7ef5543b8c83fc4a5079d6532e21e8ee6",
+      "file": "before-1440-dark-en-pending-figure.png"
+    },
+    {
+      "sha256": "8963d88b2568b44eeffb3cf4059af694dcb0980c19195d5a64ebbd2af0466ba9",
+      "file": "before-1440-dark-en-typing-title.png"
+    },
+    {
+      "sha256": "13002b7a52d57f5a5dd55dc8fdcb3501619658bb0e99f07b0a8fc4c599912168",
+      "file": "before-1440-light-en-empty-title.png"
+    },
+    {
+      "sha256": "d37c267460656a7f75b35e0a5694d11bcc5efbb018d1400dea899691f5a4f50f",
+      "file": "before-1440-light-en-pending-figure.png"
+    },
+    {
+      "sha256": "999e16ae2d829b80c7bc06f989b3f8562a85072697784c2c9ef09e3eda2ea70c",
+      "file": "before-1440-light-en-typing-title.png"
+    },
+    {
+      "sha256": "1941fb7ce666a9282ec21a596bc9b3bc1cce136056909dcb3a617027bd2159de",
+      "file": "before-640-light-ko-empty-title.png"
+    },
+    {
+      "sha256": "2cb5f25713697c0d23d591180f03f7ef57ec0458ebd769b6e4f9d1f2fb569763",
+      "file": "before-640-light-ko-pending-figure.png"
+    },
+    {
+      "sha256": "1b17b0d475def4748df462d27cd0a728f0ff7c078af4e8f06250a5f706a76ece",
+      "file": "before-640-light-ko-typing-title.png"
+    }
+  ],
+  "afterMeasurements": [
+    {
+      "width": 1440,
+      "theme": "light",
+      "language": "en",
+      "state": "empty-title",
+      "height": 45.890625,
+      "font": "34px",
+      "placeholderFont": "14px",
+      "placeholderLineHeight": "45.9px",
+      "hintCenterOffset": 0.0046874999999992895,
+      "focused": false,
+      "focusOutlineOffset": "0px"
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "language": "en",
+      "state": "typing-title",
+      "height": 45.890625,
+      "font": "34px",
+      "placeholderFont": "14px",
+      "placeholderLineHeight": "45.9px",
+      "hintCenterOffset": 0.0046874999999992895,
+      "focused": true,
+      "focusOutlineOffset": "4px"
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "language": "en",
+      "state": "pending-figure",
+      "height": 45.890625,
+      "font": "34px",
+      "placeholderFont": "14px",
+      "placeholderLineHeight": "45.9px",
+      "hintCenterOffset": 0.0046874999999992895,
+      "focused": true,
+      "focusOutlineOffset": "4px"
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "language": "en",
+      "state": "empty-title",
+      "height": 45.890625,
+      "font": "34px",
+      "placeholderFont": "14px",
+      "placeholderLineHeight": "45.9px",
+      "hintCenterOffset": 0.0046874999999992895,
+      "focused": false,
+      "focusOutlineOffset": "0px"
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "language": "en",
+      "state": "typing-title",
+      "height": 45.890625,
+      "font": "34px",
+      "placeholderFont": "14px",
+      "placeholderLineHeight": "45.9px",
+      "hintCenterOffset": 0.0046874999999992895,
+      "focused": true,
+      "focusOutlineOffset": "4px"
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "language": "en",
+      "state": "pending-figure",
+      "height": 45.890625,
+      "font": "34px",
+      "placeholderFont": "14px",
+      "placeholderLineHeight": "45.9px",
+      "hintCenterOffset": 0.0046874999999992895,
+      "focused": true,
+      "focusOutlineOffset": "4px"
+    },
+    {
+      "width": 640,
+      "theme": "light",
+      "language": "ko",
+      "state": "empty-title",
+      "height": 45.890625,
+      "font": "34px",
+      "placeholderFont": "14px",
+      "placeholderLineHeight": "45.9px",
+      "hintCenterOffset": 0.0046874999999992895,
+      "focused": false,
+      "focusOutlineOffset": "0px"
+    },
+    {
+      "width": 640,
+      "theme": "light",
+      "language": "ko",
+      "state": "typing-title",
+      "height": 45.890625,
+      "font": "34px",
+      "placeholderFont": "14px",
+      "placeholderLineHeight": "45.9px",
+      "hintCenterOffset": 0.0046874999999992895,
+      "focused": true,
+      "focusOutlineOffset": "4px"
+    },
+    {
+      "width": 640,
+      "theme": "light",
+      "language": "ko",
+      "state": "pending-figure",
+      "height": 45.890625,
+      "font": "34px",
+      "placeholderFont": "14px",
+      "placeholderLineHeight": "45.9px",
+      "hintCenterOffset": 0.0046874999999992895,
+      "focused": true,
+      "focusOutlineOffset": "4px"
+    }
+  ]
+}

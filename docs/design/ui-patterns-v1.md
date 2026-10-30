@@ -3,7 +3,10 @@
 역할: 반복 UI 동작의 확정 목표·현재 기준·불일치를 관리하며, 시각 표현은 [Visual Language](editor-visual-language-v1.md), 배치·치수는 [Layout Rules](editor-layout-rules-v1.md)를 따른다.
 
 - Status: Draft
-- Last verified: 2026-10-30. master `2de4e857`의 코드·현재 계약과 #777 소유자 결정 대조. 이 문서 작업에서는 브라우저를 실행하지 않았다. 화면 근거는 [1단계 인벤토리][inventory]에 보존한다.
+- P01 content-boundary verification: 2026-10-30 (#782; 실제 1440/640px·Outline 열림/닫힘·두 그룹 browser 검사와 [전후 캡처](editor-layout-rules-v1.md#form-content-viewport-782)).
+- P02 verified: 2026-10-30 (#776; 다섯 폼·입력칸 오류·자동 표시와 저장/재열기를 브라우저에서 확인).
+- P06 verified: 2026-10-30 (#786; title slot/typography, pending Figure entry/cancel/Apply/Undo/Save and existing caption/body/list patterns; [evidence](figure-authoring-v1.md#empty-authoring-entry-786)).
+- Inventory baseline: 2026-10-30. master `2de4e857`의 코드·현재 계약과 #777 소유자 결정 대조. 인벤토리 문서 작업에서는 브라우저를 실행하지 않았다. 화면 근거는 [1단계 인벤토리][inventory]에 보존하며 후속 구현 검증은 해당 패턴에 기록한다.
 - Scope: Editor 반복 UI의 **확정된 목표**, 현재 기준 구현과 알려진 불일치. Draft는 미구현 목표를 Implemented 계약으로 표시하지 않기 위한 상태이며 소유자 결정을 재논의한다는 뜻이 아니다.
 - Authority: [AGENTS.md](../../AGENTS.md), [ADR-0001](../adr/0001-single-document-editor-architecture.md), [ADR-0010](../adr/0010-supported-viewport-and-input.md), [#777 소유자 결정][decision]. 현재 동작은 각 Implemented 계약을 따른다. 이 목표가 바꾸는 현재 동작은 아래 후속 이슈에서 구현하고 같은 PR에서 해당 계약을 갱신한다.
 
@@ -20,17 +23,17 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 - **목적·사용/비사용:** 짧은 속성은 대상 문맥 안에서 고친다. 긴 원문, 미주 본문, 문서·앱 전체 설정을 작은 속성 팝오버에 넣지 않는다.
 - **목표:** 짧은 metadata는 대상 전체에 붙는 팝오버, 긴 수식·Mermaid 원문은 본문 폭, 미주는 현재 자리. 문서 설정은 문서 상단, 앱 Settings는 전용 화면이다. 모든 작은 편집면은 Sidebar·Outline을 제외한 해당 문서 콘텐츠 viewport 안에 둔다. 자동 우측 inspector를 열지 않는다.
 - **목표:** 블록 수식 label·번호의 작은 진입을 원문 편집과 분리하되 원문 폼에서 둘을 함께 고치는 경로도 유지한다.
-- **현재 기준:** [FigureProperties][figure]의 대상 anchor·콘텐츠 경계, Mermaid 원문의 본문 폭, 미주 in-place와 문서/앱 설정의 범위 분리.
+- **현재 기준:** [FigureProperties][figure]의 대상 anchor와 `documentContentBounds`를 공유하는 작은 폼의 콘텐츠 경계(#782), Mermaid 원문의 본문 폭, 미주 in-place와 문서/앱 설정의 범위 분리.
 - **사용처:** U01–U11 그림·수식·표·미주·inline/절 label, U12 제목, U13 문서 설정, U22 앱 설정.
-- **결정·불일치:** [소유자 결정 P01][decision]. 표·절 label 표면은 [D03](#알려진-불일치), 수식 진입은 D04, 작은 폼의 가용 영역·교차참조 가림은 D02.
+- **결정·불일치:** [소유자 결정 P01][decision]. 표·절 label 표면은 [D03](#알려진-불일치), 수식 진입은 D04, 작은 폼의 가용 영역·교차참조 가림 D02는 #782에서 해결했다. 단일/두 그룹 모두 Sidebar·Outline·스크롤바를 제외하며 겹쳐 열린 Outline도 제외한다. [검증·전후 캡처](editor-layout-rules-v1.md#form-content-viewport-782)를 따른다.
 
 ## P02 자동·고정 번호
 
 - **목적·사용/비사용:** 그림·표·블록 수식의 번호 지정에 쓴다. 제목 번호 설정이나 새 Core 문서 모드를 만들지 않는다.
-- **목표:** 이미지/pending·Mermaid 속성·표·수식·Mermaid 원문의 다섯 폼을 자동/고정 세그먼트로 통일한다. 고정일 때만 값 입력을 보이고 빈 값이면 완료를 막는다. 해제는 자동 선택으로만 한다. 자동 상태에는 실제 표시 번호를 짧게 보여 준다.
-- **현재 기준:** [NumberField][number]의 그림 두 폼 세그먼트 표현만 기준이다. 현재는 빈 고정 제출을 막지 않고, 나머지 세 폼은 빈 입력을 자동으로 해석한다. Core/CLI의 빈 enumerator 제거와 비차단 혼합·중복 경고는 유지한다.
+- **목표:** 이미지/pending·Mermaid 속성·표·수식·Mermaid 원문의 다섯 폼을 자동/고정 세그먼트로 통일한다. 고정일 때만 값 입력을 보이고 빈 값이면 완료를 막는다. 해제는 자동 선택으로만 한다. 자동 상태에는 자동으로 적용했을 때 받을 번호를 짧게 보여 준다.
+- **현재 기준:** [NumberField][number]를 이미지/pending·Mermaid 속성·표·블록 수식·Mermaid 원문의 다섯 폼에서 공유한다(#776). 자동/고정 세그먼트, 고정일 때만 값 입력, 빈 고정의 완료 차단·입력칸 오류와 자동 선택으로만 해제를 동일하게 제공한다. 자동 상태는 해당 블록의 고정값을 제외하여 Core가 계산한 번호를 "자동 번호: N"으로 짧게 표시한다. 아직 적용하지 않은 선택의 결과와 이미 자동으로 적용된 번호에 같은 문구를 쓴다. Core/CLI의 빈 enumerator 제거와 비차단 혼합·중복 경고는 유지한다.
 - **사용처:** U01–U05 그림·수식·표의 번호 폼, U14 번호 입력·집계.
-- **결정·불일치:** [소유자 결정 P02][decision], [현재 번호 계약](heading-numbering-v1.md#fixed-numbers-720). 다섯 폼과 자동 번호 표시는 D01, 문서 경고 전달은 P07/D07.
+- **결정·불일치:** [소유자 결정 P02][decision], [현재 번호 계약](heading-numbering-v1.md#fixed-numbers-720). D01은 #776에서 해소했다. 문서 경고 전달은 P07/D07.
 
 ## P03 편집 진입
 
@@ -61,9 +64,9 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 
 - **목적·사용/비사용:** 무엇이 비었는지와 다음 행동을 보여 준다. UI 안내를 실제 문서 콘텐츠로 저장하거나 빈 작성 자리를 모두 숨기지 않는다.
 - **목표:** 빈 제목은 기존 slot 높이를 유지한 작은 ‘제목 추가(선택)’이며 입력하면 title typography를 쓴다. title과 H1은 분리한다. pending Figure에는 ‘이미지 선택 / Mermaid 작성’ 진입을 보이며 진입만으로 내용을 확정하지 않는다. 빈 caption의 muted italic hint·선택 시 숨김·번호/최소 클릭 영역은 유지한다. 빈 검색·자원 목록은 작성 빈칸과 구별한다.
-- **현재 기준:** [빈 caption hint](editor-visual-language-v1.md#state-rules). [DocumentTitle](../../apps/editor/src/document-title.tsx)은 현재 큰 Add a title, pending Figure는 No content yet다.
+- **현재 기준:** [DocumentTitle](../../apps/editor/src/document-title.tsx)은 기존 title slot 높이를 유지하며 작은 UI 서체의 `제목 추가(선택)` / `Add a title (optional)`을 보이고, 입력 즉시 제목 서체로 전환한다. [pending Figure][schema]는 `이미지 선택` / `Mermaid 작성` 버튼으로 기존 picker·원문 편집을 연다. 선택 진입·취소만으로 문서 내용을 확정하지 않는다. [빈 caption hint](editor-visual-language-v1.md#state-rules), 빈 본문의 작성 안내와 빈 목록의 항목 안내는 기존 규칙을 유지한다. 검색·자원 목록의 빈 결과와는 구별한다.
 - **사용처:** U01/U03–U06 빈 그림·원문·표·미주, U12 제목·본문, U21 검색/탐색, U23/U25 파일·참고문헌 빈 상태.
-- **결정·불일치:** [소유자 결정 P06][decision]. 제목·pending 진입은 D06. 기존 caption 규칙은 유지한다.
+- **결정·불일치:** [소유자 결정 P06][decision]. D06은 [#786](https://github.com/ieumbird/ieumdoc/issues/786)에서 해소했다. [제목 계약](document-editing-v1.md#document-title-255)·[그림 계약](figure-authoring-v1.md#editor-session-states)과 [전후 캡처](figure-authoring-v1.md#empty-authoring-entry-786)를 따른다. 기존 caption·선택·clipboard 규칙은 유지한다.
 
 ## P07 입력 오류와 알림 센터
 
@@ -104,7 +107,7 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 - **현재 기준:** [DocumentActions](../../apps/editor/src/shell/DocumentActions.tsx)의 보기 segment, [DocumentSettings](../../apps/editor/src/shell/DocumentSettings.tsx)의 문서 값, Settings의 기기 설정. 보기·탐색의 toggle/tablist와 문서 draft는 서로 다른 의미다.
 - **사용처:** U09–U10 인용·참조 값, U13–U14 문서 설정·번호, U19–U22 언어/종류·메뉴·보기/탐색·앱 설정.
 - **추가 사용처:** [Docling 대조](docling-compare-v1.md)의 동기 스크롤 checkbox는 탭 안의 일시적 보기 상태이며 문서/기기 설정에 저장하지 않는다.
-- **결정·불일치:** [소유자 결정 P11][decision]. 번호 세그먼트의 미적용 세 폼은 P02/D01. 그 밖의 알려진 불일치 없음.
+- **결정·불일치:** [소유자 결정 P11][decision]. 번호 세그먼트는 P02의 다섯 폼에 적용했다(#776). 알려진 불일치 없음.
 
 ## P12 모달·파일·복구·설정 범위
 
@@ -117,16 +120,15 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 
 ## 알려진 불일치
 
-현재 코드·1단계 관찰과 확정 목표 사이의 차이다. 아래 이슈의 등록은 구현 완료가 아니다. #777은 이 문서와 추적 등록까지이며 첫 구현은 #776이다.
+현재 코드·1단계 관찰과 확정 목표 사이의 차이다. 해결 항목은 상태와 현재 계약을 명시한다. 아래 이슈의 등록은 구현 완료가 아니다. #777은 이 문서와 추적 등록까지이며 첫 구현은 #776이다.
 
 | ID · 패턴 | 현재 다른 사용처 → 목표 | 후속 이슈 |
 | --- | --- | --- |
-| D01 · P02/P11 | U01/U02 세그먼트도 빈 고정을 허용; U03/U04/U05는 빈 입력=자동 → 다섯 폼 세그먼트·빈 고정 차단·자동 표시 번호 | [#776](https://github.com/ieumbird/ieumdoc/issues/776) |
-| D02 · P01 | U10 교차참조가 Outline 뒤에 가림; 같은 경계의 U05/U07–U11 영향은 미확인 → 가용 콘텐츠 viewport | [#782](https://github.com/ieumbird/ieumdoc/issues/782) |
+| D01 · P02/P11 · 해소 | U01–U05 다섯 폼의 자동/고정 세그먼트·빈 고정 차단·자동 표시 번호를 공용 NumberField로 통일 | [#776](https://github.com/ieumbird/ieumdoc/issues/776) |
+| D02 · P01 · 해결 | U10 교차참조·U08 링크의 창 경계와 U05/U07/U11의 전체 scroll 요소 경계를 가용 콘텐츠 viewport로 통일. U09 인용은 공용 훅 변경만 함께 적용; 동결 기능 전용 변경 없음 | [#782](https://github.com/ieumbird/ieumdoc/issues/782), [현재 검증](editor-layout-rules-v1.md#form-content-viewport-782) |
 | D03 · P01/P04 | U05 표·U11 절 label의 anchor 끝 정렬·Apply/Cancel·밖에서 유지 → 대상 팝오버·Done/밖에서 적용 | [#791](https://github.com/ieumbird/ieumdoc/issues/791) |
 | D04 · P01/P03/P04/P09 | U04 수식은 원문 폼 진입만 있음 → 작은 metadata 진입 분리 | [#788](https://github.com/ieumbird/ieumdoc/issues/788) |
 | D05 · P04 | U08–U10 링크·인용·교차참조는 Cancel 없음·blur dismissal → 명시적 적용/취소와 초안 유지 | [#790](https://github.com/ieumbird/ieumdoc/issues/790) |
-| D06 · P06 | U12 큰 빈 제목·U01 pending 상태 문구 → 작은 선택 제목·보이는 그림 작성 진입 | [#786](https://github.com/ieumbird/ieumdoc/issues/786) |
 | D07 · P02/P07/P12 | #769의 낡은 대응표 경고와 #797 Docling 실행 오류가 공용 센터를 사용. U14/U16 등의 문서·블록·shell 메시지 분산 → 같은 창별 센터로 집계·위치 이동·해결/닫기/재발 | [#792](https://github.com/ieumbird/ieumdoc/issues/792) |
 | D08 · P03/P09/P10 | U05 하단 Edit·독립 Delete → 상단 속성 진입·동작 메뉴 삭제 | [#793](https://github.com/ieumbird/ieumdoc/issues/793) |
 | D09 · P05/P07 | U03–U05/U07–U11 짧은 필드의 상시 경계, U01–U11의 폼 Notice/필드 오류 차이 → 속성 fill·필드 오류 연결(기존 연결은 보존) | [#789](https://github.com/ieumbird/ieumdoc/issues/789) |

@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { i18n } from "./i18n.ts";
 import { useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
 import { useEditorVisible } from "./editor-visibility.ts";
-import { documentScrollContainer } from "./document-scroll.ts";
+import { useDocumentBounds } from "./ui/use-document-bounds.ts";
 import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { PROPERTY_APPLY_SHORTCUT } from "./shortcuts.ts";
@@ -28,19 +28,25 @@ export function BlockProperties({
 }) {
   useTranslation();
   const visible = useEditorVisible();
+  const bounds = useDocumentBounds(anchor, open);
   const wasOpen = useRef(false);
+  const openingFocus = useRef<RefObject<HTMLElement | null> | false>(false);
+  // Boundary measurement rerenders before Base UI's queued initial focus. Keep the
+  // opening target stable, but do not refocus a retained draft when its tab reappears.
+  if (!wasOpen.current && open) openingFocus.current = initialFocus ?? false;
+  if (!visible) openingFocus.current = false;
   useLayoutEffect(() => { wasOpen.current = open; }, [open]);
   if (!visible) return null;
   return (
     <Popover open={open}>
       <PopoverContent
         anchor={anchor}
-        collisionBoundary={documentScrollContainer(anchor.current) ?? undefined}
+        collisionBoundary={bounds}
         sticky
         side="bottom"
         align="end"
         sideOffset={12}
-        initialFocus={wasOpen.current ? false : initialFocus ?? false}
+        initialFocus={openingFocus.current}
         finalFocus={false}
         aria-label={i18n.t("{{kind}} properties", { kind: kind })}
         data-testid={`${testId}-properties`}

@@ -12,7 +12,7 @@ type AssetHost = {
   create(file: File, documentPath: string, source: "paste" | "drop"): Promise<AssetResponse>;
   rollback(created: AssetResponse, documentPath: string): Promise<void>;
 };
-type Options = { documentPath: string | (() => string); reject(reason: string): void; pending?(active: boolean): void; changed?(path: string): void; host?: AssetHost };
+type Options = { documentPath: string | (() => string); reject(reason: string): void; pending?(active: boolean): void; changed?(path: string): void; host?: AssetHost; hasActiveDraft?(sourcePath: string): boolean };
 
 const browserHost: AssetHost = {
   async create(file, documentPath, source) {
@@ -74,6 +74,11 @@ export function imageAssetsPlugin(options: Options): Plugin {
       created = await host.create(file, documentPath, source);
       const pending = key.getState(view.state);
       if (destroyed || !view.editable || pending?.anchor == null) throw new Error("Image insertion was cancelled because its Editor or target block changed.");
+      // Drafts are outside engine state, so the unchanged-node check cannot detect them.
+      // Query live at completion, including drafts opened while the Host upload was pending.
+      if (pending.emptyFigure && options.hasActiveDraft?.(String(pending.emptyFigure.attrs.sourcePath))) {
+        throw new Error("Image insertion was cancelled because the Figure has unapplied edits. Apply or Cancel them first.");
+      }
       const index = view.state.doc.resolve(pending.anchor).index(0);
       const image = { imageUrl: created.path, imageAlt: "" };
       const tr = pending.emptyFigure

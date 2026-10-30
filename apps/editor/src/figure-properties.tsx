@@ -1,8 +1,8 @@
-import { useLayoutEffect, useState, type ReactNode, type RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
 import { Button } from "@/components/ui/button.tsx";
-import { documentScrollContainer } from "./document-scroll.ts";
+import { useDocumentBounds } from "./ui/use-document-bounds.ts";
 import { useEditorVisible } from "./editor-visibility.ts";
 import { PROPERTY_APPLY_SHORTCUT } from "./shortcuts.ts";
 import { Notice } from "./ui/primitives.tsx";
@@ -14,25 +14,7 @@ export function FigureProperties({ anchor, kind, testId, open, busy, choosing, e
 }) {
   const { t } = useTranslation();
   const visible = useEditorVisible();
-  const [bounds, setBounds] = useState<{ x: number; y: number; width: number; height: number }>();
-  useLayoutEffect(() => {
-    const viewport = documentScrollContainer(anchor.current);
-    if (!open || !visible || !viewport) return;
-    const measure = () => {
-      const rect = viewport.getBoundingClientRect(), style = getComputedStyle(viewport);
-      const left = parseFloat(style.paddingLeft), right = parseFloat(style.paddingRight);
-      const next = { x: rect.left + viewport.clientLeft + left, y: rect.top + viewport.clientTop,
-        width: viewport.clientWidth - left - right, height: viewport.clientHeight };
-      setBounds(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
-    };
-    measure();
-    const resize = new ResizeObserver(measure);
-    resize.observe(viewport);
-    const movement = new MutationObserver(measure);
-    movement.observe(viewport, { attributes: true, attributeFilter: ["style", "data-group-index"] });
-    window.addEventListener("resize", measure);
-    return () => { resize.disconnect(); movement.disconnect(); window.removeEventListener("resize", measure); };
-  }, [anchor, open, visible]);
+  const bounds = useDocumentBounds(anchor, open);
   if (!visible) return null;
   return <Popover open={open} onOpenChange={(next, details) => {
     if (next || choosing) return;

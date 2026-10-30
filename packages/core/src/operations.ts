@@ -939,11 +939,11 @@ export function updateFigure(document: MystDocument, path: NodePath, changes: Pa
   if (!content) {
     throw new DocumentDiagnosticError("unsupported-content", `figure structure at [${path.join(",")}] is not editable in this version`);
   }
-  if (changes.mermaidSource !== undefined && content.mermaidSource === undefined) {
-    throw new DocumentDiagnosticError("unsupported-content", "Mermaid source requires an existing Mermaid Figure; content conversion is not supported");
+  if (changes.mermaidSource !== undefined && content.mermaidSource === undefined && (content.imageUrl || content.imageAlt)) {
+    throw new DocumentDiagnosticError("unsupported-content", "Mermaid source requires a pending or existing Mermaid Figure; image conversion is not supported");
   }
   const figure: FigureContent = {
-    ...(content.mermaidSource !== undefined ? { mermaidSource: changes.mermaidSource ?? content.mermaidSource } : {}),
+    ...(changes.mermaidSource !== undefined || content.mermaidSource !== undefined ? { mermaidSource: changes.mermaidSource ?? content.mermaidSource } : {}),
     imageUrl: changes.imageUrl ?? content.imageUrl,
     imageAlt: changes.imageAlt ?? content.imageAlt,
     caption: changes.caption ?? content.caption,

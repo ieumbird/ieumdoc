@@ -366,7 +366,16 @@ test("Mermaid Figure operations preserve opaque source, caption, identity and mi
   }
   for (const index of [0, 1]) {
     const other = insertFigure(input, index, { imageUrl: "", imageAlt: "", caption: "" });
-    assert.throws(() => updateFigure(other, [index], { mermaidSource: "graph LR" }), /existing Mermaid Figure/);
+    const pending = updateLabel(updateFigure(other, [index], { caption: figure.caption }), [index], "fig-pending");
+    const filled = updateFigure(pending, [index], { mermaidSource: source });
+    const reopened = parse(serialize(filled));
+    const block = getEditableDocument(reopened).blocks[index];
+    assert.ok(block.block === "figure");
+    assert.equal(block.mermaidSource, source);
+    assert.equal(block.label, "fig-pending");
+    assert.deepEqual(block.caption.content, figure.caption);
+    assert.equal(serialize(reopened), serialize(filled));
+    for (const invalid of ["", " \n\t"]) assert.throws(() => updateFigure(pending, [index], { mermaidSource: invalid }), /non-empty/);
   }
   assert.throws(() => updateFigure(input, [0], { mermaidSource: "graph LR" }), /existing Mermaid Figure/);
   for (const changes of [{ imageUrl: "image.svg" }, { imageAlt: "Alt" }]) {

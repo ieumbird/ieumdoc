@@ -191,6 +191,42 @@ test('workflow consumes event policy outputs and preserves selected-job gates', 
   assert.equal(aggregate.if, '${{ always() }}');
 });
 
+test('ordinary CI retains small diagnostics and screen evidence without distribution binaries', () => {
+  const ci = load(readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'));
+  const uploads = job => job.steps.filter(step => step.uses?.startsWith('actions/upload-artifact@'));
+  const http = uploads(ci.jobs.http);
+  const captures = http.find(step => step.with.name === 'http-host-${{ runner.os }}');
+  assert.equal(captures.if, 'always()', 'captures produced before a failure must still be retained');
+  assert.equal(captures.with.path.trim(), 'tmp/http-host-capture/');
+  assert.equal(captures.with['if-no-files-found'], 'ignore', 'early failures may produce no captures');
+  const desktop = uploads(ci.jobs.desktop);
+  assert.ok(!desktop.some(step => step.with.name === 'desktop-windows-unsigned'));
+  const diagnostics = desktop.find(step => step.with.name === 'desktop-windows-diagnostics');
+  assert.equal(diagnostics.if, 'failure()');
+  assert.deepEqual(new Set(diagnostics.with.path.trim().split('\n')), new Set([
+    'tmp/desktop-e2e/profiles/*/logs/desktop.log*',
+    'tmp/desktop-e2e/recovery-proof.json',
+    'tmp/desktop-update/v*/latest.yml',
+    'tmp/desktop-update/v*/beta.yml',
+    'tmp/desktop-uninstall/*-dialogs.txt',
+    'tmp/desktop-uninstall/*-cleanup.txt',
+    '~/AppData/Local/IeumDoc/uninstall-logs/*.tmp',
+  ]), 'diagnostics must explicitly select generated evidence, never whole install/profile/cache trees');
+  const caption = desktop.find(step => step.with.name === 'desktop-caption-pixels');
+  assert.equal(caption.if, 'always()');
+  assert.equal(caption.with.path, 'tmp/desktop-e2e/caption-pixels/');
+  for (const step of [...http, ...desktop]) {
+    assert.equal(step.with['retention-days'], 7);
+    assert.doesNotMatch(step.with.path, /\.(?:exe|blockmap|tgz)|win-unpacked/);
+  }
+  const release = load(readFileSync(new URL('../.github/workflows/desktop-release.yml', import.meta.url), 'utf8'));
+  const delivery = uploads(release.jobs.build).find(step => step.with.name === 'desktop-release');
+  assert.match(delivery.with.path, /apps\/desktop\/release\/win-unpacked\//);
+  assert.equal(delivery.with['retention-days'], 14);
+  assert.equal(release.jobs.publish.steps.find(step => step.uses?.startsWith('actions/download-artifact@')).with.name,
+    delivery.with.name, 'publication must retain its verified build input');
+});
+
 test('queue concurrency isolates group SHAs while only newer PR runs cancel older runs', () => {
   const { concurrency } = load(readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'));
   const group = context => concurrency.group.replace(/\$\{\{(.*?)\}\}/g, (_, expression) => evaluate(expression, context));

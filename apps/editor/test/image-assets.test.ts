@@ -428,11 +428,11 @@ test("a chosen image inside the document's folder is linked in place; one elsewh
   assert.equal(fs.readFileSync(doc, "utf8"), nativeSource("# Images\n\nKeep this text.\n"));
 });
 
-function imageEditor(doc: string, reject: (reason: string) => void, host: Parameters<typeof imageAssetsPlugin>[0]["host"], extra: Plugin[] = []) {
+function imageEditor(doc: string, reject: (reason: string) => void, host: Parameters<typeof imageAssetsPlugin>[0]["host"], extra: Plugin[] = [], hasActiveDraft?: (sourcePath: string) => boolean) {
   const schema = getSchema(editorExtensions());
   const baseline = toTiptapDocument(loadEditableDocument(nativeSource("Alpha.\n\nBeta.\n")));
   let pending = false;
-  const plugin = imageAssetsPlugin({ documentPath: doc, reject, host, pending: value => { pending = value; } });
+  const plugin = imageAssetsPlugin({ documentPath: doc, reject, host, hasActiveDraft, pending: value => { pending = value; } });
   const view = {
     state: EditorState.create({ schema, doc: schema.nodeFromJSON(baseline), plugins: [history(), plugin, structureGuardPlugin(baseline, reason => reject(messageText(reason ?? "Structure rejected"))), ...extra] }),
     editable: true,
@@ -567,16 +567,18 @@ test("pending upload maps its block through typing, preserves the newer caret an
   assert.equal(e.view.state.doc.firstChild!.textContent, "before Alpha.");
 
   // A Figure fill cannot become an insertion or overwrite a newer value while awaiting the Host.
-  for (const change of ["caption", "label", "image", "delete"] as const) {
+  for (const change of ["caption", "label", "image", "delete", "draft"] as const) {
     const errors: string[] = [];
     const rolledBack: string[] = [];
+    let draftPath: string | undefined;
     const filling = imageEditor(doc, reason => errors.push(reason), {
       create: () => new Promise(done => { resolve = done; }),
       rollback: async created => { rolledBack.push(created.path); },
-    });
+    }, [], sourcePath => sourcePath === draftPath);
     filling.view.dispatch(insertFigureAfter(filling.view.state, 0));
     filling.paste();
     const position = filling.view.state.doc.firstChild!.nodeSize;
+    if (change === "draft") draftPath = String(filling.view.state.doc.nodeAt(position)!.attrs.sourcePath);
     if (change === "caption") filling.view.dispatch(filling.view.state.tr.insertText("New caption", position + 1));
     if (change === "label") filling.view.dispatch(updateFigure(filling.view.state, position, { label: "fig-new" }));
     if (change === "image") filling.view.dispatch(updateFigure(filling.view.state, position, { imageUrl: "./newer.png" }));

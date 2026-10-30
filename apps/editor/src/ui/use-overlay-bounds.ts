@@ -1,8 +1,8 @@
 import { useEditorVisible } from "../editor-visibility.ts";
-import { documentScrollContainer } from "../document-scroll.ts";
+import { documentContentBounds, documentScrollContainer } from "../document-scroll.ts";
 import { useLayoutEffect, useRef } from "react";
 
-/** Fit overlays to their split document viewport; retain the window bounds in one group. */
+/** Fit overlays to their owning document content viewport in every group layout. */
 export function useOverlayBounds<T extends HTMLElement>(open = true) {
   const visible = useEditorVisible();
   const ref = useRef<T>(null);
@@ -14,19 +14,13 @@ export function useOverlayBounds<T extends HTMLElement>(open = true) {
     const viewport = documentScrollContainer(element);
     const fit = () => {
       const inset = 8;
-      const group = viewport?.closest(".app-shell--split") ? viewport.getBoundingClientRect() : null;
-      const leftEdge = group ? group.left + viewport!.clientLeft : 0;
-      const topEdge = group ? group.top + viewport!.clientTop : document.querySelector(".app-header")?.getBoundingClientRect().bottom ?? 0;
-      // clientWidth is integral, while equal columns can end on half pixels. Stay inside both.
-      const rightEdge = group ? Math.min(group.right, leftEdge + viewport!.clientWidth) : window.innerWidth;
-      const bottomEdge = group ? Math.min(group.bottom, topEdge + viewport!.clientHeight) : window.innerHeight;
-      if (group) {
-        element.style.setProperty("--overlay-max-width", `${rightEdge - leftEdge - inset * 2}px`);
-        element.style.setProperty("--overlay-max-height", `${bottomEdge - topEdge - inset * 2}px`);
-      } else {
-        element.style.removeProperty("--overlay-max-width");
-        element.style.removeProperty("--overlay-max-height");
-      }
+      const bounds = viewport ? documentContentBounds(viewport) : null;
+      const leftEdge = bounds?.x ?? 0;
+      const topEdge = bounds?.y ?? document.querySelector(".app-header")?.getBoundingClientRect().bottom ?? 0;
+      const rightEdge = bounds ? bounds.x + bounds.width : window.innerWidth;
+      const bottomEdge = bounds ? bounds.y + bounds.height : window.innerHeight;
+      element.style.setProperty("--overlay-max-width", `${Math.max(0, rightEdge - leftEdge - inset * 2)}px`);
+      element.style.setProperty("--overlay-max-height", `${Math.max(0, bottomEdge - topEdge - inset * 2)}px`);
       // Apply the size cap before measuring so forms and menus can wrap/scroll, then fit.
       const rect = element.getBoundingClientRect();
       // Subtract our previous translation so repeated fitting never accumulates offsets.
@@ -41,10 +35,15 @@ export function useOverlayBounds<T extends HTMLElement>(open = true) {
     const resize = new ResizeObserver(fit);
     resize.observe(element);
     if (viewport) resize.observe(viewport);
+    const movement = new MutationObserver(fit);
+    const shell = viewport?.closest(".app-shell");
+    if (shell) movement.observe(shell, { attributes: true, attributeFilter: ["class"] });
+    if (viewport) movement.observe(viewport, { attributes: true, attributeFilter: ["style", "data-group-index"] });
     window.addEventListener("resize", fit);
     window.addEventListener("scroll", fit, true);
     return () => {
       resize.disconnect();
+      movement.disconnect();
       window.removeEventListener("resize", fit);
       window.removeEventListener("scroll", fit, true);
     };

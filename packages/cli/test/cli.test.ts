@@ -2903,7 +2903,7 @@ test("Figure Mermaid argument input supports atomic writes, inspect, dry-run and
   assert.equal(invalid.status, 1); assert.match(invalid.stderr, /non-empty/);
   assert.equal(readFileSync(file, "utf8"), output);
   writeFileSync(operationsFile, JSON.stringify([
-    { command: "insert-figure", at: "end", mermaid: diagram, label: "fig-flow", caption: "흐름" },
+    { command: "insert-figure", at: "end", label: "fig-flow", caption: "흐름" },
     { command: "update-figure", path: 2, mermaid: "graph TD\n  B --> C" },
   ]));
   const batch = run(["apply-batch", batchFile, "--operations", operationsFile]);

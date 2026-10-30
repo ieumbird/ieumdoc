@@ -59,7 +59,7 @@ pnpm --filter @ieumdoc/editor build
 
 ### Enqueue
 
-Ruleset `Protect master`의 `merge_queue` 설정은 merge method `MERGE`, build concurrency 1, group size 최소/최대 1/1, `ALLGREEN`, check timeout 60분이다. 필수 검사는 `Core, CLI, Editor, and browser regressions`이며, queue가 켜져 있는 동안 strict up-to-date (`strict_required_status_checks_policy`)는 OFF다. Queue를 비활성화할 때는 strict를 다시 ON으로 설정한다.
+Ruleset `Protect master`의 `merge_queue` 설정은 merge method `MERGE`, build concurrency 5, group size 최소/최대 1/5, 최소 대기 0분, `ALLGREEN`, check timeout 60분이다. 2026-10-30 소유자 승인으로 동시 build와 group 최대를 1에서 5로 올렸다(API로 확인). 여러 PR이 대기하면 queue가 앞선 PR을 포함한 group을 병렬로 검증해 함께 병합하고, group이 실패하면 GitHub가 나누어 다시 검증한다. 경로 규칙은 group 전체 diff에 적용된다. 필수 검사는 `Core, CLI, Editor, and browser regressions`이며, queue가 켜져 있는 동안 strict up-to-date (`strict_required_status_checks_policy`)는 OFF다. Queue를 비활성화할 때는 strict를 다시 ON으로 설정한다.
 
 위 2단계의 독립 승인 PR 댓글은 다음 형식으로 남긴다.
 
@@ -142,7 +142,7 @@ Linux Editor 4개 shard와 HTTP browser job은 공식 `mcr.microsoft.com/playwri
 
 `pnpm --filter @ieumdoc/cli package`는 Node CLI 번들과 production Editor를 `packages/cli/dist/*.tgz`로 만든다. `pnpm --filter @ieumdoc/cli test:packaged`는 checkout 밖에 offline 설치해 Node만으로 실행·저장·종료를 검사한다. 이어 `pnpm browser:test http-host`가 production Host를 직접 시작하고 정리한다. Vite 시나리오와 한 호출에 섞지 않는다.
 
-Windows/Linux CI는 이 세 검사를 수행하고 tarball을 Artifact로 제공한다. 로컬에서는 관련 boundary tests와 HTTP browser 회귀를 실행한다 (`pnpm --filter @ieumdoc/cli build` 선행). `package`·`test:packaged`는 CLI 패키징·배포 경계를 변경할 때 실행한다. 공개 registry 게시·버전 release는 수행하지 않는다. 설치/실행과 원격 프록시 전제는 [HTTP Host contract](docs/design/http-host-v1.md)를 따른다.
+Windows/Linux CI는 이 세 검사를 수행하되 tarball은 Artifact로 보관하지 않는다. 생성된 화면 근거는 성공·실패 모두 7일 보관하고, 실패 시 browser diagnostics도 7일 보관한다. 앞선 단계가 실패해 아직 생성되지 않은 화면 근거는 업로드하지 않는다. 로컬에서는 관련 boundary tests와 HTTP browser 회귀를 실행한다 (`pnpm --filter @ieumdoc/cli build` 선행). `package`·`test:packaged`는 CLI 패키징·배포 경계를 변경할 때 실행한다. 공개 registry 게시·버전 release는 수행하지 않는다. 설치/실행과 원격 프록시 전제는 [HTTP Host contract](docs/design/http-host-v1.md)를 따른다.
 
 ## Windows Desktop builds and releases
 
@@ -158,7 +158,9 @@ pnpm --filter @ieumdoc/desktop test:packaged
 
 공개 버전은 `0.0.2-beta.4`이며 Stable 공개는 보류한다. Beta 설치본의 최초 실행 기본 채널은 Beta, Stable 설치본은 Stable이다. 유효하게 저장된 사용자 선택은 버전이 바뀌어도 유지한다. Beta는 제한된 unsigned 게시 모드를 사용할 수 있으며 Stable은 서명된 릴리즈 절차만 허용한다.
 
-일반 PR/push CI는 unsigned installer를 Artifact로 제공하며 게시 권한이나 release job이 없다. 첫 beta.1은 CI 자산을 별도로 검증하여 수동 공개했다. 다음 Beta부터는 [Desktop release workflow](.github/workflows/desktop-release.yml)를 master에서 수동 실행한다.
+일반 PR/merge-group/push CI는 unsigned package 생성·release 자산 검증·packaged 회귀와 경로 정책이 선택한 설치/업데이트·제거 검사를 유지하되 개발용 installer를 업로드하지 않는다. 실패 진단은 packaged profile의 `logs/desktop.log*`, `recovery-proof.json`, 업데이트 시험 버전의 `latest.yml`·`beta.yml`, 제거 검사의 `*-dialogs.txt`·`*-cleanup.txt`와 실제 `%LOCALAPPDATA%\IeumDoc\uninstall-logs\*.tmp` 진단만 7일 보관한다. 실행 로그와 직접 시작 측정치는 Actions 로그에서 확인한다. 실행 파일·blockmap·설치 트리·브라우저 profile·cache 전체는 진단에 포함하지 않는다. 작은 native caption 화면 근거는 성공·실패 모두 7일 보관한다. 게시 권한이나 release job은 없다.
+
+첫 beta.1은 당시 CI 자산을 별도로 검증하여 수동 공개했다. 다음 Beta부터는 [Desktop release workflow](.github/workflows/desktop-release.yml)를 master에서 수동 실행한다. 이 workflow의 `desktop-release` Artifact는 installer·blockmap·채널 manifest와 게시 재검증 입력인 `win-unpacked/`를 14일 유지한다. Release 자산·전역 retention·queue 동시성과 CI 실행/성공 기준은 이 업로드 정책의 변경 대상이 아니다.
 
 | Mode | 동작 |
 | --- | --- |
