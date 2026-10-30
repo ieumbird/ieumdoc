@@ -3214,3 +3214,12 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
   .app-shell--split .document-scroll { width: auto; padding: 0; }
   .document-column, .app-shell--wide .document-column { max-width: none; min-height: 0; padding: 0; }
 }
+.docling-tab { position: fixed; top: var(--app-header-height, var(--layout-header-row)); bottom: 0; left: var(--shell-sidebar); right: var(--shell-panel); min-height: 0; min-width: 0; overflow: hidden; }
+.app-shell--split .docling-tab { --editor-group-width: calc((100vw - var(--shell-sidebar) - var(--shell-panel) - var(--border-width)) / 2); left: calc(var(--shell-sidebar) + var(--editor-group-index) * (var(--editor-group-width) + var(--border-width))); right: auto; width: var(--editor-group-width); }
+.docling-tab[hidden] { display: none; }
+.docling-readonly-document { width: 100%; margin: 0; padding: var(--space-4); min-height: 100%; border-radius: 0; box-shadow: none; overflow-wrap: anywhere; }
+.notification-center { position: fixed; z-index: 80; right: var(--space-8); bottom: var(--space-4); display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); max-width: min(28rem, calc(100vw - 4rem)); color: var(--id-color-warning); }
+.notification-center[data-severity="error"] { color: var(--id-color-danger); }
+.notification-center > button { border-radius: var(--id-radius-xl); color: inherit; }
+.notification-center ul { list-style: none; margin: 0; padding: var(--space-3); background: var(--id-color-surface); border: var(--border-width) solid currentColor; border-radius: var(--id-radius-md); box-shadow: var(--shadow-overlay); }
+.notification-center p { margin: 0 0 var(--space-2); }

@@ -3,6 +3,7 @@
  * shards using observed durations from CI run 40296330682 (#535).
  */
 export const STABLE_SCENARIOS = [
+  "docling-compare",
   "continuous-editing",
   "atom-boundaries",
   "editor-shell",

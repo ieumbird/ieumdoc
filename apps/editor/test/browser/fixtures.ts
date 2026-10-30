@@ -1,4 +1,5 @@
 import { nativeSource } from "../helpers/document.ts";
+import { comparisonFiles } from "./docling-fixtures.ts";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -31,6 +32,7 @@ const technical = [document("technical-document.md"), document("diagram.svg")];
 
 /** Scratch directory under `tmp/` → the files a fresh copy holds, and the scenarios using it. */
 export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: string[] }> = {
+  "docling-compare": { files: [], scenarios: ["docling-compare"] },
   "caption-selection": { files: [
     { name: "selection.md", create: () => nativeSource("# Caption selection\n\nBefore.\n\n" +
       ":::{figure} ./diagram.svg\n:name: fig-a\n\n**Upper** caption alpha\n:::\n\n" +
@@ -304,11 +306,19 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
 };
 
 /** Recreate every scratch directory under `tmpRoot` from its sources. Returns the directories. */
+let comparisons: ReturnType<typeof comparisonFiles> | undefined;
 export function prepareBrowserFixtures(tmpRoot = path.join(REPOSITORY_ROOT, "tmp")): string[] {
   return Object.entries(SCRATCH_DIRS).map(([name, { files }]) => {
     const dir = name === "file-actions" && tmpRoot === path.join(REPOSITORY_ROOT, "tmp") ? FILE_ACTIONS_ROOT : path.join(tmpRoot, name);
     rmSync(dir, { recursive: true, force: true });
     mkdirSync(dir, { recursive: true });
+    if (name === "docling-compare") {
+      comparisons ??= comparisonFiles();
+      for (const file of comparisons) {
+        mkdirSync(path.dirname(path.join(dir, file.name)), { recursive: true });
+        writeFileSync(path.join(dir, file.name), file.bytes);
+      }
+    }
     for (const file of files) {
       mkdirSync(path.dirname(path.join(dir, file.name)), { recursive: true });
       writeFileSync(path.join(dir, file.name), file.create());

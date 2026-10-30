@@ -7,8 +7,8 @@ import { ContextMenu } from "@/components/ui/context-menu.tsx";
 
 export function DocumentTabs({ tabs, allTabs = tabs, active, disabled, onActivate, onClose, actions, onOpenRight, onMove, openRightDisabled, moveDisabled }: {
   actions?: ReactNode;
-  tabs: { id: string; path: string; dirty: boolean }[];
-  allTabs?: { id: string; path: string }[];
+  tabs: { id: string; path: string; dirty: boolean; title?: string }[];
+  allTabs?: { id: string; path: string; title?: string }[];
   active: string | null;
   disabled: boolean;
   onActivate(id: string): void;
@@ -20,8 +20,8 @@ export function DocumentTabs({ tabs, allTabs = tabs, active, disabled, onActivat
 }) {
   useTranslation();
   const row = useRef<HTMLDivElement>(null);
-  const names = tabNames(allTabs);
-  const labels = tabLabels(allTabs);
+  const names = tabNames(allTabs).map((name, index) => allTabs[index]!.title ?? name);
+  const labels = tabLabels(allTabs).map((label, index) => allTabs[index]!.title ? { ...label, name: allTabs[index]!.title } : label);
   useLayoutEffect(() => {
     const list = row.current;
     if (!list) return;
