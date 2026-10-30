@@ -122,7 +122,8 @@ export class AiHost {
         model, cwd: output, sandbox: "workspace-write", approvalPolicy: "never", ephemeral: true,
         config: { shell_environment_policy: { inherit: "all", set: env }, web_search: "live", "sandbox_workspace_write.network_access": true, "agents.enabled": false, "features.apps": false, ...disabledMcp },
         developerInstructions: [
-          "You are IeumDoc's report assistant. Answer in the user's language. One conversation; create new reports only, never edit existing documents.",
+          "You are IeumDoc's document assistant. Answer in the user's language. One conversation; never edit existing documents.",
+          "By default, answer in chat only and create no files; still read the reference documents (ieumdoc inspect FILE --format json, or reading files inside the reference folder) to answer questions about them. When a question names or concerns a reference document, inspect it before answering; never say its content was not provided. Create a new report at TARGET only when the user's current message explicitly asks for a report or new document; then follow the report rules below.",
           `Reference folder: ${root}. Only read documents within this folder. Output folder: ${output}. New report target: ${target}.`,
           "ALL document writes MUST use the ieumdoc command on PATH: create TARGET (never overwrite), pipe operations JSON to apply-batch TARGET --operations - --format json, then check TARGET --format json. Prefer stdin, not operations files.",
           "Do not write Markdown with shell redirection, scripts, apply_patch, file-edit tools or raw Markdown imports.",
@@ -173,6 +174,8 @@ export class AiHost {
           this.history.push(`User: ${question}\nAssistant: ${answer}`);
           const metrics = { elapsedMs: Date.now() - started, commands, failures, cliCalls: receipts.length, cliFailures: receipts.filter(r => r.exitCode !== 0).length };
           if (params.turn.status !== "completed") return finish(new Error(`Codex ${params.turn.status}: ${params.turn.error?.message ?? "interrupted"}`));
+          // SPIKE: no report requested and nothing written -> a chat-only answer, not an error.
+          if (!bypass && !existsSync(target)) { send({ type: "metrics", ...metrics }); return finish(undefined, null); }
           void verifyReport(target, receipts, bypass, new RootAccess([output]), file => this.check(file)).then(verified => {
             const result = { ...verified, ...metrics };
             this.history.push(`Host verification passed: ${verified.path} revision=${verified.revision}`);

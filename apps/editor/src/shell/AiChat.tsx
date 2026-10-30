@@ -19,7 +19,7 @@ export function AiChat({ status, conversation, roots, onSettings, onOpen }:
       <Button variant="ghost" size="sm" disabled={conversation.busy || !conversation.messages.length} onClick={() => { if (window.confirm("대화 내용을 모두 지울까요? 만든 보고서 파일은 지워지지 않습니다.")) conversation.clear(); }}>대화 지우기</Button>
     </div>
     <div ref={log} className="ai-messages" role="log" aria-label="AI 대화" data-testid="ai-messages">
-      {!conversation.messages.length ? <p className="ai-empty">문서를 바탕으로 새 보고서를 요청하세요. 탭을 바꿔도 대화는 유지됩니다.</p> : null}
+      {!conversation.messages.length ? <p className="ai-empty">문서에 대해 묻거나, 보고서가 필요하면 "보고서로 만들어줘"처럼 요청하세요. 탭을 바꿔도 대화는 유지됩니다.</p> : null}
       {conversation.messages.map((message, index) => <article className={`ai-message ai-message--${message.role}`} key={index}>
         <strong>{message.role === "user" ? "나" : message.role === "assistant" ? "AI" : "Host"}</strong><p>{message.text}</p>
         {message.report ? <Button variant="secondary" size="sm" onClick={() => onOpen(message.report!)}>검증된 보고서 열기</Button> : null}
