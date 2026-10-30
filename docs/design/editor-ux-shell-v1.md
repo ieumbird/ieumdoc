@@ -2642,3 +2642,10 @@ Settings and bilingual command parity, reload persistence, live System appearanc
 update-dot separation and viewport containment. Manual captures are written to
 `tmp/color-mode-798/` at 1440px Light/English and 640px Dark/Korean, expanded and rail;
 the PR records the clean-base Before and changed After evidence.
+
+The first CI run (41111712377, shard 3) exposed an obsolete Command Center test
+assumption: the result immediately before Settings for `> s` was hard-coded as
+Collapse Explorer. The new Color mode: System legitimately occupies that position.
+The regression now derives the actual preceding enabled result and retains both
+the active-descendant and single-highlight checks after hover → ArrowUp. No command
+ordering, product keyboard behavior, timeout or retry policy changes.
