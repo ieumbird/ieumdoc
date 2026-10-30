@@ -196,7 +196,7 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
   await applyNumber('fixed-table','table','');
   await edit('fixed-table','table');
   expect(await page.getByTestId('numbering-block-warning').innerText()).toContain('Missing fixed number');
-  await page.getByTestId('table-cancel').click();
+  await page.getByTestId('table-label').press('Escape');
   await applyNumber('fixed-diagram','mermaid-property','18');
   await edit('fixed-diagram','mermaid-property');
   expect(await page.getByTestId('numbering-block-warning').innerText()).toContain('18 is duplicated');

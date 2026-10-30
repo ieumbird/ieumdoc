@@ -406,12 +406,12 @@ async (page, { openPath, reloadDocument }) => {
   await table.getByRole('button', {name:'Table actions', exact:true}).click();
   await page.getByRole('menu', {name:'Table actions', exact:true}).getByRole('menuitem', {name:'Edit label', exact:true}).click();
   await page.getByTestId('table-label').fill('cancelled-label');
-  await page.getByTestId('table-cancel').click();
+  await page.getByTestId('table-label').press('Escape');
   result.captionCancelKeepsTable = await table.getByTestId('table-caption').textContent() === '' &&
     await table.getByLabel('Table caption',{exact:true}).getAttribute('data-placeholder') === 'Enter a table caption…';
   await table.hover();
   await table.getByRole('button', {name:'Edit table'}).click();
-  await page.getByTestId('table-cancel').click();
+  await page.getByTestId('table-label').press('Escape');
   await table.getByLabel('Table caption',{exact:true}).click();
   result.emptyCaptionClickFocus = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n =>
     n.editor.view.hasFocus() && n.editor.state.selection.$from.parent.type.name === 'tableCaption');

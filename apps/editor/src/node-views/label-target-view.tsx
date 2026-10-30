@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input.tsx";
 import { updateLabelProperties } from "../label-rename.ts";
 import { useMessageState } from "../ui-message.ts";
 import { i18n } from "../i18n.ts";
-import { BlockProperties } from "../block-properties.tsx";
+import { MetadataProperties } from "../metadata-properties.tsx";
 import { focusBlock, type DraftListener } from "./shared.ts";
 
 /** Why `label` cannot name this section: the target label rules, or another target's label. */
@@ -36,15 +36,15 @@ export function LabelTargetView({ node, editor, getPos, selected }: ReactNodeVie
     onDraftChange?.("Section label", path, dirty);
     return () => onDraftChange?.("Section label", path, false);
   }, [path, dirty, onDraftChange]);
-  const close = () => { setEditing(false); setError(""); focusBlock(editor.view, getPos); };
-  const apply = () => {
+  const close = (returnCaret = true) => { setEditing(false); setError(""); if (returnCaret) focusBlock(editor.view, getPos); };
+  const apply = (outside = false) => {
     const position = getPos();
     const invalid = typeof position === "number" ? sectionLabelError(editor.state.doc, position, draft) : undefined;
     if (invalid) { setError(invalid); return; }
     if (typeof position !== "number") return;
     try { editor.view.dispatch(updateLabelProperties(editor.state, position, { label: draft })); }
     catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
-    close();
+    close(!outside);
   };
   // Authoring metadata like a Figure label: it takes no space and shows with its heading.
   return (
@@ -55,18 +55,18 @@ export function LabelTargetView({ node, editor, getPos, selected }: ReactNodeVie
         {editor.isEditable ? (
           <button type="button" className="label-target-edit" aria-label={i18n.t("Edit section label {{label}}", { label: label })} data-testid="label-target-edit"
             title={i18n.t("Section label: {ref} references to it name the heading below")}
-            onClick={() => { setDraft(label); setError(""); setEditing(true); }}>§ {label}</button>
+            onClick={() => { if (editing) return; setDraft(label); setError(""); setEditing(true); }}>§ {label}</button>
         ) : <span className="label-target-text">§ {label}</span>}
       </p>
-      <BlockProperties anchor={anchor} initialFocus={input} kind={i18n.t("Section label")} testId="label-target" open={editing}
-        onApply={apply} onCancel={close}>
+      <MetadataProperties target={() => anchor.current?.closest(".node-labelTarget")?.nextElementSibling ?? anchor.current} anchor={anchor} initialFocus={input} kind={i18n.t("Section label")} testId="label-target" open={editing}
+        onApply={apply} onCancel={() => close()}>
         <div className="form-field">
           <label className="form-label" htmlFor={`label-target-${formId}`}>{i18n.t("Label")}</label>
           <Input ref={input} id={`label-target-${formId}`} aria-invalid={!!error || undefined} aria-describedby={error ? `${formId}-error` : undefined} data-testid="label-target-input" value={draft}
             onChange={event => { setDraft(event.target.value); setError(""); }} />
           <FieldError id={`${formId}-error`}>{error}</FieldError>
         </div>
-      </BlockProperties>
+      </MetadataProperties>
     </NodeViewWrapper>
   );
 }

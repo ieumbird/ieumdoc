@@ -74,7 +74,7 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   const overlayGeometry = [];
   const panelState = async open => {
     const toggle = page.getByRole('button', {name:'Outline',exact:true});
-    if ((await toggle.getAttribute('aria-pressed') === 'true') !== open) await toggle.click();
+    if ((await toggle.getAttribute('aria-pressed') === 'true') !== open) { await toggle.focus(); await toggle.press("Enter"); }
   };
   const rightmost = async selector => {
     const nodes = overlaySurface.locator(selector);
@@ -137,13 +137,13 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
       await panelState(!outline);
       await inspectOverlay(page.getByTestId('label-target-properties'),'section-label-panel-change',width,!outline);
       await panelState(outline);
-      await page.getByTestId('label-target-cancel').click();
+      await page.getByTestId('label-target-input').press('Escape');
       const table = overlaySurface.locator('[data-block="table"]');
       await table.scrollIntoViewIfNeeded();
       await table.hover({position:{x:8,y:8}});
       await table.getByRole('button',{name:'Edit table',exact:true}).click();
       await inspectOverlay(page.getByTestId('table-properties'),'table',width,outline);
-      await page.getByTestId('table-cancel').click();
+      await page.getByTestId('table-label').press('Escape');
     }
   }
   await page.setViewportSize({width:1440,height:900});
@@ -442,7 +442,7 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   await active.locator('[data-block="table"]').hover();
   await active.getByRole('button', {name:'Edit table', exact:true}).click();
   await expect(page.getByRole('dialog', {name:'표 1 properties', exact:true})).toBeVisible();
-  await page.getByTestId('table-cancel').click();
+  await page.getByTestId('table-label').press('Escape');
   await page.getByRole('button', {name:'Document settings', exact:true}).click();
   expect(await templates.innerText()).toBe('Korean');
   await templates.click();

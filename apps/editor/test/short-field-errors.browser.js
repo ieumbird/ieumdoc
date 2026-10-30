@@ -101,7 +101,7 @@ async (page, { openPath, expect, screenshots }) => {
     await page.getByTestId('table-apply').click();
     await capture(`${tag}-table`);
     await checkError('table-label', ' bad-label');
-    await page.getByTestId('table-cancel').click();
+    await page.getByTestId('table-label').press('Escape');
 
     const mermaid = active.locator('.mermaid-figure').first();
     await openEditor(mermaid, mermaid.locator('.figure-edit'));
@@ -125,7 +125,7 @@ async (page, { openPath, expect, screenshots }) => {
     await page.getByTestId('label-target-apply').click();
     await capture(`${tag}-section`);
     await checkError('label-target-input', ' bad-label');
-    await page.getByTestId('label-target-cancel').click();
+    await page.getByTestId('label-target-input').press('Escape');
 
     await active.getByTestId('inline-math').locator('.katex-html').dblclick();
     await page.getByTestId('inline-math-source').fill('');

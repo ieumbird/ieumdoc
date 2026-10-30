@@ -32,6 +32,12 @@ Core's section rule already counts targets before a heading as part of that sect
 
 ## Editor
 
+- Section labels use the shared short metadata popover anchored to the complete following
+  heading (#791), bounded by the document content viewport. Done applies; Escape cancels;
+  a valid outside pointer click applies without stealing the clicked focus. Keyboard focus
+  movement alone retains the draft, including keyboard Save, which saves applied content
+  only. Validation errors retain the form and its values.
+
 - Deleting a labeled target that leaves a previously resolved role reference or fragment link
   unresolved shows the existing five-second informational notice: “Deleting this target broke a
   reference. Press Ctrl+Z to undo.” Apple platforms show `⌘Z`, following the existing TopBar

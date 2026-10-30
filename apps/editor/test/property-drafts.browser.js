@@ -1,5 +1,5 @@
 // Independent property drafts keep dirty status, focus and discard protection.
-async (page, { openPath }) => {
+async (page, { openPath, expect }) => {
   await page.unrouteAll();
   await page.reload();
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
@@ -34,7 +34,17 @@ async (page, { openPath }) => {
       (selection.from === end || (selection.from === end + 1 && selection.$from.parent.isTextblock));
   }, kind);
   const table = page.locator('[data-document-tab][data-active=true] [data-block="table"]');
-  const beginTable = async () => { await table.hover(); await activate(table.getByRole('button', {name:'Edit table', exact:true})); };
+  const beginTable = async () => {
+    // Another retained popover can cover Table's pointer entry. Select through the
+    // public engine command, then use its supported keyboard property entry.
+    await editor.evaluate(element => {
+      element.editor.state.doc.forEach((node, pos) => {
+        if (node.type.name === 'table') element.editor.commands.setNodeSelection(pos);
+      });
+      element.editor.view.focus();
+    });
+    await page.keyboard.press('Enter');
+  };
 
 
   for (const entry of ['double-click', 'Enter']) {
@@ -47,9 +57,10 @@ async (page, { openPath }) => {
     else await page.keyboard.press('Enter');
     check(await focused('table-label'), `${entry} did not focus table label`);
     await page.getByTestId('table-label').fill('preserved-table-draft');
-    await metadata.dblclick();
+    await editor.focus();
+    await page.keyboard.press("Enter");
     check(await page.getByTestId('table-label').inputValue() === 'preserved-table-draft', 'Table re-entry discarded input');
-    await page.getByTestId('table-cancel').click();
+    await page.getByTestId('table-label').press('Escape');
     await page.getByTestId('table-editor').waitFor({state:'detached'});
     check(await json() === before, 'Table entry changed content/history');
   }
@@ -59,18 +70,20 @@ async (page, { openPath }) => {
   check(await focused('label-target-input'), 'Edit did not focus the section label');
   await page.getByTestId('label-target-input').fill('section-draft');
   await dirty();
-  await page.getByRole('button', {name:'File actions', exact:true}).click();
-  await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
+  await activate(page.getByRole('button', {name:'File actions', exact:true}));
+  await activate(page.getByRole('menuitem', {name:'Reload', exact:true}));
   await page.getByRole('dialog', {name:'Discard local changes?'}).waitFor();
-  await page.getByRole('button', {name:'Keep editing', exact:true}).click();
+  await activate(page.getByRole('button', {name:'Keep editing', exact:true}));
+  await page.getByRole('dialog', {name:'Discard local changes?'}).waitFor({state:'detached'});
+  await page.getByRole('button', {name:'File actions', exact:true}).and(page.locator(':focus')).waitFor();
   check(await page.getByTestId('label-target-input').inputValue() === 'section-draft', 'Reload discarded section draft');
   await beginTable();
   check(await focused('table-label'), 'Edit did not focus the table label');
   await page.getByTestId('table-label').fill('table-draft');
-  await activate(page.getByTestId('label-target-cancel'));
+  await page.getByTestId('label-target-input').press('Escape');
   await dirty();
   check(await page.getByTestId('table-label').inputValue() === 'table-draft', 'Closing one kind lost another');
-  await activate(page.getByTestId('table-cancel'));
+  await page.getByTestId('table-label').press('Escape');
   await page.getByTestId('draft-notice').waitFor({state:'detached'});
   check(await json() === baseline && await page.getByTestId('status').innerText() === '', 'Cancel changed document or leaked registration');
   check(await focusedAfter('table'), 'Cancel did not return a caret after the table');
@@ -86,8 +99,80 @@ async (page, { openPath }) => {
   check(await focusedAfter('labelTarget') && await json() === baseline && await page.getByTestId('status').innerText() === '',
     'Escape did not return focus to its block, or changed the document');
 
+  await metadataCompletion();
   await appliedTyping();
   return {multipleKinds:true, reload:true, beforeunload:true, focus:true, appliedTyping:true};
+
+  async function metadataCompletion() {
+    const focusFile = file.replace('drafts.md', 'focus.md');
+    for (const [kind, type, field] of [['table','table','table-label'], ['label-target','labelTarget','label-target-input']]) {
+      await openPath(page, focusFile);
+      const active = page.locator('[data-document-tab][data-active=true]');
+      const target = active.locator(`[data-block="${kind}"]`);
+      const attrs = () => editor.evaluate((element, type) => element.editor.getJSON().content.find(node => node.type === type).attrs, type);
+      const original = await attrs();
+      const begin = async () => {
+        if (kind === 'table') {
+          await target.hover({position:{x:4,y:4}});
+          await activate(target.getByRole('button', {name:'Edit table',exact:true}));
+        } else {
+          await editor.locator('h2').hover();
+          await activate(active.getByTestId('label-target-edit'));
+        }
+        check(await focused(field), `${kind}: opening focus`);
+      };
+      await begin();
+      await expect(page.getByTestId(`${kind}-apply`)).toHaveText('Done');
+      await expect(page.getByTestId(`${kind}-cancel`)).toHaveCount(0);
+      await page.getByTestId(field).fill(' bad-label');
+      await page.getByText('Before.', {exact:true}).filter({visible:true}).click({position:{x:20,y:12}});
+      await expect(page.getByTestId(field)).toHaveAttribute('aria-invalid','true');
+      expect(await page.getByTestId(field).inputValue()).toBe(' bad-label');
+      expect(await attrs()).toEqual(original);
+      // A Core rename collision follows the same retained-draft path.
+      await page.getByTestId(field).fill('fig-a');
+      await page.getByTestId(`${kind}-apply`).click();
+      await expect(page.getByTestId(field)).toHaveAttribute('aria-invalid','true');
+      expect(await attrs()).toEqual(original);
+      await page.getByTestId(field).fill(`${kind}-done`);
+      if (kind === 'table') {
+        await page.getByTestId('table-editor').getByRole('button',{name:'Fixed',exact:true}).click();
+        await page.getByText('Before.', {exact:true}).filter({visible:true}).click({position:{x:20,y:12}});
+        await expect(page.getByTestId('table-enumerator')).toHaveAttribute('aria-invalid','true');
+        expect(await attrs()).toEqual(original);
+        await page.getByTestId('table-editor').getByRole('button',{name:'Automatic',exact:true}).click();
+      }
+      await page.getByTestId(`${kind}-apply`).click();
+      await page.getByTestId(`${kind}-editor`).waitFor({state:'detached'});
+      expect((await attrs()).label).toBe(`${kind}-done`);
+      await begin();
+      await page.getByTestId(field).fill(`${kind}-keyboard-draft`);
+      // Keyboard Save saves only applied state and leaves the metadata draft open.
+      const saved = page.waitForResponse(response => response.url().includes('/api/document') && response.request().method() === 'POST');
+      await activate(page.getByRole('button',{name:'Save',exact:true}));
+      expect((await saved).ok()).toBe(true);
+      expect((await attrs()).label).toBe(`${kind}-done`);
+      expect(await page.getByTestId(field).inputValue()).toBe(`${kind}-keyboard-draft`);
+      const disk = await (await page.request.get(`${origin}/document/focus.md?path=${encodeURIComponent(focusFile)}`)).text();
+      expect(disk).toContain(`${kind}-done`);
+      expect(disk).not.toContain(`${kind}-keyboard-draft`);
+      await page.getByTestId(field).press('Escape');
+      expect((await attrs()).label).toBe(`${kind}-done`);
+      await begin();
+      await page.getByTestId(field).fill(`${kind}-outside`);
+      await page.getByText('Before.', {exact:true}).filter({visible:true}).click({position:{x:20,y:12}});
+      await page.getByTestId(`${kind}-editor`).waitFor({state:'detached'});
+      expect((await attrs()).label).toBe(`${kind}-outside`);
+      check(await editor.evaluate(element => element.editor.view.hasFocus() && element.editor.state.selection.$from.parent.textContent === 'Before.'),
+        `${kind}: pointer completion stole the native prose caret`);
+      await page.keyboard.press('End');
+      await page.keyboard.type(' Native791');
+      expect(await page.getByText('Before. Native791',{exact:true}).filter({visible:true}).count()).toBe(1);
+      await page.getByRole('button',{name:'Close focus.md',exact:true}).click();
+      await page.getByRole('dialog',{name:'Save changes?',exact:true}).getByRole('button',{name:"Don't save",exact:true}).click();
+      await page.getByRole('button',{name:'Close focus.md',exact:true}).waitFor({state:'detached'});
+    }
+  }
 
   async function appliedTyping() {
     const focusFile = file.replace('drafts.md', 'focus.md');
@@ -99,7 +184,7 @@ async (page, { openPath }) => {
     for (const item of cases) for (const mode of ['click', 'enter', 'shortcut']) {
       // Start with a caret outside the target: a cell/caption caret would hide this defect.
       await openPath(page, focusFile);
-      await page.getByText('Before.', {exact:true}).filter({visible:true}).click();
+      await page.getByText('Before.', {exact:true}).filter({visible:true}).click({position:{x:20,y:12}});
       const target = page.locator(`[data-document-tab][data-active=true] [data-block="${item.kind}"]`);
       if (item.type === 'labelTarget') {
         await editor.locator('h2').hover();
