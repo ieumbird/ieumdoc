@@ -414,7 +414,7 @@ function FootnoteDefinitionView({ node, editor, getPos, selected }: ReactNodeVie
       {editor.isEditable ? <div className="endnote-actions" contentEditable={false}>
         {editing ? <>
           <Button size="sm" variant="outline" data-testid="endnote-cancel" onClick={() => finish(true)}>{i18n.t("Cancel")}</Button>
-          <Button size="sm" data-testid="endnote-apply" onClick={() => finish(false)}>{i18n.t("Apply")}</Button>
+          <Button size="sm" data-testid="endnote-apply" onClick={() => finish(false)}>{i18n.t("Done")}</Button>
         </> : <Button size="sm" variant="outline" data-testid="endnote-edit" onClick={begin}>{i18n.t("Edit")}</Button>}
       </div> : null}
       <NodeViewContent<"p"> as="p" className="footnote-definition-body" />
