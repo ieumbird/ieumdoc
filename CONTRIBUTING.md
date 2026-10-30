@@ -59,7 +59,7 @@ pnpm --filter @ieumdoc/editor build
 
 ### Enqueue
 
-Ruleset `Protect master`의 `merge_queue` 설정은 merge method `MERGE`, build concurrency 1, group size 최소/최대 1/1, `ALLGREEN`, check timeout 60분이다. 필수 검사는 `Core, CLI, Editor, and browser regressions`이며, queue가 켜져 있는 동안 strict up-to-date (`strict_required_status_checks_policy`)는 OFF다. Queue를 비활성화할 때는 strict를 다시 ON으로 설정한다.
+Ruleset `Protect master`의 `merge_queue` 설정은 merge method `MERGE`, build concurrency 5, group size 최소/최대 1/5, 최소 대기 0분, `ALLGREEN`, check timeout 60분이다. 2026-10-30 소유자 승인으로 동시 build와 group 최대를 1에서 5로 올렸다(API로 확인). 여러 PR이 대기하면 queue가 앞선 PR을 포함한 group을 병렬로 검증해 함께 병합하고, group이 실패하면 GitHub가 나누어 다시 검증한다. 경로 규칙은 group 전체 diff에 적용된다. 필수 검사는 `Core, CLI, Editor, and browser regressions`이며, queue가 켜져 있는 동안 strict up-to-date (`strict_required_status_checks_policy`)는 OFF다. Queue를 비활성화할 때는 strict를 다시 ON으로 설정한다.
 
 위 2단계의 독립 승인 PR 댓글은 다음 형식으로 남긴다.
 

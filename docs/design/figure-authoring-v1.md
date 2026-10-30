@@ -33,7 +33,8 @@ moving, relabeling or editing content preserves it. `updateEnumerator` and the t
 The [shared fixed-number contract](heading-numbering-v1.md#fixed-numbers-720) defines
 warning-only missing/duplicate checks and Editor display. The image/pending and Mermaid
 property forms place Number after Label and reuse their existing draft,
-validation-busy and Undo contracts. Empty input clears the fixed number; captions and
+validation-busy and Undo contracts. In the Editor, choosing Automatic clears the fixed number;
+empty Fixed input blocks completion with a field error (#776). Captions and
 references update from Core display functions. Core warnings appear beside this field and
 in a document warning Notice without blocking Save.
 
@@ -307,8 +308,10 @@ Done/outside completion never renames a file: an unconfirmed filename survives c
 reopening, remains an unapplied draft, and Escape discards it. Rename retains existing validation,
 checkpoint and history contracts. See [filename](document-editing-v1.md#figure-file-name-652).
 
-Number uses Automatic/Fixed segments, with an input only for Fixed. Empty fixed input clears the
-fixed number as before. Core warning Notices appear only when needed. Fields have transparent
+Number uses Automatic/Fixed segments, with an input only for Fixed. Empty fixed input blocks
+completion; choosing Automatic clears the fixed number and shows the automatic number
+preview under the [shared number contract](heading-numbering-v1.md#fixed-numbers-720).
+Core warning Notices appear only when needed. Fields have transparent
 rest borders, a subtle surface fill and empty-value placeholders, with hover/focus boundaries.
 The Number track matches the neighboring input height, and visible segment labels share the
 hidden width-reserving labels' grid cell. Both media kinds use intrinsic-ratio previews within

@@ -153,16 +153,25 @@ async (page, { openPath, expect }) => {
     await expect(page.getByTestId('mermaid-source')).toBeFocused();
     await expect(page.getByTestId('mermaid-source')).toHaveValue('');
     expect(await entryDocument()).toEqual(beforeEntry);
+    const mermaidForm = page.getByTestId('mermaid-editor');
+    await mermaidForm.getByRole('button', {name:'Fixed',exact:true}).click();
+    await page.getByTestId('mermaid-apply').click();
+    await expect(page.getByTestId('mermaid-enumerator')).toHaveAttribute('aria-invalid','true');
+    expect(await entryDocument()).toEqual(beforeEntry);
+    await mermaidForm.getByRole('button', {name:'Automatic',exact:true}).click();
+    await expect(page.getByTestId('mermaid-automatic-number')).toBeVisible();
     await page.getByTestId('mermaid-source').fill('graph LR\n  A --> B');
     await page.getByTestId('mermaid-cancel').click();
     expect(await source()).toBe(appliedSource);
     await figures.first().getByRole('button', {name:'Write Mermaid',exact:true}).click();
     await page.getByTestId('mermaid-source').fill('graph LR\n  A --> B');
+    await mermaidForm.getByRole('button', {name:'Fixed',exact:true}).click();
+    await page.getByTestId('mermaid-enumerator').fill('M.7');
     await page.getByTestId('mermaid-apply').click();
     await expect(page.getByTestId('mermaid-properties')).toHaveCount(0);
     await save();
     const filledMermaid = (await diskFigures())[0];
-    check(filledMermaid.contentKind === 'mermaid' && filledMermaid.mermaidSource === 'graph LR\n  A --> B' &&
+    check(filledMermaid.contentKind === 'mermaid' && filledMermaid.mermaidSource === 'graph LR\n  A --> B' && filledMermaid.enumerator === 'M.7' &&
       filledMermaid.label === pending.label && filledMermaid.caption.text === pending.caption.text &&
       JSON.stringify(filledMermaid.path) === JSON.stringify(position), 'Mermaid entry changed Figure identity or failed Save/Reload');
     await historyKey('ControlOrMeta+z');

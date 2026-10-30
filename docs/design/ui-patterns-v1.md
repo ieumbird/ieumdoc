@@ -3,6 +3,7 @@
 역할: 반복 UI 동작의 확정 목표·현재 기준·불일치를 관리하며, 시각 표현은 [Visual Language](editor-visual-language-v1.md), 배치·치수는 [Layout Rules](editor-layout-rules-v1.md)를 따른다.
 
 - Status: Draft
+- P02 verified: 2026-10-30 (#776; 다섯 폼·입력칸 오류·자동 표시와 저장/재열기를 브라우저에서 확인).
 - P06 verified: 2026-10-30 (#786; title slot/typography, pending Figure entry/cancel/Apply/Undo/Save and existing caption/body/list patterns; [evidence](figure-authoring-v1.md#empty-authoring-entry-786)).
 - Inventory baseline: 2026-10-30. master `2de4e857`의 코드·현재 계약과 #777 소유자 결정 대조. 인벤토리 문서 작업에서는 브라우저를 실행하지 않았다. 화면 근거는 [1단계 인벤토리][inventory]에 보존하며 후속 구현 검증은 해당 패턴에 기록한다.
 - Scope: Editor 반복 UI의 **확정된 목표**, 현재 기준 구현과 알려진 불일치. Draft는 미구현 목표를 Implemented 계약으로 표시하지 않기 위한 상태이며 소유자 결정을 재논의한다는 뜻이 아니다.
@@ -28,10 +29,10 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 ## P02 자동·고정 번호
 
 - **목적·사용/비사용:** 그림·표·블록 수식의 번호 지정에 쓴다. 제목 번호 설정이나 새 Core 문서 모드를 만들지 않는다.
-- **목표:** 이미지/pending·Mermaid 속성·표·수식·Mermaid 원문의 다섯 폼을 자동/고정 세그먼트로 통일한다. 고정일 때만 값 입력을 보이고 빈 값이면 완료를 막는다. 해제는 자동 선택으로만 한다. 자동 상태에는 실제 표시 번호를 짧게 보여 준다.
-- **현재 기준:** [NumberField][number]의 그림 두 폼 세그먼트 표현만 기준이다. 현재는 빈 고정 제출을 막지 않고, 나머지 세 폼은 빈 입력을 자동으로 해석한다. Core/CLI의 빈 enumerator 제거와 비차단 혼합·중복 경고는 유지한다.
+- **목표:** 이미지/pending·Mermaid 속성·표·수식·Mermaid 원문의 다섯 폼을 자동/고정 세그먼트로 통일한다. 고정일 때만 값 입력을 보이고 빈 값이면 완료를 막는다. 해제는 자동 선택으로만 한다. 자동 상태에는 자동으로 적용했을 때 받을 번호를 짧게 보여 준다.
+- **현재 기준:** [NumberField][number]를 이미지/pending·Mermaid 속성·표·블록 수식·Mermaid 원문의 다섯 폼에서 공유한다(#776). 자동/고정 세그먼트, 고정일 때만 값 입력, 빈 고정의 완료 차단·입력칸 오류와 자동 선택으로만 해제를 동일하게 제공한다. 자동 상태는 해당 블록의 고정값을 제외하여 Core가 계산한 번호를 "자동 번호: N"으로 짧게 표시한다. 아직 적용하지 않은 선택의 결과와 이미 자동으로 적용된 번호에 같은 문구를 쓴다. Core/CLI의 빈 enumerator 제거와 비차단 혼합·중복 경고는 유지한다.
 - **사용처:** U01–U05 그림·수식·표의 번호 폼, U14 번호 입력·집계.
-- **결정·불일치:** [소유자 결정 P02][decision], [현재 번호 계약](heading-numbering-v1.md#fixed-numbers-720). 다섯 폼과 자동 번호 표시는 D01, 문서 경고 전달은 P07/D07.
+- **결정·불일치:** [소유자 결정 P02][decision], [현재 번호 계약](heading-numbering-v1.md#fixed-numbers-720). D01은 #776에서 해소했다. 문서 경고 전달은 P07/D07.
 
 ## P03 편집 진입
 
@@ -105,7 +106,7 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 - **현재 기준:** [DocumentActions](../../apps/editor/src/shell/DocumentActions.tsx)의 보기 segment, [DocumentSettings](../../apps/editor/src/shell/DocumentSettings.tsx)의 문서 값, Settings의 기기 설정. 보기·탐색의 toggle/tablist와 문서 draft는 서로 다른 의미다.
 - **사용처:** U09–U10 인용·참조 값, U13–U14 문서 설정·번호, U19–U22 언어/종류·메뉴·보기/탐색·앱 설정.
 - **추가 사용처:** [Docling 대조](docling-compare-v1.md)의 동기 스크롤 checkbox는 탭 안의 일시적 보기 상태이며 문서/기기 설정에 저장하지 않는다.
-- **결정·불일치:** [소유자 결정 P11][decision]. 번호 세그먼트의 미적용 세 폼은 P02/D01. 그 밖의 알려진 불일치 없음.
+- **결정·불일치:** [소유자 결정 P11][decision]. 번호 세그먼트는 P02의 다섯 폼에 적용했다(#776). 알려진 불일치 없음.
 
 ## P12 모달·파일·복구·설정 범위
 
@@ -121,7 +122,7 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 
 | ID · 패턴 | 현재 다른 사용처 → 목표 | 후속 이슈 |
 | --- | --- | --- |
-| D01 · P02/P11 | U01/U02 세그먼트도 빈 고정을 허용; U03/U04/U05는 빈 입력=자동 → 다섯 폼 세그먼트·빈 고정 차단·자동 표시 번호 | [#776](https://github.com/ieumbird/ieumdoc/issues/776) |
+| D01 · P02/P11 · 해소 | U01–U05 다섯 폼의 자동/고정 세그먼트·빈 고정 차단·자동 표시 번호를 공용 NumberField로 통일 | [#776](https://github.com/ieumbird/ieumdoc/issues/776) |
 | D02 · P01 | U10 교차참조가 Outline 뒤에 가림; 같은 경계의 U05/U07–U11 영향은 미확인 → 가용 콘텐츠 viewport | [#782](https://github.com/ieumbird/ieumdoc/issues/782) |
 | D03 · P01/P04 | U05 표·U11 절 label의 anchor 끝 정렬·Apply/Cancel·밖에서 유지 → 대상 팝오버·Done/밖에서 적용 | [#791](https://github.com/ieumbird/ieumdoc/issues/791) |
 | D04 · P01/P03/P04/P09 | U04 수식은 원문 폼 진입만 있음 → 작은 metadata 진입 분리 | [#788](https://github.com/ieumbird/ieumdoc/issues/788) |
