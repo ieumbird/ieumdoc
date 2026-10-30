@@ -23,6 +23,14 @@ async (page, { expect }) => {
     if (path === snapshot.path && pageImages.has(uri)) requested.add(uri);
   });
   await open('nist-sp1108r4');
+  await expect(page.getByRole('tab', { selected: true })).toHaveAccessibleName('Docling comparison · nist-sp1108r4');
+  // Empty Explorer help belongs to file navigation, separately from the module entry.
+  const sidebar = page.getByTestId('sidebar');
+  await expect(sidebar.getByTestId('sidebar-empty')).toContainText('Open a folder to browse its files');
+  expect(await sidebar.getByTestId('sidebar-empty').getByRole('button', { name: 'Docling comparison', exact: true }).count()).toBe(0);
+  await sidebar.getByRole('button', { name: 'Docling comparison', exact: true }).focus();
+  await page.keyboard.press('Tab');
+  await expect(sidebar.getByRole('button', { name: 'Settings', exact: true })).toBeFocused();
   await expect(page.getByRole('tab', { name: /Docling comparison ·/ })).toHaveCount(1);
   await expect(page.locator('.docling-tab[data-active=true] .docling-wires path').first()).toBeAttached();
   const initialImages = [...requested];
@@ -78,7 +86,46 @@ async (page, { expect }) => {
   expect(await reading.evaluate(element => element.scrollTop)).toBe(rightBefore);
   expect(await source.locator('img').count()).toBeLessThanOrEqual(2);
   expect(await tab.locator('.docling-region[data-status=decoration]').count()).toBeGreaterThan(0);
+  // The page 9 picture contains 114 text mappings, represented by the picture's wire at rest.
+  const picture = snapshot.map.items.find(item => item.self_ref === '#/pictures/6');
+  const child = snapshot.map.items.find(item => item.parent === picture.self_ref && item.targets.some(target => target.role === 'image-content'));
+  await source.evaluate(element => {
+    const page = element.querySelector('[data-page="9"]');
+    element.scrollTop = page.offsetTop - element.offsetTop;
+  });
+  const pictureRegion = source.locator(`[data-source-ref="${picture.self_ref}"]`);
+  await expect(pictureRegion).toBeAttached();
+  await pictureRegion.focus();
+  await page.keyboard.press('Enter');
+  const targetPath = picture.targets[0].path.join(',');
+  const figureLinks = () => tab.locator('.docling-wires path').evaluateAll((paths, targetPath) => {
+    const figure = document.querySelector(`.docling-tab[data-active=true] [data-source-path="${targetPath}"]`).getBoundingClientRect();
+    const body = document.querySelector('.docling-tab[data-active=true] .docling-body').getBoundingClientRect();
+    const y = figure.top + Math.min(figure.height / 2, 24) - body.top;
+    return paths.filter(path => Math.abs(path.getPointAtLength(path.getTotalLength()).y - y) < .1).length;
+  }, targetPath);
+  // The independently located caption retains its own wire if visible.
+  const captions = snapshot.map.items.filter(item => item.targets.some(target => target.role === 'caption' && target.path.join(',') === targetPath)).map(item => item.self_ref);
+  const captionVisible = await source.locator('.docling-region').evaluateAll((regions, captions) => {
+    const pane = regions[0].closest('.docling-source').getBoundingClientRect();
+    return regions.filter(region => captions.includes(region.dataset.sourceRef) &&
+      region.getBoundingClientRect().top + region.getBoundingClientRect().height / 2 >= pane.top &&
+      region.getBoundingClientRect().top + region.getBoundingClientRect().height / 2 <= pane.bottom).length;
+  }, captions);
+  await expect.poll(figureLinks).toBe(1 + captionVisible);
+  const childRegion = source.locator(`[data-source-ref="${child.self_ref}"]`);
+  await childRegion.focus();
+  await page.keyboard.press('Enter');
+  await expect(childRegion).toHaveAttribute('aria-pressed', 'true');
+  await expect(tab.locator('.docling-details')).toContainText(child.self_ref);
+  await expect(tab.locator('.docling-details')).toContainText('Represented by source picture pixels');
+  await expect(tab.locator('.docling-wires path[data-selected=true]')).toHaveCount(1);
+  await expect.poll(figureLinks).toBe(2 + captionVisible);
+  await pictureRegion.focus();
+  await page.keyboard.press('Enter');
+  await expect.poll(figureLinks).toBe(1 + captionVisible);
   await open('synthetic');
+  await expect(page.getByRole('tab', { selected: true })).toHaveAccessibleName('Docling comparison · synthetic');
   const synthetic = page.locator('.docling-tab[data-active=true]');
   await expect(synthetic.locator('[data-category=table].docling-region')).toHaveCount(1);
   await expect(synthetic.locator('[data-category=formula].docling-region')).toHaveCount(1);

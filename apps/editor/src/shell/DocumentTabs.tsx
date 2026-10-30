@@ -21,7 +21,7 @@ export function DocumentTabs({ tabs, allTabs = tabs, active, disabled, onActivat
   useTranslation();
   const row = useRef<HTMLDivElement>(null);
   const names = tabNames(allTabs).map((name, index) => allTabs[index]!.title ?? name);
-  const labels = tabLabels(allTabs).map((label, index) => allTabs[index]!.title ? { ...label, name: allTabs[index]!.title } : label);
+  const labels = tabLabels(allTabs).map((label, index) => allTabs[index]!.title ? { name: allTabs[index]!.title } : label);
   useLayoutEffect(() => {
     const list = row.current;
     if (!list) return;

@@ -6,7 +6,10 @@
 
 The sidebar footer's **Docling comparison** action, above Settings, opens the shared folder picker for
 a conversion folder containing `document.md` and `document.docling-map.json`.
-It opens a **Docling comparison · source name** tab; opening the same conversion
+It opens a **Docling comparison · conversion folder** tab. The folder name identifies
+the result even when the source JSON's name is only `source`; equal folder names
+use the shortest distinguishing parent suffix among open comparisons. Ordinary
+document tab naming is unchanged. Opening the same conversion
 selects its existing comparison tab. An ordinary editable tab of the same file
 is independent. Comparison tabs have no Save, draft, recovery or mutation session.
 Closing one needs no unsaved-change decision. They are not restored at startup.
@@ -31,7 +34,13 @@ recursive list-item positions through a callback, never Editor DOM. The Endnotes
 action reveals trailing definitions. Source notes retain their original language.
 
 Visible regions connect to visible document targets. Scroll synchronization is on
-by default and can be disabled. Monotonically increasing correspondence anchors
+by default. Picture descendants mapped as `image-content` share the picture's
+connection at rest. Selecting an individual descendant's source box reveals its
+own highlighted connection and original conversion notes; selecting another box
+hides that individual connection again. All source boxes, mapping entries and
+counts remain intact. Picture captions keep their separate correspondence.
+This is temporary inspection state in the comparison tab, with no saved setting.
+Scroll synchronization can be disabled. Monotonically increasing correspondence anchors
 drive scrolling in either direction. Endnotes/groups remain clickable links but
 are excluded from scroll anchors when their order differs from the body.
 Images mount only for pages intersecting the source viewport; page-size placeholders
@@ -84,3 +93,27 @@ page. GC-normalized JavaScript heap grew from 50,772,516 to 69,500,812 bytes
 This is one local responsiveness observation, not a sustained 60fps or memory
 ceiling guarantee. The native document is rendered whole; page pixels and wires
 are viewport-bounded. IEEE content and screenshots are not committed.
+
+### Comparison polish (#799)
+
+The existing `docling-compare` regression reproduces the two remaining defects
+against base `17ca748d`: a `Docling comparison · source` title and 116 visible
+connections to the NIST page 9 picture instead of its picture/caption pair.
+It now checks the bundle titles, grouped wires, individual child selection and
+return to the picture connection. Empty Explorer help and the comparison entry's
+separate footer/keyboard order remain covered without another sidebar rearrangement.
+
+Representative product captures use the #784 public bundle, Windows persistent
+Chrome, DPR 1 / 100% zoom, bundled Pretendard, sync off, page 9 and the picture
+selected. Each pair uses the same viewport, theme, language and scroll/selection
+state. Both themes were also inspected at both widths; 640px checks shell
+containment and Korean wrapping while retaining the wide side-by-side exception above.
+
+| Viewport / theme / language | Before | After |
+| --- | --- | --- |
+| 1440×1000 / light / English | [PNG](assets/docling-compare-799/before-1440-light-en.png) | [PNG](assets/docling-compare-799/after-1440-light-en.png) |
+| 640×1000 / dark / Korean | [PNG](assets/docling-compare-799/before-640-dark-ko.png) | [PNG](assets/docling-compare-799/after-640-dark-ko.png) |
+
+P11's existing transient source selection supplies the individual highlight;
+P12's folder picker and the footer's Settings/file-navigation boundary stay intact.
+No new generic control, saved document meaning or CLI operation is introduced.
