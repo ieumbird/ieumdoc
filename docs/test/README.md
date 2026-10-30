@@ -410,7 +410,7 @@ Redo left the citation present, but cannot establish the key target or history t
 failure. Citation authoring's Redo assertions remain unchanged. #421 and the separate fast text-caret synchronization issue #416 are
 not claimed fixed by #489.
 
-`figure-draft-race`의 미주 case는 본문을 한 번 클릭한 직후 native anchor/focus가 모두 본문 text offset7에 있고 collapsed이며 EditorView focus가 유지되는지 대기 없이 단언한다. 즉시 engine snapshot도 결과에 보존한다. 이후 기본 assertion 제한시간 안에서 같은 native 위치·focus와 정확한 engine TextSelection이 일치하면 곧바로 입력하고, 본문 삽입 위치·미주 전체 노드 불변·readonly 복귀 및 기존 Save/Reload를 검사한다. 다른 네 case의 즉시 engine 단언은 유지한다. 이는 [#416 소유자 결정](https://github.com/ieumbird/ieumdoc/issues/416#issuecomment-6494573226)의 경계에 따른 [#811](https://github.com/ieumbird/ieumdoc/issues/811)의 테스트 관찰 조정이며, CI의 native/engine 불일치 구간에서 실제 입력이 안전하다고 입증하거나 제품을 수정한 것은 아니다. 추가 클릭·selection 지정·강제 flush·sleep이나 timeout/retry 변경은 사용하지 않는다.
+`figure-draft-race`의 미주 case는 본문을 한 번 클릭한 직후 native anchor/focus가 모두 클릭한 본문 text offset에 있고 collapsed이며 EditorView focus가 유지되는지 대기 없이 단언한다. 즉시 engine snapshot도 결과에 보존한다. 이후 기본 assertion 제한시간 안에서 같은 native 위치·focus와 정확한 engine TextSelection이 일치하면 곧바로 입력하고, 본문 삽입 위치·미주 전체 노드 불변·readonly 복귀 및 기존 Save/Reload를 검사한다. 다른 네 case의 즉시 engine 단언은 유지한다. 이는 [#416 소유자 결정](https://github.com/ieumbird/ieumdoc/issues/416#issuecomment-6494573226)의 경계에 따른 [#811](https://github.com/ieumbird/ieumdoc/issues/811)의 테스트 관찰 조정이며, CI의 native/engine 불일치 구간에서 실제 입력이 안전하다고 입증하거나 제품을 수정한 것은 아니다. #839부터 문서가 안내 표시로 움직이지 않으므로 다섯 독립 case는 서로 다른 본문 내부 offset을 클릭한다. 이전 case와 같은 좌표를 500ms 안에 반복해 ProseMirror가 double/triple click으로 묶는 것을 피하며, 각 위치의 정확한 caret·입력 단언은 유지한다. 추가 클릭·selection 지정·강제 flush·sleep이나 timeout/retry 변경은 사용하지 않는다.
 
 ### Cross-reference regression history (#407)
 

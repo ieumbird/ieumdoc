@@ -214,12 +214,16 @@ async (page, { openPath, expect, reloadDocument }) => {
     }
     try {
       await prose.scrollIntoViewIfNeeded();
-      const point = await prose.evaluate(el => {
+      // These are independent first-click cases. With a stationary document, rapid
+      // repeated clicks at the same coordinates form ProseMirror double/triple clicks.
+      // Use distinct interior text positions; keep exact native/engine assertions below.
+      const textOffset = 7 + result.pointerCases.length * 3;
+      const point = await prose.evaluate((el, offset) => {
         const text = el.firstChild, range = document.createRange();
-        range.setStart(text, 7); range.setEnd(text, 8);
+        range.setStart(text, offset); range.setEnd(text, offset + 1);
         const rect = range.getBoundingClientRect();
-        return {x:rect.left, y:rect.top+rect.height/2, pos:el.closest('.document-editor').editor.view.posAtDOM(text,7)};
-      });
+        return {x:rect.left, y:rect.top+rect.height/2, pos:el.closest('.document-editor').editor.view.posAtDOM(text,offset)};
+      }, textOffset);
       expect(await prose.evaluate((el,p) => el.contains(document.elementFromPoint(p.x,p.y)),point), `${kind}: click must hit the prose, clear of its overlay`).toBe(true);
       await page.mouse.click(point.x, point.y);
       if (kind === 'endnote') {
@@ -232,7 +236,7 @@ async (page, { openPath, expect, reloadDocument }) => {
         };
         const caret = await prose.evaluate(readCaret);
         result.endnotePointerCaret = caret;
-        const native = {anchorAtText:true,anchorOffset:7,focusAtText:true,focusOffset:7,collapsed:true};
+        const native = {anchorAtText:true,anchorOffset:textOffset,focusAtText:true,focusOffset:textOffset,collapsed:true};
         expect({native:caret.native,focus:caret.focus}, `endnote: first click must place the exact native caret; engine snapshot ${JSON.stringify(caret.selection)}`).toEqual({native,focus:true});
         // #416's owner decision excludes sub-event-loop click-to-key guarantees.
         // Keep native placement immediate; observe engine adoption before typing,
@@ -245,7 +249,7 @@ async (page, { openPath, expect, reloadDocument }) => {
       }
       const typed = `Typed${kind}`;
       await page.keyboard.type(typed);
-      expect(await prose.textContent()).toBe(beforeText.slice(0,7)+typed+beforeText.slice(7));
+      expect(await prose.textContent()).toBe(beforeText.slice(0,textOffset)+typed+beforeText.slice(textOffset));
       if (kind === 'endnote') expect((await snapshot()).content.filter(node => node.type === 'footnoteDefinition'), 'endnote: outside typing preserves every endnote node').toEqual(before.content.filter(node => node.type === 'footnoteDefinition'));
       if (kind === 'image' || kind === 'mermaid') {
         await requested;
