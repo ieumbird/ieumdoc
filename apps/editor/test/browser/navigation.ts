@@ -76,7 +76,7 @@ export async function showNotifications(page: Page): Promise<void> {
   const toggle = page.locator('.notification-center > button');
   await expect(toggle).toBeVisible();
   await expect(toggle).toContainText(/· [1-9]\d*/);
-  const previousFocus = await page.locator(':focus').elementHandle();
+  const previousFocus = (await page.evaluateHandle(() => document.activeElement)).asElement();
   if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.press('Enter');
   await expect(page.locator('.notification-center > ul')).toBeVisible();
   // Resume the actual pre-inspection focus, including an incorrectly focused element if the action failed.
