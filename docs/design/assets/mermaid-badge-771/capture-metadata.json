@@ -1,0 +1,63 @@
+{
+  "issue": 771,
+  "baseline": "f58d14e505d24c21023f90c9bfaef4359a569726",
+  "date": "2026-10-30",
+  "browser": "Installed Chrome, checkout-owned persistent profile",
+  "url": "http://127.0.0.1:5283",
+  "fixture": "tmp/mermaid-authoring/diagram.md, freshly prepared by browser runner, no document edits",
+  "font": "Bundled Pretendard, document.fonts.ready and real image decode awaited",
+  "zoom": "100%, DPR 1",
+  "configurations": [
+    {
+      "width": 1440,
+      "theme": "light",
+      "language": "en",
+      "height": 900
+    },
+    {
+      "width": 640,
+      "theme": "dark",
+      "language": "ko",
+      "height": 900
+    }
+  ],
+  "states": [
+    "rest: prose caret, pointer outside document",
+    "hover: pointer at Mermaid block 4,4"
+  ],
+  "geometry": "before-geometry.json and after-geometry.json; Mermaid block and Edit rectangles identical at both widths; image field is null and not used as evidence",
+  "files": [
+    {
+      "name": "after-1440-hover.png",
+      "sha256": "0676aef006b8e550540e3b8005debdb036588150ee68e007074315ce1a9d9beb"
+    },
+    {
+      "name": "after-1440-rest.png",
+      "sha256": "342ac4034de543dc033f46fc1799c33baf6866bb2a28db440b438261467f97cb"
+    },
+    {
+      "name": "after-640-hover.png",
+      "sha256": "be3828600db9f57db7a724d4e00fae5f4fc7db3c60ee2d814ff44f1f938288cd"
+    },
+    {
+      "name": "after-640-rest.png",
+      "sha256": "7a38fa43ba7756033bf47d63d59de7b3ecc3aa13dd12591bc13b1261213f7dbf"
+    },
+    {
+      "name": "before-1440-hover.png",
+      "sha256": "b62104447f5794e8504986096465e62d20053d7a1909b6d2ec308c812666a96a"
+    },
+    {
+      "name": "before-1440-rest.png",
+      "sha256": "f009eeb1ad0185565a8c5a9b2fbd364401ad6bb8c65fd3a9ccfe347a089cb97d"
+    },
+    {
+      "name": "before-640-hover.png",
+      "sha256": "45331b7b483a7eb20eaddd20f69e0771761233db513e00ca9c84392cba398169"
+    },
+    {
+      "name": "before-640-rest.png",
+      "sha256": "eaf9859f0e21c5533e598e40d287482654a8cdb31767973cc53c21b32e3f33bc"
+    }
+  ]
+}

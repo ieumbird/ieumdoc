@@ -129,6 +129,7 @@ These are independent axes. Visual interactions never write document attributes.
 | Axis | Expression |
 | --- | --- |
 | Rest | No paragraph input box or block extent outline. Gutter/Edit/authoring metadata are hidden, without invisible pointer targets. Captions, references, errors and restrictions remain visible. Endnotes explicitly retain always-visible Edit under the [Endnotes contract](footnotes-v1.md#editor). |
+| Mermaid kind | Editable Visual Editor retains a small muted `Mermaid` badge at rest, including failures and pending source drafts; existing metadata typography, structural border, small radius and spacing tokens. Decorative chrome only; [Figure authoring](figure-authoring-v1.md#mermaid-editor) owns scope. |
 | Hover | Gutter, typed-block Edit and metadata appear without moving text; the route to buttons remains inside the hover area. One top-level block gets a neutral input-transparent extent overlay. Nested lists/cells indicate the whole top-level block. Geometry/clearance belongs to [Layout Rules](editor-layout-rules-v1.md#alignment-and-ownership). |
 | Keyboard focus | Caret/selection shows document focus without a document frame. `:focus-within` reveals tools; controls draw focus only on `:focus-visible`, never after a pointer click. |
 | Current lists | Files, Outline and +/slash use selected surface/text and 600 semibold, no left marker. Hover uses selected-hover while current. Focus never changes current/ARIA state. Command Center retains Base UI highlighting and existing disabled/foreign-text exceptions. |

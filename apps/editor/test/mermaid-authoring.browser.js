@@ -48,6 +48,49 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, waitForActiveP
     await expect(figure.getByTestId('figure-file-name')).toHaveCount(0);
   };
   await rendered(figure.getByTestId('mermaid-preview'), '>A<');
+  // #771: the kind cue remains visible without hover, focus or selection.
+  await active.getByText('Before.', {exact:true}).click();
+  await page.mouse.move(0,0);
+  const badge = figure.getByTestId('mermaid-kind');
+  await expect(badge).toBeVisible();
+  await expect(badge).toHaveText('Mermaid');
+  await expect(badge).toHaveAttribute('aria-hidden','true');
+  await expect(active.locator('figure:not([data-content-kind="mermaid"])').getByTestId('mermaid-kind')).toHaveCount(0);
+  await expect(figure.getByTestId('mermaid-preview').locator('img')).toHaveAccessibleName('Diagram');
+  for (const [width,language,theme] of [[1440,'en','light'],[640,'ko','dark']]) {
+    await page.setViewportSize({width,height:1000});
+    await page.evaluate(async ({language,theme}) => {
+      await (await import('/src/i18n.ts')).i18n.changeLanguage(language);
+      (await import('/src/theme.ts')).applyTheme(theme);
+    },{language,theme});
+    await rendered(figure.getByTestId('mermaid-preview'), '>A<');
+    await page.mouse.move(0,0);
+    await expect(badge).toBeVisible();
+    const beforeHover = await figure.boundingBox();
+    await figure.hover({position:{x:4,y:4}});
+    const row = await figure.evaluate(el => {
+      const badge=el.querySelector('[data-testid="mermaid-kind"]').getBoundingClientRect();
+      const label=el.querySelector('.mermaid-metadata-label').getBoundingClientRect();
+      const edit=el.querySelector('.figure-edit').getBoundingClientRect();
+      const box=el.getBoundingClientRect();
+      return {centerDifference:Math.abs(badge.y+badge.height/2-label.y-label.height/2),
+        separate:badge.right<=label.left && badge.bottom<=edit.top,
+        fits:badge.left>=box.left && label.right<=box.right};
+    });
+    expect(row.centerDifference).toBeLessThanOrEqual(1);
+    expect(row.separate).toBe(true); expect(row.fits).toBe(true);
+    expect((await figure.boundingBox()).height).toBe(beforeHover.height);
+  }
+  await page.setViewportSize({width:1440,height:1000});
+  await page.evaluate(async () => {
+    await (await import('/src/i18n.ts')).i18n.changeLanguage('en');
+    (await import('/src/theme.ts')).applyTheme('light');
+  });
+  await editor.evaluate(el=>el.editor.setEditable(false));
+  await expect(badge).toHaveCount(0);
+  await editor.evaluate(el=>el.editor.setEditable(true));
+  await expect(badge).toBeVisible();
+  expect(await editor.evaluate(el=>el.editor.getHTML())).not.toContain('mermaid-kind');
   // #757: metadata entry keeps the diagram visible; only Edit source opens the existing source form.
   const metadataBefore = await model();
   await figure.getByTestId('mermaid-preview').dblclick();
@@ -272,7 +315,8 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, waitForActiveP
     await field().fill(source);
     if(method==='button')await active.getByTestId('mermaid-apply').click();
     else await field().press('ControlOrMeta+Enter');
-    await expect(active.getByTestId('mermaid-editor').locator('[role="alert"]')).toBeVisible();
+    // Local field and Core refusals are distinct from asynchronous preview syntax errors.
+    await expect(active.getByTestId('mermaid-editor').locator('[role="alert"]:not([data-testid="mermaid-error"])')).toBeVisible();
     await expect(field()).toBeEnabled();
     expect(await field().evaluate(input=>document.activeElement===input)).toBe(true);
     expect(await field().inputValue()).toBe(source);expect(await model()).toEqual(opening);
@@ -304,7 +348,7 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, waitForActiveP
       expect(await otherTab.evaluate(tab=>document.activeElement===tab)).toBe(true);
       const diagramTab=page.getByRole('tab',{name:'diagram.md, Unsaved changes',exact:true});
       await diagramTab.click();await expect(field()).toBeEnabled();
-      await expect(active.getByTestId('mermaid-editor').locator('[role="alert"]')).toBeVisible();
+      await expect(active.getByTestId('mermaid-editor').locator('[role="alert"]:not([data-testid="mermaid-error"])')).toBeVisible();
       expect(await diagramTab.evaluate(tab=>document.activeElement===tab)).toBe(true);
     }
     expect(await field().inputValue()).toBe(rejectedSource);expect(await model()).toEqual(opening);
@@ -328,7 +372,10 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, waitForActiveP
   await page.evaluate(async ()=>(await import('/src/theme.ts')).applyTheme('light'));await rendered(preview(),'Latest');
   expect(await preview().locator('img').getAttribute('src')).not.toBe(darkSvg);
   await field().fill('this is not Mermaid');await expect(preview().getByTestId('mermaid-error')).toBeVisible();
+  await expect(badge).toBeVisible();
   await active.getByTestId('mermaid-apply').click();await expect(field()).toHaveCount(0);await expect(page.locator('.notification-center').getByTestId('mermaid-error')).toBeVisible();
+  await active.getByText('Before.', {exact:true}).click();await page.mouse.move(0,0);
+  await expect(badge).toBeVisible();
   await save();expect(await disk()).toContain('this is not Mermaid');await reloadDocument(page);await expect(page.locator('.notification-center').getByTestId('mermaid-error')).toBeVisible();
   await edit();await field().fill('graph LR\n  Safe["<img src=x onerror=alert(1)>"] --> B\n  click B "javascript:alert(1)"');await rendered(preview(),'Safe');
   expect(await figure.locator('script,svg,foreignObject').count()).toBe(0);await active.getByTestId('mermaid-cancel').click();

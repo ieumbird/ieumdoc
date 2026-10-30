@@ -1778,6 +1778,28 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
   visibility: visible;
 }
 
+/* The Editor-only kind cue shares the out-of-flow metadata row, including at rest. */
+.mermaid-metadata {
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.mermaid-kind {
+  visibility: visible;
+  flex: none;
+  padding-inline: var(--space-1);
+  border: var(--border-width) solid var(--id-color-border);
+  border-radius: var(--id-radius-sm);
+  user-select: none;
+}
+.mermaid-metadata-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* The equation source uses the same document-code surface as a code block. */
 :is(.equation, .mermaid-figure) .block-properties-form { text-align: left; min-width: 0; }
 .document-source-input {
