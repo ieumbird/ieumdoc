@@ -25,7 +25,9 @@ export function MetadataProperties({ anchor, target, initialFocus, kind, testId,
   useLayoutEffect(() => () => {
     if (outsideCompletion.current !== undefined) window.clearTimeout(outsideCompletion.current);
     outsideCompletion.current = undefined;
-  }, [open, visible]);
+    // A pointer may hide this tab before accepted completion runs. Visibility
+    // alone must not cancel that edit; explicit close/unmount still does.
+  }, [open]);
   if (!visible) return null;
   return <Popover open={open} onOpenChange={(next, details) => {
     // The owner closes only after accepted completion/cancellation. Keep Base UI's

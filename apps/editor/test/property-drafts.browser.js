@@ -168,6 +168,16 @@ async (page, { openPath, expect }) => {
       await page.keyboard.press('End');
       await page.keyboard.type(' Native791');
       expect(await page.getByText('Before. Native791',{exact:true}).filter({visible:true}).count()).toBe(1);
+      await begin();
+      await page.getByTestId(field).fill(`${kind}-pointer-tab`);
+      const panelId = await active.getAttribute('data-document-tab');
+      const ownedPanel = page.locator(`[data-document-tab="${panelId}"]`);
+      await page.getByRole('tab',{name:'drafts.md',exact:true}).click();
+      // Pointer completion must finish even when that click hides its document.
+      await expect(ownedPanel.locator(`[data-block="${kind}"]`)).toHaveAttribute('data-editing','false');
+      expect(await ownedPanel.locator('.document-editor').evaluate((element, type) => element.editor.getJSON().content.find(node => node.type === type).attrs.label, type)).toBe(`${kind}-pointer-tab`);
+      await activate(page.getByRole('tab',{name:'focus.md, Unsaved changes',exact:true}));
+      expect(await page.getByTestId(`${kind}-editor`).count()).toBe(0);
       await page.getByRole('button',{name:'Close focus.md',exact:true}).click();
       await page.getByRole('dialog',{name:'Save changes?',exact:true}).getByRole('button',{name:"Don't save",exact:true}).click();
       await page.getByRole('button',{name:'Close focus.md',exact:true}).waitFor({state:'detached'});

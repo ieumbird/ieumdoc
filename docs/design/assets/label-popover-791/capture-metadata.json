@@ -26,14 +26,14 @@
     "after\\section-1440.png": "8638e2ed8a172c02f46aae94eec6eb97fc1bb0097b2004c292640051b28a0616",
     "after\\section-640.png": "cb645a7f125ce9a95c972ceead6c72a9e196137bd3042245a15544409438f4b1",
     "after\\table-1440.png": "d0ec37459b214fb3282c99a1be87b6a845d5d53dc878e344a701c6fa2bd142fb",
-    "after\\table-640.png": "f53148c94f301046630d502196e629b828bd4f89486cd8e081929ec4470fa3d9",
+    "after\\table-640.png": "89c3e554ff2e7dfbb4290083007762b32c453995657c0ff8719779a70783a538",
     "before\\section-1440.png": "09e8206ae7b61e66cafd4fd724b33a59f6cf56ad50947423370605dfbd2738c2",
     "before\\section-640.png": "2b7318bcea9193e3675e52d67760003a7e93d599e6227293e19fe865547209eb",
     "before\\table-1440.png": "6c21e230fb71e1c45d51138f38715123fbcb0e1dcf50860c2b1ab3fa3e4c05d4",
     "before\\table-640.png": "ed78c8a0d6747e8aa9d2353570f0cf098a458c1253bef8f5ebaa62b10a69fe95"
   },
   "product": {
-    "apps\\editor\\src\\metadata-properties.tsx": "d638573aef0eb353e1f1219c151d1ea5528d8bf68dd5fc34ef902e72991dbe3e",
+    "apps\\editor\\src\\metadata-properties.tsx": "adc2ec5aa62f44517458e0dbb8ed63f94f40a84ab9beaa391b264c2b1987ac66",
     "apps\\editor\\src\\figure-properties.tsx": "5366b9366f66c4ffdbd4d2fdafb216a673c359cff2b2feeb17b84c537417cd0e",
     "apps\\editor\\src\\node-views\\table-view.tsx": "e0f09810c3803139e268680184d2a7904a5d6ccadf1237cd73eb269c273adbae",
     "apps\\editor\\src\\node-views\\label-target-view.tsx": "a3f5880d8199ea9b997b26258258f782e534b101d9e3bb748b3da5a6b29a94c9"
