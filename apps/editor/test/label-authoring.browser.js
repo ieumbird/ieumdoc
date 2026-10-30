@@ -92,7 +92,7 @@ async (page, { openPath }) => {
   await page.getByTestId('equation-label').fill('eq-reference');
   // The draft reaches the top bar through a React effect after the input event; wait for it.
   result.labelDraftMarkedUnsaved = await page.getByTestId("draft-notice")
-    .waitFor({state:'attached', timeout:5000}).then(() => true, () => false);
+    .waitFor({state:'visible', timeout:5000}).then(() => true, () => false);
   await page.getByTestId('equation-apply').click();
   await page.getByTestId('equation-editor').waitFor({state:'detached'});
   await setFigureLabel(figure, 'fig-diagram');

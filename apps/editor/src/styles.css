@@ -825,33 +825,9 @@ button {
   gap: var(--space-1);
 }
 
-/* Application messages: full width under the top bar, never inside the document. */
-.message-area {
-  display: grid;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--layout-ui-inset);
-  border-bottom: var(--border-width) solid var(--id-color-border);
-  background: var(--id-color-surface-subtle);
-}
-
-.message-area .message {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin: 0;
-  padding: var(--space-1) var(--space-3);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-label);
-}
-
-.message-dismiss {
-  min-width: 1.5rem;
-  min-height: 1.5rem;
-  padding: 0;
-  background: transparent;
-  color: inherit;
-}
+/* Applied-only Save/Source scope remains visible while the active document has a draft. */
+.message-area { display: grid; gap: var(--space-2); padding: var(--space-2) var(--layout-ui-inset); border-bottom: var(--border-width) solid var(--id-color-border); background: var(--id-color-surface-subtle); }
+.message-area .message { margin: 0; padding: var(--space-1) var(--space-3); font-size: var(--font-size-sm); line-height: var(--line-height-label); }
 
 .message-actions {
   display: flex;
@@ -3241,8 +3217,21 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
 .app-shell--split .docling-tab { --editor-group-width: calc((100vw - var(--shell-sidebar) - var(--shell-panel) - var(--border-width)) / 2); left: calc(var(--shell-sidebar) + var(--editor-group-index) * (var(--editor-group-width) + var(--border-width))); right: auto; width: var(--editor-group-width); }
 .docling-tab[hidden] { display: none; }
 .docling-readonly-document { width: 100%; margin: 0; padding: var(--space-4); min-height: 100%; border-radius: 0; box-shadow: none; overflow-wrap: anywhere; }
-.notification-center { position: fixed; z-index: 80; right: var(--space-8); bottom: var(--space-4); display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); max-width: min(28rem, calc(100vw - 4rem)); color: var(--id-color-warning); }
+.notification-center { position: fixed; z-index: 40; pointer-events: none; right: var(--space-8); bottom: var(--space-4); display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); width: min(28rem, calc(100vw - var(--notification-sidebar-width) - var(--space-8) - var(--space-4))); --notification-sidebar-width: var(--layout-sidebar-width); max-height: calc(100dvh - var(--app-header-height, 80px) - var(--space-8)); color: var(--id-color-warning); font-size: var(--font-size-sm); line-height: var(--line-height-label); }
 .notification-center[data-severity="error"] { color: var(--id-color-danger); }
-.notification-center > button { border-radius: var(--id-radius-xl); color: inherit; }
-.notification-center ul { list-style: none; margin: 0; padding: var(--space-3); background: var(--id-color-surface); border: var(--border-width) solid currentColor; border-radius: var(--id-radius-md); box-shadow: var(--shadow-overlay); }
+.notification-center[data-severity="info"] { color: var(--id-color-text-muted); }
+.notification-center > button { pointer-events: auto; flex-shrink: 0; border-radius: var(--id-radius-xl); color: inherit; }
+.notification-center ul { pointer-events: auto; min-height: 0; width: 100%; overflow-y: auto; overscroll-behavior: contain; list-style: none; margin: 0; padding: var(--space-3); background: var(--id-color-surface); border: var(--border-width) solid currentColor; border-radius: var(--id-radius-md); box-shadow: var(--shadow-overlay); }
+.notification-center li { display: flex; align-items: flex-start; gap: var(--space-2); color: var(--id-color-text); overflow-wrap: anywhere; word-break: keep-all; }
+.notification-center li + li { margin-top: var(--space-3); padding-top: var(--space-3); border-top: var(--border-width) solid var(--id-color-border-subtle); }
+.notification-center li > div { flex: 1; min-width: 0; }
+.notification-center li > button { flex: none; }
+.notification-center li[data-severity="error"] > button { color: var(--id-color-danger); }
+.notification-center li[data-severity="warning"] > button { color: var(--id-color-warning); }
 .notification-center p { margin: 0 0 var(--space-2); }
+
+.notification-center .notification-context { color: var(--id-color-text-muted); font-size: var(--font-size-xs); line-height: var(--line-height-meta); }
+
+.notification-center .notification-reveal { padding-inline: 0; border-width: 0; }
+@media (width <= 64rem) { .notification-center { --notification-sidebar-width: var(--layout-sidebar-width-narrow); } }
+body:has(.app-shell--collapsed) .notification-center { --notification-sidebar-width: var(--layout-sidebar-rail-width); }

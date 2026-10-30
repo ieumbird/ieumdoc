@@ -245,7 +245,7 @@ async page => {
       el.dispatchEvent(new ClipboardEvent('paste', {clipboardData:data, bubbles:true, cancelable:true}));
     });
     await page.getByTestId('notice').waitFor();
-    result.noticeInMessageArea = await page.locator('[data-testid="message-area"] [data-testid="notice"]').count() === 1;
+    result.noticeInMessageArea = await page.locator('.notification-center [data-testid="notice"]').count() === 1;
     result.figureKept = await page.locator('[data-document-tab][data-active=true] [data-block="figure"]').count() === 1;
     await page.getByTestId('notice').waitFor({state:'detached', timeout:8000});
     result.noticeExpired = true;

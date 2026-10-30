@@ -4,7 +4,7 @@
 // references, edits text around them, and checks resolved/unresolved display, Source View and
 // Save/Reload against a real file. The file is a scratch copy under the repository's ignored tmp/
 // directory; prepare it first (see docs/test/TEST_GUIDE.md).
-async (page, { openPath, screenshots, expect, recoveryRecords }) => {
+async (page, { showNotifications, openPath, screenshots, expect, recoveryRecords }) => {
   page.setDefaultTimeout(15000);
   const problems = [];
   page.on('console', message => { if (message.type() === 'error') problems.push(message.text()); });
@@ -302,7 +302,9 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   result.renamedTargetStaysResolved = await chip(paragraph(1), 'Eq. eq-c').getAttribute('data-resolved') === 'true';
   result.equationRenameDoesNotShowDeletionNotice = await page.getByTestId('notice').count() === 0;
   await page.keyboard.press('ControlOrMeta+z');
-  await equationB.locator('.block-kind').filter({hasText:'eq-b'}).waitFor({state:'attached', timeout:5000});
+  // Metadata is visible on interaction; Apply/Undo can move it away from a stationary pointer.
+  await equationB.hover();
+  await equationB.locator('.block-kind').filter({hasText:'eq-b'}).waitFor({state:'visible', timeout:5000});
   result.renameUndoTogether = await chip(paragraph(1), 'Eq. eq-b').getAttribute('data-resolved') === 'true' &&
     (await equationB.locator('.block-kind').textContent()).includes('eq-b');
   await page.keyboard.press('ControlOrMeta+Shift+z');
@@ -535,8 +537,10 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   await page.keyboard.press('ControlOrMeta+z');
   await active.locator('[data-label="tbl-a"] .cross-reference-chip').click();
   await page.keyboard.press('Delete');
-  result.koreanTableDeletionNotice = (await page.getByTestId('notice').innerText()).includes('표를 삭제했습니다') &&
-    await page.getByTestId('notice').getByRole('button', {name:'되돌리기', exact:true}).count() === 1;
+  await showNotifications(page);
+  result.koreanTableDeletionNotice = await page.getByTestId('notice').locator('p').first().isVisible() &&
+    (await page.getByTestId('notice').locator('p').first().innerText()) === '표를 삭제했습니다' &&
+    await page.getByTestId('notice').getByRole('button', {name:'되돌리기', exact:true}).isVisible();
   if (screenshots) {
     await page.screenshot({path:'tmp/375/deleted-table-ko-1280.png'});
     await page.setViewportSize({width:640, height:900});

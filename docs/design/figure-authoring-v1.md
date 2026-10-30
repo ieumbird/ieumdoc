@@ -189,13 +189,15 @@ affect preview, not document validity: opaque source can still be applied and sa
 Mermaid is lazy-loaded only for a visible Mermaid Figure. Previews debounce for 250ms; stale
 results and unmounted/hidden views cannot overwrite current results. Rendering is serialized
 around Mermaid's global configuration, with a unique render ID per request. Effective light/dark
-theme changes rerender applied and draft previews. Loading/render errors stay inside the block;
-source editing, Apply and Save remain available. Rendering uses `securityLevel: "strict"`,
+theme changes rerender applied and draft previews. Applied render failures are registered with the
+window notification center (#792), with a Go to problem action and a short unavailable marker in the
+block. Draft preview errors remain beside the source input. Entering source editing does not clear
+the applied failure; a successful render or a changed source clears it. Source editing, Apply and Save remain available. Rendering uses `securityLevel: "strict"`,
 disables automatic/error DOM rendering, and displays the returned SVG as an image data URL.
 The sanitized result is parsed in a detached document and XML-serialized, preserving HTML label
 line breaks (`\n`, `<br>` and `<br/>`) and XHTML namespaces without changing Mermaid source.
-Image decoding completes before publishing a preview; decoding failures use the same block-local
-error notice as syntax/render failures instead of leaving a broken image. This conversion runs
+Image decoding completes before publishing a preview; decoding failures use the same
+failure path as syntax/render failures instead of leaving a broken image. This conversion runs
 with the same strict security settings,
 without injecting SVG/HTML or binding diagram callbacks into the Editor DOM. Mermaid's own
 temporary measuring container is owned and removed after each request. All renderer code and

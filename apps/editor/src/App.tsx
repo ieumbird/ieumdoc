@@ -4,7 +4,7 @@ import { DoclingConversionDialog } from "./shell/DoclingConversionDialog.tsx";
 import { COMMAND_CENTER_SHORTCUT, EDITOR_SHORTCUTS, SAVE_SHORTCUT } from "./shortcuts.ts";
 import type { ComparisonSnapshot } from "@ieumdoc/docling/compare";
 import { DoclingComparisonTab } from "./DoclingComparisonTab.tsx";
-import { NotificationCenter } from "./components/ui/notification-center.tsx";
+import { NotificationProvider, NotificationSource } from "./components/ui/notification-center.tsx";
 import { UiError } from "./ui-message.ts";
 import { useMessageState } from "./ui-message.ts";
 import { useTranslation } from "react-i18next";
@@ -74,6 +74,10 @@ type Tab = { id: string; path: string; file: DocumentFileResponse; recoveryId: s
 const desktop = typeof window === "undefined" ? undefined : window.ieumdocDesktop;
 
 export function App() {
+  return <NotificationProvider><EditorApp /></NotificationProvider>;
+}
+
+function EditorApp() {
   useTranslation();
   const newFileButton = useRef<HTMLElement | null>(null);
   const newFolderButton = useRef<HTMLButtonElement>(null);
@@ -243,7 +247,7 @@ export function App() {
   const focusAfterClose = useRef(false);
   const [operation, setOperation] = useState<Operation | "">("loading");
   const operationRef = useRef(true);
-  const [error, setError] = useMessageState("");
+  const [error, setError, errorCause] = useMessageState("");
   // Restore folder context before opening tabs, including their bibliography resources.
   const folders = useFolderTrees(requestFolder, setError);
   const openedFolderPaths = folders.trees.map(tree => tree.root);
@@ -259,7 +263,7 @@ export function App() {
     const separator = documentPath.includes("\\") ? "\\" : "/";
     foldersRef.current.refreshParents(directory + assetPath.replace(/^\.\//, "").replaceAll("/", separator));
   }, []);
-  const [notice, setNotice] = useMessageState("");
+  const [notice, setNotice, noticeCause] = useMessageState("");
   const [openRefusal, setOpenRefusal] = useState<{ path: string; reason: string; action: string; code?: string } | null>(null);
   const openRefusalReturnFocus = useRef<HTMLElement | null>(null);
   const [continuation, setContinuation] = useState<{ id: string; session: DocumentSession } | null>(null);
@@ -273,8 +277,8 @@ export function App() {
   useLayoutEffect(() => { if (session?.noticeAction) setNotice(""); }, [session?.noticeAction]);
   const {
     editorRef = emptyEditorRef, document, openedPath = "", outlineStore,
-    view = "visual", error: sessionError = "", notice: sessionNotice = "",
-    draftActive = false, documentDirty = false, draftNotice = "", documentNotice = "",
+    view = "visual",
+    draftActive = false, documentDirty = false, draftNotice = "",
     reloadDialog = false, imageChoice = null, imageReturnFocus = emptyImageRef,
   } = session ?? {};
   const busy = Boolean(operation || fileOperationPending || session?.busy || continuationPending);
@@ -336,6 +340,7 @@ export function App() {
   const activateTabRef = useRef(activateTab);
   activateTabRef.current = activateTab;
   const focusDocument = useCallback((id: string) => activateTabRef.current(id, false), []);
+  const revealDocument = useCallback((id: string) => activateTabRef.current(id), []);
   useLayoutEffect(() => {
     if (focusAfterClose.current) {
       focusAfterClose.current = false;
@@ -844,6 +849,7 @@ export function App() {
     }
     try {
       await navigator.clipboard.writeText(path);
+      setError("");
       setNotice({ key: "Copied the file path." });
     } catch (cause) {
       setError({ key: "Could not copy the file path: {{reason}}", values: { reason: messageOf(cause) } });
@@ -1096,16 +1102,12 @@ export function App() {
           })}
           </div>
           <MessageArea
-            warning={[recoveryProblem || [...sessions.current.values()].map(owner => owner.recoveryError).find(Boolean), sampleWarning].filter(Boolean).join(" ")}
-            error={error || sessionError}
-            saveError={!error && session?.saveFailure ? { failure: session.saveFailure, locations: session.saveLocations,
-              onReveal: session.revealSaveLocation } : undefined}
-            notice={notice || sessionNotice}
-            noticeAction={notice ? null : session?.noticeAction}
+            warnings={[...(recoveryProblem ? [{ id: "recovery-storage", message: recoveryProblem }] : []),
+              ...(sampleWarning ? [{ id: `sample-preparation:${start?.sampleProblem}`, message: sampleWarning }] : [])]}
             draftNotice={draftNotice}
-            documentNotice={documentNotice}
-            onDismissError={() => { setError(""); session?.setError(""); }}
-            onNoticeExpired={() => { setNotice(""); session?.setNotice(""); }}
+            error={error} errorCause={errorCause}
+            notice={notice} noticeCause={noticeCause}
+            onNoticeExpired={() => setNotice("")}
           />
         </div>
         <main className="document-stage" onMouseDown={(event) => {
@@ -1136,7 +1138,7 @@ export function App() {
             const group = navigation.groups[groupIndex];
             return <DocumentTab settingsDisabled={Boolean(operation || fileOperationPending || continuationPending)} key={tab.id} id={tab.id} file={tab.file} restored={tab.restored} recoveryId={tab.recoveryId}
               active={group?.active === tab.id} focused={tab.id === activeId} groupIndex={groupIndex} onFocus={focusDocument}
-              report={reportSession} onAssetChange={onAssetChange} renameImage={renameImage} />;
+              report={reportSession} onAssetChange={onAssetChange} renameImage={renameImage} onReveal={revealDocument} />;
           })}
           {comparisons.map(tab => {
             const groupIndex = navigation.groups.findIndex(group => group.tabs.includes(tab.id));
@@ -1168,7 +1170,7 @@ export function App() {
         onOpen={async path => { setConversionPath(path); setConversionNotice(null); return ""; }}
         returnFocus={conversionReturn} onClose={() => setPdfPicker(false)}
         onClosed={() => { if (conversionPath) setConversionOpen(true); }} />
-      <NotificationCenter items={[...(conversionNotice ? [{ id: `docling-error-${conversionNotice.id}`, severity: "error" as const, message: conversionNotice.message,
+      <NotificationSource items={[...(conversionNotice ? [{ id: `docling-error-${conversionNotice.id}`, severity: "error" as const, message: conversionNotice.message,
         reveal: () => { setConversionPath(converter.job?.input ?? conversionPath); setConversionOpen(true); } }] : []), ...comparisons.filter(tab => tab.snapshot.stale).map(tab => ({ id: `docling-stale-${tab.id}`, severity: "warning" as const,
         message: `${tab.snapshot.map.source.name}: ${i18n.t("The correspondence map does not match this document. Connections and sync scrolling are disabled. Reconvert to compare.")}`,
         reveal: () => {

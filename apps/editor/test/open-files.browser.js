@@ -1,6 +1,6 @@
 // Run with pnpm browser:test open-files.
 // Mocks two selected Markdown files while exercising the real Editor state flow.
-async (page, { openDocument, openPath, screenshots = false }) => {
+async (page, { showNotifications, openDocument, openPath, screenshots = false }) => {
   page.setDefaultTimeout(15000);
   await page.unroute('**/api/document');
   await page.unrouteAll();
@@ -122,6 +122,7 @@ async (page, { openDocument, openPath, screenshots = false }) => {
     await start.getByRole('button', {name:'Open sample document', exact:true}).click();
     await start.waitFor({state:'detached'});
     if (!(await page.getByTestId('current-file').getAttribute('title')).includes(pathB)) throw new Error('The sample did not open');
+    await showNotifications(page);
     await page.getByText("This is a writable sample copy. Changes are kept until the bundled sample version changes.", {exact:true}).filter({visible:true}).waitFor();
     await page.getByRole('button', {name:'Close ieumdoc-b.md',exact:true}).click();
     await start.waitFor();
@@ -191,7 +192,7 @@ async (page, { openDocument, openPath, screenshots = false }) => {
     await page.getByRole('tab', {name:'ieumdoc-a.md, Unsaved changes',exact:true}).click();
     const confirmation = page.getByRole('dialog', {name:'Save changes?', exact:true});
     await closeA();
-    await confirmation.getByRole('button',{name:'Cancel',exact:true}).and(page.locator(':focus')).waitFor({state:'attached', timeout:5000});
+    await confirmation.getByRole('button',{name:'Cancel',exact:true}).and(page.locator(':focus')).waitFor({state:'visible', timeout:5000});
     if (!await confirmation.getByRole('button',{name:'Cancel',exact:true}).evaluate(el => el === document.activeElement)) throw new Error('Confirmation did not initially focus Cancel');
     await page.keyboard.press('Shift+Tab');
     await page.waitForFunction(() => document.querySelector('[role="dialog"]')?.contains(document.activeElement));

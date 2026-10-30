@@ -59,7 +59,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
   const [status, setStatus] = useState<Operation>("ready");
   const [error, setError, errorValue] = useMessageState("");
   const [saveLocations, setSaveLocations] = useState<readonly SaveErrorLocation[]>([]);
-  const [notice, setNoticeMessage] = useMessageState("");
+  const [notice, setNoticeMessage, noticeValue] = useMessageState("");
   const [noticeAction, setNoticeAction] = useState<(() => void) | null>(null);
   const noticeActionRef = useRef<(() => void) | null>(null);
   function setNotice(message: UiMessage, action?: () => void): void {
@@ -371,7 +371,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
       if (editor.hasDocumentChanges()) recorder?.edit();
       else recorder?.discard();
     },
-    view, setView, sourceMarkdown, status, setStatus, error, setError, notice, setNotice, noticeAction,
+    view, setView, sourceMarkdown, status, setStatus, error, setError, errorCause: errorValue, notice, setNotice, noticeCause: noticeValue, noticeAction,
     saveFailure: errorValue instanceof SaveDisplayError ? errorValue : undefined,
     saveLocations,
     revealSaveLocation(index: number) {
