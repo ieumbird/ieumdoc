@@ -176,7 +176,8 @@ async (page, { openPath, expect, reloadDocument }) => {
   } finally { releaseHidden(); await page.unroute('**/api/figure-validation'); }
   // #760: focus from properties must not re-disable the native typing surface
   // between mousedown and the browser placing its caret. Use one physical click,
-  // then immediate input at an interior text offset, with no polling or focus fixup.
+  // then input at an interior text offset, with no focus fixup. The endnote case
+  // separates immediate native placement from engine adoption per #416 below.
   const pointerFile = [root, 'tmp', 'figure-authoring', 'pointer.md'].join(separator);
   await openPath(page, pointerFile);
   await page.setViewportSize({width:1440,height:1200});
@@ -221,11 +222,31 @@ async (page, { openPath, expect, reloadDocument }) => {
       });
       expect(await prose.evaluate((el,p) => el.contains(document.elementFromPoint(p.x,p.y)),point), `${kind}: click must hit the prose, clear of its overlay`).toBe(true);
       await page.mouse.click(point.x, point.y);
-      const caret = await engine.evaluate(el => ({selection:el.editor.state.selection.toJSON(),focus:el.editor.view.hasFocus()}));
-      expect(caret, `${kind}: first click must place the exact interior caret`).toEqual({selection:{type:'text',anchor:point.pos,head:point.pos},focus:true});
+      if (kind === 'endnote') {
+        const readCaret = el => {
+          const editor = el.closest('.document-editor').editor, native = window.getSelection();
+          return {selection:editor.state.selection.toJSON(),focus:editor.view.hasFocus(),native:{
+            anchorAtText:native?.anchorNode === el.firstChild,anchorOffset:native?.anchorOffset ?? null,
+            focusAtText:native?.focusNode === el.firstChild,focusOffset:native?.focusOffset ?? null,collapsed:native?.isCollapsed ?? false,
+          }};
+        };
+        const caret = await prose.evaluate(readCaret);
+        result.endnotePointerCaret = caret;
+        const native = {anchorAtText:true,anchorOffset:7,focusAtText:true,focusOffset:7,collapsed:true};
+        expect({native:caret.native,focus:caret.focus}, `endnote: first click must place the exact native caret; engine snapshot ${JSON.stringify(caret.selection)}`).toEqual({native,focus:true});
+        // #416's owner decision excludes sub-event-loop click-to-key guarantees.
+        // Keep native placement immediate; observe engine adoption before typing,
+        // without changing the selection or the existing assertion timeout (#811).
+        await expect.poll(() => prose.evaluate(readCaret), {message:`endnote: native caret and engine must agree; immediate snapshot ${JSON.stringify(caret)}`})
+          .toEqual({selection:{type:'text',anchor:point.pos,head:point.pos},focus:true,native});
+      } else {
+        const caret = await engine.evaluate(el => ({selection:el.editor.state.selection.toJSON(),focus:el.editor.view.hasFocus()}));
+        expect(caret, `${kind}: first click must place the exact interior caret`).toEqual({selection:{type:'text',anchor:point.pos,head:point.pos},focus:true});
+      }
       const typed = `Typed${kind}`;
       await page.keyboard.type(typed);
       expect(await prose.textContent()).toBe(beforeText.slice(0,7)+typed+beforeText.slice(7));
+      if (kind === 'endnote') expect((await snapshot()).content.filter(node => node.type === 'footnoteDefinition'), 'endnote: outside typing preserves every endnote node').toEqual(before.content.filter(node => node.type === 'footnoteDefinition'));
       if (kind === 'image' || kind === 'mermaid') {
         await requested;
         release();
