@@ -11,6 +11,7 @@ import { splitDocumentPath } from "./document-path.ts";
 import { treeKey, visibleTreeItems, type FolderTreeState, type TreeItem } from "./folder-tree.ts";
 
 type SidebarProps = {
+  onDoclingCompare?(returnFocus: HTMLElement): void;
   onFileAction: FileActionHandler;
   fileActionsDisabled: boolean;
   isFileDirty(path: string): boolean;
@@ -49,6 +50,7 @@ type SidebarProps = {
 export function Sidebar({
   onFileAction, fileActionsDisabled, isFileDirty, open, documentPath, onToggle, toggleRef, onOpenFolder, onNewDocument, recent = [], onOpenRecent, onNew, onNewFolder,
   folders = [], focusFolder, onFolderFocused, onToggleFolder, onToggleSection, onOpenDocument, onOpenRight, openRightDisabled, onCloseFolder, onRefreshFolder, onRevealFolder, onSettings, updateVersion,
+  onDoclingCompare,
 }: SidebarProps) {
   useTranslation();
   return (
@@ -120,9 +122,11 @@ export function Sidebar({
           </section>
         )}
       </div>
-      {onSettings ? (
+      {onSettings || onDoclingCompare ? (
         <div className="sidebar-footer">
-          <SettingsEntry iconOnly={!open} onOpen={onSettings} updateVersion={updateVersion} />
+          {open && onDoclingCompare ? <Button size="sm" variant="ghost" className="min-w-0 justify-start" disabled={fileActionsDisabled}
+            onClick={event => onDoclingCompare(event.currentTarget)}><FileText aria-hidden="true" />{i18n.t("Docling comparison")}</Button> : null}
+          {onSettings ? <SettingsEntry iconOnly={!open} onOpen={onSettings} updateVersion={updateVersion} /> : null}
         </div>
       ) : null}
     </nav>
