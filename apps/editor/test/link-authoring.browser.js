@@ -139,6 +139,18 @@ async (page, { openPath, screenshots, expect }) => {
     instance.commands.setTextSelection(1);
   });
   await page.keyboard.type('Prefix ');
+  const beforeLinkDeletion = await applied();
+  await page.evaluate(() => {
+    const instance = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+    let position;
+    instance.state.doc.forEach((node,pos) => { if (node.type.name === 'paragraph' && node.textContent.includes('OpenAI')) position = pos; });
+    instance.commands.setNodeSelection(position);
+    instance.view.focus();
+  });
+  await page.keyboard.press('Delete');
+  expect(await page.getByTestId('link-url').inputValue()).toBe('https://example.com/mapped');
+  await page.keyboard.press('ControlOrMeta+z');
+  expect(await applied()).toBe(beforeLinkDeletion);
   await page.getByTestId('link-apply').click();
   expect(await editor.locator('a[href="https://example.com/mapped"]').innerText()).toBe('OpenAI');
   await page.keyboard.press('ControlOrMeta+z');

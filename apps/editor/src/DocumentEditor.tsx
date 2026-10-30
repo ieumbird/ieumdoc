@@ -185,7 +185,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const toolbar = useRef<HTMLDivElement>(null);
   const [linkDraft, setLinkDraft] = useState<LinkDraft | null>(null);
   // The selected paragraph text a new cross-reference will replace.
-  const [referenceDraft, setReferenceDraft] = useState<{ from: number; to: number; text: string; path: string } | null>(null);
+  const [referenceDraft, setReferenceDraft] = useState<{
+    from: number; to: number; text: string; path: string; lastValid: LinkDraft["lastValid"];
+  } | null>(null);
   // The retained caret for the Citation form.
   const [citationDraft, setCitationDraft] = useState<number | null>(null);
   const commandInsertion = useRef(false);
@@ -255,14 +257,25 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         if (transaction.docChanged) {
           // Outside editing keeps the forms open. Let the engine map their retained ranges
           // so Apply still edits the original inline content after insertions/deletions.
-          const mapRange = <T extends { from: number; to: number }>(draft: T | null): T | null => {
+          const doc = editor.state.doc;
+          const mapRange = <T extends Pick<LinkDraft, "from" | "to" | "lastValid">>(draft: T | null, reference: boolean): T | null => {
             if (!draft) return null;
+            // Deleting a whole block loses position identity. An exact Undo can restore
+            // the last usable document and range even when mapping alone cannot.
+            if (doc.eq(draft.lastValid.doc)) return { ...draft, from: draft.lastValid.from, to: draft.lastValid.to };
             const from = transaction.mapping.map(draft.from, 1);
             const to = transaction.mapping.map(draft.to, draft.from === draft.to ? 1 : -1);
-            return { ...draft, from: Math.min(from, to), to: Math.max(from, to) };
+            const start = Math.min(from, to), end = Math.max(from, to);
+            const $from = doc.resolve(start), $to = doc.resolve(end);
+            const valid = (reference
+              ? $from.sameParent($to) && $from.parent.type.contentMatch.matchType(editor.schema.nodes.crossReference)
+              : $from.parent.type.allowsMarkType(editor.schema.marks.link) && $to.parent.type.allowsMarkType(editor.schema.marks.link)) &&
+              (start < end || draft.lastValid.from === draft.lastValid.to);
+            return { ...draft, from: start, to: end,
+              lastValid: valid ? { doc, from: start, to: end } : draft.lastValid };
           };
-          setLinkDraft(mapRange);
-          setReferenceDraft(mapRange);
+          setLinkDraft(draft => mapRange(draft, false));
+          setReferenceDraft(draft => mapRange(draft, true));
           // All locators belong to the submitted snapshot. Invalidate rather than guess
           // after typing, insertion, deletion, split/merge or a move (including Undo).
           if (saveLocationsRef.current.length) updateSaveLocations([]);
@@ -430,7 +443,9 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         setBlockMenu(null);
         commandInsertion.current = true;
         if (kind === "citation") setCitationDraft(caret.from);
-        else setReferenceDraft({ from: caret.from, to: caret.to, text: "", path: String(editor.state.doc.resolve(caret.from).node(1).attrs.sourcePath) });
+        else setReferenceDraft({ from: caret.from, to: caret.to, text: "",
+          path: String(editor.state.doc.resolve(caret.from).node(1).attrs.sourcePath),
+          lastValid: { doc: editor.state.doc, from: caret.from, to: caret.to } });
       },
       setReferenceStyle,
       toggleHeadingNumbering,
@@ -796,7 +811,8 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
             setFocused(editor.view.hasFocus());
             const { from, to } = editor.state.selection;
             commandInsertion.current = false;
-            setReferenceDraft({ from, to, text: editor.state.doc.textBetween(from, to, "\n", "\n"), path: String(editor.state.selection.$from.node(1).attrs.sourcePath) });
+            setReferenceDraft({ from, to, text: editor.state.doc.textBetween(from, to, "\n", "\n"),
+              path: String(editor.state.selection.$from.node(1).attrs.sourcePath), lastValid: { doc: editor.state.doc, from, to } });
           }}
         />
       ) : null}

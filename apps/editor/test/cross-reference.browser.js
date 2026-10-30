@@ -334,9 +334,32 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   await page.keyboard.press('ControlOrMeta+z');
   expect(await paragraph(0).innerText()).toContain('control law');
   expect(await target.inputValue()).toBe('reference:eq:eq-b');
+  // Deleting the entire paragraph collapses both mapped endpoints onto a block boundary.
+  // Undo must restore both the original document and this same form's original range.
+  const beforeDeletion = await paragraph(0).evaluate(() => JSON.stringify(document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.getJSON()));
+  await page.evaluate(() => {
+    const instance = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
+    let position;
+    instance.state.doc.forEach((node,pos) => { if (node.type.name === 'paragraph' && node.textContent.includes('control law')) position = pos; });
+    instance.view.focus();
+    instance.commands.setNodeSelection(position);
+  });
+  await page.keyboard.press('Delete');
+  const deletedContent = await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => JSON.stringify(el.editor.getJSON()));
+  await page.getByTestId('reference-apply').click();
+  expect(await page.getByTestId('reference-form').count()).toBe(1);
+  expect(await target.inputValue()).toBe('reference:eq:eq-b');
+  expect(await target.getAttribute('aria-invalid')).toBe('true');
+  expect(await page.getByTestId('draft-notice').isVisible()).toBe(true);
+  expect(await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => JSON.stringify(el.editor.getJSON()))).toBe(deletedContent);
+  await page.evaluate(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.focus());
+  await page.keyboard.press('ControlOrMeta+z');
+  expect(await paragraph(0).evaluate(() => JSON.stringify(document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.getJSON()))).toBe(beforeDeletion);
+  expect(await target.inputValue()).toBe('reference:eq:eq-b');
   await page.getByTestId('reference-apply').click();
   result.insertedFromSelection = await chip(paragraph(0), 'Eq. eq-b').count() === 1 &&
     !(await paragraph(0).innerText()).includes('control law');
+  expect(result.insertedFromSelection, 'Undo restores the retained range for successful Apply').toBe(true);
   expect(await page.getByTestId('reference-form').count()).toBe(0);
   expect(await page.getByTestId('draft-notice').count()).toBe(0);
 

@@ -159,7 +159,10 @@ function editableInlineContext(editor: Editor): boolean {
 }
 
 /** The paragraph text range a link form edits, and the link already there, if any. */
-export type LinkDraft = { from: number; to: number; path: string; href: string; title: string | null };
+export type LinkDraft = {
+  from: number; to: number; path: string; href: string; title: string | null;
+  lastValid: { doc: Editor["state"]["doc"]; from: number; to: number };
+};
 
 /** Open a link draft for the selection, widened to the whole link when it is inside one. */
 export function linkDraftOf(editor: Editor): LinkDraft {
@@ -169,6 +172,7 @@ export function linkDraftOf(editor: Editor): LinkDraft {
   return {
     from,
     to,
+    lastValid: { doc: editor.state.doc, from, to },
     path: String(editor.state.selection.$from.node(1).attrs.sourcePath),
     href: typeof attrs.href === "string" ? attrs.href : "",
     title: typeof attrs.title === "string" ? attrs.title : null,
