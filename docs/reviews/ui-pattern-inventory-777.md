@@ -27,29 +27,31 @@
 
 ## 사용처 지도
 
+파일 위치는 #807의 동작 불변 분리를 반영했다. 당시 관찰·캡처·결과는 그대로 보존한다. [editor-schema.tsx][schema]는 schema 정의와 등록을 유지하며, NodeView와 속성 폼은 `apps/editor/src/node-views/`의 노드별 파일에 있다. 공용 훅·타입·focus helper는 [shared.ts](../../apps/editor/src/node-views/shared.ts), 코드 화면은 [code-block-view.tsx](../../apps/editor/src/node-views/code-block-view.tsx), callout 화면은 [admonition-view.tsx](../../apps/editor/src/node-views/admonition-view.tsx)에 있다.
+
 `P`는 아래 패턴 절이다. 파일 링크 뒤 이름은 해당 구현의 검색 가능한 symbol이다. 이슈는 결정·구현의 근거이며 단독으로 현재 계약을 대신하지 않는다.
 
 | ID · 화면/사용처 | 컴포넌트·파일 위치 | 관련 현재 문서 절 · 결정/구현 | 패턴 · 현재 캡처 |
 | --- | --- | --- | --- |
-| U01 이미지·pending Figure 속성 | [editor-schema.tsx][schema] `ImageFigureView`, [figure-properties.tsx][figure] `FigureProperties` | [Anchored Figure properties][figure-contract] · #740/#757/#760 | P01–P07/P09 · 09–12, 29, 31, 35 |
-| U02 Mermaid 속성 | [schema][schema] `MermaidFigureView`, [FigureProperties][figure] | [Figure contract][figure-contract] · #740/#757 | P01–P05/P09 · 13 |
-| U03 Mermaid 원문 | [schema][schema] `MermaidFigureView`, [block-properties.tsx][forms] `PropertyForm`, [mermaid-preview.tsx](../../apps/editor/src/mermaid-preview.tsx) | [Mermaid Editor](../design/figure-authoring-v1.md#mermaid-editor) · #651 | P01–P07/P09 · 14 |
-| U04 블록 수식 | [schema][schema] `EquationView`, [PropertyForm][forms] | [Equation editing](editor-visual-language-history-2026-10-30.md#equation-editing-comparison-637) · #637/#720 | P01–P07/P09 · 03–05 |
-| U05 표 속성·caption·구조 도구 | [schema][schema] `TableView`/`TableCaptionView`, [table-tools.tsx][table-tools] | [Property entry](../design/table-interaction-v1.md#property-entry-557), [caption](../design/table-caption-v1.md#always-available-empty-caption-577) · #557/#517/#577/#721 | P01–P07/P09/P10 · 06–08, 28 |
-| U06 미주 본문 | [schema][schema] `FootnoteDefinitionView`, [endnotes.ts](../../apps/editor/src/endnotes.ts) | [Endnotes / Editor][endnotes] · #714/#715 | P01/P03–P07/P09 · 15–16 |
-| U07 인라인 수식 | [schema][schema] `InlineMathView`, [BlockProperties][forms] | [Continuous editing][editing] · #637(block와의 분리) | P01/P03–P05/P07 · 20 |
+| U01 이미지·pending Figure 속성 | [figure-view.tsx][figure-view] `ImageFigureView`, [figure-properties.tsx][figure] `FigureProperties` | [Anchored Figure properties][figure-contract] · #740/#757/#760 | P01–P07/P09 · 09–12, 29, 31, 35 |
+| U02 Mermaid 속성 | [figure-view][figure-view] `MermaidFigureView`, [FigureProperties][figure] | [Figure contract][figure-contract] · #740/#757 | P01–P05/P09 · 13 |
+| U03 Mermaid 원문 | [figure-view][figure-view] `MermaidFigureView`, [block-properties.tsx][forms] `PropertyForm`, [mermaid-preview.tsx](../../apps/editor/src/mermaid-preview.tsx) | [Mermaid Editor](../design/figure-authoring-v1.md#mermaid-editor) · #651 | P01–P07/P09 · 14 |
+| U04 블록 수식 | [equation-view][equation-view] `EquationView`, [PropertyForm][forms] | [Equation editing](editor-visual-language-history-2026-10-30.md#equation-editing-comparison-637) · #637/#720 | P01–P07/P09 · 03–05 |
+| U05 표 속성·caption·구조 도구 | [table-view][table-view] `TableView`/`TableCaptionView`, [table-tools.tsx][table-tools] | [Property entry](../design/table-interaction-v1.md#property-entry-557), [caption](../design/table-caption-v1.md#always-available-empty-caption-577) · #557/#517/#577/#721 | P01–P07/P09/P10 · 06–08, 28 |
+| U06 미주 본문 | [footnote-definition-view][footnote-view] `FootnoteDefinitionView`, [endnotes.ts](../../apps/editor/src/endnotes.ts) | [Endnotes / Editor][endnotes] · #714/#715 | P01/P03–P07/P09 · 15–16 |
+| U07 인라인 수식 | [inline-math-view][inline-math-view] `InlineMathView`, [BlockProperties][forms] | [Continuous editing][editing] · #637(block와의 분리) | P01/P03–P05/P07 · 20 |
 | U08 일반 링크 | [SelectionToolbar.tsx][inline] `LinkForm`, [DocumentEditor.tsx](../../apps/editor/src/DocumentEditor.tsx) | [Open ordinary links](../design/editor-ux-shell-v1.md#open-ordinary-links-725), [shortcuts](../design/editor-ux-shell-v1.md#shortcut-contract-381) · #725/#381 | P01/P03–P05/P07 · 21–22 |
 | U09 인용 role·key 목록·후보 | [citation.tsx][citation] `CitationView`/`CitationForm` | [Citations / Editor][citations] · #265/#463 | P01/P03–P05/P07/P10/P11 · 18 |
 | U10 교차참조 target | [cross-reference.tsx][reference] `ReferenceForm` | [Section references / Editor][sections], [Continuous editing][editing] · #281/#374 | P01/P03–P05/P07/P10/P11 · 19 |
-| U11 절 label | [schema][schema] `LabelTargetView` | [Section references / Editor][sections] · #281/#374/#557 | P01/P03–P05/P07/P09 · 17 |
-| U12 문서 제목·본문·빈 구조 블록 | [document-title.tsx](../../apps/editor/src/document-title.tsx) `DocumentTitle`, [schema][schema] caption/quote/list/admonition, [DocumentEditor.tsx](../../apps/editor/src/DocumentEditor.tsx) Placeholder | [Document title](../design/document-editing-v1.md#document-title-255), [empty structural elements](../design/document-editing-v1.md#empty-structural-elements-574), [caption hints](editor-visual-language-history-2026-10-30.md#empty-caption-hints-698) · #255/#722/#574/#698 | P03/P05/P06 · 01, 26–29; quote/list/callout는 코드 조사 |
+| U11 절 label | [label-target-view][label-target-view] `LabelTargetView` | [Section references / Editor][sections] · #281/#374/#557 | P01/P03–P05/P07/P09 · 17 |
+| U12 문서 제목·본문·빈 구조 블록 | [document-title.tsx](../../apps/editor/src/document-title.tsx) `DocumentTitle`, [schema][schema] quote/list, [figure-view][figure-view]·[table-view][table-view] caption, [admonition-view](../../apps/editor/src/node-views/admonition-view.tsx), [DocumentEditor.tsx](../../apps/editor/src/DocumentEditor.tsx) Placeholder | [Document title](../design/document-editing-v1.md#document-title-255), [empty structural elements](../design/document-editing-v1.md#empty-structural-elements-574), [caption hints](editor-visual-language-history-2026-10-30.md#empty-caption-hints-698) · #255/#722/#574/#698 | P03/P05/P06 · 01, 26–29; quote/list/callout는 코드 조사 |
 | U13 문서 설정 | [shell/DocumentSettings.tsx][document-settings], [DisplaySettings.tsx](../../apps/editor/src/shell/DisplaySettings.tsx) | [Document settings placement][settings-contract] · #580/#669 | P01/P04/P05/P11 · 02 |
 | U14 번호 입력과 집계 | [numbering-properties.tsx][number] `NumberField`/`NumberingNotice` | [Fixed numbers][numbering] · #720/#740/#776 | P02/P05/P07 · 05/07/11–14/30–31 |
 | U15 미주·인용·상대 이미지 링크 읽기 | [ReadingPreview.tsx][reading], [ReferencePreviewContent.tsx](../../apps/editor/src/ReferencePreviewContent.tsx) | [Reading previews][reading-contract], [image links](../design/editor-ux-shell-v1.md#relative-image-link-previews-731) · #752/#731 | P08 · 23–25 |
 | U16 문서/앱 메시지·저장 실패 위치 | [shell/MessageArea.tsx][messages], [ui/primitives.tsx](../../apps/editor/src/ui/primitives.tsx) `Notice`, [Bibliography.tsx](../../apps/editor/src/Bibliography.tsx), [mermaid-preview.tsx](../../apps/editor/src/mermaid-preview.tsx) | [Save failure guidance][save-errors], [Citations][citations] · #578/#474/#720 | P07 · 08/22/30–31; 저장 실패·복구·Host 오류는 코드 조사 |
 | U17 텍스트 서식 toolbar | [SelectionToolbar.tsx][inline] | [Writing interactions][writing], [control exceptions](../design/editor-layout-rules-v1.md#deliberate-control-exceptions) · #514 | P03/P10/P11 · 37 |
 | U18 블록 +/handle·slash·표 행/열·목록 형식 메뉴 | [BlockHandles.tsx](../../apps/editor/src/BlockHandles.tsx), [CommandMenu.tsx][menus], [table-tools.tsx][table-tools], [DocumentEditor.tsx](../../apps/editor/src/DocumentEditor.tsx) | [Unified action menus][menu-contract] · #516/#517/#734/#377 | P09/P10/P11 · 06; 메뉴 항목 변형은 코드 조사 |
-| U19 코드 언어·callout 종류 | [code-language-input.tsx](../../apps/editor/src/code-language-input.tsx) `CodeLanguageInput`, [schema][schema] `AdmonitionView`, [block-commands.ts](../../apps/editor/src/block-commands.ts) | [Code language selection](../design/document-editing-v1.md#code-language-selection-verification-645), [menus][menu-contract] · #645/#516 | P05/P10/P11 · 코드 조사 |
+| U19 코드 언어·callout 종류 | [code-language-input.tsx](../../apps/editor/src/code-language-input.tsx) `CodeLanguageInput`, [admonition-view](../../apps/editor/src/node-views/admonition-view.tsx) `AdmonitionView`, [block-commands.ts](../../apps/editor/src/block-commands.ts) | [Code language selection](../design/document-editing-v1.md#code-language-selection-verification-645), [menus][menu-contract] · #645/#516 | P05/P10/P11 · 코드 조사 |
 | U20 파일/폴더·탭 동작 메뉴 | [shell/Sidebar.tsx](../../apps/editor/src/shell/Sidebar.tsx), [shell/DocumentActions.tsx][actions], [shell/DocumentTabs.tsx](../../apps/editor/src/shell/DocumentTabs.tsx) | [File context actions](../design/editor-ux-shell-v1.md#file-context-menu-505--504-pr-a), [UX Shell][shell] · #505/#504/#695 | P10/P11 · 01, 32; context menu 변형은 코드 조사 |
 | U21 Visual/Source·Outline/Tables/Figures·탭·탐색 트리·검색 | [DocumentActions][actions], [shell/DocumentPanel.tsx](../../apps/editor/src/shell/DocumentPanel.tsx), [shell/Sidebar.tsx](../../apps/editor/src/shell/Sidebar.tsx), [shell/CommandCenter.tsx](../../apps/editor/src/shell/CommandCenter.tsx) | [Quiet segments](../design/editor-visual-language-v1.md#state-rules), [Command center](../design/editor-ux-shell-v1.md#command-center-363) · #620/#581/#719/#363 | P10/P11 · 01; 검색 결과·키보드 전이는 코드 조사 |
 | U22 앱 Settings(모양·언어·복구·정보) | [shell/SettingsDialog.tsx][app-settings], [preferences.ts](../../apps/editor/src/preferences.ts) | [Dedicated Settings](../design/editor-ux-shell-v1.md#dedicated-settings-screen-594), [accent swatches](../design/editor-visual-language-v1.md#state-rules) · #594/#617/#665/#712 | P01/P05/P07/P11/P12 · 34; Desktop update/CLI 상태는 코드 조사 |
@@ -346,3 +348,10 @@
 [i740]: https://github.com/ieumbird/ieumdoc/issues/740#issuecomment-6494575173
 [i757]: https://github.com/ieumbird/ieumdoc/issues/757
 [i714]: https://github.com/ieumbird/ieumdoc/issues/714
+
+[figure-view]: ../../apps/editor/src/node-views/figure-view.tsx
+[equation-view]: ../../apps/editor/src/node-views/equation-view.tsx
+[table-view]: ../../apps/editor/src/node-views/table-view.tsx
+[footnote-view]: ../../apps/editor/src/node-views/footnote-definition-view.tsx
+[inline-math-view]: ../../apps/editor/src/node-views/inline-math-view.tsx
+[label-target-view]: ../../apps/editor/src/node-views/label-target-view.tsx

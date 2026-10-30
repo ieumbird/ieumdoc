@@ -41,7 +41,7 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 
 - **목적·사용/비사용:** 선택·읽기와 편집 시작을 구별한다. 선택만으로 속성 폼을 열거나 더블클릭만을 유일한 진입으로 삼지 않는다.
 - **목표:** 일반 블록은 hover·키보드 focus·선택에서 같은 위치의 Edit를 제공한다. 그림·수식·표의 위치는 P09로 맞춘다. 미주는 상시 Edit와 버튼 전용 진입을 유지한다. inline 콘텐츠 자체를 큰 UI 버튼으로 바꾸지 않는다.
-- **현재 기준:** [NodeView][schema]의 그림·수식 Edit 노출, 미주 상시 버튼과 [미주 계약](footnotes-v1.md#editor)의 예외.
+- **현재 기준:** [그림][figure-view]·[수식][equation-view] NodeView의 Edit 노출, [미주][footnote-view] 상시 버튼과 [미주 계약](footnotes-v1.md#editor)의 예외.
 - **사용처:** U01–U12 그림·원문·표·미주·inline·절 label·직접 본문 입력, U17 선택 toolbar.
 - **결정·불일치:** [소유자 결정 P03][decision]. 표 하단 진입은 D08, 수식의 작은 metadata 진입은 D04. 미주 예외는 불일치가 아니다.
 
@@ -58,7 +58,7 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 
 - **목적·사용/비사용:** 짧은 속성 입력을 찾기 쉽게 하되 중첩 경계를 줄인다. 문서 입력·원문·모달 전체에 경계 제거를 전파하지 않는다.
 - **목표:** 짧은 text field는 subtle fill + hover/focus border, label은 항상 표시한다. 원문은 code surface, 경로·새 이름 같은 독립 모달 핵심 입력은 상시 경계를 유지한다. placeholder는 예시/빈 값 표시이며 label·필수 조건을 대신하지 않는다. 필요한 제약은 label 가까이, 오류는 P07을 따른다.
-- **현재 기준:** [그림 속성 필드][schema]와 FigureProperties의 표면, 모달의 공용 Input. 기존 32px field·28px action·6px radius와 token을 사용한다.
+- **현재 기준:** [그림 속성 필드][figure-view]와 FigureProperties의 표면, 모달의 공용 Input. 기존 32px field·28px action·6px radius와 token을 사용한다.
 - **사용처:** U01–U14 문서 속성·inline·설정, U19 코드 언어·callout, U22–U23 앱 설정·파일 모달.
 - **결정·불일치:** [소유자 결정 P05][decision]. 표·절 label·inline·원문 metadata의 상시 경계와 hint 차이는 D09.
 
@@ -66,7 +66,7 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 
 - **목적·사용/비사용:** 무엇이 비었는지와 다음 행동을 보여 준다. UI 안내를 실제 문서 콘텐츠로 저장하거나 빈 작성 자리를 모두 숨기지 않는다.
 - **목표:** 빈 제목은 기존 slot 높이를 유지한 작은 ‘제목 추가(선택)’이며 입력하면 title typography를 쓴다. title과 H1은 분리한다. pending Figure에는 ‘이미지 선택 / Mermaid 작성’ 진입을 보이며 진입만으로 내용을 확정하지 않는다. 빈 caption의 muted italic hint·선택 시 숨김·번호/최소 클릭 영역은 유지한다. 빈 검색·자원 목록은 작성 빈칸과 구별한다.
-- **현재 기준:** [DocumentTitle](../../apps/editor/src/document-title.tsx)은 기존 title slot 높이를 유지하며 작은 UI 서체의 `제목 추가(선택)` / `Add a title (optional)`을 보이고, 입력 즉시 제목 서체로 전환한다. [pending Figure][schema]는 `이미지 선택` / `Mermaid 작성` 버튼으로 기존 picker·원문 편집을 연다. 선택 진입·취소만으로 문서 내용을 확정하지 않는다. [빈 caption hint](editor-visual-language-v1.md#state-rules), 빈 본문의 작성 안내와 빈 목록의 항목 안내는 기존 규칙을 유지한다. 검색·자원 목록의 빈 결과와는 구별한다.
+- **현재 기준:** [DocumentTitle](../../apps/editor/src/document-title.tsx)은 기존 title slot 높이를 유지하며 작은 UI 서체의 `제목 추가(선택)` / `Add a title (optional)`을 보이고, 입력 즉시 제목 서체로 전환한다. [pending Figure][figure-view]는 `이미지 선택` / `Mermaid 작성` 버튼으로 기존 picker·원문 편집을 연다. 선택 진입·취소만으로 문서 내용을 확정하지 않는다. [빈 caption hint](editor-visual-language-v1.md#state-rules), 빈 본문의 작성 안내와 빈 목록의 항목 안내는 기존 규칙을 유지한다. 검색·자원 목록의 빈 결과와는 구별한다.
 - **사용처:** U01/U03–U06 빈 그림·원문·표·미주, U12 제목·본문, U21 검색/탐색, U23/U25 파일·참고문헌 빈 상태.
 - **결정·불일치:** [소유자 결정 P06][decision]. D06은 [#786](https://github.com/ieumbird/ieumdoc/issues/786)에서 해소했다. [제목 계약](document-editing-v1.md#document-title-255)·[그림 계약](figure-authoring-v1.md#editor-session-states)과 [전후 캡처](figure-authoring-v1.md#empty-authoring-entry-786)를 따른다. 기존 caption·선택·clipboard 규칙은 유지한다.
 
@@ -91,7 +91,7 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 
 - **목적·사용/비사용:** 짧은 속성과 구조 작업의 진입을 구분한다. 표의 행·열 선택 도구나 미주 복귀 번호를 일반 metadata 도구로 대체하지 않는다.
 - **목표:** 그림·수식·표 속성 진입은 같은 위쪽 Edit/metadata 행에 둔다. 표 행·열·Append 도구는 grid에, 하단 독립 Delete는 More/actions에 둔다. 도구 표시로 본문 높이를 바꾸지 않고 번호/label을 폼 제목에 반복하지 않는다. 미주 우측 버튼과 복귀 번호는 예외다. 넓은 표에서도 가로 스크롤 전에 도구에 접근하고 caption을 가리지 않아야 한다.
-- **현재 기준:** [NodeView][schema]의 그림·수식 상단 도구와 높이를 차지하지 않는 metadata. 수식의 속성/원문 진입 분리는 아직 없다.
+- **현재 기준:** [그림][figure-view]·[수식][equation-view] NodeView의 상단 도구와 높이를 차지하지 않는 metadata. 수식의 속성/원문 진입 분리는 아직 없다.
 - **사용처:** U01–U06 그림·수식·표·미주, U11 절 label, U18 블록/표 구조 도구.
 - **결정·불일치:** [소유자 결정 P09][decision]은 #517/#721 배치를 바꾼다. 표 배치 D08, 수식 metadata D04. 미주 예외는 유지한다.
 
@@ -140,7 +140,9 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 [decision]: https://github.com/ieumbird/ieumdoc/issues/777#issuecomment-6510554436
 [inventory]: ../reviews/ui-pattern-inventory-777.md
 [usage]: ../reviews/ui-pattern-inventory-777.md#사용처-지도
-[schema]: ../../apps/editor/src/editor-schema.tsx
+[figure-view]: ../../apps/editor/src/node-views/figure-view.tsx
+[equation-view]: ../../apps/editor/src/node-views/equation-view.tsx
+[footnote-view]: ../../apps/editor/src/node-views/footnote-definition-view.tsx
 [figure]: ../../apps/editor/src/figure-properties.tsx
 [forms]: ../../apps/editor/src/block-properties.tsx
 [number]: ../../apps/editor/src/numbering-properties.tsx
