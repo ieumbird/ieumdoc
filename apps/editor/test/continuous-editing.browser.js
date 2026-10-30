@@ -49,6 +49,35 @@ async (page, { showNotifications, openDocument }) => {
   }, overrides);
   // #772: a real block deletion remains undoable after clicking nonediting chrome.
   const historyEditor = page.locator('[data-document-tab][data-active=true] .document-editor');
+  // The nonmodal notification center is a sibling of the shell, with the same history owner.
+  await openDocument(page, [root, 'tmp', 'reference-save-reload', 'fixed.md'].join(separator));
+  await historyEditor.locator('h1').filter({hasText:'Fixed numbers'}).waitFor();
+  await historyEditor.evaluate(el => {
+    const e = el.editor;
+    e.state.doc.forEach((node, pos) => {
+      if (node.attrs.label === 'fixed-table') e.view.dispatch(e.state.tr.setNodeMarkup(pos, undefined, {...node.attrs, enumerator:null}));
+    });
+  });
+  const notificationToggle = page.locator('.notification-center > button');
+  await notificationToggle.waitFor();
+  const beforeNotificationEdit = await snapshot();
+  // Engine formatting gives this regression history without a native typing Undo fallback.
+  await select(['Before.', 0], ['Before.', 6]);
+  await page.keyboard.press('Control+b');
+  const notificationEdit = await snapshot();
+  for (const [key, expected] of [['Control+z', beforeNotificationEdit], ['Control+y', notificationEdit]]) {
+    await notificationToggle.focus();
+    assert(await notificationToggle.evaluate(el => el === document.activeElement && !el.closest('.app-shell')),
+      'Notification history must start outside the shell with toggle focus');
+    await page.keyboard.press(key);
+    assert(await snapshot() === expected, `Notification toggle ${key} did not dispatch active document history`);
+    assert(await historyEditor.evaluate(el => el.editor.view.hasFocus()), 'Notification history did not return editor focus');
+  }
+  await page.keyboard.press('Control+z'); // Formatting edit.
+  await page.keyboard.press('Control+z'); // Numbering warning.
+  await notificationToggle.waitFor({state:'detached'});
+  await openDocument(page, file);
+  await historyEditor.locator('h2').filter({hasText:'Heading'}).waitFor();
   const outsideHistory = [];
   for (const [name, selector] of [
     ['paper margin', '[data-document-tab][data-active=true] article.document'],
@@ -642,6 +671,6 @@ async (page, { showNotifications, openDocument }) => {
     await page.keyboard.press(key);
     assert(await snapshot() === expected && await scopedEditor.evaluate(el => el.editor.view.hasFocus()), `${key}: shell history/focus failed`);
   }
-  return {outsideHistory, nativeFieldUndo:true, settingsHistoryExcluded:true, retainedHistoryDraft:true, sourceHistoryExcluded:true,
+  return {notificationShellHistory:true, outsideHistory, nativeFieldUndo:true, settingsHistoryExcluded:true, retainedHistoryDraft:true, sourceHistoryExcluded:true,
     inactiveHistoryExcluded:true, appleShellHistory:true, scopedSelectAll:true, scopedReplacementAndUndo:true, scopedComposition:true, appleSelectAllKeymap:true, headingBoundary:true, crossBlockDeletion:true, cutPasteRichText:true, typedBlockClipboard:true, formattedTypedClipboard:true, undoRedoAcrossSave:true, tableNavigation:true, rejectedPasteRetainsInput:true, compositionSaveReload:true, atomEdges:true, continuation};
 }

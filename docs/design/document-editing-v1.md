@@ -167,7 +167,7 @@ keyboard behavior remain manual verification boundaries.
 ### Shared history and editing boundaries
 
 With focus on a nonediting surface in the active document window (paper margin,
-gray background, sidebar or tab chrome), Undo/Redo also dispatches to that active
+gray background, sidebar, tab chrome or nonmodal notification controls), Undo/Redo also dispatches to that active
 Visual editor's existing keymap (#772). It uses the same focus return and engine
 selection restoration as command-center Undo/Redo, including input-rule precedence.
 Native input/textarea/contenteditable history remains local. Open dialogs, command

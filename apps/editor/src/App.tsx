@@ -800,7 +800,7 @@ function EditorApp() {
     if (event.defaultPrevented || event.isComposing || busy || !document || view !== "visual" ||
         (isMac() ? !event.metaKey || event.ctrlKey : !event.ctrlKey || event.metaKey)) return;
     const target = event.target;
-    if (!(target instanceof HTMLElement) || (target !== globalThis.document.body && !shell.current?.contains(target)) ||
+    if (!(target instanceof HTMLElement) || (target !== globalThis.document.body && !shell.current?.contains(target) && !target.closest('.notification-center')) ||
         target.closest('input, textarea, select, .document-editor, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="menu"]') ||
         globalThis.document.querySelector('[data-slot="dialog-content"], [aria-modal="true"], dialog[open], .settings-screen')) return;
     const action = EDITOR_SHORTCUTS.undo.matches(event) ? "undo"
