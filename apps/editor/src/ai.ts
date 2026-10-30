@@ -49,6 +49,7 @@ export function useAiConversation(onReport: (file: string) => Promise<unknown>) 
     finally { setBusy(false); setActivity(""); running.current = false; }
   };
   const stop = async () => { await fetch("/api/ai/interrupt", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); };
-  return { messages, busy, activity, send, stop, root, setRoot, output, setOutput, question, setQuestion };
+  const clear = () => { if (!running.current) { setMessages([]); setActivity(""); } };
+  return { messages, busy, activity, send, stop, clear, root, setRoot, output, setOutput, question, setQuestion };
 }
 export type AiConversation = ReturnType<typeof useAiConversation>;

@@ -16,6 +16,7 @@ export function AiChat({ status, conversation, roots, onSettings, onOpen }:
       <label title="참고 폴더 안의 하위 폴더 이름입니다. 없으면 새로 만듭니다.">출력 폴더<input aria-label="출력 폴더" placeholder="reports" value={output} disabled={conversation.busy} onChange={event => setOutput(event.target.value)} /></label>
       <p>열린 폴더의 저장된 문서를 참고합니다. 이 Codex 버전은 shell 읽기를 해당 폴더로 제한하지 못합니다.</p>
       <Button variant="ghost" size="sm" onClick={onSettings}>Codex 상태</Button>
+      <Button variant="ghost" size="sm" disabled={conversation.busy || !conversation.messages.length} onClick={() => { if (window.confirm("대화 내용을 모두 지울까요? 만든 보고서 파일은 지워지지 않습니다.")) conversation.clear(); }}>대화 지우기</Button>
     </div>
     <div ref={log} className="ai-messages" role="log" aria-label="AI 대화" data-testid="ai-messages">
       {!conversation.messages.length ? <p className="ai-empty">문서를 바탕으로 새 보고서를 요청하세요. 탭을 바꿔도 대화는 유지됩니다.</p> : null}
