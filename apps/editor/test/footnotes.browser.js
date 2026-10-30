@@ -67,6 +67,20 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
       await page.keyboard.press('End');
       await page.waitForFunction(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.state.selection.$from.parent.attrs.label === 'b');
       await page.screenshot({path: `tmp/endnotes-714/edit-${width}.png`, fullPage: true});
+      if (width === 1440) {
+        await page.screenshot({path:'tmp/endnotes-787/edit-en-1440.png', fullPage:true});
+        await page.getByRole('button', {name:'Settings', exact:true}).click();
+        await page.getByTestId('ui-language').selectOption('ko');
+        await page.keyboard.press('Escape');
+        await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+        await firstDefinition.getByTestId('endnote-edit').click();
+        await firstDefinition.getByRole('button', {name:'완료', exact:true}).waitFor();
+        await page.screenshot({path:'tmp/endnotes-787/edit-ko-1440.png', fullPage:true});
+        await page.getByRole('button', {name:'설정', exact:true}).click();
+        await page.getByTestId('ui-language').selectOption('en');
+        await page.keyboard.press('Escape');
+        await page.getByTestId('settings-dialog').waitFor({state:'detached'});
+      }
       await editor.locator('p.paragraph', {hasText: 'Middle paragraph.'}).click();
     }
     await page.setViewportSize({width: 1280, height: 720});
@@ -295,7 +309,7 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   await caretIn('b');
   await page.keyboard.type(' More.');
   await firstDefinition.getByTestId('endnote-apply').click();
-  assert(await firstDefinition.getAttribute('aria-readonly') === 'true' && (await firstDefinition.locator('p').innerText()).endsWith(' More.'), 'Apply retains the edits and closes the editor');
+  assert(await firstDefinition.getAttribute('aria-readonly') === 'true' && (await firstDefinition.locator('p').innerText()).endsWith(' More.'), 'Done retains the edits and closes the editor');
   result.chipGoesIntoEditableDefinition = true;
 
   // `/` Endnote: the reference follows the word, and the new definition takes the caret in the region.
@@ -779,6 +793,10 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   await page.getByTestId('settings-dialog').waitFor({state:'detached'});
   assert((await presentation()).notes[0].heading === '"미주"', 'Korean UI must localize the region label');
   assert(await note.getByTestId('endnote-edit').innerText() === '편집', 'Endnote controls must reuse UI translations');
+  await note.getByTestId('endnote-edit').click();
+  await expect(note.getByRole('button', {name:'완료', exact:true})).toBeVisible();
+  await expect(note.getByRole('button', {name:'취소', exact:true})).toBeVisible();
+  await note.getByRole('button', {name:'취소', exact:true}).click();
   assert((await error.innerText()).includes('참조와 정의를 함께 제거'), 'Korean empty endnote guidance omits paired removal');
   assert((await page.getByTestId('block-save-error').innerText()).includes('참조·정의 함께 제거'), 'Korean badge omits paired removal');
   await page.getByRole('button', {name:'설정', exact:true}).click();
@@ -787,6 +805,8 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   await page.getByTestId('settings-dialog').waitFor({state:'detached'});
   assert((await presentation()).notes[0].heading === '"Endnotes"', 'English UI must use plural Endnotes');
   await note.getByTestId('endnote-edit').click();
+  await expect(note.getByRole('button', {name:'Done', exact:true})).toBeVisible();
+  await expect(note.getByRole('button', {name:'Cancel', exact:true})).toBeVisible();
   await caretIn('x');
   await page.keyboard.type('Restored note.');
   await save.click();

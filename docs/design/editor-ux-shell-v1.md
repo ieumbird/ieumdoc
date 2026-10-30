@@ -41,6 +41,17 @@
 
 Historical verification records: [Verification record](#verification-record).
 
+## Docling comparison tabs (#769)
+
+The sidebar opens the read-only module tab described in
+[Docling comparison](docling-compare-v1.md), under [ADR-0011](../adr/0011-code-module-boundary.md).
+Its entry sits in the sidebar footer above Settings, separate from Explorer's
+empty-state help and folder navigation. Collapse Explorer → Open folder retains
+its existing Tab order; the collapsed rail still exposes only Explorer and Settings.
+After Explorer's file navigation, the footer's Tab order is Docling comparison → Settings.
+It shares tab navigation/closing while remaining outside document editing,
+Save/recovery sessions and startup tab restoration.
+
 ## Two editor groups (#488 phase 1)
 
 There are at most two editor groups, in fixed equal columns separated by a 1px

@@ -46,9 +46,9 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 - **목적·사용/비사용:** 편집을 언제 문서에 반영하는지 드러낸다. 파일 생성·삭제·복구에 metadata의 바깥 클릭 적용 규칙을 쓰지 않는다(P12).
 - **목표:** 짧은 metadata는 Done·Esc 취소·유효한 바깥 pointer 클릭 적용이다. keyboard focus 이동만으로 적용하지 않고 오류면 초안을 유지한다. 원문·복합 inline은 Apply/Cancel·Esc 취소·바깥 클릭 초안 유지다. 링크·인용·교차참조에도 Cancel을 보이고 명시적으로 마칠 때까지 초안을 유지한다. 직접 본문·제목·caption·문서 설정은 즉시 적용+Undo이며 디스크 저장은 Save다.
 - **목표·예외:** 미주는 in-place·바깥 적용·취소와 Enter 적용/Shift+Enter 줄바꿈을 유지하고 버튼을 완료/취소(Done/Cancel)로 부른다.
-- **현재 기준:** [FigureProperties][figure]의 metadata 완료 방식, [PropertyForm][forms]을 쓰는 원문/인라인 수식의 명시적 적용·취소. 미주는 현재 Apply/Cancel이고 링크·인용·교차참조는 보이는 Cancel 없이 blur로 미적용 폼이 닫힌다.
+- **현재 기준:** [FigureProperties][figure]의 metadata 완료 방식, [PropertyForm][forms]을 쓰는 원문/인라인 수식의 명시적 적용·취소. [미주](footnotes-v1.md#editor)의 완료/취소(Done/Cancel)와 기존 in-place·바깥 적용·키보드 동작. 링크·인용·교차참조는 보이는 Cancel 없이 blur로 미적용 폼이 닫힌다.
 - **사용처:** U01–U13 문서 안 편집·설정, U23–U24 파일 작업·미저장 확인과의 경계.
-- **결정·불일치:** [소유자 결정 P04][decision]. 표·절 label D03, 수식 metadata D04, inline 초안 D05, 미주 명칭 D10.
+- **결정·불일치:** [소유자 결정 P04][decision]. 표·절 label D03, 수식 metadata D04, inline 초안 D05, 미주 명칭 D10은 #787에서 해결.
 
 ## P05 입력칸·placeholder·위계
 
@@ -72,7 +72,7 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 - **목표 — 입력칸:** 고칠 수 있는 오류는 입력 아래의 짧은 오류문, `aria-invalid`·설명 연결과 값 보존을 따른다. 색만으로 상태를 구별하지 않고 적용 불가·저장 가능을 문장으로 구분한다.
 - **목표 — 창 단위:** 오른쪽 아래 둥근 아이콘 **하나**가 가장 높은 심각도(경고 주황·오류 빨강)와 개수를 나타내며 스크롤바와 겹치지 않는다. 문서·앱 알림(번호 경고, 저장 실패, 파일·Host 오류, Mermaid 렌더 실패, 앱 메시지)을 모으고 항목마다 ‘문제 위치로 이동’을 둔다. 번호 경고는 적용된 문서 기준임을 명시한다.
 - **목표 — 생명주기:** 새 경고·오류가 생기면 포커스를 가져오지 않고 목록을 자동으로 펼치며 사용자가 접을 수 있다. 일회성 안내는 펼치지 않는다. 알림이 없으면 아이콘을 숨긴다. 해결된 항목은 자동 제거하고 사용자가 닫은 항목은 같은 원인이 다시 생길 때까지 숨긴다.
-- **현재 기준:** 알림 센터 구현은 **없다**. [MessageArea](../../apps/editor/src/shell/MessageArea.tsx)의 저장 실패 위치 이동과 [링크 폼](../../apps/editor/src/SelectionToolbar.tsx)의 필드 오류 연결은 해당 기능만 재사용할 기준이다. 현재 문서/블록 NumberingNotice, shell 메시지, Mermaid 오류는 분산되어 있다.
+- **현재 기준:** [NotificationCenter](../../apps/editor/src/components/ui/notification-center.tsx)는 [Docling 대조](docling-compare-v1.md)의 낡은 대응표 경고에 사용한다(#769). 창 오른쪽 아래 하나의 아이콘·개수, 심각도, focus 없는 자동 펼침, 접기·닫기·문제 위치 이동과 원인 제거를 제공한다. 다른 문서/앱 알림을 모으는 작업은 아직 D07이다. [MessageArea](../../apps/editor/src/shell/MessageArea.tsx)의 저장 실패 위치 이동과 [링크 폼](../../apps/editor/src/SelectionToolbar.tsx)의 필드 오류 연결은 해당 기능만 재사용할 기준이다. 현재 문서/블록 NumberingNotice, shell 메시지, Mermaid 오류는 분산되어 있다.
 - **사용처:** U01–U16 문서 폼·번호·메시지·렌더 실패, U22–U25 설정·파일·복구·참고문헌 알림.
 - **결정·불일치:** [소유자 결정 P07][decision]이 인벤토리의 scope별 요약 추천을 대체한다. 알림 센터 D07, 입력칸 오류 D09. 기존 표시를 새 센터가 구현된 것으로 해석하지 않는다.
 
@@ -104,6 +104,7 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 - **목표:** 짧은 상호배타 값은 segment, 많은 값은 선택 메뉴, on/off는 checkbox를 기본으로 한다. 번호 field는 32px, shell view track은 28px이다. current와 keyboard focus의 단서는 독립적으로 유지한다.
 - **현재 기준:** [DocumentActions](../../apps/editor/src/shell/DocumentActions.tsx)의 보기 segment, [DocumentSettings](../../apps/editor/src/shell/DocumentSettings.tsx)의 문서 값, Settings의 기기 설정. 보기·탐색의 toggle/tablist와 문서 draft는 서로 다른 의미다.
 - **사용처:** U09–U10 인용·참조 값, U13–U14 문서 설정·번호, U19–U22 언어/종류·메뉴·보기/탐색·앱 설정.
+- **추가 사용처:** [Docling 대조](docling-compare-v1.md)의 동기 스크롤 checkbox는 탭 안의 일시적 보기 상태이며 문서/기기 설정에 저장하지 않는다.
 - **결정·불일치:** [소유자 결정 P11][decision]. 번호 세그먼트의 미적용 세 폼은 P02/D01. 그 밖의 알려진 불일치 없음.
 
 ## P12 모달·파일·복구·설정 범위
@@ -111,6 +112,7 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 - **목적·사용/비사용:** 파일·복구·파괴 작업은 대상과 결과를 확인한다. metadata의 Done/바깥 적용을 이식하거나 기기 설정을 문서 Save에 묶지 않는다.
 - **목표·현재 기준:** 기존 [UnsavedChangesDialog](../../apps/editor/src/shell/UnsavedChangesDialog.tsx), [DangerConfirmation](../../apps/editor/src/components/ui/danger-confirmation.tsx), 파일 dialog·비교 화면을 유지한다. 제목→대상→설명/문제→명시적 동사 action, 안전한 취소·focus 복귀, busy 중 중복 실행 방지가 기준이다. 앱 Settings는 즉시 반영하는 별도 화면, file preview·단축키는 읽기 dialog다.
 - **사용처:** U22 앱 설정, U23 파일/폴더 picker·새 이름, U24 미저장·삭제·저장/복구 비교, U25 미리보기·단축키·참고문헌 연결.
+- **추가 사용처:** [Docling 대조](docling-compare-v1.md)는 기존 FolderDialog로 변환 폴더를 명시적으로 연다. 문서 쓰기·미저장 확인과 연결하지 않는다. bbox·연결선·변환 메모 띠는 비교 전용 새 표현이며 기존 편집 패턴을 바꾸지 않는다.
 - **결정·불일치:** [소유자 결정 P12][decision], [현재 저장·복구 계약](editing-session-save-v1.md#switching-and-recovery). 이 작업·확정 경계의 알려진 불일치 없음. 메시지 표시는 P07/D07에서 별도 추적한다.
 
 ## 알려진 불일치
@@ -124,10 +126,10 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 | D03 · P01/P04 | U05 표·U11 절 label의 anchor 끝 정렬·Apply/Cancel·밖에서 유지 → 대상 팝오버·Done/밖에서 적용 | [#791](https://github.com/ieumbird/ieumdoc/issues/791) |
 | D04 · P01/P03/P04/P09 | U04 수식은 원문 폼 진입만 있음 → 작은 metadata 진입 분리 | [#788](https://github.com/ieumbird/ieumdoc/issues/788) |
 | D05 · P04 | U08–U10 링크·인용·교차참조는 Cancel 없음·blur dismissal → 명시적 적용/취소와 초안 유지 | [#790](https://github.com/ieumbird/ieumdoc/issues/790) |
-| D07 · P02/P07/P12 | U14/U16 등의 문서·블록·shell 메시지 분산 → 창별 알림 센터·위치 이동·해결/닫기/재발 | [#792](https://github.com/ieumbird/ieumdoc/issues/792) |
+| D07 · P02/P07/P12 | #769의 낡은 대응표 경고만 공용 센터를 사용. U14/U16 등의 문서·블록·shell 메시지 분산 → 같은 창별 센터로 집계·위치 이동·해결/닫기/재발 | [#792](https://github.com/ieumbird/ieumdoc/issues/792) |
 | D08 · P03/P09/P10 | U05 하단 Edit·독립 Delete → 상단 속성 진입·동작 메뉴 삭제 | [#793](https://github.com/ieumbird/ieumdoc/issues/793) |
 | D09 · P05/P07 | U03–U05/U07–U11 짧은 필드의 상시 경계, U01–U11의 폼 Notice/필드 오류 차이 → 속성 fill·필드 오류 연결(기존 연결은 보존) | [#789](https://github.com/ieumbird/ieumdoc/issues/789) |
-| D10 · P04 | U06 Apply/Cancel → 완료/취소 명칭, 기존 동작 유지 | [#787](https://github.com/ieumbird/ieumdoc/issues/787) |
+| D10 · P04 · 해결 | U06 완료/취소(Done/Cancel), 그림과 같은 번역 재사용·기존 동작 유지 | [#787](https://github.com/ieumbird/ieumdoc/issues/787) |
 
 [decision]: https://github.com/ieumbird/ieumdoc/issues/777#issuecomment-6510554436
 [inventory]: ../reviews/ui-pattern-inventory-777.md

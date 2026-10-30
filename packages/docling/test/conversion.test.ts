@@ -220,8 +220,10 @@ test("map version, status and target kind are validated independently of the doc
 
 test("module imports only public Core API; Core never imports a module", () => {
   const root = new URL("../src/", import.meta.url);
-  for (const name of readdirSync(root).filter(x => x.endsWith(".ts"))) {
+  for (const name of readdirSync(root).filter(x => /\.(?:tsx?|css)$/u.test(x))) {
     const source = readFileSync(new URL(name, root), "utf8");
+    if (/\.(?:tsx|css)$/u.test(name)) assert.doesNotMatch(source, /#[a-f\d]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab)\(/iu,
+      `${name}: module UI colors must come from product tokens`);
     const imports = [...source.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/gu)].map(m => m[1]);
     for (const specifier of imports) {
       assert.ok(!specifier.includes("core/") && !specifier.includes("apps/") && !specifier.includes("myst-"), `${name}: ${specifier}`);

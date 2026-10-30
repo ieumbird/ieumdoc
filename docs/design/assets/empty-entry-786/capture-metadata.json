@@ -8,39 +8,39 @@
   "viewportHeight": 900,
   "files": [
     {
-      "sha256": "9e6a804af598e9a212830b4cfd6372156af977b7a1a693bd16d6ea40ee843ee1",
+      "sha256": "f992ceda758dad045f56be6fc043b79a89e6e831bc82eb2ee3d24b31582c9713",
       "file": "after-1440-dark-en-empty-title.png"
     },
     {
-      "sha256": "96478247fa680b88e594bbbd8eba87727819ae560546e2cdaf4f7ec608b5c621",
+      "sha256": "11d57929fee1ca0d3ff1479fcc9107212c1c2fb7030049ef7b9548ff4154aabf",
       "file": "after-1440-dark-en-pending-figure.png"
     },
     {
-      "sha256": "91540c03fd695ba77242f39e764d774269987dbb21fbb8340f5a81f1e7a88d79",
+      "sha256": "2a57476ca8088d0452014f4a40ffd2593da41fcb4b9ae4a48ba17148895a7790",
       "file": "after-1440-dark-en-typing-title.png"
     },
     {
-      "sha256": "06b789d63dea0c9d2d74f0ca8403499bed0fe1e62c02db0da7a7b9065508be9b",
+      "sha256": "c3f48864c02b75278a71d19b584cc8663ae711398db8ddf4c7c25a287ac1dcb2",
       "file": "after-1440-light-en-empty-title.png"
     },
     {
-      "sha256": "fa1bbc8ae18ed0f46d7d0e2da459f41fc65b4ab56a909e2767e1db46791fd2e4",
+      "sha256": "8af98293ef6717111238b34d0492cecd40b966be9b3dcb29805947d4c46be2a3",
       "file": "after-1440-light-en-pending-figure.png"
     },
     {
-      "sha256": "33108dd66baa8beec39b95b0141ec63c3be4aa941562ad7c5956850d05123bae",
+      "sha256": "ca4331ccd891b335ae4a95bac4db7860b58e31a3174fb02ba329ae98becaefda",
       "file": "after-1440-light-en-typing-title.png"
     },
     {
-      "sha256": "2a5baf84c81e62f2fbe48cd9437a334af5fe33e2770643826e6fe9528f941010",
+      "sha256": "2b6ac7181b00f07177d47656787696ffeb88fb26323fe7812040341842b7f79a",
       "file": "after-640-light-ko-empty-title.png"
     },
     {
-      "sha256": "f1a2341c23020dd4e84d13213cba2b81191a8ff64e7c70ce1871cdba3c8ee6a1",
+      "sha256": "0c4e3c6deb6b7787dee8e9cd4c57fc9700e2c347ea03ab742ec2ea2e37faaab2",
       "file": "after-640-light-ko-pending-figure.png"
     },
     {
-      "sha256": "f4c56b0cb00ff837878e913856cba5cefe3a9f26015a810b77f76e6b2d4a6e31",
+      "sha256": "4f13edad5acda6004407ad693ff5b90c668bdfa9dda7ccb02ab5b8f1dcbfff0d",
       "file": "after-640-light-ko-typing-title.png"
     },
     {
