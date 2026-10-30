@@ -171,7 +171,7 @@ function EditorApp() {
   const comparison = comparisons.find(tab => tab.id === activeId);
   const comparisonLabels = tabLabels(comparisons);
   const allTabs = [...tabs, ...comparisons.map((tab, index) => ({ ...tab,
-    title: `${i18n.t("Docling comparison")} · ${comparisonLabels[index]!.folder ?? documentLocation(tab.path)[0] ?? tab.snapshot.map.source.name}` }))];
+    title: `${comparisonLabels[index]!.folder ?? documentLocation(tab.path)[0] ?? tab.snapshot.map.source.name} · ${i18n.t("Docling comparison")}` }))];
   const split = navigation.groups.length === 2;
   const [canSplit, setCanSplit] = useState(false);
   const splitAvailable = useRef(false);

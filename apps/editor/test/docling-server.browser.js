@@ -99,7 +99,7 @@ async (page, { expect, openFolderPicker, doclingFixture: fixture, screenshots })
     const job = await (await page.request.get(page.url().split('/').slice(0, 3).join('/') + '/api/docling-conversion')).json();
     expect(job.state).toBe('success');
     const bundle = job.output.split(/[\\/]/).at(-1);
-    await expect(page.getByRole('tab', { name: `${label} · ${bundle}`, exact: true })).toBeVisible();
+    await expect(page.getByRole('tab', { name: `${bundle} · ${label}`, exact: true })).toBeVisible();
   };
   await progress.getByRole('button', { name: /Start conversion|Convert again/ }).click();
   await expect(progress).toContainText('Server task');
@@ -186,7 +186,7 @@ async (page, { expect, openFolderPicker, doclingFixture: fixture, screenshots })
     expect(refusedPosts).toBe(0);
     releaseInitial();
     await expect(progress.getByRole('button', { name: 'Start conversion' })).toBeEnabled();
-    expect(await page.getByRole('tab', { name: /Docling comparison ·/ }).count()).toBe(0);
+    expect(await page.getByRole('tab', { name: / · Docling comparison$/ }).count()).toBe(0);
     for (const mode of ['reject', 'lost']) {
       refuse = mode;
       const readBack = page.waitForResponse(response => response.url() === endpoint && response.request().method() === 'GET' && response.ok());
@@ -196,7 +196,7 @@ async (page, { expect, openFolderPicker, doclingFixture: fixture, screenshots })
       const reason = mode === 'reject' ? 'Rejected new conversion' : 'Failed to fetch';
       expect(await progress.textContent()).toContain(reason);
       expect(await center.textContent()).toContain(reason);
-      expect(await page.getByRole('tab', { name: /Docling comparison ·/ }).count()).toBe(0);
+      expect(await page.getByRole('tab', { name: / · Docling comparison$/ }).count()).toBe(0);
       expect((await (await page.request.get(endpoint)).json()).id).toBe(oldSuccess.id);
     }
     expect(refusedPosts).toBe(2); // Exactly the two explicit user attempts; no automatic POST retry.

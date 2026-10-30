@@ -6,7 +6,10 @@
 
 The sidebar footer's **Docling comparison** action, above Settings, opens the shared folder picker for
 a conversion folder containing `document.md` and `document.docling-map.json`.
-It opens a **Docling comparison · conversion folder** tab. The folder name identifies
+It opens a **conversion folder · Docling comparison** tab. The folder name leads
+so that the identifying text remains visible when a narrow tab is ellipsized.
+The accessible name and the tab button's `title` contain the full title.
+The folder name identifies
 the result even when the source JSON's name is only `source`; equal folder names
 use the shortest distinguishing parent suffix among open comparisons. Ordinary
 document tab naming is unchanged. Opening the same conversion
@@ -102,6 +105,11 @@ connections to the NIST page 9 picture instead of its picture/caption pair.
 It now checks the bundle titles, grouped wires, individual child selection and
 return to the picture connection. Empty Explorer help and the comparison entry's
 separate footer/keyboard order remain covered without another sidebar rearrangement.
+Owner review of the 640px Korean capture found that the mode prefix hid the bundle
+name. The title now puts the bundle first, retaining parent suffix disambiguation
+and full accessible/tooltip names. `docling-compare --screenshots` verifies the
+title and refreshes the representative captures below; the converted document's
+existing narrow-column word wrapping is unchanged.
 
 Representative product captures use the #784 public bundle, Windows persistent
 Chrome, DPR 1 / 100% zoom, bundled Pretendard, sync off, page 9 and the picture

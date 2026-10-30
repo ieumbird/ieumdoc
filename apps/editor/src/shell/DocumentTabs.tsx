@@ -48,6 +48,7 @@ export function DocumentTabs({ tabs, allTabs = tabs, active, disabled, onActivat
           const labelIndex = allTabs.findIndex(item => item.id === tab.id);
           const tabRow = <div className="document-tab" key={tab.id} data-selected={tab.id === active} title={tab.path} role="presentation">
             <button type="button" role="tab" id={`tab-${tab.id}`} aria-controls={`panel-${tab.id}`}
+              title={tab.title}
               aria-selected={tab.id === active} aria-disabled={disabled} tabIndex={tab.id === active ? 0 : -1}
               aria-label={`${names[labelIndex]}${tab.dirty ? `, ${i18n.t("Unsaved changes")}` : ""}`}
               onClick={() => { if (!disabled) onActivate(tab.id); }}

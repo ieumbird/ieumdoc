@@ -1,5 +1,5 @@
 // Public NIST + declared synthetic supplement; no network Docling service or private content.
-async (page, { expect }) => {
+async (page, { expect, screenshots }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const origin = page.url().split('/').slice(0, 3).join('/');
   const initial = await (await page.request.get(`${origin}/api/document`)).json();
@@ -23,7 +23,8 @@ async (page, { expect }) => {
     if (path === snapshot.path && pageImages.has(uri)) requested.add(uri);
   });
   await open('nist-sp1108r4');
-  await expect(page.getByRole('tab', { selected: true })).toHaveAccessibleName('Docling comparison · nist-sp1108r4');
+  await expect(page.getByRole('tab', { selected: true })).toHaveAccessibleName('nist-sp1108r4 · Docling comparison');
+  await expect(page.getByRole('tab', { selected: true })).toHaveAttribute('title', 'nist-sp1108r4 · Docling comparison');
   // Empty Explorer help belongs to file navigation, separately from the module entry.
   const sidebar = page.getByTestId('sidebar');
   await expect(sidebar.getByTestId('sidebar-empty')).toContainText('Open a folder to browse its files');
@@ -31,7 +32,7 @@ async (page, { expect }) => {
   await sidebar.getByRole('button', { name: 'Docling comparison', exact: true }).focus();
   await page.keyboard.press('Tab');
   await expect(sidebar.getByRole('button', { name: 'Settings', exact: true })).toBeFocused();
-  await expect(page.getByRole('tab', { name: /Docling comparison ·/ })).toHaveCount(1);
+  await expect(page.getByRole('tab', { name: / · Docling comparison$/ })).toHaveCount(1);
   await expect(page.locator('.docling-tab[data-active=true] .docling-wires path').first()).toBeAttached();
   const initialImages = [...requested];
   expect(initialImages.length).toBeGreaterThan(0);
@@ -125,7 +126,7 @@ async (page, { expect }) => {
   await page.keyboard.press('Enter');
   await expect.poll(figureLinks).toBe(1 + captionVisible);
   await open('synthetic');
-  await expect(page.getByRole('tab', { selected: true })).toHaveAccessibleName('Docling comparison · synthetic');
+  await expect(page.getByRole('tab', { selected: true })).toHaveAccessibleName('synthetic · Docling comparison');
   const synthetic = page.locator('.docling-tab[data-active=true]');
   await expect(synthetic.locator('[data-category=table].docling-region')).toHaveCount(1);
   await expect(synthetic.locator('[data-category=formula].docling-region')).toHaveCount(1);
@@ -142,7 +143,7 @@ async (page, { expect }) => {
   await expect(synthetic.getByText('1 Synthetic explicit table endnote.')).toBeInViewport();
   // Repeat entry selects the existing tab rather than mounting another reading engine.
   await open('synthetic');
-  await expect(page.getByRole('tab', { name: /Docling comparison ·/ })).toHaveCount(2);
+  await expect(page.getByRole('tab', { name: / · Docling comparison$/ })).toHaveCount(2);
   await page.getByRole('tab', { selected: true }).click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Open to the right', exact: true }).click();
   await expect(page.locator('.docling-tab[data-visible=true]')).toHaveCount(2);
@@ -171,6 +172,45 @@ async (page, { expect }) => {
   await expect(center).toHaveCount(0);
   await page.getByRole('tab', { selected: true }).press('Delete');
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  if (screenshots) {
+    // Same page/selection as the original review pairs; captures are manual evidence.
+    for (const [width, theme, language] of [[1440, 'light', 'en'], [640, 'dark', 'ko']]) {
+      await page.evaluate(({ theme, language }) => {
+        localStorage.setItem('ieumdoc.uiLanguage', language);
+        localStorage.setItem('ieumdoc.theme', theme);
+      }, { theme, language });
+      await page.setViewportSize({ width, height: 1000 });
+      await page.reload();
+      const label = language === 'ko' ? 'Docling 대조' : 'Docling comparison';
+      await page.getByRole('button', { name: label, exact: true }).click();
+      await page.getByTestId('folder-path').fill(folder('nist-sp1108r4'));
+      await page.getByTestId('folder-open').click();
+      const comparison = page.locator('.docling-tab[data-active=true]');
+      await expect(comparison.locator('.docling-source img').first()).toBeVisible();
+      const selectedTab = page.getByRole('tab', { selected: true });
+      await expect(selectedTab).toHaveAccessibleName(`nist-sp1108r4 · ${label}`);
+      await expect(selectedTab).toHaveAttribute('title', `nist-sp1108r4 · ${label}`);
+      // The identifying prefix must fit inside the visible, ellipsized label at 640px.
+      expect(await selectedTab.locator('.document-tab-file').evaluate(element => {
+        const range = document.createRange();
+        range.setStart(element.firstChild, 0); range.setEnd(element.firstChild, 'nist'.length);
+        const prefix = range.getBoundingClientRect(), box = element.getBoundingClientRect();
+        return prefix.left >= box.left && prefix.right <= box.right;
+      })).toBe(true);
+      await comparison.getByRole('checkbox').uncheck();
+      await comparison.locator('.docling-source').evaluate(element => {
+        element.scrollTop = element.querySelector('[data-page="9"]').offsetTop - element.offsetTop;
+      });
+      const picture = comparison.locator('[data-source-ref="#/pictures/6"]');
+      await expect(picture).toBeAttached();
+      await picture.focus(); await page.keyboard.press('Enter');
+      await comparison.locator('img').evaluateAll(async images => { await Promise.all(images.map(image => image.decode())); });
+      await page.evaluate(async () => { await document.fonts.ready; await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); });
+      await page.mouse.move(0, 0);
+      await page.screenshot({ path: `tmp/799-evidence/after-${width}-${theme}-${language}.png` });
+    }
+    await page.evaluate(() => { localStorage.setItem('ieumdoc.uiLanguage', 'en'); localStorage.setItem('ieumdoc.theme', 'light'); });
+  }
   return { initialImages, totalPages: Object.keys(snapshot.map.pages).length, visiblePages, correspondenceCounts, firstRegion,
     readOnly: true, staleConnections: 0, endnotes: true };
 }
