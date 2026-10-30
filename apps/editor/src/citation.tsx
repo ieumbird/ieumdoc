@@ -16,7 +16,7 @@ import { useEditorVisible } from "./editor-visibility.ts";
 import { canEditEndnoteAt, endnoteBlocks } from "./endnotes.ts";
 import { i18n } from "./i18n.ts";
 import { useMessageState } from "./ui-message.ts";
-import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
+import { useOverlayBounds, type OverlayAnchor } from "./ui/use-overlay-bounds.ts";
 
 export const BibliographyContext = createContext<BibliographyEvaluation | undefined>(undefined);
 export const useBibliography = () => useContext(BibliographyContext);
@@ -179,11 +179,12 @@ function roleName(role: CitationRole): string {
  * Choose a role and an ordered key group. Keys come from the readable bibliography or are typed;
  * a key that is not found stays citable and shows as unresolved. Core validates and canonicalizes.
  */
-export function CitationForm({ entries, current, className, style, onApply, onRemove, onClose, onDismiss }: {
+export function CitationForm({ entries, current, className, style, anchor, onApply, onRemove, onClose, onDismiss }: {
   entries?: readonly BibliographyEntry[];
   current?: Omit<CitationContent, "kind">;
   className?: string;
   style?: CSSProperties;
+  anchor?: OverlayAnchor;
   onApply: (citation: CitationContent) => void;
   onRemove?: () => void;
   onClose: () => void;
@@ -205,7 +206,9 @@ export function CitationForm({ entries, current, className, style, onApply, onRe
   }, [listOpen]);
   const composing = useRef(false);
   const [error, setError] = useMessageState("");
-  const bounds = useOverlayBounds<HTMLFormElement>();
+  const bounds = useOverlayBounds<HTMLFormElement>(true, anchor ?? {
+    side: "bottom", rect: element => element.closest(".cross-reference")!.querySelector(".cross-reference-chip")!.getBoundingClientRect(),
+  });
   const text = new Map((entries ?? []).map(entry => [entry.key, entry.text]));
   // As in the command center, search every entry before bounding the rendered list.
   const needle = draft.trim().toLowerCase();

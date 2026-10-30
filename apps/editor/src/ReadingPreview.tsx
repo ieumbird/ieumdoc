@@ -16,7 +16,9 @@ export function ReadingPreview({ editor, host, documentPath }: {
   const visible = useEditorVisible();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [style, setStyle] = useState<CSSProperties>({});
-  const bounds = useOverlayBounds<HTMLDivElement>(!!anchor);
+  const bounds = useOverlayBounds<HTMLDivElement>(!!anchor, anchor ? {
+    side: "bottom", hideWhenDetached: true, rect: () => anchor.getBoundingClientRect(),
+  } : undefined);
 
   useEffect(() => {
     if (!visible) return;

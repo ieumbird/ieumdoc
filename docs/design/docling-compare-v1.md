@@ -6,6 +6,9 @@
 
 The sidebar footer's **Docling comparison** action, above Settings, opens the shared folder picker for
 a conversion folder containing `document.md` and `document.docling-map.json`.
+The picker shows the comparison-specific description in English and Korean,
+without the folder-opening hint about choosing documents in the sidebar (#840).
+Ordinary folder opening, including the new-document location flow, keeps that hint.
 It opens a **conversion folder · Docling comparison** tab. The folder name leads
 so that the identifying text remains visible when a narrow tab is ellipsized.
 The accessible name and the tab button's `title` contain the full title.
