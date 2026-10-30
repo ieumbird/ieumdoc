@@ -65,7 +65,7 @@ test("Host admits only CLI-created/batched revision matches, reruns check and de
   fs.writeFileSync(file, source);
   await assert.rejects(verifyReport(file, receipts, false, access, async () => { throw new Error("Host CLI check failed"); }), /check failed/);
   await assert.rejects(verifyReport(file, receipts, false, access, async () => { fs.appendFileSync(file, "\nrace\n"); }), /during Host validation/);
-  assert.deepEqual(sandboxPolicy(root), { type: "workspaceWrite", writableRoots: [root], networkAccess: false, excludeTmpdirEnvVar: true, excludeSlashTmp: true });
+  assert.deepEqual(sandboxPolicy(root), { type: "workspaceWrite", writableRoots: [root], networkAccess: true, excludeTmpdirEnvVar: true, excludeSlashTmp: true });
 });
 
 test("CLI shim delegates to the real CLI and refuses source edits and overwritten creates", t => {

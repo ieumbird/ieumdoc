@@ -22,9 +22,10 @@ function cliEntry(): string {
   return process.env.IEUMDOC_AI_CLI ?? (existsSync(adjacent) ? adjacent : fileURLToPath(new URL("../../../../packages/cli/dist/cli.mjs", import.meta.url)));
 }
 
+// SPIKE: network and web search are enabled; the instructions require explicit user approval before using them.
 export function sandboxPolicy(output: string) {
   // cwd MUST be output too: workspaceWrite implicitly grants cwd write access.
-  return { type: "workspaceWrite", writableRoots: [output], networkAccess: false, excludeTmpdirEnvVar: true, excludeSlashTmp: true };
+  return { type: "workspaceWrite", writableRoots: [output], networkAccess: true, excludeTmpdirEnvVar: true, excludeSlashTmp: true };
 }
 
 export function verifyReport(target: string, receipts: Receipt[], bypass: boolean, access: RootAccess,
@@ -119,7 +120,7 @@ export class AiHost {
       const disabledMcp = Object.fromEntries(Object.keys(effective.config?.mcp_servers ?? {}).map(name => [`mcp_servers.${name}.enabled`, false]));
       const { thread } = await this.codex.request("thread/start", {
         model, cwd: output, sandbox: "workspace-write", approvalPolicy: "never", ephemeral: true,
-        config: { shell_environment_policy: { inherit: "all", set: env }, web_search: "disabled", "agents.enabled": false, "features.apps": false, ...disabledMcp },
+        config: { shell_environment_policy: { inherit: "all", set: env }, web_search: "live", "sandbox_workspace_write.network_access": true, "agents.enabled": false, "features.apps": false, ...disabledMcp },
         developerInstructions: [
           "You are IeumDoc's report assistant. Answer in the user's language. One conversation; create new reports only, never edit existing documents.",
           `Reference folder: ${root}. Only read documents within this folder. Output folder: ${output}. New report target: ${target}.`,
