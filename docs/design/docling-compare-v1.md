@@ -4,12 +4,17 @@
 - Last verified: 2026-10-30
 - Authority: owner decisions in [#766](https://github.com/ieumbird/ieumdoc/discussions/766), [#767](https://github.com/ieumbird/ieumdoc/discussions/767), [#769](https://github.com/ieumbird/ieumdoc/issues/769), under [ADR-0011](../adr/0011-code-module-boundary.md).
 
-The sidebar's **Docling comparison** action opens the shared folder picker for
+The sidebar footer's **Docling comparison** action, above Settings, opens the shared folder picker for
 a conversion folder containing `document.md` and `document.docling-map.json`.
 It opens a **Docling comparison · source name** tab; opening the same conversion
 selects its existing comparison tab. An ordinary editable tab of the same file
 is independent. Comparison tabs have no Save, draft, recovery or mutation session.
 Closing one needs no unsaved-change decision. They are not restored at startup.
+The module entry stays outside Explorer's folder navigation and empty-state help.
+It does not interrupt Collapse Explorer → Open folder keyboard order and is hidden
+with the other Explorer navigation when the sidebar collapses. The empty-state
+help therefore describes only file browsing, separately from the comparison action
+([#799](https://github.com/ieumbird/ieumdoc/issues/799), sidebar item only).
 
 The left pane displays original page images with source bboxes using the map v1
 page sizes and each bbox's TOPLEFT/BOTTOMLEFT origin. Categories have token colors

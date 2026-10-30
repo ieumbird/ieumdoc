@@ -75,8 +75,6 @@ export function Sidebar({
       </div>
       {/* Keep the tree mounted: collapse retains scroll and keyboard position. */}
       <div id="sidebar-files" className="sidebar-content" hidden={!open}>
-        {onDoclingCompare ? <Button size="sm" variant="ghost" className="w-full justify-start" disabled={fileActionsDisabled}
-          onClick={event => onDoclingCompare(event.currentTarget)}><FileText aria-hidden="true" />{i18n.t("Docling comparison")}</Button> : null}
         {folders.length > 0 ? folders.map(tree => (
           <FolderTree
             key={tree.root}
@@ -124,9 +122,11 @@ export function Sidebar({
           </section>
         )}
       </div>
-      {onSettings ? (
+      {onSettings || onDoclingCompare ? (
         <div className="sidebar-footer">
-          <SettingsEntry iconOnly={!open} onOpen={onSettings} updateVersion={updateVersion} />
+          {open && onDoclingCompare ? <Button size="sm" variant="ghost" className="min-w-0 justify-start" disabled={fileActionsDisabled}
+            onClick={event => onDoclingCompare(event.currentTarget)}><FileText aria-hidden="true" />{i18n.t("Docling comparison")}</Button> : null}
+          {onSettings ? <SettingsEntry iconOnly={!open} onOpen={onSettings} updateVersion={updateVersion} /> : null}
         </div>
       ) : null}
     </nav>
