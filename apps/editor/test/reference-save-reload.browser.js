@@ -163,6 +163,7 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
     await expect(page.getByTestId('draft-notice')).toBeVisible();
     expect((await attrs(label)).enumerator).toBe(previous);
     if (kind === 'figure' || kind === 'mermaid-property') await page.getByTestId(kind === 'figure' ? 'figure-alt' : 'mermaid-property-label').press('Escape');
+    else if (kind === 'table') await page.getByTestId('table-label').press('Escape');
     else await page.getByTestId(`${kind}-cancel`).click();
     await page.getByTestId(`${kind}-editor`).waitFor({state:'detached'});
     expect((await attrs(label)).enumerator).toBe(previous);

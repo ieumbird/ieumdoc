@@ -192,7 +192,7 @@ async page => {
       await page.locator('[data-document-tab][data-active=true] [data-block="figure"]').getAttribute('data-selected') === 'true';
     await page.getByRole('button', {name:'Edit figure'}).click();
     result.figurePopover = await page.getByTestId('figure-editor').isVisible();
-    await settings.click();
+    await settings.focus(); await settings.press('Enter');
     await page.keyboard.press('Escape'); await settingsDialog.waitFor({state:'hidden'});
     result.settingsKeepsFigureForm = await page.getByTestId('figure-editor').isVisible();
     await page.getByTestId('figure-alt').press('Escape');
