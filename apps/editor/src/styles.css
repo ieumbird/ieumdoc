@@ -23,6 +23,34 @@ button {
   font-family: inherit;
 }
 
+/* UI prose shares Korean eojeol wrapping across the shell, portals and embedded forms.
+ * Draft status is a sibling of those forms inside the editor, so owns a prose boundary too.
+ * Low specificity leaves each surface's existing nowrap/ellipsis and overflow rules in charge. */
+:where(.app-shell, .ui-portal, .block-properties-form, .ui-notice, .draft-status, .form-hint, .display-hint) {
+  word-break: var(--word-break-document);
+  overflow-wrap: anywhere;
+}
+
+/* Document prose has its own rules below. Controls and literal/code surfaces retain
+ * their existing behavior rather than inheriting the surrounding UI prose policy. */
+:where(.document-editor, .source-view-text, .recovery-diff, pre, code, kbd,
+  input, textarea, button, [role="tab"], [role="menuitem"], [role="option"]) {
+  word-break: normal;
+}
+
+/* Inside the editor, preserve ProseMirror's existing word-wrap inheritance too. */
+:where(pre, code, kbd, input, textarea, button, [role="tab"], [role="menuitem"], [role="option"]):not(:where(.document-editor *)) {
+  overflow-wrap: normal;
+}
+
+/* Standalone file/path displays keep their existing wrapping (including Korean paths). */
+:where(.document-path, .document-start-folder-path, .sidebar-folder-name, .sidebar-tree-name,
+  .document-tab, .settings-document-name, .bibliography-files, .recovery-records,
+  [data-testid="recovery-prompt"] [data-slot="dialog-description"] > p:first-child,
+  [data-testid="save-comparison"] [data-slot="dialog-description"] > p:first-child) {
+  word-break: normal;
+}
+
 /* One title strip above file navigation | document | document navigation. */
 .app-shell {
   --shell-sidebar: var(--layout-sidebar-width);

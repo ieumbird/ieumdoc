@@ -1,0 +1,717 @@
+{
+  "afterCssBlob": "f4c73219c6d6f84a8fae46257328452e6c85432b",
+  "afterHeadAtCapture": "3b0308b3d520ecddfc84b6b3cb7c1bdde797474c",
+  "beforeHead": "3b0308b3d520ecddfc84b6b3cb7c1bdde797474c",
+  "beforeCssBlob": "9920282a7dcfbc353e7c2e7d696e8875fff19553",
+  "images": [
+    {
+      "file": "after-1440-draft-form.png",
+      "sha256": "bbc7126d559f13ae535b60f69c29bb90f971940f08ca791790b661d292099224"
+    },
+    {
+      "file": "after-640-confirm.png",
+      "sha256": "d9da1018890dc61ef60d11782ede3b289902eb2c8ccbc3995d2529c648f84976"
+    },
+    {
+      "file": "after-640-draft-form.png",
+      "sha256": "c999ddbf589aaa40937ba91c5004734430a5efca7b587486b015fbe717fe1a3b"
+    },
+    {
+      "file": "after-640-long-token.png",
+      "sha256": "e801cda5e070cc1edab9c3cd906e557578659127128665e862b0e9694025d358"
+    },
+    {
+      "file": "after-640-notifications.png",
+      "sha256": "e1c6ea181b31ca09c410b709c6f3e900af59bbc161b002b3511de3625cbb5196"
+    },
+    {
+      "file": "after-640-settings.png",
+      "sha256": "98af8c5281dd75e130fdbd7317f79ab52b6fa89dd1000fe1ec53da164d7e4904"
+    },
+    {
+      "file": "before-1440-draft-form.png",
+      "sha256": "bbc7126d559f13ae535b60f69c29bb90f971940f08ca791790b661d292099224"
+    },
+    {
+      "file": "before-640-confirm.png",
+      "sha256": "26e6531edbd31222b8da8f8bec92f4dad4c711745ba4fd421decb4ec926ad1e6"
+    },
+    {
+      "file": "before-640-draft-form.png",
+      "sha256": "53dc805f6a7ddaac8b82c91479e4d8c89a74ec2067a5c1eb74b6b25a08b74657"
+    },
+    {
+      "file": "before-640-notifications.png",
+      "sha256": "e1c6ea181b31ca09c410b709c6f3e900af59bbc161b002b3511de3625cbb5196"
+    },
+    {
+      "file": "before-640-settings.png",
+      "sha256": "0ffb61963fe25718683b137e7d99e78e670dacf4c2834b6d4e0f127ab4409ba3"
+    }
+  ],
+  "viewport": [
+    "640x900 Dark Korean",
+    "1440x900 Light English"
+  ],
+  "notes": [
+    "Actual product via pnpm browser:test ui-wrap-capture, persistent Chrome, port 5287, DPR 1, zoom 1, bundled Pretendard loaded.",
+    "draft-form also shows property guidance. Same input x + y, initial scroll; no artificial product text for paired captures.",
+    "English capture uses draft-form; Korean captures include Settings recovery, tab-close confirmation and applied-numbering notification.",
+    "Long token is a simulated recovery-storage read failure surfaced by the existing notification flow; original provider restored in finally.",
+    "Capture harness setup failures were corrected: VM URL unavailable, English-only navigation helper, current Settings focus target and translated category labels. No product assertions/timeouts changed."
+  ],
+  "after": {
+    "results": [
+      {
+        "stage": "after",
+        "width": 640,
+        "language": "ko",
+        "theme": "dark",
+        "name": "draft-form",
+        "text": "저장과 소스에는 적용된 내용만 포함됩니다. 편집 초안은 적용해야 저장됩니다.",
+        "wordBreak": "keep-all",
+        "overflowWrap": "anywhere",
+        "fits": true,
+        "rect": {
+          "x": 233,
+          "y": 88,
+          "width": 354.828125,
+          "height": 36
+        },
+        "dpr": 1,
+        "zoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "fonts": "loaded"
+      },
+      {
+        "stage": "after",
+        "width": 640,
+        "language": "ko",
+        "theme": "dark",
+        "name": "property-hint",
+        "text": "자동 번호: 1",
+        "wordBreak": "keep-all",
+        "overflowWrap": "anywhere",
+        "fits": true,
+        "rect": {
+          "x": 296,
+          "y": 829.734375,
+          "width": 312,
+          "height": 16
+        },
+        "dpr": 1,
+        "zoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "fonts": "loaded"
+      },
+      {
+        "stage": "after",
+        "width": 640,
+        "language": "ko",
+        "theme": "dark",
+        "name": "settings",
+        "text": "로컬 복구 기록 0개.",
+        "wordBreak": "keep-all",
+        "overflowWrap": "anywhere",
+        "fits": true,
+        "rect": {
+          "x": 24,
+          "y": 420.53125,
+          "width": 592,
+          "height": 20
+        },
+        "dpr": 1,
+        "zoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "fonts": "loaded"
+      },
+      {
+        "stage": "after",
+        "width": 640,
+        "language": "ko",
+        "theme": "dark",
+        "name": "confirm",
+        "text": "이 탭을 닫기 전에 “fields.md”의 변경 사항을 저장할까요?‘저장’과 ‘저장 안 함’ 모두 미적용 속성 초안을 버립니다. 저장에는 적용된 내용만 포함됩니다. 계속 편집하려면 취소하세요.",
+        "wordBreak": "keep-all",
+        "overflowWrap": "anywhere",
+        "fits": true,
+        "rect": {
+          "x": 145,
+          "y": 395.5,
+          "width": 350,
+          "height": 72
+        },
+        "dpr": 1,
+        "zoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "fonts": "loaded"
+      },
+      {
+        "stage": "after",
+        "width": 640,
+        "language": "ko",
+        "theme": "dark",
+        "name": "notifications",
+        "text": "fixed.md적용된 문서 기준: 고정 번호 문서에서 번호가 빠져 있습니다. 저장할 수 있습니다.문제 위치로 이동",
+        "wordBreak": "keep-all",
+        "overflowWrap": "anywhere",
+        "fits": true,
+        "rect": {
+          "x": 229,
+          "y": 735,
+          "width": 366,
+          "height": 100
+        },
+        "dpr": 1,
+        "zoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "fonts": "loaded"
+      },
+      {
+        "stage": "after",
+        "width": 640,
+        "language": "ko",
+        "theme": "dark",
+        "name": "long-token",
+        "text": "fixed.md적용된 문서 기준: 고정 번호 문서에서 번호가 빠져 있습니다. 저장할 수 있습니다.문제 위치로 이동",
+        "wordBreak": "keep-all",
+        "overflowWrap": "anywhere",
+        "fits": true,
+        "rect": {
+          "x": 229,
+          "y": 422,
+          "width": 366,
+          "height": 100
+        },
+        "dpr": 1,
+        "zoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "fonts": "loaded"
+      },
+      {
+        "longTokenGeometry": {
+          "contentFits": true,
+          "right": 595,
+          "pageFits": true,
+          "viewport": 640
+        }
+      },
+      {
+        "stage": "after",
+        "width": 1440,
+        "language": "en",
+        "theme": "light",
+        "name": "draft-form",
+        "text": "Save and Source include applied content only. Unapplied edit drafts stay unsaved until you apply them.",
+        "wordBreak": "keep-all",
+        "overflowWrap": "anywhere",
+        "fits": true,
+        "rect": {
+          "x": 273,
+          "y": 88,
+          "width": 641.65625,
+          "height": 16
+        },
+        "dpr": 1,
+        "zoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "fonts": "loaded"
+      },
+      {
+        "stage": "after",
+        "width": 1440,
+        "language": "en",
+        "theme": "light",
+        "name": "property-hint",
+        "text": "Automatic number: 1",
+        "wordBreak": "keep-all",
+        "overflowWrap": "anywhere",
+        "fits": true,
+        "rect": {
+          "x": 344,
+          "y": 805.734375,
+          "width": 736,
+          "height": 16
+        },
+        "dpr": 1,
+        "zoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "fonts": "loaded"
+      },
+      {
+        "stage": "after",
+        "width": 1440,
+        "language": "en",
+        "theme": "light",
+        "name": "settings",
+        "text": "1 local recovery record.",
+        "wordBreak": "keep-all",
+        "overflowWrap": "anywhere",
+        "fits": true,
+        "rect": {
+          "x": 304,
+          "y": 222.53125,
+          "width": 428,
+          "height": 20
+        },
+        "dpr": 1,
+        "zoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "fonts": "loaded"
+      },
+      {
+        "stage": "after",
+        "width": 1440,
+        "language": "en",
+        "theme": "light",
+        "name": "confirm",
+        "text": "Do you want to save changes to “fields.md” before closing this tab?Unapplied property drafts will be lost with both Save and Don't save. Save includes applied content only. Cancel to keep editing.",
+        "wordBreak": "keep-all",
+        "overflowWrap": "anywhere",
+        "fits": true,
+        "rect": {
+          "x": 545,
+          "y": 375.5,
+          "width": 350,
+          "height": 112
+        },
+        "dpr": 1,
+        "zoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "fonts": "loaded"
+      },
+      {
+        "stage": "after",
+        "width": 1440,
+        "language": "en",
+        "theme": "light",
+        "name": "notifications",
+        "text": "fixed.mdApplied document: Missing fixed number in a fixed-number document. Saving is allowed.Go to problem",
+        "wordBreak": "keep-all",
+        "overflowWrap": "anywhere",
+        "fits": true,
+        "rect": {
+          "x": 973,
+          "y": 735,
+          "width": 422,
+          "height": 100
+        },
+        "dpr": 1,
+        "zoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "fonts": "loaded"
+      }
+    ],
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36"
+  },
+  "before": {
+    "results": [
+      {
+        "stage": "before",
+        "width": 640,
+        "language": "ko",
+        "theme": "dark",
+        "name": "draft-form",
+        "text": "저장과 소스에는 적용된 내용만 포함됩니다. 편집 초안은 적용해야 저장됩니다.",
+        "wordBreak": "normal",
+        "overflowWrap": "normal",
+        "fits": true,
+        "rect": {
+          "x": 233,
+          "y": 88,
+          "width": 370.4375,
+          "height": 36
+        },
+        "dpr": 1,
+        "zoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "fonts": "loaded"
+      },
+      {
+        "stage": "before",
+        "width": 640,
+        "language": "ko",
+        "theme": "dark",
+        "name": "property-hint",
+        "text": "자동 번호: 1",
+        "wordBreak": "normal",
+        "overflowWrap": "anywhere",
+        "fits": true,
+        "rect": {
+          "x": 296,
+          "y": 829.734375,
+          "width": 312,
+          "height": 16
+        },
+        "dpr": 1,
+        "zoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "fonts": "loaded"
+      },
+      {
+        "stage": "before",
+        "width": 640,
+        "language": "ko",
+        "theme": "dark",
+        "name": "settings",
+        "text": "로컬 복구 기록 0개.",
+        "wordBreak": "normal",
+        "overflowWrap": "normal",
+        "fits": true,
+        "rect": {
+          "x": 24,
+          "y": 420.53125,
+          "width": 592,
+          "height": 20
+        },
+        "dpr": 1,
+        "zoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "fonts": "loaded"
+      },
+      {
+        "stage": "before",
+        "width": 640,
+        "language": "ko",
+        "theme": "dark",
+        "name": "confirm",
+        "text": "이 탭을 닫기 전에 “fields.md”의 변경 사항을 저장할까요?‘저장’과 ‘저장 안 함’ 모두 미적용 속성 초안을 버립니다. 저장에는 적용된 내용만 포함됩니다. 계속 편집하려면 취소하세요.",
+        "wordBreak": "normal",
+        "overflowWrap": "anywhere",
+        "fits": true,
+        "rect": {
+          "x": 145,
+          "y": 395.5,
+          "width": 350,
+          "height": 72
+        },
+        "dpr": 1,
+        "zoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "fonts": "loaded"
+      },
+      {
+        "stage": "before",
+        "width": 640,
+        "language": "ko",
+        "theme": "dark",
+        "name": "notifications",
+        "text": "fixed.md적용된 문서 기준: 고정 번호 문서에서 번호가 빠져 있습니다. 저장할 수 있습니다.문제 위치로 이동",
+        "wordBreak": "keep-all",
+        "overflowWrap": "anywhere",
+        "fits": true,
+        "rect": {
+          "x": 229,
+          "y": 735,
+          "width": 366,
+          "height": 100
+        },
+        "dpr": 1,
+        "zoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "fonts": "loaded"
+      },
+      {
+        "stage": "before",
+        "width": 1440,
+        "language": "en",
+        "theme": "light",
+        "name": "draft-form",
+        "text": "Save and Source include applied content only. Unapplied edit drafts stay unsaved until you apply them.",
+        "wordBreak": "normal",
+        "overflowWrap": "normal",
+        "fits": true,
+        "rect": {
+          "x": 273,
+          "y": 88,
+          "width": 641.65625,
+          "height": 16
+        },
+        "dpr": 1,
+        "zoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "fonts": "loaded"
+      },
+      {
+        "stage": "before",
+        "width": 1440,
+        "language": "en",
+        "theme": "light",
+        "name": "property-hint",
+        "text": "Automatic number: 1",
+        "wordBreak": "normal",
+        "overflowWrap": "anywhere",
+        "fits": true,
+        "rect": {
+          "x": 344,
+          "y": 805.734375,
+          "width": 736,
+          "height": 16
+        },
+        "dpr": 1,
+        "zoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "fonts": "loaded"
+      },
+      {
+        "stage": "before",
+        "width": 1440,
+        "language": "en",
+        "theme": "light",
+        "name": "settings",
+        "text": "1 local recovery record.",
+        "wordBreak": "normal",
+        "overflowWrap": "normal",
+        "fits": true,
+        "rect": {
+          "x": 304,
+          "y": 222.53125,
+          "width": 428,
+          "height": 20
+        },
+        "dpr": 1,
+        "zoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "fonts": "loaded"
+      },
+      {
+        "stage": "before",
+        "width": 1440,
+        "language": "en",
+        "theme": "light",
+        "name": "confirm",
+        "text": "Do you want to save changes to “fields.md” before closing this tab?Unapplied property drafts will be lost with both Save and Don't save. Save includes applied content only. Cancel to keep editing.",
+        "wordBreak": "normal",
+        "overflowWrap": "anywhere",
+        "fits": true,
+        "rect": {
+          "x": 545,
+          "y": 375.5,
+          "width": 350,
+          "height": 112
+        },
+        "dpr": 1,
+        "zoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "fonts": "loaded"
+      },
+      {
+        "stage": "before",
+        "width": 1440,
+        "language": "en",
+        "theme": "light",
+        "name": "notifications",
+        "text": "fixed.mdApplied document: Missing fixed number in a fixed-number document. Saving is allowed.Go to problem",
+        "wordBreak": "keep-all",
+        "overflowWrap": "anywhere",
+        "fits": true,
+        "rect": {
+          "x": 973,
+          "y": 735,
+          "width": 422,
+          "height": 100
+        },
+        "dpr": 1,
+        "zoom": "1",
+        "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif",
+        "fonts": "loaded"
+      }
+    ],
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36"
+  },
+  "issue": 833,
+  "afterState": "Uncommitted styles.css change; final PR commit contains captured CSS blob",
+  "followup": {
+    "beforeComputed": [
+      {
+        "className": "ui-notice ui-notice--info message",
+        "text": "저장과 소스에는 적용된 내용만 포함됩니다. 편집 초안은 적용해야 저장됩니다.",
+        "wordBreak": "keep-all",
+        "overflowWrap": "anywhere",
+        "ancestors": [
+          "DIV.message-area",
+          "DIV.app-header",
+          "DIV.app-main",
+          "DIV.app-shell app-shell--panel-closed",
+          "DIV.",
+          "BODY.",
+          "HTML."
+        ]
+      },
+      {
+        "className": "draft-status",
+        "text": "적용하지 않은 변경은 저장되지 않습니다. 포함하려면 적용하고, 되돌리려면 취소하세요.",
+        "wordBreak": "normal",
+        "overflowWrap": "break-word",
+        "ancestors": [
+          "DIV.equation",
+          "DIV.react-renderer node-equation",
+          "DIV.tiptap ProseMirror document-editor",
+          "DIV.",
+          "ARTICLE.document",
+          "DIV.",
+          "DIV.document-column",
+          "DIV.document-scroll",
+          "MAIN.document-stage",
+          "DIV.app-main",
+          "DIV.app-shell app-shell--panel-closed",
+          "DIV.",
+          "BODY.",
+          "HTML."
+        ]
+      },
+      {
+        "className": "block-properties-form",
+        "text": "LaTeXx + yx+yx + yx+y(1)레이블번호자동고정자동 번호: 1취소적용",
+        "wordBreak": "keep-all",
+        "overflowWrap": "anywhere",
+        "ancestors": [
+          "DIV.",
+          "DIV.equation",
+          "DIV.react-renderer node-equation",
+          "DIV.tiptap ProseMirror document-editor",
+          "DIV.",
+          "ARTICLE.document",
+          "DIV.",
+          "DIV.document-column",
+          "DIV.document-scroll",
+          "MAIN.document-stage",
+          "DIV.app-main",
+          "DIV.app-shell app-shell--panel-closed",
+          "DIV.",
+          "BODY.",
+          "HTML."
+        ]
+      },
+      {
+        "className": "form-hint",
+        "text": "자동 번호: 1",
+        "wordBreak": "keep-all",
+        "overflowWrap": "anywhere",
+        "ancestors": [
+          "DIV.form-field figure-number-field",
+          "FORM.block-properties-form",
+          "DIV.",
+          "DIV.equation",
+          "DIV.react-renderer node-equation",
+          "DIV.tiptap ProseMirror document-editor",
+          "DIV.",
+          "ARTICLE.document",
+          "DIV.",
+          "DIV.document-column",
+          "DIV.document-scroll",
+          "MAIN.document-stage",
+          "DIV.app-main",
+          "DIV.app-shell app-shell--panel-closed",
+          "DIV.",
+          "BODY.",
+          "HTML."
+        ]
+      }
+    ],
+    "changedImage": "after-640-draft-form.png",
+    "regression": "Replaced selector-string unit guard with ui-prose-wrap browser regression. Without draft-status boundary it fails: expected keep-all, received normal. Korean glyph rectangles also assert no eojeol split.",
+    "beforeHead": "425c6bc13d80f16238abe7559b13bf5812ef2b61",
+    "otherBlocks": "Table uses metadata form without sibling draft status; computed form/hint keep-all. Code edits in place without property/draft-status form; pre/code/language control remain normal. In-document preview Notice and hints compute keep-all.",
+    "environment": "640x900 Dark Korean, persistent Chrome, DPR 1, zoom 100%, bundled Pretendard loaded. Only changed After image recaptured.",
+    "afterComputed": {
+      "results": [
+        {
+          "name": "equation draft",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": "embedded property form",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": "embedded hint",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": "shell draft",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": "embedded preview notice",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": "image draft",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": "image hint",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": "table metadata form",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": "table hint",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": "Mermaid draft",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": "Mermaid hint",
+          "wordBreak": "keep-all",
+          "overflowWrap": "anywhere",
+          "splitWords": []
+        },
+        {
+          "name": ".document-editor",
+          "wordBreak": "normal"
+        },
+        {
+          "name": ".paragraph",
+          "wordBreak": "keep-all"
+        },
+        {
+          "name": "[data-table-cell]",
+          "wordBreak": "keep-all"
+        },
+        {
+          "name": ".code-block pre",
+          "wordBreak": "normal"
+        },
+        {
+          "name": ".code-block code",
+          "wordBreak": "normal"
+        },
+        {
+          "name": ".code-language",
+          "wordBreak": "normal"
+        }
+      ]
+    },
+    "captureCommand": "IEUMDOC_BROWSER_URL=http://127.0.0.1:5287 pnpm browser:test ui-prose-wrap --screenshots",
+    "rootCause": "Equation/image/Mermaid draft-status is a sibling of PropertyForm. PropertyForm and form-hint already computed keep-all; sibling draft-status inherited normal from document-editor. Same-specificity source order was not the cause.",
+    "afterState": "Working tree fix: add sibling .draft-status to shared UI prose boundary",
+    "afterCssBlob": "c2ebb2da5d679901fbadfc4fe4fde0548dfcedb5",
+    "override": "This follow-up CSS/capture state overrides initial metadata only for after-640-draft-form.png; other images retain initial evidence."
+  }
+}
