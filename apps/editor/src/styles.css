@@ -2541,6 +2541,8 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
 }
 
 /* Property forms share spacing and actions in the document and popovers. */
+.block-properties { max-width: var(--available-width); }
+
 .block-properties-form {
   display: grid;
   gap: var(--space-3);

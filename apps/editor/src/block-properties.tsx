@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { i18n } from "./i18n.ts";
 import { useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
 import { useEditorVisible } from "./editor-visibility.ts";
-import { documentScrollContainer } from "./document-scroll.ts";
+import { useDocumentBounds } from "./ui/use-document-bounds.ts";
 import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { PROPERTY_APPLY_SHORTCUT } from "./shortcuts.ts";
@@ -28,6 +28,7 @@ export function BlockProperties({
 }) {
   useTranslation();
   const visible = useEditorVisible();
+  const bounds = useDocumentBounds(anchor, open);
   const wasOpen = useRef(false);
   useLayoutEffect(() => { wasOpen.current = open; }, [open]);
   if (!visible) return null;
@@ -35,7 +36,7 @@ export function BlockProperties({
     <Popover open={open}>
       <PopoverContent
         anchor={anchor}
-        collisionBoundary={documentScrollContainer(anchor.current) ?? undefined}
+        collisionBoundary={bounds}
         sticky
         side="bottom"
         align="end"

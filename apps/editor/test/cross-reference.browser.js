@@ -67,6 +67,90 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
     throw new Error('Scratch document is not a fresh refs.md copy');
   }
   const result = {};
+  // #782: actual right-edge inline targets and the other property surfaces.
+  const overlayFile = [root, 'tmp', 'cross-reference', 'overlays.md'].join(separator);
+  await openPath(page, overlayFile);
+  const overlaySurface = page.locator('[data-document-tab][data-active=true]');
+  const overlayGeometry = [];
+  const panelState = async open => {
+    const toggle = page.getByRole('button', {name:'Outline',exact:true});
+    if ((await toggle.getAttribute('aria-pressed') === 'true') !== open) await toggle.click();
+  };
+  const rightmost = async selector => {
+    const nodes = overlaySurface.locator(selector);
+    const index = await nodes.evaluateAll(nodes => nodes.map((n,index) => ({index,r:n.getBoundingClientRect()}))
+      .filter(({r}) => r.top > 150 && r.top < 600 && r.right < (document.querySelector('.document-panel')?.getBoundingClientRect().left ?? innerWidth)-20).sort((a,b)=>b.r.right-a.r.right)[0]?.index);
+    if (index === undefined) throw Error(`No right-edge target: ${selector}`);
+    return nodes.nth(index);
+  };
+  const inspectOverlay = async (popup, name, width, outline) => {
+    await popup.waitFor();
+    // Popover positioning settles on its next animation frame; no reload or retry masks clipping.
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const geometry = await popup.evaluate(n => {
+      const viewport = document.querySelector('.document-scroll[data-active="true"]');
+      const r = viewport.getBoundingClientRect(), style = getComputedStyle(viewport);
+      const left = r.left + viewport.clientLeft + parseFloat(style.paddingLeft);
+      const panel = document.querySelector('.document-panel')?.getBoundingClientRect();
+      const right = Math.min(r.right, r.left + viewport.clientLeft + viewport.clientWidth - parseFloat(style.paddingRight), panel?.left ?? innerWidth);
+      const top = r.top + viewport.clientTop, bottom = Math.min(r.bottom, top + viewport.clientHeight);
+      const box = n.getBoundingClientRect();
+      const controls = [...n.querySelectorAll('button,input,select,textarea')].filter(c=>c.tabIndex>=0 && !c.disabled && c.getClientRects().length).map(c=>{
+        const b=c.getBoundingClientRect();
+        return {name:c.getAttribute('data-testid')??c.textContent, left:b.left,right:b.right,top:b.top,bottom:b.bottom,
+          hit:c.contains(document.elementFromPoint(b.x+b.width/2,b.y+b.height/2))};
+      });
+      return {bounds:{left,right,top,bottom},box:{left:box.left,right:box.right,top:box.top,bottom:box.bottom},controls};
+    });
+    overlayGeometry.push({name,width,outline,...geometry});
+    if (screenshots && ['reference','link','inline-math'].includes(name)) await page.screenshot({path:`tmp/782/${name}-${width}-${outline?'open':'closed'}.png`});
+    const {bounds,box,controls} = geometry;
+    expect(box.left >= bounds.left && box.right <= bounds.right && box.top >= bounds.top && box.bottom <= bounds.bottom,
+      `${name} outside document: ${JSON.stringify(geometry)}`).toBe(true);
+    expect(controls.length > 0 && controls.every(c=>c.hit && c.left>=bounds.left && c.right<=bounds.right && c.top>=bounds.top && c.bottom<=bounds.bottom),
+      `${name} controls clipped: ${JSON.stringify(geometry)}`).toBe(true);
+  };
+  for (const width of [1440,640]) {
+    await page.setViewportSize({width,height:900});
+    for (const outline of [false,true]) {
+      await panelState(outline);
+      await overlaySurface.evaluate(n=>n.scrollTop=0);
+      const reference = await rightmost('[data-testid="cross-reference"]');
+      await reference.hover();
+      await reference.getByTestId('cross-reference-edit').click();
+      await inspectOverlay(page.getByTestId('reference-form'),'reference',width,outline);
+      await page.keyboard.press('Escape');
+      const link = await rightmost('.document-editor > p a');
+      await link.evaluate(n=>{
+        const editor=n.closest('.document-editor').editor, from=editor.view.posAtDOM(n,0);
+        editor.view.focus(); editor.commands.setTextSelection({from,to:from+n.textContent.length});
+      });
+      await page.keyboard.press('Control+Quote');
+      await inspectOverlay(page.getByTestId('link-form'),'link',width,outline);
+      await page.keyboard.press('Escape');
+      const math = await rightmost('[data-testid="inline-math"]');
+      await math.locator('.katex-html').dblclick();
+      await inspectOverlay(page.getByTestId('inline-math-properties'),'inline-math',width,outline);
+      await page.getByTestId('inline-math-cancel').click();
+      await overlaySurface.getByTestId('label-target-edit').press('Space');
+      await inspectOverlay(page.getByTestId('label-target-properties'),'section-label',width,outline);
+      await panelState(!outline);
+      await inspectOverlay(page.getByTestId('label-target-properties'),'section-label-panel-change',width,!outline);
+      await panelState(outline);
+      await page.getByTestId('label-target-cancel').click();
+      const table = overlaySurface.locator('[data-block="table"]');
+      await table.scrollIntoViewIfNeeded();
+      await table.hover({position:{x:8,y:8}});
+      await table.getByRole('button',{name:'Edit table',exact:true}).click();
+      await inspectOverlay(page.getByTestId('table-properties'),'table',width,outline);
+      await page.getByTestId('table-cancel').click();
+    }
+  }
+  await page.setViewportSize({width:1440,height:900});
+  await panelState(false);
+  // Existing editor-groups checks exercise both reference/link forms in their own columns.
+  await open();
+
   await openPath(page, [root, 'tmp', 'cross-reference', 'no-targets.md'].join(separator));
   await selectText('Reference text');
   await page.getByTestId('selection-toolbar').getByRole('button', {name:'Cross-reference', exact:true}).click();
@@ -513,5 +597,8 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
   if (failed.length > 0 || problems.length > 0) {
     throw new Error(`Cross-reference authoring failed: ${JSON.stringify({result, consoleErrors: problems})}`);
   }
-  return {...result, consoleErrors: problems};
+  return {...result, overlayGeometry, captureEnvironment:await page.evaluate(() => ({
+    userAgent:navigator.userAgent, dpr:devicePixelRatio, zoom:getComputedStyle(document.documentElement).zoom,
+    fonts:document.fonts.status, uiFont:getComputedStyle(document.body).fontFamily,
+  })), consoleErrors: problems};
 }
