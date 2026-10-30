@@ -94,6 +94,13 @@ async (page, { expect, openFolderPicker, doclingFixture: fixture, screenshots })
   await capture('pdf-menu-en-1440');
   await page.getByRole('menuitem', { name: 'Convert with Docling' }).click();
   const progress = page.getByTestId('docling-conversion');
+  const expectComparison = async (label = 'Docling comparison') => {
+    await expect(progress).toHaveCount(0);
+    const job = await (await page.request.get(page.url().split('/').slice(0, 3).join('/') + '/api/docling-conversion')).json();
+    expect(job.state).toBe('success');
+    const bundle = job.output.split(/[\\/]/).at(-1);
+    await expect(page.getByRole('tab', { name: `${bundle} · ${label}`, exact: true })).toBeVisible();
+  };
   await progress.getByRole('button', { name: /Start conversion|Convert again/ }).click();
   await expect(progress).toContainText('Server task');
   expect(conversionPosts).toBe(1);
@@ -146,7 +153,7 @@ async (page, { expect, openFolderPicker, doclingFixture: fixture, screenshots })
   } finally { releaseComparison(); await page.unroute('**/api/docling-compare?*', delayedComparison); }
   fixture.mode('success');
   await progress.getByRole('button', { name: 'Convert again' }).click();
-  await expect(page.getByRole('tab', { name: /Docling comparison · Fixture PDF/ })).toBeVisible();
+  await expectComparison();
   await expect(page.locator('.docling-source img')).toBeVisible();
   await expect(center).toHaveCount(0);
   await capture('completed-en-1440');
@@ -179,7 +186,7 @@ async (page, { expect, openFolderPicker, doclingFixture: fixture, screenshots })
     expect(refusedPosts).toBe(0);
     releaseInitial();
     await expect(progress.getByRole('button', { name: 'Start conversion' })).toBeEnabled();
-    expect(await page.getByRole('tab', { name: /Docling comparison ·/ }).count()).toBe(0);
+    expect(await page.getByRole('tab', { name: / · Docling comparison$/ }).count()).toBe(0);
     for (const mode of ['reject', 'lost']) {
       refuse = mode;
       const readBack = page.waitForResponse(response => response.url() === endpoint && response.request().method() === 'GET' && response.ok());
@@ -189,13 +196,13 @@ async (page, { expect, openFolderPicker, doclingFixture: fixture, screenshots })
       const reason = mode === 'reject' ? 'Rejected new conversion' : 'Failed to fetch';
       expect(await progress.textContent()).toContain(reason);
       expect(await center.textContent()).toContain(reason);
-      expect(await page.getByRole('tab', { name: /Docling comparison ·/ }).count()).toBe(0);
+      expect(await page.getByRole('tab', { name: / · Docling comparison$/ }).count()).toBe(0);
       expect((await (await page.request.get(endpoint)).json()).id).toBe(oldSuccess.id);
     }
     expect(refusedPosts).toBe(2); // Exactly the two explicit user attempts; no automatic POST retry.
     refuse = '';
     await progress.getByRole('button', { name: 'Start conversion' }).click();
-    await expect(page.getByRole('tab', { name: /Docling comparison · Fixture PDF/ })).toBeVisible();
+    await expectComparison();
     await expect(center).toHaveCount(0);
   } finally { releaseInitial(); await page.unroute('**/api/docling-conversion', oldSnapshot); }
   if (screenshots) {
@@ -221,7 +228,7 @@ async (page, { expect, openFolderPicker, doclingFixture: fixture, screenshots })
     await progress.getByRole('button', { name: /변환 시작|다시 변환/ }).click();
     await expect(progress).toContainText('서버 작업'); await capture('progress-ko-640');
     fixture.mode('success');
-    await expect(page.getByRole('tab', { name: /Docling 대조 · Fixture PDF/ }).last()).toBeVisible();
+    await expectComparison('Docling 대조');
     await expect(progress).toHaveCount(0); await capture('completed-ko-640');
     await page.getByRole('button', { name: '설정', exact: true }).click();
     await page.getByRole('button', { name: '표시·언어', exact: true }).click();

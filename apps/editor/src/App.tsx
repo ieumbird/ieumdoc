@@ -21,7 +21,7 @@ import type { DocumentEditorHandle } from "./DocumentEditor.tsx";
 import { DocumentTab } from "./DocumentTab.tsx";
 import { documentScrollContainer, scrollDocumentFromShell } from "./document-scroll.ts";
 import { DocumentTabs } from "./shell/DocumentTabs.tsx";
-import { editorGroups, initialEditorGroups, allTabsPendingWork, openedTab, tabNames } from "./document-tabs.ts";
+import { editorGroups, initialEditorGroups, allTabsPendingWork, openedTab, tabLabels, tabNames } from "./document-tabs.ts";
 import { type DocumentSession, type DocumentSessionSnapshot } from "./useDocumentSession.ts";
 import { messageOf, NativeOpenError, requestDocument } from "./document-session.ts";
 import { readDocumentWidth, readOpenTabs, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, writeOpenTabs, type DocumentWidth } from "./preferences.ts";
@@ -169,7 +169,9 @@ function EditorApp() {
   const focusedGroup = navigation.groups.find(group => group.id === navigation.focused)!;
   const activeId = focusedGroup.active;
   const comparison = comparisons.find(tab => tab.id === activeId);
-  const allTabs = [...tabs, ...comparisons.map(tab => ({ ...tab, title: `${i18n.t("Docling comparison")} · ${tab.snapshot.map.source.name}` }))];
+  const comparisonLabels = tabLabels(comparisons);
+  const allTabs = [...tabs, ...comparisons.map((tab, index) => ({ ...tab,
+    title: `${comparisonLabels[index]!.folder ?? documentLocation(tab.path)[0] ?? tab.snapshot.map.source.name} · ${i18n.t("Docling comparison")}` }))];
   const split = navigation.groups.length === 2;
   const [canSplit, setCanSplit] = useState(false);
   const splitAvailable = useRef(false);
