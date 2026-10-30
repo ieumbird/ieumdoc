@@ -13,7 +13,7 @@ export function AiChat({ status, conversation, roots, onSettings, onOpen }:
       <label>참고 폴더<select aria-label="참고 폴더" value={selected} disabled={conversation.busy} onChange={event => setRoot(event.target.value)}>
         {!roots.length ? <option value="">폴더를 열어주세요</option> : roots.map(item => <option key={item} value={item}>{item}</option>)}
       </select></label>
-      <label>출력 폴더<input aria-label="출력 폴더" placeholder="열린 폴더 안의 기존 하위 폴더" value={output} disabled={conversation.busy} onChange={event => setOutput(event.target.value)} /></label>
+      <label title="참고 폴더 안의 하위 폴더 이름입니다. 없으면 새로 만듭니다.">출력 폴더<input aria-label="출력 폴더" placeholder="reports" value={output} disabled={conversation.busy} onChange={event => setOutput(event.target.value)} /></label>
       <p>열린 폴더의 저장된 문서를 참고합니다. 이 Codex 버전은 shell 읽기를 해당 폴더로 제한하지 못합니다.</p>
       <Button variant="ghost" size="sm" onClick={onSettings}>Codex 상태</Button>
     </div>
@@ -25,10 +25,10 @@ export function AiChat({ status, conversation, roots, onSettings, onOpen }:
       </article>)}
       {conversation.busy ? <p className="ai-activity" role="status">{conversation.activity || "요청을 처리하고 있습니다…"}</p> : null}
     </div>
-    <form className="ai-compose" onSubmit={event => { event.preventDefault(); if (!question.trim()) return; void conversation.send(selected, output.trim(), question.trim()); setQuestion(""); }}>
+    <form className="ai-compose" onSubmit={event => { event.preventDefault(); if (!question.trim()) return; void conversation.send(selected, output.trim() || "reports", question.trim()); setQuestion(""); }}>
       <textarea aria-label="AI 요청" placeholder="핵심 수치 표, 수식, Mermaid 그림을 넣어 요약 보고서를 만들어줘." value={question} onChange={event => setQuestion(event.target.value)} disabled={conversation.busy} />
       <div>{conversation.busy ? <Button type="button" variant="secondary" onClick={() => void conversation.stop()}>중지</Button>
-        : <Button type="submit" disabled={!selected || !output.trim() || !question.trim() || !status?.loggedIn || !status.modelAvailable}>보내기</Button>}</div>
+        : <Button type="submit" disabled={!selected || !question.trim() || !status?.loggedIn || !status.modelAvailable}>보내기</Button>}</div>
     </form>
   </section>;
 }

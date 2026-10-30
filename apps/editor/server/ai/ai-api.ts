@@ -1,7 +1,7 @@
 // SPIKE #657: one in-memory conversation, Codex execution, CLI-only report creation.
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -95,7 +95,12 @@ export class AiHost {
     let root: string, output: string, target: string, model: string;
     try {
       root = realpathSync(this.access?.resolve(rootValue) ?? rootValue);
-      output = realpathSync(this.access?.resolve(outputValue) ?? outputValue);
+      // SPIKE: output may be a subfolder name relative to the reference folder (default "reports"); create it if missing.
+      const outputName = outputValue.trim() || "reports";
+      const outputPath = path.isAbsolute(outputName) ? (this.access?.resolve(outputName) ?? outputName) : path.resolve(root, outputName);
+      if (!inside(root, outputPath) || path.resolve(outputPath) === root) throw new Error("Choose a dedicated output subfolder inside the opened reference folder.");
+      if (!existsSync(outputPath)) mkdirSync(outputPath, { recursive: true });
+      output = realpathSync(outputPath);
       if (!statSync(root).isDirectory() || !statSync(output).isDirectory()) throw new Error("Select existing reference and output folders.");
       if (!inside(root, output) || root === output) throw new Error("Choose a dedicated output subfolder inside the opened reference folder.");
       if (!existsSync(this.cli)) throw new Error("Build the CLI first: pnpm --filter @ieumdoc/cli build");
@@ -194,7 +199,7 @@ export async function handleAiRequest(req: IncomingMessage, res: ServerResponse,
   if (pathname === "/api/ai/interrupt") { await host.interrupt(); return json(res, 200, { ok: true }); }
   if (pathname !== "/api/ai/turn") return json(res, 404, { error: "Not found." });
   const body = JSON.parse((await readRequestBody(req, 64 * 1024)).toString("utf8"));
-  if (![body.root, body.output, body.question].every(value => typeof value === "string" && value.trim())) return json(res, 400, { error: "Reference folder, output folder and request are required." });
+  if (![body.root, body.output || "reports", body.question].every(value => typeof value === "string" && value.trim())) return json(res, 400, { error: "Reference folder, output folder and request are required." });
   res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8"); res.flushHeaders();
   const send: Send = event => { if (!res.writableEnded) res.write(JSON.stringify(event) + "\n"); };
   const closed = () => { if (!res.writableEnded) void host.interrupt(); };

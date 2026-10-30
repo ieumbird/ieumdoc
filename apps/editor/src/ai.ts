@@ -16,7 +16,7 @@ export function useAiConversation(onReport: (file: string) => Promise<unknown>) 
   const [busy, setBusy] = useState(false);
   const [activity, setActivity] = useState("");
   const [root, setRoot] = useState("");
-  const [output, setOutput] = useState("");
+  const [output, setOutput] = useState("reports");
   const [question, setQuestion] = useState("");
   const running = useRef(false);
   const append = (message: AiMessage) => setMessages(all => [...all, message]);
