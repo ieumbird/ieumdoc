@@ -3,6 +3,7 @@
 역할: 반복 UI 동작의 확정 목표·현재 기준·불일치를 관리하며, 시각 표현은 [Visual Language](editor-visual-language-v1.md), 배치·치수는 [Layout Rules](editor-layout-rules-v1.md)를 따른다.
 
 - Status: Draft
+- P01 content-boundary verification: 2026-10-30 (#782; 실제 1440/640px·Outline 열림/닫힘·두 그룹 browser 검사와 [전후 캡처](editor-layout-rules-v1.md#form-content-viewport-782)).
 - P02 verified: 2026-10-30 (#776; 다섯 폼·입력칸 오류·자동 표시와 저장/재열기를 브라우저에서 확인).
 - P06 verified: 2026-10-30 (#786; title slot/typography, pending Figure entry/cancel/Apply/Undo/Save and existing caption/body/list patterns; [evidence](figure-authoring-v1.md#empty-authoring-entry-786)).
 - Inventory baseline: 2026-10-30. master `2de4e857`의 코드·현재 계약과 #777 소유자 결정 대조. 인벤토리 문서 작업에서는 브라우저를 실행하지 않았다. 화면 근거는 [1단계 인벤토리][inventory]에 보존하며 후속 구현 검증은 해당 패턴에 기록한다.
@@ -22,9 +23,9 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 - **목적·사용/비사용:** 짧은 속성은 대상 문맥 안에서 고친다. 긴 원문, 미주 본문, 문서·앱 전체 설정을 작은 속성 팝오버에 넣지 않는다.
 - **목표:** 짧은 metadata는 대상 전체에 붙는 팝오버, 긴 수식·Mermaid 원문은 본문 폭, 미주는 현재 자리. 문서 설정은 문서 상단, 앱 Settings는 전용 화면이다. 모든 작은 편집면은 Sidebar·Outline을 제외한 해당 문서 콘텐츠 viewport 안에 둔다. 자동 우측 inspector를 열지 않는다.
 - **목표:** 블록 수식 label·번호의 작은 진입을 원문 편집과 분리하되 원문 폼에서 둘을 함께 고치는 경로도 유지한다.
-- **현재 기준:** [FigureProperties][figure]의 대상 anchor·콘텐츠 경계, Mermaid 원문의 본문 폭, 미주 in-place와 문서/앱 설정의 범위 분리.
+- **현재 기준:** [FigureProperties][figure]의 대상 anchor와 `documentContentBounds`를 공유하는 작은 폼의 콘텐츠 경계(#782), Mermaid 원문의 본문 폭, 미주 in-place와 문서/앱 설정의 범위 분리.
 - **사용처:** U01–U11 그림·수식·표·미주·inline/절 label, U12 제목, U13 문서 설정, U22 앱 설정.
-- **결정·불일치:** [소유자 결정 P01][decision]. 표·절 label 표면은 [D03](#알려진-불일치), 수식 진입은 D04, 작은 폼의 가용 영역·교차참조 가림은 D02.
+- **결정·불일치:** [소유자 결정 P01][decision]. 표·절 label 표면은 [D03](#알려진-불일치), 수식 진입은 D04, 작은 폼의 가용 영역·교차참조 가림 D02는 #782에서 해결했다. 단일/두 그룹 모두 Sidebar·Outline·스크롤바를 제외하며 겹쳐 열린 Outline도 제외한다. [검증·전후 캡처](editor-layout-rules-v1.md#form-content-viewport-782)를 따른다.
 
 ## P02 자동·고정 번호
 
@@ -118,12 +119,12 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 
 ## 알려진 불일치
 
-현재 코드·1단계 관찰과 확정 목표 사이의 차이다. 아래 이슈의 등록은 구현 완료가 아니다. #777은 이 문서와 추적 등록까지이며 첫 구현은 #776이다.
+현재 코드·1단계 관찰과 확정 목표 사이의 차이다. 해결 항목은 상태와 현재 계약을 명시한다. 아래 이슈의 등록은 구현 완료가 아니다. #777은 이 문서와 추적 등록까지이며 첫 구현은 #776이다.
 
 | ID · 패턴 | 현재 다른 사용처 → 목표 | 후속 이슈 |
 | --- | --- | --- |
 | D01 · P02/P11 · 해소 | U01–U05 다섯 폼의 자동/고정 세그먼트·빈 고정 차단·자동 표시 번호를 공용 NumberField로 통일 | [#776](https://github.com/ieumbird/ieumdoc/issues/776) |
-| D02 · P01 | U10 교차참조가 Outline 뒤에 가림; 같은 경계의 U05/U07–U11 영향은 미확인 → 가용 콘텐츠 viewport | [#782](https://github.com/ieumbird/ieumdoc/issues/782) |
+| D02 · P01 · 해결 | U10 교차참조·U08 링크의 창 경계와 U05/U07/U11의 전체 scroll 요소 경계를 가용 콘텐츠 viewport로 통일. U09 인용은 공용 훅 변경만 함께 적용; 동결 기능 전용 변경 없음 | [#782](https://github.com/ieumbird/ieumdoc/issues/782), [현재 검증](editor-layout-rules-v1.md#form-content-viewport-782) |
 | D03 · P01/P04 | U05 표·U11 절 label의 anchor 끝 정렬·Apply/Cancel·밖에서 유지 → 대상 팝오버·Done/밖에서 적용 | [#791](https://github.com/ieumbird/ieumdoc/issues/791) |
 | D04 · P01/P03/P04/P09 | U04 수식은 원문 폼 진입만 있음 → 작은 metadata 진입 분리 | [#788](https://github.com/ieumbird/ieumdoc/issues/788) |
 | D05 · P04 | U08–U10 링크·인용·교차참조는 Cancel 없음·blur dismissal → 명시적 적용/취소와 초안 유지 | [#790](https://github.com/ieumbird/ieumdoc/issues/790) |

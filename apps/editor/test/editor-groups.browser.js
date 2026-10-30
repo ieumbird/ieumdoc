@@ -116,6 +116,25 @@ async (page, { openPath, activeDocument, expect, screenshots = false }) => {
   await command('Insert citation…');
   await overlayBounds(surface(bid).getByTestId('citation-form'),'Citation form',true);
   await page.keyboard.press('Escape');
+  // #782: the other group's forms use its own content viewport as well.
+  await surface(aid).locator('.document-editor').evaluate(n => {
+    let range;
+    n.editor.state.doc.descendants((node,pos) => {
+      if (range || !node.isText || !node.text.includes('DC-link voltage')) return;
+      const from=pos+node.text.indexOf('link'); range={from,to:from+4};
+    });
+    if (!range) throw Error('Right group reference text missing');
+    n.editor.view.focus(); n.editor.commands.setTextSelection(range);
+  });
+  const rightToolbar=surface(aid).getByTestId('selection-toolbar');
+  await rightToolbar.getByRole('button',{name:'Cross-reference',exact:true}).click();
+  await overlayBounds(surface(aid).getByTestId('reference-form'),'Right group reference form',true);
+  await page.keyboard.press('Escape');
+  await rightToolbar.getByRole('button',{name:'Link',exact:true}).click();
+  await overlayBounds(surface(aid).getByTestId('link-form'),'Right group link form',true);
+  await page.keyboard.press('Escape');
+  // Restore the left caret for the existing slash/menu checks below.
+  await surface(bid).locator('.document-editor').evaluate(n=>n.editor.view.focus());
   // A slash query at the same paragraph edge includes existing long reference labels.
   await page.keyboard.type(' /');
   const slashMenu=surface(bid).getByRole('menu',{name:'Insert block',exact:true});

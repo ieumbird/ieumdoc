@@ -4,6 +4,7 @@ Role: alignment, spacing, control dimensions and deliberate geometry exceptions;
 
 - Status: Implemented
 - Contract cross-check: 2026-10-30 (#777 inventory and #785 document/code comparison at master `e6eb3282`; control exceptions moved here, no geometry changes or browser rerun).
+- Form content viewport verification: 2026-10-30 (#782; [계약·검사·전후 캡처](#form-content-viewport-782)).
 - Outline display update: 2026-10-29 (#719; single-line ellipsis, full title tooltip and accessible name; [evidence](../reviews/editor-visual-language-history-2026-10-30.md#single-line-outline-719)).
 - Editor groups verification: 2026-10-29 (#488 phase 1; 440px minimum per group, fixed equal columns, narrow merging and [1440/640px evidence](editor-ux-shell-v1.md#two-editor-groups-488-phase-1)).
 - Tab-row actions update: 2026-10-29 (#695; [contract and evidence](editor-ux-shell-v1.md#title-strip-and-tab-row-actions-695)).
@@ -30,7 +31,7 @@ Role: alignment, spacing, control dimensions and deliberate geometry exceptions;
 - Previous verification: 2026-10-17 (UX review: unreserved block metadata, text-aligned tables, folder heading actions, 200px narrow sidebar and the overlay sidebar below 640px; stable browser suite and 1440/1024/375px [Before/After](../reviews/editor-ux-review-2026-10-17.md)).
 - Previous verification: 2026-10-16 (#204: tab row and measured-header overlay bounds; layout-rules/quiet-document checks and approved 1440/375px [captures](../reviews/document-tabs-204-2026-10-16.md)). Previous verification: 2026-10-14 (#218: folder-navigation, layout-rules and quiet-document checks; full folder names, Korean word wrapping, unbroken wrapping, first-line icon and short-name alignment, reachable actions and actual Before/After captures. #225 review fixes: layout-rules and quiet-document browser checks, gutter hover retention, expanded top-level extent geometry, control/neighbor clearance, 0px text shift and same-state Before/After captures). Previous shell verification: 2026-10-13 (#176; [actual captures](../reviews/editor-shell-176-2026-10-13.md)).
 - Scope: Editor shell, document, block tools and control geometry.
-- Pattern targets: UI 작업 전 [UI 패턴](ui-patterns-v1.md)의 사용처·확정 목표·불일치를 확인한다. 아래는 현재 geometry이며 P01 가용 콘텐츠 경계와 P09 표 상단 도구 목표의 구현 완료를 뜻하지 않는다.
+- Pattern targets: UI 작업 전 [UI 패턴](ui-patterns-v1.md)의 사용처·확정 목표·불일치를 확인한다. 아래는 현재 geometry이며 P01 가용 콘텐츠 경계는 #782에서 구현했다. P09 표 상단 도구 목표는 아직 구현하지 않았다.
 - [Visual Language](editor-visual-language-v1.md) owns color, typography, surfaces and state expression. It supersedes the earlier restriction against changing fonts/colors.
 
 - Viewport alignment: #695 replaces the 35rem/56rem multi-row header and 704px action wrapping with a fixed title strip and tab row. Search becomes icon-only below a 22rem available title container; Wide document folds into ⋯ at viewport widths up to 1024px. Settings, Sidebar and Outline docking breakpoints remain unchanged.
@@ -54,12 +55,15 @@ Role: alignment, spacing, control dimensions and deliberate geometry exceptions;
   Split paper uses the existing 80px starting gutter and 16px narrow trailing inset;
   each native scrollbar belongs to its group. The shared title strip stays 40px;
   both tab rows stay 32px plus the boundary. See the [group contract](editor-ux-shell-v1.md#two-editor-groups-488-phase-1).
-  Floating editor controls fit and cap their size to the owning group's client viewport,
-  excluding the native scrollbar, with the existing 8px edge inset. Overlay and viewport
-  resize/scroll recompute placement; one group retains its previous window bounds.
-  The single-group bounds can leave a reference form behind Outline; this is a known
-  mismatch tracked by [#782](https://github.com/ieumbird/ieumdoc/issues/782), not an
-  allowed exception to the [P01 target](ui-patterns-v1.md#p01-속성-편집-표면과-위치).
+  Floating editor controls fit and cap their size to the owning document's visible
+  content viewport in both single and split layouts. Exclude Sidebar, docked or
+  overlay Outline/Tables/Figures panels, padding and native scrollbars. Keep the
+  existing 8px edge inset for inline forms, menus and reading previews; property
+  popovers retain their existing library collision spacing and placement rules.
+  Resize, group movement and panel/Sidebar changes recompute the boundary.
+  [#782 verification and captures](#form-content-viewport-782) cover the former
+  single-group mismatch with [P01](ui-patterns-v1.md#p01-속성-편집-표면과-위치).
+
 
 - The bottom Settings icon carries an 8px update dot in the same icon slot in both expanded Sidebar and collapsed rail (#665), without changing button targets or footer placement. Dot activation opens About & updates; its update actions receive an inset accent outline and selected-surface background. See the [update contract and captures](desktop-distribution-v1.md#settings-update-cue-verification-665).
 
@@ -176,3 +180,43 @@ clearance. Sidebar and Outline retain their independent scroll regions. See the
 - `new-document.browser.js` checks the empty surface at 1440 and 768px, first hint and insert visibility without hover, New focus, immediate typing/undo, blank-paper click, actual empty Save/Source and real-file Save → Reload. Cancel and rejected New return to the opening control without creating a file.
 - `layout-rules.browser.js` measures real scratch documents at 1440, 1424, 1423, 1280, 1279, 1025, 1024, 768, 705, 704 and 640px with sidebar open/collapsed and a folder shown. No-element results fail. It checks the sidebar and docked panel widths against their variables, 16px sidebar icons and top-level tree icon/text alignment, the overlay at 1423, 1280, 1279, 1024, 768 and 704px (document width unchanged, no sideways scroll, top at the header's bottom, Save, File actions and the Outline toggle uncovered, Escape returns focus to the Outline toggle) and that hiding the docked panel widens the centering area by its width. Boundary checks preserve the 928px Standard column at 1424px and a single-row TopBar at 1280–1424px, retain explicit docked open/closed choices through resize, keep overlay dismissal separate, and reset the choice on reload. At 640px with the Sidebar expanded and collapsed, every tab-row action remains inside the viewport on the fixed second row with no sideways page scroll, in reading order, 4px apart within a group and at least 12px between groups; Wide document remains available in ⋯; the Reload menu stays inside the viewport. At 1920px it toggles Wide document in the tab-row actions and checks the column against `--layout-content-width-wide` (capped by the area), centering, the shared axis, the text inset, unmoved TopBar controls and the preference surviving a reload without changing document content/dirty state. It also checks inline document settings/control bounds and Escape disclosure focus at 1920/1440/1280/1024/768/640px (#580). The block uses the document content axis, independently of Sidebar width. An additional English/Korean matrix at 1280/1423/1424/1440px covers both Sidebar states and both Outline states, asserting 40px height, centered placement, 160px minimum command button, visible controls without overlap and secondary-location/shortcut/action reduction order.
 - No change to Core/CLI, document semantics, save API, Tiptap state architecture or backend persistence.
+
+## Form content viewport #782
+
+`documentContentBounds` shares FigureProperties' content-boundary calculation with
+`useOverlayBounds` (link/reference/citation forms, selection toolbar, menus and reading
+previews) and `BlockProperties` (inline math, section label and table properties).
+The width cap lets existing fields/actions wrap inside the available area. Form
+appearance, anchor alignment, confirmation and draft behavior keep their contracts.
+The opening focus target stays stable through the boundary measurement render;
+existing `property-drafts` and `inline-math-authoring` focus checks verify this.
+This is Editor interaction only; Core/CLI semantics are unchanged.
+
+The `cross-reference` regression checks 1440×900 and 640×900 with Outline open/closed,
+including the 640px overlay panel and an expanded Sidebar. It opens actual targets
+near the visible right edge, checks each form and enabled control against document
+bounds, and hit-tests controls to detect covering panels. The same section-label
+form also stays usable while Outline changes. `editor-groups` checks reference and
+link forms in both columns; 640px retains the existing automatic single-group merge.
+
+Manual before/after evidence uses the same disposable `overlays.md`, Windows Chrome
+persistent checkout profile, English/light UI, default document width, 100% zoom,
+DPR 1 and the bundled Pretendard fonts at 1440×900/640×900. Before uses base
+`ceead74c` product code; after uses this PR's content-boundary change. Inline targets
+are opened with the document at scroll top 0; the screenshot captures the resulting
+focus/selection and popup. These are manual review images, not pixel assertions.
+
+| Form / Outline open | 1440px before / after | 640px before / after |
+| --- | --- | --- |
+| Cross-reference | [Before](assets/form-viewport-782/before/reference-1440-open.png) / [After](assets/form-viewport-782/after/reference-1440-open.png) | [Before](assets/form-viewport-782/before/reference-640-open.png) / [After](assets/form-viewport-782/after/reference-640-open.png) |
+| Link | [Before](assets/form-viewport-782/before/link-1440-open.png) / [After](assets/form-viewport-782/after/link-1440-open.png) | [Before](assets/form-viewport-782/before/link-640-open.png) / [After](assets/form-viewport-782/after/link-640-open.png) |
+| Inline math | [Before](assets/form-viewport-782/before/inline-math-1440-open.png) / [After](assets/form-viewport-782/after/inline-math-1440-open.png) | [Before](assets/form-viewport-782/before/inline-math-640-open.png) / [After](assets/form-viewport-782/after/inline-math-640-open.png) |
+
+The same asset directories include each form with Outline closed.
+[Measured geometry and browser environment](assets/form-viewport-782/verification.json)
+record the before/after bounds and pointer hit results. Before: at 1440px
+the reference extends to x=1388.625 beyond the content right edge x=1184, hiding Apply;
+at 640px it extends to x=632 beyond x=384. Section-label properties also cross the
+Sidebar boundary; inline math/table properties can cross the narrow overlay panel.
+After: all five forms' inputs and buttons fit and receive pointer hits in all four
+states. Citation-only behavior was not changed or reworked (ADR-0008 freeze).
