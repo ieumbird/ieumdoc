@@ -1,7 +1,24 @@
 // Real Host → fake HTTP Docling. Browser routing never simulates conversion decisions.
 async (page, { expect, openFolderPicker, doclingFixture: fixture, screenshots }) => {
+  let initialReadLost = false, conversionPosts = 0, acceptedId;
+  const transport = async route => {
+    if (route.request().method() === 'GET' && !initialReadLost) { initialReadLost = true; return route.abort('failed'); }
+    if (route.request().method() === 'POST') {
+      conversionPosts++;
+      if (conversionPosts === 1) {
+        const response = await route.fetch();
+        expect(response.ok()).toBe(true);
+        acceptedId = (await response.json()).id;
+        return route.abort('failed'); // The Host accepted the job; only its response is lost.
+      }
+    }
+    return route.continue();
+  };
+  await page.route('**/api/docling-conversion', transport);
   await page.evaluate(() => { localStorage.setItem('ieumdoc.uiLanguage', 'en'); localStorage.setItem('ieumdoc.theme', 'light'); });
+  const initialRecovery = page.waitForResponse(response => response.url().endsWith('/api/docling-conversion') && response.request().method() === 'GET' && response.ok());
   await page.reload();
+  await initialRecovery;
   await page.setViewportSize({ width: 1440, height: 1000 });
   const capture = async name => { if (screenshots) { await page.evaluate(() => document.fonts.ready); await page.screenshot({ path: `${fixture.captures}/${name}.png` }); } };
   const settings = async () => {
@@ -29,6 +46,28 @@ async (page, { expect, openFolderPicker, doclingFixture: fixture, screenshots })
   await expect(page.getByRole('link', { name: 'Server setup guide' })).toHaveAttribute('href', 'https://github.com/ieumbird/ieumdoc/blob/master/docs/guides/docling-server.md');
   await expect(page.getByTestId('settings-dialog')).toContainText('not conversion models');
   await capture('settings-success-en-1440');
+  // A → delayed B → A: Check must save and inspect the final displayed address A.
+  let releaseSave, saveStarted;
+  const saveGate = new Promise(resolve => { releaseSave = resolve; });
+  const savingB = new Promise(resolve => { saveStarted = resolve; });
+  const delayedSave = async route => {
+    if (route.request().method() === 'PUT' && route.request().postDataJSON().server === 'http://127.0.0.1:1') {
+      saveStarted(); await saveGate;
+    }
+    return route.continue();
+  };
+  await page.route('**/api/docling-settings', delayedSave);
+  try {
+    await field.fill('http://127.0.0.1:1'); await field.press('Tab'); await savingB;
+    await field.fill(fixture.url);
+    await page.getByRole('button', { name: 'Check connection', exact: true }).click();
+    releaseSave();
+    await expect(page.getByRole('button', { name: 'Check connection', exact: true })).toBeEnabled();
+    expect(await field.inputValue()).toBe(fixture.url);
+    expect(await page.locator('#docling-server-result').textContent()).toContain('ready and compatible');
+    const stored = await (await page.request.get(page.url().split('/').slice(0, 3).join('/') + '/api/docling-settings')).json();
+    expect(stored.server).toBe(fixture.url);
+  } finally { releaseSave(); await page.unroute('**/api/docling-settings', delayedSave); }
   fixture.mode('not-ready'); await check();
   expect(await page.locator('#docling-server-result').textContent()).toContain('not ready');
   fixture.mode('version'); await check();
@@ -57,11 +96,15 @@ async (page, { expect, openFolderPicker, doclingFixture: fixture, screenshots })
   const progress = page.getByTestId('docling-conversion');
   await progress.getByRole('button', { name: /Start conversion|Convert again/ }).click();
   await expect(progress).toContainText('Server task');
+  expect(conversionPosts).toBe(1);
+  const observed = await (await page.request.get(page.url().split('/').slice(0, 3).join('/') + '/api/docling-conversion')).json();
+  expect(observed.id).toBe(acceptedId);
   await capture('progress-en-1440');
   await progress.getByRole('button', { name: 'Stop waiting' }).click();
   await expect(progress.getByRole('button', { name: 'Convert again' })).toBeEnabled();
   expect(await progress.textContent()).toContain('server task may continue');
   await progress.getByRole('button', { name: 'Close', exact: true }).last().click();
+  await expect(progress).toHaveCount(0); // The existing shortcut guard rejects a closing modal.
   // Command Center hands its PDF picker to the same explicit conversion dialog.
   await page.keyboard.press('Control+Slash');
   await page.getByRole('dialog', { name: 'Command center' }).getByRole('combobox').fill('> Convert with Docling');
@@ -79,6 +122,27 @@ async (page, { expect, openFolderPicker, doclingFixture: fixture, screenshots })
   await expect(center).toContainText('Server task');
   await center.getByRole('button', { name: 'Go to problem' }).click();
   await expect(progress).toBeVisible();
+  // A's delayed automatic comparison must not dismiss/overwrite B's newer failure.
+  fixture.mode('success');
+  let releaseComparison, comparisonStarted;
+  const comparisonGate = new Promise(resolve => { releaseComparison = resolve; });
+  const openingA = new Promise(resolve => { comparisonStarted = resolve; });
+  const delayedComparison = async route => { comparisonStarted(); await comparisonGate; return route.continue(); };
+  await page.route('**/api/docling-compare?*', delayedComparison);
+  try {
+    await progress.getByRole('button', { name: 'Convert again' }).click();
+    await openingA;
+    fixture.mode('failure');
+    await progress.getByRole('button', { name: 'Convert again' }).click();
+    await expect(progress).toContainText('Docling conversion failed.');
+    const newer = await (await page.request.get(page.url().split('/').slice(0, 3).join('/') + '/api/docling-conversion')).json();
+    await expect(center).toContainText(newer.failure.taskId);
+    const oldResponse = page.waitForResponse('**/api/docling-compare?*');
+    releaseComparison(); await (await oldResponse).finished();
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    expect(await progress.count()).toBe(1);
+    expect(await center.textContent()).toContain(newer.failure.taskId);
+  } finally { releaseComparison(); await page.unroute('**/api/docling-compare?*', delayedComparison); }
   fixture.mode('success');
   await progress.getByRole('button', { name: 'Convert again' }).click();
   await expect(page.getByRole('tab', { name: /Docling comparison · Fixture PDF/ })).toBeVisible();

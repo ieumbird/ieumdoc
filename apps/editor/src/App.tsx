@@ -141,13 +141,20 @@ export function App() {
   const [conversionPath, setConversionPath] = useState("");
   const conversionReturn = useRef<HTMLElement | null>(null);
   const finishedConversion = useRef("");
+  const conversionAttempt = useRef(0);
+  const currentConversionId = useRef(converter.job?.id); currentConversionId.current = converter.job?.id;
   const [conversionNotice, setConversionNotice] = useState<{ id: string; message: string } | null>(null);
   useEffect(() => {
     const job = converter.job;
-    if (!job || job.state === "running" || finishedConversion.current === job.id) return;
+    if (!job) return;
+    if (job.state === "running") { setConversionNotice(null); return; }
+    if (finishedConversion.current === job.id) return;
     finishedConversion.current = job.id;
     if (job.state === "success") {
-      void openComparison(job.output).then(problem => {
+      const attempt = conversionAttempt.current;
+      const current = () => attempt === conversionAttempt.current && currentConversionId.current === job.id;
+      void openComparison(job.output, current).then(problem => {
+        if (!current()) return;
         if (problem) setConversionNotice({ id: job.id, message: problem });
         else { setConversionOpen(false); setConversionNotice(null); }
       });
@@ -632,11 +639,12 @@ export function App() {
       return messageOf(cause);
     } finally { operationRef.current = false; setOperation(""); }
   }
-  async function openComparison(folder: string): Promise<string> {
+  async function openComparison(folder: string, current = () => true): Promise<string> {
     try {
       const path = childPath(folder.replace(/[\\/]+$/, ""), "document.md");
       const response = await fetch(`${import.meta.env.BASE_URL}api/docling-compare?${new URLSearchParams({ path })}`);
       const payload = await response.json();
+      if (!current()) return "";
       if (!response.ok) return payload.error ?? i18n.t("Could not open comparison.");
       const snapshot = payload as ComparisonSnapshot;
       const existing = comparisons.find(tab => tab.path === snapshot.path);
@@ -1151,7 +1159,7 @@ export function App() {
       ) : null}
       <DoclingConversionDialog open={conversionOpen} input={conversionPath || converter.job?.input || ""} job={converter.job} pending={converter.pending}
         problem={converter.problem} returnFocus={conversionReturn} onClose={() => setConversionOpen(false)}
-        onStart={() => { setConversionNotice(null); void converter.start(conversionPath).catch(cause => setConversionNotice({ id: `start-${Date.now()}`, message: messageOf(cause) })); }}
+        onStart={() => { conversionAttempt.current++; setConversionNotice(null); void converter.start(conversionPath).catch(cause => setConversionNotice({ id: `start-${Date.now()}`, message: messageOf(cause) })); }}
         onCancel={() => void converter.cancel()} />
       <FolderDialog open={pdfPicker} choose="pdf" title={i18n.t("Convert with Docling")}
         description={i18n.t("Choose a PDF on the Host device.")}

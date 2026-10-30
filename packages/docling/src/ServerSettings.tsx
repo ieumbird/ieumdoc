@@ -23,6 +23,7 @@ export function DoclingServerSettings({ base, text, Input, Button, GuideLink }: 
   const [report, setReport] = useState<ServerCheck>();
   const saved = useRef("");
   const saving = useRef(Promise.resolve());
+  const editVersion = useRef(0), checking = useRef(false);
   useEffect(() => {
     let active = true;
     void request<{ server: string }>(base, "settings").then(value => {
@@ -31,19 +32,22 @@ export function DoclingServerSettings({ base, text, Input, Button, GuideLink }: 
     return () => { active = false; };
   }, [base]);
   const persist = () => {
-    if (server === saved.current) return saving.current;
     const value = server;
     saving.current = saving.current.catch(() => {}).then(async () => {
+      // Compare after earlier writes settle: A → pending B → A must still write A.
+      if (value === saved.current) return;
       const settings = await request<{ server: string }>(base, "settings", "PUT", { server: value });
       saved.current = settings.server;
     });
     return saving.current;
   };
   const check = async () => {
+    if (checking.current) return;
+    checking.current = true; editVersion.current++;
     setBusy(true); setProblem(""); setReport(undefined);
     try { await persist(); setReport(await request<ServerCheck>(base, "check", "POST", {})); }
     catch (error) { setProblem(error instanceof Error ? error.message : String(error)); }
-    finally { setBusy(false); }
+    finally { checking.current = false; setBusy(false); }
   };
   return <section className="settings-section settings-section--stacked" aria-labelledby="docling-server-title" aria-busy={busy}>
     <div className="settings-label">
@@ -56,8 +60,13 @@ export function DoclingServerSettings({ base, text, Input, Button, GuideLink }: 
     <div className="flex min-w-0 flex-wrap items-center gap-2">
       <Input id="docling-server" className="min-w-0 flex-1" value={server} disabled={!loaded || busy}
         aria-invalid={!!problem} aria-describedby="docling-server-result"
-        onChange={event => { setServer(event.target.value); setProblem(""); setReport(undefined); }}
-        onBlur={() => { if (loaded && !busy) void persist().then(() => setProblem("")).catch(error => setProblem(error.message)); }}
+        onChange={event => { editVersion.current++; setServer(event.target.value); setProblem(""); setReport(undefined); }}
+        onBlur={() => {
+          if (!loaded || busy) return;
+          const version = editVersion.current;
+          void persist().then(() => { if (version === editVersion.current) setProblem(""); })
+            .catch(error => { if (version === editVersion.current) setProblem(error.message); });
+        }}
         onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); void check(); } }} />
       <Button disabled={!loaded || busy} onClick={() => void check()}>{text(busy ? "Checking…" : "Check connection")}</Button>
     </div>
@@ -82,31 +91,48 @@ export function useDoclingConversion(base: string) {
   const [job, setJob] = useState<ConversionJob | null>(null);
   const [problem, setProblem] = useState("");
   const [pending, setPending] = useState(false);
+  const [recovering, setRecovering] = useState(false);
   const pendingRef = useRef(false);
   const generation = useRef(0);
+  const observed = useRef<ConversionJob | null>(null);
+  const recovery = useRef<{ input: string; previousId?: string } | null>(null);
   useEffect(() => {
     let active = true, timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
       const version = generation.current;
-      let keepPolling = job?.state === "running";
+      let keepPolling = job?.state === "running" || recovering;
       try {
         const value = await request<ConversionJob | null>(base, "conversion");
         if (active && version === generation.current) {
+          observed.current = value;
+          const recovered = value && recovery.current && value.input === recovery.current.input && value.id !== recovery.current.previousId;
           // Only in-flight work is observed after a page reload. Completed tabs are not restored.
-          if (job || value?.state === "running") setJob(value);
+          // An uncertain POST can already have completed before this recovery read.
+          if (job || value?.state === "running" || recovered) setJob(value);
+          setProblem("");
+          recovery.current = null; setRecovering(false);
           keepPolling = value?.state === "running";
         }
-      } catch (error) { if (active) setProblem(error instanceof Error ? error.message : String(error)); }
+      } catch (error) {
+        if (active && version === generation.current) { setProblem(error instanceof Error ? error.message : String(error)); keepPolling = true; }
+      }
       finally { if (active && keepPolling) timer = setTimeout(() => void poll(), 1000); }
     };
     void poll();
     return () => { active = false; clearTimeout(timer); };
-  }, [base, job?.id, job?.state]);
+  }, [base, job?.id, job?.state, recovering]);
   const start = async (path: string) => {
-    if (pendingRef.current) return;
+    if (pendingRef.current || recovering) return;
     generation.current++; pendingRef.current = true; setPending(true); setProblem("");
-    try { setJob(await request<ConversionJob>(base, "conversion", "POST", { path })); }
-    catch (error) { setProblem(error instanceof Error ? error.message : String(error)); throw error; }
+    try {
+      const value = await request<ConversionJob>(base, "conversion", "POST", { path });
+      observed.current = value; setJob(value);
+    } catch (error) {
+      setProblem(error instanceof Error ? error.message : String(error));
+      recovery.current = { input: path, previousId: observed.current?.id ?? job?.id };
+      setRecovering(true); // Re-observe the Host; never resubmit an uncertain POST.
+      throw error;
+    }
     finally { pendingRef.current = false; setPending(false); }
   };
   const cancel = async () => {
@@ -116,5 +142,5 @@ export function useDoclingConversion(base: string) {
     catch (error) { setProblem(error instanceof Error ? error.message : String(error)); }
     finally { pendingRef.current = false; setPending(false); }
   };
-  return { job, problem, pending, start, cancel };
+  return { job, problem, pending: pending || recovering, start, cancel };
 }

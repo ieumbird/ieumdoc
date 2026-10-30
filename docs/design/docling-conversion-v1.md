@@ -145,7 +145,10 @@ external-link opener; the link remains available after a failed check.
 The module's same preflight supplies both conversion and connection checking:
 response/readiness, reported server version, compatibility with 1.32.0 and exact
 OpenAPI-reference match. Same-version spec differences remain visible but do not
-refuse conversion, matching CLI policy. Invalid URLs are refused before storage.
+refuse conversion, matching CLI policy. Invalid URLs are refused before storage. Serial address
+writes compare against the saved value after earlier writes settle, so reverting
+A → pending B → A stores and checks A. Older field-write errors cannot override
+the latest edit/check result.
 
 Explorer PDF file menus and Command Center's **Convert with Docling** enter the
 same explicit conversion dialog. Command Center first uses the existing Host
@@ -165,7 +168,13 @@ Command Center opens it again. **Stop waiting** aborts IeumDoc requests/waiting,
 waits for local cleanup and explicitly says the server task may continue. There
 is no API cancellation call, retry, persisted queue or resume service. The CLI
 still has no interactive cancellation UI. Completed jobs/tabs are not restored
-on page startup. A page may observe a still-running Host job.
+on page startup. A page may observe a still-running Host job. Failed status reads
+are retried as GETs. If a start response is lost, the UI re-reads the Host's
+current snapshot before allowing another start; it never automatically repeats
+the POST. This can recover a newly accepted job, including one already completed,
+while ignoring an older completed snapshot. A delayed comparison response may
+change tabs/dialogs/notifications only while its conversion is still current;
+it cannot clear or replace a newer task's failure.
 
 Success opens the existing Docling comparison tab. Failure uses the same single
 window NotificationCenter as stale comparison maps, with Go to problem opening
@@ -275,7 +284,9 @@ no server cancel request. The Desktop protocol test covers the new routes.
 The `docling-server` persistent-browser scenario exercises Settings, PDF context
 menu and Command Center picker, stopped waiting, failure notification/reveal and
 automatic comparison. It passes against Vite and the built production HTTP Host.
-The same run verifies address/check-button alignment. Other browser regressions
+The same run verifies address/check-button alignment, delayed A→B→A settings,
+initial GET failure and loss of an accepted POST response with GET-only recovery,
+and a delayed comparison response returning after a newer task fails. Other browser regressions
 are left to required CI as requested by the owner.
 
 The real pinned CUDA server required a disposable-container CodeFormulaV2

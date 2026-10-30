@@ -147,7 +147,7 @@ const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
       await page.evaluate(() => { document.querySelector<HTMLElement>('.document-scroll[data-active="true"]')?.scrollTo(0, 0); document.activeElement instanceof HTMLElement && document.activeElement.blur(); });
       await use(page);
     } finally {
-      const classification = classifyConsoleErrors(testInfo.title, errors);
+      const classification = classifyConsoleErrors(testInfo.title === "docling-server" && process.env.IEUMDOC_DOCLING_LIVE === "1" ? "docling-live" : testInfo.title, errors);
       try {
         await finishScenarioDiagnostics(session, page, testInfo, { errors, ...classification });
       } finally {
