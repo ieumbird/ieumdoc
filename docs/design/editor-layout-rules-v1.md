@@ -182,6 +182,8 @@ clearance. Sidebar and Outline retain their independent scroll regions. See the
 previews) and `BlockProperties` (inline math, section label and table properties).
 The width cap lets existing fields/actions wrap inside the available area. Form
 appearance, anchor alignment, confirmation and draft behavior keep their contracts.
+The opening focus target stays stable through the boundary measurement render;
+existing `property-drafts` and `inline-math-authoring` focus checks verify this.
 This is Editor interaction only; Core/CLI semantics are unchanged.
 
 The `cross-reference` regression checks 1440×900 and 640×900 with Outline open/closed,

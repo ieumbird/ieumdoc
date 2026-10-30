@@ -3,7 +3,7 @@
 역할: 반복 UI 동작의 확정 목표·현재 기준·불일치를 관리하며, 시각 표현은 [Visual Language](editor-visual-language-v1.md), 배치·치수는 [Layout Rules](editor-layout-rules-v1.md)를 따른다.
 
 - Status: Draft
-- Last verified: 2026-10-30. master `2de4e857`의 코드·현재 계약과 #777 소유자 결정 대조. 이 문서 작업에서는 브라우저를 실행하지 않았다. 화면 근거는 [1단계 인벤토리][inventory]에 보존한다.
+- Last verified: 2026-10-30. master `2de4e857`의 코드·현재 계약과 #777 소유자 결정 대조. 초기 #777 문서 작업에서는 브라우저를 실행하지 않았다. 화면 근거는 [1단계 인벤토리][inventory]에 보존한다.
 - P01 content-boundary verification: 2026-10-30 (#782; 실제 1440/640px·Outline 열림/닫힘·두 그룹 browser 검사와 [전후 캡처](editor-layout-rules-v1.md#form-content-viewport-782)).
 - Scope: Editor 반복 UI의 **확정된 목표**, 현재 기준 구현과 알려진 불일치. Draft는 미구현 목표를 Implemented 계약으로 표시하지 않기 위한 상태이며 소유자 결정을 재논의한다는 뜻이 아니다.
 - Authority: [AGENTS.md](../../AGENTS.md), [ADR-0001](../adr/0001-single-document-editor-architecture.md), [ADR-0010](../adr/0010-supported-viewport-and-input.md), [#777 소유자 결정][decision]. 현재 동작은 각 Implemented 계약을 따른다. 이 목표가 바꾸는 현재 동작은 아래 후속 이슈에서 구현하고 같은 PR에서 해당 계약을 갱신한다.

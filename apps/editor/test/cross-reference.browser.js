@@ -95,7 +95,7 @@ async (page, { openPath, screenshots, expect, recoveryRecords }) => {
       const right = Math.min(r.right, r.left + viewport.clientLeft + viewport.clientWidth - parseFloat(style.paddingRight), panel?.left ?? innerWidth);
       const top = r.top + viewport.clientTop, bottom = Math.min(r.bottom, top + viewport.clientHeight);
       const box = n.getBoundingClientRect();
-      const controls = [...n.querySelectorAll('button,input,select,textarea')].filter(c=>c.tabIndex>=0 && !c.disabled && c.getClientRects().length).map(c=>{
+      const controls = [...n.querySelectorAll('button,input,select,textarea')].filter(c=>!c.disabled && c.getClientRects().length).map(c=>{
         const b=c.getBoundingClientRect();
         return {name:c.getAttribute('data-testid')??c.textContent, left:b.left,right:b.right,top:b.top,bottom:b.bottom,
           hit:c.contains(document.elementFromPoint(b.x+b.width/2,b.y+b.height/2))};

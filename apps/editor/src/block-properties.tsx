@@ -30,6 +30,11 @@ export function BlockProperties({
   const visible = useEditorVisible();
   const bounds = useDocumentBounds(anchor, open);
   const wasOpen = useRef(false);
+  const openingFocus = useRef<RefObject<HTMLElement | null> | false>(false);
+  // Boundary measurement rerenders before Base UI's queued initial focus. Keep the
+  // opening target stable, but do not refocus a retained draft when its tab reappears.
+  if (!wasOpen.current && open) openingFocus.current = initialFocus ?? false;
+  if (!visible) openingFocus.current = false;
   useLayoutEffect(() => { wasOpen.current = open; }, [open]);
   if (!visible) return null;
   return (
@@ -41,7 +46,7 @@ export function BlockProperties({
         side="bottom"
         align="end"
         sideOffset={12}
-        initialFocus={wasOpen.current ? false : initialFocus ?? false}
+        initialFocus={openingFocus.current}
         finalFocus={false}
         aria-label={i18n.t("{{kind}} properties", { kind: kind })}
         data-testid={`${testId}-properties`}
