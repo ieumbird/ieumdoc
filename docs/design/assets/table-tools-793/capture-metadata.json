@@ -1,0 +1,61 @@
+{
+  "baseline": "b9b2b8e9a4b9fc959177b1755369ff3caf1013ba",
+  "origin": "http://127.0.0.1:5293",
+  "runtime": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "dpr": 1,
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "font": "\"Pretendard Variable\", Pretendard, \"Noto Sans KR\", \"Apple SD Gothic Neo\", \"Malgun Gothic\", \"Segoe UI\", sans-serif"
+  },
+  "zoom": "100%",
+  "cases": [
+    {
+      "width": 1440,
+      "height": 900,
+      "language": "en",
+      "theme": "light"
+    },
+    {
+      "width": 640,
+      "height": 900,
+      "language": "ko",
+      "theme": "dark"
+    }
+  ],
+  "fixture": "tmp/table-authoring/tables.md; five appended columns and the caption in capture.browser.js; no Save",
+  "productHashes": {
+    "apps/editor/src/node-views/table-view.tsx": {
+      "before": "24c7e75976a006eb4f78ac58cc2d2795a943da461f0b72e72b01e11da8fa06e9",
+      "after": "fde5482b049a48be7f0693d27304e945039771b5c11e340971a6686e5449ea76"
+    },
+    "apps/editor/src/table-tools.tsx": {
+      "before": "69fadae61c931bbdcf1d01138dc0d5042f2b81ae79ba85ee1bb158ae454b9a69",
+      "after": "7e877e30de323f296c305141c7e191546e7e44ec250e1aa0740c2b9941adb2eb"
+    },
+    "apps/editor/src/styles.css": {
+      "before": "0b89470de994b12275a3b5c0cabf5eae60a1027dd06c99d92be5b5df2e95eb67",
+      "after": "5cc356f63c95ba06181c904243b0edfd38e2205391fa4d3a078fd43b8bbcf5fc"
+    }
+  },
+  "pngHashes": {
+    "after-1440-menu.png": "89ed277888f128a4dfc736b239a129f5e41638941c3cfe63cf13499cca74f40a",
+    "after-1440-scrolled.png": "e6b7a5365abcb47fb59444f992eb2dd064f0f0b33858fdc0573433763542215f",
+    "after-1440.png": "d8201c3c2fc84f9e01f6d2d40b035d96c27119cedb7ee439f86579210775f366",
+    "after-640-menu.png": "05362339114e799c337a547f95b12126d71c2cfc767fe1900d27fb4d034408b0",
+    "after-640-properties.png": "9c2a34422ee1ad1e02ef4ebb07ce9f335d14137c13290b706c816706063bd5e1",
+    "after-640-scrolled.png": "bd2d33fe18ad686fc475c010245940f87305499b75b84dad422520fc5ae1f987",
+    "after-640.png": "e3cedb45c48adb2ffc684a687c2dad9e352aa6e6d507d11cb65a1405f4565ccc",
+    "after-equation-comparison.png": "2a586c6399b56015bf2aa6de64a66fd1780875af726a1b1f8e04645b232347ac",
+    "after-figure-comparison.png": "33f36af07f16572ba9bb07c8d542dde3f9cb911d2492b013f0d73aedff38e9f1",
+    "before-1440-menu.png": "d19e75c45dfe6104612474139dcfb06ed8d25e1fdf800ecc244e4c8c4a55b29a",
+    "before-1440-scrolled.png": "b0e3c78c3e9375c69f60641077feb78225b8c5d6ee8e01cbd3413dbd3bac70dd",
+    "before-1440.png": "846af6545ef5bb9b31533ab923af2f3b520a2a83061f52599af47547908b2fd5",
+    "before-640-menu.png": "e35448599138665d260db4c1eae87d9320c1624581192f8958127f8ebee7d680",
+    "before-640-scrolled.png": "6eb4c0b08c335d6209d4ac07888f12811e1147888de0af54788f6cbb0786d9d0",
+    "before-640.png": "437667f188397a22b86a61a36a02b29a903836fbee4486973def6c2044633291"
+  },
+  "afterCaptureNote": "After PNGs were captured at cb8b93a5. The later CSS-only metadata z-index fix restores pointer entry without changing pixels or geometry; styles.css after hash records the final product."
+}

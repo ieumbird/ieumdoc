@@ -1,6 +1,7 @@
 # Table interaction v1
 
 - Status: Implemented
+- Whole-table tools update: 2026-10-30 (#793; upper Edit/More and metadata, menu-only Delete; [contract and evidence](#whole-table-tools-793)).
 - Property-entry update: 2026-10-27 (#557: shared selection/Enter/double-click and explicit property drafts; see [Continuous editing](document-editing-v1.md#continuous-editing)).
 - Last verified: 2026-10-26 (#517: light line handles, localized names/tooltips, keyboard discovery, no-hover visibility and independent targets; Editor tests/typecheck/build and table-authoring/table-cell-editing/continuous-editing/layout-rules/quiet-document browser regressions; [comparison and evidence](#light-handle-verification-and-comparison)).
 - Previous verification: 2026-10-26 (#514: shared Button migration with explicit target/anchor preservation, 28px targets/6px radius; table-authoring/table-cell-editing/continuous-editing browser regressions and [manual captures](../reviews/editor-visual-language-history-2026-10-30.md#shared-control-verification-514)).
@@ -24,7 +25,7 @@ writes a `{table}` directive even when both are absent (#584; [format contract](
 - Keep the native engine caret, history and Tab navigation. One structural action is one undo step; after adding, focus moves into the new cell.
 - Ctrl/Cmd+A first selects the current cell's inline content; a consecutive second press selects the document. Empty cells stay local on the first press. See [scoped selection](document-editing-v1.md#select-all-within-an-editing-surface-723). Already complete nonempty cell selections expand immediately; the shared expansion policy switch can keep selection local (#751).
 - Tab in the last cell of an editable table appends a row and focuses its first cell using the same Add row below command and Core Save path. Shift+Tab in the first cell still enters preceding prose; Enter leaves the table; final-row ArrowDown enters the caption, including its always available empty input surface (#577). ArrowUp from the caption returns to the final grid cell. Tab does not act during IME composition or add rows in read-only tables.
-- Tools share the table's local scroll geometry; menus use a portal so local overflow cannot clip them. Tools appear on hover, focus or selection, and retain the existing no-hover fallback; touch-only entry is outside [ADR-0010](../adr/0010-supported-viewport-and-input.md). B2 (#517) replaces visible address letters/numbers with 16px horizontal column / vertical row line icons in the existing shared Buttons, with transparent neutral rest and the existing neutral current/open faces. The address remains in the localized accessible name and matching tooltip (including the header-row qualifier). All targets retain token-backed 28px height and 6px radii; columns follow measured cell widths and rows stay centered at 28px wide. Row/column entry points stay in native Tab order while visually hidden; Tab from preceding prose reveals them on focus, Enter opens their menu, and Escape returns to the invoking handle. Hidden handles reject pointer input until hover/focus/selection; append and table-level tools retain their previous visibility rules. Explicit targets, anchor refs, pressed/focus states and commands remain unchanged.
+- Grid tools share the table's local scroll geometry; upper Edit/More and metadata stay outside the horizontal scroller; menus use a portal so local overflow cannot clip them. Tools appear on hover, focus or selection, and retain the existing no-hover fallback; touch-only entry is outside [ADR-0010](../adr/0010-supported-viewport-and-input.md). B2 (#517) replaces visible address letters/numbers with 16px horizontal column / vertical row line icons in the existing shared Buttons, with transparent neutral rest and the existing neutral current/open faces. The address remains in the localized accessible name and matching tooltip (including the header-row qualifier). All targets retain token-backed 28px height and 6px radii; columns follow measured cell widths and rows stay centered at 28px wide. Upper Edit/More and row/column entry points stay in native Tab order while visually hidden; Tab from preceding prose reveals Edit, then More, then a column handle on focus, Enter opens their menu, and Escape returns to the invoking handle. Hidden handles reject pointer input until hover/focus/selection; append tools retain their previous visibility rules. Upper tools reuse Figure Edit reveal and remain visible while a table menu is open. Explicit targets, anchor refs, pressed/focus states and commands remain unchanged.
 - Excluded: multiple-cell selection, merging, formulas, resizing and new document semantics. Unsupported cells reject native admission.
 - Completion: pointer and keyboard operation; fixed header/last-column restrictions; focus-safe menu targets; Undo/Redo; Save/Reload with content, alignment, captions and labels retained; narrow-layout geometry.
 - Verification: existing table command/unit tests, extended table-authoring browser regression, typecheck, production build and required CI.
@@ -42,6 +43,63 @@ keeps drafts; validation failure retains fields and errors. NumberField follows 
 Cells and the directly editable caption keep ordinary text selection and navigation.
 Save includes only applied content; keyboard Save retains metadata drafts.
 See [Continuous editing](document-editing-v1.md#continuous-editing).
+
+## Whole-table tools (#793)
+
+Edit and More occupy the upper metadata row, outside `.table-scroll`. Edit uses Figure's
+outlined text button and the existing `figure-edit` reveal class. More retains the shared
+action menu, including Edit label and danger-styled Delete table. There is no standalone
+Delete button. The existing #791 target-wide `MetadataProperties` popover, draft lifecycle,
+selection, deletion command and one-step Undo remain unchanged; no Core/CLI operation is added.
+
+A compact-control-height row is always reserved inside the table block above the column
+handles. This avoids overlap with preceding prose, column tools and captions; showing or
+hiding controls never changes document height. The number/label shares its vertical center,
+with ellipsis for long metadata. Row/column/Append tools remain on the grid; Append row
+stays after the caption. #721's shared figure/table caption gap is unchanged. Both upper
+buttons remain reachable before and after scrolling a wide table horizontally.
+
+The `table-authoring` upper-row assertion failed before product edits at baseline
+`b9b2b8e9a4b9fc959177b1755369ff3caf1013ba`: Edit/More were below the grid, inside the
+scroller, with an independent Delete button. The extended scenario checks upper geometry,
+no preceding-prose/column overlap, unchanged bounds on reveal, native keyboard discovery,
+More/Delete keyboard execution and focus return, wide scrolling, existing structural
+restrictions, deletion Undo and real Save/Reload. Existing caption, layout and quiet-document
+checks retain their behavioral assertions with the new entry points. Other interface
+regressions run in required CI.
+
+Manual comparison uses the same seven-column scratch table and caption, persistent Windows
+Chrome at `http://127.0.0.1:5293`, DPR 1, 100% zoom and loaded Pretendard. The 1440×900
+captures are English/Light; 640×900 captures are Korean/Dark. The baseline is the unchanged
+product commit above; After uses this PR's product. [Capture script](assets/table-tools-793/capture.browser.js)
+and [environment/file hashes](assets/table-tools-793/capture-metadata.json) make the states reproducible.
+Screenshots are manual visual evidence, not additional automated test passes. Self-review
+checked vertical alignment, padding, Korean text, viewport/panel edges and horizontal scrolling.
+The [640px property popover](assets/table-tools-793/after-640-properties.png),
+[Figure tools](assets/table-tools-793/after-figure-comparison.png) and
+[Equation tools](assets/table-tools-793/after-equation-comparison.png) were compared too;
+Equation source and the shared metadata popover were not changed.
+
+Local verification: 46 targeted Editor unit tests, workspace typecheck, Editor build,
+`table-authoring table-caption layout-rules quiet-document`, docs and whitespace checks.
+CI then caught metadata pointer interception by the later grid padding; a metadata z-index
+restores the existing single/double-click/Enter contract (`property-drafts` and
+`table-authoring` pass locally). Its reserved row also pushed the short settings fixture
+1.0625px beyond the paper minimum; that position-only test uses a taller viewport while
+retaining unchanged paper/content size, zero transactions, reading-line crossing and
+row/column alignment assertions (`inline-document-settings`). After PNGs predate only
+the pointer-layer correction; it does not change pixels or geometry.
+Broader interface/platform regressions belong to required CI. The existing D08 tracking
+row remains linked to #793; issue closure owns its progress state.
+
+| State | Before | After |
+| --- | --- | --- |
+| 1440px | [PNG](assets/table-tools-793/before-1440.png) | [PNG](assets/table-tools-793/after-1440.png) |
+| 640px Korean/Dark | [PNG](assets/table-tools-793/before-640.png) | [PNG](assets/table-tools-793/after-640.png) |
+| 1440px scrolled | [PNG](assets/table-tools-793/before-1440-scrolled.png) | [PNG](assets/table-tools-793/after-1440-scrolled.png) |
+| 640px scrolled | [PNG](assets/table-tools-793/before-640-scrolled.png) | [PNG](assets/table-tools-793/after-640-scrolled.png) |
+| 1440px More | [PNG](assets/table-tools-793/before-1440-menu.png) | [PNG](assets/table-tools-793/after-1440-menu.png) |
+| 640px More | [PNG](assets/table-tools-793/before-640-menu.png) | [PNG](assets/table-tools-793/after-640-menu.png) |
 
 ## Light handle work record (#517)
 

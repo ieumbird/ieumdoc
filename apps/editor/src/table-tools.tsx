@@ -7,7 +7,7 @@ import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { useEditorState, type ReactNodeViewProps } from "@tiptap/react";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import { Minus, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { Minus, MoreHorizontal, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
 import { BLOCK_COMMANDS, blockCommandGroup, tableRowCount, type TableCellAddress } from "./block-commands.ts";
@@ -36,10 +36,12 @@ type Geometry = { columns: { left: number; width: number }[]; rows: { top: numbe
 type Menu = { kind: "row" | "column" | "table"; target: TableCellAddress };
 
 /** Handles reuse explicit-target table commands. Geometry and menu state never enter the document. */
-export function TableTools({ editor, node, getPos, grid, rowLayer, onEdit, hidden }: Pick<ReactNodeViewProps, "editor" | "node" | "getPos"> & {
+export function TableTools({ editor, node, getPos, grid, rowLayer, actionLayer, onEdit, hidden }: Pick<ReactNodeViewProps, "editor" | "node" | "getPos"> & {
   grid: RefObject<HTMLDivElement | null>;
   /** Left of the text axis and outside the horizontal scroller: rows never scroll sideways. */
   rowLayer: RefObject<HTMLDivElement | null>;
+  /** Whole-table entry points stay above the grid, outside horizontal scrolling. */
+  actionLayer: RefObject<HTMLDivElement | null>;
   onEdit(): void; hidden: boolean;
 }) {
   useTranslation();
@@ -86,7 +88,7 @@ export function TableTools({ editor, node, getPos, grid, rowLayer, onEdit, hidde
     return () => { observer.disconnect(); cancelAnimationFrame(frame); };
   }, [grid, node, visible]);
 
-  if (!visible || !editor.isEditable || hidden || !geometry || !rowLayer.current) return null;
+  if (!visible || !editor.isEditable || hidden || !geometry || !rowLayer.current || !actionLayer.current) return null;
   const position = getPos();
   if (typeof position !== "number") return null;
   const index = editor.state.doc.resolve(position).index();
@@ -118,7 +120,7 @@ export function TableTools({ editor, node, getPos, grid, rowLayer, onEdit, hidde
       aria-label={i18n.t("Column {{column}} actions", { column: columnName(i) })} title={i18n.t("Column {{column}} actions", { column: columnName(i) })} aria-pressed={column === i} aria-haspopup="menu"
       aria-expanded={menu?.kind === "column" && target.column === i}
       style={{ left: cell.left, width: cell.width }} onClick={event => open(event.currentTarget, "column", { row: current?.row ?? 0, column: i })}><Minus size={16} aria-hidden="true" /></Button>)}
-    <Button variant="table-handle" size="sm" type="button" className="table-extend" aria-label={i18n.t("Append column")} style={{ left: geometry.right + 4, top: 0 }}
+    <Button variant="table-handle" size="sm" type="button" className="table-extend" aria-label={i18n.t("Append column")} style={{ left: geometry.right + 4, top: "var(--size-control-compact)" }}
       onClick={() => run("table-column", { row: current?.row ?? 0, column: node.child(0).childCount - 1 })}><Plus size={16} /></Button>
     {createPortal(<div className="table-tools" data-active={current ? "true" : "false"} data-menu-open={menu ? "true" : "false"} contentEditable={false}>
       {geometry.rows.map((cell, i) => <Button variant="table-handle" size="sm" key={i} type="button" className="table-row-handle"
@@ -129,14 +131,11 @@ export function TableTools({ editor, node, getPos, grid, rowLayer, onEdit, hidde
       <Button variant="table-handle" size="sm" type="button" className="table-extend" aria-label={i18n.t("Append row")} style={{ left: 0, top: `calc(${geometry.bottom}px + var(--space-2))` }}
         onClick={() => run("table-row", { row: tableRowCount(node) - 1, column: current?.column ?? 0 })}><Plus size={16} /></Button>
     </div>, rowLayer.current)}
-    <div className="table-action-bar" style={{ top: `calc(${geometry.bottom}px + var(--space-2))`, left: 0, width: geometry.right }}>
-      {/* Keep table-level actions beside Append row, below both grid and caption. */}
-      <Button variant="table-handle" size="sm" type="button" aria-label={i18n.t("Edit table")} title={i18n.t("Edit label")} onClick={onEdit}><Pencil size={16} /></Button>
-      <Button variant="table-handle" size="sm" type="button" aria-label={i18n.t("Table actions")} aria-haspopup="menu" aria-expanded={menu?.kind === "table"}
+    {createPortal(<>
+      <Button variant="outline" size="sm" type="button" aria-label={i18n.t("Edit table")} onClick={onEdit}>{i18n.t("Edit")}</Button>
+      <Button variant="outline" size="icon-sm" type="button" aria-label={i18n.t("Table actions")} title={i18n.t("Table actions")} aria-haspopup="menu" aria-expanded={menu?.kind === "table"}
         onClick={event => open(event.currentTarget, "table", current ?? { row: 0, column: 0 })}><MoreHorizontal size={16} /></Button>
-      <Button variant="table-handle" size="sm" type="button" aria-label={i18n.t("Delete table")} disabled={!BLOCK_COMMANDS.find(command => command.id === "delete")?.enabled(editor.state, index)}
-        onClick={() => run("delete", target)}><Trash2 size={16} /></Button>
-    </div>
+    </>, actionLayer.current)}
     <Popover open={menu !== null} onOpenChange={open => { if (!open) setMenu(null); }}>
       <PopoverContent anchor={anchor} side="bottom" align="start" sideOffset={4} initialFocus={false} finalFocus={false} className="table-command-popover">
         <CommandMenu label={menu?.kind === "row" ? i18n.t("Row {{row}} actions", { row: target.row + 1 }) : menu?.kind === "column" ? i18n.t("Column {{column}} actions", { column: columnName(target.column) }) : i18n.t("Table actions")}

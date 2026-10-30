@@ -12,7 +12,7 @@ type Props = {
   text(key: string): string;
   imageUrl(uri: string): string;
 };
-type Wire = { key: string; d: string; category: string };
+type Wire = { key: string; d: string; category: string; selected: boolean };
 
 /** Owns only module DOM. Reading positions are supplied by the Editor's read-only surface. */
 export function DoclingCompareView({ snapshot, ReadingSurface, Button, text, imageUrl }: Props) {
@@ -73,12 +73,15 @@ export function DoclingCompareView({ snapshot, ReadingSurface, Button, text, ima
           const sourceY = page.top + (entry.region.top + entry.region.height / 2) * page.height;
           const targetY = block.top + Math.min(block.height / 2, 24);
           if (geometryDirty.current && target.role !== "endnote" && target.role !== "group") points.push([sourceY, targetY]);
+          // Picture pixels already represent these descendants. Keep every map entry/box,
+          // but draw an individual correspondence only while that source item is selected.
+          if (target.role === "image-content" && entry.item !== selected) continue;
           const y1 = sourceY - a.scrollTop, y2 = targetY - b.scrollTop;
           if (y1 < 0 || y1 > a.clientHeight || y2 < 0 || y2 > b.clientHeight) continue;
           const x1 = ar.left - hostRect.left + inset + (entry.region.left + entry.region.width) * width;
           const x2 = br.left - hostRect.left + block.left;
           const sy = ar.top - hostRect.top + y1, ty = br.top - hostRect.top + y2;
-          lines.push({ key: `${entry.key}:${targetKey(target)}`, category: categoryOf(entry.item),
+          lines.push({ key: `${entry.key}:${targetKey(target)}`, category: categoryOf(entry.item), selected: entry.item === selected,
             d: `M${x1},${sy} C${x1 + 32},${sy} ${x2 - 32},${ty} ${x2},${ty}` });
           if (target.role === "endnote" && target.label) notes.add(target.label);
         }
@@ -113,6 +116,7 @@ export function DoclingCompareView({ snapshot, ReadingSurface, Button, text, ima
     return () => { observer.disconnect(); cancelAnimationFrame(frame.current); };
   }, []);
   useLayoutEffect(() => { geometryDirty.current = true; schedule.current(); }, [pages, stale]);
+  useLayoutEffect(() => { schedule.current(); }, [selected]);
   function scroll(side: "left" | "right") {
     const from = side === "left" ? left.current! : right.current!;
     if (suppressed.current?.side === side && Math.abs(suppressed.current.top - from.scrollTop) < 1) {
@@ -170,7 +174,7 @@ export function DoclingCompareView({ snapshot, ReadingSurface, Button, text, ima
         <ReadingSurface document={snapshot.document} path={snapshot.path} onLayout={onLayout} />
       </div>
       <svg className="docling-wires" aria-label={text("Visible correspondences")} data-link-count={wires.length}>
-        {wires.map(wire => <path key={wire.key} d={wire.d} data-category={wire.category} />)}
+        {wires.map(wire => <path key={wire.key} d={wire.d} data-category={wire.category} data-selected={wire.selected} />)}
       </svg>
     </div>
     <div className="docling-details" aria-live="polite">

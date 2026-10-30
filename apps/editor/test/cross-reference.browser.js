@@ -578,7 +578,10 @@ async (page, { showNotifications, openPath, screenshots, expect, recoveryRecords
       editor.commands.setNodeSelection(pos);
       editor.view.focus();
     }, label);
-    if (kind === 'table') await active.getByRole('button', {name:'Delete table', exact:true}).click();
+    if (kind === 'table') {
+      await active.getByRole('button', {name:'Table actions', exact:true}).click();
+      await page.getByRole('menu', {name:'Table actions',exact:true}).getByRole('menuitem', {name:'Delete table',exact:true}).click();
+    }
     else await page.keyboard.press('Delete');
     result[`${kind}DeletionNotice`] = (await page.getByTestId('notice').allTextContents()).some(text => kind === 'table'
       ? text.includes('Table deleted') && text.includes('Undo') : text.includes('broke a reference') && text.includes('Ctrl+Z'));

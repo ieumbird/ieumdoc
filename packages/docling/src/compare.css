@@ -26,4 +26,5 @@
 .docling-region:hover, .docling-region[aria-pressed="true"], .docling-region:focus-visible { background: color-mix(in srgb, var(--docling-color) 24%, transparent); outline: 2px solid var(--docling-color); outline-offset: 1px; }
 .docling-wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
 .docling-wires path { fill: none; stroke: var(--docling-color); stroke-width: 1; opacity: .6; }
+.docling-wires path[data-selected="true"] { stroke-width: 2; opacity: 1; }
 .docling-details { min-height: var(--space-8); max-height: 6rem; overflow: auto; padding: var(--space-2) var(--space-4); background: var(--id-color-surface); border-top: var(--border-width) solid var(--id-color-border-subtle); font-size: var(--font-size-sm); overflow-wrap: anywhere; }
