@@ -75,10 +75,10 @@ async (page, { openPath, expect, reloadDocument, screenshots }) => {
         const actions = rect('.table-action-bar'), append = rect('[aria-label="Append row"]');
         const scroll = rect('.table-scroll');
         return Math.abs(caption.top - row.bottom - figureGap) < 1 && figureGap > 0 &&
-          actions.top >= caption.bottom && append.top >= caption.bottom &&
-          Math.abs(actions.top - append.top) < 1 && actions.bottom <= scroll.bottom &&
+          actions.bottom <= native.getBoundingClientRect().top && append.top >= caption.bottom &&
+          append.bottom <= scroll.bottom &&
           scroll.right <= innerWidth && document.documentElement.scrollWidth <= innerWidth;
-      }), `Shared caption gap and unobscured bottom tools at ${width}px (${gap || 'default'})`).toBe(true);
+      }), `Shared caption gap and unobscured upper actions/Append row at ${width}px (${gap || 'default'})`).toBe(true);
     }
   }
   await editor.evaluate(element => element.style.removeProperty('--space-document-caption'));
@@ -438,7 +438,8 @@ async (page, { openPath, expect, reloadDocument, screenshots }) => {
   await reloadDocument(page);
   expect(await tableJSON()).toEqual(rich);
   await table.hover();
-  await table.getByRole('button',{name:'Delete table',exact:true}).click();
+  await table.getByRole('button',{name:'Table actions',exact:true}).click();
+  await page.getByRole('menu',{name:'Table actions',exact:true}).getByRole('menuitem',{name:'Delete table',exact:true}).click();
   expect(await caption.count()).toBe(0);
   await page.keyboard.press('ControlOrMeta+z');
   expect(await tableJSON(), 'One Undo restores the table and rich caption').toEqual(rich);

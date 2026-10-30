@@ -923,11 +923,15 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
     await wide.hover({position:{x:8,y:8}});
     const actions=await wide.evaluate(block=>{
       const view=block.querySelector('.table-scroll').getBoundingClientRect();
-      return ['Edit table','Table actions','Delete table'].map(name=>{
+      return ['Edit table','Table actions'].map(name=>{
         const r=block.querySelector(`[aria-label="${name}"]`)?.getBoundingClientRect();
         return {name,visible:!!r&&r.width>0&&r.left>=view.left-0.5&&r.right<=view.right+0.5};
       });
     });
+    check(await wide.getByRole('button',{name:'Delete table',exact:true}).count()===0,'Delete table belongs in More');
+    await wide.getByRole('button',{name:'Table actions',exact:true}).click();
+    await page.getByRole('menu',{name:'Table actions',exact:true}).getByRole('menuitem',{name:'Delete table',exact:true}).waitFor();
+    await page.keyboard.press('Escape');
     check(actions.every(a=>a.visible),`Wide table actions out of view ${JSON.stringify({width,actions})}`);
     await rest();
     results.push({width,...local});

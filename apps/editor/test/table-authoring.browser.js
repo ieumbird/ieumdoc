@@ -51,9 +51,34 @@ async (page, { showNotifications, openPath, reloadDocument }) => {
   const result = {};
   await open();
 
+  // Whole-table controls belong above the grid, independently of its horizontal scroll.
+  const assertTopActions = async table => {
+    const geometry = await table.evaluate(block => {
+      const rect = selector => block.querySelector(selector)?.getBoundingClientRect();
+      const edit = rect('[aria-label="Edit table"]'), more = rect('[aria-label="Table actions"]');
+      const grid = rect('table'), metadata = rect('.block-metadata');
+      const scroll = block.querySelector('.table-scroll');
+      return {edit: edit?.toJSON(), more: more?.toJSON(), grid: grid?.toJSON(),
+        aligned: !!edit && !!more && Math.abs(edit.top + edit.height / 2 - more.top - more.height / 2) < 1,
+        above: !!edit && !!more && edit.bottom <= grid.top && more.bottom <= grid.top &&
+          edit.top < metadata.bottom && metadata.top < edit.bottom &&
+          edit.top >= block.getBoundingClientRect().top && more.bottom <= rect('.table-column-handle').top,
+        reachable: !!edit && !!more && edit.left >= scroll.getBoundingClientRect().left - 1 &&
+          more.right <= scroll.getBoundingClientRect().right + 1,
+        independent: !scroll.contains(block.querySelector('[aria-label="Edit table"]')) &&
+          !scroll.contains(block.querySelector('[aria-label="Table actions"]')),
+        noDeleteButton: !block.querySelector('button[aria-label="Delete table"]')};
+    });
+    if (!geometry.aligned || !geometry.above || !geometry.reachable || !geometry.independent || !geometry.noDeleteButton)
+      throw new Error(`Whole-table Edit/More must share the upper metadata row outside the scroller, with Delete in the menu: ${JSON.stringify(geometry)}`);
+  };
   // Direct handles/append buttons preserve the native caret and history. The menu can
   // target B while the caret remains in A; its portal must not be clipped by local scroll.
   const initial = tables.first();
+  const restingBounds = await initial.boundingBox();
+  await initial.hover();
+  await assertTopActions(initial);
+  if (JSON.stringify(await initial.boundingBox()) !== JSON.stringify(restingBounds)) throw new Error('Showing table tools must not move or resize the document');
   result.emptyCaptionAvailable = await initial.getByTestId('table-caption').isVisible() &&
     await initial.getByTestId('table-caption').getAttribute('data-number') === 'Table 1' &&
     await initial.getByRole('button', {name:'Add caption',exact:true}).count() === 0;
@@ -189,8 +214,20 @@ async (page, { showNotifications, openPath, reloadDocument }) => {
   }
   await page.mouse.move(0, 0);
   await page.keyboard.press('Tab');
+  if (!await initial.getByRole('button', {name:'Edit table',exact:true}).evaluate(n => n === document.activeElement)) throw new Error('Tab from prose must discover upper Edit');
+  await page.keyboard.press('Enter');
+  await page.getByTestId('table-label').waitFor();
+  await page.keyboard.press('Escape');
+  await initial.getByRole('button', {name:'Edit table',exact:true}).focus();
+  await page.keyboard.press('Tab');
+  if (!await initial.getByRole('button', {name:'Table actions',exact:true}).evaluate(n => n === document.activeElement)) throw new Error('Tab from Edit must reach More');
+  await page.keyboard.press('Enter');
+  await page.getByRole('menu', {name:'Table actions',exact:true}).waitFor();
+  await page.keyboard.press('Escape');
+  if (!await initial.getByRole('button', {name:'Table actions',exact:true}).evaluate(n => n === document.activeElement)) throw new Error('Escape must return to upper More');
+  await page.keyboard.press('Tab');
   const discovered = await initial.locator('.table-row-handle:focus, .table-column-handle:focus').count();
-  if (discovered !== 1) throw new Error('Tab from preceding prose must discover a table handle without hovering the table');
+  if (discovered !== 1) throw new Error('Tab after upper Edit/More must discover a table handle without pointer hover');
   await assertVisibleHandles(initial, 'Keyboard Tab discovery', true);
   result.keyboardHandlesVisible = true;
   await page.keyboard.press('Enter');
@@ -204,8 +241,8 @@ async (page, { showNotifications, openPath, reloadDocument }) => {
   result.activeCell = await initial.locator('[data-current-cell="true"]').innerText() === 'U' &&
     await initial.getByRole('button', {name:'Row 2 actions', exact:true}).getAttribute('aria-pressed') === 'true' &&
     await initial.getByRole('button', {name:'Column A actions', exact:true}).getAttribute('aria-pressed') === 'true';
-  // Edit (caption and label) sits in the action bar below the table; the table starts on the text
-  // axis and its row handles stay left of it, clear of the gutter's block handle.
+  // Upper Edit clears the grid/column handles; Append row remains below the caption.
+  // The table starts on the text axis and row handles clear the block handle.
   result.toolsDoNotOverlapEdit = await initial.evaluate(block => {
     const edit = block.querySelector('[aria-label="Edit table"]').getBoundingClientRect();
     const tableElement = block.querySelector('table');
@@ -215,8 +252,7 @@ async (page, { showNotifications, openPath, reloadDocument }) => {
     const handle = document.querySelector('.block-controls.visible .block-handle')?.getBoundingClientRect();
     const caption = block.querySelector('.table-caption').getBoundingClientRect();
     const append = block.querySelector('[aria-label="Append row"]').getBoundingClientRect();
-    return edit.top >= Math.max(gridBottom, caption.bottom) && append.top >= caption.bottom &&
-      Math.abs(edit.top - append.top) < 0.5 && Math.abs(table.left - block.getBoundingClientRect().left) < 0.5 && row.right <= table.left &&
+    return edit.bottom <= table.top && append.top >= Math.max(gridBottom, caption.bottom) && Math.abs(table.left - block.getBoundingClientRect().left) < 0.5 && row.right <= table.left &&
       (!handle || handle.bottom <= row.top || row.bottom <= handle.top || handle.right <= row.left);
   });
   await initial.locator('th').first().click();
@@ -283,7 +319,10 @@ async (page, { showNotifications, openPath, reloadDocument }) => {
   await page.setViewportSize({width:640, height:720});
   await initial.hover();
   for (let i = 0; i < 5; i++) await initial.getByRole('button', {name:'Append column', exact:true}).click();
+  await initial.locator('.table-scroll').evaluate(scroll => { scroll.scrollLeft = 0; });
+  await assertTopActions(initial);
   await initial.locator('.table-scroll').evaluate(scroll => { scroll.scrollLeft = scroll.scrollWidth; });
+  await assertTopActions(initial);
   const last = initial.getByRole('button', {name:'Column G actions', exact:true});
   await last.click();
   result.narrowGeometry = await initial.evaluate(block => {
@@ -292,7 +331,7 @@ async (page, { showNotifications, openPath, reloadDocument }) => {
     const actions = block.querySelector('.table-action-bar').getBoundingClientRect();
     const append = block.querySelector('[aria-label="Append row"]').getBoundingClientRect();
     const handles = [...block.querySelectorAll('.table-column-handle')];
-    return actions.top >= caption.bottom && append.top >= caption.bottom &&
+    return actions.bottom <= table.getBoundingClientRect().top && append.top >= caption.bottom &&
       block.querySelector('.table-scroll').scrollWidth > block.querySelector('.table-scroll').clientWidth &&
       handles.every((handle, i) => Math.abs(handle.getBoundingClientRect().left - table.rows[0].cells[i].getBoundingClientRect().left) < 1) &&
       [...block.querySelectorAll('.table-row-handle')].every((handle, i) => {
@@ -525,7 +564,12 @@ async (page, { showNotifications, openPath, reloadDocument }) => {
   await showNotifications(page);
   await notice.filter({hasText:'Copied the file path.'}).waitFor({state:'visible'});
   await finalTable.locator('td').first().click();
-  await finalTable.getByRole('button', {name:'Delete table', exact:true}).click();
+  await finalTable.getByRole('button', {name:'Table actions', exact:true}).focus();
+  await page.keyboard.press('Enter');
+  await page.getByRole('menu', {name:'Table actions',exact:true}).waitFor();
+  await page.keyboard.press('ArrowDown');
+  if (!await page.getByRole('menuitem', {name:'Delete table',exact:true}).evaluate(n => n === document.activeElement)) throw new Error('Keyboard must reach Delete inside More');
+  await page.keyboard.press('Enter');
   result.deleteTable = await tables.count() === 1;
   await assertDeletionNotice();
   await notice.getByRole('button', {name:'Undo', exact:true}).click();
@@ -565,7 +609,8 @@ async (page, { showNotifications, openPath, reloadDocument }) => {
   // Saving, even a cancelled Reload, switching tabs and expiry revoke the action.
   const deleteLastTable = async () => {
     await tables.last().locator('td').first().click();
-    await tables.last().getByRole('button', {name:'Delete table', exact:true}).click();
+    await tables.last().getByRole('button', {name:'Table actions', exact:true}).click();
+    await page.getByRole('menu', {name:'Table actions',exact:true}).getByRole('menuitem', {name:'Delete table',exact:true}).click();
     await assertDeletionNotice();
   };
   const restoreWithKeyboard = async () => {
