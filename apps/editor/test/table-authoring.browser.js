@@ -5,7 +5,7 @@
 // rows and columns are then moved, realigned and removed from the block menu, and saved again. Finally, the caret
 // leaves the document's final table by ArrowDown and by a click below the document. Scratch files live
 // under the repository's ignored tmp/ directory; the scenario writes tables.md only.
-async (page, { openPath, reloadDocument }) => {
+async (page, { showNotifications, openPath, reloadDocument }) => {
   page.setDefaultTimeout(15000);
   // Rendering a caption must not rebuild a schema with duplicated extensions (Tiptap warns).
   const tiptapWarnings = [];
@@ -475,7 +475,7 @@ async (page, { openPath, reloadDocument }) => {
   await page.getByTestId('table-editor').waitFor({state:'detached'});
   result.tableRenameKeepsReference = await ref.getAttribute('data-label') === 'tbl-renamed' && await ref.getAttribute('data-resolved') === 'true';
   await page.keyboard.press('ControlOrMeta+z');
-  await tables.last().locator('.block-kind').filter({hasText:'tbl-ports'}).waitFor({state:'attached', timeout:5000});
+  await tables.last().locator('.block-kind').filter({hasText:'tbl-ports'}).waitFor({state:'visible', timeout:5000});
   result.tableRenameUndo = await ref.getAttribute('data-label') === 'tbl-ports' && (await tables.last().locator('.block-kind').textContent()).includes('tbl-ports');
   await page.keyboard.press('ControlOrMeta+Shift+z');
   result.tableRenameSaved = await save() && (await read()).includes('{numref}`tbl-renamed`');
@@ -520,8 +520,8 @@ async (page, { openPath, reloadDocument }) => {
   await page.getByRole('button', {name:'File actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Copy path', exact:true}).click();
   await notice.filter({hasText:'Copied the file path.'}).waitFor({state:'attached'});
-  const notificationToggle = page.locator('.notification-center > button[aria-expanded=false]');
-  if (await notificationToggle.count()) await notificationToggle.click();
+  await showNotifications(page);
+  await notice.filter({hasText:'Copied the file path.'}).waitFor({state:'visible'});
   await finalTable.locator('td').first().click();
   await finalTable.getByRole('button', {name:'Delete table', exact:true}).click();
   result.deleteTable = await tables.count() === 1;

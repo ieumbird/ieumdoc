@@ -204,7 +204,7 @@ async (page, { openDocument, waitForActivePath, reloadDocument }) => {
   const keepEditing = page.getByRole('button', {name:'Keep editing', exact:true});
   const discard = page.getByRole('button', {name:'Discard and reload', exact:true});
   // Base UI applies initial focus on an animation frame after the dialog becomes visible.
-  await keepEditing.and(page.locator(':focus')).waitFor({state:'attached', timeout:5000});
+  await keepEditing.and(page.locator(':focus')).waitFor({state:'visible', timeout:5000});
   check('reloadDefaultsToKeepEditing', await keepEditing.evaluate(element => element === document.activeElement));
   // Measure rendered colors, not utility classes; all button faces are opaque.
   const discardAppearance = () => discard.evaluate(element => {
@@ -297,7 +297,7 @@ async (page, { openDocument, waitForActivePath, reloadDocument }) => {
   await equation.hover(); await equation.getByRole('button', {name:'Edit', exact:true}).click();
   await page.getByTestId('equation-latex').fill('x + 40');
   await save();
-  check('draftSaveIsExplicit', (await page.getByTestId('status').innerText()) === 'Unsaved changes' && await page.getByTestId('draft-notice').count() === 1);
+  check('draftSaveIsExplicit', (await page.getByTestId('status').innerText()) === 'Unsaved changes' && await page.getByTestId('draft-notice').isVisible());
   check('onlyAppliedContentWritten', (await read(technical)).source.includes('BodySaved') && !(await read(technical)).source.includes('x + 40'));
   await page.getByTestId('view-source').click(); await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').waitFor();
   check('sourceExcludesDraft', !(await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').innerText()).includes('x + 40'));

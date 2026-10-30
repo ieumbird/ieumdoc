@@ -1,7 +1,7 @@
 // Run with pnpm browser:test equation-node-selection-typing.
 // CDP exercises native composition with and without an initial IME keydown;
 // this does not emulate a real Windows Korean OS IME.
-async (page, { openPath, reloadDocument }) => {
+async (page, { showNotifications, openPath, reloadDocument }) => {
   await page.unrouteAll();
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   await page.reload();
@@ -208,6 +208,7 @@ async (page, { openPath, reloadDocument }) => {
     const beforeRejectedPaste = await snapshot();
     await page.keyboard.press('Control+c');
     await page.keyboard.press('Control+v');
+    await showNotifications(page);
     await page.getByText('Pasting would duplicate a Figure or Equation label.', {exact:false}).waitFor();
     check(same(await snapshot(),beforeRejectedPaste), 'Rejected paste changed Equation or inserted a paragraph');
 

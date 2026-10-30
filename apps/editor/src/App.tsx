@@ -278,7 +278,7 @@ function EditorApp() {
   const {
     editorRef = emptyEditorRef, document, openedPath = "", outlineStore,
     view = "visual",
-    draftActive = false, documentDirty = false,
+    draftActive = false, documentDirty = false, draftNotice = "",
     reloadDialog = false, imageChoice = null, imageReturnFocus = emptyImageRef,
   } = session ?? {};
   const busy = Boolean(operation || fileOperationPending || session?.busy || continuationPending);
@@ -1102,7 +1102,9 @@ function EditorApp() {
           })}
           </div>
           <MessageArea
-            warning={[recoveryProblem, sampleWarning].filter(Boolean).join(" ")}
+            warnings={[...(recoveryProblem ? [{ id: "recovery-storage", message: recoveryProblem }] : []),
+              ...(sampleWarning ? [{ id: `sample-preparation:${start?.sampleProblem}`, message: sampleWarning }] : [])]}
+            draftNotice={draftNotice}
             error={error} errorCause={errorCause}
             notice={notice} noticeCause={noticeCause}
             onNoticeExpired={() => setNotice("")}

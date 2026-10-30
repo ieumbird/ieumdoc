@@ -3,7 +3,7 @@
 // other (with one-step Undo/Redo), keeps bold in a converted heading and italicizes it from the toolbar,
 // checks heading Tab/Shift+Tab, boundaries and selection-toolbar access, rejects a heading conversion
 // with a line break visibly, saves a scratch Markdown file, and reloads it.
-async (page, { openDocument }) => {
+async (page, { showNotifications, openDocument }) => {
   await page.unrouteAll();
   await page.reload();
   await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'ready');
@@ -191,7 +191,8 @@ async (page, { openDocument }) => {
   // A line break cannot go into a heading: the reason is shown and nothing changes.
   const twoLines = editor.locator('p').filter({hasText:'Line one'});
   await blockAction(twoLines, 'Move paragraph block 8', 'Change to Heading 2');
-  await page.getByTestId('notice').filter({hasText:'line breaks'}).waitFor({state:'attached'});
+  await showNotifications(page);
+  await page.getByTestId('notice').filter({hasText:'line breaks'}).waitFor({state:'visible'});
   const lineBreakConversionRejected = await twoLines.count() === 1 && await twoLines.locator('br').count() === 1;
 
   // Legacy body H1 remains editable; inspect its normal conversions, then leave its level intact.

@@ -60,31 +60,39 @@ export function NotificationCenter({ items }: { items: Notification[] }) {
   useTranslation();
   const [hidden, setHidden] = useState<string[]>([]);
   const [expanded, setExpanded] = useState(() => items.some(item => item.severity !== "info"));
+  const [announcement, setAnnouncement] = useState<{ sequence: number; text: string }>();
   const previous = useRef<string[]>([]);
+  const visible = items.filter(item => !hidden.includes(item.id));
+  const severity = visible.some(item => item.severity === "error") ? "error" : visible.some(item => item.severity === "warning") ? "warning" : "info";
+  const label = i18n.t(severity === "error" ? "Error" : severity === "warning" ? "Warning" : "Information");
+  const accessibleLabel = i18n.t("Notifications: {{severity}}, {{count}}", { severity: label, count: visible.length });
   const causes = JSON.stringify(items.map(item => [item.id, item.severity]));
   useLayoutEffect(() => {
     const ids = items.map(item => item.id);
     setHidden(value => value.filter(id => ids.includes(id)));
     if (items.some(item => item.severity !== "info" && !previous.current.includes(item.id))) setExpanded(true);
+    if (visible.some(item => !previous.current.includes(item.id))) {
+      setAnnouncement(value => ({ sequence: (value?.sequence ?? 0) + 1, text: accessibleLabel }));
+    }
     previous.current = ids;
   }, [causes]);
-  const visible = items.filter(item => !hidden.includes(item.id));
-  if (!visible.length) return null;
-  const severity = visible.some(item => item.severity === "error") ? "error" : visible.some(item => item.severity === "warning") ? "warning" : "info";
-  const label = i18n.t(severity === "error" ? "Error" : severity === "warning" ? "Warning" : "Information");
-  return <aside className="notification-center" data-severity={severity} aria-label={i18n.t("Notifications")}>
+  return <>
+    <div className="sr-only" aria-live="polite" aria-atomic="true" data-testid="notification-announcement">
+      {announcement ? <span key={announcement.sequence}>{announcement.text}</span> : null}
+    </div>
+    {visible.length ? <aside className="notification-center" data-severity={severity} aria-label={i18n.t("Notifications")}>
     <ul hidden={!expanded} id="notification-list" aria-label={i18n.t("Notifications")}>{visible.map(item => <li key={item.id} data-severity={item.severity}>
       <div className="notification-content">
         {item.context ? <p className="notification-context">{item.context}</p> : null}
         <div data-testid={item.testId} role={item.severity === "error" ? "alert" : "status"}>
         {item.render ? item.render() : <p>{item.message}</p>}
-        {item.reveal ? <Button size="sm" variant="ghost" onClick={item.reveal}>{i18n.t("Go to problem")}</Button> : null}
+        {item.reveal ? <Button className="notification-reveal" size="sm" variant="ghost" onClick={item.reveal}>{i18n.t("Go to problem")}</Button> : null}
         </div>
       </div>
       <Button size="icon-sm" variant="ghost" aria-label={item.dismissLabel ?? i18n.t("Dismiss notification")}
         onClick={() => setHidden(value => [...value, item.id])}><X /></Button>
     </li>)}</ul>
-    <Button size="sm" variant="outline" aria-label={i18n.t("Notifications")} aria-expanded={expanded} aria-controls={expanded ? "notification-list" : undefined}
+    <Button size="sm" variant="outline" aria-label={accessibleLabel} aria-expanded={expanded} aria-controls={expanded ? "notification-list" : undefined}
       onClick={() => setExpanded(value => !value)}><Bell /><span>{label} · {visible.length}</span></Button>
-  </aside>;
+  </aside> : null}</>;
 }

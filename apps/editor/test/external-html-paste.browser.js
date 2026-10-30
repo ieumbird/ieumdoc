@@ -1,6 +1,6 @@
 // External (web, Notion, Word) HTML clipboard normalized to supported blocks: the OS clipboard
 // with notice, one Undo/Redo, Save/Reload and canonical Markdown; representative sources; refusals.
-async (page, { openPath }) => {
+async (page, { showNotifications, openPath }) => {
   await page.unrouteAll();
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
@@ -25,6 +25,7 @@ async (page, { openPath }) => {
     editor.commands.setTextSelection({from, to: args.whole ? from + args.text.length : from}); editor.view.focus();
   }, {text, whole});
   const notice = page.getByTestId('notice');
+  const messageBody = notice.locator('p').first();
   const syntheticPaste = html => editor.evaluate((el, html) => {
     const data = new DataTransfer();
     data.setData('text/html', html); data.setData('text/plain', 'Plain fallback');
@@ -54,7 +55,8 @@ async (page, { openPath }) => {
     'text/html': new Blob([html], {type:'text/html'}), 'text/plain': new Blob(['Web heading'], {type:'text/plain'}),
   })]), web);
   await page.keyboard.press('Control+v');
-  await notice.filter({hasText:'Pasted with normalization: unsupported semantic formatting became plain text; unsupported visual styles were removed.'}).waitFor({state:'attached'});
+  await showNotifications(page);
+  await notice.filter({hasText:'Pasted with normalization: unsupported semantic formatting became plain text; unsupported visual styles were removed.'}).waitFor({state:'visible'});
   const pasted = await state();
   assert(pasted.doc !== before.doc, 'External HTML must paste');
   assert(await editor.locator('[data-block="table"]').getByLabel('Table caption', {exact:true}).count() === 1,
@@ -113,8 +115,13 @@ async (page, { openPath }) => {
     const before = await state();
     await notice.waitFor({state:'detached', timeout:10000});
     await syntheticPaste(html);
+    let shown = '';
+    if (message) {
+      await showNotifications(page);
+      assert(await messageBody.isVisible(), `${name}: normalization message must be visible`);
+      shown = await messageBody.innerText();
+    } else assert(await notice.count() === 0, `${name}: vendor layout noise must not produce a notice`);
     const markdown = (await source('Omega.')).slice(saved.length - 'Omega.\n'.length);
-    const shown = await notice.count() ? await notice.innerText() : '';
     assert(markdown === expected && shown === message, `${name}: ${JSON.stringify({markdown, shown})}`);
     await editor.evaluate(el => el.editor.commands.undo());
     assert((await state()).doc === before.doc, `${name}: one Undo restores the document`);
@@ -140,7 +147,8 @@ async (page, { openPath }) => {
     await select('Omega.', true);
     const before = await state();
     await syntheticPaste(html);
-    await notice.filter({hasText:`Nothing was pasted: ${reason}. The clipboard and your selection are kept.`}).waitFor({state:'attached'});
+    await showNotifications(page);
+    await notice.filter({hasText:`Nothing was pasted: ${reason}. The clipboard and your selection are kept.`}).waitFor({state:'visible'});
     const after = await state();
     assert(after.doc === before.doc && after.selection.join() === before.selection.join(), `${reason}: document and selection must stay`);
   }
@@ -152,7 +160,8 @@ async (page, { openPath }) => {
     data.setData('text/html', args.html); data.setData('text/plain', 'Merged');
     el.dispatchEvent(new DragEvent('drop', {dataTransfer:data, clientX:args.x, clientY:args.y, bubbles:true, cancelable:true}));
   }, {html:refused['merged table cells are not supported'], x:target.x + 5, y:target.y + target.height / 2});
-  await notice.filter({hasText:'Nothing was pasted: merged table cells are not supported.'}).waitFor({state:'attached'});
+  await showNotifications(page);
+  await notice.filter({hasText:'Nothing was pasted: merged table cells are not supported.'}).waitFor({state:'visible'});
   assert((await state()).doc === beforeDrop.doc, 'A refused drop must keep the document');
   result.refused = true;
   return result;

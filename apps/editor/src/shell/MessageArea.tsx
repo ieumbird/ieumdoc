@@ -4,6 +4,7 @@ import { UiError, type UiMessage } from "../ui-message.ts";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { SaveDisplayError, SaveErrorLocation } from "../save-error.ts";
 import { Button } from "@/components/ui/button.tsx";
+import { Notice } from "../ui/primitives.tsx";
 import { useNotifications, type Notification } from "../components/ui/notification-center.tsx";
 
 export const NOTICE_TIMEOUT_MS = 5000;
@@ -14,7 +15,7 @@ type MessageAreaProps = {
   saveError?: { failure: SaveDisplayError; locations: readonly SaveErrorLocation[]; onReveal(index: number): void };
   notice: string;
   noticeAction?: (() => void) | null;
-  warning?: string;
+  warnings?: readonly { id: string; message: string }[];
   draftNotice?: string;
   documentNotice?: string;
   onReveal?(): void;
@@ -22,7 +23,7 @@ type MessageAreaProps = {
 };
 
 /** Existing message producers register with the window center; notices keep their five-second lifetime. */
-export function MessageArea({ error, errorCause = error, noticeCause, saveError, notice, noticeAction = null, warning = "", draftNotice = "", documentNotice = "", onReveal, onNoticeExpired }: MessageAreaProps) {
+export function MessageArea({ error, errorCause = error, noticeCause, saveError, notice, noticeAction = null, warnings = [], draftNotice = "", documentNotice = "", onReveal, onNoticeExpired }: MessageAreaProps) {
   useTranslation();
   const expire = useRef(onNoticeExpired);
   expire.current = onNoticeExpired;
@@ -38,12 +39,15 @@ export function MessageArea({ error, errorCause = error, noticeCause, saveError,
     ...(saveError ? { render: () => <SaveErrorContent {...saveError} /> } : { reveal: onReveal }),
   });
   for (const [testId, message, severity] of [
-    ["writeability-warning", warning, "warning"], ["draft-notice", draftNotice, "info"], ["document-notice", documentNotice, "info"], ["notice", notice, "info"],
+    ["document-notice", documentNotice, "info"], ["notice", notice, "info"],
   ] as const) if (message) items.push({ id: testId === "notice" ? `notice:${causeId(noticeCause ?? notice)}` : testId, message, severity, testId, reveal: onReveal,
     ...(testId === "notice" && noticeAction ? { render: () => <><p>{message}</p><Button variant="ghost" size="sm" onClick={noticeAction}>{i18n.t("Undo")}</Button></> } : {}),
   });
+  for (const warning of warnings) items.push({ ...warning, severity: "warning", testId: "writeability-warning", reveal: onReveal });
   useNotifications(items);
-  return null;
+  return draftNotice ? <div className="message-area" data-testid="message-area">
+    <Notice className="message" data-testid="draft-notice"><span className="message-text">{draftNotice}</span></Notice>
+  </div> : null;
 }
 
 // Translation changes presentation, never the identity of an unresolved cause.
@@ -61,7 +65,7 @@ export function SaveErrorContent({ failure, locations, onReveal }: NonNullable<M
   return <div className="save-error-content">
     <span className="message-text">{failure.summary}</span>
     {locations.length ? <span className="message-actions">
-      <Button variant="ghost" size="sm" onClick={() => move(active)}>{i18n.t("Go to problem")}</Button>
+      <Button className="notification-reveal" variant="ghost" size="sm" onClick={() => move(active)}>{i18n.t("Go to problem")}</Button>
       {locations.length > 1 ? <>
         <Button variant="ghost" size="sm" aria-label={i18n.t("Previous problem")} onClick={() => move((active + locations.length - 1) % locations.length)}>←</Button>
         <span>{active + 1} / {locations.length}</span>

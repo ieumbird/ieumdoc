@@ -39,7 +39,7 @@ export const DocumentTab = memo(function DocumentTab({ settingsDisabled, id, fil
       requestAnimationFrame(() => { if (session.isCurrent()) action(); });
     } }}>
     <MessageArea error={session.error} errorCause={session.errorCause} notice={session.notice} noticeCause={session.noticeCause} noticeAction={session.noticeAction}
-      warning={session.recoveryError} draftNotice={session.draftNotice} documentNotice={session.documentNotice}
+      warnings={session.recoveryError ? [{ id: "document-recovery", message: session.recoveryError }] : []} documentNotice={session.documentNotice}
       saveError={session.saveFailure ? { failure: session.saveFailure, locations: session.saveLocations,
         onReveal(index) { onReveal(id); requestAnimationFrame(() => session.revealSaveLocation(index)); } } : undefined}
       onReveal={() => session.editorRef.current?.focusEnd(0)} onNoticeExpired={() => session.setNotice("")} />

@@ -675,7 +675,7 @@ test("top bar exposes the active document view and disables both views during un
 });
 
 test("message producers have no duplicate shell banners", () => {
-  assert.equal(renderToStaticMarkup(<MessageArea error="Save failed" notice="Table deleted" warning="Cannot save"
+  assert.equal(renderToStaticMarkup(<MessageArea error="Save failed" notice="Table deleted" warnings={[{ id: "sample", message: "Cannot save" }]}
     onNoticeExpired={noop} />), "");
 });
 
@@ -691,7 +691,8 @@ test("window center reports severity and count, with optional location navigatio
   const info = renderToStaticMarkup(<NotificationCenter items={[{ id: "copy", severity: "info", message: "Path copied" }]} />);
   assert.match(info, /aria-expanded="false"/);
   assert.match(info, /<ul[^>]*hidden/);
-  assert.equal(renderToStaticMarkup(<NotificationCenter items={[]} />), "");
+  assert.doesNotMatch(renderToStaticMarkup(<NotificationCenter items={[]} />), /<aside|<button/);
+  assert.match(html, /aria-label="Notifications: Error, 2"/);
 });
 
 test("save failures expose a list of navigation targets and collapsed unchanged technical details", async () => {

@@ -1,5 +1,6 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Notifications: {{severity}}, {{count}}": "Notifications: {{severity}}, {{count}}",
   "Information": "Information",
   "Applied document": "Applied document",
   "Diagram preview unavailable": "Diagram preview unavailable",
@@ -766,6 +767,7 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Notifications: {{severity}}, {{count}}": "알림: {{severity}} {{count}}개",
   "Information": "안내",
   "Applied document": "적용된 문서 기준",
   "Diagram preview unavailable": "다이어그램 미리보기 사용 불가",

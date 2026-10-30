@@ -30,6 +30,8 @@ async (page, { openPath, expect, screenshots }) => {
   await change(null);
   await expect(center).toContainText('Applied document');
   await expect(center).toHaveAttribute('data-severity', 'warning');
+  await expect(toggle()).toHaveAccessibleName('Notifications: Warning, 1');
+  await expect(page.getByTestId('notification-announcement')).toHaveText('Notifications: Warning, 1');
   await expect(toggle()).toHaveAttribute('aria-expanded', 'true');
   expect(await engine.evaluate(el => el.contains(document.activeElement))).toBe(true);
   expect(await engine.evaluate(el => JSON.stringify(el.editor.state.selection.toJSON()))).toBe(selection);
@@ -58,6 +60,13 @@ async (page, { openPath, expect, screenshots }) => {
         expect(geometry.top).toBeGreaterThanOrEqual(0);
         expect(geometry.bottom).toBeLessThanOrEqual(geometry.height);
         expect(geometry.contentFits && geometry.pageFits).toBe(true);
+        const sidebar = await page.getByTestId('sidebar').boundingBox();
+        expect(geometry.left).toBeGreaterThanOrEqual(sidebar.x + sidebar.width);
+        const alignment = await center.getByTestId('numbering-warning').evaluate(el => {
+          const range = document.createRange(); range.selectNodeContents(el.querySelector('button'));
+          return Math.abs(range.getBoundingClientRect().left - el.querySelector('p').getBoundingClientRect().left);
+        });
+        expect(alignment).toBeLessThan(1);
         await page.screenshot({ path: `tmp/notification-792-after-${width}-${theme}-${language}.png` });
       }
     }
@@ -117,6 +126,8 @@ async (page, { openPath, expect, screenshots }) => {
   await expect(center).toHaveAttribute('data-severity','info');
   await expect(toggle()).toHaveAttribute('aria-expanded','false');
   await expect(center.getByTestId('notice')).toBeHidden();
+  await expect(toggle()).toHaveAccessibleName('Notifications: Information, 1');
+  await expect(page.getByTestId('notification-announcement')).toHaveText('Notifications: Information, 1');
   await toggle().click();
   await expect(center.getByTestId('notice')).toContainText('Copied the file path.');
   await expect(center).toHaveCount(0, {timeout:6500}); // Existing one-shot lifetime, no focus change.
@@ -143,5 +154,36 @@ async (page, { openPath, expect, screenshots }) => {
   await page.keyboard.press('Escape');
   await page.getByTestId('settings-dialog').waitFor({state:'detached'});
   await expect(center).toHaveCount(0);
+  // Independently caused standing warnings must never share a dismissal identity.
+  const warningWindow = await page.context().newPage();
+  try {
+    await warningWindow.addInitScript(() => { localStorage.removeItem('ieumdoc.openTabs'); localStorage.setItem('ieumdoc.uiLanguage','en'); });
+    await warningWindow.route('**/api/document', route => route.fulfill({json:{start:true,sampleProblem:'conflict'}}));
+    await warningWindow.goto(origin);
+    const warnings = warningWindow.locator('.notification-center');
+    await expect(warnings.getByTestId('writeability-warning')).toContainText('Sample documents are unavailable');
+    await warnings.getByRole('button', {name:'Dismiss notification',exact:true}).click();
+    await expect(warnings).toHaveCount(0);
+    const settings = warningWindow.getByRole('button', {name:'Settings',exact:true});
+    await settings.focus();
+    await warningWindow.evaluate(async () => {
+      const {recoveryStorage} = await import('/src/recovery-storage.ts');
+      window.originalRecoveryList = recoveryStorage.list;
+      window.originalAnnouncement = document.querySelector('[data-testid=notification-announcement] span');
+      recoveryStorage.list = async () => { throw new Error('New independent storage fault'); };
+      window.dispatchEvent(new Event('focus'));
+    });
+    await expect(warnings.getByTestId('writeability-warning')).toContainText('New independent storage fault');
+    await expect(warnings.getByTestId('writeability-warning')).toBeVisible();
+    await expect(warnings.locator(':scope > button')).toHaveAttribute('aria-expanded','true');
+    await expect(settings).toBeFocused();
+    expect(await warningWindow.evaluate(() => document.querySelector('[data-testid=notification-announcement] span') !== window.originalAnnouncement)).toBe(true);
+    await warningWindow.evaluate(async () => {
+      const {recoveryStorage} = await import('/src/recovery-storage.ts');
+      recoveryStorage.list = window.originalRecoveryList;
+      window.dispatchEvent(new Event('focus'));
+    });
+    await expect(warnings).toHaveCount(0);
+  } finally { await warningWindow.close(); }
   return { lifecycle:true, focusPreserved:true, inactiveNavigation:true, windowIsolation:true };
 }

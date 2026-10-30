@@ -103,7 +103,7 @@ async (page, { openPath, screenshots }) => {
   await equation.getByRole('button', {name:'Edit', exact:true}).click();
   await page.getByTestId('equation-latex').fill('x + SourceDraft');
   await showSource();
-  result.sourceExcludesEquationDraft = !(await sourceText()).includes('SourceDraft') && await page.getByTestId('draft-notice').count() === 1;
+  result.sourceExcludesEquationDraft = !(await sourceText()).includes('SourceDraft') && await page.getByTestId('draft-notice').isVisible();
   await showVisual();
   result.equationDraftRetained = await page.getByTestId('equation-latex').inputValue() === 'x + SourceDraft';
   await page.getByTestId('equation-cancel').click();
