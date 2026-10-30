@@ -12,12 +12,11 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import type { CliIntegrationState, DesktopBridge, DesktopInfo, OfferedUpdate, ReleaseChannel, UpdateState } from "../../shared/desktop-bridge.ts";
 import { RecoveryDeleteDialog } from "./Recovery.tsx";
 import { Notice } from "../ui/primitives.tsx";
-import { PAGE_BACKGROUNDS, readPageBackground, writePageBackground, type PageBackground, ACCENT_COLORS, readAccentColor, writeAccentColor, writeUiLanguage, THEMES, writeTheme, type UiLanguage, type ThemePreference } from "../preferences.ts";
-import { applyPageBackground, applyTheme, currentTheme } from "../theme.ts";
+import { PAGE_BACKGROUNDS, readPageBackground, writePageBackground, type PageBackground, ACCENT_COLORS, readAccentColor, writeAccentColor, writeUiLanguage, THEME_LABELS, THEMES, type UiLanguage, type ThemePreference } from "../preferences.ts";
+import { applyPageBackground } from "../theme.ts";
 
 const ACCENT_LABELS = { blue: "Blue", violet: "Violet", plum: "Plum", teal: "Teal", green: "Green", graphite: "Graphite" } as const;
 const PAGE_LABELS = { paper: "Paper", flat: "Flat" } as const;
-const THEME_LABELS = { system: "System", light: "Light", dark: "Dark" } as const;
 
 const CHANNELS: { value: ReleaseChannel; label: string; hint: string }[] = [
   { value: "stable", get label() { return i18n.t("Stable"); }, get hint() { return i18n.t("Tested releases."); } },
@@ -101,6 +100,9 @@ function CliSettings({ desktop }: { desktop: DesktopBridge }) {
 
 type SettingsDialogProps = {
   open: boolean;
+  theme: ThemePreference;
+  themeProblem: boolean;
+  onThemeChange(theme: ThemePreference): void;
   highlightUpdate?: boolean;
   category: SettingsCategory;
   onCategoryChange(category: SettingsCategory): void;
@@ -120,7 +122,7 @@ type SettingsDialogProps = {
 };
 
 /** Shared local recovery settings; About and update controls require the Desktop bridge. */
-export function SettingsDialog({ open, highlightUpdate = false, category, onCategoryChange, documentName, unsaved, desktop, info, onInfo, onInstall, returnFocus, onClose, recoveryCount = 0, recoveryProblem: storageProblem, onClearRecovery }: SettingsDialogProps) {
+export function SettingsDialog({ theme, themeProblem, onThemeChange, open, highlightUpdate = false, category, onCategoryChange, documentName, unsaved, desktop, info, onInfo, onInstall, returnFocus, onClose, recoveryCount = 0, recoveryProblem: storageProblem, onClearRecovery }: SettingsDialogProps) {
   useTranslation();
   const backButton = useRef<HTMLButtonElement>(null);
   const [clearConfirm, setClearConfirm] = useState(false);
@@ -131,10 +133,8 @@ export function SettingsDialog({ open, highlightUpdate = false, category, onCate
   const [languageProblem, setLanguageProblem] = useState(false);
   const [accent, setAccent] = useState(readAccentColor);
   const [accentProblem, setAccentProblem] = useState(false);
-  const [theme, setTheme] = useState(currentTheme);
   const [page, setPage] = useState(readPageBackground);
   const [pageProblem, setPageProblem] = useState(false);
-  const [themeProblem, setThemeProblem] = useState(false);
   const [logBusy, setLogBusy] = useState(false);
   const [logProblem, setLogProblem] = useState(false);
   const state = info?.update;
@@ -197,10 +197,7 @@ export function SettingsDialog({ open, highlightUpdate = false, category, onCate
                   </div>
                   <select className="form-select h-[var(--size-control)] w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring" aria-labelledby="settings-theme" data-testid="theme"
                     value={theme} onChange={event => {
-                      const choice = event.target.value as ThemePreference;
-                      void applyTheme(choice);
-                      setTheme(choice);
-                      setThemeProblem(!writeTheme(choice));
+                      onThemeChange(event.target.value as ThemePreference);
                     }}>
                     {THEMES.map(value => <option key={value} value={value}>{i18n.t(THEME_LABELS[value])}</option>)}
                   </select>

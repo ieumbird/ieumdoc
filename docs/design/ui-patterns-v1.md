@@ -126,6 +126,7 @@ After는 #792 작업 소스로 촬영했다. source/disk 쓰기 없이 번호 �
 
 - **목적·사용/비사용:** 동작·값 선택·검색을 구별한다. combobox·tree·toolbar를 모양 때문에 하나의 menu로 합치지 않는다.
 - **목표·현재 기준:** [CommandMenu](../../apps/editor/src/CommandMenu.tsx)와 [공용 메뉴 행](editor-ux-shell-v1.md#unified-action-menus-516)을 유지한다. 같은 action의 icon·문구·disabled 이유를 맞춘다. 값 선택에는 current check, 서식에는 pressed, 실행에는 동사를 쓴다. 검색 active와 선택된 값은 구별한다.
+- **추가 사용처 (#798):** Sidebar 하단 색상 모드 메뉴는 공용 menu surface·행과 Base UI radio 선택을 사용한다. 현재 값의 check와 키보드 focus를 구별하며 Settings·명령 센터와 같은 저장·적용 경로를 쓴다([계약·검증](editor-ux-shell-v1.md#color-mode-entry-798)).
 - **사용처:** U17 서식 toolbar, U18 블록·표 메뉴, U19 코드 언어/callout, U20 파일·탭 메뉴, U21 검색·탐색, U09–U10 인용·참조 후보.
 - **결정·불일치:** [소유자 결정 P10][decision]. 메뉴 역할 자체의 알려진 불일치 없음. 표 Delete는 #793에서 상단 More의 기존 공용 danger 메뉴 항목으로 통합했다. 행·열의 명시적 대상, disabled 제한, 삭제·Undo 의미와 키보드 Enter/화살표/Esc 동작은 유지한다(P09/D08).
 

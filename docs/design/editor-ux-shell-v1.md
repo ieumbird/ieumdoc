@@ -47,8 +47,9 @@ The sidebar opens the read-only module tab described in
 [Docling comparison](docling-compare-v1.md), under [ADR-0011](../adr/0011-code-module-boundary.md).
 Its entry sits in the sidebar footer above Settings, separate from Explorer's
 empty-state help and folder navigation. Collapse Explorer → Open folder retains
-its existing Tab order; the collapsed rail still exposes only Explorer and Settings.
-After Explorer's file navigation, the footer's Tab order is Docling comparison → Settings.
+its existing Tab order; the collapsed rail exposes Explorer, Color mode and Settings.
+After Explorer's file navigation, the footer's Tab order is Docling comparison → Settings → Color mode.
+The rail keeps Settings bottom-aligned and places Color mode immediately above it.
 It shares tab navigation/closing while remaining outside document editing,
 Save/recovery sessions and startup tab restoration.
 
@@ -2619,3 +2620,25 @@ failures alongside stale comparison warnings; other alert migration remains #792
 See the [conversion contract](docling-conversion-v1.md#app-pdf-conversion-797) for
 setting lifetime, output naming, limits and automatic comparison tabs. Existing
 Appearance/recovery settings and ordinary document actions retain their contracts.
+
+## Color mode entry (#798)
+
+Expanded Explorer places a compact Color mode button beside Settings; the 48px rail
+stacks it immediately above Settings without moving the Settings update dot. It opens
+the shared nonmodal menu with System / Light / Dark radio choices and a current check.
+Enter/Space opens it, arrows move focus, Enter selects and Escape cancels; closing
+returns focus to the trigger. Command Center offers the same three choices with
+English and Korean labels/search aliases.
+
+All three entry points use one live App choice, existing `writeTheme` storage and
+`applyTheme` application (including the Desktop bridge). Settings remains synchronized
+when closed and reopened. Failed storage retains the live choice and displays the
+existing localized alert in Settings or the notification center outside Settings.
+Accent and page style remain in Settings. No Core operation or CLI parity is needed
+for this device display preference.
+
+`pnpm browser:test color-mode --screenshots` verifies keyboard/current/focus behavior,
+Settings and bilingual command parity, reload persistence, live System appearance,
+update-dot separation and viewport containment. Manual captures are written to
+`tmp/color-mode-798/` at 1440px Light/English and 640px Dark/Korean, expanded and rail;
+the PR records the clean-base Before and changed After evidence.
