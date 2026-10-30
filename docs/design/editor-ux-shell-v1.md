@@ -1432,7 +1432,9 @@ retargeting, printing/export and remote images are outside this feature.
 Body endnote references show their current definition on hover; citation chips show the matching
 bibliography entries in key order, using the same formatted parts and readiness as References.
 Missing definitions, missing keys and unchecked bibliography retain the existing status messages.
-These previews replace the chips' native title tooltips. Endnote click still reveals its definition;
+These previews replace the chips' native title tooltips. Endnote previews show the definition without
+a visible navigation hint (#773); the resolved original chip exposes a link role and retains its
+accessible name describing navigation. Endnote click still reveals its definition;
 citation click/selection and its explicit Edit button keep their existing behavior.
 
 The same `ReadingPreview` observer handles image links and both chip kinds. A focused editor's

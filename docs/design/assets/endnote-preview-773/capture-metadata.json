@@ -1,0 +1,27 @@
+{
+  "baseHead": "f58d14e505d24c21023f90c9bfaef4359a569726",
+  "after": "Same checkout with #773 changes; corresponding PR commit",
+  "runner": "pnpm browser:test reference-preview --screenshots",
+  "origin": "http://127.0.0.1:5282",
+  "browser": "Windows installed Chrome, checkout-owned persistent profile",
+  "viewports": [
+    [
+      1440,
+      900,
+      "light",
+      "en"
+    ],
+    [
+      640,
+      900,
+      "dark",
+      "ko"
+    ]
+  ],
+  "dpr": 1,
+  "zoom": "default, no override",
+  "fonts": "bundled Pretendard; document.fonts.ready",
+  "state": "same reference-preview fixture; scroll top; hover first body endnote",
+  "before": "Unmodified runtime sources at baseHead; modified capture-only branch",
+  "afterChanges": "Remove visible hint and its internal gap; resolved reference link role; no citation change"
+}

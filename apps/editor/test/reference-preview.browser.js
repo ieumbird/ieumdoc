@@ -18,15 +18,20 @@ async (page, {openPath, activeDocument, expect, screenshots}) => {
   const initial = await state();
   // Manual captures run separately from assertions, using this same real fixture/state.
   if (screenshots) {
-    for (const width of [1440,640]) {
+    for (const [width, language, theme] of [[1440, 'en', 'light'], [640, 'ko', 'dark']]) {
       await page.setViewportSize({width,height:900});
+      await page.evaluate(({language, theme}) => {
+        localStorage.setItem('ieumdoc.uiLanguage', language);
+        localStorage.setItem('ieumdoc.theme', theme);
+      }, {language, theme});
+      await page.reload();
+      await surface.locator('.ProseMirror').waitFor();
+      await page.locator(`html[data-theme="${theme}"]`).waitFor();
       await page.evaluate(()=>document.fonts.ready);
       await surface.evaluate(dom=>dom.closest('.document-scroll').scrollTo(0,0));
-      await hover(notes.first()); await settle();
-      const phase = await preview.count() ? 'after' : 'before';
-      await page.screenshot({path:`tmp/reference-preview-evidence/${phase}-endnote-${width}.png`});
-      await hover(citations.first()); await settle();
-      await page.screenshot({path:`tmp/reference-preview-evidence/${phase}-citation-${width}.png`});
+      await hover(notes.first()); await expect(preview).toBeVisible(); await settle();
+      const phase = await preview.locator('.reference-preview-hint').count() ? 'before' : 'after';
+      await page.screenshot({path:`tmp/reference-preview-evidence/${phase}-endnote-${width}-${theme}-${language}.png`});
     }
     return {manualCaptures:true};
   }
@@ -47,6 +52,8 @@ async (page, {openPath, activeDocument, expect, screenshots}) => {
     await bounds(preview);
   }
   await hover(notes.first());
+  await expect(preview).not.toContainText('Click to go to its definition.');
+  await expect(notes.first().getByRole('link')).toHaveAccessibleName('Endnote 1. Click to go to its definition.');
   await expect(preview.locator('strong')).toHaveText('Formatted');
   await expect(preview.locator('em')).toHaveText('endnote');
   await expect(preview.locator('code')).toHaveText('code');
