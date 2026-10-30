@@ -107,8 +107,10 @@ They share Automatic/Fixed segments (#776 / [P02](ui-patterns-v1.md#p02-자동�
 revealing a value input only for Fixed. Selecting Fixed retains that mode when its value is
 cleared; empty or whitespace-only fixed input blocks completion and focuses the input with
 an associated localized error. Only choosing Automatic clears a fixed number. Automatic shows
-the current Core-computed number with this block's fixed enumerator omitted; other applied
-blocks retain their numbers and counter behavior. This display is derived, never authored.
+"Automatic number: N" / "자동 번호: N": the Core-computed number this block would receive
+with its fixed enumerator omitted. The same wording applies when the block is already
+automatic. Other applied blocks retain their numbers and counter behavior. This display is
+derived, never authored.
 Number value and mode are drafts included in existing dirty/work-loss protection. Explicit Apply or
 Figure Done/valid outside pointer completion changes the engine attribute in the same Undo
 step as the other properties. Invalid fixed input also blocks Figure outside pointer completion

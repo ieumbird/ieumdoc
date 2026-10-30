@@ -104,7 +104,7 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
   await openPath(page, fixedPath);
   await assertFixedState();
   const attrs = label => engine.evaluate((element, label) => element.editor.getJSON().content.find(node => node.attrs?.label === label)?.attrs, label);
-  const edit = async (label, kind) => {
+  const edit = async (label, kind, fixed = true) => {
     await engine.evaluate((element, label) => {
       const editor = element.editor;
       editor.state.doc.forEach((node, pos) => { if (node.attrs.label === label) editor.commands.setNodeSelection(pos); });
@@ -112,9 +112,9 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
     }, label);
     await page.keyboard.press('Enter');
     if (kind === 'mermaid') await page.getByTestId('mermaid-edit-source').click();
-    if (!await page.getByTestId(`${kind}-enumerator`).isVisible())
+    if (fixed && !await page.getByTestId(`${kind}-enumerator`).isVisible())
       await page.getByTestId(`${kind}-editor`).getByRole('button', {name:'Fixed',exact:true}).click();
-    await page.getByTestId(`${kind}-enumerator`).waitFor();
+    if (fixed) await page.getByTestId(`${kind}-enumerator`).waitFor();
   };
   const applyNumber = async (label, kind, value) => {
     await edit(label, kind);
@@ -157,7 +157,7 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
     // Automatic previews the Core counter with this block's fixed enumerator removed.
     await page.getByTestId(`${kind}-editor`).getByRole('button',{name:'Automatic',exact:true}).click();
     await expect(page.getByTestId(`${kind}-enumerator`)).toHaveCount(0);
-    expect(await page.getByTestId(`${kind}-automatic-number`).innerText()).toBe('Current number: 1');
+    expect(await page.getByTestId(`${kind}-automatic-number`).innerText()).toBe('Automatic number: 1');
     await page.getByTestId(`${kind}-editor`).getByRole('button',{name:'Fixed',exact:true}).click();
     await page.getByTestId(`${kind}-enumerator`).fill('discard');
     await expect(page.getByTestId('draft-notice')).toBeVisible();
@@ -184,7 +184,7 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
   await expect(page.getByTestId('mermaid-enumerator')).toHaveAttribute('aria-invalid','true');
   expect((await attrs('fixed-diagram')).enumerator).toBe('C.2');
   await page.getByTestId('mermaid-editor').getByRole('button',{name:'Automatic',exact:true}).click();
-  expect(await page.getByTestId('mermaid-automatic-number').innerText()).toBe('Current number: 1');
+  expect(await page.getByTestId('mermaid-automatic-number').innerText()).toBe('Automatic number: 1');
   await page.getByTestId('mermaid-apply').click();
   await page.getByTestId('mermaid-editor').waitFor({state:'detached'});
   expect((await attrs('fixed-diagram')).enumerator).toBeNull();
@@ -221,9 +221,9 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
   await reloadDocument(page);
   expect(await active.getByTestId('numbering-warnings').count()).toBe(0);
   expect(await active.getByTestId('equation-number').innerText()).toBe('(1)');
-  await edit('fixed-diagram','mermaid-property');
-  await page.getByTestId('mermaid-property-editor').getByRole('button',{name:'Automatic',exact:true}).click();
-  expect(await page.getByTestId('mermaid-property-automatic-number').innerText()).toBe('Current number: 2');
+  await edit('fixed-diagram','mermaid-property',false);
+  await expect(page.getByTestId('mermaid-property-editor').getByRole('button',{name:'Automatic',exact:true})).toHaveAttribute('aria-pressed','true');
+  expect(await page.getByTestId('mermaid-property-automatic-number').innerText()).toBe('Automatic number: 2');
   await page.getByTestId('mermaid-property-label').press('Escape');
   // Empty fixed equations can Apply; the existing final-save error path must explain both remedies.
   const emptyPath = [root,'tmp','reference-save-reload','empty-fixed.md'].join(separator);
@@ -247,9 +247,15 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
   await active.locator('[data-block="equation"]').hover();
   await active.locator('[data-block="equation"]').getByRole('button',{name:'편집',exact:true}).click();
   await page.getByTestId('equation-editor').getByRole('button',{name:'자동',exact:true}).click();
+  expect(await page.getByTestId('equation-automatic-number').innerText()).toBe('자동 번호: 1');
   await page.getByTestId('equation-apply').click();
   await page.getByTestId('equation-editor').waitFor({state:'detached'});
   await save();
+  await active.locator('[data-block="equation"]').hover();
+  await active.locator('[data-block="equation"]').getByRole('button',{name:'편집',exact:true}).click();
+  await expect(page.getByTestId('equation-editor').getByRole('button',{name:'자동',exact:true})).toHaveAttribute('aria-pressed','true');
+  expect(await page.getByTestId('equation-automatic-number').innerText()).toBe('자동 번호: 1');
+  await page.getByTestId('equation-cancel').click();
   await page.getByRole('button',{name:'설정',exact:true}).click();
   await page.getByTestId('ui-language').selectOption('en');
   await page.keyboard.press('Escape');

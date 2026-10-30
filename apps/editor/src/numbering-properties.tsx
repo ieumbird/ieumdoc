@@ -73,7 +73,7 @@ export function NumberField({ editor, getPos, draft, onChange, testId, disabled 
         aria-invalid={invalid || undefined} aria-describedby={invalid ? `${id}-error` : undefined}
         placeholder={i18n.t("None")}
         value={value} disabled={disabled} onChange={event => { draft.change(event.target.value); onChange?.(); }} />
-        : <p className="form-hint" data-testid={`${testId}-automatic-number`}>{i18n.t("Current number: {{number}}", { number: report?.automatic ?? "" })}</p>}
+        : <p className="form-hint" data-testid={`${testId}-automatic-number`}>{i18n.t("Automatic number: {{number}}", { number: report?.automatic ?? "" })}</p>}
       {invalid ? <Notice tone="error" id={`${id}-error`}>{i18n.t("Enter a fixed number or choose Automatic.")}</Notice> : null}
       {notices}
     </div>;
