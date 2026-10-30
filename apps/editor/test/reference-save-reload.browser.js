@@ -160,7 +160,7 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
     expect(await page.getByTestId(`${kind}-automatic-number`).innerText()).toBe('Automatic number: 1');
     await page.getByTestId(`${kind}-editor`).getByRole('button',{name:'Fixed',exact:true}).click();
     await page.getByTestId(`${kind}-enumerator`).fill('discard');
-    await expect(page.getByTestId('draft-notice')).toBeVisible();
+    await expect(page.getByTestId('draft-indicator')).toBeVisible();
     expect((await attrs(label)).enumerator).toBe(previous);
     if (kind === 'figure' || kind === 'mermaid-property') await page.getByTestId(kind === 'figure' ? 'figure-alt' : 'mermaid-property-label').press('Escape');
     else if (kind === 'table') await page.getByTestId('table-label').press('Escape');

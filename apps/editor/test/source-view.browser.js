@@ -104,7 +104,7 @@ async (page, { openPath, screenshots }) => {
   await page.getByTestId('equation-edit-source').click();
   await page.getByTestId('equation-latex').fill('x + SourceDraft');
   await showSource();
-  result.sourceExcludesEquationDraft = !(await sourceText()).includes('SourceDraft') && await page.getByTestId('draft-notice').isVisible();
+  result.sourceExcludesEquationDraft = !(await sourceText()).includes('SourceDraft') && await page.getByTestId('draft-indicator').isVisible();
   await showVisual();
   result.equationDraftRetained = await page.getByTestId('equation-latex').inputValue() === 'x + SourceDraft';
   await page.getByTestId('equation-cancel').click();

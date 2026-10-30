@@ -152,7 +152,7 @@ async (page, { openFolderPicker, openDocument, waitForEditorFocus, expect, scree
     await expect(page.getByTestId('figure-image-url')).toHaveCount(0);
     await expect(page.getByTestId('figure-enumerator')).toHaveCount(0);
     await editor.getByRole('button', {name:'Fixed',exact:true}).click();
-    await expect(page.getByTestId('draft-notice')).toBeVisible();
+    await expect(page.getByTestId('draft-indicator')).toBeVisible();
     await page.getByTestId('figure-apply').click();
     await expect(page.getByTestId('figure-enumerator')).toHaveAttribute('aria-invalid','true');
     expect(await snapshot()).toEqual(beforeShortcut);
@@ -165,7 +165,7 @@ async (page, { openFolderPicker, openDocument, waitForEditorFocus, expect, scree
     await page.getByTestId('figure-apply').click();
     await expect(editor).toHaveCount(0);
     expect(await image.getAttribute('src')).toContain('diagram.svg');
-    await expect(page.getByTestId('draft-notice')).toBeVisible();
+    await expect(page.getByTestId('draft-indicator')).toBeVisible();
     await image.dblclick();
     await expect(page.getByTestId('figure-file-name')).toBeVisible();
     expect(await page.getByTestId('figure-file-name').inputValue()).toBe('Pending filename');

@@ -84,7 +84,7 @@ async (page, { openPath, expect }) => {
   await dirty();
   check(await page.getByTestId('table-label').inputValue() === 'table-draft', 'Closing one kind lost another');
   await page.getByTestId('table-label').press('Escape');
-  await page.getByTestId('draft-notice').waitFor({state:'detached'});
+  await page.getByTestId('draft-indicator').waitFor({state:'detached'});
   check(await json() === baseline && await page.getByTestId('status').innerText() === '', 'Cancel changed document or leaked registration');
   check(await focusedAfter('table'), 'Cancel did not return a caret after the table');
   await beginTable();

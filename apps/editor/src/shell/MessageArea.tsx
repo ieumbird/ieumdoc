@@ -4,7 +4,6 @@ import { UiError, type UiMessage } from "../ui-message.ts";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { SaveDisplayError, SaveErrorLocation } from "../save-error.ts";
 import { Button } from "@/components/ui/button.tsx";
-import { Notice } from "../ui/primitives.tsx";
 import { useNotifications, type Notification } from "../components/ui/notification-center.tsx";
 
 export const NOTICE_TIMEOUT_MS = 5000;
@@ -16,14 +15,13 @@ type MessageAreaProps = {
   notice: string;
   noticeAction?: (() => void) | null;
   warnings?: readonly { id: string; message: string }[];
-  draftNotice?: string;
   documentNotice?: string;
   onReveal?(): void;
   onNoticeExpired(): void;
 };
 
 /** Existing message producers register with the window center; notices keep their five-second lifetime. */
-export function MessageArea({ error, errorCause = error, noticeCause, saveError, notice, noticeAction = null, warnings = [], draftNotice = "", documentNotice = "", onReveal, onNoticeExpired }: MessageAreaProps) {
+export function MessageArea({ error, errorCause = error, noticeCause, saveError, notice, noticeAction = null, warnings = [], documentNotice = "", onReveal, onNoticeExpired }: MessageAreaProps) {
   useTranslation();
   const expire = useRef(onNoticeExpired);
   expire.current = onNoticeExpired;
@@ -45,9 +43,7 @@ export function MessageArea({ error, errorCause = error, noticeCause, saveError,
   });
   for (const warning of warnings) items.push({ ...warning, severity: "warning", testId: "writeability-warning", reveal: onReveal });
   useNotifications(items);
-  return draftNotice ? <div className="message-area" data-testid="message-area">
-    <Notice className="message" data-testid="draft-notice"><span className="message-text">{draftNotice}</span></Notice>
-  </div> : null;
+  return null;
 }
 
 // Translation changes presentation, never the identity of an unresolved cause.

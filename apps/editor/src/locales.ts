@@ -1,5 +1,6 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Unapplied draft": "Unapplied draft",
   "This label cannot name a reference target. Choose another label.": "This label cannot name a reference target. Choose another label.",
   "The label and its references cannot be preserved. Check the label and reference targets.": "The label and its references cannot be preserved. Check the label and reference targets.",
   "Label must be a string.": "Label must be a string.",
@@ -783,6 +784,7 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Unapplied draft": "미적용 초안",
   "This label cannot name a reference target. Choose another label.": "이 레이블은 참조 대상을 지정할 수 없습니다. 다른 레이블을 입력하세요.",
   "The label and its references cannot be preserved. Check the label and reference targets.": "레이블과 참조의 연결을 보존할 수 없습니다. 레이블과 참조 대상을 확인하세요.",
   "Label must be a string.": "레이블은 문자열이어야 합니다.",
