@@ -8,6 +8,14 @@ import test from "node:test";
 import { listenForFetch } from "../../../test/helpers/fetch-server.ts";
 import { convertDoclingPdf, readDoclingMap } from "../src/index.ts";
 import profile from "../profiles/ieumdoc-pdf-en-v1.json" with { type: "json" };
+import { doclingFailureOf } from "../src/server-types.ts";
+
+test("public failure causes distinguish explicit missing models from redacted and other model errors", () => {
+  assert.equal(doclingFailureOf({ failure: { message: "Model 'CodeFormulaV2' not found in artifacts_path." } }).code, "model-missing");
+  assert.equal(doclingFailureOf({ error_message: "Internal processing error.", failure: null }).code, "server");
+  assert.equal(doclingFailureOf({ error_message: "The required model execution failed." }).code, "server");
+  assert.equal(doclingFailureOf({ errors: [{ error_message: "Required model is missing." }] }).code, "model-missing");
+});
 
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j9ioAAAAASUVORK5CYII=", "base64");
 const image = () => ({ uri: `data:image/png;base64,${png.toString("base64")}`, mimetype: "image/png", dpi: 72, size: { width: 1, height: 1 } });

@@ -4,7 +4,7 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "exports": { ".": "./src/index.ts", "./compare": "./src/compare.ts", "./compare-host": "./src/compare-host.ts", "./ui": "./src/CompareView.tsx" },
+  "exports": { ".": "./src/index.ts", "./compare": "./src/compare.ts", "./compare-host": "./src/compare-host.ts", "./ui": "./src/CompareView.tsx", "./server": "./src/server.ts", "./server-types": "./src/server-types.ts", "./server-ui": "./src/ServerSettings.tsx" },
   "scripts": {
     "test": "tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"

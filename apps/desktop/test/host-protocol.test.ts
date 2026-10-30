@@ -23,6 +23,25 @@ const localizedSamples = { ko: path.join(documents, "ko.md"), en: path.join(docu
 const handle = createProtocolHandler(editorDir, { document: initial, samples: localizedSamples });
 const get = (pathname: string) => handle(new Request(`${ORIGIN}${pathname}`));
 
+test("Docling settings, checking and transient-task routes use the shared Desktop Host adapter", async () => {
+  const previous = process.env.IEUMDOC_DOCLING_SETTINGS_FILE;
+  process.env.IEUMDOC_DOCLING_SETTINGS_FILE = path.join(root, "docling-settings.json");
+  let docling: ReturnType<typeof createProtocolHandler>;
+  try { docling = createProtocolHandler(editorDir, { samples: localizedSamples }); }
+  finally {
+    if (previous === undefined) delete process.env.IEUMDOC_DOCLING_SETTINGS_FILE;
+    else process.env.IEUMDOC_DOCLING_SETTINGS_FILE = previous;
+  }
+  const request = (endpoint: string, method = "GET", body?: unknown) => docling(new Request(`${ORIGIN}/api/docling-${endpoint}`, { method,
+    ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }) }));
+  assert.equal((await (await request("settings")).json()).server, "http://127.0.0.1:8001");
+  assert.equal((await request("settings", "PUT", { server: "http://127.0.0.1:1" })).status, 200);
+  assert.equal((await (await request("check", "POST", {})).json()).code, "unreachable");
+  assert.equal(await (await request("conversion")).json(), null);
+  assert.equal((await request("conversion", "POST", { path: initial })).status, 400);
+  assert.equal((await request("conversion", "DELETE", { id: "absent" })).status, 400);
+});
+
 test("file deletion uses the validated OS trash adapter and never falls back to permanent deletion", async () => {
   const file = path.join(documents, "trash.txt"); writeFileSync(file, "keep");
   let target = "";

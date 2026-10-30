@@ -72,6 +72,17 @@ Unlike crd-engine's dynamic page-count parameter, this needs no local PDF parser
 Server model caches and deployment remain external responsibilities; version and
 readiness checks do not certify model-cache identity or source fidelity.
 
+The server operator must prepare the models used by the profile: RapidOCR,
+default layout, accurate TableFormer, **CodeFormulaV2** for
+code/formula enrichment and **DocumentFigureClassifier-v2.5** for picture
+classification. The tested official CUDA 1.32.0 image lacks CodeFormulaV2;
+the fixture procedure downloads it into the disposable container. See the
+[Korean server administration guide](../guides/docling-server.md) for pinned
+images, startup, persistent model cache and troubleshooting.
+The 1.32.0 OpenAPI has no profile/model-cache readiness endpoint. `/ready`
+reports service readiness, not availability of every model requested by a
+conversion. A successful connection check must disclose that limit.
+
 The destination contains the source bundle and the native conversion together:
 
 ```text
@@ -117,6 +128,76 @@ no raw response is retained. The existing `docling convert` path remains intact.
 The #768 saved fixtures retain their historical resized, hash-named images and
 manifests. Applying readable names when regenerating those fixtures is follow-up
 work; this change does not rewrite their recorded source evidence.
+
+## App PDF conversion (#797)
+
+Settings has a Docling category with the server address (default
+`http://127.0.0.1:8001`) and Check connection beside it. A valid address is saved
+on field exit or Enter/check; there is no document Save/Apply action. Errors
+preserve the input, with an associated field message. The setting is the Host
+user's `~/.ieumdoc/docling.json`, shared by Desktop, HTTP Host and Vite running
+as that OS user. `IEUMDOC_DOCLING_SETTINGS_FILE` overrides that file for an
+isolated Host/test installation. It is outside documents, Root folders and
+browser storage: HTTP clients configure the Host's external service, not their
+own localhost. Settings links to the administration guide through the existing
+external-link opener; the link remains available after a failed check.
+
+The module's same preflight supplies both conversion and connection checking:
+response/readiness, reported server version, compatibility with 1.32.0 and exact
+OpenAPI-reference match. Same-version spec differences remain visible but do not
+refuse conversion, matching CLI policy. Invalid URLs are refused before storage. Serial address
+writes compare against the saved value after earlier writes settle, so reverting
+A → pending B → A stores and checks A. Older field-write errors cannot override
+the latest edit/check result.
+
+Explorer PDF file menus and Command Center's **Convert with Docling** enter the
+same explicit conversion dialog. Command Center first uses the existing Host
+file picker filtered to PDFs. Results go beside the PDF in `<stem>.docling`,
+then `<stem>.docling-2`, `-3`, etc. Existing files/folders are never overwritten;
+exclusive module publication also refuses a name claimed after the initial
+choice. PDF read and output checks use the Host's existing Root/real-path policy,
+including a recheck before publication. No browser request goes directly to
+Docling. The native document is created by the existing converter/Core.
+
+Each Host admits one conversion at a time, retaining only its current transient
+job snapshot. The browser polls the Host once a second while work is active;
+the module polls Docling. Progress shows checking/upload/queue/processing/download/
+bundle stages, elapsed seconds, task ID once known and the result folder, without
+invented page percentages. Closing the progress dialog leaves work running;
+Command Center opens it again. **Stop waiting** aborts IeumDoc requests/waiting,
+waits for local cleanup and explicitly says the server task may continue. There
+is no API cancellation call, retry, persisted queue or resume service. The CLI
+still has no interactive cancellation UI. Completed jobs/tabs are not restored
+on page startup. A page may observe a still-running Host job. The UI and hook refuse Start until the first successful Host status snapshot
+(including a known null/no-job snapshot). Failed status reads are retried as GETs,
+so an unavailable initial read cannot leave Start permanently disabled. If a start response is lost, the UI re-reads the Host's
+current snapshot before allowing another start; it never automatically repeats
+the POST. This can recover a newly accepted job, including one already completed,
+while ignoring an older completed snapshot. Reading that same older success
+does not clear the new request's rejection/transport error; read failures and
+action failures have separate lifetimes. A delayed comparison response may
+change tabs/dialogs/notifications only while its conversion is still current;
+it cannot clear or replace a newer task's failure.
+
+Success opens the existing Docling comparison tab. Failure uses the same single
+window NotificationCenter as stale comparison maps, with Go to problem opening
+the conversion dialog. Retry removes that cause; new failures can appear again.
+This adopts P07 only for Docling; aggregation of existing shell/document errors
+remains [#792](https://github.com/ieumbird/ieumdoc/issues/792).
+
+Public `failure.message`, `error_message` and result `errors[].error_message`
+are interpreted in the module, with short translated cause/action text and task
+ID in the UI. Explicit missing-model/capacity/source/timeout causes are retained;
+raw traces are not displayed. The tested missing-CodeFormulaV2 case returns only
+`Internal processing error.` and `failure: null` (the result endpoint returns
+404). IeumDoc cannot recover that hidden cause: it asks the operator to check
+server logs and profile models using the task ID, rather than asserting a model
+is missing. The existing CLI diagnostic retains its error/context.
+
+This is Host/UI access to the already headless `docling convert-pdf` operation;
+no new Core semantics or CLI command is needed. Connection checks, execution and
+module UI stay in `@ieumdoc/docling`; Editor provides shared controls, translation,
+file picker, shell dialogs/tabs and external-link handling under ADR-0011.
 
 ## Correspondence sidecar
 
@@ -196,3 +277,38 @@ Read-only comparison is defined by [Docling comparison](docling-compare-v1.md).
 Confirmation state, correction records and post-edit relinking remain outside
 this contract. Public fixture provenance, licenses and reproduction
 commands are in the [fixture README](../../packages/docling/test/fixtures/README.md).
+
+## App verification on 2026-10-30
+
+Fake HTTP service tests cover connection success/unreachable/not-ready/version
+mismatch, Host configuration persistence, Root denial, one active task,
+no-overwrite naming, completion, explicit/redacted failures and cancellation with
+no server cancel request. The Desktop protocol test covers the new routes.
+The `docling-server` persistent-browser scenario exercises Settings, PDF context
+menu and Command Center picker, stopped waiting, failure notification/reveal and
+automatic comparison. It passes against Vite and the built production HTTP Host.
+The same run verifies address/check-button alignment, delayed A→B→A settings,
+initial GET failure and loss of an accepted POST response with GET-only recovery,
+and a delayed comparison response returning after a newer task fails. Other browser regressions
+are left to required CI as requested by the owner.
+
+The real pinned CUDA server required a disposable-container CodeFormulaV2
+download before conversion could succeed. NIST's committed 11-page PDF then
+completed through the app in 46,570ms (warm server, one observation), with 19
+images and both bundle-integrity checks true; the comparison tab opened
+automatically. Task ID: `851907ac-82e9-4924-be68-db5f868cc357`. The fetched OpenAPI
+matched the profile reference. This is execution/integrity proof, not OCR QA or
+CPU/large-document capacity evidence.
+
+Manual review captures live in [assets/docling-server-797](assets/docling-server-797/):
+[Settings 1440 Light](assets/docling-server-797/settings-success-en-1440.png),
+[failed check 640 Korean](assets/docling-server-797/settings-failure-ko-640.png),
+[Settings 640 Dark](assets/docling-server-797/settings-dark-ko-640.png),
+[PDF menu](assets/docling-server-797/pdf-menu-en-1440.png),
+[progress 640 Korean](assets/docling-server-797/progress-ko-640.png),
+[real NIST comparison Light](assets/docling-server-797/real-completed-en-1440.png),
+[real NIST comparison Dark](assets/docling-server-797/real-completed-dark-ko-1440.png).
+Settings and progress were checked for alignment, readable wrapping, clipping,
+occlusion and translation against the existing Appearance/recovery/FolderDialog
+patterns. The comparison's existing 640px usability exception remains; its
+640px capture is observation, not a new support guarantee.

@@ -1,3 +1,4 @@
+import { createDoclingHost } from "../../editor/server/docling.ts";
 // The `ieumdoc://app` origin: the Editor's production build and the existing local Host handlers,
 // answered in-process. No TCP port is opened. Host paths, document rules and Save stay in
 // apps/editor/server and Core; this file only turns fetch Requests into the Node shapes they read.
@@ -16,7 +17,7 @@ export const SCHEME = "ieumdoc";
 export const ORIGIN = `${SCHEME}://app`;
 
 /** The Host routes the Vite dev server forwards, with the same handlers. */
-const DOCUMENT_ROUTES = new Set(["/api/file", "/api/bibliography", "/api/file-preview", "/api/document", "/api/folder", "/api/folder-browse", "/api/folder-places", "/api/document-source", "/api/docling-compare", "/api/figure-validation"]);
+const DOCUMENT_ROUTES = new Set(["/api/docling-settings", "/api/docling-check", "/api/docling-conversion", "/api/file", "/api/bibliography", "/api/file-preview", "/api/document", "/api/folder", "/api/folder-browse", "/api/folder-places", "/api/document-source", "/api/docling-compare", "/api/figure-validation"]);
 
 type NodeResponse = { statusCode: number; setHeader(name: string, value: string): void; end(data?: string | Buffer): void };
 type Handler = (req: IncomingMessage, res: ServerResponse, notFound: () => void) => Promise<void> | void;
@@ -56,6 +57,7 @@ export type FirstDocument = { document?: string } & SampleAvailability;
 export function createProtocolHandler(editorDir: string, first: FirstDocument, trashItem: (file: string) => Promise<void> = async () => { throw new Error("OS trash is unavailable."); }, onListedRoot?: (root: string) => void): (request: Request) => Promise<Response> {
   // Lives as long as this process, as the development server's key does.
   const assetSigningKey = randomBytes(32);
+  const docling = createDoclingHost();
   const sampleAvailability: SampleAvailability = { samples: first.samples, sampleProblem: first.sampleProblem };
   return async (request) => {
     const url = new URL(request.url);
@@ -74,7 +76,7 @@ export function createProtocolHandler(editorDir: string, first: FirstDocument, t
         }
         url.searchParams.set("path", first.document);
       }
-      const response = await callNodeHandler(request, url, (req, res, next) => handleDocumentRequest(req, res, next, LOCAL_FILE_ACCESS, Infinity, trashItem, sampleAvailability));
+      const response = await callNodeHandler(request, url, (req, res, next) => handleDocumentRequest(req, res, next, LOCAL_FILE_ACCESS, Infinity, trashItem, sampleAvailability, docling));
       if (onListedRoot && url.pathname === "/api/folder" && request.method === "GET" && response.ok) {
         const folder = await response.clone().json() as { root: string; path: string };
         if (folder.root === folder.path) {

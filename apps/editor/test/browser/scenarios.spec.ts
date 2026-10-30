@@ -1,7 +1,8 @@
+import { fakeDoclingServer } from "../helpers/docling-server.ts";
 import { citationReport, parse } from "@ieumdoc/core";
 import { test as base, expect, chromium, type BrowserContext, type ConsoleMessage, type Page } from "@playwright/test";
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { runInNewContext } from "node:vm";
@@ -69,6 +70,11 @@ const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
           return route.fulfill({ status: 403, json: { error: "Browser tests may write scratch files only." } });
         }
         return route.continue();
+      });
+      await context.route("**/api/docling-conversion", route => {
+        if (route.request().method() !== "POST") return route.continue();
+        const file = String(route.request().postDataJSON()?.path ?? "").replaceAll("\\", "/");
+        return writableScratch(file) ? route.continue() : route.fulfill({ status: 403, json: { error: "Browser tests may convert scratch files only." } });
       });
       const initial = await context.newPage();
       await initial.goto(url);
@@ -141,7 +147,7 @@ const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
       await page.evaluate(() => { document.querySelector<HTMLElement>('.document-scroll[data-active="true"]')?.scrollTo(0, 0); document.activeElement instanceof HTMLElement && document.activeElement.blur(); });
       await use(page);
     } finally {
-      const classification = classifyConsoleErrors(testInfo.title, errors);
+      const classification = classifyConsoleErrors(testInfo.title === "docling-server" && process.env.IEUMDOC_DOCLING_LIVE === "1" ? "docling-live" : testInfo.title, errors);
       try {
         await finishScenarioDiagnostics(session, page, testInfo, { errors, ...classification });
       } finally {
@@ -159,9 +165,11 @@ const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
 
 for (const name of scenarios) {
   test(name, async ({ page }) => {
+    const liveDocling = name === "docling-server" && process.env.IEUMDOC_DOCLING_LIVE === "1";
+    if (liveDocling) test.setTimeout(900_000);
     if (name === "desktop-updates") await verifyBuiltAppearance(page);
-    const source = readFileSync(path.join(REPOSITORY_ROOT, "apps/editor/test", `${name}.browser.js`), "utf8");
-    const scenario = runInNewContext(`(${source})`) as (page: Page, options: { assertSavedSource: ReturnType<typeof savedSourceAssertion>; screenshots: boolean; fileActionsRoot: string; expect: typeof expect; recoveryRecords: typeof recoveryRecords; openFolderPicker: typeof openFolderPicker; openDocument: typeof openDocument; openPath: typeof openPath; waitForActivePath: typeof waitForActivePath; reloadDocument: typeof reloadDocument; waitForEditorFocus: typeof waitForEditorFocus; activeDocument: typeof activeDocument; withBlockHover: typeof withBlockHover; removeTabFixture: () => void; bibliographyFixture: unknown }) => Promise<unknown>;
+    const source = readFileSync(path.join(REPOSITORY_ROOT, "apps/editor/test", ...(liveDocling ? ["manual", "docling-live.js"] : [`${name}.browser.js`])), "utf8");
+    const scenario = runInNewContext(`(${source})`) as (page: Page, options: { assertSavedSource: ReturnType<typeof savedSourceAssertion>; screenshots: boolean; fileActionsRoot: string; expect: typeof expect; recoveryRecords: typeof recoveryRecords; openFolderPicker: typeof openFolderPicker; openDocument: typeof openDocument; openPath: typeof openPath; waitForActivePath: typeof waitForActivePath; reloadDocument: typeof reloadDocument; waitForEditorFocus: typeof waitForEditorFocus; activeDocument: typeof activeDocument; withBlockHover: typeof withBlockHover; removeTabFixture: () => void; bibliographyFixture: unknown; doclingFixture: { url: string; mode?: (value: import("../helpers/docling-server.ts").DoclingMode) => void; input: string; captures: string; result(folder: string): unknown } }) => Promise<unknown>;
     const bibliographyPath = path.join(REPOSITORY_ROOT, "tmp", name === "http-host" ? "http-host-a" : "bibliography", "refs.bib");
     const initialBibliography = ["bibliography", "http-host"].includes(name) ? readFileSync(bibliographyPath, "utf8") : "";
     const bibliographyFixture = {
@@ -171,10 +179,32 @@ for (const name of scenarios) {
         mode === "updated" ? initialBibliography.replace("Control Study", "Updated Study") : mode === "invalid" ? "@article{broken" : initialBibliography),
       report: (markdown: string, text: string) => citationReport(parse(markdown), [{ source: "../refs.bib", status: "ok", text }]),
     };
-    const result = await scenario(page, { assertSavedSource: savedSourceAssertion(test.info()), screenshots, fileActionsRoot: FILE_ACTIONS_ROOT, expect, recoveryRecords, openFolderPicker, openDocument, openPath, waitForActivePath, reloadDocument, waitForEditorFocus, activeDocument, withBlockHover, bibliographyFixture,
+    const fake = name === "docling-server" && !liveDocling ? await fakeDoclingServer() : undefined;
+    const captureDirectory = path.join(REPOSITORY_ROOT, "tmp", "docling-797-captures");
+    if (name === "docling-server") mkdirSync(captureDirectory, { recursive: true });
+    const liveInput = path.join(REPOSITORY_ROOT, "tmp", "797-real", "nist-source.pdf");
+    if (liveDocling) {
+      mkdirSync(path.dirname(liveInput), { recursive: true });
+      writeFileSync(liveInput, readFileSync(path.join(REPOSITORY_ROOT, "packages/docling/test/fixtures/nist-sp1108r4/source.pdf")));
+    }
+    let result;
+    try { result = await scenario(page, { assertSavedSource: savedSourceAssertion(test.info()), screenshots, fileActionsRoot: FILE_ACTIONS_ROOT, expect, recoveryRecords, openFolderPicker, openDocument, openPath, waitForActivePath, reloadDocument, waitForEditorFocus, activeDocument, withBlockHover, bibliographyFixture,
+      doclingFixture: { url: fake?.url ?? "http://127.0.0.1:8001", mode: fake?.mode,
+        input: liveDocling ? liveInput : path.join(REPOSITORY_ROOT, "tmp", "docling-server", "paper.pdf"),
+        captures: captureDirectory,
+        result: (folder: string) => JSON.parse(readFileSync(path.join(folder, "conversion-record.json"), "utf8")),
+      },
       // Simulate an external deletion of this one disposable file. The fixture resets it afterward.
       removeTabFixture: () => unlinkSync(path.join(REPOSITORY_ROOT, "tmp/document-tabs/technical-1.md")),
     });
+    } finally {
+      if (fake) {
+        const response = await page.request.get(`${url}/api/docling-conversion`);
+        const current = await response.json();
+        if (current?.state === "running") await page.request.delete(`${url}/api/docling-conversion`, { data: { id: current.id }, headers: { Origin: url } });
+        await fake.close();
+      }
+    }
     if (result !== undefined) {
       const resultPath = test.info().outputPath("scenario-result.json");
       writeFileSync(resultPath, JSON.stringify(result, null, 2));

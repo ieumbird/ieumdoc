@@ -41,6 +41,17 @@ and replaced roots before invoking the OS. UNC/device paths are not eligible. Th
 OS action, with no document write, Core semantic operation or CLI parity command.
 
 
+## Docling execution (#797)
+
+The shared handler exposes the Docling device setting, connection check and one
+transient conversion in Vite, Desktop and HTTP Host. Module REST calls execute
+only on the Host. PDF input and new sibling output use existing Root/real-path
+checks, repeated before publication. The settings file is selected by the Host,
+never a browser-supplied filesystem path. See the
+[conversion contract](docling-conversion-v1.md#app-pdf-conversion-797) for routes,
+configuration ownership, publication, cancellation and notification behavior.
+This does not add a document session, persistence service or semantic write path.
+
 ## Purpose
 
 The read-only `GET /api/docling-compare?path=…` route uses the same handler and

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source "../../../packages/docling/src";
 @import "shadcn/tailwind.css";
 @import "./styles/tokens.css";
 

@@ -49,8 +49,29 @@ Vite, Desktop and HTTP Host. Ordinary Root and document-relative real-path
 boundaries apply before reading Markdown/sidecar or serving lazy page images
 through the existing media route. The sidecar contains the necessary information
 from document.json; the UI does not fetch/repeatedly parse that large source JSON.
-No write endpoint or persistence service is introduced. See the
+The comparison endpoint is read-only. See the
 [comparison contract](../design/docling-compare-v1.md).
 
 Unsupported source meaning must be reported explicitly by the
 converter rather than silently claimed as preserved native meaning.
+
+## App conversion connections (#797)
+
+The module also connects at the app Settings Docling section, Explorer PDF file
+menu and Command Center command. These are explicit contributions, not a general
+registration/loading framework. The module supplies server-settings UI using
+Editor-injected controls and external-link opener; it never imports Editor code.
+The shell supplies the PDF picker, progress dialog, notification integration and
+opens the existing comparison tab on completion.
+
+The `./server-types` entry is browser-safe. `./server` owns Host-local settings
+and one transient conversion controller; `./server-ui` supplies settings and
+Host polling. The shared Host handler routes `GET/PUT /api/docling-settings`,
+`POST /api/docling-check`, and `GET/POST/DELETE /api/docling-conversion` in all
+three transports. The Host supplies the settings-file location and Root access
+checks. PDF REST, failure interpretation and bundle creation stay in the module,
+with the same preflight as CLI. The setting is a device preference outside
+native documents; the task snapshot is process-local and has no persistent queue,
+resume, document session or background-service contract. Cancellation stops
+local waiting, not a server job. See the
+[conversion contract](../design/docling-conversion-v1.md#app-pdf-conversion-797).

@@ -19,7 +19,7 @@
 
 ## Consequences
 
-Three transports reuse the same stateless file handlers. The only long-lived HTTP state is startup configuration and an asset-receipt signing key; documents remain plain-text files. Core gains no HTTP, filesystem or editor-engine types. This adds a Host launch command, not a document semantic operation.
+Three transports reuse the same stateless file handlers. HTTP file state is startup configuration and an asset-receipt signing key; documents remain plain-text files. [ADR-0011](0011-code-module-boundary.md#app-conversion-connections-797) adds the explicitly scoped Docling device setting and one transient module task (#797); this is not document persistence or a job backend. Core gains no HTTP, filesystem or editor-engine types. This adds a Host launch command, not a document semantic operation.
 
 Root validation does not create an OS sandbox against a hostile filesystem administrator. File commit's existing check/use race boundary remains. Protect all proxy routes, including HTML, static assets, API and media, and restrict direct upstream access. Exact limits, deployment settings and supported platforms are in the [HTTP contract](../design/http-host-v1.md).
 

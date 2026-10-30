@@ -13,6 +13,13 @@ Bibliography reads reuse the shared stateless Host and existing Root checks thro
 resource errors do not block Markdown Save. The local per-document folder context, HTTP fixed Root
 union, limits and snapshot policy are specified in [Citations v1](citations-v1.md#bibliography-snapshots-and-limited-formatting-unit-b).
 
+Docling configuration and PDF conversion run on this Host under its fixed Root
+policy. HTTP clients share the Host user's server address; they do not call a
+Docling service on the browser device. See the
+[app conversion contract](docling-conversion-v1.md#app-pdf-conversion-797) and
+[Korean administrator guide](../guides/docling-server.md). One process-local task
+is not a persistent queue or document backend.
+
 ## Build and run
 
 Build from the selected checkout using the repository's Node.js and pnpm versions:

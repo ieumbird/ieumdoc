@@ -1,3 +1,6 @@
+import { useDoclingConversion } from "@ieumdoc/docling/server-ui";
+import { doclingFailureMessage } from "@ieumdoc/docling/server-types";
+import { DoclingConversionDialog } from "./shell/DoclingConversionDialog.tsx";
 import { COMMAND_CENTER_SHORTCUT, EDITOR_SHORTCUTS, SAVE_SHORTCUT } from "./shortcuts.ts";
 import type { ComparisonSnapshot } from "@ieumdoc/docling/compare";
 import { DoclingComparisonTab } from "./DoclingComparisonTab.tsx";
@@ -5,7 +8,7 @@ import { NotificationCenter } from "./components/ui/notification-center.tsx";
 import { UiError } from "./ui-message.ts";
 import { useMessageState } from "./ui-message.ts";
 import { useTranslation } from "react-i18next";
-import { i18n } from "./i18n.ts";
+import { i18n, type MessageKey } from "./i18n.ts";
 import { type Operation } from "./operation.ts";
 import { newRecoveryId, recoveryStorage, type RecoveryRecord } from "./recovery-storage.ts";
 import { prepareRecovery } from "./recovery-restore.ts";
@@ -132,6 +135,31 @@ export function App() {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [comparisons, setComparisons] = useState<{ id: string; path: string; snapshot: ComparisonSnapshot }[]>([]);
   const [comparePicker, setComparePicker] = useState(false);
+  const converter = useDoclingConversion(import.meta.env.BASE_URL);
+  const [conversionOpen, setConversionOpen] = useState(false);
+  const [pdfPicker, setPdfPicker] = useState(false);
+  const [conversionPath, setConversionPath] = useState("");
+  const conversionReturn = useRef<HTMLElement | null>(null);
+  const finishedConversion = useRef("");
+  const conversionAttempt = useRef(0);
+  const currentConversionId = useRef(converter.job?.id); currentConversionId.current = converter.job?.id;
+  const [conversionNotice, setConversionNotice] = useState<{ id: string; message: string } | null>(null);
+  useEffect(() => {
+    const job = converter.job;
+    if (!job) return;
+    if (job.state === "running") { setConversionNotice(null); return; }
+    if (finishedConversion.current === job.id) return;
+    finishedConversion.current = job.id;
+    if (job.state === "success") {
+      const attempt = conversionAttempt.current;
+      const current = () => attempt === conversionAttempt.current && currentConversionId.current === job.id;
+      void openComparison(job.output, current).then(problem => {
+        if (!current()) return;
+        if (problem) setConversionNotice({ id: job.id, message: problem });
+        else { setConversionOpen(false); setConversionNotice(null); }
+      });
+    } else if (job.state === "error") setConversionNotice({ id: job.id, message: `${i18n.t(doclingFailureMessage(job.failure) as MessageKey)}${job.failure?.taskId ? ` (${i18n.t("Server task")}: ${job.failure.taskId})` : ""}` });
+  }, [converter.job?.id, converter.job?.state]);
   const compareReturn = useRef<HTMLElement | null>(null);
   const [navigation, navigate] = useReducer(editorGroups, initialEditorGroups);
   const focusedGroup = navigation.groups.find(group => group.id === navigation.focused)!;
@@ -611,11 +639,12 @@ export function App() {
       return messageOf(cause);
     } finally { operationRef.current = false; setOperation(""); }
   }
-  async function openComparison(folder: string): Promise<string> {
+  async function openComparison(folder: string, current = () => true): Promise<string> {
     try {
       const path = childPath(folder.replace(/[\\/]+$/, ""), "document.md");
       const response = await fetch(`${import.meta.env.BASE_URL}api/docling-compare?${new URLSearchParams({ path })}`);
       const payload = await response.json();
+      if (!current()) return "";
       if (!response.ok) return payload.error ?? i18n.t("Could not open comparison.");
       const snapshot = payload as ComparisonSnapshot;
       const existing = comparisons.find(tab => tab.path === snapshot.path);
@@ -922,6 +951,12 @@ export function App() {
       run: () => { sidebarFocus.current = "sidebar"; setSidebarOpen(value => !value); } },
     { id: "width", kind: "command", label: i18n.t(documentWidth === "wide" ? "Standard document width" : "Wide document"), icon: documentWidth === "wide" ? Columns3 : StretchHorizontal,
       keywords: ["document width", "문서 너비"], run: toggleDocumentWidth },
+    { id: "docling-convert", kind: "command", label: i18n.t("Convert with Docling"), icon: FileText, takesFocus: true,
+      disabled: busy || Boolean(continuation), keywords: ["PDF", "Docling", "도클링", "변환"],
+      run: () => { conversionReturn.current = commandReturnFocus.current;
+        if (converter.job?.state === "running") { setConversionPath(converter.job.input); setConversionOpen(true); }
+        else { setConversionPath(""); setPdfPicker(true); }
+      } },
     { id: "settings", kind: "command", label: i18n.t("Settings"), icon: Settings2, takesFocus: true,
       keywords: ["settings", "설정"], run: () => { settingsReturnFocus.current = commandReturnFocus.current; setSettingsCategory("appearance"); setSettingsOpen(true); void refreshRecovery(); } },
     { id: "document-settings", kind: "command", label: i18n.t("Document settings…"), icon: SlidersHorizontal,
@@ -950,6 +985,8 @@ export function App() {
   return (
     <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${panelOpen && !comparison ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}${split ? " app-shell--split" : ""}`}>
       <Sidebar
+        onDoclingConvert={(path, element) => { conversionReturn.current = element; setConversionPath(path); setConversionOpen(true); setConversionNotice(null); }}
+        doclingBusy={converter.pending || converter.job?.state === "running"}
         onDoclingCompare={element => { compareReturn.current = element; setComparePicker(true); }}
         onFileAction={fileAction} fileActionsDisabled={busy || Boolean(continuation)}
         isFileDirty={path => { const tab = tabs.find(tab => tab.path === path); return !!(tab && sessions.current.get(tab.id)?.editorRef.current?.hasUnsavedChanges()); }}
@@ -1120,13 +1157,25 @@ export function App() {
           }}
         />
       ) : null}
-      <NotificationCenter items={comparisons.filter(tab => tab.snapshot.stale).map(tab => ({ id: `docling-stale-${tab.id}`, severity: "warning",
+      <DoclingConversionDialog open={conversionOpen} input={conversionPath || converter.job?.input || ""} job={converter.job} pending={converter.pending}
+        problem={converter.problem} returnFocus={conversionReturn} onClose={() => setConversionOpen(false)}
+        onStart={() => { conversionAttempt.current++; setConversionNotice(null); void converter.start(conversionPath).catch(cause => setConversionNotice({ id: `start-${Date.now()}`, message: messageOf(cause) })); }}
+        onCancel={() => void converter.cancel()} />
+      <FolderDialog open={pdfPicker} choose="pdf" title={i18n.t("Convert with Docling")}
+        description={i18n.t("Choose a PDF on the Host device.")}
+        initialPath={folders.roots.at(-1) ?? splitDocumentPath(openedPath).directory} recent={visibleRecent}
+        restricted={allowedRoots !== undefined} browse={browseHostPdfs} places={folderPlaces}
+        onOpen={async path => { setConversionPath(path); setConversionNotice(null); return ""; }}
+        returnFocus={conversionReturn} onClose={() => setPdfPicker(false)}
+        onClosed={() => { if (conversionPath) setConversionOpen(true); }} />
+      <NotificationCenter items={[...(conversionNotice ? [{ id: `docling-error-${conversionNotice.id}`, severity: "error" as const, message: conversionNotice.message,
+        reveal: () => { setConversionPath(converter.job?.input ?? conversionPath); setConversionOpen(true); } }] : []), ...comparisons.filter(tab => tab.snapshot.stale).map(tab => ({ id: `docling-stale-${tab.id}`, severity: "warning" as const,
         message: `${tab.snapshot.map.source.name}: ${i18n.t("The correspondence map does not match this document. Connections and sync scrolling are disabled. Reconvert to compare.")}`,
         reveal: () => {
           activateTab(tab.id);
           requestAnimationFrame(() => globalThis.document.getElementById(`panel-${tab.id}`)?.focus());
         },
-      }))} />
+      }))]} />
       <FolderDialog open={comparePicker} title={i18n.t("Docling comparison")}
         description={i18n.t("Choose a conversion folder containing document.md and document.docling-map.json.")}
         initialPath={folders.roots.at(-1) ?? splitDocumentPath(openedPath).directory} recent={visibleRecent}
@@ -1296,7 +1345,7 @@ async function requestFolder(root: string, path?: string): Promise<FolderRespons
 }
 
 /** Asks the Host for one level of any folder while choosing which folder to open, or an image. */
-async function browseHostFolder(path: string, files?: "image"): Promise<FolderBrowseResponse> {
+async function browseHostFolder(path: string, files?: "image" | "pdf"): Promise<FolderBrowseResponse> {
   const response = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/folder-browse?${new URLSearchParams({ path, ...(files ? { files } : {}) })}`);
   const payload = (await response.json()) as Partial<FolderBrowseResponse> & Partial<DocumentErrorResponse>;
   if (!response.ok || !Array.isArray(payload.entries) || !Array.isArray(payload.crumbs)) throw new Error(payload.error ?? `request failed (${response.status})`);
@@ -1304,6 +1353,7 @@ async function browseHostFolder(path: string, files?: "image"): Promise<FolderBr
 }
 
 const browseHostImages = (path: string) => browseHostFolder(path, "image");
+const browseHostPdfs = (path: string) => browseHostFolder(path, "pdf");
 
 /** Asks the Host to create one folder inside an existing one. */
 async function requestCreateFolder(parent: string, name: string): Promise<FolderCreateResponse> {

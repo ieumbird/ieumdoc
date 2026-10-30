@@ -2,7 +2,8 @@ import path from "node:path";
 import { REPOSITORY_ROOT } from "./fixtures.ts";
 
 type ExpectedConsoleErrorRule = {
-  status: number;
+  status?: number;
+  networkError?: string;
   pathname: string;
   minimum: number;
   queryPath?: string;
@@ -10,6 +11,10 @@ type ExpectedConsoleErrorRule = {
 };
 
 const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
+  "docling-server": [
+    { networkError: "net::ERR_FAILED", pathname: "/api/docling-conversion", minimum: 4, description: "two status reads, one accepted response and one undelivered start are deliberately lost" },
+    { status: 400, pathname: "/api/docling-conversion", minimum: 1, description: "a rejected new start cannot reopen an older successful job" },
+  ],
   "reference-save-reload": [
     {status:400, pathname:"/api/document", minimum:1, description:"final Save refuses a fixed number on an empty equation"},
   ],
@@ -116,7 +121,7 @@ export function classifyConsoleErrors(scenario: string, messages: string[]) {
     } catch {
       // A malformed or non-HTTP console location cannot match an expected response.
     }
-    const ruleIndex = rules.findIndex((rule) => status === rule.status && url?.pathname === rule.pathname &&
+    const ruleIndex = rules.findIndex((rule) => (rule.networkError ? message.includes(rule.networkError) : status === rule.status) && url?.pathname === rule.pathname &&
       (!rule.queryPath || rule.queryPath === url.searchParams.get("path")));
     if (ruleIndex < 0) {
       unexpected.push(message);
@@ -126,8 +131,8 @@ export function classifyConsoleErrors(scenario: string, messages: string[]) {
   }
 
   const missing = rules.flatMap((rule, index) =>
-    matched[index] < rule.minimum ? [`${rule.minimum - matched[index]} × ${rule.description} (${rule.status} ${rule.pathname})`] : []);
+    matched[index] < rule.minimum ? [`${rule.minimum - matched[index]} × ${rule.description} (${rule.status ?? rule.networkError} ${rule.pathname})`] : []);
   const expected = rules.flatMap((rule, index) =>
-    matched[index] > 0 ? [`${rule.status} ${rule.pathname} × ${matched[index]} (${rule.description})`] : []);
+    matched[index] > 0 ? [`${rule.status ?? rule.networkError} ${rule.pathname} × ${matched[index]} (${rule.description})`] : []);
   return {expected, unexpected, missing};
 }

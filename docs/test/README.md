@@ -408,6 +408,8 @@ Redo left the citation present, but cannot establish the key target or history t
 failure. Citation authoring's Redo assertions remain unchanged. #421 and the separate fast text-caret synchronization issue #416 are
 not claimed fixed by #489.
 
+`figure-draft-race`의 미주 case는 본문을 한 번 클릭한 직후 native anchor/focus가 모두 본문 text offset7에 있고 collapsed이며 EditorView focus가 유지되는지 대기 없이 단언한다. 즉시 engine snapshot도 결과에 보존한다. 이후 기본 assertion 제한시간 안에서 같은 native 위치·focus와 정확한 engine TextSelection이 일치하면 곧바로 입력하고, 본문 삽입 위치·미주 전체 노드 불변·readonly 복귀 및 기존 Save/Reload를 검사한다. 다른 네 case의 즉시 engine 단언은 유지한다. 이는 [#416 소유자 결정](https://github.com/ieumbird/ieumdoc/issues/416#issuecomment-6494573226)의 경계에 따른 [#811](https://github.com/ieumbird/ieumdoc/issues/811)의 테스트 관찰 조정이며, CI의 native/engine 불일치 구간에서 실제 입력이 안전하다고 입증하거나 제품을 수정한 것은 아니다. 추가 클릭·selection 지정·강제 flush·sleep이나 timeout/retry 변경은 사용하지 않는다.
+
 ### Cross-reference regression history (#407)
 
 `cross-reference`는 삭제 안내의 한국어 검사에서 복구 기록이 실제 커밋된 상태를 만든다. #407은 Undo 뒤 Apple 단축키 검사를 위한 페이지 Reload 전에 그 문서의 복구 기록 제거를 기다리도록 했다. 당시에는 Undo 완료 뒤에도 기록이 남은 채 Reload하면 탭 복원이 복구 dialog를 제안하여 Sidebar의 Files가 접근성 조회에서 제외될 수 있었다(#405).
@@ -433,3 +435,28 @@ test's `tmp/browser-results/http-recovery-*/host-recovery-proof.json` (also atta
 The prior final-v3 two-page
 ticket p95 around 2.4s remains a limitation, not a recording deadline.
 This prior measurement was documented on 2026-10-16 in [the Host recovery verification commit](https://github.com/ieumbird/ieumdoc/commit/ef1c09a63002827a38f2ea230e134c973cdb9344); the [recovery contract](../design/editing-session-save-v1.md#local-recovery-records-296-pr2) identifies it as a known limitation, not a guarantee or a new PR3 measurement.
+
+## Docling app conversion (#797)
+
+`pnpm browser:test docling-server` uses a worker-owned fake HTTP service and
+scratch PDF, with the real Host routes. The same scenario can target a running
+production HTTP Host via `IEUMDOC_BROWSER_URL`; no external Docling is used in
+normal CI. Browser profiles follow the existing persistent-profile rules.
+
+For manual real-service verification, first prepare the pinned local service
+using the [administrator guide](../guides/docling-server.md), then run from the
+checkout in PowerShell:
+
+```powershell
+$env:IEUMDOC_DOCLING_LIVE = "1"
+try { pnpm browser:test docling-server --screenshots }
+finally { Remove-Item Env:IEUMDOC_DOCLING_LIVE }
+```
+
+This explicitly selected mode uses the committed NIST PDF, copies it into
+`tmp/797-real`, converts through the app and checks automatic comparison opening.
+It never starts/stops Docker for the caller. Results remain in that scratch
+folder; captures are in `tmp/docling-797-captures`. The caller owns the external
+service's startup/model preparation and cleanup. Ordinary `--screenshots` uses
+the fake service to collect Settings success/failure, PDF-menu, progress and
+completion Light/Korean/Dark review states separately from normal CI assertions.

@@ -48,6 +48,15 @@ Implementation record: [UI language #256 plan and verification](design/ui-langua
 | [Editor Layout Rules](design/editor-layout-rules-v1.md) | Implemented | 현재 geometry 규범. 정렬·간격·control 치수와 검증. |
 | [Editor Visual Language — Quiet Document](design/editor-visual-language-v1.md) | Implemented | 현재 토큰·팔레트, 서체, 표면·테마, 상태와 조절 값 규칙. 배치·치수와 반복 동작은 Layout Rules·UI 패턴에 연결한다. |
 
+## 운영 안내
+
+운영자가 외부 서비스를 준비하고 문제를 진단하는 실행 안내다. 제품 의미·지원 범위는
+위 Accepted ADR과 Implemented contract를 따르며, 직접 확인하지 않은 환경은 각 안내에 구분한다.
+
+| Document | Status | Scope |
+| --- | --- | --- |
+| [Docling 서버 구성 안내](guides/docling-server.md) | Implemented | 한국어 관리자 안내. 고정 이미지·모델·영구 캐시 예시, 연결 확인의 한계, 원격 접근과 오류 진단·종료. 실기 검증 범위와 미확인 환경을 명시한다. |
+
 ## Contribution and documentation governance
 
 | Document | Status | Authority / description |

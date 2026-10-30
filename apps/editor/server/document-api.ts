@@ -1,5 +1,6 @@
 import { readBibliographySources } from "./bibliography.ts";
 import { loadDoclingComparison } from "./docling-compare.ts";
+import type { DoclingHost } from "@ieumdoc/docling/server";
 import { MAX_ASSET_BYTES } from "../shared/asset-policy.ts";
 import { ImageValidationError, validateImage } from "./image-validation.ts";
 import fs, { readFileSync, statSync, writeFileSync } from "node:fs";
@@ -228,6 +229,7 @@ export async function handleDocumentRequest(
   bodyLimit = Infinity,
   removeFile?: (file: string) => void | Promise<void>,
   sampleAvailability?: SampleAvailability,
+  docling?: DoclingHost,
 ): Promise<void> {
   const readBody = async (request: IncomingMessage) => decodeUtf8(await readRequestBody(request, bodyLimit));
   const failure = (error: unknown) => sendJson(res,
@@ -238,6 +240,19 @@ export async function handleDocumentRequest(
   try { query = requestQuery(req.url ?? ""); }
   catch (error) { failure(error); return; }
   const url = new URL(req.url ?? "", "http://localhost").pathname;
+  if (["/api/docling-settings", "/api/docling-check", "/api/docling-conversion"].includes(url)) {
+    if (!docling) { sendJson(res, 503, { error: "Docling is unavailable on this Host." }); return; }
+    const methods = url === "/api/docling-settings" ? ["GET", "PUT"] : url === "/api/docling-check" ? ["POST"] : ["GET", "POST", "DELETE"];
+    if (!methods.includes(req.method ?? "")) { res.statusCode = 405; res.end(); return; }
+    try {
+      const body = req.method === "GET" ? undefined : JSON.parse(await readBody(req));
+      const result = url === "/api/docling-settings" ? req.method === "GET" ? docling.settings() : docling.configure(body.server)
+        : url === "/api/docling-check" ? await docling.check()
+        : req.method === "GET" ? docling.current() : req.method === "DELETE" ? await docling.cancel(body.id) : docling.start(body.path);
+      sendJson(res, 200, result);
+    } catch (error) { failure(error); }
+    return;
+  }
   if (url === "/api/docling-compare") {
     if (req.method !== "GET") { res.statusCode = 405; res.end(); return; }
     try { sendJson(res, 200, loadDoclingComparison(query.get("path") ?? undefined, access)); }
@@ -329,7 +344,7 @@ export async function handleDocumentRequest(
     }
     try {
       sendJson(res, 200, url === "/api/folder-places" ? folderPlaces(access)
-        : browseFolder(query.get("path") ?? undefined, access, query.get("files") === "image" ? "image" : "document"));
+        : browseFolder(query.get("path") ?? undefined, access, query.get("files") === "image" ? "image" : query.get("files") === "pdf" ? "pdf" : "document"));
     } catch (error) {
       failure(error);
     }
@@ -536,10 +551,11 @@ function isDirectory(candidate: string): boolean {
   }
 }
 
-type FileKind = "document" | "image";
+type FileKind = "document" | "image" | "pdf";
 const fileKinds: Record<FileKind, (extension: string) => boolean> = {
   document: extension => extension === ".md",
   image: extension => Object.hasOwn(MEDIA_TYPES, extension),
+  pdf: extension => extension === ".pdf",
 };
 
 /** Reads one level after `check` accepts the folder; filesystem failures become plain messages. */
@@ -552,7 +568,7 @@ function readFolder<T>(folder: string, files: FileKind | "all", check: () => T):
       const extension = path.extname(entry.name).toLowerCase();
       const kind = entry.isDirectory() ? "folder" : !entry.isFile() ? undefined : files === "all"
         ? extension === ".md" ? "document" : Object.hasOwn(MEDIA_TYPES, extension) ? "image" : "file"
-        : fileKinds[files](extension) ? files : undefined;
+        : fileKinds[files](extension) ? files === "pdf" ? "file" : files : undefined;
       return kind ? [{ name: entry.name, kind, path: path.join(folder, entry.name) }] : [];
     });
     entries.sort((a, b) => (a.kind === "folder" && b.kind !== "folder" ? -1 : b.kind === "folder" && a.kind !== "folder" ? 1 : entryOrder.compare(a.name, b.name)));
