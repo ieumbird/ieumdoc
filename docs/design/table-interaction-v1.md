@@ -82,6 +82,13 @@ Equation source and the shared metadata popover were not changed.
 
 Local verification: 46 targeted Editor unit tests, workspace typecheck, Editor build,
 `table-authoring table-caption layout-rules quiet-document`, docs and whitespace checks.
+CI then caught metadata pointer interception by the later grid padding; a metadata z-index
+restores the existing single/double-click/Enter contract (`property-drafts` and
+`table-authoring` pass locally). Its reserved row also pushed the short settings fixture
+1.0625px beyond the paper minimum; that position-only test uses a taller viewport while
+retaining unchanged paper/content size, zero transactions, reading-line crossing and
+row/column alignment assertions (`inline-document-settings`). After PNGs predate only
+the pointer-layer correction; it does not change pixels or geometry.
 Broader interface/platform regressions belong to required CI. The existing D08 tracking
 row remains linked to #793; issue closure owns its progress state.
 

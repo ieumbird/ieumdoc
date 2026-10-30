@@ -1665,6 +1665,7 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
 .table-block > .block-metadata {
   top: 0;
   bottom: auto;
+  z-index: 1;
   max-width: calc(100% - 4 * var(--size-control-compact));
   line-height: var(--size-control-compact);
   overflow: hidden;

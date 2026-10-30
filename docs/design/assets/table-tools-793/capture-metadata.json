@@ -37,7 +37,7 @@
     },
     "apps/editor/src/styles.css": {
       "before": "0b89470de994b12275a3b5c0cabf5eae60a1027dd06c99d92be5b5df2e95eb67",
-      "after": "71161e89ea2792f1391cbfe2fa6a6691c8f78eb99db76a4f93a23d2ff9989f6f"
+      "after": "5cc356f63c95ba06181c904243b0edfd38e2205391fa4d3a078fd43b8bbcf5fc"
     }
   },
   "pngHashes": {
@@ -56,5 +56,6 @@
     "before-640-menu.png": "e35448599138665d260db4c1eae87d9320c1624581192f8958127f8ebee7d680",
     "before-640-scrolled.png": "6eb4c0b08c335d6209d4ac07888f12811e1147888de0af54788f6cbb0786d9d0",
     "before-640.png": "437667f188397a22b86a61a36a02b29a903836fbee4486973def6c2044633291"
-  }
+  },
+  "afterCaptureNote": "After PNGs were captured at cb8b93a5. The later CSS-only metadata z-index fix restores pointer entry without changing pixels or geometry; styles.css after hash records the final product."
 }

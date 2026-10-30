@@ -10,7 +10,9 @@ async (page, { openPath, screenshots, withBlockHover }) => {
   const defaultPath = (await (await page.request.get(page.url().split('/').slice(0,3).join('/')+'/api/document')).json()).path;
   const separator = defaultPath.includes('\\')?'\\':'/';
   // A minimum-height paper and unchanged editor size must not hide position-only layout changes.
-  await page.setViewportSize({width:1440,height:1200});
+  // Keep the short fixture below the paper minimum even with settings expanded
+  // and #793's permanently reserved table metadata row. Size invariants below remain required.
+  await page.setViewportSize({width:1440,height:1280});
   const short=[...defaultPath.split(separator).slice(0,-4), 'tmp', 'inline-document-settings', 'short.md'].join(separator);
   await openPath(page,short);
   await page.evaluate(async () => { await document.fonts.ready; });
