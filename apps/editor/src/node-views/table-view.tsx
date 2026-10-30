@@ -30,6 +30,7 @@ export function TableView({ node, editor, getPos, selected, onDraftChange }: Rea
   const formId = useId();
   const grid = useRef<HTMLDivElement>(null);
   const rowLayer = useRef<HTMLDivElement>(null);
+  const actionLayer = useRef<HTMLDivElement>(null);
   const anchor = useRef<HTMLParagraphElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const numbered = useCaptionNumberText(editor, getPos, "table");
@@ -66,9 +67,10 @@ export function TableView({ node, editor, getPos, selected, onDraftChange }: Rea
       editor.view.dispatch(editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, position)));
       editor.view.focus();
     }} onDoubleClick={begin}>{[kind, label].filter(Boolean).join(" · ")}</p>
+    <div ref={actionLayer} className="figure-edit table-action-bar" contentEditable={false} />
     <div className="table-scroll"><div ref={grid} className="table-grid">
       <NodeViewContent as="div" className="table" />
-      <TableTools editor={editor} node={node} getPos={getPos} grid={grid} rowLayer={rowLayer} onEdit={begin} hidden={editing} />
+      <TableTools editor={editor} node={node} getPos={getPos} grid={grid} rowLayer={rowLayer} actionLayer={actionLayer} onEdit={begin} hidden={editing} />
     </div></div>
     <div ref={rowLayer} className="table-row-layer" contentEditable={false} />
     <MetadataProperties target={() => anchor.current?.closest("[data-block=table]") ?? null} anchor={anchor} initialFocus={input} kind={kind} testId="table" open={editing}

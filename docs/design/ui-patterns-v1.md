@@ -41,9 +41,9 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 
 - **목적·사용/비사용:** 선택·읽기와 편집 시작을 구별한다. 선택만으로 속성 폼을 열거나 더블클릭만을 유일한 진입으로 삼지 않는다.
 - **목표:** 일반 블록은 hover·키보드 focus·선택에서 같은 위치의 Edit를 제공한다. 그림·수식·표의 위치는 P09로 맞춘다. 미주는 상시 Edit와 버튼 전용 진입을 유지한다. inline 콘텐츠 자체를 큰 UI 버튼으로 바꾸지 않는다.
-- **현재 기준:** [그림][figure-view]·[수식][equation-view] NodeView의 Edit 노출, [미주][footnote-view] 상시 버튼과 [미주 계약](footnotes-v1.md#editor)의 예외.
+- **현재 기준:** [그림][figure-view]·[수식][equation-view] NodeView와 [표](table-interaction-v1.md#whole-table-tools-793)의 상단 Edit 노출, [미주][footnote-view] 상시 버튼과 [미주 계약](footnotes-v1.md#editor)의 예외.
 - **사용처:** U01–U12 그림·원문·표·미주·inline·절 label·직접 본문 입력, U17 선택 toolbar.
-- **결정·불일치:** [소유자 결정 P03][decision]. 표 하단 진입은 D08, 수식의 작은 metadata 진입은 D04. 미주 예외는 불일치가 아니다.
+- **결정·불일치:** [소유자 결정 P03][decision]. 표는 #793에서 상단 Edit/metadata 행으로 맞췄으며 D08은 원래 목표의 추적 연결로 보존한다. 수식의 작은 metadata 진입은 D04. 미주 예외는 불일치가 아니다.
 
 ## P04 적용·취소·완료
 
@@ -116,16 +116,16 @@ After는 #792 작업 소스로 촬영했다. source/disk 쓰기 없이 번호 �
 
 - **목적·사용/비사용:** 짧은 속성과 구조 작업의 진입을 구분한다. 표의 행·열 선택 도구나 미주 복귀 번호를 일반 metadata 도구로 대체하지 않는다.
 - **목표:** 그림·수식·표 속성 진입은 같은 위쪽 Edit/metadata 행에 둔다. 표 행·열·Append 도구는 grid에, 하단 독립 Delete는 More/actions에 둔다. 도구 표시로 본문 높이를 바꾸지 않고 번호/label을 폼 제목에 반복하지 않는다. 미주 우측 버튼과 복귀 번호는 예외다. 넓은 표에서도 가로 스크롤 전에 도구에 접근하고 caption을 가리지 않아야 한다.
-- **현재 기준:** [그림][figure-view]·[수식][equation-view] NodeView의 상단 도구와 높이를 차지하지 않는 metadata. 수식의 속성/원문 진입 분리는 아직 없다.
+- **현재 기준:** [그림][figure-view]·[수식][equation-view] NodeView의 상단 도구와 metadata. [표 #793](table-interaction-v1.md#whole-table-tools-793)은 가로 스크롤 밖 상단 행에 Edit/More·metadata를 두고, Delete는 More 메뉴에 둔다. 표는 앞 문단·열 핸들과 겹치지 않도록 상단 행의 공간을 항상 확보하며 도구 표시로 본문 높이를 바꾸지 않는다. 행·열·Append와 caption 간격은 유지한다. 수식의 속성/원문 진입 분리는 아직 없다.
 - **사용처:** U01–U06 그림·수식·표·미주, U11 절 label, U18 블록/표 구조 도구.
-- **결정·불일치:** [소유자 결정 P09][decision]은 #517/#721 배치를 바꾼다. 표 배치 D08, 수식 metadata D04. 미주 예외는 유지한다.
+- **결정·불일치:** [소유자 결정 P09][decision]은 #517/#721 배치를 바꾼다. 표 배치 D08의 현재 계약·1440/640px 캡처·키보드/가로 스크롤 검증은 [표 도구 기록](table-interaction-v1.md#whole-table-tools-793)에 연결한다. 수식 metadata D04와 미주 예외는 유지한다.
 
 ## P10 메뉴와 선택 도구
 
 - **목적·사용/비사용:** 동작·값 선택·검색을 구별한다. combobox·tree·toolbar를 모양 때문에 하나의 menu로 합치지 않는다.
 - **목표·현재 기준:** [CommandMenu](../../apps/editor/src/CommandMenu.tsx)와 [공용 메뉴 행](editor-ux-shell-v1.md#unified-action-menus-516)을 유지한다. 같은 action의 icon·문구·disabled 이유를 맞춘다. 값 선택에는 current check, 서식에는 pressed, 실행에는 동사를 쓴다. 검색 active와 선택된 값은 구별한다.
 - **사용처:** U17 서식 toolbar, U18 블록·표 메뉴, U19 코드 언어/callout, U20 파일·탭 메뉴, U21 검색·탐색, U09–U10 인용·참조 후보.
-- **결정·불일치:** [소유자 결정 P10][decision]. 메뉴 역할 자체의 알려진 불일치 없음. 표 Delete 위치는 P09/D08에서 추적한다.
+- **결정·불일치:** [소유자 결정 P10][decision]. 메뉴 역할 자체의 알려진 불일치 없음. 표 Delete는 #793에서 상단 More의 기존 공용 danger 메뉴 항목으로 통합했다. 행·열의 명시적 대상, disabled 제한, 삭제·Undo 의미와 키보드 Enter/화살표/Esc 동작은 유지한다(P09/D08).
 
 ## P11 선택값·보기·탐색
 
@@ -158,7 +158,7 @@ After는 #792 작업 소스로 촬영했다. source/disk 쓰기 없이 번호 �
 | D05 · P04 | U08 링크·U10 교차참조의 명시적 적용/취소와 초안 유지. U09 인용은 ADR-0008 동결로 제외 | [#790](https://github.com/ieumbird/ieumdoc/issues/790) |
 | D06 · P06 | U12 빈 제목에 선택적 제목 추가 안내, U01 pending Figure에 이미지 선택 / Mermaid 작성 진입 제공. 기존 caption·본문·목록의 빈 상태와 선택·clipboard 의미 유지 | [#786](https://github.com/ieumbird/ieumdoc/issues/786) |
 | D07 · P02/P07/P12 | U03/U14/U16의 적용 문서·지속 앱 문제를 Docling과 같은 창별 센터로 집계하고 위치 이동·해결/닫기/재발 처리. 입력·열린 비교 화면의 문맥 오류는 유지 | [#792](https://github.com/ieumbird/ieumdoc/issues/792) |
-| D08 · P03/P09/P10 | U05 표의 상단 속성 진입·동작 메뉴 삭제 | [#793](https://github.com/ieumbird/ieumdoc/issues/793) |
+| D08 · P03/P09/P10 | U05 표의 상단 속성 진입·동작 메뉴 삭제 ([계약·검증](table-interaction-v1.md#whole-table-tools-793)) | [#793](https://github.com/ieumbird/ieumdoc/issues/793) |
 | D09 · P05/P07 | U03–U05/U07–U11 짧은 속성 필드의 fill과 U01–U11 필드 오류 연결 통일(기존 연결은 보존) | [#789](https://github.com/ieumbird/ieumdoc/issues/789) |
 | D10 · P04 | U06 완료/취소(Done/Cancel), 그림과 같은 번역 재사용·기존 동작 유지 | [#787](https://github.com/ieumbird/ieumdoc/issues/787) |
 

@@ -1623,7 +1623,7 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
 }
 /* The table starts on the text axis. Rows never scroll sideways, so their handles and Append row
  * live in a layer outside the scroller, left of the axis; column handles scroll with the columns. */
-.table-grid { position: relative; min-width: 100%; width: max-content; padding: var(--size-table-handle-gutter) var(--size-table-handle-gutter) calc(var(--size-control-compact) + 2 * var(--space-2)) 0; box-sizing: border-box; }
+.table-grid { position: relative; min-width: 100%; width: max-content; padding: calc(var(--size-control-compact) + var(--size-table-handle-gutter)) var(--size-table-handle-gutter) calc(var(--size-control-compact) + 2 * var(--space-2)) 0; box-sizing: border-box; }
 .table-row-layer {
   position: absolute;
   top: 0;
@@ -1650,13 +1650,27 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
 .table-tools button[aria-expanded="true"]:not(:focus-visible) { box-shadow: none; }
 .table-tools button:focus-visible { outline: none; box-shadow: var(--focus-ring-inset); }
 .table-tools button:disabled { opacity: .5; cursor: default; }
-.table-column-handle { position: absolute; top: 0; }
+.table-column-handle { position: absolute; top: var(--size-control-compact); }
 .table-row-handle { position: absolute; left: 0; width: var(--size-control-compact); }
 .table-extend { position: absolute; width: var(--size-control-compact); }
-/* Table-level actions start at the table's start, beside Append row, so a table wider than the
- * column keeps Edit, Table actions and Delete in view before it is scrolled. */
-.table-action-bar { position: absolute; display: flex; justify-content: flex-start; gap: 4px; pointer-events: none; }
-.table-action-bar button { width: var(--size-control-compact); pointer-events: auto; }
+/* Reuse Figure's Edit reveal on the metadata row, outside the grid's scroller. */
+.table-block > .table-action-bar {
+  font: 400 var(--font-size-sm)/var(--line-height-label) var(--font-family-sans);
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.table-block > .block-metadata {
+  top: 0;
+  bottom: auto;
+  z-index: 1;
+  max-width: calc(100% - 4 * var(--size-control-compact));
+  line-height: var(--size-control-compact);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .table-command-popover { padding: 0; width: auto; gap: 0; border: 0; box-shadow: none; }
 .table [data-current-cell="true"] { outline: 2px solid var(--id-color-interaction); outline-offset: -2px; }
 @media (hover: none) {
@@ -2510,7 +2524,8 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
   z-index: 1;
 }
 
-:is(.figure, .equation):is(:hover, :focus-within, [data-selected="true"]) > :is(.figure-edit, .equation-edit) {
+:is(.figure, .equation, .table-block):is(:hover, :focus-within, [data-selected="true"]) > :is(.figure-edit, .equation-edit),
+.table-block:has(.table-tools[data-menu-open="true"]) > .figure-edit {
   opacity: 1;
   pointer-events: auto;
 }
