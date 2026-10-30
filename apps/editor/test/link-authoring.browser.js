@@ -97,8 +97,8 @@ async (page, { openPath, screenshots, expect }) => {
   expect(await applied()).toBe(appliedBeforeDraft);
   await page.keyboard.press('Control+Quote');
   expect(await page.getByTestId('link-url').inputValue(), 'Shortcut re-entry keeps original draft').toBe('https://example.com/unapplied');
-  await page.getByTestId('draft-notice').waitFor();
-  expect(await page.getByTestId('draft-notice').innerText()).toBe('Save and Source include applied content only. Unapplied edit drafts stay unsaved until you apply them.');
+  await page.getByTestId('draft-indicator').waitFor();
+  expect(await page.getByTestId('draft-indicator').getAttribute('aria-label')).toBe('Unapplied draft. Save and Source include applied content only. Unapplied edit drafts stay unsaved until you apply them.');
   expect(await page.evaluate(() => { const event = new Event('beforeunload',{cancelable:true}); window.dispatchEvent(event); return event.defaultPrevented; })).toBe(true);
   await page.getByTestId('save').click();
   await page.locator('[data-testid="status"][data-operation^="saved"]').waitFor();
@@ -126,7 +126,7 @@ async (page, { openPath, screenshots, expect }) => {
   expect(await page.getByTestId('link-url').inputValue()).toBe('https://example.com/unapplied');
   await page.getByTestId('link-cancel').click();
   expect(await applied()).toBe(appliedBeforeDraft);
-  await page.getByTestId('draft-notice').waitFor({state:'detached'});
+  await page.getByTestId('draft-indicator').waitFor({state:'detached'});
   result.explicitDraftLifecycle = true;
 
   // Editing before a retained link must not shift Apply onto different text.

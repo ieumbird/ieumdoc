@@ -243,7 +243,7 @@ async (page, { showNotifications, openPath, screenshots, expect, recoveryRecords
   await second.getByTestId('reference-target').selectOption('reference:numref:fig-a');
   await page.locator('.app-brand').click({position:{x:2,y:2}});
   expect(await page.getByTestId('reference-target').evaluateAll(nodes => nodes.map(node => node.value).sort())).toEqual(['reference:eq:eq-b','reference:numref:fig-a']);
-  await page.getByTestId('draft-notice').waitFor();
+  await page.getByTestId('draft-indicator').waitFor();
   await page.evaluate(() => {
     const instance = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
     let target;
@@ -279,9 +279,9 @@ async (page, { showNotifications, openPath, screenshots, expect, recoveryRecords
   await cancelBroken.press('Enter');
   expect(await page.getByTestId('reference-form').count()).toBe(1);
   expect(await second.getByTestId('reference-target').inputValue()).toBe('reference:numref:fig-a');
-  expect(await page.getByTestId('draft-notice').isVisible()).toBe(true);
+  expect(await page.getByTestId('draft-indicator').isVisible()).toBe(true);
   await second.getByTestId('reference-target').press('Escape');
-  await page.getByTestId('draft-notice').waitFor({state:'detached'});
+  await page.getByTestId('draft-indicator').waitFor({state:'detached'});
   expect(await paragraph(0).evaluate(() => JSON.stringify(document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.getJSON()))).toBe(appliedBeforeDraft);
   result.explicitDraftLifecycle = true;
 
@@ -321,14 +321,14 @@ async (page, { showNotifications, openPath, screenshots, expect, recoveryRecords
   expect(await page.getByTestId('reference-form').count(), 'Failed Apply keeps the form mounted').toBe(1);
   expect(await page.getByTestId('reference-target').inputValue(), 'Failed Apply retains the chosen target').toBe('reference:eq:eq-b');
   expect(await paragraph(0).evaluate(() => JSON.stringify(document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.getJSON()))).toBe(splitContent);
-  expect(await page.getByTestId('draft-notice').isVisible()).toBe(true);
+  expect(await page.getByTestId('draft-indicator').isVisible()).toBe(true);
   const target = page.getByTestId('reference-target');
   expect(await target.getAttribute('aria-invalid')).toBe('true');
   const errorId = await target.getAttribute('aria-describedby');
   expect(await page.locator(`[id="${errorId}"]`).innerText()).toBe('Selection is no longer within one text block. Undo the outside edit and try again.');
   await page.evaluate(async () => (await import('/src/i18n.ts')).i18n.changeLanguage('ko'));
   await expect(page.locator(`[id="${errorId}"]`)).toHaveText('선택 범위가 한 블록 안에 있지 않습니다. 바깥 편집을 되돌리고 다시 적용하세요.');
-  await expect(page.getByTestId('draft-notice')).toHaveText('저장과 소스에는 적용된 내용만 포함됩니다. 편집 초안은 적용해야 저장됩니다.');
+  await expect(page.getByTestId('draft-indicator')).toHaveAccessibleName('미적용 초안. 저장과 소스에는 적용된 내용만 포함됩니다. 편집 초안은 적용해야 저장됩니다.');
   await page.evaluate(async () => (await import('/src/i18n.ts')).i18n.changeLanguage('en'));
   await page.evaluate(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.focus());
   await page.keyboard.press('ControlOrMeta+z');
@@ -350,7 +350,7 @@ async (page, { showNotifications, openPath, screenshots, expect, recoveryRecords
   expect(await page.getByTestId('reference-form').count()).toBe(1);
   expect(await target.inputValue()).toBe('reference:eq:eq-b');
   expect(await target.getAttribute('aria-invalid')).toBe('true');
-  expect(await page.getByTestId('draft-notice').isVisible()).toBe(true);
+  expect(await page.getByTestId('draft-indicator').isVisible()).toBe(true);
   expect(await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => JSON.stringify(el.editor.getJSON()))).toBe(deletedContent);
   await page.evaluate(() => document.querySelector('[data-document-tab][data-active=true] .document-editor').editor.view.focus());
   await page.keyboard.press('ControlOrMeta+z');
@@ -361,7 +361,7 @@ async (page, { showNotifications, openPath, screenshots, expect, recoveryRecords
     !(await paragraph(0).innerText()).includes('control law');
   expect(result.insertedFromSelection, 'Undo restores the retained range for successful Apply').toBe(true);
   expect(await page.getByTestId('reference-form').count()).toBe(0);
-  expect(await page.getByTestId('draft-notice').count()).toBe(0);
+  expect(await page.getByTestId('draft-indicator').count()).toBe(0);
 
   // C. A Figure reference at the caret from the slash menu.
   // End after a pointer click means the end of a *visual line*, which changes with

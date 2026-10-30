@@ -280,7 +280,7 @@ function EditorApp() {
   const {
     editorRef = emptyEditorRef, document, openedPath = "", outlineStore,
     view = "visual",
-    draftActive = false, documentDirty = false, draftNotice = "",
+    draftActive = false, documentDirty = false,
     reloadDialog = false, imageChoice = null, imageReturnFocus = emptyImageRef,
   } = session ?? {};
   const busy = Boolean(operation || fileOperationPending || session?.busy || continuationPending);
@@ -1103,6 +1103,7 @@ function EditorApp() {
               compact={split}
               status={operation || (owner?.assetPending ? "adding-image" : owner?.status ?? "ready")}
               unsaved={owner?.documentDirty || owner?.draftActive}
+              draftNotice={owner?.draftNotice}
               view={owner?.view ?? "visual"}
               viewDisabled={!owner?.document || groupBusy}
               onViewChange={(next) => (next === "source" ? void owner?.showSource() : owner?.setView("visual"))}
@@ -1129,8 +1130,6 @@ function EditorApp() {
           <MessageArea
             warnings={[...(recoveryProblem ? [{ id: "recovery-storage", message: recoveryProblem }] : []),
               ...(sampleWarning ? [{ id: `sample-preparation:${start?.sampleProblem}`, message: sampleWarning }] : [])]}
-            draftNotice={draftNotice}
-            reserveDraftNotice={Boolean(document)}
             error={error} errorCause={errorCause}
             notice={notice} noticeCause={noticeCause}
             onNoticeExpired={() => setNotice("")}

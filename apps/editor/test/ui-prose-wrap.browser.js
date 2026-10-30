@@ -47,7 +47,8 @@ async (page, { openPath, expect, screenshots }) => {
   await prose(page.getByTestId('equation-draft-status'), 'equation draft', true);
   await prose(page.getByTestId('equation-editor'), 'embedded property form');
   await prose(page.getByTestId('equation-automatic-number'), 'embedded hint');
-  await prose(page.getByTestId('draft-notice'), 'shell draft');
+  await page.getByTestId('draft-indicator').hover();
+  await prose(page.getByTestId('draft-indicator-description'), 'shell draft explanation', true);
   if (screenshots) {
     await page.evaluate(() => document.fonts.ready);
     await page.mouse.move(0, 0);

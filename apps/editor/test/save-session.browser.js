@@ -298,7 +298,7 @@ async (page, { openDocument, waitForActivePath, reloadDocument }) => {
   await page.getByTestId('equation-edit-source').click();
   await page.getByTestId('equation-latex').fill('x + 40');
   await save();
-  check('draftSaveIsExplicit', (await page.getByTestId('status').innerText()) === 'Unsaved changes' && await page.getByTestId('draft-notice').isVisible());
+  check('draftSaveIsExplicit', (await page.getByTestId('status').innerText()) === 'Unsaved changes' && await page.getByTestId('draft-indicator').isVisible());
   check('onlyAppliedContentWritten', (await read(technical)).source.includes('BodySaved') && !(await read(technical)).source.includes('x + 40'));
   await page.getByTestId('view-source').click(); await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').waitFor();
   check('sourceExcludesDraft', !(await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').innerText()).includes('x + 40'));

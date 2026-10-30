@@ -45,7 +45,7 @@ async (page, { openPath, expect, reloadDocument }) => {
   const typedAlt = 'Alt text entered after Figure selection moved.';
   await page.getByTestId('figure-alt').fill(typedAlt);
   const draftActive = await page.locator('[data-document-tab][data-active=true]').getByTestId('figure-draft-status').isVisible() &&
-    await page.getByTestId("draft-notice").isVisible();
+    await page.getByTestId("draft-indicator").isVisible();
   const altStayedInField = await page.getByTestId('figure-alt').inputValue() === typedAlt &&
     await figure.getByTestId('figure-image').getAttribute('alt') !== typedAlt;
   await page.getByTestId('figure-apply').click();
@@ -100,7 +100,7 @@ async (page, { openPath, expect, reloadDocument }) => {
     try {
       await page.getByTestId('figure-apply').click();
       await started;
-      if (!await page.getByTestId('draft-notice').isVisible()) throw new Error('Validation lost the draft guard');
+      if (!await page.getByTestId('draft-indicator').isVisible()) throw new Error('Validation lost the draft guard');
       if (leave === 'delete') {
         await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => {
           const {state, view} = el.editor;

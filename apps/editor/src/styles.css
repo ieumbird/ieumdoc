@@ -573,7 +573,7 @@ button {
 }
 
 /* Each mounted tab keeps its native scroll position, including while hidden. Its viewport
- * starts below tabs/messages; the native scrollbar stays at the window's right edge only
+ * starts below tabs; the native scrollbar stays at the window's right edge only
  * below that line. Insets keep content between the independent Sidebar/Document panel. */
 .document-scroll {
   position: fixed;
@@ -853,10 +853,25 @@ button {
   gap: var(--space-1);
 }
 
-/* Applied-only Save/Source scope remains visible while the active document has a draft. */
-.message-area { display: grid; gap: var(--space-2); padding: var(--space-2) var(--layout-ui-inset); border-bottom: var(--border-width) solid var(--id-color-border); background: var(--id-color-surface-subtle); }
-.message-area .message { margin: 0; padding: var(--space-1) var(--space-3); font-size: var(--font-size-sm); line-height: var(--line-height-label); }
-.message-area[data-reserved] { visibility: hidden; }
+/* Draft context is independent of the dirty dot and takes no document height. */
+.draft-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-height: var(--size-control-compact);
+  padding-inline: var(--space-1);
+  border-radius: var(--id-radius-md);
+  color: var(--id-color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-meta);
+  white-space: nowrap;
+}
+.draft-indicator:focus-visible { outline: none; box-shadow: var(--focus-ring-inset); }
+.draft-indicator > svg { display: none; width: var(--size-icon-slot); height: var(--size-icon-slot); }
+.draft-indicator[data-compact] { width: var(--size-control-compact); }
+.draft-indicator[data-compact] > svg { display: block; }
+.draft-indicator[data-compact] .draft-indicator-label { display: none; }
 
 .message-actions {
   display: flex;

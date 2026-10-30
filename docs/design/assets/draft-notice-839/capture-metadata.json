@@ -17,27 +17,31 @@
     "wide": 0,
     "narrow": 0
   },
-  "tradeoff": "Reserves 47px/67px while no draft exists. An overlay at the same top position would cover document settings and first Source lines.",
+  "tradeoff": "No blank row is reserved. Draft context is a text/icon status left of Save, separate from the dirty dot; full explanation on hover/focus.",
   "files": [
     {
       "name": "after-1440-draft.png",
-      "sha256": "6896994f84b875f77b60f180f4a348fd1459ec4e9b8a2a9bd5c4a46a58a23f44"
+      "sha256": "54044ee2b9584387749df58f0b4755135c648767253c81234877eab67994154a"
     },
     {
       "name": "after-1440-idle.png",
-      "sha256": "208f7f1c74034dda69138d91dfe1a420712de4e183d93e7cfbe7e00cbd2eb390"
+      "sha256": "b0f72c092cedbf1aff33fb311983d5fd5c9f084105b47dc2b1ff38c91d5b9106"
     },
     {
       "name": "after-640-draft.png",
-      "sha256": "9bc2df150ab53e4fe66cbe13a3b4649cb7e7665768761d66e5cf145cf3a17c42"
+      "sha256": "d6576855bc6f7cebdd7ad5095f5a205417ec65453d72a1303bacc61d5c51fff2"
+    },
+    {
+      "name": "after-640-explanation.png",
+      "sha256": "01dd7a5c06df91061427be45b2d9635b5ef69ac9a3e40aa14302ffc687a5510e"
     },
     {
       "name": "after-640-idle.png",
-      "sha256": "8989446572f393a4676e81d046b8bd1dd97a8f874d36ad9974d0b33730992884"
+      "sha256": "c53c3db90aa1072408f920d8af7032528a1618f9bbdd3f11884ab1296062c141"
     },
     {
       "name": "after-640-source.png",
-      "sha256": "f916ae2d0a7d12c37e4eac8ef1806b5288cda310fb62477bfc6f2e6030d81cb8"
+      "sha256": "2634dfac2f927dc3c9cdf806d68e98bf2d0aeecde8bc30379bbe6bccd8f42edd"
     },
     {
       "name": "before-1440-draft.png",

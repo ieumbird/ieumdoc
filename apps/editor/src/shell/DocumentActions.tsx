@@ -3,9 +3,10 @@ import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import { operationText, type Operation } from "../operation.ts";
 import { useEffect, useState, type Ref } from "react";
-import { ArrowLeftRight, Check, Circle, Copy, Ellipsis, FileDiff, LoaderCircle, PanelRight, PanelRightOpen, RotateCcw, StretchHorizontal, TriangleAlert } from "lucide-react";
+import { ArrowLeftRight, Check, Circle, Copy, Ellipsis, FileDiff, FilePenLine, LoaderCircle, PanelRight, PanelRightOpen, RotateCcw, StretchHorizontal, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.tsx";
 import type { DocumentView } from "./TopBar.tsx";
 
 type DocumentActionsProps = {
@@ -14,6 +15,7 @@ type DocumentActionsProps = {
   onToggleWide?(): void;
   status: Operation;
   unsaved?: boolean;
+  draftNotice?: string;
   view: DocumentView;
   /** Both views unavailable, e.g. no document or an operation in flight. */
   viewDisabled?: boolean;
@@ -40,7 +42,7 @@ type DocumentActionsProps = {
 
 /** Actions and status of this tab row's active document. */
 export function DocumentActions({
-  documentPath, wide, onToggleWide, status, unsaved = false, view, viewDisabled, onViewChange, saveDisabled,
+  documentPath, wide, onToggleWide, status, unsaved = false, draftNotice = "", view, viewDisabled, onViewChange, saveDisabled,
   onSave, onCompare, compareDisabled, onReload, reloadDisabled, onCopyPath, fileActionsRef,
   outline, onToggleOutline, outlineToggleRef, compact: groupCompact = false, onOpenRight, onMove, openRightDisabled, moveDisabled,
 }: DocumentActionsProps) {
@@ -111,6 +113,13 @@ export function DocumentActions({
         <p className="document-status status" data-testid="status" data-operation={status} role="status" title={displayStatus || undefined}>
           {displayStatus ? <><StatusIcon aria-hidden="true" className={unsaved && idle ? "document-status-dirty" : undefined} /><span className="sr-only">{displayStatus}</span></> : null}
         </p>
+        {draftNotice ? <Tooltip>
+          <TooltipTrigger render={<span tabIndex={0} role="img" className="draft-indicator" data-compact={compact || undefined}
+            data-testid="draft-indicator" aria-label={`${i18n.t("Unapplied draft")}. ${draftNotice}`} />}>
+            <FilePenLine aria-hidden="true" /><span className="draft-indicator-label" aria-hidden="true">{i18n.t("Unapplied draft")}</span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" data-testid="draft-indicator-description">{draftNotice}</TooltipContent>
+        </Tooltip> : null}
           <Button type="button" variant={saveVariant} className="top-bar-save" data-save-state={saveState}
             aria-busy={saving || undefined} onClick={onSave} disabled={saveDisabled} data-testid="save"
             title={i18n.t("Save ({{shortcut}})", { shortcut: SAVE_SHORTCUT.label })} aria-keyshortcuts={SAVE_SHORTCUT.aria}>
