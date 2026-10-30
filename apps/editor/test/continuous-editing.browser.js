@@ -1,5 +1,5 @@
 // Native keyboard and system clipboard, Core Save/Reload, and Chromium composition lifecycle.
-async (page, { openDocument }) => {
+async (page, { showNotifications, openDocument }) => {
   await page.unrouteAll();
   await page.reload();
   await page.waitForFunction(() => document.querySelector('[data-testid="status"]')?.getAttribute('data-operation') === 'ready');
@@ -316,6 +316,7 @@ async (page, { openDocument }) => {
   })]));
   await page.keyboard.press('Control+v');
   assert(semantic(await doc()) === beforeRejected, 'Unsupported paste must keep selected content');
+  await showNotifications(page);
   assert((await page.locator('body').innerText()).includes('Nothing was pasted'), 'Unsupported paste needs a visible reason');
   assert((await page.evaluate(() => navigator.clipboard.readText())) === 'Unsupported list', 'Rejected clipboard must remain available');
   await page.evaluate(async () => navigator.clipboard.write([new ClipboardItem({

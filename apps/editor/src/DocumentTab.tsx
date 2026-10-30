@@ -5,10 +5,13 @@ import type { DocumentFileResponse } from "../shared/document-protocol.ts";
 import { DocumentEditor } from "./DocumentEditor.tsx";
 import type { ImageRenamer } from "./image-rename.ts";
 import { EditorVisibility } from "./editor-visibility.ts";
+import { NotificationScope } from "./components/ui/notification-center.tsx";
+import { MessageArea } from "./shell/MessageArea.tsx";
+import { splitDocumentPath } from "./shell/document-path.ts";
 import { useDocumentSession, type DocumentSession, type DocumentSessionSnapshot } from "./useDocumentSession.ts";
 
 /** One mounted hook/editor per tab. Reporting shell state never replaces the editor. */
-export const DocumentTab = memo(function DocumentTab({ settingsDisabled, id, file, restored, recoveryId, active, focused, groupIndex, onFocus, report, onAssetChange, renameImage }: {
+export const DocumentTab = memo(function DocumentTab({ settingsDisabled, id, file, restored, recoveryId, active, focused, groupIndex, onFocus, report, onAssetChange, renameImage, onReveal }: {
   settingsDisabled: boolean;
   id: string;
   file: DocumentFileResponse;
@@ -18,6 +21,7 @@ export const DocumentTab = memo(function DocumentTab({ settingsDisabled, id, fil
   focused: boolean;
   groupIndex: number;
   onFocus(id: string): void;
+  onReveal(id: string): void;
   report(id: string, session: DocumentSession | null): void;
   onAssetChange(documentPath: string, assetPath: string): void;
   renameImage: ImageRenamer;
@@ -29,6 +33,16 @@ export const DocumentTab = memo(function DocumentTab({ settingsDisabled, id, fil
   useLayoutEffect(() => { report(id, session); });
   useLayoutEffect(() => () => report(id, null), [id, report]);
   return (
+    <NotificationScope value={{ name: splitDocumentPath(session.openedPath).name, reveal(action) {
+      onReveal(id);
+      session.setView("visual");
+      requestAnimationFrame(() => { if (session.isCurrent()) action(); });
+    } }}>
+    <MessageArea error={session.error} errorCause={session.errorCause} notice={session.notice} noticeCause={session.noticeCause} noticeAction={session.noticeAction}
+      warnings={session.recoveryError ? [{ id: "document-recovery", message: session.recoveryError }] : []} documentNotice={session.documentNotice}
+      saveError={session.saveFailure ? { failure: session.saveFailure, locations: session.saveLocations,
+        onReveal(index) { onReveal(id); requestAnimationFrame(() => session.revealSaveLocation(index)); } } : undefined}
+      onReveal={() => session.editorRef.current?.focusEnd(0)} onNoticeExpired={() => session.setNotice("")} />
     <div className="document-scroll" role="tabpanel" id={`panel-${id}`} aria-labelledby={`tab-${id}`} hidden={!active} inert={!active}
       data-document-tab={id} data-active={focused ? "true" : "false"} data-visible={active ? "true" : "false"} data-group-index={groupIndex}
       style={{ "--editor-group-index": groupIndex } as CSSProperties}
@@ -48,6 +62,7 @@ export const DocumentTab = memo(function DocumentTab({ settingsDisabled, id, fil
         </div>
       </div>
     </div>
+    </NotificationScope>
   );
 });
 

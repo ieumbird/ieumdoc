@@ -463,7 +463,7 @@ Historical property-close and caret evidence: [Save, switching and property inte
 
 ## Save failure guidance (#220, #578 phase 1)
 
-Save reports the first encountered failure in the existing message area. Its short summary shows
+Save reports the first encountered failure in the window [notification center](ui-patterns-v1.md#p07-입력-오류와-알림-센터) (#792). Its short summary shows
 the submitted block number/kind (Korean names under Korean UI) and phase-specific guidance.
 The original Core/Host reason and correction/recovery action remain verbatim inside keyboard-accessible,
 initially collapsed **Technical details**, in both UI languages. The reason identifies the cause;
@@ -510,8 +510,11 @@ conservative invalidation avoids treating snapshot indices as identity, includin
 the Host response is pending. Selection, focus, hover, language or theme changes keep the list.
 The alert keeps its submitted location and original diagnostic and asks for another Save to locate
 the problem again. Editing a problem therefore clears its stale highlight; the next Save either
-locates the remaining failure or clears the alert on success. Dismissing the alert alone does not
-acknowledge Save or clear the block highlights.
+locates the remaining failure or clears the alert on success. Dismissing the notification alone does not
+acknowledge Save or clear the block highlights. Its hidden state belongs only to this window;
+other open tabs keep their failures registered and Go to problem activates the owning tab.
+A new failure expands the list without taking focus. Successful Save removes the failure.
+The former shell message banner is not also displayed.
 
 Host still stops at its **first** failure. Replay is sequential: label clearing/reassignment,
 paragraph merging/splitting, insertion and ordering can depend on earlier results. Continuing

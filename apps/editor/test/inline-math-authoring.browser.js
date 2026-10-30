@@ -194,7 +194,7 @@ async (page, { openPath, expect, screenshots }) => {
   await editor.locator('p.paragraph', {hasText:'The current is'}).click({position:{x:4,y:4}});
   expect(await forms.count(), 'Outside focus keeps both drafts').toBe(2);
   expect(await editor.locator('.ProseMirror').evaluate(el => JSON.stringify(el.editor.getJSON()))).toBe(appliedBeforeDraft);
-  await page.getByTestId('draft-notice').waitFor();
+  await page.getByTestId('draft-notice').waitFor({state:'visible'});
   expect(await page.evaluate(() => {const e = new Event('beforeunload',{cancelable:true});window.dispatchEvent(e);return e.defaultPrevented;})).toBe(true);
   await page.getByTestId('save').click();
   await page.locator('[data-testid="status"][data-operation^="saved"]').waitFor();

@@ -697,7 +697,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         onExpandedChange={value => onSettingsExpandedChange?.(value)} disabled={settingsDisabled}
         onToggleHeadingNumbering={toggleHeadingNumbering} onReferenceStyleChange={setReferenceStyle}
         onConnectBibliography={target => bibliographyControls.current?.connect(target)} /> : null}
-      <NumberingNotice editor={editor} />
+      <NumberingNotice editor={editor} onReveal={revealBlock} />
       <DocumentTitle editor={editor} />
       <DocumentPathContext.Provider value={documentPath}><ImageRenameContext.Provider value={renameImage}>
         <BibliographyContent ref={bibliographyControls} editor={editor} bibliography={bibliography} documentPath={documentPath}>

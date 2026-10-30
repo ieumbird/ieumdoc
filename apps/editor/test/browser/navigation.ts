@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import type { Editor } from "@tiptap/core";
 
 /** Follow the empty-state entry or an opened folder's menu, retaining its focus return target. */
@@ -69,4 +69,17 @@ export async function openPath(page: Page, file: string): Promise<void> {
 export async function waitForActivePath(page: Page, file: string): Promise<void> {
   // The click can finish while the previous document is still active and ready.
   await page.waitForFunction(file => document.querySelector('[data-testid="current-file"]')?.getAttribute('title') === file, file);
+}
+
+/** Open the window list through its real keyboard action, without outside-pointer applying a property draft. */
+export async function showNotifications(page: Page): Promise<void> {
+  const toggle = page.locator('.notification-center > button');
+  await expect(toggle).toBeVisible();
+  await expect(toggle).toContainText(/· [1-9]\d*/);
+  const previousFocus = (await page.evaluateHandle(() => document.activeElement)).asElement();
+  if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.press('Enter');
+  await expect(page.locator('.notification-center > ul')).toBeVisible();
+  // Resume the actual pre-inspection focus, including an incorrectly focused element if the action failed.
+  if (previousFocus && await previousFocus.evaluate(element => element.isConnected)) await previousFocus.focus();
+  await previousFocus?.dispose();
 }
