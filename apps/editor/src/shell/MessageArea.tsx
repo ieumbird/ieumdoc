@@ -17,13 +17,14 @@ type MessageAreaProps = {
   noticeAction?: (() => void) | null;
   warnings?: readonly { id: string; message: string }[];
   draftNotice?: string;
+  reserveDraftNotice?: boolean;
   documentNotice?: string;
   onReveal?(): void;
   onNoticeExpired(): void;
 };
 
 /** Existing message producers register with the window center; notices keep their five-second lifetime. */
-export function MessageArea({ error, errorCause = error, noticeCause, saveError, notice, noticeAction = null, warnings = [], draftNotice = "", documentNotice = "", onReveal, onNoticeExpired }: MessageAreaProps) {
+export function MessageArea({ error, errorCause = error, noticeCause, saveError, notice, noticeAction = null, warnings = [], draftNotice = "", reserveDraftNotice = false, documentNotice = "", onReveal, onNoticeExpired }: MessageAreaProps) {
   useTranslation();
   const expire = useRef(onNoticeExpired);
   expire.current = onNoticeExpired;
@@ -45,8 +46,10 @@ export function MessageArea({ error, errorCause = error, noticeCause, saveError,
   });
   for (const warning of warnings) items.push({ ...warning, severity: "warning", testId: "writeability-warning", reveal: onReveal });
   useNotifications(items);
-  return draftNotice ? <div className="message-area" data-testid="message-area">
-    <Notice className="message" data-testid="draft-notice"><span className="message-text">{draftNotice}</span></Notice>
+  // The translated copy measures its own wrapping even while hidden. Reserving it keeps
+  // both Visual and Source stationary without covering document controls or first lines.
+  return draftNotice || reserveDraftNotice ? <div className="message-area" data-testid="message-area" data-reserved={!draftNotice || undefined} aria-hidden={!draftNotice || undefined}>
+    <Notice className="message" data-testid={draftNotice ? "draft-notice" : undefined}><span className="message-text">{draftNotice || i18n.t("Save and Source include applied content only. Unapplied edit drafts stay unsaved until you apply them.")}</span></Notice>
   </div> : null;
 }
 

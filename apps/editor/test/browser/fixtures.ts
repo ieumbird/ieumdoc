@@ -35,7 +35,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "short-fields": { files: [
     { name: "fields.md", create: () => nativeSource("# Property fields\n\n(section-one)=\n## Section one\n\nA [link](https://example.com) and $x+1$.\n\n```{math}\n:label: eq-one\n\nx=1\n```\n\n:::{figure} ./diagram.svg\n:name: fig-one\n:alt: Diagram\n\nImage caption\n:::\n\n:::{table} Table caption\n:name: tbl-one\n\n| Header |\n| --- |\n| Cell |\n:::\n\n:::{figure}\n:name: fig-flow\n\n```{mermaid}\ngraph LR\n  A --> B\n```\n\nFlow caption\n:::\n") },
     document("diagram.svg"),
-  ], scenarios: ["short-field-errors", "ui-prose-wrap"] },
+  ], scenarios: ["short-field-errors", "ui-prose-wrap", "draft-notice-layout"] },
   "docling-server": { files: [{ name: "paper.pdf", create: () => readFileSync(path.join(REPOSITORY_ROOT, "packages/docling/test/fixtures/synthetic/source.pdf")) }], scenarios: ["docling-server"] },
   "docling-compare": { files: [], scenarios: ["docling-compare"] },
   "caption-selection": { files: [

@@ -1,0 +1,59 @@
+{
+  "base": "1b4cff58",
+  "scenario": "pnpm browser:test draft-notice-layout --screenshots",
+  "server": "http://127.0.0.1:5284",
+  "browser": "Installed Windows Chrome, checkout-owned persistent profile",
+  "viewports": [
+    "1440x900 Light English",
+    "640x900 Dark Korean"
+  ],
+  "rendering": "DPR 1, 100% zoom, bundled Pretendard after document.fonts.ready",
+  "state": "short-fields/fields.md, section label form, scrollTop 0; draft has a trailing space; Source retains invalid draft",
+  "beforeShiftPx": {
+    "wide": 47,
+    "narrow": 67
+  },
+  "afterShiftPx": {
+    "wide": 0,
+    "narrow": 0
+  },
+  "tradeoff": "Reserves 47px/67px while no draft exists. An overlay at the same top position would cover document settings and first Source lines.",
+  "files": [
+    {
+      "name": "after-1440-draft.png",
+      "sha256": "6896994f84b875f77b60f180f4a348fd1459ec4e9b8a2a9bd5c4a46a58a23f44"
+    },
+    {
+      "name": "after-1440-idle.png",
+      "sha256": "208f7f1c74034dda69138d91dfe1a420712de4e183d93e7cfbe7e00cbd2eb390"
+    },
+    {
+      "name": "after-640-draft.png",
+      "sha256": "9bc2df150ab53e4fe66cbe13a3b4649cb7e7665768761d66e5cf145cf3a17c42"
+    },
+    {
+      "name": "after-640-idle.png",
+      "sha256": "8989446572f393a4676e81d046b8bd1dd97a8f874d36ad9974d0b33730992884"
+    },
+    {
+      "name": "after-640-source.png",
+      "sha256": "f916ae2d0a7d12c37e4eac8ef1806b5288cda310fb62477bfc6f2e6030d81cb8"
+    },
+    {
+      "name": "before-1440-draft.png",
+      "sha256": "ea559dd2f54f407f1882197fabf55fa64924f7cc86dafbe8061e96272c6300d2"
+    },
+    {
+      "name": "before-1440-idle.png",
+      "sha256": "b0f72c092cedbf1aff33fb311983d5fd5c9f084105b47dc2b1ff38c91d5b9106"
+    },
+    {
+      "name": "before-640-draft.png",
+      "sha256": "ec7ca73eafdeda0a7077b2c5f0c507ca0180f4fe560f9da519e107984bf942cc"
+    },
+    {
+      "name": "before-640-idle.png",
+      "sha256": "2802fd98b4529c4c524b8e91223f7492d37c060b154956f3ea91e42eaa5b73f9"
+    }
+  ]
+}

@@ -1130,6 +1130,7 @@ function EditorApp() {
             warnings={[...(recoveryProblem ? [{ id: "recovery-storage", message: recoveryProblem }] : []),
               ...(sampleWarning ? [{ id: `sample-preparation:${start?.sampleProblem}`, message: sampleWarning }] : [])]}
             draftNotice={draftNotice}
+            reserveDraftNotice={Boolean(document)}
             error={error} errorCause={errorCause}
             notice={notice} noticeCause={noticeCause}
             onNoticeExpired={() => setNotice("")}
