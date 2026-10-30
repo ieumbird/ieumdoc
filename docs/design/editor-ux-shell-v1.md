@@ -48,6 +48,7 @@ The sidebar opens the read-only module tab described in
 Its entry sits in the sidebar footer above Settings, separate from Explorer's
 empty-state help and folder navigation. Collapse Explorer → Open folder retains
 its existing Tab order; the collapsed rail still exposes only Explorer and Settings.
+After Explorer's file navigation, the footer's Tab order is Docling comparison → Settings.
 It shares tab navigation/closing while remaining outside document editing,
 Save/recovery sessions and startup tab restoration.
 

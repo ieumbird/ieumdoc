@@ -12,8 +12,9 @@ is independent. Comparison tabs have no Save, draft, recovery or mutation sessio
 Closing one needs no unsaved-change decision. They are not restored at startup.
 The module entry stays outside Explorer's folder navigation and empty-state help.
 It does not interrupt Collapse Explorer → Open folder keyboard order and is hidden
-with the other Explorer navigation when the sidebar collapses. The empty-state
-help therefore describes only file browsing, separately from the comparison action
+with the other Explorer navigation when the sidebar collapses.
+The footer's keyboard sequence after file navigation is Docling comparison → Settings.
+The empty-state help therefore describes only file browsing, separately from the comparison action
 ([#799](https://github.com/ieumbird/ieumdoc/issues/799), sidebar item only).
 
 The left pane displays original page images with source bboxes using the map v1
