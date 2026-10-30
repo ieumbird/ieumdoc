@@ -41,6 +41,12 @@ Role: alignment, spacing, control dimensions and deliberate geometry exceptions;
 
 ## Alignment and ownership
 
+- Frontmatter title (#786) keeps the existing H1-line-height minimum slot. The small empty
+  hint's line box matches that slot and centers vertically; empty-state height is explicit
+  to prevent a fractional intrinsic-size shift when typing begins. The title focus outline
+  uses `--space-1` outward offset for visible inner clearance without adding padding,
+  resizing the field or moving the following body. This also applies to entered titles.
+
 - Editor groups (#488 phase 1) use equal fixed columns with a 1px structural divider.
   Each needs 440px, the existing 640px supported viewport less the 200px narrow Explorer.
   Available document area must therefore reach 881px before splitting. A narrower

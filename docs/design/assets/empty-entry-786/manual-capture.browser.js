@@ -23,7 +23,13 @@ async (page, { openPath, expect }) => {
       await page.evaluate(async () => { await document.fonts.ready; });
       await page.mouse.move(0,0);
       await page.screenshot({path:`docs/design/assets/empty-entry-786/${phase}-${width}-${theme}-${language}-${state}.png`,animations:'disabled'});
-      measurements.push({width,theme,language,state,...await title.evaluate(n => ({height:n.getBoundingClientRect().height,font:getComputedStyle(n).fontSize,placeholderFont:getComputedStyle(n,'::placeholder').fontSize}))});
+      measurements.push({width,theme,language,state,...await title.evaluate(n => {
+        const box = n.getBoundingClientRect(), style = getComputedStyle(n), hint = getComputedStyle(n,'::placeholder');
+        return {height:box.height,font:style.fontSize,placeholderFont:hint.fontSize,
+          placeholderLineHeight:hint.lineHeight,
+          hintCenterOffset:parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop) + parseFloat(hint.lineHeight) / 2 - box.height / 2,
+          focused:n === document.activeElement,focusOutlineOffset:style.outlineOffset};
+      })});
     };
     await expect(title).toHaveValue('');
     await capture('empty-title');

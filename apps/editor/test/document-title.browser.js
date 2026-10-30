@@ -36,6 +36,33 @@ async (page, { openPath, reloadDocument, expect, screenshots, waitForEditorFocus
     font:getComputedStyle(n).fontSize, placeholderFont:getComputedStyle(n,'::placeholder').fontSize }));
   const emptyStyle = await titleStyle();
   expect(parseFloat(emptyStyle.placeholderFont)).toBeLessThan(parseFloat(emptyStyle.font));
+  const titleGeometry = () => title.evaluate(n => {
+    const box = n.getBoundingClientRect(), style = getComputedStyle(n), hint = getComputedStyle(n,'::placeholder');
+    const h1 = n.closest('[data-document-tab]').querySelector('.document-editor h1').getBoundingClientRect();
+    const hintCenter = box.top + parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop) + parseFloat(hint.lineHeight) / 2;
+    return {box:{x:box.x,y:box.y,width:box.width,height:box.height}, bodyTop:h1.top,
+      hintCenterOffset:hintCenter - (box.top + box.height / 2),
+      focusGap:parseFloat(style.outlineOffset) + parseFloat(style.paddingLeft)};
+  });
+  for (const width of [1440,640]) {
+    await page.setViewportSize({width,height:900});
+    await title.evaluate(n => n.blur());
+    const unfocused = await titleGeometry();
+    expect(Math.abs(unfocused.hintCenterOffset)).toBeLessThan(0.1);
+    await title.focus();
+    const focused = await titleGeometry();
+    expect(focused.box).toEqual(unfocused.box);
+    expect(focused.bodyTop).toBe(unfocused.bodyTop);
+    expect(focused.focusGap).toBeGreaterThan(0);
+    await title.fill('Title');
+    const typing = await titleGeometry();
+    expect(typing.box).toEqual(unfocused.box);
+    expect(typing.bodyTop).toBe(unfocused.bodyTop);
+    expect(typing.focusGap).toBeGreaterThan(0);
+    await title.fill('');
+    expect(Math.abs((await titleGeometry()).hintCenterOffset)).toBeLessThan(0.1);
+  }
+  await page.setViewportSize({width:1440,height:900});
   await title.fill('Optional document title');
   expect((await titleStyle()).height).toBe(emptyStyle.height);
   expect(await title.evaluate(n => n.matches(':placeholder-shown'))).toBe(false);

@@ -436,9 +436,11 @@ dry-run and `apply-batch` (`text` or `remove: true`). `inspect` displays the tit
 separately from body nodes (JSON `title: null` means absent).
 
 Editor keeps the title input above the body, preserving its one-line title slot height
-when empty (#786). The empty placeholder is small UI text: `Add a title (optional)` /
+when empty (#786). The empty placeholder is vertically centered small UI text: `Add a title (optional)` /
 `제목 추가(선택)`. Input uses the document font/H1 size immediately; clearing it restores
-the small hint. Both are plain text only. Its value is a
+the small hint. The focus outline sits outside the slot with the existing spacing token,
+leaving visible room around both hint and title without moving the input or body. Both are
+plain text only. Its value is a
 ProseMirror document attribute in the same state/history as body edits. It does
 not create an editor body block or snapshot path, and does not appear in
 Outline. Ctrl+Z/Ctrl+Y/Ctrl+Shift+Z use engine history while the input is focused.

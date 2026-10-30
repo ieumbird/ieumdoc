@@ -266,6 +266,14 @@ evidence, separate from automated behavior assertions. The [manual capture scrip
 records these states through the repository runner; [metadata and SHA-256 hashes](assets/empty-entry-786/capture-metadata.json)
 identify the PNGs. Before UI is master `ceead74c`.
 
+After review, the small hint is vertically centered in the unchanged slot. Centering gives
+the optional UI prompt its own resting position rather than tying it to the much larger
+title baseline. Focus uses a `--space-1` outward outline offset around both hint and entered
+title; it adds visible clearance without changing text alignment or layout. The title browser
+regression compares hint/slot centers and exact field/body geometry before focus, after focus,
+while typing and after clearing at 1440px and 640px. Only the nine affected After captures
+were refreshed; the original Before captures remain unchanged.
+
 | View | Before: empty / typing / Figure | After: empty / typing / Figure |
 | --- | --- | --- |
 | 1440 Light EN | [Empty](assets/empty-entry-786/before-1440-light-en-empty-title.png) · [Typing](assets/empty-entry-786/before-1440-light-en-typing-title.png) · [Figure](assets/empty-entry-786/before-1440-light-en-pending-figure.png) | [Empty](assets/empty-entry-786/after-1440-light-en-empty-title.png) · [Typing](assets/empty-entry-786/after-1440-light-en-typing-title.png) · [Figure](assets/empty-entry-786/after-1440-light-en-pending-figure.png) |

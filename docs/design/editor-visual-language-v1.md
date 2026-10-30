@@ -76,7 +76,7 @@ Pretendard `1.3.9` is bundled through its official variable dynamic-subset CSS; 
 | --- | --- |
 | Body, including callout prose | 17/28.9px, 400, document stack |
 | H1–H6 | 34/45.9, 24/32.4, 20/27, 18/24.3, 16/21.6, 14/18.9px, document stack, 700 |
-| Frontmatter title | H1 type while typing; empty `Add a title (optional)` / `제목 추가(선택)` uses subtle 14px normal UI type within the same title slot; no box at rest (#786) |
+| Frontmatter title | H1 type while typing; empty `Add a title (optional)` / `제목 추가(선택)` uses subtle 14px normal UI type centered vertically within the same title slot; outward focus outline leaves breathing room without changing layout; no box at rest (#786) |
 | UI labels/controls and Figure/Table captions | 14/20px, UI stack |
 | Metadata/status/helpers | 12/16px, UI stack |
 | Dialog title / start or Settings title | 16px semibold / 24px semibold UI type |

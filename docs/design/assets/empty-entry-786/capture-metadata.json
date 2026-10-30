@@ -8,76 +8,76 @@
   "viewportHeight": 900,
   "files": [
     {
-      "file": "after-1440-dark-en-empty-title.png",
-      "sha256": "5e318546365d32cadef751b2d1510733282fe91857335e367209b59d96c11dbe"
+      "sha256": "9e6a804af598e9a212830b4cfd6372156af977b7a1a693bd16d6ea40ee843ee1",
+      "file": "after-1440-dark-en-empty-title.png"
     },
     {
-      "file": "after-1440-dark-en-pending-figure.png",
-      "sha256": "d514de295c741467f8b2f47ab02c2b74ad5ab36968a35c48532dabe6473a3e85"
+      "sha256": "96478247fa680b88e594bbbd8eba87727819ae560546e2cdaf4f7ec608b5c621",
+      "file": "after-1440-dark-en-pending-figure.png"
     },
     {
-      "file": "after-1440-dark-en-typing-title.png",
-      "sha256": "8963d88b2568b44eeffb3cf4059af694dcb0980c19195d5a64ebbd2af0466ba9"
+      "sha256": "91540c03fd695ba77242f39e764d774269987dbb21fbb8340f5a81f1e7a88d79",
+      "file": "after-1440-dark-en-typing-title.png"
     },
     {
-      "file": "after-1440-light-en-empty-title.png",
-      "sha256": "8f74f78f00786c5c076c1faf490557b8c8651d0064f072ace993d74d1ed13dca"
+      "sha256": "06b789d63dea0c9d2d74f0ca8403499bed0fe1e62c02db0da7a7b9065508be9b",
+      "file": "after-1440-light-en-empty-title.png"
     },
     {
-      "file": "after-1440-light-en-pending-figure.png",
-      "sha256": "4ab3d33ba7e91f5c6d46ba6e9c7be07340591789173c53e41e2512dbd1ee1fc4"
+      "sha256": "fa1bbc8ae18ed0f46d7d0e2da459f41fc65b4ab56a909e2767e1db46791fd2e4",
+      "file": "after-1440-light-en-pending-figure.png"
     },
     {
-      "file": "after-1440-light-en-typing-title.png",
-      "sha256": "999e16ae2d829b80c7bc06f989b3f8562a85072697784c2c9ef09e3eda2ea70c"
+      "sha256": "33108dd66baa8beec39b95b0141ec63c3be4aa941562ad7c5956850d05123bae",
+      "file": "after-1440-light-en-typing-title.png"
     },
     {
-      "file": "after-640-light-ko-empty-title.png",
-      "sha256": "77fed1ad29033ee40fe4ca32784a831aa59e8b465167eb3ef038ce0508fcedb6"
+      "sha256": "2a5baf84c81e62f2fbe48cd9437a334af5fe33e2770643826e6fe9528f941010",
+      "file": "after-640-light-ko-empty-title.png"
     },
     {
-      "file": "after-640-light-ko-pending-figure.png",
-      "sha256": "fe2fb1a868838c24e6a071aefa769728ae4dafb7d65a78545b33061cc3efaa61"
+      "sha256": "f1a2341c23020dd4e84d13213cba2b81191a8ff64e7c70ce1871cdba3c8ee6a1",
+      "file": "after-640-light-ko-pending-figure.png"
     },
     {
-      "file": "after-640-light-ko-typing-title.png",
-      "sha256": "1b17b0d475def4748df462d27cd0a728f0ff7c078af4e8f06250a5f706a76ece"
+      "sha256": "f4c56b0cb00ff837878e913856cba5cefe3a9f26015a810b77f76e6b2d4a6e31",
+      "file": "after-640-light-ko-typing-title.png"
     },
     {
-      "file": "before-1440-dark-en-empty-title.png",
-      "sha256": "8fb24e52cee77ba794036d0010cc26f9c5d077447113b07762e06ae104e6b20c"
+      "sha256": "8fb24e52cee77ba794036d0010cc26f9c5d077447113b07762e06ae104e6b20c",
+      "file": "before-1440-dark-en-empty-title.png"
     },
     {
-      "file": "before-1440-dark-en-pending-figure.png",
-      "sha256": "10061e93005b7ce01868e4bd8e09e9e7ef5543b8c83fc4a5079d6532e21e8ee6"
+      "sha256": "10061e93005b7ce01868e4bd8e09e9e7ef5543b8c83fc4a5079d6532e21e8ee6",
+      "file": "before-1440-dark-en-pending-figure.png"
     },
     {
-      "file": "before-1440-dark-en-typing-title.png",
-      "sha256": "8963d88b2568b44eeffb3cf4059af694dcb0980c19195d5a64ebbd2af0466ba9"
+      "sha256": "8963d88b2568b44eeffb3cf4059af694dcb0980c19195d5a64ebbd2af0466ba9",
+      "file": "before-1440-dark-en-typing-title.png"
     },
     {
-      "file": "before-1440-light-en-empty-title.png",
-      "sha256": "13002b7a52d57f5a5dd55dc8fdcb3501619658bb0e99f07b0a8fc4c599912168"
+      "sha256": "13002b7a52d57f5a5dd55dc8fdcb3501619658bb0e99f07b0a8fc4c599912168",
+      "file": "before-1440-light-en-empty-title.png"
     },
     {
-      "file": "before-1440-light-en-pending-figure.png",
-      "sha256": "d37c267460656a7f75b35e0a5694d11bcc5efbb018d1400dea899691f5a4f50f"
+      "sha256": "d37c267460656a7f75b35e0a5694d11bcc5efbb018d1400dea899691f5a4f50f",
+      "file": "before-1440-light-en-pending-figure.png"
     },
     {
-      "file": "before-1440-light-en-typing-title.png",
-      "sha256": "999e16ae2d829b80c7bc06f989b3f8562a85072697784c2c9ef09e3eda2ea70c"
+      "sha256": "999e16ae2d829b80c7bc06f989b3f8562a85072697784c2c9ef09e3eda2ea70c",
+      "file": "before-1440-light-en-typing-title.png"
     },
     {
-      "file": "before-640-light-ko-empty-title.png",
-      "sha256": "1941fb7ce666a9282ec21a596bc9b3bc1cce136056909dcb3a617027bd2159de"
+      "sha256": "1941fb7ce666a9282ec21a596bc9b3bc1cce136056909dcb3a617027bd2159de",
+      "file": "before-640-light-ko-empty-title.png"
     },
     {
-      "file": "before-640-light-ko-pending-figure.png",
-      "sha256": "2cb5f25713697c0d23d591180f03f7ef57ec0458ebd769b6e4f9d1f2fb569763"
+      "sha256": "2cb5f25713697c0d23d591180f03f7ef57ec0458ebd769b6e4f9d1f2fb569763",
+      "file": "before-640-light-ko-pending-figure.png"
     },
     {
-      "file": "before-640-light-ko-typing-title.png",
-      "sha256": "1b17b0d475def4748df462d27cd0a728f0ff7c078af4e8f06250a5f706a76ece"
+      "sha256": "1b17b0d475def4748df462d27cd0a728f0ff7c078af4e8f06250a5f706a76ece",
+      "file": "before-640-light-ko-typing-title.png"
     }
   ],
   "afterMeasurements": [
@@ -88,7 +88,11 @@
       "state": "empty-title",
       "height": 45.890625,
       "font": "34px",
-      "placeholderFont": "14px"
+      "placeholderFont": "14px",
+      "placeholderLineHeight": "45.9px",
+      "hintCenterOffset": 0.0046874999999992895,
+      "focused": false,
+      "focusOutlineOffset": "0px"
     },
     {
       "width": 1440,
@@ -97,7 +101,11 @@
       "state": "typing-title",
       "height": 45.890625,
       "font": "34px",
-      "placeholderFont": "14px"
+      "placeholderFont": "14px",
+      "placeholderLineHeight": "45.9px",
+      "hintCenterOffset": 0.0046874999999992895,
+      "focused": true,
+      "focusOutlineOffset": "4px"
     },
     {
       "width": 1440,
@@ -106,7 +114,11 @@
       "state": "pending-figure",
       "height": 45.890625,
       "font": "34px",
-      "placeholderFont": "14px"
+      "placeholderFont": "14px",
+      "placeholderLineHeight": "45.9px",
+      "hintCenterOffset": 0.0046874999999992895,
+      "focused": true,
+      "focusOutlineOffset": "4px"
     },
     {
       "width": 1440,
@@ -115,7 +127,11 @@
       "state": "empty-title",
       "height": 45.890625,
       "font": "34px",
-      "placeholderFont": "14px"
+      "placeholderFont": "14px",
+      "placeholderLineHeight": "45.9px",
+      "hintCenterOffset": 0.0046874999999992895,
+      "focused": false,
+      "focusOutlineOffset": "0px"
     },
     {
       "width": 1440,
@@ -124,7 +140,11 @@
       "state": "typing-title",
       "height": 45.890625,
       "font": "34px",
-      "placeholderFont": "14px"
+      "placeholderFont": "14px",
+      "placeholderLineHeight": "45.9px",
+      "hintCenterOffset": 0.0046874999999992895,
+      "focused": true,
+      "focusOutlineOffset": "4px"
     },
     {
       "width": 1440,
@@ -133,7 +153,11 @@
       "state": "pending-figure",
       "height": 45.890625,
       "font": "34px",
-      "placeholderFont": "14px"
+      "placeholderFont": "14px",
+      "placeholderLineHeight": "45.9px",
+      "hintCenterOffset": 0.0046874999999992895,
+      "focused": true,
+      "focusOutlineOffset": "4px"
     },
     {
       "width": 640,
@@ -142,7 +166,11 @@
       "state": "empty-title",
       "height": 45.890625,
       "font": "34px",
-      "placeholderFont": "14px"
+      "placeholderFont": "14px",
+      "placeholderLineHeight": "45.9px",
+      "hintCenterOffset": 0.0046874999999992895,
+      "focused": false,
+      "focusOutlineOffset": "0px"
     },
     {
       "width": 640,
@@ -151,7 +179,11 @@
       "state": "typing-title",
       "height": 45.890625,
       "font": "34px",
-      "placeholderFont": "14px"
+      "placeholderFont": "14px",
+      "placeholderLineHeight": "45.9px",
+      "hintCenterOffset": 0.0046874999999992895,
+      "focused": true,
+      "focusOutlineOffset": "4px"
     },
     {
       "width": 640,
@@ -160,7 +192,11 @@
       "state": "pending-figure",
       "height": 45.890625,
       "font": "34px",
-      "placeholderFont": "14px"
+      "placeholderFont": "14px",
+      "placeholderLineHeight": "45.9px",
+      "hintCenterOffset": 0.0046874999999992895,
+      "focused": true,
+      "focusOutlineOffset": "4px"
     }
   ]
 }
