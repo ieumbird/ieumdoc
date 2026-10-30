@@ -2654,3 +2654,26 @@ Shard 1 of the same run also retained the pre-feature Settings → search Tab
 expectation. The shell regression now checks Settings → Color mode → search,
 retaining search → active tab and the existing reverse-navigation checks. The
 color-mode scenario verifies the new sequence in both expanded and rail layouts.
+
+
+### Color mode keyboard readiness (#798)
+
+Merge-group run 41119102438, shard 3 recorded Home/ArrowDown/Enter on the
+Color mode trigger before Base UI's next-animation-frame initial radio focus.
+The final Enter therefore closed the menu with System still selected. The three
+navigation/selection keydowns followed the opening keydown within 22ms (4ms and
+2ms between the final keys); this was automated input before menu readiness,
+not evidence of a persisted theme being reapplied after selection. Console errors
+were empty. The same local preceding sequence (reveal-folder → footnotes →
+document-scroll → color-mode) passed before the adjustment, so order-dependent
+storage contamination was not reproduced.
+
+The scenario now waits for the actual System radio focus before navigation and
+Light focus before Enter. Its rail pass holds the real library focus call and
+asserts keyboard readiness is still pending despite a mounted, checked System
+radio, then releases that call and retains all storage/appearance/focus checks.
+No product code, timeouts, retries or choice assertions change.
+
+The adjusted four-scenario sequence passed locally. Removing only the initial
+System-focus wait made the held-focus regression fail with readiness already
+resolved (`Expected false, Received true`); the focus wait was then restored.

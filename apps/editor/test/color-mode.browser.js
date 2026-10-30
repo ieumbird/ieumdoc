@@ -50,10 +50,42 @@ async (page, { expect, screenshots = false }) => {
     await page.keyboard.press('Tab');
     await expect(page.getByRole('button',{name:'Find documents and commands',exact:true})).toBeFocused();
     await mode().focus();
-    await page.keyboard.press('Enter');
-    await expect(menu().getByRole('menuitemradio',{name:'System',exact:true})).toHaveAttribute('aria-checked','true');
+    const system = menu().getByRole('menuitemradio',{name:'System',exact:true});
+    const openKeyboardMenu = async () => {
+      await page.keyboard.press('Enter');
+      await expect(system).toHaveAttribute('aria-checked','true');
+      // The popup mounts before Base UI's next-frame initial focus reaches its radio.
+      await expect(system).toBeFocused();
+    };
+    if (collapsed) {
+      // Hold the actual library focus call: mounting/current state must not signal readiness.
+      await page.evaluate(() => {
+        const original = HTMLElement.prototype.focus;
+        const pending = [];
+        window.__colorModeFocus = { pending, release() {
+          HTMLElement.prototype.focus = original;
+          for (const resume of pending) resume();
+          delete window.__colorModeFocus;
+        }};
+        HTMLElement.prototype.focus = function(...args) {
+          if (this.closest('[role="menu"][aria-label="Color mode"]')) pending.push(() => original.apply(this,args));
+          else original.apply(this,args);
+        };
+      });
+      let opened = false;
+      const opening = openKeyboardMenu().then(() => { opened = true; });
+      try {
+        await page.waitForFunction(() => window.__colorModeFocus.pending.length > 0);
+        await expect(system).toHaveAttribute('aria-checked','true');
+        expect(opened, 'Keyboard readiness must wait for actual initial focus').toBe(false);
+      } finally {
+        await page.evaluate(() => window.__colorModeFocus.release());
+        await opening;
+      }
+    } else await openKeyboardMenu();
     await page.keyboard.press('Home');
     await page.keyboard.press('ArrowDown');
+    await expect(menu().getByRole('menuitemradio',{name:'Light',exact:true})).toBeFocused();
     await page.keyboard.press('Enter');
     await menu().waitFor({state:'detached'});
     await expect(mode()).toBeFocused();
