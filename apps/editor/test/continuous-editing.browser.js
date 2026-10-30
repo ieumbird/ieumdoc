@@ -157,6 +157,46 @@ async (page, { showNotifications, openDocument }) => {
   }
   await page.keyboard.type('retained772');
   const retainedDraft = await page.getByTestId('equation-latex').inputValue();
+  // Leave an outside Redo entry too, so both directions must respect the modal.
+  await page.keyboard.press('ArrowLeft'); await page.keyboard.press('ArrowRight');
+  await page.keyboard.type('x'); await page.keyboard.press('Control+z');
+  assert(await page.getByTestId('equation-latex').inputValue() === retainedDraft, 'Outside Redo fixture changed the draft');
+  // #831: browser history must not escape a modal into an unapplied source form.
+  await page.getByRole('button', {name:'Settings',exact:true}).click();
+  await settings.waitFor();
+  await settings.getByRole('heading', {name:'Settings',exact:true}).click();
+  const modalHistory = [];
+  for (const key of ['Control+z', 'Control+y', 'Control+Shift+z']) {
+    await page.keyboard.press(key);
+    modalHistory.push({key, inside:await settings.evaluate(el => el.contains(document.activeElement)),
+      draft:await page.getByTestId('equation-latex').inputValue()});
+  }
+  assert(modalHistory.every(result => result.inside && result.draft === retainedDraft),
+    `Modal history escaped or changed the draft: ${JSON.stringify(modalHistory)}`);
+  // Native history is document-wide even when the key starts in a modal input.
+  // After undoing its own edit, another Undo must not reach the outside textarea.
+  await settings.getByRole('button', {name:'Docling',exact:true}).click();
+  const serverAddress = settings.getByRole('textbox', {name:'Server address',exact:true});
+  const originalAddress = await serverAddress.inputValue();
+  await serverAddress.focus(); await page.keyboard.press('End'); await page.keyboard.type('x');
+  for (const [key, expected] of [
+    ['Control+z', originalAddress], ['Control+z', originalAddress],
+    ['Control+y', originalAddress + 'x'], ['Control+z', originalAddress],
+    ['Control+Shift+z', originalAddress + 'x'], ['Control+Shift+z', originalAddress + 'x'],
+    ['Control+z', originalAddress],
+  ]) {
+    await page.keyboard.press(key);
+    assert(await serverAddress.inputValue() === expected && await serverAddress.evaluate(el => el === document.activeElement),
+      `Modal input ${key} lost its own native history or focus`);
+    assert(await page.getByTestId('equation-latex').inputValue() === retainedDraft && await snapshot() === beforeDraft,
+      `Modal input ${key} changed the outside draft/document`);
+  }
+  await page.keyboard.press('Escape');
+  await settings.waitFor({state:'detached'});
+  console.log('Modal native history:', JSON.stringify(modalHistory));
+  assert(await page.getByTestId('equation-latex').count() === 1, 'Modal Escape cancelled the unapplied source form');
+  assert(await page.getByTestId('equation-latex').inputValue() === retainedDraft && await snapshot() === beforeDraft,
+    'Modal dismissal applied or discarded the source draft');
   // Keyboard focus changes preserve the draft; shell Undo/Redo must do the same.
   await page.getByRole('button', {name:'Settings',exact:true}).focus();
   await page.keyboard.press('Control+y');
@@ -671,6 +711,6 @@ async (page, { showNotifications, openDocument }) => {
     await page.keyboard.press(key);
     assert(await snapshot() === expected && await scopedEditor.evaluate(el => el.editor.view.hasFocus()), `${key}: shell history/focus failed`);
   }
-  return {notificationShellHistory:true, outsideHistory, nativeFieldUndo:true, settingsHistoryExcluded:true, retainedHistoryDraft:true, sourceHistoryExcluded:true,
+  return {modalNativeHistory:true, notificationShellHistory:true, outsideHistory, nativeFieldUndo:true, settingsHistoryExcluded:true, retainedHistoryDraft:true, sourceHistoryExcluded:true,
     inactiveHistoryExcluded:true, appleShellHistory:true, scopedSelectAll:true, scopedReplacementAndUndo:true, scopedComposition:true, appleSelectAllKeymap:true, headingBoundary:true, crossBlockDeletion:true, cutPasteRichText:true, typedBlockClipboard:true, formattedTypedClipboard:true, undoRedoAcrossSave:true, tableNavigation:true, rejectedPasteRetainsInput:true, compositionSaveReload:true, atomEdges:true, continuation};
 }

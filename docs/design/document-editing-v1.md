@@ -176,6 +176,16 @@ exclude this shell dispatch. Other tabs/windows are untouched. Keyboard dispatch
 not apply or discard unrelated property drafts; the existing draft lifecycle still
 governs changes to their own target. This is Editor interaction, with no Core/CLI change.
 
+While a modal is open (#831), native Undo/Redo may edit only inputs within that
+modal's portal subtree. Chromium shares native input history across the document;
+the shared Dialog cancels `beforeinput` history actions targeting outside that
+boundary before they edit or transfer focus. Native input Undo/Redo inside the
+modal remains available, including after its own history is exhausted. Descendant
+menus remain inside the boundary; a nested modal enforces its own narrower boundary.
+This includes Settings, confirmations, command center and file dialogs. Base UI
+continues to own focus trapping, accessibility hiding and dismissal. Nonmodal
+notifications retain the shell history behavior above.
+
 Undo uses Ctrl+Z; Redo uses Ctrl+Y or Ctrl+Shift+Z on Windows (Cmd+Z and
 Cmd+Shift+Z on macOS). In the editor, a Hangul IME's opaque Ctrl+Y/Z keydown
 (`Process`/`Unidentified`, keyCode 229/0) uses physical `KeyY`/`KeyZ` only as
