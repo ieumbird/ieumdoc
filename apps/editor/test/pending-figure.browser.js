@@ -211,6 +211,7 @@ async (page, { openPath, expect }) => {
     await figures.first().getByRole('button', {name:'Write Mermaid',exact:true}).click();
     await expect(page.getByTestId('mermaid-source')).toBeFocused();
     await expect(page.getByTestId('mermaid-source')).toHaveValue('');
+    await expect(figures.first().getByTestId('mermaid-kind')).toBeVisible();
     expect(await entryDocument()).toEqual(beforeEntry);
     const mermaidForm = page.getByTestId('mermaid-editor');
     await mermaidForm.getByRole('button', {name:'Fixed',exact:true}).click();

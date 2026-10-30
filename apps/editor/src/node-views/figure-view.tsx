@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import { NodeViewContent, NodeViewWrapper, type ReactNodeViewProps } from "@tiptap/react";
+import { NodeViewContent, NodeViewWrapper, useEditorState, type ReactNodeViewProps } from "@tiptap/react";
 import { type Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection } from "@tiptap/pm/state";
 import { type FigureContent } from "@ieumdoc/core";
@@ -402,6 +402,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
 
 function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange, validateFigure, onCancelPending }: FigureViewProps & { onCancelPending?(): void }) {
   useTranslation();
+  const editable = useEditorState({ editor, selector: ({ editor: current }) => current.isEditable });
   const placeholder = useCaptionPlaceholder({ editor, getPos }, "figure");
   const visible = useEditorVisible();
   const numbered = useCaptionNumberText(editor, getPos, "figure");
@@ -528,7 +529,10 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
   };
   return <NodeViewWrapper as="figure" className="figure mermaid-figure" data-block="figure"
     data-content-kind="mermaid" data-editing={editing || properties} data-selected={selected} data-source-path={sourcePath}>
-    <p ref={anchor} className="block-kind block-metadata" contentEditable={false}>{[kind, label].filter(Boolean).join(" · ")}</p>
+    <p ref={anchor} className={`block-kind block-metadata${editable ? " mermaid-metadata" : ""}`} contentEditable={false}>
+      {editable ? <span className="mermaid-kind" data-testid="mermaid-kind" aria-hidden="true">Mermaid</span> : null}
+      <span className="mermaid-metadata-label">{[kind, label].filter(Boolean).join(" · ")}</span>
+    </p>
     {hasDraft ? <p className="draft-status" role="status" data-testid="figure-draft-status" contentEditable={false}>
       {i18n.t(editing ? "Unapplied changes are not saved. Apply to include them, or Cancel."
         : "Unapplied figure properties are not saved. Choose Done or press Esc to cancel.")}</p> : null}

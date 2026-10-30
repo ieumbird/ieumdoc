@@ -160,6 +160,26 @@ as its initial source, and opens editing immediately. The insertion is one undo 
 savable; Cancel keeps the inserted Figure. At rest the rendered diagram, number and directly
 editable caption use the same placement as image Figures, including Outline and references.
 
+In the editable Visual Editor, an always-visible small **Mermaid** badge identifies the block
+even without hover, focus or selection (#771), including render failures and pending Mermaid
+source drafts. It occupies the left of the existing out-of-flow metadata row; the right-hand
+Figure number/label retains its interaction visibility and truncates within the remaining width.
+The badge uses existing 12/16px metadata typography, muted text, structural border, small radius
+and spacing tokens. It adds no block height and leaves Edit unobstructed. It is decorative
+(`aria-hidden`) because the preview/status/source field already identifies the diagram kind.
+It exists only in editable NodeView chrome, never in document content, Source, read-only
+previews, serialized HTML or saved/exported content. This adds no Core or CLI operation.
+
+Same-state visual evidence: 1440px Light/English [Before](assets/mermaid-badge-771/before-1440-rest.png) /
+[After](assets/mermaid-badge-771/after-1440-rest.png), 640px Dark/Korean
+[Before](assets/mermaid-badge-771/before-640-rest.png) / [After](assets/mermaid-badge-771/after-640-rest.png).
+Hover captures, geometry and hashes accompany the [capture metadata](assets/mermaid-badge-771/capture-metadata.json)
+and [reproduction script](assets/mermaid-badge-771/capture.browser.js). The diagram and Edit retain
+identical rectangles at both widths. Manual inspection covers badge/metadata vertical centering,
+text-to-border padding, clipping, clearance from Edit and the existing image/table/equation metadata
+pattern. `mermaid-authoring` covers the cue at rest, both themes/widths, read-only omission and
+failure/draft states; `pending-figure` covers the empty Mermaid source draft.
+
 Edit, selected-node Enter and diagram double-click open the shared Figure metadata popover.
 Its **Edit source** action applies the metadata draft through Core validation, then closes the
 popover and opens the existing full-column code-style textarea,
