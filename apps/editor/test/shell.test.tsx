@@ -25,6 +25,10 @@ import { TopBar } from "../src/shell/TopBar.tsx";
 import { i18n } from "../src/i18n.ts";
 import { MissingFileNotice, type Comparison } from "../src/shell/SourceCompare.tsx";
 import type { RecoveryDiff } from "../src/recovery-diff.ts";
+import { DocumentDiagnosticError } from "@ieumdoc/core";
+import { labelPropertyError } from "../src/label-rename.ts";
+import { labelError, targetLabelError } from "@ieumdoc/core/label";
+import { FieldError } from "../src/ui/primitives.tsx";
 import { en, ko } from "../src/locales.ts";
 import { messageText, type UiMessage } from "../src/ui-message.ts";
 import { ACCENT_COLORS, ACCENT_COLOR_KEY, readAccentColor, writeAccentColor, readUiLanguage, writeUiLanguage, UI_LANGUAGE_KEY } from "../src/preferences.ts";
@@ -293,6 +297,37 @@ test("bundled languages cover keys and interpolation parameters without relying 
     assert.deepEqual(parameters(ko[key]), parameters(en[key]), key);
     assert.equal(i18n.getResource("ko", "translation", key), ko[key], key);
   }
+});
+
+test("field errors translate Core label syntax while preserving unknown details", async () => {
+  const examples = [
+    [labelError(" bad"), "레이블 앞뒤에 공백을 넣을 수 없습니다."],
+    [labelError("bad\nlabel"), "레이블에 줄바꿈을 넣을 수 없습니다."],
+    [targetLabelError("절"), "절 레이블은 영문자, 숫자 또는 | @ < > * . / _ - + : 문자 1~100자로 입력하세요."],
+    ["External validation detail", "External validation detail"],
+  ];
+  const refusals = [
+    ["label-conflict", "이 레이블은 이미 다른 대상에 사용 중입니다. 제목의 자동 ID도 중복될 수 없습니다."],
+    ["invalid-label", "이 레이블은 참조 대상을 지정할 수 없습니다. 다른 레이블을 입력하세요."],
+    ["invalid-reference", "레이블과 참조의 연결을 보존할 수 없습니다. 레이블과 참조 대상을 확인하세요."],
+  ] as const;
+  // Select messages by the existing Core code even when the technical reason changes.
+  const messages = refusals.map(([code]) => labelPropertyError(new DocumentDiagnosticError(code, "technical detail")));
+  try {
+    for (const language of ["ko", "en"]) {
+      await i18n.changeLanguage(language);
+      for (const [index, message] of messages.entries()) {
+        const text = messageText(message);
+        assert.notEqual(text, "technical detail");
+        if (language === "ko") assert.equal(text, refusals[index][1]);
+      }
+      assert.equal(labelPropertyError(new Error("Unknown refusal")), "Unknown refusal");
+      for (const [message, korean] of examples) {
+        const markup = renderToStaticMarkup(<FieldError id="label-error">{message}</FieldError>);
+        assert.ok(markup.includes(renderToStaticMarkup(<>{language === "ko" ? korean : message}</>)), markup);
+      }
+    }
+  } finally { await i18n.changeLanguage("en"); }
 });
 
 test("accent preference defaults safely and remembers only a validated preset", () => {

@@ -26,16 +26,16 @@ async (page, { openPath, expect, screenshots }) => {
     await field.focus();
     expect(await field.evaluate(input => getComputedStyle(input).boxShadow), `${testId}: keyboard focus ring`).not.toBe('none');
   };
-  const checkError = async (testId, value) => {
+  const checkError = async (testId, value, expectedMessage) => {
     const field = page.getByTestId(testId);
     const state = await field.evaluate(input => {
       const ids = (input.getAttribute('aria-describedby') ?? '').split(/\s+/).filter(Boolean);
       const messages = ids.map(id => document.getElementById(id));
-      return { invalid: input.getAttribute('aria-invalid'), border: getComputedStyle(input).borderTopColor,
+      return { message: messages.map(message => message?.textContent ?? '').join(' '), invalid: input.getAttribute('aria-invalid'), border: getComputedStyle(input).borderTopColor,
         errorColor: messages[0] ? getComputedStyle(messages[0]).color : undefined, described: messages.some(message => message?.textContent?.trim()),
         below: messages.some(message => message && message.getBoundingClientRect().top >= input.getBoundingClientRect().bottom - 1) };
     });
-    if (state.invalid !== 'true' || state.border !== state.errorColor || !state.described || !state.below || await field.inputValue() !== value) {
+    if ((expectedMessage && state.message !== expectedMessage) || state.invalid !== 'true' || state.border !== state.errorColor || !state.described || !state.below || await field.inputValue() !== value) {
       problems.push({ testId, value, state });
     }
   };
@@ -53,6 +53,7 @@ async (page, { openPath, expect, screenshots }) => {
     await page.evaluate(() => document.fonts.ready);
     const active = page.locator('[data-document-tab][data-active=true]');
     const tag = `${width}-${theme}-${language}`;
+    const labelError = language === 'en' ? 'Label cannot have leading or trailing spaces.' : '레이블 앞뒤에 공백을 넣을 수 없습니다.';
     const edit = language === 'en' ? 'Edit' : '편집';
     const equation = active.locator('[data-block="equation"]').first();
     await openEditor(equation, equation.getByRole('button', { name: edit, exact: true }));
@@ -61,7 +62,7 @@ async (page, { openPath, expect, screenshots }) => {
     await page.getByTestId('equation-label').fill(' bad-label');
     await page.getByTestId('equation-apply').click();
     await capture(`${tag}-equation`);
-    await checkError('equation-label', ' bad-label');
+    await checkError('equation-label', ' bad-label', labelError);
     await page.getByTestId('equation-label').fill('eq-one');
     await expect(page.getByTestId('equation-label')).not.toHaveAttribute('aria-invalid', 'true');
     await page.getByTestId('equation-editor').getByRole('button', {name: language === 'en' ? 'Fixed' : '고정', exact: true}).click();
@@ -74,7 +75,7 @@ async (page, { openPath, expect, screenshots }) => {
     await page.getByTestId('figure-label').fill(' bad-label');
     await page.getByTestId('figure-apply').click();
     await capture(`${tag}-figure`);
-    await checkError('figure-label', ' bad-label');
+    await checkError('figure-label', ' bad-label', labelError);
     await page.getByTestId('figure-label').fill('fig-one');
     await page.getByTestId('figure-alt').fill(' bad alt');
     await page.getByTestId('figure-apply').click();
@@ -101,7 +102,17 @@ async (page, { openPath, expect, screenshots }) => {
     await page.getByTestId('table-label').fill(' bad-label');
     await page.getByTestId('table-apply').click();
     await capture(`${tag}-table`);
-    await checkError('table-label', ' bad-label');
+    await checkError('table-label', ' bad-label', labelError);
+    await page.getByTestId('table-label').fill('eq-one');
+    await page.getByTestId('table-apply').click();
+    await checkError('table-label', 'eq-one', language === 'en'
+      ? 'This label already names another target, including an automatic heading ID.'
+      : '이 레이블은 이미 다른 대상에 사용 중입니다. 제목의 자동 ID도 중복될 수 없습니다.');
+    await page.getByTestId('table-label').fill("''");
+    await page.getByTestId('table-apply').click();
+    await checkError('table-label', "''", language === 'en'
+      ? 'This label cannot name a reference target. Choose another label.'
+      : '이 레이블은 참조 대상을 지정할 수 없습니다. 다른 레이블을 입력하세요.');
     await page.getByTestId('table-label').press('Escape');
 
     const mermaid = active.locator('.mermaid-figure').first();
@@ -109,7 +120,7 @@ async (page, { openPath, expect, screenshots }) => {
     await page.getByTestId('mermaid-property-label').fill(' bad-label');
     await page.getByTestId('mermaid-property-apply').click();
     await capture(`${tag}-mermaid-metadata`);
-    await checkError('mermaid-property-label', ' bad-label');
+    await checkError('mermaid-property-label', ' bad-label', labelError);
     await page.getByTestId('mermaid-property-label').press('Escape');
     await openEditor(mermaid, mermaid.locator('.figure-edit'));
     await page.getByTestId('mermaid-edit-source').click();
@@ -125,7 +136,12 @@ async (page, { openPath, expect, screenshots }) => {
     await page.getByTestId('label-target-input').fill(' bad-label');
     await page.getByTestId('label-target-apply').click();
     await capture(`${tag}-section`);
-    await checkError('label-target-input', ' bad-label');
+    await checkError('label-target-input', ' bad-label', labelError);
+    await page.getByTestId('label-target-input').fill('절');
+    await page.getByTestId('label-target-apply').click();
+    await checkError('label-target-input', '절', language === 'en'
+      ? 'A section label uses 1-100 ASCII letters, digits or | @ < > * . / _ - + : characters.'
+      : '절 레이블은 영문자, 숫자 또는 | @ < > * . / _ - + : 문자 1~100자로 입력하세요.');
     await page.getByTestId('label-target-input').press('Escape');
 
     await active.getByTestId('inline-math').locator('.katex-html').dblclick();
@@ -155,5 +171,5 @@ async (page, { openPath, expect, screenshots }) => {
     await checkError('link-url', 'bad url');
     await page.getByTestId('link-url').press('Escape');
   }
-  expect(problems, 'Every rejected input retains its value and describes an error below itself').toEqual([]);
+  expect(problems, 'Every rejected input retains its value and describes a localized error below itself').toEqual([]);
 }
