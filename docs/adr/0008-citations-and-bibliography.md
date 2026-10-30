@@ -9,6 +9,8 @@
 
 Implementation update (2026-10-23): units A, B and C are implemented in [Citations v1](../design/citations-v1.md). The experiments below retain their original historical scope; unit D extensions remain separate decisions.
 
+동결 (2026-10-30, 소유자 결정): 인용·참고문헌은 아직 실제 사용 기능이 아니므로 **동결**한다. 구현된 단위 A·B·C의 동작, 계약과 테스트는 그대로 유지하며 깨뜨리지 않는다. 다만 새 기능·정비 작업은 인용·BibTeX를 범위에 넣지 않는다. 예를 들어 다른 이름으로 저장(#775)의 `.bib` 경로 처리, UI 패턴 후속(#790)의 인용 폼, Docling 변환·대조 흐름(#766)이 그렇다. 동결 해제와 단위 D는 별도 결정한다.
+
 ## Context
 
 #265의 문제는 본문 `[1]` 평문과 번호 목록을 사람이 따로 관리해야 한다는 것이다. #154는 CLI, #155는 Visual Editor에서 이 마찰을 보고했고, #257에서도 배치 저작 후 인용 부재가 남았다. #154의 `[@key]` 삽입·읽기 전용 보존 경험은 이전 commit `9545731`의 관찰이다. ADR-0006 이후에는 미지원 내용이 있는 문서 전체를 거부하므로 그 경로를 복원하지 않는다.
