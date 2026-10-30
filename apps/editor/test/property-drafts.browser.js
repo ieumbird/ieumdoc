@@ -99,9 +99,67 @@ async (page, { openPath, expect }) => {
   check(await focusedAfter('labelTarget') && await json() === baseline && await page.getByTestId('status').innerText() === '',
     'Escape did not return focus to its block, or changed the document');
 
+  await dialogDrafts();
   await metadataCompletion();
   await appliedTyping();
   return {multipleKinds:true, reload:true, beforeunload:true, focus:true, appliedTyping:true};
+
+  async function dialogDrafts() {
+    const focusFile = file.replace('drafts.md', 'focus.md');
+    for (const [kind, field, first] of [['figure','figure-label','figure-replace'], ['table','table-label','table-label'], ['label-target','label-target-input','label-target-input']]) {
+      await openPath(page, focusFile);
+      const active = page.locator('[data-document-tab][data-active=true]');
+      const target = active.locator(`[data-block="${kind}"]`);
+      const before = await json();
+      if (kind === 'label-target') {
+        await editor.locator('h2').hover();
+        await active.getByTestId('label-target-edit').click();
+      } else {
+        await target.hover({position:{x:4,y:4}});
+        await target.getByRole('button',{name:kind === 'figure' ? 'Edit figure' : 'Edit table',exact:true}).click();
+      }
+      check(await focused(first), `${kind}: opening dialog draft focus`);
+      const draft = `${kind}-dialog-draft`;
+      await page.getByTestId(field).fill(draft);
+      const retained = async action => {
+        expect(await json(), `${kind}/${action}: dialog click changed applied content or references`).toBe(before);
+        expect(await page.getByTestId(`${kind}-editor`).count(), `${kind}/${action}: dialog click closed metadata`).toBe(1);
+        expect(await page.getByTestId(field).inputValue(), `${kind}/${action}: dialog click lost the draft`).toBe(draft);
+      };
+      const tab = page.getByRole('tab',{selected:true});
+      await tab.focus(); await tab.press('Delete');
+      const closeDialog = page.getByRole('dialog',{name:'Save changes?',exact:true});
+      await closeDialog.getByRole('button',{name:'Cancel',exact:true}).click();
+      await closeDialog.waitFor({state:'detached'});
+      await tab.and(page.locator(':focus')).waitFor();
+      await retained('close Cancel');
+
+      const fileActions = page.getByRole('button',{name:'File actions',exact:true});
+      await activate(fileActions);
+      await activate(page.getByRole('menuitem',{name:'Reload',exact:true}));
+      const reloadDialog = page.getByRole('dialog',{name:'Discard local changes?',exact:true});
+      await reloadDialog.getByRole('button',{name:'Keep editing',exact:true}).click();
+      await reloadDialog.waitFor({state:'detached'});
+      await fileActions.and(page.locator(':focus')).waitFor();
+      await retained('Reload Keep editing');
+
+      await activate(page.getByRole('button',{name:'Settings',exact:true}));
+      const settings = page.getByTestId('settings-dialog');
+      await page.getByTestId('settings-back').and(page.locator(':focus')).waitFor();
+      await settings.getByRole('button',{name:'Saving & recovery',exact:true}).click();
+      await retained('Settings category');
+      await settings.getByTestId('settings-back').click();
+      await settings.waitFor({state:'detached'});
+      await page.getByRole('button',{name:'Settings',exact:true}).and(page.locator(':focus')).waitFor();
+      await retained('Settings Back to document');
+
+      await page.getByTestId(field).press('Escape');
+      await page.getByTestId(`${kind}-editor`).waitFor({state:'detached'});
+      expect(await json()).toBe(before);
+      await page.getByRole('button',{name:'Close focus.md',exact:true}).click();
+      await page.getByRole('button',{name:'Close focus.md',exact:true}).waitFor({state:'detached'});
+    }
+  }
 
   async function metadataCompletion() {
     const focusFile = file.replace('drafts.md', 'focus.md');

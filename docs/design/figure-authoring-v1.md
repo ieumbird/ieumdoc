@@ -301,7 +301,9 @@ Resize, scroll and group changes update placement through the existing Base UI p
 
 There is one **Done** action. Escape cancels, and pointer clicks outside apply via the same
 Core validation and asynchronous lifetime guards. Rejection retains draft values and errors;
-keyboard focus/selection movement alone does not apply. Pointer completion does not force
+keyboard focus/selection movement alone does not apply. Pointer clicks inside a separate
+dialog, including confirmation Cancel/Keep editing and Settings, retain metadata drafts
+and forms (#791). Pointer completion does not force
 focus back to the Figure. A prose click places the native caret at the clicked text position,
 including while metadata validation is pending; following input belongs to that paragraph.
 The shared preview input guard completes engine focus before enabling native pointer selection,

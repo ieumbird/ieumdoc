@@ -267,6 +267,8 @@ A changed document recomputes numbering; source semantics and canonical output a
   Done/outside pointer completion applies and Escape cancels. Invalid input retains the
   form and values. Keyboard focus movement alone does not apply; keyboard Save includes
   only applied content. Outside pointer completion preserves the clicked focus/caret.
+  Clicks inside a separate dialog (confirmation Cancel/Keep editing or Settings)
+  retain the metadata form and draft; they do not complete the edit.
   Existing preview typing guards and source/inline Apply/Cancel behavior remain.
 - Mermaid Figures reuse the block Equation's in-document source editing surface and shared
   PropertyForm, with draft preview, label and explicit Apply/Cancel. Caption editing stays in
