@@ -82,7 +82,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
   // first Save moves them. Opening never writes and does not make the document dirty.
   const [endnotesMove, setEndnotesMove] = useState(!initial.endnotesInPlace);
   const draftNotice = draftActive
-    ? i18n.t("Save and Source include applied content only. Block property drafts remain unsaved until Apply.")
+    ? i18n.t("Save and Source include applied content only. Unapplied edit drafts stay unsaved until you apply them.")
     : "";
   const [view, setView] = useState<DocumentView>("visual");
   const [sourceMarkdown, setSourceMarkdown] = useState("");

@@ -746,10 +746,11 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           onDraftChange={reportDraft}
           onApply={(target) => {
             if (commandInsertion.current) editor.view.dispatch(closeHistory(editor.state.tr));
-            insertReference(editor, referenceDraft, target);
+            if (!insertReference(editor, referenceDraft, target)) return false;
             if (commandInsertion.current) editor.view.dispatch(closeHistory(editor.state.tr));
             commandInsertion.current = false;
             setReferenceDraft(null);
+            return true;
           }}
           onClose={() => {
             setReferenceDraft(null);

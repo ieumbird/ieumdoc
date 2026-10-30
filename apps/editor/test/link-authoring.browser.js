@@ -98,6 +98,7 @@ async (page, { openPath, screenshots, expect }) => {
   await page.keyboard.press('Control+Quote');
   expect(await page.getByTestId('link-url').inputValue(), 'Shortcut re-entry keeps original draft').toBe('https://example.com/unapplied');
   await page.getByTestId('draft-notice').waitFor();
+  expect(await page.getByTestId('draft-notice').innerText()).toBe('Save and Source include applied content only. Unapplied edit drafts stay unsaved until you apply them.');
   expect(await page.evaluate(() => { const event = new Event('beforeunload',{cancelable:true}); window.dispatchEvent(event); return event.defaultPrevented; })).toBe(true);
   await page.getByTestId('save').click();
   await page.locator('[data-testid="status"][data-operation^="saved"]').waitFor();

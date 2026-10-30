@@ -12,6 +12,8 @@ import { labelKey, resolveLabelReference, targetLabelError } from "@ieumdoc/core
 import { referenceNumberText, captionNumberText, headingNumbers, sectionReferenceText, type ReferenceTemplates, blockTargets, targetNumbers, type NumberedKind, type NumberedTargets } from "@ieumdoc/core/numbering";
 import { Button } from "@/components/ui/button.tsx";
 import { useOverlayBounds } from "./ui/use-overlay-bounds.ts";
+import { FieldError } from "./ui/primitives.tsx";
+import { useMessageState } from "./ui-message.ts";
 import { PROPERTY_APPLY_SHORTCUT } from "./shortcuts.ts";
 import type { DraftListener } from "./node-views/shared.ts";
 import { tableCaption } from "./tiptap-edits.ts";
@@ -458,7 +460,8 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
   preferredLabel?: string;
   className?: string;
   style?: CSSProperties;
-  onApply: (target: ReferenceTarget) => void;
+  /** A refused insertion keeps the draft and reports its invalid range beside the target. */
+  onApply: (target: ReferenceTarget) => boolean | void;
   onRemove?: () => void;
   onClose: () => void;
   sourcePath: string;
@@ -475,6 +478,7 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
   const preferred = targets.find((target) => preferredLabel !== undefined && labelKey(target.label) === labelKey(preferredLabel));
   const [initial] = useState(current ?? preferred ?? targets[0]);
   const [value, setValue] = useState(initial ? referenceCommandId(initial) : "");
+  const [error, setError] = useMessageState("");
   const chosen = referenceOfCommand(value);
   // Outside edits can remove or rename a target while its draft stays open. Keep that
   // choice visible as unresolved instead of letting the native select display another one.
@@ -491,7 +495,10 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
   const apply = () => {
     if (busy) return;
     const target = referenceOfCommand(value);
-    if (target && !("heading" in target)) onApply(target);
+    if (target && !("heading" in target)) {
+      setError("");
+      if (onApply(target) === false) setError({ key: "Selection is no longer within one text block. Undo the outside edit and try again." });
+    }
   };
   if (!visible) return null;
   return (
@@ -533,7 +540,12 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
             data-testid="reference-target"
             value={value}
             disabled={busy}
-            onChange={(event) => setValue(event.target.value)}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? `${formId}-error` : undefined}
+            onChange={(event) => {
+              setValue(event.target.value);
+              setError("");
+            }}
           >
             {options.map((target) => {
               const missing = !isResolved(targets, target.role, target.label);
@@ -548,6 +560,7 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
       ) : (
         <span className="reference-empty">{i18n.t("Label an Equation, Figure, Table or heading to reference it.")}</span>
       )}
+      <FieldError id={`${formId}-error`}>{error}</FieldError>
       <div className="form-actions">
         {onRemove ? <Button size="sm" variant="outline" disabled={busy} data-testid="reference-remove" onClick={onRemove}>{i18n.t("Remove")}</Button> : null}
         <Button size="sm" type="button" variant="outline" autoFocus={!mounted.current && !options.length} data-testid="reference-cancel" onClick={onClose}>{i18n.t("Cancel")}</Button>
