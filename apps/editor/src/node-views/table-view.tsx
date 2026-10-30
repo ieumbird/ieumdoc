@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { NodeViewContent, NodeViewWrapper, type ReactNodeViewProps } from "@tiptap/react";
 import { NodeSelection } from "@tiptap/pm/state";
 import { labelError } from "@ieumdoc/core/label";
+import { FieldError } from "../ui/primitives.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { updateLabelProperties } from "../label-rename.ts";
 import { useMessageState } from "../ui-message.ts";
@@ -71,9 +72,12 @@ export function TableView({ node, editor, getPos, selected, onDraftChange }: Rea
     </div></div>
     <div ref={rowLayer} className="table-row-layer" contentEditable={false} />
     <BlockProperties anchor={anchor} initialFocus={input} kind={kind} testId="table" open={editing}
-      error={error} onApply={apply} onCancel={close}>
-      <label className="form-label" htmlFor={`table-label-${formId}`}>{i18n.t("Label")}</label>
-      <Input ref={input} id={`table-label-${formId}`} data-testid="table-label" value={draft} onChange={event => setDraft(event.target.value)} />
+      onApply={apply} onCancel={close}>
+      <div className="form-field">
+        <label className="form-label" htmlFor={`table-label-${formId}`}>{i18n.t("Label")}</label>
+        <Input ref={input} id={`table-label-${formId}`} aria-invalid={!!error || undefined} aria-describedby={error ? `${formId}-error` : undefined} data-testid="table-label" value={draft} onChange={event => { setDraft(event.target.value); setError(""); }} />
+        <FieldError id={`${formId}-error`}>{error}</FieldError>
+      </div>
       <NumberField editor={editor} getPos={getPos} testId="table" draft={numberDraft} />
     </BlockProperties>
   </NodeViewWrapper>;

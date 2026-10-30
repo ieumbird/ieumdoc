@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { type Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeViewWrapper, type ReactNodeViewProps } from "@tiptap/react";
 import { labelKey, targetLabelError } from "@ieumdoc/core/label";
+import { FieldError } from "../ui/primitives.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { updateLabelProperties } from "../label-rename.ts";
 import { useMessageState } from "../ui-message.ts";
@@ -58,11 +59,13 @@ export function LabelTargetView({ node, editor, getPos, selected }: ReactNodeVie
         ) : <span className="label-target-text">§ {label}</span>}
       </p>
       <BlockProperties anchor={anchor} initialFocus={input} kind={i18n.t("Section label")} testId="label-target" open={editing}
-        error={error}
         onApply={apply} onCancel={close}>
-        <label className="form-label" htmlFor={`label-target-${formId}`}>{i18n.t("Label")}</label>
-        <Input ref={input} id={`label-target-${formId}`} data-testid="label-target-input" value={draft}
-          onChange={event => { setDraft(event.target.value); setError(""); }} />
+        <div className="form-field">
+          <label className="form-label" htmlFor={`label-target-${formId}`}>{i18n.t("Label")}</label>
+          <Input ref={input} id={`label-target-${formId}`} aria-invalid={!!error || undefined} aria-describedby={error ? `${formId}-error` : undefined} data-testid="label-target-input" value={draft}
+            onChange={event => { setDraft(event.target.value); setError(""); }} />
+          <FieldError id={`${formId}-error`}>{error}</FieldError>
+        </div>
       </BlockProperties>
     </NodeViewWrapper>
   );
