@@ -155,7 +155,9 @@ async (page, { expect, openFolderPicker, doclingFixture: fixture, screenshots })
   await progress.getByRole('button', { name: 'Convert again' }).click();
   await expectComparison();
   await expect(page.locator('.docling-source img')).toBeVisible();
-  await expect(center).toHaveCount(0);
+  await expect(center).toBeVisible();
+  await expect(center.locator(':scope > button')).toHaveAccessibleName('Notifications: none');
+  await expect(center.locator('li[data-severity]')).toHaveCount(0);
   await capture('completed-en-1440');
   // A prior success is a baseline, never evidence that a rejected/lost new start succeeded.
   const endpoint = page.url().split('/').slice(0, 3).join('/') + '/api/docling-conversion';
@@ -203,7 +205,9 @@ async (page, { expect, openFolderPicker, doclingFixture: fixture, screenshots })
     refuse = '';
     await progress.getByRole('button', { name: 'Start conversion' }).click();
     await expectComparison();
-    await expect(center).toHaveCount(0);
+    await expect(center).toBeVisible();
+    await expect(center.locator(':scope > button')).toHaveAccessibleName('Notifications: none');
+    await expect(center.locator('li[data-severity]')).toHaveCount(0);
   } finally { releaseInitial(); await page.unroute('**/api/docling-conversion', oldSnapshot); }
   if (screenshots) {
     await page.evaluate(() => localStorage.setItem('ieumdoc.uiLanguage', 'ko'));

@@ -1,0 +1,40 @@
+{
+  "base": "1b4cff58d5ac7f432ac74b4ed886ddc814d14dbc",
+  "before": "Seven changed Editor product source files restored from base; current selection-toolbar scratch fixture and capture scenario retained. Source changes restored after capture.",
+  "after": "PR product source",
+  "viewportHeight": 900,
+  "viewportWidths": [
+    1440,
+    640
+  ],
+  "deviceScaleFactor": 1,
+  "zoom": "100%",
+  "browser": "Windows persistent Chrome",
+  "server": "http://127.0.0.1:5283",
+  "font": "Bundled Pretendard, document.fonts.ready",
+  "state": "Home then Shift+End in target paragraph; target paragraph top 12px below document viewport",
+  "reproduce": "IEUMDOC_BROWSER_URL=http://127.0.0.1:5283 pnpm browser:test selection-toolbar --screenshots",
+  "review": "Manual review of alignment, inset, selected-text clearance, panel/scrollbar boundaries, light English and dark Korean at 1440px and 640px; link forms and reading previews also inspected.",
+  "captures": [
+    {
+      "file": "after-1440.png",
+      "sha256": "cb643e3cdad6095748142e8377248e228b69589e8a90c38b371f2112a591ee1d"
+    },
+    {
+      "file": "after-640-dark-ko.png",
+      "sha256": "99dce7902b843111d5832b0a8e061f656966f77c0691a47330d0529e1133e55b"
+    },
+    {
+      "file": "after-640.png",
+      "sha256": "29bf42b08f263d4866e6139cfc1f6206470041f805cdd038a2a18debb44393cf"
+    },
+    {
+      "file": "before-1440.png",
+      "sha256": "f859b1c5a3f610e964710b08f9899113ec48a2d80c8b9cce239020e4923b4fcd"
+    },
+    {
+      "file": "before-640.png",
+      "sha256": "7060a5441db55be8a3a9894331a6a90650ec79a876925ed03f2a021c4e7ac3f4"
+    }
+  ]
+}

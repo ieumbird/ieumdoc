@@ -60,6 +60,7 @@ async (page, { showNotifications, openDocument }) => {
   });
   const notificationToggle = page.locator('.notification-center > button');
   await notificationToggle.waitFor();
+  await page.getByTestId('numbering-warning').waitFor();
   const beforeNotificationEdit = await snapshot();
   // Engine formatting gives this regression history without a native typing Undo fallback.
   await select(['Before.', 0], ['Before.', 6]);
@@ -75,7 +76,9 @@ async (page, { showNotifications, openDocument }) => {
   }
   await page.keyboard.press('Control+z'); // Formatting edit.
   await page.keyboard.press('Control+z'); // Numbering warning.
-  await notificationToggle.waitFor({state:'detached'});
+  await page.getByRole('button', {name:'Notifications: none',exact:true}).waitFor();
+  assert(await notificationToggle.isVisible(), 'Resolved warnings must leave the empty notification button visible');
+  assert(await page.getByTestId('numbering-warning').count() === 0, 'Undo must remove the numbering warning');
   await openDocument(page, file);
   await historyEditor.locator('h2').filter({hasText:'Heading'}).waitFor();
   const outsideHistory = [];

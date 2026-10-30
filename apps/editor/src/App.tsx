@@ -24,7 +24,8 @@ import { DocumentTabs } from "./shell/DocumentTabs.tsx";
 import { editorGroups, initialEditorGroups, allTabsPendingWork, openedTab, tabLabels, tabNames } from "./document-tabs.ts";
 import { type DocumentSession, type DocumentSessionSnapshot } from "./useDocumentSession.ts";
 import { messageOf, NativeOpenError, requestDocument } from "./document-session.ts";
-import { readDocumentWidth, readOpenTabs, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, writeOpenTabs, type DocumentWidth } from "./preferences.ts";
+import { THEME_LABELS, THEMES, writeTheme, type ThemePreference, readDocumentWidth, readOpenTabs, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, writeOpenTabs, type DocumentWidth } from "./preferences.ts";
+import { applyTheme, currentTheme } from "./theme.ts";
 import { DocumentPanel } from "./shell/DocumentPanel.tsx";
 import { DocumentStart } from "./shell/DocumentStart.tsx";
 import productMark from "../../desktop/assets/icon.svg?url";
@@ -44,7 +45,7 @@ import appIcon from "../../desktop/assets/icon.svg";
 import { CommandCenter } from "./shell/CommandCenter.tsx";
 import { KeyboardShortcutsDialog } from "./shell/KeyboardShortcutsDialog.tsx";
 import type { CommandCenterItem } from "./shell/command-center.ts";
-import { Bookmark, Quote, Columns3, Copy, FileDiff, FileText, FileX, FolderOpen, Keyboard, PanelLeft, PanelRight, PanelRightOpen, ArrowLeftRight, RotateCcw, RotateCw, Save, Settings2, SlidersHorizontal, SquareCode, StretchHorizontal } from "lucide-react";
+import { Monitor, Bookmark, Quote, Columns3, Copy, FileDiff, FileText, FileX, FolderOpen, Keyboard, PanelLeft, PanelRight, PanelRightOpen, ArrowLeftRight, RotateCcw, RotateCw, Save, Settings2, SlidersHorizontal, SquareCode, StretchHorizontal } from "lucide-react";
 import type {
   DocumentErrorResponse,
   DocumentFileResponse,
@@ -114,6 +115,13 @@ function EditorApp() {
   const folderNewReady = useRef(false);
   const [saveComparison, setSaveComparison] = useState<SaveComparison | null>(null);
   const saveComparisonReturnFocus = useRef<HTMLElement | null>(null);
+  const [theme, setTheme] = useState(currentTheme);
+  const [themeProblem, setThemeProblem] = useState(false);
+  const changeTheme = (choice: ThemePreference) => {
+    void applyTheme(choice);
+    setTheme(choice);
+    setThemeProblem(!writeTheme(choice));
+  };
   const [commandQuery, setCommandQuery] = useState<string | null>(null);
   const commandReturnFocus = useRef<HTMLElement | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -988,6 +996,10 @@ function EditorApp() {
         if (converter.job?.state === "running") { setConversionPath(converter.job.input); setConversionOpen(true); }
         else { setConversionPath(""); setPdfPicker(true); }
       } },
+    ...THEMES.map(value => ({ id: `theme-${value}`, kind: "command" as const,
+      label: i18n.t(`Color mode: ${THEME_LABELS[value]}`), icon: Monitor,
+      keywords: ["color mode", "theme", "색상 모드", "테마", THEME_LABELS[value], { system: "시스템", light: "라이트", dark: "다크" }[value]],
+      run: () => changeTheme(value) })),
     { id: "settings", kind: "command", label: i18n.t("Settings"), icon: Settings2, takesFocus: true,
       keywords: ["settings", "설정"], run: () => { settingsReturnFocus.current = commandReturnFocus.current; setSettingsCategory("appearance"); setSettingsOpen(true); void refreshRecovery(); } },
     { id: "document-settings", kind: "command", label: i18n.t("Document settings…"), icon: SlidersHorizontal,
@@ -1016,6 +1028,7 @@ function EditorApp() {
   return (
     <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${panelOpen && !comparison ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}${split ? " app-shell--split" : ""}`}>
       <Sidebar
+        theme={theme} onThemeChange={changeTheme}
         onDoclingConvert={(path, element) => { conversionReturn.current = element; setConversionPath(path); setConversionOpen(true); setConversionNotice(null); }}
         doclingBusy={converter.pending || converter.job?.state === "running"}
         onDoclingCompare={element => { compareReturn.current = element; setComparePicker(true); }}
@@ -1195,7 +1208,7 @@ function EditorApp() {
         onOpen={async path => { setConversionPath(path); setConversionNotice(null); return ""; }}
         returnFocus={conversionReturn} onClose={() => setPdfPicker(false)}
         onClosed={() => { if (conversionPath) setConversionOpen(true); }} />
-      <NotificationSource items={[...(conversionNotice ? [{ id: `docling-error-${conversionNotice.id}`, severity: "error" as const, message: conversionNotice.message,
+      <NotificationSource items={[...(themeProblem && !settingsOpen ? [{ id: "theme-storage", severity: "error" as const, message: i18n.t("Theme could not be saved. This choice applies until you close this page.") }] : []), ...(conversionNotice ? [{ id: `docling-error-${conversionNotice.id}`, severity: "error" as const, message: conversionNotice.message,
         reveal: () => { setConversionPath(converter.job?.input ?? conversionPath); setConversionOpen(true); } }] : []), ...comparisons.filter(tab => tab.snapshot.stale).map(tab => ({ id: `docling-stale-${tab.id}`, severity: "warning" as const,
         message: `${tab.snapshot.map.source.name}: ${i18n.t("The correspondence map does not match this document. Connections and sync scrolling are disabled. Reconvert to compare.")}`,
         reveal: () => {
@@ -1205,11 +1218,13 @@ function EditorApp() {
       }))]} />
       <FolderDialog open={comparePicker} title={i18n.t("Docling comparison")}
         description={i18n.t("Choose a conversion folder containing document.md and document.docling-map.json.")}
+        showSidebarHint={false}
         initialPath={folders.roots.at(-1) ?? splitDocumentPath(openedPath).directory} recent={visibleRecent}
         restricted={allowedRoots !== undefined} browse={browseHostFolder} places={folderPlaces} onOpen={openComparison}
         returnFocus={compareReturn} onClose={() => setComparePicker(false)} />
       <SettingsDialog
           open={settingsOpen}
+          theme={theme} themeProblem={themeProblem} onThemeChange={changeTheme}
           category={settingsCategory}
           highlightUpdate={highlightUpdate}
           onCategoryChange={(category) => { setSettingsCategory(category); setHighlightUpdate(false); }}

@@ -29,6 +29,8 @@ async page => {
     // Brand is not a new tab stop: retain Explorer → TopBar → document navigation order.
     await page.getByRole('button',{name:'Settings',exact:true}).focus();
     await page.keyboard.press('Tab');
+    result.settingsToColorMode = await page.getByRole('button',{name:'Color mode',exact:true}).evaluate(n=>n===document.activeElement);
+    await page.keyboard.press('Tab');
     result.filesToTopBar = await page.getByRole('button',{name:'Find documents and commands',exact:true}).evaluate(n=>n===document.activeElement);
 
     await page.keyboard.press('Tab');
@@ -148,7 +150,12 @@ async page => {
     await settings.click();
     await page.keyboard.press('Escape'); await settingsDialog.waitFor({state:'hidden'});
     result.settingsKeepsSelectionAndHistory = await editorState() === keyboardSelection;
-    await page.locator('[data-document-tab][data-active=true] .document-editor').focus();
+    // Settings restores the viewport to the shell. Reveal the retained selection
+    // before testing its keyboard toolbar; offscreen tools intentionally hide (#838).
+    await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(n => {
+      n.focus({preventScroll:true}); n.editor.commands.scrollIntoView();
+    });
+    await page.getByTestId('selection-toolbar').waitFor();
     await page.keyboard.press('Tab');
     result.toolbarTabEnters = await isFocused(toolbarButton('Bold')) && await editorState() === keyboardSelection;
     await page.keyboard.press('Tab');
