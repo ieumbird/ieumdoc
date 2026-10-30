@@ -7,7 +7,6 @@ import { useTranslation } from "react-i18next";
 import { BibliographyReferenceText } from "./BibliographyReferenceText.tsx";
 import { citationNumbers, citationStatus, useBibliography } from "./citation.tsx";
 import { referenceDisplay, referenceTargets } from "./cross-reference.tsx";
-import { endnoteNumber } from "./endnotes.ts";
 import { renderEquation } from "./equation-render.ts";
 
 /** The same current document/resource snapshot as the chips and trailing References. */
@@ -29,11 +28,8 @@ export function ReferencePreviewContent({ editor, anchor }: { editor: Editor; an
   editor.state.doc.forEach(node => {
     if (node.type.name === "footnoteDefinition" && node.attrs.label === label) definition = node;
   });
-  const number = endnoteNumber(editor.state.doc, label);
-  return definition ? <>
-    <div className="reference-preview-hint">{t("Endnote {{number}}. Click to go to its definition.", { number: number ?? label })}</div>
-    <EndnotePreviewBody editor={editor} definition={definition} />
-  </> : <>{t("Unresolved: no definition of footnote [^{{label}}] in this document", { label })}</>;
+  return definition ? <EndnotePreviewBody editor={editor} definition={definition} />
+    : <>{t("Unresolved: no definition of footnote [^{{label}}] in this document", { label })}</>;
 }
 
 /** Reuse schema mark serialization and existing display calculations, without NodeViews,

@@ -2169,12 +2169,11 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
   display: flex;
   gap: var(--space-2);
 }
-.reference-preview-entry + .reference-preview-entry,
-.reference-preview-body {
+.reference-preview-entry + .reference-preview-entry {
   margin: var(--space-2) 0 0;
 }
-.reference-preview-hint {
-  color: var(--id-color-text-muted);
+.reference-preview-body {
+  margin: 0;
 }
 .reference-preview-link {
   text-decoration: underline;

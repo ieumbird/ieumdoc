@@ -112,7 +112,7 @@ After는 #792 작업 소스로 촬영했다. source/disk 쓰기 없이 번호 �
 - **목적·사용/비사용:** 미주·인용·상대 이미지 링크를 읽는 중 문맥을 보충한다. 편집 폼이나 일반 URL/교차참조 tooltip·이동을 같은 카드로 바꾸지 않는다.
 - **목표·현재 기준:** [ReadingPreview](../../apps/editor/src/ReadingPreview.tsx)의 공통 폭 상한·간격·그룹 경계, Esc dismiss, 입력 중 억제와 focus/selection 비탈취를 유지한다. 오류도 읽기 정보다. 카드 안 Edit/Apply·재귀 preview를 넣지 않으며 긴 콘텐츠 생략은 이번 결정에 포함되지 않는다.
 - **사용처:** U15 미주·인용·이미지 링크 읽기, U08–U10 링크·인용·교차참조의 읽기 진입 경계.
-- **결정·불일치:** [소유자 결정 P08][decision], [현재 읽기 계약](editor-ux-shell-v1.md#endnote-and-citation-reading-previews-752). 채택 목표와 알려진 불일치 없음. 별도 미주 안내 문구 요청 [#773](https://github.com/ieumbird/ieumdoc/issues/773)은 읽기 표면 개편과 구분한다.
+- **결정·불일치:** [소유자 결정 P08][decision], [현재 읽기 계약](editor-ux-shell-v1.md#endnote-and-citation-reading-previews-752). 채택 목표와 알려진 불일치 없음. 미주 미리보기는 이동 안내 문구 없이 본문을 표시하고 원래 참조의 접근성 이름과 클릭 이동을 유지한다([#773](https://github.com/ieumbird/ieumdoc/issues/773), `reference-preview` 검증). 같은 패턴의 인용·이미지 링크 표면과 동작은 유지한다.
 
 ## P09 metadata와 블록 도구
 
