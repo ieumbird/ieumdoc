@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input.tsx";
 import { updateLabelProperties } from "../label-rename.ts";
 import { useMessageState } from "../ui-message.ts";
 import { i18n } from "../i18n.ts";
-import { BlockProperties } from "../block-properties.tsx";
+import { MetadataProperties } from "../metadata-properties.tsx";
 import { NumberField, useNumberDraft } from "../numbering-properties.tsx";
 import { captionPrefixText, useCaptionNumberText } from "../cross-reference.tsx";
 import { TableTools } from "../table-tools.tsx";
@@ -45,8 +45,8 @@ export function TableView({ node, editor, getPos, selected, onDraftChange }: Rea
   useEffect(() => { onDraftChange?.("Table", sourcePath, dirty); return () => onDraftChange?.("Table", sourcePath, false); }, [sourcePath, dirty, onDraftChange]);
   const begin = () => { if (!editor.isEditable || editing) return; setDraft(label); numberDraft.reset(enumerator); setError(""); setEditing(true); };
   usePropertyEntry(anchor, begin);
-  const close = () => { setEditing(false); focusBlock(editor.view, getPos); };
-  const apply = () => {
+  const close = (returnCaret = true) => { setEditing(false); if (returnCaret) focusBlock(editor.view, getPos); };
+  const apply = (outside = false) => {
     if (!numberDraft.validate()) return;
     const invalid = labelError(draft);
     if (invalid) { setError(invalid); return; }
@@ -55,7 +55,7 @@ export function TableView({ node, editor, getPos, selected, onDraftChange }: Rea
     try {
       editor.view.dispatch(updateLabelProperties(editor.state, position, { label: draft, enumerator: numberDraft.value || null }));
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); return; }
-    close();
+    close(!outside);
   };
   return <NodeViewWrapper className="table-block" data-block="table" data-table-block="" data-source-path={sourcePath}
     data-selected={selected ? "true" : "false"} data-editing={editing ? "true" : "false"}>
@@ -71,14 +71,14 @@ export function TableView({ node, editor, getPos, selected, onDraftChange }: Rea
       <TableTools editor={editor} node={node} getPos={getPos} grid={grid} rowLayer={rowLayer} onEdit={begin} hidden={editing} />
     </div></div>
     <div ref={rowLayer} className="table-row-layer" contentEditable={false} />
-    <BlockProperties anchor={anchor} initialFocus={input} kind={kind} testId="table" open={editing}
-      onApply={apply} onCancel={close}>
+    <MetadataProperties target={() => anchor.current?.closest("[data-block=table]") ?? null} anchor={anchor} initialFocus={input} kind={kind} testId="table" open={editing}
+      onApply={apply} onCancel={() => close()}>
       <div className="form-field">
         <label className="form-label" htmlFor={`table-label-${formId}`}>{i18n.t("Label")}</label>
         <Input ref={input} id={`table-label-${formId}`} aria-invalid={!!error || undefined} aria-describedby={error ? `${formId}-error` : undefined} data-testid="table-label" value={draft} onChange={event => { setDraft(event.target.value); setError(""); }} />
         <FieldError id={`${formId}-error`}>{error}</FieldError>
       </div>
       <NumberField editor={editor} getPos={getPos} testId="table" draft={numberDraft} />
-    </BlockProperties>
+    </MetadataProperties>
   </NodeViewWrapper>;
 }

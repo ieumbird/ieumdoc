@@ -163,6 +163,7 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
     await expect(page.getByTestId('draft-notice')).toBeVisible();
     expect((await attrs(label)).enumerator).toBe(previous);
     if (kind === 'figure' || kind === 'mermaid-property') await page.getByTestId(kind === 'figure' ? 'figure-alt' : 'mermaid-property-label').press('Escape');
+    else if (kind === 'table') await page.getByTestId('table-label').press('Escape');
     else await page.getByTestId(`${kind}-cancel`).click();
     await page.getByTestId(`${kind}-editor`).waitFor({state:'detached'});
     expect((await attrs(label)).enumerator).toBe(previous);
@@ -197,7 +198,7 @@ async (page, { openPath, openDocument, reloadDocument, expect }) => {
   await edit('fixed-table','table');
   await expect(page.getByTestId('numbering-warning').filter({hasText:'Missing fixed number'})).toHaveCount(1);
   await expect(page.getByTestId('numbering-block-warning')).toHaveCount(0);
-  await page.getByTestId('table-cancel').click();
+  await page.getByTestId('table-label').press('Escape');
   await applyNumber('fixed-diagram','mermaid-property','18');
   await edit('fixed-diagram','mermaid-property');
   await expect(page.getByTestId('numbering-warning').filter({hasText:'18 is duplicated'})).toHaveCount(2);

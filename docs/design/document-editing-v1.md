@@ -262,8 +262,14 @@ A changed document recomputes numbering; source semantics and canonical output a
   cancel the pending source focus. Listeners are removed on execution, cancellation and unmount.
   New Equation and Diagram insertion still hands focus to their source field on the next frame.
   Escape in a focused block menu closes that menu and preserves the property draft (#664).
-- Figure metadata uses [anchored properties](figure-authoring-v1.md#anchored-figure-properties-757):
-  Done/outside pointer completion applies and Escape cancels. Existing preview typing guards remain.
+- Figure, Table and section-label metadata share the target-wide metadata popover (#791;
+  [Figure placement/completion](figure-authoring-v1.md#anchored-figure-properties-757)).
+  Done/outside pointer completion applies and Escape cancels. Invalid input retains the
+  form and values. Keyboard focus movement alone does not apply; keyboard Save includes
+  only applied content. Outside pointer completion preserves the clicked focus/caret.
+  Clicks inside a separate dialog (confirmation Cancel/Keep editing or Settings)
+  retain the metadata form and draft; they do not complete the edit.
+  Existing preview typing guards and source/inline Apply/Cancel behavior remain.
 - Mermaid Figures reuse the block Equation's in-document source editing surface and shared
   PropertyForm, with draft preview, label and explicit Apply/Cancel. Caption editing stays in
   the document. The [Figure contract](figure-authoring-v1.md#mermaid-editor) defines rendering,

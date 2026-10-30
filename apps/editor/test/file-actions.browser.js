@@ -104,12 +104,12 @@ async (page, { openFolderPicker, screenshots = false, fileActionsRoot, expect, r
   const editFigure = activeDocument(page).getByRole('button',{name:'Edit figure',exact:true});
   await editFigure.locator('..').hover({position:{x:4,y:4}}); await editFigure.click();
   await page.getByRole('textbox',{name:'Alt text',exact:true}).fill('Unapplied alt');
-  await row('b.md').click(); await expect(page.getByTestId('current-file')).toHaveText('b.md');
+  await row('b.md').focus(); await row('b.md').press('Enter'); await expect(page.getByTestId('current-file')).toHaveText('b.md');
   await context('diagram.svg','Rename…');
   await dialog.getByRole('textbox',{name:'File name',exact:true}).fill('updated');
   await dialog.getByRole('button',{name:'Rename',exact:true}).click();
   await expect(dialog.getByRole('alert')).toContainText('Save these documents before renaming the image: ref.md');
-  await cancel(); await row('ref.md').click();
+  await cancel(); await row('ref.md').focus(); await row('ref.md').press('Enter');
   await expect(page.getByRole('textbox',{name:'Alt text',exact:true})).toHaveValue('Unapplied alt');
   await page.getByTestId('figure-alt').press('Escape');
   await page.getByTestId('figure-editor').waitFor({state:'detached'});

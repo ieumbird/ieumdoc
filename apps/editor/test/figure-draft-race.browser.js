@@ -261,8 +261,11 @@ async (page, { openPath, expect, reloadDocument }) => {
         await page.keyboard.press('ControlOrMeta+Shift+z');
         await page.keyboard.press('ControlOrMeta+Shift+z');
         expect(await snapshot()).toEqual(after);
+      } else if (kind === 'table') {
+        await page.getByTestId('table-editor').waitFor({state:'detached'});
+        expect((await snapshot()).content.find(node => node.type === 'table').attrs.label).toBe('pointer-table');
       } else if (kind !== 'endnote') {
-        // These explicit forms retain their draft on outside interaction.
+        // Equation source retains its draft on outside interaction.
         expect(await page.getByTestId(`${kind}-editor`).count()).toBe(1);
         await page.getByTestId(`${kind}-cancel`).click();
       } else expect(await note.getAttribute('aria-readonly')).toBe('true');

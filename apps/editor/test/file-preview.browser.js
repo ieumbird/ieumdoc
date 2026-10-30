@@ -11,7 +11,10 @@ async (page, { openDocument, screenshots }) => {
   await openDocument(page, root + sep + 'document.md');
   await page.getByRole('tab', {name:'document.md', exact:true, selected:true}).waitFor();
   const row = name => page.getByTestId('sidebar').getByRole('treeitem', { name, exact: true });
-  const clickRow = name => row(name).click({position:{x:8,y:14}});
+  // Keyboard preview actions retain the short metadata draft; outside pointer clicks complete it.
+  const activate = async target => { await target.focus(); await target.press('Enter'); };
+  const dialogFocus = () => page.waitForFunction(() => document.querySelector('[data-slot="dialog-content"]')?.contains(document.activeElement));
+  const activateRow = async name => { await activate(row(name)); await dialogFocus(); };
   const dialog = () => page.locator('[data-slot="dialog-content"]');
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const snapshot = () => editor.evaluate(el => ({ json: JSON.stringify(el.editor.getJSON()), selection: el.editor.state.selection.toJSON(), undo: el.editor.can().undo() }));
@@ -36,14 +39,14 @@ async (page, { openDocument, screenshots }) => {
   await draft.fill('section-draft');
   const before = await snapshot();
   for (const name of ['diagram.svg', 'photo.PNG', 'doctype.svg', 'active.svg']) {
-    await clickRow(name);
+    await activateRow(name);
     await dialog().getByRole('img', {name,exact:true}).waitFor();
     if (name === 'doctype.svg') {
       check(await dialog().getByRole('img').evaluate(img => img.naturalWidth === 20 && img.naturalHeight === 20), 'DOCTYPE SVG did not decode');
       if (screenshots) await page.screenshot({path:'tmp/file-preview-capture/doctype.png'});
     }
     await page.keyboard.press('Control+s');
-    await dialog().getByRole('button', {name:'Close',exact:true}).click();
+    await activate(dialog().getByRole('button', {name:'Close',exact:true}));
     await dialog().waitFor({state:'detached'});
     check(await row(name).evaluate(el => document.activeElement === el), 'Image close must return to its row');
     check(JSON.stringify(await snapshot()) === JSON.stringify(before), 'Preview changed document, selection or undo');
@@ -59,7 +62,7 @@ async (page, { openDocument, screenshots }) => {
   } finally { await direct.close(); }
   for (const width of [1440, 640]) {
     await page.setViewportSize({width, height:900});
-    await clickRow('diagram.svg');
+    await activateRow('diagram.svg');
     await dialog().getByRole('img').waitFor();
     // A cached image can appear before Dialog's asynchronous initial focus. Escape must
     // exercise the preview's keyboard owner, not the still-focused narrow sidebar row.
@@ -68,14 +71,14 @@ async (page, { openDocument, screenshots }) => {
     check(box.x >= 0 && box.x + box.width <= width && box.y >= 0 && box.y + box.height <= 900, 'Preview exceeds viewport');
     if (screenshots) await page.screenshot({path:`tmp/file-preview-capture/image-${width}.png`});
     await page.keyboard.press('Escape'); await dialog().waitFor({state:'detached'});
-    await clickRow('archive.zip');
+    await activateRow('archive.zip');
     if (screenshots) await page.screenshot({path:`tmp/file-preview-capture/file-${width}.png`});
     await page.keyboard.press('Escape'); await dialog().waitFor({state:'detached'});
   }
   // Escape from the previous narrow preview may also close the overlay sidebar.
   const expand = page.getByRole('button', {name:'Expand Explorer',exact:true});
-  if (await expand.isVisible()) await expand.click();
-  await clickRow('긴파일이름' + 'unbrokenfilename'.repeat(8) + '.zip');
+  if (await expand.isVisible()) await activate(expand);
+  await activateRow('긴파일이름' + 'unbrokenfilename'.repeat(8) + '.zip');
   await measureLongDialog('preview', dialog());
   await page.keyboard.press('Escape'); await dialog().waitFor({state:'detached'});
   check(!longDialogFailures.length, `Long preview overflow: ${JSON.stringify(longDialogLayouts)}`);
@@ -86,30 +89,30 @@ async (page, { openDocument, screenshots }) => {
   const finished = new Promise(resolve => { finish = resolve; });
   const delayed = async route => { await gate; try { await route.fulfill({status:200, contentType:'image/png', body:'invalid image'}); } finally { finish(); } };
   await page.route('**/api/file-preview?*', delayed);
-  await clickRow('delayed.png');
+  await activateRow('delayed.png');
   await dialog().getByRole('status').waitFor();
   await page.keyboard.press('Escape'); await dialog().waitFor({state:'detached'});
   release(); await finished; await page.unroute('**/api/file-preview?*', delayed);
-  await clickRow('README');
+  await activateRow('README');
   await dialog().getByText('This file cannot be edited in IeumDoc.',{exact:true}).waitFor();
   await page.keyboard.press('Escape'); await dialog().waitFor({state:'detached'});
   const damaged = route => route.fulfill({status:200, contentType:'image/png', body:'invalid image'});
   await page.route('**/api/file-preview?*', damaged);
-  await clickRow('broken.png');
+  await activateRow('broken.png');
   await dialog().getByRole('alert').waitFor();
   await page.keyboard.press('Escape'); await dialog().waitFor({state:'detached'});
   await page.unroute('**/api/file-preview?*', damaged);
-  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await activate(page.getByRole('button',{name:'Settings',exact:true})); await dialogFocus();
   await page.getByTestId('ui-language').selectOption('ko');
   await page.keyboard.press('Escape'); await dialog().waitFor({state:'detached'});
-  await clickRow('diagram.svg');
+  await activateRow('diagram.svg');
   await dialog().getByText('읽기 전용 이미지 미리보기',{exact:true}).waitFor();
   if (screenshots) await page.screenshot({path:'tmp/file-preview-capture/image-ko.png'});
   await page.keyboard.press('Escape'); await dialog().waitFor({state:'detached'});
-  await clickRow('README');
+  await activateRow('README');
   await dialog().getByText('이 파일은 이음독에서 편집할 수 없습니다.',{exact:true}).waitFor();
   await page.keyboard.press('Escape'); await dialog().waitFor({state:'detached'});
-  await page.getByRole('button',{name:'설정',exact:true}).click();
+  await activate(page.getByRole('button',{name:'설정',exact:true})); await dialogFocus();
   await page.getByTestId('ui-language').selectOption('en');
   await page.keyboard.press('Escape'); await dialog().waitFor({state:'detached'});
   check(JSON.stringify(await snapshot()) === JSON.stringify(before) && await draft.inputValue() === 'section-draft', 'Late/error or translated preview lost editor state');

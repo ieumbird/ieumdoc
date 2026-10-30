@@ -58,7 +58,7 @@ async (page, { openPath }) => {
   await page.getByTestId('label-target-input').fill('설치');
   await page.getByTestId('label-target-apply').click();
   await page.getByTestId('label-target-properties').getByText(/ASCII/).waitFor();
-  await page.getByTestId('label-target-cancel').click();
+  await page.getByTestId('label-target-input').press('Escape');
   result.labelRules = JSON.stringify(await labels()) === JSON.stringify(['sec-install']);
 
   // A heading's block menu labels it without referencing it; a Korean heading gets a numbered label.

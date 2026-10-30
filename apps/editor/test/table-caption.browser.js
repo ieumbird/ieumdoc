@@ -376,7 +376,7 @@ async (page, { openPath, expect, reloadDocument, screenshots }) => {
     await expect(numbers.getByRole('button', {name:'Automatic',exact:true})).toHaveAttribute('aria-pressed','true');
     await expect(page.getByTestId('table-enumerator')).toHaveCount(0);
     await expect(page.getByTestId('table-automatic-number')).toHaveText('Automatic number: 1');
-    await page.getByTestId('table-cancel').click();
+    await page.getByTestId('table-label').press('Escape');
     await page.evaluate(() => {
       const editor = document.querySelector('[data-document-tab][data-active=true] .document-editor').editor;
       let range;

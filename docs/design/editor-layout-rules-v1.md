@@ -185,7 +185,8 @@ clearance. Sidebar and Outline retain their independent scroll regions. See the
 
 `documentContentBounds` shares FigureProperties' content-boundary calculation with
 `useOverlayBounds` (link/reference/citation forms, selection toolbar, menus and reading
-previews) and `BlockProperties` (inline math, section label and table properties).
+previews) and `BlockProperties` (inline math). Figure, table and section-label metadata now share
+`MetadataProperties` with target-wide anchoring and Done completion (#791).
 The width cap lets existing fields/actions wrap inside the available area. Form
 appearance, anchor alignment, confirmation and draft behavior keep their contracts.
 The opening focus target stays stable through the boundary measurement render;

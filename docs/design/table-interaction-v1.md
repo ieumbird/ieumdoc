@@ -34,8 +34,13 @@ writes a `{table}` directive even when both are absent (#584; [format contract](
 
 The metadata line selects the whole Table on single click, opens its Label properties on
 double-click, and supports Enter on the engine's Table node selection. Edit uses the same
-form. Re-entry keeps the existing draft/error. Cells and the directly editable caption keep
-ordinary text selection and navigation; outside focus never discards property drafts.
+form. Keyboard re-entry keeps the existing draft/error. The short Label/Number form shares
+Figure's target-wide metadata popover (#791), including the complete table and caption,
+inside the document content viewport. Done applies, Escape cancels and a valid outside
+pointer click applies without returning focus to the table. Keyboard focus movement alone
+keeps drafts; validation failure retains fields and errors. NumberField follows #776.
+Cells and the directly editable caption keep ordinary text selection and navigation.
+Save includes only applied content; keyboard Save retains metadata drafts.
 See [Continuous editing](document-editing-v1.md#continuous-editing).
 
 ## Light handle work record (#517)
