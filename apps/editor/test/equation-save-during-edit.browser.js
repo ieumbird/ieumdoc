@@ -38,8 +38,8 @@ async (page, { openPath }) => {
   });
 
   const changedLatex = `${originalLatex} + 1`;
-  await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
-  await page.getByRole('button',{name:'Edit',exact:true}).click();
+  await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
+  await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').getByRole('button',{name:'Edit',exact:true}).click();
   await page.getByTestId('equation-edit-source').click();
   const block637 = page.locator('[data-document-tab][data-active=true] [data-block="equation"]').first();
   if (!await block637.evaluate((block) => block.contains(document.querySelector('[data-testid="equation-editor"]')))) {
@@ -58,7 +58,7 @@ async (page, { openPath }) => {
   await page.getByTestId('equation-cancel').click();
   await page.getByRole('button',{name:'Save',exact:true}).click();
   await block637.hover({position:{x:4,y:4}});
-  await page.getByRole('button',{name:'Edit',exact:true}).click();
+  await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').getByRole('button',{name:'Edit',exact:true}).click();
   await page.getByTestId('equation-edit-source').click();
   await page.getByTestId('equation-latex').fill(changedLatex);
   const beforeResponse = await page.getByTestId('equation-latex').inputValue();
@@ -77,8 +77,8 @@ async (page, { openPath }) => {
   if (requests[1].equations?.[0]?.to !== changedLatex) throw new Error('Applied Equation was omitted from the next save');
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-  await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
-  await page.getByRole('button',{name:'Edit',exact:true}).click();
+  await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
+  await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').getByRole('button',{name:'Edit',exact:true}).click();
   await page.getByTestId('equation-edit-source').click();
   if (await page.getByTestId('equation-latex').inputValue() !== changedLatex) {
     throw new Error('Applied Equation was not reflected after reload');
@@ -89,8 +89,8 @@ async (page, { openPath }) => {
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
   const canceledLatex = `${originalLatex} + 2`;
   await page.getByRole('button',{name:'Save',exact:true}).click();
-  await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
-  await page.getByRole('button',{name:'Edit',exact:true}).click();
+  await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
+  await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').getByRole('button',{name:'Edit',exact:true}).click();
   await page.getByTestId('equation-edit-source').click();
   await page.getByTestId('equation-latex').fill(canceledLatex);
   release();
@@ -105,8 +105,8 @@ async (page, { openPath }) => {
   if (requests[1].equations?.length) throw new Error('Canceled Equation was included in the next save');
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
-  await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
-  await page.getByRole('button',{name:'Edit',exact:true}).click();
+  await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
+  await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').getByRole('button',{name:'Edit',exact:true}).click();
   await page.getByTestId('equation-edit-source').click();
   const reloadedCanceled = await page.getByTestId('equation-latex').inputValue();
   if (reloadedCanceled !== originalLatex) throw new Error('Cancel did not preserve the original Equation');
