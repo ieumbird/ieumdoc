@@ -50,9 +50,9 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
 
   // An external file writes [^b] between paragraphs. Opening it writes nothing and is not an edit;
   // the endnotes follow the body, and a notice and Source say what the first Save writes.
-  const written = '---\nieumdoc: 1\n---\n\n# Footnotes\n\nFirst claim[^b] and second[^a].\n\n[^b]: Defined first.\n\nMiddle paragraph.\n\n' +
+  const written = '---\nlitzio: 1\n---\n\n# Footnotes\n\nFirst claim[^b] and second[^a].\n\n[^b]: Defined first.\n\nMiddle paragraph.\n\n' +
     '[^a]: Defined later,\n    on two lines.\n';
-  const placed = '---\nieumdoc: 1\n---\n\n# Footnotes\n\nFirst claim[^b] and second[^a].\n\nMiddle paragraph.\n\n[^b]: Defined first.\n\n' +
+  const placed = '---\nlitzio: 1\n---\n\n# Footnotes\n\nFirst claim[^b] and second[^a].\n\nMiddle paragraph.\n\n[^b]: Defined first.\n\n' +
     '[^a]: Defined later,\n    on two lines.\n';
   await open(file);
   const firstDefinition = editor.locator('[data-testid="footnote-definition"][data-label="b"]');
@@ -650,7 +650,7 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   assert(await order() === 'heading heading paragraph b a', `Last section delete took endnotes: ${await order()}`);
   await save.click();
   await saved();
-  assert(await sectionsRead() === '---\nieumdoc: 1\n---\n\n# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n[^b]: First note.\n\n[^a]: Second note.\n', 'Section delete saved differently: ' + await sectionsRead());
+  assert(await sectionsRead() === '---\nlitzio: 1\n---\n\n# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n[^b]: First note.\n\n[^a]: Second note.\n', 'Section delete saved differently: ' + await sectionsRead());
   result.sectionsHoldNoEndnotes = true;
 
   // Repeated references return to the invoking occurrence after definition and body edits.
@@ -674,7 +674,7 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
   await save.click();
   await saved();
   const repeatedSaved = await reader(fixture('repeat.md'))();
-  assert(repeatedSaved === '---\nieumdoc: 1\n---\n\n# Repeated note\n\nPrefix First[^x].\n\nSecond[^x] and other[^y].\n\n[^x]: Shared note. Edited.\n\n[^y]: Other note.\n', 'Repeated note saved differently: ' + JSON.stringify(repeatedSaved));
+  assert(repeatedSaved === '---\nlitzio: 1\n---\n\n# Repeated note\n\nPrefix First[^x].\n\nSecond[^x] and other[^y].\n\n[^x]: Shared note. Edited.\n\n[^y]: Other note.\n', 'Repeated note saved differently: ' + JSON.stringify(repeatedSaved));
   result.returnToInvokingReference = true;
 
   const note = editor.locator('[data-testid="footnote-definition"][data-label="x"]');

@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { getSchema } from "@tiptap/core";
 import { EditorState } from "@tiptap/pm/state";
-import type { InlineContent } from "@ieumdoc/core";
+import type { InlineContent } from "@litzio/core";
 import { changeAdmonitionVariant } from "../src/block-commands.ts";
 import { editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";

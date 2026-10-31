@@ -57,7 +57,7 @@ test("release notes links stay on the repository's releases", () => {
 });
 
 test("preferences follow the installed channel by default and preserve a saved choice across versions", () => {
-  const folder = mkdtempSync(path.join(os.tmpdir(), "ieumdoc-preferences-"));
+  const folder = mkdtempSync(path.join(os.tmpdir(), "litzio-preferences-"));
   try {
     const file = path.join(folder, "preferences.json");
     const installs = [["0.0.1", "stable"], ["0.0.1-beta.1", "beta"]] as const;

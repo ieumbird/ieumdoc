@@ -7,13 +7,13 @@
 
 ## Context
 
-IeumDoc은 Editor, CLI, AI 및 자동화 도구가 같은 문서를 서로 다른 방식으로 다룬다. 이 인터페이스들이 각자의 표시 모델이나 저장소를 문서의 기준으로 삼으면 문서 의미와 변경 규칙이 분기되고, 인터페이스 교체 또는 drift를 되돌리는 비용이 커진다.
+Litzio는 Editor, CLI, AI 및 자동화 도구가 같은 문서를 서로 다른 방식으로 다룬다. 이 인터페이스들이 각자의 표시 모델이나 저장소를 문서의 기준으로 삼으면 문서 의미와 변경 규칙이 분기되고, 인터페이스 교체 또는 drift를 되돌리는 비용이 커진다.
 
 ADR-0001은 열린 문서의 편집 상태와 typed block UX를 결정한다. 이 ADR은 편집 상태의 구현 방식이 아니라 영속 문서, 의미 처리, 저장 책임의 경계를 결정한다.
 
 ## Decision
 
-IeumDoc은 다음을 채택한다.
+Litzio는 다음을 채택한다.
 
 - 사람이 읽을 수 있는 plain-text `.md` 문서를 영속 데이터의 단일 진실 공급원(SSOT)으로 유지한다.
 - Core가 document semantics, editor-neutral semantic operations, structural validation 및 canonical write contract를 소유한다.
@@ -21,7 +21,7 @@ IeumDoc은 다음을 채택한다.
 - Tiptap JSON, 데이터베이스 레코드, Editor projection 또는 기타 파생 표현을 별도의 SSOT나 영속 저장 형식으로 사용하지 않는다.
 - 영속적인 semantic change는 interface가 독자적으로 구현하지 않는다. 해당 변경은 Core operation으로 표현되고 Core의 검증 및 저장 계약을 통과해야 한다.
 - 보존할 수 없는 의미를 조용히 flatten하거나 drop하여 저장하지 않는다. 의미를 보존할 수 없으면 write를 fail-closed 방식으로 거부한다.
-- MyST는 현재 parser/serializer 구현 기반이며, IeumDoc의 영구 domain model로 고정하지 않는다. MyST별 처리는 Core 내부의 경계에 둔다.
+- MyST는 현재 parser/serializer 구현 기반이며, Litzio의 영구 domain model로 고정하지 않는다. MyST별 처리는 Core 내부의 경계에 둔다.
 - canonical write는 Git에서 검토 가능한 사람이 읽을 수 있는 plain-text 결과를 유지한다.
 
 ## Rationale
@@ -36,7 +36,7 @@ plain-text 문서를 SSOT로 두면 Git diff, review, history 및 다른 도구�
 - 인터페이스는 Core read model과 operation을 연결하는 adapter를 유지해야 한다.
 - 지원하지 않는 의미나 손실성 변경은 저장 전에 사용자에게 명확히 실패를 알리고, 부분 write를 남기지 않아야 한다.
 - 향후 저장소, cache 또는 index를 추가하더라도 plain-text 문서에서 파생되고 복구 가능해야 한다.
-- MyST parser/serializer를 교체할 수 있도록 IeumDoc의 공개 의미 계약과 MyST 구현 세부사항을 분리해야 한다.
+- MyST parser/serializer를 교체할 수 있도록 Litzio의 공개 의미 계약과 MyST 구현 세부사항을 분리해야 한다.
 
 ## Non-decisions
 

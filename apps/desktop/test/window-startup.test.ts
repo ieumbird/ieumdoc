@@ -14,7 +14,7 @@ import type { UpdateState } from "../../editor/shared/desktop-bridge.ts";
 
 const main = new URL("../src/main.ts", import.meta.url);
 const source = transformSync(readFileSync(main, "utf8"), {
-  loader: "ts", format: "cjs", define: { "import.meta.url": JSON.stringify(main.href), __IEUMDOC_REQUIRE_SIGNED_UPDATES__: "false" },
+  loader: "ts", format: "cjs", define: { "import.meta.url": JSON.stringify(main.href), __LITZIO_REQUIRE_SIGNED_UPDATES__: "false" },
 }).code;
 
 async function start(options: { startupError?: boolean; logError?: boolean; openError?: string; loadError?: boolean; lock?: boolean; update?: UpdateState } = {}) {

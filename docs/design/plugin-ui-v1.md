@@ -6,10 +6,12 @@
 
 ## Manifest and assets
 
-The brand-independent `@document-plugins/api` contract owns the identifiers in
+The brand-independent `@litzio/plugin-api` contract owns the identifiers in
 `src/config.ts`: UI API 1, React major 19, `/api/ui-plugins`, `ui.mjs`, `ui.css`.
 These are protocol identifiers, independent of a packager's product name.
-Existing product identifiers/folders are not migrated by #857.
+The #858 internal rename places this contract under `@litzio/plugin-api`; the
+neutral manifest fields, API numbers, routes and asset names keep their values.
+Product identifiers/folders are not migrated.
 
 The [shared installation manifest](plugin-runtime-v1.md) may contain
 `ui: { api: 1, reactMajor: 19, script: "ui.mjs", style: "ui.css" }`.

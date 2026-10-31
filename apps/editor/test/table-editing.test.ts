@@ -126,7 +126,7 @@ test("Host Save writes edited header and body cells and keeps everything else", 
 });
 
 test("Host preserves files on invalid cell edits and saves pipe content losslessly", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-table-save-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-table-save-"));
   const file = path.join(dir, "table.md");
   writeFileSync(file, mixed);
   try {

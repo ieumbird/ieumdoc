@@ -1,6 +1,6 @@
-// The packaged Windows app (release/win-unpacked, or IEUMDOC_DESKTOP_EXE for an installed copy)
+// The packaged Windows app (release/win-unpacked, or LITZIO_DESKTOP_EXE for an installed copy)
 // under Playwright: the Editor and Host behind ieumdoc://app with real files, no Vite and no TCP port.
-//   pnpm --filter @ieumdoc/desktop package && pnpm --filter @ieumdoc/desktop test:packaged
+//   pnpm --filter @litzio/desktop package && pnpm --filter @litzio/desktop test:packaged
 // Files live in the repository's ignored tmp/desktop-e2e; each test uses its own fixed profile there.
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
@@ -18,7 +18,7 @@ import { verifyPackagedWorker } from "../../../../test/helpers/plugin-conversion
 
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const repo = path.resolve(desktop, "../..");
-const exe = process.env.IEUMDOC_DESKTOP_EXE ?? path.join(desktop, "release", "win-unpacked", "IeumDoc.exe");
+const exe = process.env.LITZIO_DESKTOP_EXE ?? path.join(desktop, "release", "win-unpacked", "IeumDoc.exe");
 const work = path.join(repo, "tmp", "desktop-e2e");
 const resetProfiles = new Set<string>();
 if (process.platform !== "win32") throw new Error("The packaged app tests run on Windows.");
@@ -109,7 +109,7 @@ test("packaged in-process Host forks its shipped Docling worker and opens a comp
   const fake = await fakeDoclingServer();
   let app: ElectronApplication | undefined;
   try {
-    const launched = await launch(userData, [], { IEUMDOC_PLUGINS_DIR: path.join(folder, "plugins"), IEUMDOC_DOCLING_SETTINGS_FILE: path.join(folder, "settings.json") });
+    const launched = await launch(userData, [], { LITZIO_PLUGINS_DIR: path.join(folder, "plugins"), LITZIO_DOCLING_SETTINGS_FILE: path.join(folder, "settings.json") });
     app = launched.app;
     const output = await verifyPackagedWorker(async (endpoint, method = "GET", body) => {
       const response = await launched.page.evaluate(async ({ endpoint, method, body }) => {
@@ -150,8 +150,8 @@ test("started without a document, it opens none; the sample opens with its figur
   try {
     assert.equal(page.url(), "ieumdoc://app/index.html");
     assert.deepEqual(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getMinimumSize()), [640, 480], "native minimum size follows ADR-0010");
-    const expectedVersion = process.env.IEUMDOC_TEST_VERSION ?? JSON.parse(readFileSync(path.join(desktop, "package.json"), "utf8")).version;
-    assert.equal(await page.evaluate(async () => (await window.ieumdocDesktop!.info()).version), expectedVersion, "the packaged version matches its source");
+    const expectedVersion = process.env.LITZIO_TEST_VERSION ?? JSON.parse(readFileSync(path.join(desktop, "package.json"), "utf8")).version;
+    assert.equal(await page.evaluate(async () => (await window.litzioDesktop!.info()).version), expectedVersion, "the packaged version matches its source");
     await page.getByTestId("document-start").waitFor();
     await expect(page).toHaveTitle("IeumDoc");
     await expect.poll(() => page.evaluate(() => (navigator as Navigator & { windowControlsOverlay: { visible: boolean } }).windowControlsOverlay.visible),
@@ -237,7 +237,7 @@ test("started without a document, it opens none; the sample opens with its figur
         // Wait for the appearance IPC, including the native color update, before OS sampling.
         await page.evaluate(() => {
           const style = getComputedStyle(document.documentElement);
-          return window.ieumdocDesktop!.setWindowBackground(style.getPropertyValue("--id-color-canvas").trim(), {
+          return window.litzioDesktop!.setWindowBackground(style.getPropertyValue("--id-color-canvas").trim(), {
             color: style.getPropertyValue("--id-color-surface-subtle").trim(), symbolColor: style.getPropertyValue("--id-color-text").trim(),
           });
         });
@@ -303,7 +303,7 @@ test("a .md argument opens; edits save to disk and reopen", async () => {
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.hide());
     await page.evaluate(() => {
       const style = getComputedStyle(document.documentElement);
-      return window.ieumdocDesktop!.setWindowBackground(style.getPropertyValue("--id-color-canvas").trim(), {
+      return window.litzioDesktop!.setWindowBackground(style.getPropertyValue("--id-color-canvas").trim(), {
         color: style.getPropertyValue("--id-color-surface-subtle").trim(), symbolColor: style.getPropertyValue("--id-color-text").trim(),
       });
     });
@@ -510,7 +510,7 @@ test("closing with unsaved changes asks; Keep editing keeps the window and the e
 
 test("the release channel persists across restarts; an update check never blocks editing", async () => {
   const userData = profile("settings");
-  const version = process.env.IEUMDOC_TEST_VERSION ?? JSON.parse(readFileSync(path.join(desktop, "package.json"), "utf8")).version as string;
+  const version = process.env.LITZIO_TEST_VERSION ?? JSON.parse(readFileSync(path.join(desktop, "package.json"), "utf8")).version as string;
   const initialChannel = version.includes("-beta.") ? "beta" : "stable";
   const selectedChannel = initialChannel === "beta" ? "stable" : "beta";
   const channelName = (channel: string) => channel === "beta" ? /^Beta/ : /^Stable/;
@@ -550,9 +550,9 @@ test("the release channel persists across restarts; an update check never blocks
 });
 
 test("a damaged update configuration leaves the Editor and Settings usable", {
-  skip: Boolean(process.env.IEUMDOC_DESKTOP_EXE) && "Fault injection is confined to the generated package",
+  skip: Boolean(process.env.LITZIO_DESKTOP_EXE) && "Fault injection is confined to the generated package",
 }, async () => {
-  // Only mutate this task's generated package, never an IEUMDOC_DESKTOP_EXE user installation.
+  // Only mutate this task's generated package, never an LITZIO_DESKTOP_EXE user installation.
   const generated = path.join(desktop, "release", "win-unpacked", "IeumDoc.exe");
   assert.equal(path.resolve(exe), generated, "configuration fault injection requires the generated test package");
   const config = path.join(path.dirname(exe), "resources", "app-update.yml");
@@ -566,7 +566,7 @@ test("a damaged update configuration leaves the Editor and Settings usable", {
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("button", { name: "About & updates", exact: true }).click();
     assert.equal(await page.getByTestId("app-version").isVisible(), true);
-    assert.equal(await page.evaluate(async () => (await window.ieumdocDesktop!.info()).updatesSupported), false);
+    assert.equal(await page.evaluate(async () => (await window.litzioDesktop!.info()).updatesSupported), false);
     await page.keyboard.press("Escape");
     assert.equal(await page.getByTestId("document-start").isVisible(), true);
   } finally {

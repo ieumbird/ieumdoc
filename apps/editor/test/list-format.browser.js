@@ -73,7 +73,7 @@ async (page, { openPath, expect, screenshots }) => {
     e.view.dom.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
     return html;
   });
-  expect(copied).toContain('data-ieumdoc-type="orderedList"');
+  expect(copied).toContain('data-litzio-type="orderedList"');
   const pasted = await json();
   expect(pasted.content[4].attrs).toMatchObject({ start: 3, style: 'lower-alpha', delimiter: ')' });
   expect(semantic(pasted.content[4].content)).toEqual(semantic(pasted.content[2].content));

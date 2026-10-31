@@ -17,8 +17,8 @@ requires its conditions and corresponding contract updates.
 
 ## Decision
 
-The first code module lives in `packages/docling` (`@ieumdoc/docling`), alongside
-the existing workspace packages. It depends on the public `@ieumdoc/core` API;
+The first code module lives in `packages/docling` (`@litzio/docling`), alongside
+the existing workspace packages. It depends on the public `@litzio/core` API;
 Core neither imports the module nor knows its source format or data. Document
 meaning, validation and canonical writing remain in Core, under
 [ADR-0002](0002-document-persistence-semantic-ownership.md).

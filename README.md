@@ -1,14 +1,14 @@
-# IeumDoc
+# Litzio
 
 > Document first. Semantics in Core. Interfaces replaceable.
 
-IeumDoc is a visual editor for structured technical documents, backed by a shared headless Core and Git-friendly plain text.
+Litzio is a visual editor for structured technical documents, backed by a shared headless Core and Git-friendly plain text.
 Currently available as a Windows Beta. The primary documentation is in Korean.
 
 표·수식·참조가 있는 기술문서를 시각적으로 작성하고, 사람이 읽을 수 있는 plain-text 파일로 Git에서 관리합니다. Editor와 CLI·자동화는 같은 Core로 문서를 읽고 수정합니다.
-**IeumDoc 네이티브 문서만 열 수 있으며, 일반 Markdown 편집기나 Import 도구는 아닙니다.** Windows x64 Beta 단계이고 Stable은 아직 없습니다. 공개 API와 문서 지원 범위는 바뀔 수 있습니다.
+**Litzio 네이티브 문서만 열 수 있으며, 일반 Markdown 편집기나 Import 도구는 아닙니다.** Windows x64 Beta 단계이고 Stable은 아직 없습니다. 공개 API와 문서 지원 범위는 바뀔 수 있습니다.
 
-![이음독 데모: 편집 화면에서 직접 입력과 제목 번호·인라인 수식, /수식으로 레이블·번호 (2) 지정, /다이어그램으로 Mermaid 원문 편집·실시간 미리보기·그림 1 캡션, 식 (2)·그림 1 상호참조 삽입, 소스 화면의 MyST 원문 확인](docs/design/assets/ieumdoc-demo.gif)
+![Litzio 데모: 편집 화면에서 직접 입력과 제목 번호·인라인 수식, /수식으로 레이블·번호 (2) 지정, /다이어그램으로 Mermaid 원문 편집·실시간 미리보기·그림 1 캡션, 식 (2)·그림 1 상호참조 삽입, 소스 화면의 MyST 원문 확인](docs/design/assets/ieumdoc-demo.gif)
 
 <a id="windows-desktop"></a>
 
@@ -31,12 +31,12 @@ Settings → About에서 버전·업데이트를 확인합니다. 업데이트 �
 
 ## 문서와 저장
 
-- **네이티브 편집과 텍스트 모드:** 구조화 편집에는 YAML frontmatter의 `ieumdoc: 1` 표식과 지원되는 본문이 모두 필요합니다. 미호환 `.md`와 `.txt`는 서식·미리보기 없는 텍스트 모드로 열며, 입력한 텍스트를 저장합니다. 네이티브 문서는 계속 Core의 검증·canonical 저장을 따릅니다. 일반 Markdown 자동 변환이나 Migration은 제공하지 않습니다([문서 지원 계약](docs/design/document-support-v1.md)).
+- **네이티브 편집과 텍스트 모드:** 구조화 편집에는 YAML frontmatter의 `litzio: 1` 표식과 지원되는 본문이 모두 필요합니다. 미호환 `.md`와 `.txt`는 서식·미리보기 없는 텍스트 모드로 열며, 입력한 텍스트를 저장합니다. 네이티브 문서는 계속 Core의 검증·canonical 저장을 따릅니다. 일반 Markdown 자동 변환이나 Migration은 제공하지 않습니다([문서 지원 계약](docs/design/document-support-v1.md)).
 - **Canonical 저장:** 의미를 검증한 Markdown/MyST를 UTF-8·LF로 저장합니다. 원래 formatting이나 바이트를 그대로 보존하는 계약은 아닙니다.
 - **명시적 저장과 로컬 복구:** 복구 기록은 원본과 분리된 미저장 작업의 사본이며 **자동 저장이 아닙니다**. 보관·복원 범위와 한계는 [세션·저장 계약](docs/design/editing-session-save-v1.md#local-recovery-records-296-pr2)을 따릅니다.
 - **파일과 assets:** 원본 `.md`가 저장의 기준입니다. 붙여넣기·drop한 이미지는 문서 옆 `assets/`에 저장되므로 문서와 함께 옮겨야 상대 경로가 유지됩니다([파일·asset 계약](docs/design/filesystem-host-boundary-v1.md#asset-host-contract-v1-59)).
 
-<a id="why-ieumdoc"></a>
+<a id="why-litzio"></a>
 <a id="current-capabilities"></a>
 <a id="project-status-and-non-goals"></a>
 
@@ -80,7 +80,7 @@ pnpm ieumdoc docling convert /path/to/document.json --output /path/to/new-folder
 문서를 수정할 때는 저장소 밖의 사본을 사용하세요. 단건 명령은 `help <command>`, 여러 수정은 [배치 예제](docs/design/filesystem-host-boundary-v1.md#cli-batch-application-215)를 참고합니다.
 `inspect`로 경로와 revision을 확인하고 [`--if-revision`](docs/design/filesystem-host-boundary-v1.md#cli-revision-precondition-214)으로 외부 변경을 보호하며, [`--dry-run`](docs/design/filesystem-host-boundary-v1.md#cli-dry-run-292)으로 쓰기 전에 확인할 수 있습니다. [버전 출력·Desktop CLI 설정](docs/design/desktop-distribution-v1.md#optional-command-line-tools-604)도 제공합니다.
 
-[Docling 변환](docs/design/docling-conversion-v1.md)은 DoclingDocument 1.10.0 문서 전체를 새 폴더의 이음독 문서·블록 대응표·이미지로 만듭니다. 변환하지 못한 요소와 장식 요소는 대응표에서 구분합니다.
+[Docling 변환](docs/design/docling-conversion-v1.md)은 DoclingDocument 1.10.0 문서 전체를 새 폴더의 Litzio 문서·블록 대응표·이미지로 만듭니다. 변환하지 못한 요소와 장식 요소는 대응표에서 구분합니다.
 
 <a id="standalone-http-editor"></a>
 

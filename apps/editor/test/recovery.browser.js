@@ -202,7 +202,7 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
   await page.getByRole('button',{name:'Review recovery'}).click();
   if(await compareButton.getAttribute('aria-expanded')==='true') await compareButton.click();
   // Reviewer regression: 50 changed code lines, 1000 words each (~337 KiB per side).
-  const largeSource = word => '---\nieumdoc: 1\n---\n\n```text\n' + Array(50).fill(Array.from({length:1000},(_,i)=>word+i).join(' ')).join('\n') + '\n```\n';
+  const largeSource = word => '---\nlitzio: 1\n---\n\n```text\n' + Array(50).fill(Array.from({length:1000},(_,i)=>word+i).join(' ')).join('\n') + '\n```\n';
   const largePair = {disk:{source:largeSource('old'),revision:first.snapshot.file.revision},markdown:largeSource('new')};
   const largePreview = route=>route.fulfill({json:largePair});
   await page.route(comparisonURL,largePreview);
@@ -355,7 +355,7 @@ async (page, { openPath, reloadDocument, activeDocument, screenshots = false }) 
   await page.getByRole('button',{name:'Review recovery'}).click();
   await page.getByRole('button',{name:'Compare',exact:true}).click(); await diffRegion().waitFor();
   await page.getByText(/^Plaintext comparison instead of Save preview:/).waitFor();
-  check(!(await diffRegion().innerText()).includes('ieumdoc:'),'Fallback compared Markdown to plaintext');
+  check(!(await diffRegion().innerText()).includes('litzio:'),'Fallback compared Markdown to plaintext');
   await page.getByRole('button',{name:'Restore work',exact:true}).click();
   await page.getByTestId('recovery-prompt').waitFor({state:'detached'});
   check(await engine(page).evaluate(n => n.editor.state.doc.firstChild.textContent === '' && [...n.editor.state.doc.content.content].some(node => node.type.name === 'figure' && !node.attrs.imagePath)), 'Unsaveable heading/pending Figure lost on restore');

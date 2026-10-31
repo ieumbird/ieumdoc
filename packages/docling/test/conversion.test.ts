@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
-import { getEditableDocument, parse, serialize, type EditableBlock } from "@ieumdoc/core";
+import { getEditableDocument, parse, serialize, type EditableBlock } from "@litzio/core";
 import { convertDoclingDocument, readDoclingMap } from "../src/index.ts";
 import type { Cell, SourceDocument, SourceItem } from "../src/source.ts";
-import profile from "../profiles/ieumdoc-pdf-en-v1.json" with { type: "json" };
+import profile from "../profiles/litzio-pdf-en-v1.json" with { type: "json" };
 
 const fixture = (name: string): string => readFileSync(new URL(`./fixtures/${name}/document.json`, import.meta.url), "utf8");
 const ref = (self_ref: string) => ({ $ref: self_ref });
@@ -40,7 +40,7 @@ for (const name of ["nist-sp1108r4", "synthetic"]) test(`${name}: whole saved Do
   const read = (file: string) => readFileSync(new URL(file, root));
   const digest = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
   const record = JSON.parse(read("conversion-record.json").toString("utf8"));
-  assert.equal(record.format, "ieumdoc-docling-conversion");
+  assert.equal(record.format, "litzio-docling-conversion");
   assert.equal(record.version, 1);
   assert.equal(record.status, "success");
   assert.deepEqual(record.profile, profile);
@@ -258,6 +258,6 @@ test("module imports only public Core API; Core never imports a module", () => {
     }
   }
   const manifest = JSON.parse(readFileSync(new URL("../../core/package.json", import.meta.url), "utf8"));
-  assert.equal(Object.hasOwn(manifest.dependencies, "@ieumdoc/docling"), false);
+  assert.equal(Object.hasOwn(manifest.dependencies, "@litzio/docling"), false);
   // Core's existing public-api test additionally checks every Core source import.
 });

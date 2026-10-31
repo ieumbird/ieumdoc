@@ -16,7 +16,7 @@ import { imageAssets } from "./image-assets.ts";
 import { ImageRenames } from "./image-rename.ts";
 import { MarkdownInputRules } from "./markdown-input-rules.ts";
 import StarterKit from "@tiptap/starter-kit";
-import { headingNumbers, type HeadingNumbering } from "@ieumdoc/core/numbering";
+import { headingNumbers, type HeadingNumbering } from "@litzio/core/numbering";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { CrossReference } from "./cross-reference.tsx";
 import { Endnotes } from "./endnotes.ts";
@@ -229,7 +229,7 @@ const SourcedCodeBlock = CodeBlockLowlight.extend({
     return ReactNodeViewRenderer(CodeBlockView);
   },
 }).configure({
-  // Stock lowlight auto-detects unknown languages; IeumDoc's fallback is literal plain code.
+  // Stock lowlight auto-detects unknown languages; Litzio's fallback is literal plain code.
   lowlight: { ...lowlight, highlightAuto: () => ({ children: [] }) },
   defaultLanguage: null, enableTabIndentation: true, tabSize: 4,
 });

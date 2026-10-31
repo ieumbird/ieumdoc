@@ -94,7 +94,7 @@ export function serialize(document: MystDocument): string {
   return markdown;
 }
 
-/** Write one flow node with myst-to-md, for a directive whose body IeumDoc writes itself. */
+/** Write one flow node with myst-to-md, for a directive whose body Litzio writes itself. */
 function render(value: MystNode): string {
   const file = new VFile();
   writeMd(file, { type: "root", children: [value] } as never);

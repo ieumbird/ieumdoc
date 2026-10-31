@@ -334,7 +334,7 @@ export function useFolderTrees(request: (root: string, path?: string) => Promise
       const tree = latest.current.find(item => item.root === root);
       if (tree) for (const path of knownFolders(tree)) if (tree.nodes.has(path)) load(root, path, true);
     },
-    /** Refresh loaded parents of a file/folder created by IeumDoc, without discovering children. */
+    /** Refresh loaded parents of a file/folder created by Litzio, without discovering children. */
     refreshParents(itemPath: string) {
       for (const tree of latest.current) for (const path of folderChain(tree.root, itemPath)) {
         if (tree.nodes.has(path)) load(tree.root, path, true);

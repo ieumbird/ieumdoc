@@ -1,5 +1,7 @@
 # Docling runtime spike
 
+당시 이름: 이음독(IeumDoc), 현재 Litzio
+
 - Status: Historical
 - Last verified: 2026-10-31 (branch-only experiment; measured results below).
 - Scope: `spike/docling-plugin-runtime`; owner-authorized experiment, no adoption or merge.

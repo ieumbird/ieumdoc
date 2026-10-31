@@ -1,6 +1,6 @@
 import { fakeDoclingServer } from "../helpers/docling-server.ts";
 import { uiPluginFixture } from "../helpers/ui-plugin.ts";
-import { citationReport, parse } from "@ieumdoc/core";
+import { citationReport, parse } from "@litzio/core";
 import { test as base, expect, chromium, type BrowserContext, type ConsoleMessage, type Page } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
@@ -17,10 +17,10 @@ import { recoveryRecords } from "./recovery-records.ts";
 import { inputEventScript } from "./input-event-script.ts";
 import { verifyBuiltAppearance } from "./desktop-appearance.ts";
 
-const url = process.env.IEUMDOC_BROWSER_URL ?? (process.env.IEUMDOC_BROWSER_HOST === "http" ? "http://127.0.0.1:5181" : "http://127.0.0.1:5173");
-const scenarios: string[] = process.env.IEUMDOC_BROWSER_SCENARIOS ? JSON.parse(process.env.IEUMDOC_BROWSER_SCENARIOS) : [...STABLE_SCENARIOS];
-const screenshots = process.env.IEUMDOC_BROWSER_SCREENSHOTS === "true";
-const channel = process.env.IEUMDOC_BROWSER_CHANNEL ?? (process.platform === "win32" ? "chrome" : undefined);
+const url = process.env.LITZIO_BROWSER_URL ?? (process.env.LITZIO_BROWSER_HOST === "http" ? "http://127.0.0.1:5181" : "http://127.0.0.1:5173");
+const scenarios: string[] = process.env.LITZIO_BROWSER_SCENARIOS ? JSON.parse(process.env.LITZIO_BROWSER_SCENARIOS) : [...STABLE_SCENARIOS];
+const screenshots = process.env.LITZIO_BROWSER_SCREENSHOTS === "true";
+const channel = process.env.LITZIO_BROWSER_CHANNEL ?? (process.platform === "win32" ? "chrome" : undefined);
 if (channel && channel !== "chrome" && channel !== "msedge") throw new Error("Unsupported browser channel");
 const profile = path.join(tmpdir(), "ieumdoc-browser-profile", createHash("sha256").update(REPOSITORY_ROOT).digest("hex").slice(0, 16) + (channel === "msedge" ? "-edge" : ""));
 
@@ -148,7 +148,7 @@ const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
       await page.evaluate(() => { document.querySelector<HTMLElement>('.document-scroll[data-active="true"]')?.scrollTo(0, 0); document.activeElement instanceof HTMLElement && document.activeElement.blur(); });
       await use(page);
     } finally {
-      const classification = classifyConsoleErrors(testInfo.title === "docling-server" && process.env.IEUMDOC_DOCLING_LIVE === "1" ? "docling-live" : testInfo.title, errors);
+      const classification = classifyConsoleErrors(testInfo.title === "docling-server" && process.env.LITZIO_DOCLING_LIVE === "1" ? "docling-live" : testInfo.title, errors);
       try {
         await finishScenarioDiagnostics(session, page, testInfo, { errors, ...classification });
       } finally {
@@ -166,7 +166,7 @@ const test = base.extend<{}, { session: BrowserContext; inputEvents: string }>({
 
 for (const name of scenarios) {
   test(name, async ({ page }) => {
-    const liveDocling = name === "docling-server" && process.env.IEUMDOC_DOCLING_LIVE === "1";
+    const liveDocling = name === "docling-server" && process.env.LITZIO_DOCLING_LIVE === "1";
     if (liveDocling) test.setTimeout(900_000);
     if (name === "desktop-updates") await verifyBuiltAppearance(page);
     const source = readFileSync(path.join(REPOSITORY_ROOT, "apps/editor/test", ...(liveDocling ? ["manual", "docling-live.js"] : [`${name}.browser.js`])), "utf8");

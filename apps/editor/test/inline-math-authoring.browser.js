@@ -282,7 +282,7 @@ async (page, { openPath, expect, screenshots }) => {
   await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   const saved = await markdown();
   result.canonicalMarkdown = saved === [
-    '---', 'ieumdoc: 1', '---', '',
+    '---', 'litzio: 1', '---', '',
     '# Math',
     '',
     'The current is $i_q$ and the voltage is **v\\_{dc}**. Done.',

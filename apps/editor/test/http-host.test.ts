@@ -10,7 +10,7 @@ import test, { type TestContext } from "node:test";
 import { documentRevision, loadDocumentFile } from "../server/document-api.ts";
 import { MAX_JSON_BYTES, startHttpHost } from "../server/http-host.ts";
 import { RootAccess } from "../server/file-access.ts";
-import { convertDoclingFile } from "@ieumdoc/docling";
+import { convertDoclingFile } from "@litzio/docling";
 
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
 
@@ -163,7 +163,7 @@ test("folder image preview is read-only, root bounded and isolated for GET, HEAD
 });
 
 async function fixture(t: TestContext, external?: string) {
-  const base = fs.mkdtempSync(path.join(tmpdir(), "ieumdoc-http-"));
+  const base = fs.mkdtempSync(path.join(tmpdir(), "litzio-http-"));
   const a = path.join(base, "문서 A"), b = path.join(base, "documents-B");
   const outside = path.join(base, "문서 A-other"), editorDir = path.join(base, "editor");
   for (const dir of [a, b, outside, editorDir]) fs.mkdirSync(dir);
@@ -443,7 +443,7 @@ test("HTTP bibliography route reads only admitted declarations within fixed Root
   const bib = "@standard{s,title={Standard},organization={Body},number={S-1},year={2024}}";
   fs.writeFileSync(path.join(a, "refs.bib"), bib);
   fs.writeFileSync(path.join(outside, "refs.bib"), "private");
-  fs.writeFileSync(file, "---\nieumdoc: 1\nbibliography: [../refs.bib, ../../outside.bib]\n---\n\n{cite}`s`\n");
+  fs.writeFileSync(file, "---\nlitzio: 1\nbibliography: [../refs.bib, ../../outside.bib]\n---\n\n{cite}`s`\n");
   const opened = await (await send(documentQuery(file))).json();
   const query = new URLSearchParams({ path: file, revision: opened.revision, root: outside, source: path.join(outside, "refs.bib") });
   const response = await send(`/api/bibliography?${query}`);
@@ -457,7 +457,7 @@ test("HTTP bibliography route reads only admitted declarations within fixed Root
   assert.equal((await send(`/api/bibliography?${new URLSearchParams({ path: path.join(a, "refs.bib"), revision: opened.revision })}`)).status, 400);
   // A second approved root is readable regardless of the supplied Sidebar context.
   fs.writeFileSync(path.join(b, "refs.bib"), bib);
-  fs.writeFileSync(file, `---\nieumdoc: 1\nbibliography: [../../documents-B/refs.bib]\n---\n\n{cite}\`s\`\n`);
+  fs.writeFileSync(file, `---\nlitzio: 1\nbibliography: [../../documents-B/refs.bib]\n---\n\n{cite}\`s\`\n`);
   const stale = await (await send(`/api/bibliography?${query}`)).json();
   assert.ok(stale.sources.every((s: { code: string }) => s.code === "bibliography-changed"));
   const refreshed = await (await send(documentQuery(file))).json();

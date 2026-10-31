@@ -32,7 +32,7 @@ async (page, { screenshots = false, openPath }) => {
     const calls = JSON.parse(sessionStorage.getItem('update-calls') || '[]');
     window.__desktop = {calls, info, push(state) { info.update = state; for (const listener of listeners) listener(state); }};
     window.__cli = {state:{status:'off'}, calls:[], pending:false, fail:false};
-    window.ieumdocDesktop = {
+    window.litzioDesktop = {
       setTheme: async theme => theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches),
       setWindowBackground: async (color, overlay) => { window.__desktop.appearance = { color, overlay }; },
       info: async () => ({...info}),

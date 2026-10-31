@@ -8,7 +8,7 @@
 ## Installation and API
 
 All Hosts running as one OS user share `~/.ieumdoc/plugins`.
-`IEUMDOC_PLUGINS_DIR` selects an isolated installation, including for tests.
+`LITZIO_PLUGINS_DIR` selects an isolated installation, including for tests.
 Use a local filesystem supporting SQLite locks; network shares and hostile
 mutation of this user-owned directory are outside the contract.
 

@@ -34,7 +34,7 @@ Implementation update (2026-10-23): units A, B and C are implemented in [Citatio
 
 `.md`는 인용의 키·순서·형태·파일 선언의 SSOT이고 `.bib`는 서지 항목의 외부 plain-text 원본이다. CSL-JSON, 번호, 렌더링 목록은 이 두 원본에서 재생성하며 저장하지 않는다. 같은 서지 항목을 Frontmatter나 Editor 저장소에 중복 보관하지 않는다. 이는 ADR-0002의 `.md` 중심 SSOT에 **명시적 외부 서지 의존성**을 추가하는 결정이다. 인용을 쓰는 문서의 완전한 전달 단위는 `.md`와 선언한 `.bib`이며, 이 범위 밖으로 ADR-0002를 확대하지 않는다.
 
-[Better BibTeX 자동 export 문서](https://retorque.re/zotero-better-bibtex/exporting/auto/)는 Zotero collection/library 변경을 export 파일에 반영하는 경로를 제공한다. 권고하는 연동은 사용자가 문서의 허용 폴더 안으로 export하는 방식이다. IeumDoc은 Zotero DB·API에 쓰거나 export 파일을 재정렬하지 않는다. 실제 Zotero export와 충돌·키 안정성은 이번에 시험하지 않았다.
+[Better BibTeX 자동 export 문서](https://retorque.re/zotero-better-bibtex/exporting/auto/)는 Zotero collection/library 변경을 export 파일에 반영하는 경로를 제공한다. 권고하는 연동은 사용자가 문서의 허용 폴더 안으로 export하는 방식이다. Litzio는 Zotero DB·API에 쓰거나 export 파일을 재정렬하지 않는다. 실제 Zotero export와 충돌·키 안정성은 이번에 시험하지 않았다.
 
 ### 2. 참조 선언과 Host 경계
 
@@ -42,7 +42,7 @@ Implementation update (2026-10-23): units A, B and C are implemented in [Citatio
 
 ```yaml
 ---
-ieumdoc: 1
+litzio: 1
 bibliography:
   - ../refs.bib
   - ../refs/standards.bib
@@ -159,7 +159,7 @@ JSON에는 기존 `validation`, `writeability`와 별도로 citation readiness�
 
 ### 7. Write path 범위
 
-**첫 범위에서 `.bib` 항목 추가·수정·삭제는 외부 도구가 담당한다. IeumDoc은 `.md`의 bibliography 선언과 인용만 쓴다.**
+**첫 범위에서 `.bib` 항목 추가·수정·삭제는 외부 도구가 담당한다. Litzio는 `.md`의 bibliography 선언과 인용만 쓴다.**
 
 Core에 선언 갱신, 인용 삽입·키/그룹 갱신·제거 연산을 두고, CLI 단일 명령·`apply-batch`는 같은 연산을 호출한다. 그 다음 Editor가 typed inline과 선택 UI로 연결한다. 정확한 함수·명령 이름은 구현 시 정하며 CLI parity는 생략하지 않는다.
 
@@ -212,7 +212,7 @@ Windows PowerShell 7.6, Node `24.21.0`, pnpm `12.5.1`. 저장소 파일을 바�
 
 17개 모두 upstream writer 메시지는 없었으며 두 번째 출력은 안정적이었다. 그 중 **5개는 첫 직렬화에서 의미를 잃었다**. 따라서 writer 경고 없음 또는 두 번 format의 idempotency만으로 보존을 증명할 수 없다. Core 내부 serializer는 이 5개를 `prefix/suffix/partial ... became (absent)`의 의미 손실로 거부했다. locator는 별도 typed `locator`가 아니라 `suffix` 문자열로 파싱되었다.
 
-현재 공개 네이티브 경계에서는 인용 17개 모두 `native-content: Unsupported native content: paragraph`로 거부됐다. `bibliography: [refs.bib]`와 일반 본문은 `native-metadata: Native frontmatter supports only ieumdoc and numbering`으로 거부됐다. 외부 `validateProjectFrontmatter`와 `validatePageFrontmatter`는 같은 bibliography 목록을 errors/warnings 없이 반환했다. 외부 validator 성공이 IeumDoc admission 성공은 아니다.
+현재 공개 네이티브 경계에서는 인용 17개 모두 `native-content: Unsupported native content: paragraph`로 거부됐다. `bibliography: [refs.bib]`와 일반 본문은 `native-metadata: Native frontmatter supports only ieumdoc and numbering`으로 거부됐다. 외부 `validateProjectFrontmatter`와 `validatePageFrontmatter`는 같은 bibliography 목록을 errors/warnings 없이 반환했다. 외부 validator 성공이 Litzio admission 성공은 아니다.
 
 **#327 근거와의 차이:** 기본 role·쉼표 다중 키·잘못 중첩한 locator의 관찰은 재현했다. 다만 “같은 원문으로 다시 쓴다”는 모든 형태에 성립하지 않는다. 다중 `{cite}`는 `{cite:t}`가 되고 공백·구분자가 정규화된다. 미확인 상태였던 대괄호 문법과 role의 중괄호 문법은 실제 prefix/suffix를 파싱하지만 writer에서 손실된다. 이는 parser가 locator 주변 문구를 전혀 표현하지 못한다는 주장과 다르다.
 

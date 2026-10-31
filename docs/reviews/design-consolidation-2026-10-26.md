@@ -1,5 +1,7 @@
 # Design consolidation: evidence and owner decisions
 
+당시 이름: 이음독(IeumDoc), 현재 Litzio
+
 - Status: Historical
 - Last verified: 2026-10-26; actual Windows Chrome computed-style audit and disposable same-state mockups on `48aabb312a0c8cb71c620747d5d25f370f2b7817`.
 - Scope: review / proposal for [#507](https://github.com/ieumbird/ieumdoc/issues/507), following [Discussion #318](https://github.com/ieumbird/ieumdoc/discussions/318). No product behavior or current contract is adopted by this record.

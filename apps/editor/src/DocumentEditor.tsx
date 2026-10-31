@@ -42,10 +42,10 @@ import { Extension, getSchema, type Editor } from "@tiptap/core";
 import { EditorContent, useEditor, useEditorState, type UseEditorOptions } from "@tiptap/react";
 import { Placeholder } from "@tiptap/extensions/placeholder";
 import { REFERENCE_STYLES, type ReferenceStyle } from "./reference-style.ts";
-import type { ReferenceTemplates } from "@ieumdoc/core/numbering";
-import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
-import { labelKey } from "@ieumdoc/core/label";
-import { LIST_STYLES, type EditableDocument, type ListStyle, type ListDelimiter } from "@ieumdoc/core";
+import type { ReferenceTemplates } from "@litzio/core/numbering";
+import { defaultHeadingNumbering } from "@litzio/core/numbering";
+import { labelKey } from "@litzio/core/label";
+import { LIST_STYLES, type EditableDocument, type ListStyle, type ListDelimiter } from "@litzio/core";
 import {
   DocumentPathContext,
   createEditorExtensions,
@@ -317,7 +317,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         }),
       ],
       content: restored?.editorDocument ?? projection,
-      // Only IeumDoc's Markdown shortcuts; they never drop typed text where a result is not allowed.
+      // Only Litzio's Markdown shortcuts; they never drop typed text where a result is not allowed.
       enableInputRules: [MARKDOWN_INPUT_RULES],
       onTransaction({ editor, transaction }) {
         // The final state includes appended transactions even when the root changed no content.

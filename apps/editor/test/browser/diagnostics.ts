@@ -47,7 +47,7 @@ export async function finishScenarioDiagnostics(
   };
   await capture("input-events", async () => {
     const history = await page.evaluate(() => {
-      const read = (window as typeof window & { __ieumdocInputEvents?: () => unknown }).__ieumdocInputEvents;
+      const read = (window as typeof window & { __litzioInputEvents?: () => unknown }).__litzioInputEvents;
       if (!read) throw new Error("Input event recorder unavailable in this document");
       return read();
     }).catch(error => ({ diagnosticError: String(error) }));

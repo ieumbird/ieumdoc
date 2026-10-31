@@ -26,7 +26,7 @@ export async function verifyBlockmap(installer: string, blockmap: string): Promi
   const { buildBlockMap } = builder("app-builder-lib/out/targets/blockmap/blockmap.js") as {
     buildBlockMap(input: string, format: "gzip", output: string): Promise<unknown>;
   };
-  const temp = mkdtempSync(path.join(os.tmpdir(), "ieumdoc-blockmap-"));
+  const temp = mkdtempSync(path.join(os.tmpdir(), "litzio-blockmap-"));
   try {
     const expected = path.join(temp, "expected.blockmap");
     await buildBlockMap(installer, "gzip", expected);

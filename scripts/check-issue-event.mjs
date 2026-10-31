@@ -1,6 +1,6 @@
 import { metadataChanges, validateIssue } from './issue-policy.mjs';
 
-const marker = '<!-- ieumdoc-issue-policy -->';
+const marker = '<!-- litzio-issue-policy -->';
 
 /** Called by github-script with trusted checked-out code; issue text is always data. */
 export async function checkIssueEvent({ github, context, core }) {

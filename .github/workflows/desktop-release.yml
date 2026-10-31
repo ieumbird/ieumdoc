@@ -69,7 +69,7 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     env:
-      IEUMDOC_BROWSER_SHARD: ${{ matrix.shard }}/4
+      LITZIO_BROWSER_SHARD: ${{ matrix.shard }}/4
     steps:
       - uses: actions/checkout@v7
         with:
@@ -96,8 +96,8 @@ jobs:
           fc-match :lang=ko
       - name: Full Editor browser regressions on the existing CI platform
         env:
-          IEUMDOC_BROWSER_SERVER_LOG: ${{ runner.temp }}/editor-vite.log
-        run: pnpm browser:test --shard="$IEUMDOC_BROWSER_SHARD"
+          LITZIO_BROWSER_SERVER_LOG: ${{ runner.temp }}/editor-vite.log
+        run: pnpm browser:test --shard="$LITZIO_BROWSER_SHARD"
       - name: Preserve browser failure diagnostics
         if: failure()
         uses: actions/upload-artifact@v6
@@ -132,24 +132,24 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - name: Stable install/update regression before the final package
-        run: pnpm --filter @ieumdoc/desktop test:update
+        run: pnpm --filter @litzio/desktop test:update
       - name: Beta install/update regression before the final package
         env:
-          IEUMDOC_TEST_UPDATE_CHANNEL: beta
-        run: pnpm --filter @ieumdoc/desktop test:update
+          LITZIO_TEST_UPDATE_CHANNEL: beta
+        run: pnpm --filter @litzio/desktop test:update
       - name: Build unsigned verification or Beta package
         if: inputs.mode != 'signed'
-        run: pnpm --filter @ieumdoc/desktop package
+        run: pnpm --filter @litzio/desktop package
       - name: Build signed public package
         if: inputs.mode == 'signed'
         shell: pwsh
         env:
-          IEUMDOC_RELEASE: '1'
+          LITZIO_RELEASE: '1'
           CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
         run: |
           if (-not $env:CSC_LINK) { throw 'WINDOWS_CSC_LINK is required for signed publication' }
-          pnpm --filter @ieumdoc/desktop package
+          pnpm --filter @litzio/desktop package
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify final artifacts, executable versions and required signatures
         shell: pwsh
@@ -157,12 +157,12 @@ jobs:
           RELEASE_TAG: ${{ inputs.tag }}
           RELEASE_MODE: ${{ inputs.mode }}
         run: |
-          $verifyArgs = @('--filter', '@ieumdoc/desktop', 'exec', 'tsx', 'scripts/verify-release.ts', '--tag', $env:RELEASE_TAG)
+          $verifyArgs = @('--filter', '@litzio/desktop', 'exec', 'tsx', 'scripts/verify-release.ts', '--tag', $env:RELEASE_TAG)
           if ($env:RELEASE_MODE -eq 'signed') { $verifyArgs += '--signed' }
           pnpm @verifyArgs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - run: pnpm --filter @ieumdoc/desktop test:packaged
-      - run: pnpm --filter @ieumdoc/desktop test:uninstall
+      - run: pnpm --filter @litzio/desktop test:packaged
+      - run: pnpm --filter @litzio/desktop test:uninstall
       - uses: actions/upload-artifact@v6
         with:
           name: desktop-release
@@ -212,5 +212,5 @@ jobs:
           TRUSTED_COMMIT: ${{ github.sha }}
           RELEASE_COMMIT: ${{ needs.preflight.outputs.commit }}
         run: |
-          pnpm --filter @ieumdoc/desktop exec tsx scripts/release.ts publish --tag $env:RELEASE_TAG --mode $env:RELEASE_MODE --trusted $env:TRUSTED_COMMIT --commit $env:RELEASE_COMMIT
+          pnpm --filter @litzio/desktop exec tsx scripts/release.ts publish --tag $env:RELEASE_TAG --mode $env:RELEASE_MODE --trusted $env:TRUSTED_COMMIT --commit $env:RELEASE_COMMIT
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

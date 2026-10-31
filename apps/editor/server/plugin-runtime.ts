@@ -3,8 +3,8 @@ import { createReadStream } from "node:fs";
 import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
-import type { ConversionJob, ConversionFailure, PdfProgress } from "@ieumdoc/docling/server-types";
-import type { ConversionExecutor, ConversionRequest } from "@ieumdoc/docling/server";
+import type { ConversionJob, ConversionFailure, PdfProgress } from "@litzio/docling/server-types";
+import type { ConversionExecutor, ConversionRequest } from "@litzio/docling/server";
 import { digest, PluginStore, requestUuid, type Receipt } from "./plugin-store.ts";
 import { INCOMPLETE } from "./plugin-output.ts";
 

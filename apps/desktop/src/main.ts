@@ -1,4 +1,4 @@
-// IeumDoc Desktop: one window with the Editor, the local Host behind `ieumdoc://app`, preferences
+// Litzio Desktop: one window with the Editor, the local Host behind `ieumdoc://app`, preferences
 // and updates. Documents are read and written only through the existing Host handlers.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync } from "node:fs";
 import path from "node:path";
@@ -19,7 +19,7 @@ import { CliIntegration } from "./cli-integration.ts";
 import { windowsEnvironment } from "./windows-environment.ts";
 
 /** Set by the release build: an update must carry the publisher signature the installed app names. */
-declare const __IEUMDOC_REQUIRE_SIGNED_UPDATES__: boolean;
+declare const __LITZIO_REQUIRE_SIGNED_UPDATES__: boolean;
 
 protocol.registerSchemesAsPrivileged([{ scheme: SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
 
@@ -89,7 +89,7 @@ function updatesUnsupported(updater: typeof electronUpdater.autoUpdater): string
     if (!parsed || Array.isArray(parsed) || parsed.provider !== "github" || parsed.owner !== RELEASE_REPOSITORY.owner || parsed.repo !== RELEASE_REPOSITORY.repo) {
       return "This build has an invalid update configuration.";
     }
-    if (__IEUMDOC_REQUIRE_SIGNED_UPDATES__) {
+    if (__LITZIO_REQUIRE_SIGNED_UPDATES__) {
       const names = typeof parsed?.publisherName === "string" ? [parsed.publisherName] : parsed?.publisherName;
       if (!Array.isArray(names) || !names.length || !names.every((name) => typeof name === "string" && name.trim())) {
         return "This build cannot verify who published an update, so it does not update itself.";
@@ -327,7 +327,7 @@ if (!app.requestSingleInstanceLock()) {
       cliIntegration = new CliIntegration(process.execPath, process.env.LOCALAPPDATA, windowsEnvironment());
     }
     const { autoUpdater } = electronUpdater;
-    if (__IEUMDOC_REQUIRE_SIGNED_UPDATES__ && autoUpdater instanceof electronUpdater.NsisUpdater) {
+    if (__LITZIO_REQUIRE_SIGNED_UPDATES__ && autoUpdater instanceof electronUpdater.NsisUpdater) {
       autoUpdater.verifyUpdateCodeSignature = verifyUpdateSignature;
     }
     autoUpdater.logger = { info: (m: unknown) => log(`updater: ${String(m)}`), warn: (m: unknown) => log(`updater warning: ${String(m)}`),
@@ -343,7 +343,7 @@ if (!app.requestSingleInstanceLock()) {
         writePreferences(preferencesFile(), next);
         preferences = next;
       },
-      ...(__IEUMDOC_REQUIRE_SIGNED_UPDATES__ ? { verifyDownloaded: async (files: unknown) => {
+      ...(__LITZIO_REQUIRE_SIGNED_UPDATES__ ? { verifyDownloaded: async (files: unknown) => {
         if (!Array.isArray(files) || files.length !== 1 || typeof files[0] !== "string") throw new Error("No verified installer was downloaded.");
         const config = loadYaml(readFileSync(path.join(process.resourcesPath, "app-update.yml"), "utf8")) as { publisherName?: unknown };
         const names = typeof config.publisherName === "string" ? [config.publisherName] : config.publisherName;

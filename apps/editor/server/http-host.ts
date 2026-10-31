@@ -1,4 +1,4 @@
-import { PLUGIN_UI } from "@document-plugins/api/config";
+import { PLUGIN_UI } from "@litzio/plugin-api/config";
 import { createDoclingHost } from "./docling.ts";
 import { randomBytes } from "node:crypto";
 import { realpathSync, statSync } from "node:fs";

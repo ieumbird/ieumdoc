@@ -1,19 +1,19 @@
 import os from "node:os";
 import path from "node:path";
-import { DoclingHost } from "@ieumdoc/docling/server";
+import { DoclingHost } from "@litzio/docling/server";
 import { accessPath, type FileAccess, LOCAL_FILE_ACCESS } from "./file-access.ts";
 
 import { fileURLToPath } from "node:url";
 import { PluginRuntime } from "./plugin-runtime.ts";
 
-declare const __IEUMDOC_DOCLING_DIRECTORY__: string;
+declare const __LITZIO_DOCLING_DIRECTORY__: string;
 export function bundledDoclingManifest() {
-  return fileURLToPath(new URL(`${typeof __IEUMDOC_DOCLING_DIRECTORY__ === "string" ? __IEUMDOC_DOCLING_DIRECTORY__ : "../../../tmp/docling-worker"}/manifest.json`, import.meta.url));
+  return fileURLToPath(new URL(`${typeof __LITZIO_DOCLING_DIRECTORY__ === "string" ? __LITZIO_DOCLING_DIRECTORY__ : "../../../tmp/docling-worker"}/manifest.json`, import.meta.url));
 }
-export function pluginsDirectory() { return process.env.IEUMDOC_PLUGINS_DIR ?? path.join(os.homedir(), ".ieumdoc", "plugins"); }
+export function pluginsDirectory() { return process.env.LITZIO_PLUGINS_DIR ?? path.join(os.homedir(), ".ieumdoc", "plugins"); }
 
 /** Host-user device setting: HTTP clients share the server account's configuration. */
-export function createDoclingHost(access: FileAccess = LOCAL_FILE_ACCESS, settingsFile = process.env.IEUMDOC_DOCLING_SETTINGS_FILE ?? path.join(os.homedir(), ".ieumdoc", "docling.json"), options?: { directory?: string; manifest?: string; timeoutMs?: number }) {
+export function createDoclingHost(access: FileAccess = LOCAL_FILE_ACCESS, settingsFile = process.env.LITZIO_DOCLING_SETTINGS_FILE ?? path.join(os.homedir(), ".ieumdoc", "docling.json"), options?: { directory?: string; manifest?: string; timeoutMs?: number }) {
   let runtime: PluginRuntime | undefined;
   let closed = false, closing: Promise<void> | undefined;
   const directory = options?.directory ?? pluginsDirectory();

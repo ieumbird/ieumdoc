@@ -14,7 +14,7 @@
 - Scope: Core-owned settings and Editor/CLI projection; [Native document support](document-support-v1.md).
 
 Core persists `numbering.headings: boolean` and `numbering.title: false` alongside
-`ieumdoc: 1`. Omitted numbering remains off. The optional frontmatter `title` is
+`litzio: 1`. Omitted numbering remains off. The optional frontmatter `title` is
 unnumbered. All body headings H1–H6 use the Core section counter policy: H1 `1`,
 H2 `1.1`, through H6, advancing/resetting by document order. Heading text never
 contains generated numbers. Custom starts, prefixes and per-level settings are
@@ -169,7 +169,7 @@ Core-computed number in an inline span, retaining its full text/accessibility la
 No punctuation, number/title spacing, font size/weight, editor selection/copy behavior,
 file content or section-reference display (`2절` / `Section 2`) changes. No gap styling
 is introduced: both surfaces retain their existing single U+0020 space. This is an
-IeumDoc display rule, like other Editor presentation rules: MyST renderers show the
+Litzio display rule, like other Editor presentation rules: MyST renderers show the
 numbers without this color. Core and CLI are unchanged; no semantic operation or CLI
 command is needed.
 
@@ -265,10 +265,10 @@ contract](table-caption-v1.md) defines GFM input normalization to numbered direc
 
 This intentionally differs from MyST: installed `myst-transforms` 1.3.51 `getCaptionLabel`
 uses `getDefaultNumberedReferenceTemplate(kind)` (for example `Figure %s:`), ignoring the
-document's reference template. IeumDoc follows the document template and retains its own
+document's reference template. Litzio follows the document template and retains its own
 existing separator. Equation right-side numbers remain `(N)`.
 MyST assigns an enumerator to an empty-caption `{table}` container but only inserts a
-visible caption-number node when caption content exists. IeumDoc's always available
+visible caption-number node when caption content exists. Litzio's always available
 caption surface displays the official number in either state, as for empty Figures.
 
 Implementation scope: Editor caption prefixes, block metadata and numbered properties

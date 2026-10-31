@@ -607,7 +607,7 @@ async (page, { showNotifications, openDocument }) => {
   const beforeBreak = semantic(await doc());
   await page.locator('[data-document-tab][data-active=true] .document-editor').evaluate(el => {
     const data = new DataTransfer();
-    data.setData('text/html', '<h2 data-ieumdoc-type="heading" data-ieumdoc-attrs="{&quot;level&quot;:2}">A<br data-ieumdoc-type="hardBreak" data-ieumdoc-attrs="{}">B</h2>');
+    data.setData('text/html', '<h2 data-litzio-type="heading" data-litzio-attrs="{&quot;level&quot;:2}">A<br data-litzio-type="hardBreak" data-litzio-attrs="{}">B</h2>');
     el.dispatchEvent(new ClipboardEvent('paste', {clipboardData:data, bubbles:true, cancelable:true}));
   });
   assert(semantic(await doc()) === beforeBreak, 'A heading with a line break must not be pasted');

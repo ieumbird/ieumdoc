@@ -1,6 +1,6 @@
 import { readBibliographySources } from "./bibliography.ts";
 import { loadDoclingComparison } from "./docling-compare.ts";
-import { PLUGIN_UI } from "@document-plugins/api/config";
+import { PLUGIN_UI } from "@litzio/plugin-api/config";
 import type { createDoclingHost } from "./docling.ts";
 import { MAX_ASSET_BYTES } from "../shared/asset-policy.ts";
 import { ImageValidationError, validateImage } from "./image-validation.ts";
@@ -8,8 +8,8 @@ import fs, { readFileSync, statSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { createDocument, hasNativeMarker, serialize, NativeDocumentError, writeIssueOf } from "@ieumdoc/core";
-import { assertUnicode, commitFile, decodeUtf8, FileChangedError, textRevision } from "@ieumdoc/file-commit";
+import { createDocument, hasNativeMarker, serialize, NativeDocumentError, writeIssueOf } from "@litzio/core";
+import { assertUnicode, commitFile, decodeUtf8, FileChangedError, textRevision } from "@litzio/file-commit";
 import { accessPath, FileAccessError, fileErrorMessage, fileErrorStatus, LOCAL_FILE_ACCESS, type FileAccess } from "./file-access.ts";
 import { readRequestBody, RequestBodyError } from "./request-body.ts";
 import { requestQuery } from "./request-query.ts";
@@ -517,7 +517,7 @@ const entryOrder = new Intl.Collator(undefined, { numeric: true });
  * One level of a folder the user chose. Regular folders and files of every extension are listed:
  * hidden entries and symlinks are left out, and a requested folder must stay inside the chosen
  * one, symlinks resolved. Each document says whether its leading frontmatter carries the native
- * marker, so the tree can set apart files IeumDoc will not open. Nothing is remembered between requests.
+ * marker, so the tree can set apart files Litzio will not open. Nothing is remembered between requests.
  */
 export function listFolder(requestedRoot: string | undefined, requestedPath?: string, access: FileAccess = LOCAL_FILE_ACCESS): FolderResponse {
   if (!requestedRoot?.trim()) throw new Error("folder path is required");
@@ -531,7 +531,7 @@ export function listFolder(requestedRoot: string | undefined, requestedPath?: st
   return { ...listed, entries: listed.entries.map(entry => entry.kind === "document" ? withNativeMarker(entry) : entry) };
 }
 
-// Native frontmatter holds only `ieumdoc` and `numbering`, so its start is enough to find the marker.
+// Native frontmatter holds only `litzio` and `numbering`, so its start is enough to find the marker.
 const MARKER_PREFIX_BYTES = 4096;
 
 /** Reads the start of a listed document for its marker; an unreadable file stays unmarked either way. */

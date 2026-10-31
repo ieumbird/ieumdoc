@@ -1,4 +1,4 @@
-# IeumDoc Test Guide
+# Litzio Test Guide
 
 [검증 진입점](README.md) · [준비](#준비) · [자동 검증](#자동-검증) · [Browser regression](#browser-regression) · [CI](#ci) · [사람이 직접 볼 것](#사람이-직접-볼-것)
 
@@ -29,7 +29,7 @@ Windows에서 전역 pnpm shim이 실패하면 같은 버전의 `corepack pnpm`�
 pnpm docs:check
 pnpm typecheck
 pnpm test                                  # Core, File commit, CLI, Editor, Desktop
-pnpm --filter @ieumdoc/editor build
+pnpm --filter @litzio/editor build
 ```
 
 전체 quality CI에서는 `pnpm test`가 Core, File commit, CLI, Editor, Desktop suite를 모두 통과해야 한다. 문서 전용 PR은 아래 [CI](#ci)의 문서·정책 검사만 실행한다. 개별 테스트 개수와 이름은 계약이 아니며 package scripts와 test runner가 source of truth다.
@@ -51,16 +51,16 @@ pnpm browser:prepare                       # 수동 검토용 scratch 사본만 
 - 파일을 쓰는 시나리오는 저장소의 무시되는 `tmp/<시나리오>/` scratch 사본에서만 실행한다. 원본(`apps/editor/document/`, `apps/editor/test/browser/fixtures/`)이 바뀌면 실패한다. 어떤 사본을 만드는지는 `apps/editor/test/browser/fixtures.ts`에 있다.
 - stable 목록은 `apps/editor/test/browser/scenarios.ts`의 `STABLE_SCENARIOS`다.
 - Playwright Test worker가 `launchPersistentContext`로 checkout별 재사용 프로필을 연다. 새 프로필 Chrome 반복 실행 금지와 cleanup은 [Windows browser automation](../contributing/windows-browser-automation.md)을 따른다.
-- 같은 checkout에서 `browser:test`를 동시에 여러 개 실행하지 않는다. 다른 checkout의 dev server를 쓰려면 빈 포트에 띄우고 `IEUMDOC_BROWSER_URL`을 지정한다.
+- 같은 checkout에서 `browser:test`를 동시에 여러 개 실행하지 않는다. 다른 checkout의 dev server를 쓰려면 빈 포트에 띄우고 `LITZIO_BROWSER_URL`을 지정한다.
 - Windows는 설치형 Chrome을 사용한다. 다른 OS의 로컬 실행에서는 처음 한 번 `pnpm exec playwright install chromium`을 실행한다. Linux CI는 [CONTRIBUTING의 컨테이너 설정](../../CONTRIBUTING.md#verification-matrix)에 따라 공식 Noble 이미지를 OS 의존성에만 사용하고, 고정 alpha Chromium을 별도 캐시에 설치한다(`--with-deps` 없음, 설치 제한 2분).
-- 기본 URL의 서버가 없으면 Playwright `webServer`가 시작/종료한다. 로컬의 기존 서버와 `IEUMDOC_BROWSER_URL` 서버는 그대로 유지한다.
+- 기본 URL의 서버가 없으면 Playwright `webServer`가 시작/종료한다. 로컬의 기존 서버와 `LITZIO_BROWSER_URL` 서버는 그대로 유지한다.
 - `@playwright/cli`는 직접 디버깅용으로 유지하며 `open --persistent`를 사용한다. 정식 runner는 CLI 출력 형식을 파싱하지 않는다.
 
 ### CI
 
 CI 선택·필수 성공 조건은 [CONTRIBUTING Verification matrix](../../CONTRIBUTING.md#verification-matrix)와 [ci.yml](../../.github/workflows/ci.yml)을 따른다. quality의 정책·문서 검사는 항상 실행한다. PR과 merge group은 같은 변경 경로 규칙을 사용하며 group 전체 base..head diff를 검사한다. 선택된 job은 성공해야 하며 미선택 job만 skipped를 허용한다. master push는 같은 SHA의 성공한 merge_group CI가 확인되면 제품 검사를 생략하고 OS별 의존성·Linux Chromium 캐시를 갱신한다. 성공 기록이나 diff/API 확인이 없으면 전체 실행한다. Desktop 설치·업데이트·삭제는 기존 `update` 선택 조건을 따른다.
 
-문서 전용 PR/group의 quality는 문서/checker tests·diff/whitespace·issue 정책·AI provenance·CI 경로 분류 회귀를 실행하고 제품 단위 테스트·typecheck·Editor build를 생략한다. [quality 분류 테스트](../../scripts/ci-quality-mode.test.mjs)와 [실행 정책 테스트](../../scripts/ci-execution-policy.test.mjs)가 event payload와 실제 Git diff를 검사한다. `pnpm --filter @ieumdoc/core test:smartquotes`는 기본 suite 밖의 의존성 패치 검사로 MyST·patch·lockfile·parser 경로 변경 시 실행한다. browser가 선택되면 4개 shard의 stable 시나리오 합집합이 전체 목록과 같고 중복이 없어야 한다. 배정은 runner 로그와 기존 browser-fixtures 테스트로 확인한다.
+문서 전용 PR/group의 quality는 문서/checker tests·diff/whitespace·issue 정책·AI provenance·CI 경로 분류 회귀를 실행하고 제품 단위 테스트·typecheck·Editor build를 생략한다. [quality 분류 테스트](../../scripts/ci-quality-mode.test.mjs)와 [실행 정책 테스트](../../scripts/ci-execution-policy.test.mjs)가 event payload와 실제 Git diff를 검사한다. `pnpm --filter @litzio/core test:smartquotes`는 기본 suite 밖의 의존성 패치 검사로 MyST·patch·lockfile·parser 경로 변경 시 실행한다. browser가 선택되면 4개 shard의 stable 시나리오 합집합이 전체 목록과 같고 중복이 없어야 한다. 배정은 runner 로그와 기존 browser-fixtures 테스트로 확인한다.
 
 Playwright가 browser job의 dev server와 browser 수명을 관리하며 실패 진단과 서버 로그를 artifact로 보존한다.
 

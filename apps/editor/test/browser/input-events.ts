@@ -100,7 +100,7 @@ new MutationObserver(records => {
       (node.matches(".document-editor, [data-document-tab]") || node.querySelector(".document-editor"))))) discover();
 }).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-active"] });
 
-Object.assign(window, { __ieumdocInputEvents: () => ({
+Object.assign(window, { __litzioInputEvents: () => ({
   version: 1, startedAt, capacity, total, dropped: Math.max(0, total - capacity),
   events: Array.from({ length: Math.min(total, capacity) }, (_, index) => events[(Math.max(0, total - capacity) + index) % capacity]),
 }) });

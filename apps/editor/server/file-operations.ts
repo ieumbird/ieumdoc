@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { assertUnicode, commitFile, FileChangedError, preflightFileCommit, textRevision } from "@ieumdoc/file-commit";
-import { parse, serialize, updateMediaReferences } from "@ieumdoc/core";
+import { assertUnicode, commitFile, FileChangedError, preflightFileCommit, textRevision } from "@litzio/file-commit";
+import { parse, serialize, updateMediaReferences } from "@litzio/core";
 import { validFileStem, type FileOperationRequest, type RenameFileRequest, type FileOperationResponse } from "../shared/file-operations.ts";
 import { accessPath, FileAccessError, inside, LOCAL_FILE_ACCESS, RootAccess, type FileAccess } from "./file-access.ts";
 import { loadDocumentFile, MEDIA_TYPES } from "./document-api.ts";

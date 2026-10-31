@@ -1,7 +1,7 @@
 import type { Editor } from "@tiptap/core";
 import { DOMSerializer, type Node as ProseMirrorNode } from "@tiptap/pm/model";
-import type { ReferenceRole } from "@ieumdoc/core";
-import { citationText } from "@ieumdoc/core/citation";
+import type { ReferenceRole } from "@litzio/core";
+import { citationText } from "@litzio/core/citation";
 import { useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { BibliographyReferenceText } from "./BibliographyReferenceText.tsx";

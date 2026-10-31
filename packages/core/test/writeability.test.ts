@@ -111,12 +111,12 @@ test("preflight follows the current snapshot through Core operations", () => {
 
 
 test("Core refusals expose stable codes through operation and cause wrappers", async () => {
-  const core = await import("@ieumdoc/core");
-  const native = (body: string) => core.parse(`---\nieumdoc: 1\n---\n\n${body}`);
+  const core = await import("@litzio/core");
+  const native = (body: string) => core.parse(`---\nlitzio: 1\n---\n\n${body}`);
   const document = native("# Title\n\nBody.\n\n| H |\n|---|\n| Cell |\n");
   const cases: [string, () => unknown][] = [
     ["native-marker", () => core.parse("# Title\n")],
-    ["native-metadata", () => core.parse("---\nieumdoc: 1\nunknown: true\n---\n")],
+    ["native-metadata", () => core.parse("---\nlitzio: 1\nunknown: true\n---\n")],
     ["native-content", () => native("<div>HTML</div>\n")],
     ["invalid-structure", () => core.validateStructure({} as never)],
     ["invalid-operation", () => core.removeBlock(document, 0)],

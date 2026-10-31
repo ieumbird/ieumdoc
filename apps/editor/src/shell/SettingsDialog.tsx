@@ -1,4 +1,4 @@
-import { DoclingServerSettings } from "@ieumdoc/docling/server-ui";
+import { DoclingServerSettings } from "@litzio/docling/server-ui";
 import { Input } from "@/components/ui/input.tsx";
 import type { MessageKey } from "../i18n.ts";
 import { openExternalLink } from "../link-opening.ts";

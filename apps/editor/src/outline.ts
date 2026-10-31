@@ -1,4 +1,4 @@
-import { captionNumberText, headingNumbers, type HeadingNumbering } from "@ieumdoc/core/numbering";
+import { captionNumberText, headingNumbers, type HeadingNumbering } from "@litzio/core/numbering";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { blockNumbers, captionPrefixText } from "./cross-reference.tsx";
 

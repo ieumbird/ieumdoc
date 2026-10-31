@@ -16,7 +16,7 @@ async (page, { openDocument, withBlockHover }) => {
     if (response.status() !== 200) throw new Error(`Prepare ${file} first`);
     return (await response.text()).replaceAll('\r\n', '\n');
   };
-  const fresh = '---\nieumdoc: 1\n---\n\n# Lists\n\nIntro paragraph.\n\n- Wire\n- Power\n\nDone.\n';
+  const fresh = '---\nlitzio: 1\n---\n\n# Lists\n\nIntro paragraph.\n\n- Wire\n- Power\n\nDone.\n';
   if (await markdown() !== fresh) throw new Error('Scratch document is not a fresh list fixture');
 
   const openScratch = async () => {
@@ -97,7 +97,7 @@ async (page, { openDocument, withBlockHover }) => {
   }
   const saved = await markdown();
   const expected = [
-    '---', 'ieumdoc: 1', '---', '',
+    '---', 'litzio: 1', '---', '',
     '# Lists',
     '',
     'Intro paragraph.',

@@ -82,10 +82,10 @@ async page => {
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   const empty = await read();
-  check(empty.source === created.source && empty.source.trim() === '---\nieumdoc: 1\n---' && empty.document.blocks.length === 0,
+  check(empty.source === created.source && empty.source.trim() === '---\nlitzio: 1\n---' && empty.document.blocks.length === 0,
     'An empty Save changed the canonical empty file or wrote placeholder content');
   await page.getByRole('button', {name:'Source', exact:true}).click();
-  check((await page.locator('.source-view-text').innerText()).trim() === '---\nieumdoc: 1\n---', 'The hint leaked into Source');
+  check((await page.locator('.source-view-text').innerText()).trim() === '---\nlitzio: 1\n---', 'The hint leaked into Source');
   await page.getByRole('button', {name:'Edit', exact:true}).click();
 
   // Width/alignment and Wide preferences are covered by layout-rules. Here the empty surface
@@ -139,7 +139,7 @@ async page => {
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   const written = await read();
-  check(written.source === '---\nieumdoc: 1\n---\n\nBrowser-created paragraph\n', 'Save did not write only the entered text');
+  check(written.source === '---\nlitzio: 1\n---\n\nBrowser-created paragraph\n', 'Save did not write only the entered text');
   await page.getByRole('button', {name:'File actions', exact:true}).click();
   await page.getByRole('menuitem', {name:'Reload', exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'detached'});
@@ -182,7 +182,7 @@ async page => {
   check(scrolledEnd.below >= scrolledEnd.end - 1, `No room below the last line: ${JSON.stringify(scrolledEnd)}`);
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
-  check((await read()).source.trimEnd() === '---\nieumdoc: 1\n---\n\n' + ['Browser-created paragraph', ...lines].join('\n\n'),
+  check((await read()).source.trimEnd() === '---\nlitzio: 1\n---\n\n' + ['Browser-created paragraph', ...lines].join('\n\n'),
     'The end space changed the saved document');
   // New opens a second session without saving or discarding the dirty first document.
   await editor.locator('p').last().click();
@@ -220,7 +220,7 @@ async page => {
   await page.locator('[data-testid="status"][data-operation="saved"]').waitFor({state:'attached'});
   const secondFile = [folder, 'second-document.md'].join(sep);
   const titleSaved = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(secondFile)}`)).json();
-  check(titleSaved.source === '---\nieumdoc: 1\ntitle: Field notes\n---\n\nFirst paragraph\n',
+  check(titleSaved.source === '---\nlitzio: 1\ntitle: Field notes\n---\n\nFirst paragraph\n',
     'Title Enter did not save the title and the paragraph entered at its caret');
   check((await read()).source === diskBeforeNew, 'New silently saved the first document');
   await page.getByRole('tab', {name:'new-document.md, Unsaved changes',exact:true}).click();

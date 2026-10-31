@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import * as core from "@ieumdoc/core";
+import * as core from "@litzio/core";
 import { semanticFingerprint } from "../src/myst/fingerprint.ts";
 import {
   getEditableDocument,
@@ -25,7 +25,7 @@ const inlineOnlyItems: { source: string; content: InlineContent[]; definitions?:
 
 test("native lists admit citation-only and footnote-only items, including nested lists", () => {
   for (const { source, content, definitions = "" } of inlineOnlyItems) {
-    const document = core.parse(`---\nieumdoc: 1\n---\n\n- ${source}\n  - ${source}\n${definitions}`);
+    const document = core.parse(`---\nlitzio: 1\n---\n\n- ${source}\n  - ${source}\n${definitions}`);
     const list: ListContent = { ordered: false, items: [{ content, list: { ordered: false, items: [{ content }] } }] };
     assert.deepEqual(core.getEditableDocument(document).blocks[0], { block: "list", path: [1], ...list });
     const markdown = core.serialize(core.updateList(document, [1], list));
@@ -36,7 +36,7 @@ test("native lists admit citation-only and footnote-only items, including nested
 
 test("removing list text preserves the remaining citation or footnote through native Save and reopen", () => {
   for (const { source, content, definitions = "" } of inlineOnlyItems) {
-    const document = core.parse(`---\nieumdoc: 1\n---\n\n- X${source}\n${definitions}`);
+    const document = core.parse(`---\nlitzio: 1\n---\n\n- X${source}\n${definitions}`);
     const list: ListContent = { ordered: false, items: [{ content }] };
     const markdown = core.serialize(core.updateList(document, [1], list));
     const reparsed = core.parse(markdown);
@@ -46,7 +46,7 @@ test("removing list text preserves the remaining citation or footnote through na
 });
 
 test("list operations allow new endnote references before definitions are supplied", () => {
-  const document = core.parse("---\nieumdoc: 1\n---\n\n- Original.\n\nAfter.\n");
+  const document = core.parse("---\nlitzio: 1\n---\n\n- Original.\n\nAfter.\n");
   const original = core.serialize(document);
   const list: ListContent = { ordered: false, items: [
     { content: [{ kind: "citation", role: "cite:p", keys: ["Alpha"] }] },
@@ -182,7 +182,7 @@ test("canonical writer preserves adjacent list siblings inside a list item witho
     assert.doesNotMatch(markdown, /<!--/);
     assert.equal(parse(markdown).children[0].children?.[0].children?.filter(node => node.type === "list").length, 3);
     assert.equal(serialize(parse(markdown)), markdown);
-    assert.throws(() => core.parse(`---\nieumdoc: 1\n---\n\n${markdown}`), /unsupported|not supported/i);
+    assert.throws(() => core.parse(`---\nlitzio: 1\n---\n\n${markdown}`), /unsupported|not supported/i);
   }
 });
 

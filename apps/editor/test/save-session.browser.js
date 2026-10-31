@@ -315,7 +315,7 @@ async (page, { openDocument, waitForActivePath, reloadDocument }) => {
   // delayed acknowledgement. The existing footnote fixture has only valid references/definitions.
   const notes = [root, 'tmp', 'footnotes', 'sections.md'].join(separator);
   const opening = await read(notes);
-  const canonical = '---\nieumdoc: 1\n---\n\n# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n## Section B\n\n' +
+  const canonical = '---\nlitzio: 1\n---\n\n# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n## Section B\n\n' +
     'Another paragraph[^b].\n\n[^b]: First note.\n\n[^a]: Second note.\n';
   await open(notes);
   check('endnoteOpenKeepsSourceAndRevision', (await read(notes)).source === opening.source &&

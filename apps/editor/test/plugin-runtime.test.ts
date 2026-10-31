@@ -23,7 +23,7 @@ import { handleDocumentRequest } from "../server/document-api.ts";
 import { startHttpHost } from "../server/http-host.ts";
 import { listenForFetch } from "../../../test/helpers/fetch-server.ts";
 
-const fixture = mkdtempSync(path.join(tmpdir(), "ieumdoc-worker-tests-"));
+const fixture = mkdtempSync(path.join(tmpdir(), "litzio-worker-tests-"));
 const bundled = path.join(fixture, "bundled");
 before(() => buildDoclingWorker(bundled));
 after(() => rmSync(fixture, { recursive: true, force: true }));
@@ -49,7 +49,7 @@ async function kill(process: ChildProcess) {
 
 test("readable document endpoints do not require listing an ancestor outside the allowed Root", async t => {
   const parent = directory("unlistable-parent"), allowed = path.join(parent, "allowed"); mkdirSync(allowed);
-  const document = path.join(allowed, "document.md"), source = "---\nieumdoc: 1\n---\n\nReadable without listing its ancestor.\n";
+  const document = path.join(allowed, "document.md"), source = "---\nlitzio: 1\n---\n\nReadable without listing its ancestor.\n";
   writeFileSync(document, source);
   const staging = path.join(allowed, ".ieumdoc-plugin-private"); mkdirSync(staging);
   writeFileSync(path.join(staging, "document.md"), source);
@@ -85,7 +85,7 @@ test("readable document endpoints do not require listing an ancestor outside the
 test("private staging document endpoints reject filesystem aliases without hiding ordinary siblings", async t => {
   const root = directory("private-aliases"), staging = path.join(root, ".ieumdoc-plugin-private");
   mkdirSync(staging);
-  const source = "---\nieumdoc: 1\n---\n\nPrivate staging text.\n";
+  const source = "---\nlitzio: 1\n---\n\nPrivate staging text.\n";
   writeFileSync(path.join(staging, "document.md"), source);
   const ordinary = path.join(root, "ordinary"); mkdirSync(ordinary);
   writeFileSync(path.join(ordinary, "document.md"), source);
@@ -125,13 +125,13 @@ test("closing a fresh HTTP Host rejects a first conversion whose body finishes a
   const store = new PluginStore(plugins); store.register(path.join(bundled, "manifest.json")); store.close();
   const fake = await fakeDoclingServer(); fake.mode("pending");
   writeFileSync(settings, JSON.stringify({ server: fake.url }));
-  const previous = { plugins: process.env.IEUMDOC_PLUGINS_DIR, settings: process.env.IEUMDOC_DOCLING_SETTINGS_FILE };
-  process.env.IEUMDOC_PLUGINS_DIR = plugins; process.env.IEUMDOC_DOCLING_SETTINGS_FILE = settings;
+  const previous = { plugins: process.env.LITZIO_PLUGINS_DIR, settings: process.env.LITZIO_DOCLING_SETTINGS_FILE };
+  process.env.LITZIO_PLUGINS_DIR = plugins; process.env.LITZIO_DOCLING_SETTINGS_FILE = settings;
   let host: Awaited<ReturnType<typeof startHttpHost>>;
   try { host = await startHttpHost({ roots: [root], editorDir: root, port: 0 }); }
   finally {
-    if (previous.plugins === undefined) delete process.env.IEUMDOC_PLUGINS_DIR; else process.env.IEUMDOC_PLUGINS_DIR = previous.plugins;
-    if (previous.settings === undefined) delete process.env.IEUMDOC_DOCLING_SETTINGS_FILE; else process.env.IEUMDOC_DOCLING_SETTINGS_FILE = previous.settings;
+    if (previous.plugins === undefined) delete process.env.LITZIO_PLUGINS_DIR; else process.env.LITZIO_PLUGINS_DIR = previous.plugins;
+    if (previous.settings === undefined) delete process.env.LITZIO_DOCLING_SETTINGS_FILE; else process.env.LITZIO_DOCLING_SETTINGS_FILE = previous.settings;
   }
   t.after(async () => { await host.close(); await fake.close(); });
   const receiving = Promise.withResolvers<void>();
@@ -293,11 +293,11 @@ test("Desktop registration is used by an independent serve; UUID conflict, disab
   const manifest = path.join(custom, "manifest.json");
   writeFileSync(manifest, JSON.stringify({ id: "docling", version: "shared-test", workerApi: 1, entry: "worker.cjs" }));
   writeFileSync(path.join(root, "index.html"), "<!doctype html><title>test</title>");
-  const previousPlugins = process.env.IEUMDOC_PLUGINS_DIR, previousSettings = process.env.IEUMDOC_DOCLING_SETTINGS_FILE;
-  process.env.IEUMDOC_PLUGINS_DIR = plugins; process.env.IEUMDOC_DOCLING_SETTINGS_FILE = settings;
+  const previousPlugins = process.env.LITZIO_PLUGINS_DIR, previousSettings = process.env.LITZIO_DOCLING_SETTINGS_FILE;
+  process.env.LITZIO_PLUGINS_DIR = plugins; process.env.LITZIO_DOCLING_SETTINGS_FILE = settings;
   const desktop = createProtocolHandler(root, { samples: {} as any });
-  if (previousPlugins === undefined) delete process.env.IEUMDOC_PLUGINS_DIR; else process.env.IEUMDOC_PLUGINS_DIR = previousPlugins;
-  if (previousSettings === undefined) delete process.env.IEUMDOC_DOCLING_SETTINGS_FILE; else process.env.IEUMDOC_DOCLING_SETTINGS_FILE = previousSettings;
+  if (previousPlugins === undefined) delete process.env.LITZIO_PLUGINS_DIR; else process.env.LITZIO_PLUGINS_DIR = previousPlugins;
+  if (previousSettings === undefined) delete process.env.LITZIO_DOCLING_SETTINGS_FILE; else process.env.LITZIO_DOCLING_SETTINGS_FILE = previousSettings;
   const fake = await fakeDoclingServer();
   let serve: ChildProcess | undefined;
   t.after(async () => { await desktop.close(); if (serve) await kill(serve); await fake.close(); });
@@ -305,7 +305,7 @@ test("Desktop registration is used by an independent serve; UUID conflict, disab
     ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }) }));
   assert.equal((await send("worker-plugins", "POST", { manifest })).status, 200);
   await send("docling-settings", "PUT", { server: fake.url });
-  const env = { ...process.env, IEUMDOC_PLUGINS_DIR: plugins, IEUMDOC_DOCLING_SETTINGS_FILE: settings };
+  const env = { ...process.env, LITZIO_PLUGINS_DIR: plugins, LITZIO_DOCLING_SETTINGS_FILE: settings };
   serve = child("serve", root, env);
   let { url } = (await once(serve, "message"))[0];
   const http = (endpoint: string, method = "GET", body?: unknown) => fetch(`${url}/api/${endpoint}`, { method,

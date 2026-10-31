@@ -27,7 +27,7 @@ test('only explicit documentation paths skip product quality on PRs and queue gr
 });
 
 test('event CLI checks actual PR diffs, renames and whitespace, and emits the workflow output', () => {
-  const dir = mkdtempSync(path.join(tmpdir(), 'ieumdoc-ci-mode-'));
+  const dir = mkdtempSync(path.join(tmpdir(), 'litzio-ci-mode-'));
   const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
   const script = fileURLToPath(new URL('./ci-quality-mode.mjs', import.meta.url));
   const event = path.join(dir, 'event.json');
@@ -82,7 +82,7 @@ test('CI keeps policy checks in both modes and gates only product quality steps'
   const mode = steps.find(step => step.id === 'mode');
   assert.match(mode.run, /node scripts\/ci-quality-mode.mjs "\$GITHUB_EVENT_NAME" "\$GITHUB_EVENT_PATH"/);
   assert.equal(mode.if, undefined);
-  for (const run of ['pnpm typecheck', 'pnpm test', 'pnpm --filter @ieumdoc/editor build']) {
+  for (const run of ['pnpm typecheck', 'pnpm test', 'pnpm --filter @litzio/editor build']) {
     assert.equal(steps.find(step => step.run === run).if, "needs.changes.outputs.quality == 'true'");
   }
   for (const name of ['Documentation checks', 'Issue forms and registration checks',
@@ -165,10 +165,10 @@ test('workflow consumes event policy outputs and preserves selected-job gates', 
     for (const job of [browser, http, desktop]) {
       assert.equal(evaluate(job.if, context), selected, job.name);
     }
-    const updateSteps = desktop.steps.filter(step => step.run === 'pnpm --filter @ieumdoc/desktop test:update');
+    const updateSteps = desktop.steps.filter(step => step.run === 'pnpm --filter @litzio/desktop test:update');
     const release = load(readFileSync(new URL('../.github/workflows/desktop-release.yml', import.meta.url), 'utf8'));
-    const releaseUpdateSteps = release.jobs.build.steps.filter(step => step.run === 'pnpm --filter @ieumdoc/desktop test:update');
-    assert.deepEqual(updateSteps.map(step => step.env?.IEUMDOC_TEST_UPDATE_CHANNEL ?? 'stable'), ['stable', 'beta'],
+    const releaseUpdateSteps = release.jobs.build.steps.filter(step => step.run === 'pnpm --filter @litzio/desktop test:update');
+    assert.deepEqual(updateSteps.map(step => step.env?.LITZIO_TEST_UPDATE_CHANNEL ?? 'stable'), ['stable', 'beta'],
       'Stable must clean up before Beta starts on the same runner');
     assert.deepEqual(updateSteps.map(step => step.env), releaseUpdateSteps.map(step => step.env),
       'PR CI must preserve the release workflow channel order');
@@ -180,7 +180,7 @@ test('workflow consumes event policy outputs and preserves selected-job gates', 
   assert.equal(quality.needs, 'changes');
   assert.equal(quality.steps.find(step => step.run?.endsWith(' test:smartquotes')).if,
     "needs.changes.outputs.smartquotes == 'true'");
-  for (const run of ['pnpm --filter @ieumdoc/desktop package', 'pnpm --filter @ieumdoc/desktop test:packaged']) {
+  for (const run of ['pnpm --filter @litzio/desktop package', 'pnpm --filter @litzio/desktop test:packaged']) {
     assert.equal(desktop.steps.find(step => step.run === run).if, undefined);
   }
   assert.equal(desktop.steps.find(step => step.name === 'Validate installer and update metadata').if, undefined);

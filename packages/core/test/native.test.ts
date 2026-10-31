@@ -1,4 +1,4 @@
-import * as core from "@ieumdoc/core";
+import * as core from "@litzio/core";
 import type { MystDocument } from "../src/myst/tree.ts";
 import { semanticFingerprint } from "../src/myst/fingerprint.ts";
 import assert from "node:assert/strict";
@@ -9,12 +9,12 @@ import {
   insertHeading, insertParagraph, insertFigure, updateHeadingNumbering, removeBlock,
   updateHeadingInlineContent, updateHeadingLevel, insertFootnote, updateParagraphInlineContent, moveBlock,
   insertTarget, moveSection, removeSection, updateNodeTextAtPath, updateTableCell, mergeParagraphWithPrevious,
-} from "@ieumdoc/core";
+} from "@litzio/core";
 
-const native = (body: string) => `---\nieumdoc: 1\n---\n\n${body}`;
+const native = (body: string) => `---\nlitzio: 1\n---\n\n${body}`;
 
 test("frontmatter title alone owns the title; edits preserve body levels, labels and metadata", () => {
-  const source = "---\nieumdoc: 1 # marker\ntitle: IEEE 1547 · 제7장 발췌\nnumbering:\n  headings: true # sections\n  title: false\n---\n\n(clause)=\n# Power quality\n\n## Detail\n\nSee {ref}`clause`.\n";
+  const source = "---\nlitzio: 1 # marker\ntitle: IEEE 1547 · 제7장 발췌\nnumbering:\n  headings: true # sections\n  title: false\n---\n\n(clause)=\n# Power quality\n\n## Detail\n\nSee {ref}`clause`.\n";
   const original = parse(source);
   const body = getEditableDocument(original).blocks;
   assert.equal(getEditableDocument(original).title, "IEEE 1547 · 제7장 발췌");
@@ -40,7 +40,7 @@ test("frontmatter title alone owns the title; edits preserve body levels, labels
 test("single-line title boundaries preserve exact values through every metadata edit and repeated writes", () => {
   const values = ["", " ", "  first second  ", "\t한글 제목\t", '"quoted"', "it's plain", "title: value", "# heading", "null", "true", "123", "1.20", "유니코드 漢字 🙂", "A long title ".repeat(20)];
   for (const title of values) for (const titleFirst of [true, false]) {
-    const fields = [`title: ${JSON.stringify(title)}`, "ieumdoc: 1", "bibliography: [refs.bib]", "numbering: {headings: false, title: false, figure: 'Figure %s'}"];
+    const fields = [`title: ${JSON.stringify(title)}`, "litzio: 1", "bibliography: [refs.bib]", "numbering: {headings: false, title: false, figure: 'Figure %s'}"];
     if (!titleFirst) fields.push(fields.shift()!);
     const original = parse(`---\n${fields.join("\n")}\n---\n\n# Body\n`);
     const edited = core.updateDocumentTitle(original, title);
@@ -69,7 +69,7 @@ test("multiline and YAML block scalar titles refuse at operations, admission and
   for (const title of values) {
     refused(() => core.updateDocumentTitle(original, title));
     for (const titleFirst of [true, false]) {
-      const fields = [`title: ${JSON.stringify(title)}`, "ieumdoc: 1"];
+      const fields = [`title: ${JSON.stringify(title)}`, "litzio: 1"];
       if (!titleFirst) fields.push(fields.shift()!);
       const yaml = fields.join("\n") + "\n";
       refused(() => parse(`---\n${yaml}---\n`));
@@ -80,7 +80,7 @@ test("multiline and YAML block scalar titles refuse at operations, admission and
   }
   for (const style of ["|", "|-", "|+", ">", ">-", ">+"]) for (const content of ["", "  line\n\n"]) for (const titleFirst of [true, false]) {
     const title = `title: ${style}\n${content}`;
-    const yaml = titleFirst ? title + "ieumdoc: 1\n" : "ieumdoc: 1\n" + title;
+    const yaml = titleFirst ? title + "litzio: 1\n" : "litzio: 1\n" + title;
     refused(() => parse(`---\n${yaml}---\n`));
     const corrupt = structuredClone(original) as unknown as MystDocument;
     corrupt.children[0].value = yaml;
@@ -92,7 +92,7 @@ test("multiline and YAML block scalar titles refuse at operations, admission and
 test("reference-template block scalar endings keep YAML meaning regardless of key order or metadata writes", () => {
   const expected = "Figure %s  \n\n";
   const numbering = "numbering:\n  headings: false\n  title: false\n  table: Table %s\n  figure: |+\n    Figure %s  \n\n";
-  const other = 'ieumdoc: 1\ntitle: "  File title  "\nbibliography: [refs.bib]\n';
+  const other = 'litzio: 1\ntitle: "  File title  "\nbibliography: [refs.bib]\n';
   for (const yaml of [other + numbering, numbering + other]) {
     const document = parse(`---\n${yaml}---\n\n# Body\n`);
     assert.equal(getEditableDocument(document).referenceTemplates?.figure, expected);
@@ -107,7 +107,7 @@ test("reference-template block scalar endings keep YAML meaning regardless of ke
 
 test("title refuses nonstrings and formatted inline meaning instead of flattening it", () => {
   for (const title of [null, 42, true, [], {}, "**Bold**", "*Italic*", "`Code`", "$x$", "[Link](https://example.com)", "{ref}`section`", "<em>HTML</em>"]) {
-    assert.throws(() => parse(`---\nieumdoc: 1\ntitle: ${JSON.stringify(title)}\n---\n`), error => {
+    assert.throws(() => parse(`---\nlitzio: 1\ntitle: ${JSON.stringify(title)}\n---\n`), error => {
       assert(error instanceof NativeDocumentError);
       assert.equal(error.code, "native-metadata");
       assert.match(error.message, /plain string/);
@@ -193,7 +193,7 @@ test("explicit citation roles preserve kind, exact keys and groups through canon
 });
 
 test("bibliography declarations validate shape without reading resources and keep original spelling", () => {
-  const source = "---\nieumdoc: 1\n# Shared bibliography\nbibliography:\n  - ../refs.bib\n  - ./자료/standards.bib\nnumbering:\n  headings: true\n  title: false\n---\n\nBody.\n";
+  const source = "---\nlitzio: 1\n# Shared bibliography\nbibliography:\n  - ../refs.bib\n  - ./자료/standards.bib\nnumbering:\n  headings: true\n  title: false\n---\n\nBody.\n";
   const document = parse(source);
   assert.equal(serialize(document), source);
   assert.equal(serialize(updateParagraphInlineContent(document, [1], [{ kind: "text", text: "Edited." }])), source.replace("Body.", "Edited."));
@@ -201,21 +201,21 @@ test("bibliography declarations validate shape without reading resources and kee
     "[refs.bib, ./refs.bib]", "[a/../refs.bib, refs.bib]", "['']", "[' refs.bib']", "[/refs.bib]",
     "['C:/refs.bib']", "['C:refs.bib']", "['\\\\server\\refs.bib']", "['refs\\a.bib']", "['https://host/refs.bib']",
     "['*.bib']", "['ref?.bib']", "['[ab].bib']", "['{a,b}.bib']", "['@(a|b).bib']", "['+(a|b).bib']", "['refs.json']", "['refs.bib/']"]) {
-    assert.throws(() => parse(`---\nieumdoc: 1\nbibliography: ${value}\n---\n`), error => {
+    assert.throws(() => parse(`---\nlitzio: 1\nbibliography: ${value}\n---\n`), error => {
       assert(error instanceof NativeDocumentError);
       assert.equal(error.code, "native-metadata");
       return true;
     }, value);
   }
-  assert.throws(() => parse("---\nieumdoc: 1\nbibliography: [a.bib]\nbibliography: [b.bib]\n---\n"), /Invalid native frontmatter/);
+  assert.throws(() => parse("---\nlitzio: 1\nbibliography: [a.bib]\nbibliography: [b.bib]\n---\n"), /Invalid native frontmatter/);
 });
 
 test("native admission checks the marker and the complete YAML contract before writing", () => {
-  for (const source of ["", "# Title\n", "---\nieumdoc: '1'\n---\n", "---\nieumdoc: 2\n---\n",
-    "---\nieumdoc: 1\nieumdoc: 1\n---\n", "---\nieumdoc: [\n---\n", "---\n- ieumdoc: 1\n---\n",
-    "---\nieumdoc: 1\nauthor: Title\n---\n", "---\nieumdoc: 1\nnumbering: true\n---\n",
-    "---\nieumdoc: 1\nnumbering:\n  headings: true\n  heading_1: 3\n---\n",
-    "---\nieumdoc: 1\nnumbering:\n  title: true\n---\n", "---\nieumdoc: 1\n"]) {
+  for (const source of ["", "# Title\n", "---\nlitzio: '1'\n---\n", "---\nlitzio: 2\n---\n",
+    "---\nlitzio: 1\nlitzio: 1\n---\n", "---\nlitzio: [\n---\n", "---\n- litzio: 1\n---\n",
+    "---\nlitzio: 1\nauthor: Title\n---\n", "---\nlitzio: 1\nnumbering: true\n---\n",
+    "---\nlitzio: 1\nnumbering:\n  headings: true\n  heading_1: 3\n---\n",
+    "---\nlitzio: 1\nnumbering:\n  title: true\n---\n", "---\nlitzio: 1\n"]) {
     assert.throws(() => parse(source), NativeDocumentError, source);
   }
   const marked = native("# Title\n");
@@ -224,11 +224,11 @@ test("native admission checks the marker and the complete YAML contract before w
 
 test("the native marker is read from leading frontmatter alone, without admitting the document", () => {
   for (const source of [native("# Title\n"), `\uFEFF${native("Body.\n").replaceAll("\n", "\r\n")}`,
-    "---\nieumdoc: 1\nnumbering:\n  headings: true\n---\n", native("> One.\n>\n> Two.\n")]) {
+    "---\nlitzio: 1\nnumbering:\n  headings: true\n---\n", native("> One.\n>\n> Two.\n")]) {
     assert.equal(hasNativeMarker(source), true, source);
   }
-  for (const source of ["", "# Title\n", "---\nieumdoc: '1'\n---\n", "---\nieumdoc: 2\n---\n", "---\nieumdoc: 1\n",
-    "---\n- ieumdoc: 1\n---\n", "# Title\n\n---\nieumdoc: 1\n---\n", "\n---\nieumdoc: 1\n---\n"]) {
+  for (const source of ["", "# Title\n", "---\nlitzio: '1'\n---\n", "---\nlitzio: 2\n---\n", "---\nlitzio: 1\n",
+    "---\n- litzio: 1\n---\n", "# Title\n\n---\nlitzio: 1\n---\n", "\n---\nlitzio: 1\n---\n"]) {
     assert.equal(hasNativeMarker(source), false, source);
   }
 });
@@ -319,7 +319,7 @@ test("creation and authoring retain the marker, including empty Figures and unre
   const orphan = updateParagraphInlineContent(document, [2], [{ kind: "text", text: "Body." }]);
   assert.throws(() => serialize(moveBlock(orphan, 2, 1)), /has no reference/);
   const source = serialize(document);
-  assert.match(source, /^---\nieumdoc: 1\nnumbering:\n  headings: true\n  title: false\n---/);
+  assert.match(source, /^---\nlitzio: 1\nnumbering:\n  headings: true\n  title: false\n---/);
   assert.equal(serialize(parse(source)), source);
   assert.equal(canonicalWriteIssue(document), undefined);
   assert.throws(() => removeBlock(document, 0), /block 0 is the document metadata; body blocks start at 1/);
@@ -567,7 +567,7 @@ test("installed MyST title extraction and output normalization do not define Nat
   const { getFrontmatter, headingDepthTransform } = await import("myst-transforms");
   const { VFile } = await import("vfile");
   for (const title of [undefined, "", "First", "File title"]) {
-    const source = `---\nieumdoc: 1\n${title === undefined ? "" : `title: ${JSON.stringify(title)}\n`}---\n\n# First\n\n## Detail\n`;
+    const source = `---\nlitzio: 1\n${title === undefined ? "" : `title: ${JSON.stringify(title)}\n`}---\n\n# First\n\n## Detail\n`;
     const nativeDocument = parse(source);
     const raw = mystParse(serialize(nativeDocument));
     assert.deepEqual(raw.children.filter(node => node.type === "heading").map(node => node.depth), [1, 2]);

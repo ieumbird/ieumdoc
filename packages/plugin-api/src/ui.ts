@@ -1,6 +1,6 @@
 import type * as React from "react";
 import type * as Jsx from "react/jsx-runtime";
-import type { EditableDocument } from "@ieumdoc/core";
+import type { EditableDocument } from "@litzio/core";
 
 export type DocumentPosition = { blocks: { key: string; top: number; left: number; height: number }[]; height: number };
 export type ReadingSurfaceProps = {

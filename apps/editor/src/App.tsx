@@ -1,11 +1,11 @@
-import { useDoclingConversion } from "@ieumdoc/docling/server-ui";
-import { doclingFailureMessage } from "@ieumdoc/docling/server-types";
+import { useDoclingConversion } from "@litzio/docling/server-ui";
+import { doclingFailureMessage } from "@litzio/docling/server-types";
 import { DoclingConversionDialog } from "./shell/DoclingConversionDialog.tsx";
 import { COMMAND_CENTER_SHORTCUT, EDITOR_SHORTCUTS, SAVE_SHORTCUT, isMac } from "./shortcuts.ts";
 import { usePluginUi } from "./plugin-ui.tsx";
 import { contributionNotices } from "./plugin-ui-registry.ts";
 import { PluginTab, type ContributedTab } from "./PluginTab.tsx";
-import type { UiHost } from "@document-plugins/api/ui";
+import type { UiHost } from "@litzio/plugin-api/ui";
 import { NotificationProvider, NotificationSource } from "./components/ui/notification-center.tsx";
 import { UiError } from "./ui-message.ts";
 import { useMessageState } from "./ui-message.ts";
@@ -73,7 +73,7 @@ const SPLIT_MIN_WIDTH = 440 * 2 + 1;
 type Tab = { id: string; path: string; file: EditorFileResponse; recoveryId: string; restored?: SessionSnapshot };
 
 /** The Desktop app's bridge; the browser Editor has none and shows no Desktop UI. */
-const desktop = typeof window === "undefined" ? undefined : window.ieumdocDesktop;
+const desktop = typeof window === "undefined" ? undefined : window.litzioDesktop;
 
 export function App() {
   return <NotificationProvider><EditorApp /></NotificationProvider>;

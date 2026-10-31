@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { getSchema } from "@tiptap/core";
 import { closeHistory, history, redo, undo } from "@tiptap/pm/history";
 import { EditorState } from "@tiptap/pm/state";
-import { canonicalWriteError, parse, serialize, type FigureContent, type EditableDocument } from "@ieumdoc/core";
+import { canonicalWriteError, parse, serialize, type FigureContent, type EditableDocument } from "@litzio/core";
 import { deleteBlock, insertFigureAfter, insertMermaidAfter, updateFigure } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, isUnappliedFigureDraft, structureGuardPlugin } from "../src/editor-schema.tsx";
 import {
@@ -177,7 +177,7 @@ test("Figure edit survives Apply projection, reorder, Save and reload with its l
   assert.ok(edits.order);
   const saved = saveEdits(source, edits);
   assert.deepEqual(figureOf(loadEditableDocument(saved.markdown), 1), { label: "fig-control", ...CHANGED });
-  assert.match(saved.markdown, /^---\nieumdoc: 1\n---\n\n# Converter Control\n\n:::\{figure\} \.\/diagram-v2\.svg\n:name: fig-control\n:alt: Updated block diagram\n\nUpdated converter control diagram\.\n:::\n/);
+  assert.match(saved.markdown, /^---\nlitzio: 1\n---\n\n# Converter Control\n\n:::\{figure\} \.\/diagram-v2\.svg\n:name: fig-control\n:alt: Updated block diagram\n\nUpdated converter control diagram\.\n:::\n/);
   assert.equal(serialize(parse(saved.markdown)), saved.markdown);
 
   // Clearing optional properties keeps the Figure and its label.

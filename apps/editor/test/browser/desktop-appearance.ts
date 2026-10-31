@@ -31,7 +31,7 @@ export async function verifyBuiltAppearance(parent: Page): Promise<void> {
         : name === "theme.css" ? { contentType: "text/css", body: String(css.source) }
         : { contentType: "text/html", body: `<!doctype html><link rel="stylesheet" href="theme.css"><script type="module">
           window.appearances = [];
-          window.ieumdocDesktop = {
+          window.litzioDesktop = {
             setTheme: async theme => theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches),
             setWindowBackground: async (color, overlay) => { window.appearances.push([color, overlay.color, overlay.symbolColor]); }
           };

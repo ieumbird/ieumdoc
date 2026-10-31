@@ -23,7 +23,7 @@ test("unified line and word changes retain both exact sources, numbering and reg
 });
 
 test("the reviewer's 50 × 1000-word input retains every line within 500ms and omits word highlighting", () => {
-  const source = (word: string) => "---\nieumdoc: 1\n---\n\n```text\n" +
+  const source = (word: string) => "---\nlitzio: 1\n---\n\n```text\n" +
     Array(50).fill(Array.from({ length: 1000 }, (_, i) => word + i).join(" ")).join("\n") + "\n```\n";
   const before = source("old"), after = source("new");
   assert.ok(Buffer.byteLength(before) > 344_000 && Buffer.byteLength(before) < 345_000);

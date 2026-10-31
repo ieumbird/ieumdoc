@@ -1,5 +1,7 @@
 # ProseMirror focus restore and caret keys
 
+당시 이름: 이음독(IeumDoc), 현재 Litzio
+
 - Status: Historical
 - Last verified: 2026-10-09 (Windows Chrome and Linux Chrome 155 in the Playwright `v1.63.0-noble` image; before/after runs of the same scenarios).
 - Scope: the pinned `prosemirror-view@1.42.4` patch and its evidence ([issue #144](https://github.com/ieumbird/ieumdoc/issues/144)). No Core, CLI or Markdown change.

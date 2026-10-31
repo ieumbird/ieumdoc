@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NodeViewWrapper, useEditorState, type ReactNodeViewProps } from "@tiptap/react";
-import { labelError } from "@ieumdoc/core/label";
+import { labelError } from "@litzio/core/label";
 import { Input } from "@/components/ui/input.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { labelPropertyError, updateLabelProperties } from "../label-rename.ts";

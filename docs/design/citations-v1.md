@@ -178,7 +178,7 @@ Long candidate names ellipsize inside compact buttons, keeping the full name in 
 accessible name. Existing declarations, including parent/subfolder paths, remain visible and can be
 disconnected. Paths remain document-relative; the existing pinned local folder context or HTTP
 Root union and real-path checks still govern reads. Files outside the reading boundary remain
-unverified. IeumDoc never writes `.bib` files.
+unverified. Litzio never writes `.bib` files.
 
 Connect/Disconnect changes one ProseMirror document attribute in one isolated Undo step, using
 the same dirty, recovery, Source and Save pipeline as other document edits. Save replay calls

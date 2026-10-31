@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import test from "node:test";
 import { createTokenizer } from "myst-parser";
-import * as publicCore from "@ieumdoc/core";
+import * as publicCore from "@litzio/core";
 import {
   getEditableDocument, getNode, inspectDocument, parse, serialize, validateStructure,
 } from "./core-internal.ts";
@@ -75,7 +75,7 @@ test("raw MyST parsing keeps typographic quote substitution and automatic linkif
   assert.equal(document.children[0].children?.[0].value?.toString().startsWith('"Quoted"'), true);
 });
 
-const native = (body: string) => `---\nieumdoc: 1\n---\n\n${body}\n`;
+const native = (body: string) => `---\nlitzio: 1\n---\n\n${body}\n`;
 const parserRequire = createRequire(createRequire(import.meta.url).resolve("myst-parser"));
 const markdownRequire = createRequire(parserRequire.resolve("markdown-it"));
 

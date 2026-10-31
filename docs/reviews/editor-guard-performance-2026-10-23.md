@@ -1,5 +1,7 @@
 # Editor input and guard performance
 
+당시 이름: 이음독(IeumDoc), 현재 Litzio
+
 - Status: Historical
 - Last verified: 2026-10-23 (final source 7a214dcb: Editor 271/271, typecheck/build, eight browser regressions, actual four-condition input and complete canonical Save/Reload verification; mixed 2000 input target unmet).
 - Scope: Editor adapter lookups, handle rendering and display numbering; [Continuous editing](../design/document-editing-v1.md) and [ADR-0003](../adr/0003-document-addressing-identity-boundary.md) remain authoritative.

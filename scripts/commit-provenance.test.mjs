@@ -12,7 +12,7 @@ const valid = 'AI-Agent: Codex\nAI-Model: openai/gpt-6.1-sol';
 const broken = valid.replace('\n', '\n\n');
 
 function repo(t) {
-  const cwd = mkdtempSync(path.join(os.tmpdir(), 'ieumdoc-provenance-'));
+  const cwd = mkdtempSync(path.join(os.tmpdir(), 'litzio-provenance-'));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
   function git(...args) {
     const result = spawnSync('git', args, { cwd, encoding: 'utf8' });

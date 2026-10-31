@@ -1,5 +1,5 @@
 import { memo } from "react";
-import type { ReadingSurfaceProps } from "@document-plugins/api/ui";
+import type { ReadingSurfaceProps } from "@litzio/plugin-api/ui";
 import { DocumentEditor } from "./DocumentEditor.tsx";
 
 const reject = () => {};

@@ -7,7 +7,7 @@ import test from "node:test";
 import { convertDoclingFile, readDoclingMap } from "../src/index.ts";
 
 test("file conversion makes a self-contained new bundle, preserves inputs and refuses existing output", () => {
-  const root = mkdtempSync(path.join(tmpdir(), "ieumdoc-docling-files-"));
+  const root = mkdtempSync(path.join(tmpdir(), "litzio-docling-files-"));
   try {
     const input = fileURLToPath(new URL("./fixtures/nist-sp1108r4/document.json", import.meta.url));
     const before = readFileSync(input);
@@ -37,7 +37,7 @@ test("file conversion makes a self-contained new bundle, preserves inputs and re
 });
 
 test("embedded pictures are copied, and resources outside the input folder are reported unavailable", () => {
-  const root = mkdtempSync(path.join(tmpdir(), "ieumdoc-docling-media-"));
+  const root = mkdtempSync(path.join(tmpdir(), "litzio-docling-media-"));
   try {
     const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j9ioAAAAASUVORK5CYII=", "base64");
     const source = { schema_name: "DoclingDocument", version: "1.10.0", name: "Embedded media",

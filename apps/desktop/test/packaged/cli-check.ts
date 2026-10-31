@@ -10,7 +10,7 @@ export function verifyPackagedCli(exe: string, shim: string, folder: string, exp
   const manifest = JSON.parse(readFileSync(path.join(path.dirname(bundle), "package.json"), "utf8"));
   // Match the standalone CLI's npm installation context, which Node uses for dependency
   // deprecation reporting. The separate offline package regression verifies npm installation.
-  const standalone = path.join(folder, "node_modules", "@ieumdoc", "cli");
+  const standalone = path.join(folder, "node_modules", "@litzio", "cli");
   mkdirSync(standalone, { recursive: true });
   cpSync(path.dirname(bundle), standalone, { recursive: true });
   const node = spawnSync(exe, ["-p", "process.versions.node"], { env: { ...env, ELECTRON_RUN_AS_NODE: "1" }, encoding: "utf8", timeout: 15_000 });
@@ -23,7 +23,7 @@ export function verifyPackagedCli(exe: string, shim: string, folder: string, exp
   assert.match(version.stdout, new RegExp(`^ieumdoc ${expectedVersion.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\(desktop, (?:[a-f0-9]{12,40}|unknown)\\)\\r?\\n$`));
   assert.equal(version.stderr, "");
   const good = path.join(folder, "한글 문서 & (test) 😀.md"), bad = path.join(folder, "invalid.md");
-  writeFileSync(good, "---\nieumdoc: 1\n---\n\n# CLI check\n\nContent.\n");
+  writeFileSync(good, "---\nlitzio: 1\n---\n\n# CLI check\n\nContent.\n");
   writeFileSync(bad, "Not an IeumDoc document.\n");
   for (const [args, status] of [[['help'], 0], [['check', good, '--format', 'json'], 0], [['check', bad, '--format', 'json'], 1]] as const) {
     const actual = run([...args]);

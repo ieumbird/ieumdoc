@@ -1,6 +1,6 @@
 /**
  * What the Desktop Host (apps/desktop) exposes to the Editor through its preload script, as
- * `window.ieumdocDesktop`. The browser Editor has no bridge; Desktop-only UI appears only with it.
+ * `window.litzioDesktop`. The browser Editor has no bridge; Desktop-only UI appears only with it.
  * Nothing here reads or writes documents: those keep the Host requests every interface uses.
  */
 
@@ -87,6 +87,6 @@ export type DesktopBridge = {
 
 declare global {
   interface Window {
-    ieumdocDesktop?: DesktopBridge;
+    litzioDesktop?: DesktopBridge;
   }
 }

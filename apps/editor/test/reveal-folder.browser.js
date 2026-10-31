@@ -18,7 +18,7 @@ async (page, { openFolderPicker, screenshots = false, expect }) => {
   await expect(folder.getByRole('button', {name:'More actions for guides', exact:true})).toHaveCount(0);
   await page.addInitScript(() => {
     window.__explorer = { calls: [], roots: [], fail: false };
-    window.ieumdocDesktop = {
+    window.litzioDesktop = {
       setTheme: async () => false, setWindowBackground: async () => {},
       info: async () => ({version:'0.0.2', channel:'beta', updatesSupported:false, update:{phase:'idle'}, postponed:null}),
       onUpdateState: () => () => {}, onRestartCheck: () => () => {},

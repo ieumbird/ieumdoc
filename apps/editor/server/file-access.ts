@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { isPrivatePluginPath } from "./plugin-output.ts";
-import { assertUnicode } from "@ieumdoc/file-commit";
+import { assertUnicode } from "@litzio/file-commit";
 
 /** An explicit local Host policy; only the HTTP Host requires RootAccess. */
 export const LOCAL_FILE_ACCESS = null;

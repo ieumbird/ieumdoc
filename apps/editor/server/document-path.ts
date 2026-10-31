@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { assertUnicode } from "@ieumdoc/file-commit";
+import { assertUnicode } from "@litzio/file-commit";
 import { accessPath, LOCAL_FILE_ACCESS, type FileAccess } from "./file-access.ts";
 
 const editorRoot = fileURLToPath(new URL("..", import.meta.url));

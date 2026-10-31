@@ -77,7 +77,7 @@ This does not add a document session, persistence service or semantic write path
 The read-only `GET /api/docling-compare?path=…` route uses the same handler and
 Root/media real-path checks in Vite, Desktop and HTTP Host. It admits the native
 Markdown through Core and delegates correspondence interpretation/hash checking
-to `@ieumdoc/docling`. Page images use the ordinary document-relative media route;
+to `@litzio/docling`. Page images use the ordinary document-relative media route;
 remote/data image URIs and paths escaping the conversion folder are refused.
 No large source document.json is sent to the UI: correspondence v1 already carries
 the needed page/item data. See [Docling comparison](docling-compare-v1.md).
@@ -95,7 +95,7 @@ leaf is read only beneath the existing access boundary. The optional disk read m
 [same-rule plaintext fallback](editing-session-save-v1.md#recovery-review-layout-contract); failure
 to read that model is explicit and never reclassifies a present file as missing.
 
-IeumDoc의 persistent SSOT는 Host가 접근하는 filesystem의 사람이 읽을 수 있는 plain-text `.md` 파일이다. HTTP 접속 시 경로는 브라우저 PC가 아닌 서버의 경로다. 이 문서는 Open, Save, New Document 및 Open Folder가 그 파일에 접근하는 경계를 정한다.
+Litzio의 persistent SSOT는 Host가 접근하는 filesystem의 사람이 읽을 수 있는 plain-text `.md` 파일이다. HTTP 접속 시 경로는 브라우저 PC가 아닌 서버의 경로다. 이 문서는 Open, Save, New Document 및 Open Folder가 그 파일에 접근하는 경계를 정한다.
 
 이 경계의 핵심은 filesystem을 Browser Editor가 직접 소유하지 않고, 교체 가능한 Host가 소유한다는 것이다. 현재의 localhost HTTP adapter는 이 경계의 한 구현일 뿐이며 최종 backend architecture로 확정하지 않는다.
 
@@ -127,7 +127,7 @@ Host는 요청된 document locator를 실제 filesystem 동작으로 연결한�
 
 Host 구현은 교체 가능해야 한다. Vite는 개발 HTTP, Windows Desktop은 `ieumdoc://app` custom protocol, 독립 HTTP Host는 Node listener와 production 정적 파일을 사용하며 같은 stateless document/asset handler를 호출한다. Vite/Desktop은 기존 local 파일 정책을 명시적으로 선택하고 HTTP는 고정 Root allowlist를 반드시 적용한다. [Desktop contract](desktop-distribution-v1.md)와 [HTTP contract](http-host-v1.md)가 각 배포·접근 경계를 정한다. 이 재사용을 장기 persistence/backend 또는 Workspace 결정으로 확대하지 않는다.
 
-IeumDoc은 browser file upload를 기본 document access model로 사용하지 않는다.
+Litzio는 browser file upload를 기본 document access model로 사용하지 않는다.
 
 ```text
 기본 경로:
@@ -137,7 +137,7 @@ Browser Editor -> Host -> 사용자의 원본 .md 파일
 Browser -> file upload -> remote service -> edit -> download
 ```
 
-따라서 Host는 원본 파일을 직접 읽고 같은 파일에 저장한다. IeumDoc 전용 파일 저장소나 database를 별도의 SSOT로 만들지 않는다.
+따라서 Host는 원본 파일을 직접 읽고 같은 파일에 저장한다. Litzio 전용 파일 저장소나 database를 별도의 SSOT로 만들지 않는다.
 
 ## Responsibility boundary
 
@@ -210,7 +210,7 @@ Markdown의 `image.svg`, `assets/image.svg`, `./image.svg` 같은 상대 media�
 - 이미지 선택 POST와 rollback DELETE의 JSON body는 공통 strict UTF-8 decoder를 사용한다. 잘못된 UTF-8은 파일 복사·삭제 전에 HTTP 400으로 거부하고 문서·기존 asset 바이트를 보존한다. 이미지 binary body는 text로 decode하지 않는다. 이 경계는 Vite·Desktop·HTTP Host가 공유한다.
 - Host는 document directory의 real path를 경계로 사용한다. `assets/` 자체의 symlink, 경계 밖 document symlink, traversal·absolute·비정상 asset path를 거부한다. 완성된 temporary sibling을 exclusive hard link로 공개한 뒤 temp를 제거하여 partial 파일과 기존 파일 overwrite를 막는다. 이 filesystem 동작을 지원하지 않으면 실패를 표시한다.
 - Host write 실패는 Editor를 변경하지 않는다. 성공한 경로로 기존 Figure insert 경로를 사용하며, 삽입이 거부되거나 요청 중 Editor가 사라지면 `DELETE /api/asset`로 rollback한다. 서명된 receipt는 생성 inode와 업로드 바이트에 묶는다. 삭제 전에 임시 이름으로 옮겨 같은 fd에서 identity/content를 검증하고, 다른 파일로 바뀌었으면 overwrite 없이 원위치로 복구한다. rollback/복구 실패는 남은 경로와 함께 명시한다. temp cleanup도 directory/file identity를 확인하며, 외부 directory 교체로 소유권을 확인할 수 없으면 삭제를 거부하고 잔여 temp 경로를 오류로 표시한다. Host는 session이나 asset 목록을 저장하지 않으며 receipt 서명 key는 각 Host 프로세스 수명에 한정한다.
-- 내부 IeumDoc rich clipboard는 기존 typed paste를 우선한다. 그 외 파일을 포함한 paste/drop은 한 번에 지원 형식 이미지 하나를 처리하고 함께 제공된 text/HTML은 삽입하지 않는다. 업로드 중 engine transaction mapping으로 삽입 위치를 유지하며, Figure 삽입은 독립 Undo 한 번으로 취소된다.
+- 내부 Litzio rich clipboard는 기존 typed paste를 우선한다. 그 외 파일을 포함한 paste/drop은 한 번에 지원 형식 이미지 하나를 처리하고 함께 제공된 text/HTML은 삽입하지 않는다. 업로드 중 engine transaction mapping으로 삽입 위치를 유지하며, Figure 삽입은 독립 Undo 한 번으로 취소된다.
 - 정상 삽입 뒤 Undo, Figure 삭제, 미저장 종료로 남는 orphan asset은 자동 정리하지 않는다. 응답을 받기 전에 연결이 끊기거나 Host가 재시작되어 receipt가 무효화된 경우에도 자동 복구/GC는 없다. Markdown Save, Core canonical guard와 opening-snapshot session 계약은 그대로 유지한다.
 
 ### Image filenames (#652)
@@ -353,7 +353,7 @@ Get-Content -Raw -Encoding utf8 "<임시 폴더>/operations.json" | pnpm ieumdoc
 
 사용자가 `Open folder…` 대화상자에서 folder 경로 하나를 고르면 Host가 그 folder를 한 단계씩 list하고, Sidebar는 이를 tree로 보여 주며 문서를 연다. [ADR-0009](../adr/0009-multiple-opened-folders.md)에 따라 Sidebar는 열어 둔 folder 여러 개를 순서대로 각자의 tree로 보여 주며, Open folder…는 포함 관계가 없는 root를 추가한다. #702에 따라 하위 폴더는 기존 상위 tree에서 펼쳐 선택하고, 상위 폴더는 기존 하위 섹션을 첫 흡수 위치에서 대체하며 펼침 상태를 가능한 만큼 옮긴다. 최근 Open과 시작 복원도 같은 포함 관계 규칙을 적용한다. 포함 관계는 기존 Host 정규화 결과의 문자열과 경로 구분자 경계로 비교하며 대소문자·junction·symlink·UNC 정책을 추가하지 않는다(#372 보류). Workspace가 아니다. 열어 둔 folder의 경로 목록과 최근에 성공적으로 연 folder 경로는 Browser preference로만 기억하고 Host나 파일에 저장하지 않는다. 폴더 섹션 접힘은 같은 origin의 Browser preference로 root 경로만 기억한다(#425). 하위 폴더 펼침과 listing은 페이지 상태다.
 
-- `GET /api/folder?root=<선택한 folder>&path=<그 안의 folder, 생략 시 root>`는 `{ root, path, parent?, entries }`를 돌려준다. `entries`는 `{ name, kind: "folder" | "document" | "image" | "file", path, native? }`이고 sub-folder 먼저, 그다음 이름순(숫자 인식)이다. `native`는 문서 항목에만 있으며, 파일 앞부분(최대 4KB)의 leading frontmatter에 native 표식 `ieumdoc: 1`이 있는지를 Core의 `hasNativeMarker`로 판정한 값이다. 파일을 읽을 수 없으면 생략한다. 이는 Sidebar가 열 수 없는 파일을 미리 구분해 보여 주기 위한 표시일 뿐 admission이 아니다. 표식이 있어도 열 때 Core가 metadata와 내용을 검증해 거부할 수 있다. `parent`는 root보다 아래일 때만 있다. 현재 Sidebar tree는 `parent`를 쓰지 않지만 API 계약은 그대로다.
+- `GET /api/folder?root=<선택한 folder>&path=<그 안의 folder, 생략 시 root>`는 `{ root, path, parent?, entries }`를 돌려준다. `entries`는 `{ name, kind: "folder" | "document" | "image" | "file", path, native? }`이고 sub-folder 먼저, 그다음 이름순(숫자 인식)이다. `native`는 문서 항목에만 있으며, 파일 앞부분(최대 4KB)의 leading frontmatter에 native 표식 `litzio: 1`이 있는지를 Core의 `hasNativeMarker`로 판정한 값이다. 파일을 읽을 수 없으면 생략한다. 이는 Sidebar가 열 수 없는 파일을 미리 구분해 보여 주기 위한 표시일 뿐 admission이 아니다. 표식이 있어도 열 때 Core가 metadata와 내용을 검증해 거부할 수 있다. `parent`는 root보다 아래일 때만 있다. 현재 Sidebar tree는 `parent`를 쓰지 않지만 API 계약은 그대로다.
 
 | 범위 | 지원 |
 | --- | --- |

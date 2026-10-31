@@ -42,4 +42,4 @@ const bridge: DesktopBridge = {
   },
 };
 
-contextBridge.exposeInMainWorld("ieumdocDesktop", bridge);
+contextBridge.exposeInMainWorld("litzioDesktop", bridge);

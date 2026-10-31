@@ -1,9 +1,9 @@
-import type { EditableDocument } from "@ieumdoc/core";
+import type { EditableDocument } from "@litzio/core";
 import type { DoclingMap, MapItem, Target } from "./map.ts";
 
 export type ComparisonSnapshot = { path: string; document: EditableDocument; map: DoclingMap; stale: boolean };
-export type { DocumentPosition, ReadingSurfaceProps } from "@document-plugins/api/ui";
-export type BlockPosition = import("@document-plugins/api/ui").DocumentPosition["blocks"][number];
+export type { DocumentPosition, ReadingSurfaceProps } from "@litzio/plugin-api/ui";
+export type BlockPosition = import("@litzio/plugin-api/ui").DocumentPosition["blocks"][number];
 
 /** Prefer the actual converted block over groups and picture-pixel descendants. */
 export function itemsForTarget(items: MapItem[], key: string): MapItem[] {

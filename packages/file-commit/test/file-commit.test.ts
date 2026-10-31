@@ -44,7 +44,7 @@ test("preflight and commit refuse invalid Unicode and detect raw-byte changes hi
 });
 
 function withFile(run: (dir: string, file: string) => void): void {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-file-commit-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-file-commit-"));
   const file = path.join(dir, "document.md");
   writeFileSync(file, ORIGINAL);
   try {

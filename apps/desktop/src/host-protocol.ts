@@ -1,4 +1,4 @@
-import { PLUGIN_UI } from "@document-plugins/api/config";
+import { PLUGIN_UI } from "@litzio/plugin-api/config";
 import { createDoclingHost } from "../../editor/server/docling.ts";
 // The `ieumdoc://app` origin: the Editor's production build and the existing local Host handlers,
 // answered in-process. No TCP port is opened. Host paths, document rules and Save stay in

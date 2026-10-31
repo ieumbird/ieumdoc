@@ -1,6 +1,6 @@
 import type { UiMessage } from "./ui-message.ts";
-import { footnoteDefinitionsMarkdown, inlineContentText, planFootnotePaste, type FootnoteDefinition } from "@ieumdoc/core";
-import { labelKey } from "@ieumdoc/core/label";
+import { footnoteDefinitionsMarkdown, inlineContentText, planFootnotePaste, type FootnoteDefinition } from "@litzio/core";
+import { labelKey } from "@litzio/core/label";
 import { Extension, isMacOS } from "@tiptap/core";
 import { splitBlockAs } from "@tiptap/pm/commands";
 import { closeHistory } from "@tiptap/pm/history";
@@ -16,7 +16,7 @@ import { REDO_SHORTCUT, UNDO_SHORTCUT } from "./shortcuts.ts";
 import { canEditEndnoteAt } from "./endnotes.ts";
 import { fromTiptapContent, toTiptapContent } from "./tiptap-inline.ts";
 
-const FOOTNOTES_ATTR = "data-ieumdoc-footnotes";
+const FOOTNOTES_ATTR = "data-litzio-footnotes";
 
 function referenceLabels(fragment: Fragment): string[] {
   const labels = new Set<string>();
@@ -99,26 +99,26 @@ export function runHistoryShortcut(view: EditorView, shortcut: typeof UNDO_SHORT
 }
 
 export function isInternalClipboard(html: string): boolean {
-  return /\bdata-ieumdoc-type\s*=/.test(html);
+  return /\bdata-litzio-type\s*=/.test(html);
 }
 
-/** IeumDoc's own clipboard must hold only typed content it can paste losslessly. */
+/** Litzio's own clipboard must hold only typed content it can paste losslessly. */
 function internalPasteError(html: string, schema: Schema): UiMessage | undefined {
   const document = new DOMParser().parseFromString(html, "text/html");
   const allowed = new Set(["P", "DIV", "SPAN", "S", "DEL", "H1", "H2", "H3", "H4", "H5", "H6", "STRONG", "B", "EM", "I", "A", "BR", "CODE", "TABLE", "THEAD", "TBODY", "TR", "TD", "TH"]);
   // Content of a typed textblock must be what its schema allows: marks and inline atoms in a heading,
   // but no line break in a heading or cell and no block inside text.
   const misplaced = (element: Element, typed: string) => {
-    const type = schema.nodes[typed], parent = schema.nodes[element.parentElement?.closest("[data-ieumdoc-type]")?.getAttribute("data-ieumdoc-type") ?? ""];
+    const type = schema.nodes[typed], parent = schema.nodes[element.parentElement?.closest("[data-litzio-type]")?.getAttribute("data-litzio-type") ?? ""];
     return Boolean(type && parent?.isTextblock && !parent.contentMatch.matchType(type));
   };
   for (const element of document.body.querySelectorAll("*")) {
-    const typed = element.getAttribute("data-ieumdoc-type");
+    const typed = element.getAttribute("data-litzio-type");
     // The Figure's typed attrs own its image; only its figcaption is parsed as content.
-    if (["IMG", "FIGCAPTION"].includes(element.tagName) && element.closest('[data-ieumdoc-type="figure"]')) continue;
+    if (["IMG", "FIGCAPTION"].includes(element.tagName) && element.closest('[data-litzio-type="figure"]')) continue;
     if ((!typed && (!allowed.has(element.tagName) || element.hasAttribute("style"))) ||
         (typed && !TYPES.has(typed)) || misplaced(element, typed ?? (element.tagName === "BR" ? "hardBreak" : "")) ||
-        (["TABLE", "THEAD", "TBODY", "TR", "TD", "TH"].includes(element.tagName) && !element.closest('[data-ieumdoc-type="table"]')) || element.hasAttribute("colspan") || element.hasAttribute("rowspan")) {
+        (["TABLE", "THEAD", "TBODY", "TR", "TD", "TH"].includes(element.tagName) && !element.closest('[data-litzio-type="table"]')) || element.hasAttribute("colspan") || element.hasAttribute("rowspan")) {
       return { key: "This clipboard content includes unsupported structure or formatting. Nothing was pasted; the clipboard and your selection are kept. Paste plain text explicitly or use supported content." };
     }
   }
@@ -361,14 +361,14 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
           const spec = serialize(node) as readonly unknown[];
           const attrs = typeof spec[1] === "object" && !Array.isArray(spec[1]) ? spec[1] : {};
           const children = attrs === spec[1] ? spec.slice(2) : spec.slice(1);
-          return [spec[0], { ...attrs, "data-ieumdoc-type": type, "data-ieumdoc-attrs": JSON.stringify(node.attrs) }, ...children] as DOMOutputSpec;
+          return [spec[0], { ...attrs, "data-litzio-type": type, "data-litzio-attrs": JSON.stringify(node.attrs) }, ...children] as DOMOutputSpec;
         };
       }
       const parser = new PMDOMParser(schema, [
         ...Object.keys(serializers).filter(type => type !== "text").map(type => ({
-          tag: `[data-ieumdoc-type="${type}"]`, node: type,
+          tag: `[data-litzio-type="${type}"]`, node: type,
           getAttrs: (element: HTMLElement) => {
-            try { return JSON.parse(element.getAttribute("data-ieumdoc-attrs") ?? "{}"); } catch { return false; }
+            try { return JSON.parse(element.getAttribute("data-litzio-attrs") ?? "{}"); } catch { return false; }
           },
           ...(type === "table" ? { contentElement: "table" } : type === "figure" ? { contentElement: "figcaption" } : {}),
         })),
@@ -549,7 +549,7 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
             return copyWithFootnotes(view, event, true);
           },
         },
-        // IeumDoc's typed clipboard is pasted as is; other HTML is normalized to supported structure first.
+        // Litzio's typed clipboard is pasted as is; other HTML is normalized to supported structure first.
         transformPastedHTML: html => {
           pastedFootnotes = [];
           external = !isInternalClipboard(html);

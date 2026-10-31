@@ -2,8 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import type { ConversionJob } from "@ieumdoc/docling/server-types";
-import { PLUGIN_UI, type UiManifest, type UiRegistration } from "@document-plugins/api/config";
+import type { ConversionJob } from "@litzio/docling/server-types";
+import { PLUGIN_UI, type UiManifest, type UiRegistration } from "@litzio/plugin-api/config";
 
 export type WorkerManifest = { id: string; version: string; workerApi?: 1; entry?: "worker.cjs"; ui?: UiManifest };
 export type Installation = WorkerManifest & { directory: string; sha256: string; revision: string; uiHashes?: Record<string, string>; enabled: boolean };

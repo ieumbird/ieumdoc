@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type MouseEvent as ReactMouseEvent 
 import { useTranslation } from "react-i18next";
 import { NodeViewContent, NodeViewWrapper, useEditorState, type ReactNodeViewProps } from "@tiptap/react";
 import { NodeSelection } from "@tiptap/pm/state";
-import { labelError } from "@ieumdoc/core/label";
+import { labelError } from "@litzio/core/label";
 import { FieldError } from "../ui/primitives.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { labelPropertyError, updateLabelProperties } from "../label-rename.ts";

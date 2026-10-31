@@ -173,7 +173,7 @@ async (page, { openFolderPicker, openPath, waitForActivePath, reloadDocument, bi
   const media = await page.context().newPage();
   try {
     await media.goto(`${origin}/document/unsafe.svg?path=${encodeURIComponent(fileA)}`);
-    check(await media.evaluate(() => window.__ieumdocSVG) !== true, 'A directly opened SVG cannot execute with app authority');
+    check(await media.evaluate(() => window.__litzioSVG) !== true, 'A directly opened SVG cannot execute with app authority');
   } finally { await media.close(); }
   // A narrow sidebar does not narrow the server's fixed Root union for declared resources.
   const bibFile = join(a, 'fixture', 'bibliography.md');

@@ -6,20 +6,20 @@ Last verified: 2026-10-29 (CI execution-policy/quality/scripts tests, browser fi
 
 ## 자동 검증
 
-저장소 루트에서 변경 유형에 필요한 명령을 선택한다. 패키지 선택 실행은 예를 들어 `pnpm --filter @ieumdoc/core test`를 사용한다.
+저장소 루트에서 변경 유형에 필요한 명령을 선택한다. 패키지 선택 실행은 예를 들어 `pnpm --filter @litzio/core test`를 사용한다.
 
 ```bash
 pnpm install --frozen-lockfile
 pnpm docs:check
 pnpm typecheck
 pnpm test
-pnpm --filter @ieumdoc/editor build
+pnpm --filter @litzio/editor build
 git diff --check
 ```
 
 `pnpm test`는 Core, File commit, CLI, Editor, Desktop suite를 모두 실행한다. 개별 테스트 개수와 이름은 계약이 아니며 package scripts와 test runner가 source of truth다. 문서 checker 자체를 바꾸면 `pnpm exec tsx --test scripts/check-docs.test.ts`도 실행한다. Authenticode의 실제 검사는 Windows job에서 실행한다.
 
-CI quality는 문서 전용 PR과 merge group에서 문서·checker tests, diff/whitespace, issue 정책, AI provenance validator·event commit 검사와 경로 분류 회귀만 실행한다. 제품 테스트·typecheck·Editor build는 생략한다. `node --test scripts/ci-quality-mode.test.mjs scripts/ci-execution-policy.test.mjs`는 PR merge-base diff와 group 전체 base..head diff, 문서·Editor·설치기·lockfile·다중 PR·삭제/rename·diff 실패, master push의 같은 SHA 성공 run 재사용/API 실패 fallback, aggregate와 캐시 갱신 조건을 검증한다. queue head별 CI가 서로 취소되지 않는지도 검사한다. smartquotes 대형 패치 검사는 기본 Core suite에서 분리한 `pnpm --filter @ieumdoc/core test:smartquotes`이며 의존성·patch·parser 경로 변경 때 선택한다. 정확한 allowlist·실행 조건·캐시 key/scope는 [Verification matrix](../../CONTRIBUTING.md#verification-matrix)를 따른다. 로컬 probe와 PR CI만으로 실제 merge_group 실행을 검증했다고 보고하지 않는다.
+CI quality는 문서 전용 PR과 merge group에서 문서·checker tests, diff/whitespace, issue 정책, AI provenance validator·event commit 검사와 경로 분류 회귀만 실행한다. 제품 테스트·typecheck·Editor build는 생략한다. `node --test scripts/ci-quality-mode.test.mjs scripts/ci-execution-policy.test.mjs`는 PR merge-base diff와 group 전체 base..head diff, 문서·Editor·설치기·lockfile·다중 PR·삭제/rename·diff 실패, master push의 같은 SHA 성공 run 재사용/API 실패 fallback, aggregate와 캐시 갱신 조건을 검증한다. queue head별 CI가 서로 취소되지 않는지도 검사한다. smartquotes 대형 패치 검사는 기본 Core suite에서 분리한 `pnpm --filter @litzio/core test:smartquotes`이며 의존성·patch·parser 경로 변경 때 선택한다. 정확한 allowlist·실행 조건·캐시 key/scope는 [Verification matrix](../../CONTRIBUTING.md#verification-matrix)를 따른다. 로컬 probe와 PR CI만으로 실제 merge_group 실행을 검증했다고 보고하지 않는다.
 
 병합은 [독립 승인 후 merge queue 절차](../../CONTRIBUTING.md#review-and-sequential-merge)와 [Enqueue 명령·상태 확인](../../CONTRIBUTING.md#enqueue)을 따른다. Queue는 최신 master와 합친 결과의 전체 diff에 경로 규칙을 적용하고 필수 검사 `Core, CLI, Editor, and browser regressions`를 보고한다. `node --test scripts/commit-provenance.test.mjs`는 PR 고유 commit과 agent 작성 merge 검사를 유지하면서 GitHub 생성 queue merge는 건너뛰는지 확인한다. Queue 실패는 artifact부터 조사한다. Queue는 2026-10-26부터 활성화되어 있으며, [#537 검증 기록](https://github.com/ieumbird/ieumdoc/issues/537)에 [PR #543](https://github.com/ieumbird/ieumdoc/pull/543)의 실제 [merge_group 실행](https://github.com/ieumbird/ieumdoc/actions/runs/40313330979)과 queue 병합 결과가 있다. 이후 PR도 해당 queue head의 실제 실행 결과를 확인하며, 로컬 probe와 PR CI만으로 실제 queue 병합 성공을 주장하지 않는다.
 
@@ -32,7 +32,7 @@ pnpm browser:test save-session       # 관련 시나리오만 선택
 pnpm browser:test --shard=1/4         # CI의 4개 shard 중 하나
 ```
 
-CI의 4개 shard는 stable 목록을 순환 분배하며 각 시나리오는 전체 shard에서 정확히 한 번 실행된다. `pnpm --filter @ieumdoc/editor exec tsx --test test/browser-fixtures.test.ts`가 누락·중복·빈 shard 없이 분할되는지 검사한다. CI 로그에는 각 shard의 시나리오 배정이 출력되고 실패 artifact는 `editor-browser-ci-logs-1`부터 `editor-browser-ci-logs-4`까지 구분된다. 로컬에서 전체를 분할 실행하려면 `1/4`부터 `4/4`까지 순서대로 실행한다.
+CI의 4개 shard는 stable 목록을 순환 분배하며 각 시나리오는 전체 shard에서 정확히 한 번 실행된다. `pnpm --filter @litzio/editor exec tsx --test test/browser-fixtures.test.ts`가 누락·중복·빈 shard 없이 분할되는지 검사한다. CI 로그에는 각 shard의 시나리오 배정이 출력되고 실패 artifact는 `editor-browser-ci-logs-1`부터 `editor-browser-ci-logs-4`까지 구분된다. 로컬에서 전체를 분할 실행하려면 `1/4`부터 `4/4`까지 순서대로 실행한다.
 
 runner는 원본 fixture의 scratch 사본을 준비한다. `file-actions`의 실제 파일 삭제·이름 변경은 저장소 밖 OS 임시 폴더의 checkout별 사본에서만 실행하며, runner의 `/api/file` guard가 저장소 내부 경로를 거부하는지도 확인한다. 테스트 실행을 위해 `apps/editor/document/`나 `apps/editor/test/browser/fixtures/`의 원본을 직접 수정하지 않는다. fixture 자체를 바꾸는 작업이라면 의도한 변경으로 검토하고 관련 regression을 실행한다. Windows에서는 [persistent profile과 session 규칙](../contributing/windows-browser-automation.md)을 따른다. 작업 후 직접 시작한 서버와 세션을 종료한다.
 
@@ -245,16 +245,16 @@ The `cross-reference` record-removal wait and #407 observation are retained in [
 로컬에서는 관련 HTTP boundary tests와 아래 HTTP browser 시나리오를 실행한다. CLI 패키징·배포 경계를 바꿀 때 `package`·`test:packaged`도 로컬 실행하며, 그 외에는 필수 Windows/Linux HTTP CI에 맡긴다.
 
 ```bash
-pnpm --filter @ieumdoc/cli build
+pnpm --filter @litzio/cli build
 pnpm browser:test http-host
 # CLI 패키징·배포 경계 변경 시 추가 실행
-pnpm --filter @ieumdoc/cli package
-pnpm --filter @ieumdoc/cli test:packaged
+pnpm --filter @litzio/cli package
+pnpm --filter @litzio/cli test:packaged
 ```
 
 The archive test installs outside the checkout with no runtime dependencies and runs Node-only CLI/serve, real writes, port conflict and shutdown. The separate HTTP browser scenario starts the built Host with two scratch roots and verifies real Save/Reload, New file/folder, images, dirty/draft guards, revision conflict and SVG script blocking. Do not combine it with Vite scenarios. Windows uses the existing persistent browser profile. `--screenshots` saves optional wide/narrow manual captures under `tmp/http-host-capture/`.
 
-HTTP boundary tests are included in `pnpm test`; targeted command: `pnpm --filter @ieumdoc/editor exec tsx --test test/http-host.test.ts`. When the HTTP job is selected, CI requires the archive and HTTP browser paths on Windows and Linux. PR path selection and full checks on master pushes follow the [Verification matrix](../../CONTRIBUTING.md#verification-matrix), with [ci.yml](../../.github/workflows/ci.yml) as the path-rule source of truth. See [HTTP contract](../design/http-host-v1.md) for scope and deployment limitations.
+HTTP boundary tests are included in `pnpm test`; targeted command: `pnpm --filter @litzio/editor exec tsx --test test/http-host.test.ts`. When the HTTP job is selected, CI requires the archive and HTTP browser paths on Windows and Linux. PR path selection and full checks on master pushes follow the [Verification matrix](../../CONTRIBUTING.md#verification-matrix), with [ci.yml](../../.github/workflows/ci.yml) as the path-rule source of truth. See [HTTP contract](../design/http-host-v1.md) for scope and deployment limitations.
 
 ## Windows Desktop regression
 
@@ -263,18 +263,18 @@ Packaged 테스트의 모든 직접 실행은 `--lang=en-US`로 Chromium UI 언�
 Windows x64에서 아래 명령 중 변경 영역의 tests/typecheck·browser 회귀를 선택한다. 패키징·설치/업데이트·배포 경계 변경 시 관련 `test:update`·`package`·release 자산 검증·`test:packaged`도 로컬 실행하며, 그 외에는 필수 Windows Desktop CI에 맡긴다. `package`와 아래 tests는 공개 Release를 만들지 않는다.
 
 ```bash
-pnpm --filter @ieumdoc/desktop test
-pnpm --filter @ieumdoc/desktop typecheck
-pnpm --filter @ieumdoc/desktop test:update
-pnpm --filter @ieumdoc/desktop package
-pnpm --filter @ieumdoc/desktop exec tsx scripts/verify-release.ts --tag v0.0.2-beta.4
-pnpm --filter @ieumdoc/desktop test:packaged
+pnpm --filter @litzio/desktop test
+pnpm --filter @litzio/desktop typecheck
+pnpm --filter @litzio/desktop test:update
+pnpm --filter @litzio/desktop package
+pnpm --filter @litzio/desktop exec tsx scripts/verify-release.ts --tag v0.0.2-beta.4
+pnpm --filter @litzio/desktop test:packaged
 pnpm browser:test desktop-updates
 ```
 
-`test:update`는 기존 IeumDoc 설치/user data/updater cache가 있으면 거부한다. 테스트 전용 NSIS 두 버전을 로컬 feed로 설치·업데이트하고, 미저장 재시작 거부, Save 후 설치/재실행과 문서 보존, uninstall을 검증한다. 실패 시에도 자신이 설치한 프로세스와 data를 정리한다. 사용자 설치를 지워서 실행하지 않는다. 생성 경로는 `tmp/desktop-update/`와 앱의 기존 generated build/release 폴더다. 테스트 후 normal `package`를 실행해야 테스트 버전/HTTP feed가 산출물에 남지 않는다.
+`test:update`는 기존 Litzio 설치/user data/updater cache가 있으면 거부한다. 테스트 전용 NSIS 두 버전을 로컬 feed로 설치·업데이트하고, 미저장 재시작 거부, Save 후 설치/재실행과 문서 보존, uninstall을 검증한다. 실패 시에도 자신이 설치한 프로세스와 data를 정리한다. 사용자 설치를 지워서 실행하지 않는다. 생성 경로는 `tmp/desktop-update/`와 앱의 기존 generated build/release 폴더다. 테스트 후 normal `package`를 실행해야 테스트 버전/HTTP feed가 산출물에 남지 않는다.
 
-`pnpm --filter @ieumdoc/desktop test:uninstall`은 일회용 Windows CI에서만 실행한다(`CI=true` guard).
+`pnpm --filter @litzio/desktop test:uninstall`은 일회용 Windows CI에서만 실행한다(`CI=true` guard).
 clean package를 실제 설치하고 손상된 CLI owner, 외부 파일, helper 누락, 환경 접근 실패를 각각
 interactive/silent 제거에 주입한다. 앱·제거 등록 삭제, 불확실한 파일 보존, 실제 PATH 결과와 경고
 진단을 확인한다. 4,000자 이상의 한글·따옴표·`%VAR%` PATH 및 stale snapshot 거부도 실제 레지스트리에서
@@ -285,9 +285,9 @@ interactive/silent 제거에 주입한다. 앱·제거 등록 삭제, 불확실�
 기본 설치·업데이트 검증은 Stable `0.0.1 → 0.0.2`다. Beta 릴리즈 회귀에서는 아래 PowerShell 명령으로 `0.1.0-beta.1 → 0.1.0-beta.2`도 검증한다. Beta feed에는 Stable Release가 없으며 최초 기본 채널, `beta.yml` 검색과 Beta 설치/재실행, 저장된 preferences·채널·사용자 데이터·Markdown 보존을 확인한다. 이는 테스트 fixture의 보존 검사이며 beta.1의 모든 문서·복구 기록·설정에 대한 하위 호환성 보장은 아니다. 이후 환경 변수를 제거하고 normal `package`를 실행한다.
 
 ```powershell
-$env:IEUMDOC_TEST_UPDATE_CHANNEL = 'beta'
-try { pnpm --filter @ieumdoc/desktop test:update }
-finally { Remove-Item Env:IEUMDOC_TEST_UPDATE_CHANNEL }
+$env:LITZIO_TEST_UPDATE_CHANNEL = 'beta'
+try { pnpm --filter @litzio/desktop test:update }
+finally { Remove-Item Env:LITZIO_TEST_UPDATE_CHANNEL }
 ```
 
 `test:packaged`는 production app의 문서 없는 시작과 선택한 sample, 외부 .md, Save→재실행, Figure, 합성 image paste/asset, folder/New, conflict, 종료 보호, channel 유지와 직접 실행의 시작 시간/working set/TCP listener를 검증한다. app별 고정 profile은 `tmp/desktop-e2e/profiles/`에 재사용하며 Electron 자동화는 설치형 Chrome profile을 사용하지 않는다. 직접 실행한 PID만 종료한다. OS 실제 clipboard/IME, SmartScreen 및 서명된 실제 GitHub delivery는 이 테스트의 판정 대상이 아니다.
@@ -298,12 +298,12 @@ CI의 Windows Desktop job이 선택되면 clean package·release 자산 검증·
 
 ## Real GitHub Beta update
 
-아래 opt-in 명령의 대상은 `0.0.2-beta.3 → 0.0.2-beta.4`다. 현재 공개 버전은 `0.0.2-beta.4`이며 직전 공개 버전은 `0.0.2-beta.3`다. **이 PC의 설치 상태를 바꾸지 않는다는 제약으로 이번 릴리스의 실제 GitHub 설치·업데이트는 미실행·미검증이다.** [#758 배포 기록](../releases/v0.0.2-beta.4.md)을 따른다. 별도 승인으로 실행할 경우 `ieumdoc: 1` 표식이 있는 Markdown의 저장·보존을 확인한다. CI local-feed는 현재 소스를 테스트 버전으로 각각 빌드하므로 Stable `0.0.1 → 0.0.2`, Beta `0.1.0-beta.1 → 0.1.0-beta.2` fixture를 그대로 유지하며 공개 버전 쌍과 구별한다. 이전 배포·철회 근거는 [#632 기록](../releases/v0.0.2-beta.1.md)에 보존한다.
+아래 opt-in 명령의 대상은 `0.0.2-beta.3 → 0.0.2-beta.4`다. 현재 공개 버전은 `0.0.2-beta.4`이며 직전 공개 버전은 `0.0.2-beta.3`다. **이 PC의 설치 상태를 바꾸지 않는다는 제약으로 이번 릴리스의 실제 GitHub 설치·업데이트는 미실행·미검증이다.** [#758 배포 기록](../releases/v0.0.2-beta.4.md)을 따른다. 별도 승인으로 실행할 경우 `litzio: 1` 표식이 있는 Markdown의 저장·보존을 확인한다. CI local-feed는 현재 소스를 테스트 버전으로 각각 빌드하므로 Stable `0.0.1 → 0.0.2`, Beta `0.1.0-beta.1 → 0.1.0-beta.2` fixture를 그대로 유지하며 공개 버전 쌍과 구별한다. 이전 배포·철회 근거는 [#632 기록](../releases/v0.0.2-beta.1.md)에 보존한다.
 
-이 opt-in 검증은 두 버전의 공개 후 명시적 승인 범위에서 실행한다. 모의 Feed 성공은 이 검증의 성공이 아니다. 이미 설치된 IeumDoc이나 사용자 데이터·cache를 삭제해서 실행하지 않는다. 별도 Windows 테스트 계정/VM을 권장한다. 테스트는 기존 설치, `%APPDATA%\IeumDoc`, `%LOCALAPPDATA%\ieumdoc-updater`, 기본 설치 폴더가 하나라도 있으면 거부한다. 이 검사 후에만 테스트가 소유하는 per-user 설치와 profile/cache를 만들고 정리한다. Markdown은 `tmp/desktop-update/documents/`에만 만든다.
+이 opt-in 검증은 두 버전의 공개 후 명시적 승인 범위에서 실행한다. 모의 Feed 성공은 이 검증의 성공이 아니다. 이미 설치된 Litzio가나 사용자 데이터·cache를 삭제해서 실행하지 않는다. 별도 Windows 테스트 계정/VM을 권장한다. 테스트는 기존 설치, `%APPDATA%\IeumDoc`, `%LOCALAPPDATA%\ieumdoc-updater`, 기본 설치 폴더가 하나라도 있으면 거부한다. 이 검사 후에만 테스트가 소유하는 per-user 설치와 profile/cache를 만들고 정리한다. Markdown은 `tmp/desktop-update/documents/`에만 만든다.
 
 ```powershell
-pnpm --filter @ieumdoc/desktop test:update:github
+pnpm --filter @litzio/desktop test:update:github
 ```
 
 이 opt-in 경로는 두 버전이 이미 public Prerelease인지 확인한 다음 공식 0.0.2-beta.3 installer를 HTTPS로 내려받아 GitHub SHA-256·metadata SHA-512·크기를 대조하고 설치한다. 테스트용 빌드나 HTTP Feed를 사용하지 않는다. 설치된 0.0.2-beta.3의 실제 GitHub Provider로 Beta 업데이트 확인 → 정확히 0.0.2-beta.4 알림 → 사용자 요청 다운로드/검증 → 일반 종료가 설치하지 않음 → IPC 실패/미저장 문서가 재시작 거부 → Save → 설치/재실행 → PE FileVersion·실행 로그·저장된 채널/preferences·user-data canary·Markdown 보존을 확인한다. 더 최신 Beta가 제공되면 0.0.2-beta.4 대신 설치하지 않고 실패한다. 테스트는 Release/tag/asset을 변경하는 API를 호출하지 않는다.
@@ -323,16 +323,16 @@ pnpm --filter @ieumdoc/desktop test:update:github
 A change to the Editor's look or a new visible control states which [Visual Language](../design/editor-visual-language-v1.md), [Layout Rules](../design/editor-layout-rules-v1.md) or [UI pattern](../design/ui-patterns-v1.md) rule it follows, or updates the relevant contract in the same PR. Compare the same states before and after:
 
 1. Capture the clean base before editing and preserve its files separately, or check out the base in a second worktree and start its dev server on a free port (for example 5174).
-2. In each checkout, run `pnpm browser:test quiet-document --screenshots` against that checkout's own server; in the base worktree set `IEUMDOC_BROWSER_URL=http://127.0.0.1:5174`. Fixtures and captures belong to the checkout that runs the command.
+2. In each checkout, run `pnpm browser:test quiet-document --screenshots` against that checkout's own server; in the base worktree set `LITZIO_BROWSER_URL=http://127.0.0.1:5174`. Fixtures and captures belong to the checkout that runs the command.
 3. Compare the captures in each checkout's `tmp/visual-refinement/` and attach the representative pairs to the PR.
 
-IeumDoc keeps one stylesheet; comparison captures do not need a runtime old/new theme toggle. Record the actual HEAD, viewport, DPR/zoom, scroll/interaction state and font environment. CSS studies and mockups are not product Before images.
+Litzio keeps one stylesheet; comparison captures do not need a runtime old/new theme toggle. Record the actual HEAD, viewport, DPR/zoom, scroll/interaction state and font environment. CSS studies and mockups are not product Before images.
 
 Use 1440px and 640px as the default comparison widths under [ADR-0010](../adr/0010-supported-viewport-and-input.md). Follow the [Windows browser/session rules](../contributing/windows-browser-automation.md), and close processes started for the comparison. Captures are manual evidence, not screenshot assertions or owner visual approval.
 
 ## Native document boundary
 
-Success fixtures contain `ieumdoc: 1` and supported content. Core owns syntax/support rejection. CLI tests cover exclusive create, failed text/JSON check and unchanged bytes. Host tests cover refused files and Save revalidation. `pnpm browser:test writeability-preflight` covers native admission errors and retained document, selection, unsaved content and property drafts. `new-document`, `source-view`, `outline` and `property-drafts` retain their interface checks. Block-source and partial read-only scenarios have been removed. Production HTTP and packaged Desktop use the same Core admission.
+Success fixtures contain `litzio: 1` and supported content. Core owns syntax/support rejection. CLI tests cover exclusive create, failed text/JSON check and unchanged bytes. Host tests cover refused files and Save revalidation. `pnpm browser:test writeability-preflight` covers native admission errors and retained document, selection, unsaved content and property drafts. `new-document`, `source-view`, `outline` and `property-drafts` retain their interface checks. Block-source and partial read-only scenarios have been removed. Production HTTP and packaged Desktop use the same Core admission.
 
 ## Local recovery regression
 
@@ -342,7 +342,7 @@ To verify recovery across production HTTP browser and packaged Desktop process r
 
 ```bash
 pnpm browser:test http-host
-pnpm --filter @ieumdoc/desktop test:packaged
+pnpm --filter @litzio/desktop test:packaged
 ```
 
 The HTTP command includes `http-recovery.spec.ts`: actual browser process termination and a new
@@ -450,7 +450,7 @@ This prior measurement was documented on 2026-10-16 in [the Host recovery verifi
 
 `pnpm browser:test docling-server` uses a worker-owned fake HTTP service and
 scratch PDF, with the real Host routes. The same scenario can target a running
-production HTTP Host via `IEUMDOC_BROWSER_URL`; no external Docling is used in
+production HTTP Host via `LITZIO_BROWSER_URL`; no external Docling is used in
 normal CI. Browser profiles follow the existing persistent-profile rules.
 
 For manual real-service verification, first prepare the pinned local service
@@ -458,9 +458,9 @@ using the [administrator guide](../guides/docling-server.md), then run from the
 checkout in PowerShell:
 
 ```powershell
-$env:IEUMDOC_DOCLING_LIVE = "1"
+$env:LITZIO_DOCLING_LIVE = "1"
 try { pnpm browser:test docling-server --screenshots }
-finally { Remove-Item Env:IEUMDOC_DOCLING_LIVE }
+finally { Remove-Item Env:LITZIO_DOCLING_LIVE }
 ```
 
 This explicitly selected mode uses the committed NIST PDF, copies it into
@@ -474,7 +474,7 @@ completion Light/Korean/Dark review states separately from normal CI assertions.
 ## Docling worker runtime (#853)
 
 The UI contribution boundary is checked separately by
-`pnpm --filter @ieumdoc/editor exec tsx --test test/plugin-ui.test.ts` and
+`pnpm --filter @litzio/editor exec tsx --test test/plugin-ui.test.ts` and
 `pnpm browser:test plugin-ui docling-server docling-compare` (#857). The latter
 retains #815's fixed Read/reverse selection checks. The real worker regression
 holds the browser's UI module while accepted conversion finishes, then verifies
@@ -482,7 +482,7 @@ the comparison opens after activation. It does not extend timeouts or weaken
 assertions. `plugin-ui` checks live contributions, exact native document identity
 and input across failures, retained-tab recovery, same-ESM reuse and unmount
 cleanup before disposal/style removal. Production serve supports the same
-feature scenarios via `IEUMDOC_BROWSER_URL`; packaged Desktop loading and
+feature scenarios via `LITZIO_BROWSER_URL`; packaged Desktop loading and
 disable/re-register run in required Windows CI. See the
 [UI contract](../design/plugin-ui-v1.md) for React compatibility and ESM memory
 limits. These trusted UI tests do not establish a sandbox or real Docling fidelity.
@@ -495,9 +495,9 @@ pnpm browser:test docling-server docling-compare
 ```
 
 The [runtime contract](../design/plugin-runtime-v1.md) describes the assertions,
-shared installation and crash leftovers. Tests isolate `IEUMDOC_PLUGINS_DIR` and
-`IEUMDOC_DOCLING_SETTINGS_FILE`. For a caller-owned Vite server set both variables
-before starting it, use port 5282, then set `IEUMDOC_BROWSER_URL` for the runner.
+shared installation and crash leftovers. Tests isolate `LITZIO_PLUGINS_DIR` and
+`LITZIO_DOCLING_SETTINGS_FILE`. For a caller-owned Vite server set both variables
+before starting it, use port 5282, then set `LITZIO_BROWSER_URL` for the runner.
 Both scenarios explicitly set their UI language; reuse the checkout's persistent
 profile. Shut down the caller-owned server after the runner closes its browser.
 Offline CLI and packaged Desktop worker conversion smoke tests run in required
@@ -506,7 +506,7 @@ PC do not run Desktop packaging, update/uninstall or Edge for #853.
 
 Manual acceptance against an operator's existing **real** pinned Docling service:
 
-1. Use a separate `IEUMDOC_PLUGINS_DIR`/settings file and a disposable copy of a
+1. Use a separate `LITZIO_PLUGINS_DIR`/settings file and a disposable copy of a
    known PDF. Record original PDF/JSON hashes. Start Desktop or `ieumdoc serve`
    with the same OS user/installation; do not launch a Docling service from this
    repository's test or agent workflow.

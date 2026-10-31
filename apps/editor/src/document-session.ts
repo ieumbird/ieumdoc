@@ -1,5 +1,5 @@
 import { SaveContentError } from "../shared/save-error.ts";
-import type { FigureContent } from "@ieumdoc/core";
+import type { FigureContent } from "@litzio/core";
 import type { DocumentFileResponse, EditorFileResponse, TextSaveRequest, DocumentStartResponse, DocumentErrorResponse, SaveRequest, SaveResponse, SourceResponse } from "../shared/document-protocol.ts";
 
 type DocumentResponse = EditorFileResponse;
@@ -75,7 +75,7 @@ export async function requestBibliography(path: string, revision: string, declar
       const resourceResponse = await fetch(`${import.meta.env?.BASE_URL ?? "/"}api/bibliography?${resourceQuery}`);
       const resources = await resourceResponse.json();
       if (!resourceResponse.ok || resources.revision !== revision || !Array.isArray(resources.sources)) throw new Error();
-      return resources.sources as import("@ieumdoc/core").BibliographySource[];
+      return resources.sources as import("@litzio/core").BibliographySource[];
     } catch { return declarations.map(source => ({ source, status: "error" as const, code: "bibliography-unreadable" as const })); }
   }
   return [];

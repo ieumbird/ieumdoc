@@ -9,7 +9,7 @@ import { liftListItem, sinkListItem, splitListItem } from "@tiptap/pm/schema-lis
 import { history, undo, redo } from "@tiptap/pm/history";
 import { joinBackward } from "@tiptap/pm/commands";
 import { EditorState, TextSelection, type Transaction } from "@tiptap/pm/state";
-import { parse, serialize, type InlineContent } from "@ieumdoc/core";
+import { parse, serialize, type InlineContent } from "@litzio/core";
 import { changeListFormat, deleteBlock, insertListAfter } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { appliedDocument, collectSupportedEdits, toTiptapDocument } from "../src/tiptap-document.ts";
@@ -54,7 +54,7 @@ function saveFile(dir: string, markdown: string, state: EditorState, editable: R
 }
 
 test("deleting the paragraph between lists preserves both lists through Host Save and reopen", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-adjacent-lists-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-editor-adjacent-lists-"));
   const markdown = nativeSource("1. First\n\nSeparator\n\n7. Second\n");
   try {
     const { editable, state } = editorState(markdown);
@@ -72,7 +72,7 @@ test("deleting the paragraph between lists preserves both lists through Host Sav
 });
 
 test("list item split, indent, outdent and kind change save as the edited list and reload editable", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-list-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-editor-list-"));
   const markdown = nativeSource("# Steps\n\n- Wire\n- Power\n- Close\n\nDone.\n");
   try {
     let { editable, state } = editorState(markdown);
@@ -104,7 +104,7 @@ test("list item split, indent, outdent and kind change save as the edited list a
 });
 
 test("new lists and empty items save from insertion", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-new-list-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-editor-new-list-"));
   const markdown = nativeSource("Intro.\n");
   try {
     const { editable, state } = editorState(markdown);

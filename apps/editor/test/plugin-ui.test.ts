@@ -3,8 +3,8 @@ import { test } from "node:test";
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { PLUGIN_UI, type UiRegistration } from "@document-plugins/api/config";
-import type { UiHost, UiContributions } from "@document-plugins/api/ui";
+import { PLUGIN_UI, type UiRegistration } from "@litzio/plugin-api/config";
+import type { UiHost, UiContributions } from "@litzio/plugin-api/ui";
 import { UiRegistry, contributionNotices, type ActiveUi } from "../src/plugin-ui-registry.ts";
 import { PluginStore } from "../server/plugin-store.ts";
 import { buildDoclingWorker, buildPluginUi } from "../../../packages/cli/scripts/build-docling-worker.ts";
@@ -65,17 +65,17 @@ test("React major mismatch and malformed activation are contribution failures", 
 
 test("installed UI assets use identical validated routes/CSP in Desktop and independent HTTP", async t => {
   const root = mkdtempSync(path.join(tmpdir(), "plugin-ui-"));
-  const oldDirectory = process.env.IEUMDOC_PLUGINS_DIR;
-  process.env.IEUMDOC_PLUGINS_DIR = path.join(root, "plugins");
+  const oldDirectory = process.env.LITZIO_PLUGINS_DIR;
+  process.env.LITZIO_PLUGINS_DIR = path.join(root, "plugins");
   let store: PluginStore | undefined, desktop: ReturnType<typeof createProtocolHandler> | undefined, http: Awaited<ReturnType<typeof startHttpHost>> | undefined;
   t.after(async () => {
     await http?.close(); await desktop?.close(); store?.close();
-    if (oldDirectory === undefined) delete process.env.IEUMDOC_PLUGINS_DIR; else process.env.IEUMDOC_PLUGINS_DIR = oldDirectory;
+    if (oldDirectory === undefined) delete process.env.LITZIO_PLUGINS_DIR; else process.env.LITZIO_PLUGINS_DIR = oldDirectory;
     rmSync(root, { recursive: true, force: true });
   });
   await buildDoclingWorker(root);
   writeFileSync(path.join(root, "index.html"), "<!doctype html><title>Host fixture</title>");
-  store = new PluginStore(process.env.IEUMDOC_PLUGINS_DIR);
+  store = new PluginStore(process.env.LITZIO_PLUGINS_DIR);
   const installed = store.register(path.join(root, "manifest.json"));
   desktop = createProtocolHandler(root, { samples: {} as any });
   http = await startHttpHost({ roots: [root], editorDir: root, port: 0 });

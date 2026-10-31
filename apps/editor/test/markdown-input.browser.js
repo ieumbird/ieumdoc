@@ -17,7 +17,7 @@ async (page, { openDocument }) => {
     if (response.status() !== 200) throw new Error(`Prepare ${file} first`);
     return (await response.text()).replaceAll('\r\n', '\n');
   };
-  const fresh = '---\nieumdoc: 1\n---\n\n# Markdown input\n\nHeading target\n\nList target\n\nNumbered target\n\nCode target\n\nInline target\n\n| Cell |\n| ---- |\n| x    |\n';
+  const fresh = '---\nlitzio: 1\n---\n\n# Markdown input\n\nHeading target\n\nList target\n\nNumbered target\n\nCode target\n\nInline target\n\n| Cell |\n| ---- |\n| x    |\n';
   if (await markdown() !== fresh) throw new Error('Scratch document is not a fresh Markdown input fixture');
 
   const openScratch = async () => {

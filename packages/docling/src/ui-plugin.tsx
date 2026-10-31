@@ -1,4 +1,4 @@
-import type { UiHost, UiContributions } from "@document-plugins/api/ui";
+import type { UiHost, UiContributions } from "@litzio/plugin-api/ui";
 import { DoclingCompareView } from "./CompareView.tsx";
 import type { ComparisonSnapshot } from "./compare.ts";
 

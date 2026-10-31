@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { getSchema } from "@tiptap/core";
 import { AllSelection, EditorState, NodeSelection, TextSelection, type Transaction } from "@tiptap/pm/state";
-import { parse, serialize, type InlineContent } from "@ieumdoc/core";
+import { parse, serialize, type InlineContent } from "@litzio/core";
 import { applyBlockShortcut, type BlockShortcut } from "../src/markdown-input-rules.ts";
 import { changeHeadingLevel, headingToParagraph, insertDividerAfter, insertQuoteAfter, paragraphToHeading, paragraphToHeadingRejection } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
@@ -55,7 +55,7 @@ function saveFile(file: string, markdown: string, edits: ReturnType<typeof colle
 }
 
 test("new Warning survives Tiptap collection, Host file save and reload", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-structural-warning-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-editor-structural-warning-"));
   const file = path.join(dir, "document.md");
   writeFileSync(file, source);
   try {
@@ -103,7 +103,7 @@ test("new Warning survives Tiptap collection, Host file save and reload", () => 
 });
 
 test("Heading level edits survive Tiptap collection, Host file save and reload", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-heading-level-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-editor-heading-level-"));
   const levelOnlyFile = path.join(dir, "level-only.md");
   const textAndLevelFile = path.join(dir, "text-and-level.md");
   writeFileSync(levelOnlyFile, source);
@@ -149,7 +149,7 @@ test("Heading level edits survive Tiptap collection, Host file save and reload",
 });
 
 test("Paragraph and Heading conversions survive Tiptap collection, Host file save and reload", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-convert-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-editor-convert-"));
   const file = path.join(dir, "document.md");
   writeFileSync(file, source);
   try {

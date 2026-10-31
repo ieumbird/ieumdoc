@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, w
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { parse, serialize, getEditableDocument, validateStructure, unresolvedReferences, citationReport, type InlineContent, type ListContent } from "@ieumdoc/core";
+import { parse, serialize, getEditableDocument, validateStructure, unresolvedReferences, citationReport, type InlineContent, type ListContent } from "@litzio/core";
 import { prepareBrowserFixtures, REPOSITORY_ROOT, SCRATCH_DIRS, SOURCE_DIRS } from "./browser/fixtures.ts";
 import { HTTP_SCENARIOS, selectBrowserScenarios, STABLE_SCENARIOS } from "./browser/scenarios.ts";
 import { classifyConsoleErrors } from "./browser/console-errors.ts";
@@ -35,7 +35,7 @@ function snapshot(dir: string): Record<string, string> {
 }
 
 function withTmp(run: (tmp: string) => void): void {
-  const tmp = mkdtempSync(path.join(tmpdir(), "ieumdoc-browser-fixtures-"));
+  const tmp = mkdtempSync(path.join(tmpdir(), "litzio-browser-fixtures-"));
   try {
     run(tmp);
   } finally {
@@ -126,9 +126,9 @@ test("prepared scratch files start as copies of their sources, with the derived 
   assert.equal(readFileSync(path.join(tmp, "source-view", "expected.md"), "utf8"),
     serialize(parse(technical.toString("utf8"))));
   // The fixtures are what the scenarios' freshness checks expect.
-  assert.ok(readFileSync(path.join(tmp, "admonition-authoring", "authoring.md"), "utf8").replaceAll("\r\n", "\n").startsWith("---\nieumdoc: 1\n---\n\n# Admonition authoring"));
-  assert.ok(readFileSync(path.join(tmp, "structural-block-authoring", "structural-block-authoring.md"), "utf8").replaceAll("\r\n", "\n").startsWith("---\nieumdoc: 1\n---\n\n# Structural authoring"));
-  assert.ok(readFileSync(path.join(tmp, "inline-math", "split.md"), "utf8").replaceAll("\r\n", "\n").startsWith("---\nieumdoc: 1\n---\n\nThe current $i_d$, then more."));
+  assert.ok(readFileSync(path.join(tmp, "admonition-authoring", "authoring.md"), "utf8").replaceAll("\r\n", "\n").startsWith("---\nlitzio: 1\n---\n\n# Admonition authoring"));
+  assert.ok(readFileSync(path.join(tmp, "structural-block-authoring", "structural-block-authoring.md"), "utf8").replaceAll("\r\n", "\n").startsWith("---\nlitzio: 1\n---\n\n# Structural authoring"));
+  assert.ok(readFileSync(path.join(tmp, "inline-math", "split.md"), "utf8").replaceAll("\r\n", "\n").startsWith("---\nlitzio: 1\n---\n\nThe current $i_d$, then more."));
 }));
 
 test("preparing again restores modified scratch files and removes leftovers, and nothing else", () => withTmp((tmp) => {

@@ -1,4 +1,4 @@
-import { DEFAULT_REFERENCE_TEMPLATES, NUMBERED_KINDS, type ReferenceTemplates } from "@ieumdoc/core/numbering";
+import { DEFAULT_REFERENCE_TEMPLATES, NUMBERED_KINDS, type ReferenceTemplates } from "@litzio/core/numbering";
 
 export const REFERENCE_STYLES = {
   default: { label: "Default", templates: {} },

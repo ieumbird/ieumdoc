@@ -1,5 +1,5 @@
 ---
-ieumdoc: 1
+litzio: 1
 ---
 
 The current $i_d$, then more.

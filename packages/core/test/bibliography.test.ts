@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { citationReport, parse, serialize, BIBLIOGRAPHY_LIMITS, type BibliographySource } from "@ieumdoc/core";
+import { citationReport, parse, serialize, BIBLIOGRAPHY_LIMITS, type BibliographySource } from "@litzio/core";
 
 const text = readFileSync(new URL("fixtures/bibliography-v1.bib", import.meta.url), "utf8");
-const doc = (keys: string, paths = ["refs.bib"]) => parse(`---\nieumdoc: 1\n${paths.length ? `bibliography: ${JSON.stringify(paths)}\n` : ""}---\n\n{cite:p}\`${keys}\`\n`);
+const doc = (keys: string, paths = ["refs.bib"]) => parse(`---\nlitzio: 1\n${paths.length ? `bibliography: ${JSON.stringify(paths)}\n` : ""}---\n\n{cite:p}\`${keys}\`\n`);
 const source = (text: string, source = "refs.bib"): BibliographySource => ({ source, status: "ok", text });
 const evaluate = (keys: string, bib: string) => citationReport(doc(keys), [source(bib)]);
 

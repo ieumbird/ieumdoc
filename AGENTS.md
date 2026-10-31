@@ -9,7 +9,7 @@
 - 정상 동작하는 주변 코드를 현재 작업과 무관하게 재설계하거나 리팩터링하지 않는다.
 - 기존 기술로 해결 가능한 parser, AST, document format, editor engine 등을 불필요하게 재구현하지 않는다.
 - 기술적 제약이나 실패를 숨기기 위해 테스트 기준을 약화하거나 동작을 우회하지 않는다.
-- 개발 단계이므로 소유자가 Migration을 명시적으로 지시하지 않는 한, 이미 저장된 이음독 문서·복구 기록·설정 등 과거 데이터의 하위 호환성을 설계 판단이나 구현 범위에 포함하지 않는다. 사람·AI·CLI가 앞으로 작성하는 입력의 처리는 이 규칙과 별개다.
+- 개발 단계이므로 소유자가 Migration을 명시적으로 지시하지 않는 한, 이미 저장된 Litzio 문서·복구 기록·설정 등 과거 데이터의 하위 호환성을 설계 판단이나 구현 범위에 포함하지 않는다. 사람·AI·CLI가 앞으로 작성하는 입력의 처리는 이 규칙과 별개다.
 
 ## Architectural constraints
 
@@ -21,12 +21,16 @@
 - CLI는 Core operation을 호출하는 얇은 인터페이스로 유지하며, 문서 의미나 Markdown/AST를 별도로 구현하지 않는다.
 - cursor, focus, selection, toolbar, hover 등 Editor 전용 interaction은 CLI parity 대상이 아니다.
 - 공식 write path가 생성하는 문서는 valid하고 안정적으로 다시 처리할 수 있어야 한다.
-- Visual Editor는 ADR-0001에 따라 Tiptap/ProseMirror 기반의 single-document editor state를 사용한다. IeumDoc이 selection, history, cursor, clipboard 등을 포함한 자체 rich-text editor engine을 재구현하지 않는다.
+- Visual Editor는 ADR-0001에 따라 Tiptap/ProseMirror 기반의 single-document editor state를 사용한다. Litzio가 selection, history, cursor, clipboard 등을 포함한 자체 rich-text editor engine을 재구현하지 않는다.
 - Editor-engine-specific types and document models stay inside `apps/editor`. Core exposes editor-neutral document semantics.
 - Editor는 ADR-0010에 따라 최소 640px의 데스크톱급 창과 키보드·포인터 입력을 지원 대상으로 한다. 휴대폰 폭·터치 전용 레이아웃이나 검증은 실제 사용자가 확인되어 별도 결정이 나기 전까지 계획하지 않는다.
 - `apps/editor/server`의 stateless 파일 Host handler는 Vite 개발 adapter, ADR-0004의 Desktop Host, ADR-0005의 HTTP Host가 재사용한다. 이를 장기 persistence/backend architecture로 전제하여 확장하지 않는다. [ADR-0012](docs/adr/0012-plugin-runtime-and-ui-contributions.md)에 따라 공용 설치 폴더의 플러그인 등록 상태와 요청 기록만 예외로 허용한다.
 
 이 원칙을 이유로 미래 구조나 기능을 선제적으로 구현하지 않는다.
+
+## Internal naming
+
+- 내부 코드 이름은 `litzio`다(Discussion #856, #858). 패키지는 `@litzio/*`, 플러그인 Host API는 `@litzio/plugin-api`를 사용한다. 제품 표시 이름, CLI `ieumdoc`, Desktop 프로토콜·설치·데이터 경로와 저장소 참조는 별도 계약을 따른다.
 
 ## Repository map
 
@@ -37,10 +41,10 @@
 - `docs/contributing/` — contributor guidance and documentation governance.
 - `.github/` — CI and contribution templates.
 - `patches/` — pinned local dependency patches with documented removal conditions. [Dependency patch register](docs/contributing/dependency-patches.md).
-- `packages/core/` — IeumDoc의 headless document engine. 문서의 parse, semantic operations, structural validation, canonical serialization을 소유한다.
+- `packages/core/` — Litzio의 headless document engine. 문서의 parse, semantic operations, structural validation, canonical serialization을 소유한다.
 - `packages/core/src/myst/` — MyST integration boundary. MyST-specific parsing/serialization logic은 이 경계 안에 둔다.
 - `packages/core/test/` — Core의 document semantics와 canonical round-trip 계약을 검증한다.
-- `packages/cli/` — `@ieumdoc/core`의 얇은 명령줄 인터페이스. 문서 의미나 AST 처리 로직을 구현하지 않는다.
+- `packages/cli/` — `@litzio/core`의 얇은 명령줄 인터페이스. 문서 의미나 AST 처리 로직을 구현하지 않는다.
 - `packages/file-commit/` — CLI와 Editor Host가 공유하는 Node 전용 파일 교체(revision 확인, temporary sibling, rename). 문서 의미를 알지 않는다.
 - `apps/editor/` — Core-backed Visual Editor. MyST AST를 직접 다루지 않고 Core read model과 Core operations만 사용한다.
 - `apps/desktop/` — Electron Windows Host, NSIS 패키징과 Stable/Beta 업데이트. 기존 파일 Host handler를 재사용하며 문서 의미를 구현하지 않는다.

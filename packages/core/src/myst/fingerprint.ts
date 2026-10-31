@@ -3,7 +3,7 @@ import type { MystNode } from "./tree.ts";
 
 /**
  * Serializer verification only: the semantics a document must keep through
- * canonical Markdown. This is not an IeumDoc AST; it is compared, never exposed.
+ * canonical Markdown. This is not an Litzio AST; it is compared, never exposed.
  *
  * Every field is semantic unless listed here. Only source locations are ignored.
  */

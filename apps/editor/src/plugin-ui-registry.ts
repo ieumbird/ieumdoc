@@ -1,5 +1,5 @@
-import { PLUGIN_UI, type UiRegistration } from "@document-plugins/api/config";
-import type { UiContributions, UiHost, UiModule } from "@document-plugins/api/ui";
+import { PLUGIN_UI, type UiRegistration } from "@litzio/plugin-api/config";
+import type { UiContributions, UiHost, UiModule } from "@litzio/plugin-api/ui";
 
 export type ActiveUi = UiRegistration & { contributions?: UiContributions; error?: string };
 export function contributionNotices(plugin: ActiveUi | undefined, kind: string, data: unknown) {

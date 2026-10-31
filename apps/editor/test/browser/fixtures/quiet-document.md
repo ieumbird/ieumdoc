@@ -1,5 +1,5 @@
 ---
-ieumdoc: 1
+litzio: 1
 ---
 
 # Converter Control · 제어 설계

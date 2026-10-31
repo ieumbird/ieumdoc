@@ -9,7 +9,7 @@ import { history, redo, undo } from "@tiptap/pm/history";
 import { deleteSelection } from "@tiptap/pm/commands";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { EditorState, NodeSelection, TextSelection, type Transaction } from "@tiptap/pm/state";
-import { moveSection, parse, removeSection, serialize } from "@ieumdoc/core";
+import { moveSection, parse, removeSection, serialize } from "@litzio/core";
 import {
   BLOCK_COMMAND_META,
   BLOCK_COMMANDS,

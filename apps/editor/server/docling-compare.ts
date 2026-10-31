@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { readComparison } from "@ieumdoc/docling/compare-host";
-import { decodeUtf8 } from "@ieumdoc/file-commit";
+import { readComparison } from "@litzio/docling/compare-host";
+import { decodeUtf8 } from "@litzio/file-commit";
 import { readModel } from "./document-replay.ts";
 import { resolveDocumentPath, resolveMediaPath } from "./document-path.ts";
 import { accessPath, type FileAccess } from "./file-access.ts";

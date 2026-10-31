@@ -53,7 +53,7 @@ export function DoclingServerSettings({ base, text, Input, Button, GuideLink }: 
     <div className="settings-label">
       <h3 className="settings-heading" id="docling-server-title">{text("Docling server")}</h3>
       <p>{text("Saved on the Host device. HTTP Host clients share this server setting.")}</p>
-      <p>{text("Profile ieumdoc-pdf-en-v1 requires docling-serve 1.32.0.")}</p>
+      <p>{text("Profile litzio-pdf-en-v1 requires docling-serve 1.32.0.")}</p>
       <p>{text("Connection checks verify version and readiness, not conversion models. The server operator must prepare the profile models.")}</p>
     </div>
     <label htmlFor="docling-server">{text("Server address")}</label>

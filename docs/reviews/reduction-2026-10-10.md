@@ -1,5 +1,7 @@
 # IeumDoc 감량 검증 기록
 
+당시 이름: 이음독(IeumDoc), 현재 Litzio
+
 - Status: Historical
 - Last verified: 2026-10-11 (baseline 대조, 실제 구현·단위/전체 자동 검증 및 독립 리뷰).
 - Baseline: `95457319e96d04023002949f8e003a3b84eecc5f` (remote master 확인).

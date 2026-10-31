@@ -1,5 +1,5 @@
 {
-  "name": "@ieumdoc/desktop",
+  "name": "@litzio/desktop",
   "productName": "IeumDoc",
   "version": "0.0.2-beta.4",
   "private": true,
@@ -20,8 +20,8 @@
     "test:update:github": "tsx test/packaged/update.e2e.ts --github"
   },
   "devDependencies": {
-    "@document-plugins/api": "workspace:*",
-    "@ieumdoc/file-commit": "workspace:*",
+    "@litzio/plugin-api": "workspace:*",
+    "@litzio/file-commit": "workspace:*",
     "@playwright/test": "1.64.0-alpha-1789764292000",
     "@types/node": "^24.5.2",
     "@types/semver": "^7.7.1",

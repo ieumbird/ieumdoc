@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { getSchema } from "@tiptap/core";
 import { EditorState, TextSelection } from "@tiptap/pm/state";
-import { parse, serialize } from "@ieumdoc/core";
+import { parse, serialize } from "@litzio/core";
 import { insertCodeBlockAfter } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { appliedDocument, collectSupportedEdits, toTiptapDocument } from "../src/tiptap-document.ts";
@@ -52,7 +52,7 @@ function saveFile(dir: string, markdown: string, state: EditorState, editable: R
 }
 
 test("code block text and language edits save as the edited fence and reload editable", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-code-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-editor-code-"));
   const markdown = nativeSource("# Setup\n\n```sh\nnpm i\n```\n\nDone.\n");
   try {
     let { editable, state } = editorState(markdown);
@@ -79,7 +79,7 @@ test("code block text and language edits save as the edited fence and reload edi
 });
 
 test("a new code block saves once written; an unwritten one is session space", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-new-code-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-editor-new-code-"));
   const markdown = nativeSource("Intro.\n");
   try {
     const { editable, state } = editorState(markdown);
@@ -103,7 +103,7 @@ test("a new code block saves once written; an unwritten one is session space", (
 
 
 test("inline code applies and removes through Core as canonical Markdown", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-inline-code-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-editor-inline-code-"));
   const markdown = nativeSource("Run npm i now.\n");
   try {
     const { editable, state } = editorState(markdown);

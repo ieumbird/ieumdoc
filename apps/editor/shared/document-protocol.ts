@@ -1,4 +1,4 @@
-import type { BibliographySource } from "@ieumdoc/core";
+import type { BibliographySource } from "@litzio/core";
 import type {
   AdmonitionVariant,
   CodeBlockContent,
@@ -8,8 +8,8 @@ import type {
   InlineContent,
   ListContent,
   NodePath,
-} from "@ieumdoc/core";
-import type { NativeDocumentErrorCode, WriteIssue } from "@ieumdoc/core";
+} from "@litzio/core";
+import type { NativeDocumentErrorCode, WriteIssue } from "@litzio/core";
 import type { SaveFailure } from "./save-error.ts";
 
 /** Read-only recovery mode of document-source; disk is null only for an absent file. */
@@ -131,7 +131,7 @@ export type SupportedEdits = {
   bibliography?: string[];
   /** Default document policy: numbered H1-H6 body sections; false disables heading numbers. */
   headingNumbering?: boolean;
-  referenceTemplates?: import("@ieumdoc/core").ReferenceTemplateUpdate;
+  referenceTemplates?: import("@litzio/core").ReferenceTemplateUpdate;
   order?: OrderItem[];
   headings?: HeadingEdit[];
   headingLevels?: HeadingLevelEdit[];

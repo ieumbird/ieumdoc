@@ -5,7 +5,7 @@ import { getSchema } from "@tiptap/core";
 import { history, undo, redo } from "@tiptap/pm/history";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { AllSelection, EditorState, NodeSelection, TextSelection, type Transaction } from "@tiptap/pm/state";
-import { getEditableDocument, parse, removeFootnote, serialize } from "@ieumdoc/core";
+import { getEditableDocument, parse, removeFootnote, serialize } from "@litzio/core";
 import { BLOCK_COMMANDS, deleteBlock } from "../src/block-commands.ts";
 import { editorDocumentJSON, editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { cancelEndnoteEditing, endnoteEditingKey, endnoteEditingPlugin, endnoteLabel, endnoteNumber, endnotesPlugin } from "../src/endnotes.ts";

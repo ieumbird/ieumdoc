@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { parse as parseNative, serialize as serializeNative, citationReport, updateBibliography, insertCitation, updateCitation, removeCitation,
-  updateParagraphInlineContent as updateNativeParagraph, type CitationContent } from "@ieumdoc/core";
+  updateParagraphInlineContent as updateNativeParagraph, type CitationContent } from "@litzio/core";
 import {
   getEditableDocument,
   insertParagraph,
@@ -16,7 +16,7 @@ import {
 const source = readFileSync(new URL("./fixtures/technical-document.md", import.meta.url), "utf8");
 
 test("citation operations share inline offsets, preserve marks and refuse unsupported changes without mutation", () => {
-  const original = parseNative("---\nieumdoc: 1\n---\n\nA **bold** text.\n");
+  const original = parseNative("---\nlitzio: 1\n---\n\nA **bold** text.\n");
   const before = serializeNative(original);
   const citation: CitationContent = { kind: "citation", role: "cite", keys: ["KeyA", "keya"] };
   const inserted = insertCitation(original, [1], 4, citation);
@@ -44,7 +44,7 @@ test("citation operations share inline offsets, preserve marks and refuse unsupp
   assert.throws(() => updateBibliography(declared, ["/refs.bib"]), /relative/);
   assert.deepEqual(citationReport(declared).bibliography, ["../refs.bib"]);
 
-  const marked = parseNative("---\nieumdoc: 1\n---\n\nA **{cite}`Key`** claim[^n].\n\n[^n]: Note.\n");
+  const marked = parseNative("---\nlitzio: 1\n---\n\nA **{cite}`Key`** claim[^n].\n\n[^n]: Note.\n");
   const markedUpdate = updateCitation(marked, [1], 2, { kind: "citation", role: "cite:t", keys: ["Other"] });
   assert.match(serializeNative(markedUpdate), /A \*\*\{cite:t\}`Other`\*\* claim/);
   assert.match(serializeNative(removeCitation(markedUpdate, [1], 2)), /A  claim/);
@@ -53,7 +53,7 @@ test("citation operations share inline offsets, preserve marks and refuse unsupp
 });
 
 test("citation numbers follow canonical reading order across inline surfaces and exact key namespaces", () => {
-  const document = parseNative("---\nieumdoc: 1\n---\n\n" +
+  const document = parseNative("---\nlitzio: 1\n---\n\n" +
     "# {cite}`Key`\n\nBody {cite:p}`key,Key,__proto__`[^Key].\n\n" +
     ":::{figure}\n:name: Key\n\nCaption {cite:t}`Figure`\n:::\n\n" +
     ":::{table} Caption {cite}`TableCaption`\n\n| {cite}`Header` |\n| --- |\n| {cite}`Cell` |\n:::\n\n" +
@@ -66,7 +66,7 @@ test("citation numbers follow canonical reading order across inline surfaces and
   assert.deepEqual(citationReport(parseNative(serializeNative(document))), report);
 
   // An operation can change reference order before canonical write reorders definitions.
-  const notes = parseNative("---\nieumdoc: 1\n---\n\nNotes[^a][^b].\n\n[^a]: {cite}`A`.\n\n[^b]: {cite}`B`.\n");
+  const notes = parseNative("---\nlitzio: 1\n---\n\nNotes[^a][^b].\n\n[^a]: {cite}`A`.\n\n[^b]: {cite}`B`.\n");
   const reordered = updateNativeParagraph(notes, [1], [
     { kind: "footnote", label: "b" }, { kind: "footnote", label: "a" },
   ]);

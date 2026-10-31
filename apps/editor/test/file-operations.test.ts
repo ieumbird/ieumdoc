@@ -6,13 +6,13 @@ import { test } from "node:test";
 import { deleteFile, renameFile, ReferencedImageError, ImageRenameError } from "../server/file-operations.ts";
 import { accessPath, RootAccess } from "../server/file-access.ts";
 import { nativeSource } from "./helpers/document.ts";
-import { getEditableDocument, parse } from "@ieumdoc/core";
+import { getEditableDocument, parse } from "@litzio/core";
 import { loadDocumentFile } from "../server/document-api.ts";
 import { INCOMPLETE } from "../server/plugin-output.ts";
 
 for (const leftover of ["staging", "publication"] as const) {
   test(`image rename skips only private ${leftover} while retaining ordinary document reference checks`, t => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-private-rename-"));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "litzio-private-rename-"));
     t.after(() => fs.rmSync(root, { recursive: true, force: true }));
     const privateFolder = path.join(root, leftover === "staging" ? ".ieumdoc-plugin-interrupted" : "paper.docling");
     fs.mkdirSync(privateFolder);
@@ -40,7 +40,7 @@ for (const leftover of ["staging", "publication"] as const) {
 }
 
 test("Figure-form rename verifies its checkpoint and reports live/saved paths without saving local properties", t => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-figure-rename-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "litzio-figure-rename-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const document = path.join(root, "a.md"), image = path.join(root, "old.svg");
   fs.writeFileSync(image, "<svg/>");
@@ -65,7 +65,7 @@ test("Figure-form rename verifies its checkpoint and reports live/saved paths wi
 });
 
 test("referenced image rename updates every admitted document and reports skipped files", t => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-references-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "litzio-references-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   fs.mkdirSync(path.join(root, "nested"));
   const image = path.join(root, "nested", "old.svg"); fs.writeFileSync(image, "<svg/>");
@@ -85,7 +85,7 @@ test("referenced image rename updates every admitted document and reports skippe
 });
 
 test("image rename detects references through differently cased file aliases by identity", t => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-image-case-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "litzio-image-case-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const image = path.join(root, "diagram.svg"), alias = path.join(root, "DIAGRAM.svg");
   fs.writeFileSync(image, "<svg/>");
@@ -111,7 +111,7 @@ test("image rename detects references through differently cased file aliases by 
 });
 
 test("file operations constrain roots, symlinks, regular files, names and extension; publish without overwrite", async t => {
-  const base = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-file-ops-"));
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "litzio-file-ops-"));
   t.after(() => fs.rmSync(base, { recursive: true, force: true }));
   const root = path.join(base, "root"); fs.mkdirSync(root);
   const file = path.join(root, "문서.md"); fs.writeFileSync(file, "original");
@@ -155,7 +155,7 @@ test("file operations constrain roots, symlinks, regular files, names and extens
 });
 
 test("image rename checks admitted Figure read models recursively plus applied unsaved snapshots", t => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-image-rename-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "litzio-image-rename-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const folder = path.join(root, "nested"); fs.mkdirSync(folder);
   const image = path.join(folder, "그림.svg"); fs.writeFileSync(image, "<svg/>");
@@ -180,7 +180,7 @@ test("image rename checks admitted Figure read models recursively plus applied u
 
 for (const cleanupFailure of ["once", "rollback", "external", "twice"] as const) {
   test(`post-replacement cleanup failure (${cleanupFailure}) rolls back or reports the changed document`, t => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-rename-cleanup-"));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "litzio-rename-cleanup-"));
     t.after(() => fs.rmSync(root, { recursive: true, force: true }));
     const image = path.join(root, "old.svg"), destination = path.join(root, "new.svg");
     const a = path.join(root, "a.md"), b = path.join(root, "b.md");
@@ -225,7 +225,7 @@ for (const cleanupFailure of ["once", "rollback", "external", "twice"] as const)
 
 for (const failure of ["preflight", "publication", "document", "unlink", "rollback", "conflict", "case-only"] as const) {
   test(`image rename ${failure} failure preserves originals or reports incomplete rollback`, t => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-rename-failure-"));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "litzio-rename-failure-"));
     t.after(() => fs.rmSync(root, { recursive: true, force: true }));
     const name = failure === "case-only" ? "OLD" : "new";
     const image = path.join(root, "old.svg"), destination = path.join(root, name + ".svg");

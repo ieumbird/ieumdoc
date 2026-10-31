@@ -7,7 +7,7 @@ import path from "node:path";
 import { after, test } from "node:test";
 import { CONTENT_SECURITY_POLICY, createProtocolHandler, ORIGIN } from "../src/host-protocol.ts";
 
-const root = mkdtempSync(path.join(os.tmpdir(), "ieumdoc-protocol-"));
+const root = mkdtempSync(path.join(os.tmpdir(), "litzio-protocol-"));
 after(() => rmSync(root, { recursive: true, force: true }));
 const editorDir = path.join(root, "editor");
 mkdirSync(path.join(editorDir, "assets"), { recursive: true });
@@ -17,20 +17,20 @@ writeFileSync(path.join(root, "secret.txt"), "outside");
 const documents = path.join(root, "documents");
 mkdirSync(documents);
 const initial = path.join(documents, "first.md");
-writeFileSync(initial, "---\nieumdoc: 1\n---\n\n# First\n\nAlpha.\n");
+writeFileSync(initial, "---\nlitzio: 1\n---\n\n# First\n\nAlpha.\n");
 writeFileSync(path.join(documents, "diagram.svg"), "<svg xmlns=\"http://www.w3.org/2000/svg\"/>");
 const localizedSamples = { ko: path.join(documents, "ko.md"), en: path.join(documents, "en.md") };
 const handle = createProtocolHandler(editorDir, { document: initial, samples: localizedSamples });
 const get = (pathname: string) => handle(new Request(`${ORIGIN}${pathname}`));
 
 test("Docling settings, checking and transient-task routes use the shared Desktop Host adapter", async () => {
-  const previous = process.env.IEUMDOC_DOCLING_SETTINGS_FILE;
-  process.env.IEUMDOC_DOCLING_SETTINGS_FILE = path.join(root, "docling-settings.json");
+  const previous = process.env.LITZIO_DOCLING_SETTINGS_FILE;
+  process.env.LITZIO_DOCLING_SETTINGS_FILE = path.join(root, "docling-settings.json");
   let docling: ReturnType<typeof createProtocolHandler>;
   try { docling = createProtocolHandler(editorDir, { samples: localizedSamples }); }
   finally {
-    if (previous === undefined) delete process.env.IEUMDOC_DOCLING_SETTINGS_FILE;
-    else process.env.IEUMDOC_DOCLING_SETTINGS_FILE = previous;
+    if (previous === undefined) delete process.env.LITZIO_DOCLING_SETTINGS_FILE;
+    else process.env.LITZIO_DOCLING_SETTINGS_FILE = previous;
   }
   const request = (endpoint: string, method = "GET", body?: unknown) => docling(new Request(`${ORIGIN}/api/docling-${endpoint}`, { method,
     ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }) }));
@@ -103,7 +103,7 @@ test("the first document request opens the initial document through the Host han
   const loaded = await response.json() as { path: string; source: string; revision: string; samples: typeof localizedSamples };
   assert.deepEqual(loaded.samples, localizedSamples, "launching a file still offers localized samples in Command center");
   assert.equal(loaded.path, initial);
-  assert.equal(loaded.source, "---\nieumdoc: 1\n---\n\n# First\n\nAlpha.\n");
+  assert.equal(loaded.source, "---\nlitzio: 1\n---\n\n# First\n\nAlpha.\n");
   const media = await get(`/document/diagram.svg?path=${encodeURIComponent(initial)}`);
   assert.equal(media.status, 200);
   assert.equal(media.headers.get("content-type"), "image/svg+xml");
@@ -127,11 +127,11 @@ test("Save goes through the Host's session checks and Core", async () => {
   const edit = { path: [2], content: [{ kind: "text", text: "Alpha, saved from Desktop." }] };
   const saved = await save({ path: initial, revision: loaded.revision, base: { source: loaded.source }, paragraphs: [edit] });
   assert.equal(saved.status, 200, await saved.clone().text());
-  assert.equal(readFileSync(initial, "utf8"), "---\nieumdoc: 1\n---\n\n# First\n\nAlpha, saved from Desktop.\n");
+  assert.equal(readFileSync(initial, "utf8"), "---\nlitzio: 1\n---\n\n# First\n\nAlpha, saved from Desktop.\n");
   // The disk revision no longer matches: the existing conflict check answers, and the file stays.
   const stale = await save({ path: initial, revision: loaded.revision, base: { source: loaded.source }, paragraphs: [edit] });
   assert.equal(stale.status, 409);
-  assert.equal(readFileSync(initial, "utf8"), "---\nieumdoc: 1\n---\n\n# First\n\nAlpha, saved from Desktop.\n");
+  assert.equal(readFileSync(initial, "utf8"), "---\nlitzio: 1\n---\n\n# First\n\nAlpha, saved from Desktop.\n");
   assert.equal((await save({ path: initial })).status, 400);
 });
 

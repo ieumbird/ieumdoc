@@ -7,13 +7,13 @@
 
 ## Context
 
-IeumDoc은 사람이 읽을 수 있는 plain-text `.md` 문서를 영속 데이터의 SSOT로 유지하면서, Paragraph, Heading, Equation처럼 의미가 다른 블록을 사용자가 직접 선택해 삽입하고 편집하는 경험을 제공해야 한다. 기존 MVP와 두 spike는 문서 전체를 paragraph별 독립 편집기로 구성하는 방식과 하나의 문서 편집 상태에서 typed block을 다루는 방식을 비교했다.
+Litzio는 사람이 읽을 수 있는 plain-text `.md` 문서를 영속 데이터의 SSOT로 유지하면서, Paragraph, Heading, Equation처럼 의미가 다른 블록을 사용자가 직접 선택해 삽입하고 편집하는 경험을 제공해야 한다. 기존 MVP와 두 spike는 문서 전체를 paragraph별 독립 편집기로 구성하는 방식과 하나의 문서 편집 상태에서 typed block을 다루는 방식을 비교했다.
 
 핵심 쟁점은 typed block을 유지할 수 있는지 여부가 아니라, 문서 전체의 selection, cursor, clipboard, history와 블록 경계 동작을 어느 계층이 소유할지였다.
 
 ## Decision
 
-IeumDoc은 **Single Editor + Typed Blocks + Block-first UX**를 채택한다.
+Litzio는 **Single Editor + Typed Blocks + Block-first UX**를 채택한다.
 
 - 하나의 열린 문서에는 하나의 주 문서 편집 상태를 사용한다.
 - 기본 구현에는 Tiptap/ProseMirror를 사용한다.
@@ -24,9 +24,9 @@ IeumDoc은 **Single Editor + Typed Blocks + Block-first UX**를 채택한다.
 
 ## Rationale and Alternatives
 
-단일 편집 상태를 선택하면 문서 전체의 selection, cursor, history 같은 공통 편집 기반을 편집 엔진에 맡길 수 있다. IeumDoc이 독립 편집기 사이의 focus, selection, clipboard, history를 조율하는 별도 문서 편집 엔진으로 확대되는 것을 피하면서도, typed block과 블록별 전용 UI를 구현할 수 있다.
+단일 편집 상태를 선택하면 문서 전체의 selection, cursor, history 같은 공통 편집 기반을 편집 엔진에 맡길 수 있다. Litzio가 독립 편집기 사이의 focus, selection, clipboard, history를 조율하는 별도 문서 편집 엔진으로 확대되는 것을 피하면서도, typed block과 블록별 전용 UI를 구현할 수 있다.
 
-Per-block 방식은 Core operation과 블록 UI의 대응이 직접적이라는 장점이 있다. 그러나 실험에서는 각 편집기가 소유한 selection과 history의 경계, 블록 간 focus 이동, split/merge 및 구조 변경 후 상태 복원을 IeumDoc이 조율해야 했다. 이는 해당 spike의 모든 문제나 per-block 접근의 모든 구현이 필연적으로 실패한다는 뜻은 아니지만, 연속적인 문서 편집을 중심으로 하는 현재 제품에는 더 큰 기본 비용이다.
+Per-block 방식은 Core operation과 블록 UI의 대응이 직접적이라는 장점이 있다. 그러나 실험에서는 각 편집기가 소유한 selection과 history의 경계, 블록 간 focus 이동, split/merge 및 구조 변경 후 상태 복원을 Litzio가 조율해야 했다. 이는 해당 spike의 모든 문제나 per-block 접근의 모든 구현이 필연적으로 실패한다는 뜻은 아니지만, 연속적인 문서 편집을 중심으로 하는 현재 제품에는 더 큰 기본 비용이다.
 
 여러 prose 영역만 분리하는 Hybrid는 일부 블록 경계를 줄일 수 있으나, 복수 편집 상태 사이의 조율 책임을 기본 구조에 남기므로 채택하지 않는다.
 
@@ -39,7 +39,7 @@ Per-block 방식은 Core operation과 블록 UI의 대응이 직접적이라는 
 - 특수 블록의 선택, 복사, 삭제, 실행 취소를 별도로 검증해야 한다.
 - 편집 엔진을 교체하면 Editor와 adapter를 수정해야 한다.
 
-Tiptap이 모든 UX를 자동으로 해결한다고 가정하지 않는다. 단일 편집 상태는 공통 기반을 제공하지만, typed node의 경계 동작과 전용 UI 연결은 IeumDoc이 설계하고 검증해야 한다.
+Tiptap이 모든 UX를 자동으로 해결한다고 가정하지 않는다. 단일 편집 상태는 공통 기반을 제공하지만, typed node의 경계 동작과 전용 UI 연결은 Litzio가 설계하고 검증해야 한다.
 
 ## Constraints
 

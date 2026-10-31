@@ -12,8 +12,8 @@ async (page, { showNotifications, openDocument, openPath, screenshots = false })
   const root = loaded.path.split(separator).slice(0, -4).join(separator);
   // A prepared empty directory makes the absent diagram a real 404 on every OS.
   const folder = [root, 'tmp', 'open-files'].join(separator);
-  const pathA = [folder, 'ieumdoc-a.md'].join(separator);
-  const pathB = [folder, 'ieumdoc-b.md'].join(separator);
+  const pathA = [folder, 'litzio-a.md'].join(separator);
+  const pathB = [folder, 'litzio-b.md'].join(separator);
   const fileA = clone(loaded);
   const fileB = clone(loaded);
   fileA.path = pathA;
@@ -111,20 +111,20 @@ async (page, { showNotifications, openDocument, openPath, screenshots = false })
     await start.getByRole('button', {name:/^open-files/}).click();
     await page.getByRole('region', {name:'open-files', exact:true}).waitFor();
     if (!await start.isVisible()) throw new Error('Opening a recent folder opened a document');
-    await page.getByTestId('folder').getByRole('treeitem', {name:'ieumdoc-a.md', exact:true}).click();
+    await page.getByTestId('folder').getByRole('treeitem', {name:'litzio-a.md', exact:true}).click();
     await start.waitFor({state:'detached'});
     if (await page.getByTestId('current-file').getAttribute('title') !== pathA) throw new Error('Choosing a tree file did not leave the start');
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     if (await page.getByTestId('current-file').getAttribute('title') !== pathA) throw new Error('Reload did not restore the chosen document');
-    await page.getByRole('button',{name:'Close ieumdoc-a.md',exact:true}).click();
+    await page.getByRole('button',{name:'Close litzio-a.md',exact:true}).click();
     await start.waitFor();
     await start.getByRole('button', {name:'Open sample document', exact:true}).click();
     await start.waitFor({state:'detached'});
     if (!(await page.getByTestId('current-file').getAttribute('title')).includes(pathB)) throw new Error('The sample did not open');
     await showNotifications(page);
     await page.getByText("This is a writable sample copy. Changes are kept until the bundled sample version changes.", {exact:true}).filter({visible:true}).waitFor();
-    await page.getByRole('button', {name:'Close ieumdoc-b.md',exact:true}).click();
+    await page.getByRole('button', {name:'Close litzio-b.md',exact:true}).click();
     await start.waitFor();
     if (!await start.getByRole('button', {name:'Open sample document',exact:true}).isVisible()) throw new Error('Last close lost the Host sample information');
     startNext = false;
@@ -162,7 +162,7 @@ async (page, { showNotifications, openDocument, openPath, screenshots = false })
     await page.getByRole('button', {name:'OK',exact:true}).click();
     await page.getByRole('dialog').waitFor({state:'detached'});
     await page.unroute('**/api/document?*', rejectLong);
-    await page.getByRole('tab', {name:'ieumdoc-a.md',exact:true}).click();
+    await page.getByRole('tab', {name:'litzio-a.md',exact:true}).click();
 
     await editParagraph(page, ' FILE_A');
     pendingSave = new Promise(resolve => { releaseSave = resolve; });
@@ -174,7 +174,7 @@ async (page, { showNotifications, openDocument, openPath, screenshots = false })
       throw new Error('Saving allowed a numbering change or Reload');
     }
     await page.keyboard.press('Escape');
-    await page.getByTestId('folder').getByRole('treeitem', {name:'ieumdoc-b.md', exact:true}).click();
+    await page.getByTestId('folder').getByRole('treeitem', {name:'litzio-b.md', exact:true}).click();
     await page.getByTestId('error').getByText('Wait for the current operation to finish.', {exact:true}).waitFor();
     if (await page.getByTestId('current-file').getAttribute('title') !== pathA) throw new Error('Saving allowed a document switch');
     releaseSave();
@@ -187,9 +187,9 @@ async (page, { showNotifications, openDocument, openPath, screenshots = false })
 
     await editParagraph(page, ' FILE_A_PENDING');
     await openPath(page, pathB);
-    await page.getByRole('tab', {name:'ieumdoc-b.md',exact:true}).waitFor();
+    await page.getByRole('tab', {name:'litzio-b.md',exact:true}).waitFor();
     if (await page.getByRole('dialog').count()) throw new Error('Opening with dirty work asked to discard it');
-    await page.getByRole('tab', {name:'ieumdoc-a.md, Unsaved changes',exact:true}).click();
+    await page.getByRole('tab', {name:'litzio-a.md, Unsaved changes',exact:true}).click();
     const confirmation = page.getByRole('dialog', {name:'Save changes?', exact:true});
     await closeA();
     await confirmation.getByRole('button',{name:'Cancel',exact:true}).and(page.locator(':focus')).waitFor({state:'visible', timeout:5000});
@@ -205,7 +205,7 @@ async (page, { showNotifications, openDocument, openPath, screenshots = false })
       else await page.keyboard.press('Escape');
       await confirmation.waitFor({state:'detached'});
       if (await snapshot() !== beforeCancel || requests.length !== writesBeforeCancel) throw new Error('Close Cancel changed work or wrote');
-      if (!await page.getByRole('button', {name:'Close ieumdoc-a.md',exact:true}).evaluate(el => el === document.activeElement)) throw new Error('Cancel did not restore the close control');
+      if (!await page.getByRole('button', {name:'Close litzio-a.md',exact:true}).evaluate(el => el === document.activeElement)) throw new Error('Cancel did not restore the close control');
     }
     await closeA();
     await page.keyboard.press('Control+s');
@@ -226,9 +226,9 @@ async (page, { showNotifications, openDocument, openPath, screenshots = false })
     await closeA();
     await confirmation.getByRole('button',{name:'Save',exact:true}).click();
     await confirmation.waitFor({state:'detached'});
-    await page.getByRole('tab', {name:'ieumdoc-b.md',exact:true}).waitFor();
-    if (await page.getByTestId('current-file').getAttribute('title') !== pathB || await page.getByRole('button',{name:'Close ieumdoc-a.md',exact:true}).count()) throw new Error('Successful Save did not close A and select B');
-    if (!await page.getByRole('tab',{name:'ieumdoc-b.md',exact:true}).evaluate(el => el === document.activeElement)) throw new Error('Closing did not focus the neighbour tab');
+    await page.getByRole('tab', {name:'litzio-b.md',exact:true}).waitFor();
+    if (await page.getByTestId('current-file').getAttribute('title') !== pathB || await page.getByRole('button',{name:'Close litzio-a.md',exact:true}).count()) throw new Error('Successful Save did not close A and select B');
+    if (!await page.getByRole('tab',{name:'litzio-b.md',exact:true}).evaluate(el => el === document.activeElement)) throw new Error('Closing did not focus the neighbour tab');
 
     await editParagraph(page, ' FILE_B');
     await page.getByTestId('save').click();
@@ -282,7 +282,7 @@ async (page, { showNotifications, openDocument, openPath, screenshots = false })
     await equation.hover(); await equation.getByRole('button',{name:'Edit',exact:true}).click();
     await page.getByTestId('equation-edit-source').click();
     await page.getByTestId('equation-latex').fill('hiddenDraft');
-    await page.getByRole('tab',{name:'ieumdoc-b.md',exact:true}).click();
+    await page.getByRole('tab',{name:'litzio-b.md',exact:true}).click();
     await closeA();
     await confirmation.getByRole('button',{name:'Cancel',exact:true}).click();
     await confirmation.waitFor({state:'detached'});
@@ -291,8 +291,8 @@ async (page, { showNotifications, openDocument, openPath, screenshots = false })
     await closeA();
     await confirmation.getByRole('button',{name:'Save',exact:true}).click();
     await confirmation.waitFor({state:'detached'});
-    await page.getByTestId('error').filter({hasText:'Could not save “ieumdoc-a.md”'}).waitFor();
-    if (await page.getByTestId('current-file').getAttribute('title') !== pathB || await page.getByRole('tab',{name:'ieumdoc-a.md, Unsaved changes',exact:true}).count() !== 1) throw new Error('Inactive Save failure changed B or removed A');
+    await page.getByTestId('error').filter({hasText:'Could not save “litzio-a.md”'}).waitFor();
+    if (await page.getByTestId('current-file').getAttribute('title') !== pathB || await page.getByRole('tab',{name:'litzio-a.md, Unsaved changes',exact:true}).count() !== 1) throw new Error('Inactive Save failure changed B or removed A');
     const draftWrites = requests.length;
     await closeA();
     await confirmation.getByRole('button',{name:"Don't save",exact:true}).click();
@@ -331,7 +331,7 @@ async (page, { showNotifications, openDocument, openPath, screenshots = false })
   }
 
   async function closeA() {
-    await page.getByRole('button',{name:'Close ieumdoc-a.md',exact:true}).click();
+    await page.getByRole('button',{name:'Close litzio-a.md',exact:true}).click();
     await page.getByRole('dialog',{name:'Save changes?',exact:true}).waitFor();
   }
 

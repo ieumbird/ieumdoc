@@ -16,7 +16,7 @@
 - Current contract: v4 with #714 / #715 explicit edit controls over #579 read-only interaction, on v2 (#140) and v1 (#119); v3 (#194) source-anchor placement is replaced. Historical filename retained for link stability.
 - Scope: footnote references, endnote placement and numbering, inserting footnotes, in-place editing of supported one-paragraph definitions, sections and fail-closed writes; [Native document support](document-support-v1.md).
 
-Issue #119 made paragraphs with footnotes editable and stopped silent loss of definitions MyST would drop. Issue #140 added inserting footnotes and in-place editing of one-paragraph definitions. Issue #194 showed definitions as one endnotes region. Endnotes v4 makes that region the document's placement: every IeumDoc write puts the definitions after the body, in first-reference order.
+Issue #119 made paragraphs with footnotes editable and stopped silent loss of definitions MyST would drop. Issue #140 added inserting footnotes and in-place editing of one-paragraph definitions. Issue #194 showed definitions as one endnotes region. Endnotes v4 makes that region the document's placement: every Litzio write puts the definitions after the body, in first-reference order.
 
 ## Product contract
 
@@ -63,7 +63,7 @@ This is the shared source-only diagnostic contract for syntax MyST silently read
 
 ## Core
 
-- **One placement rule**: `endnoteOrder` (`@ieumdoc/core/numbering`, no MyST dependency) is the only ordering policy. `endnotePlacement` applies it to a MyST tree at the two boundaries:
+- **One placement rule**: `endnoteOrder` (`@litzio/core/numbering`, no MyST dependency) is the only ordering policy. `endnotePlacement` applies it to a MyST tree at the two boundaries:
   - **Parse** gives each kept definition its own source lines (the text is tokenized once more without the rule that moves definitions) and places the definitions after the body. A parsed document, its read model and its block indexes therefore have canonical order, whatever the source placement.
   - **Canonical write** (`serialize`, used by Save, Source, `format` and every CLI write) places the definitions again before writing and verifying. Operations need not keep definitions in place.
 - **Source placement**: `endnotesInPlace(document)` reports whether a parsed snapshot's definitions are already where canonical write puts them. When false, the first write moves them; nothing is written by reading.

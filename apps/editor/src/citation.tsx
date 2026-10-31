@@ -1,14 +1,14 @@
 import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { flushSync } from "react-dom";
-import type { BibliographyEntry, BibliographyEvaluation } from "@ieumdoc/core";
+import type { BibliographyEntry, BibliographyEvaluation } from "@litzio/core";
 import { Node, type Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { TextSelection } from "@tiptap/pm/state";
 import { NodeViewWrapper, ReactNodeViewRenderer, useEditorState, type ReactNodeViewProps } from "@tiptap/react";
 import { Pencil, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { canonicalCitation, citationContentError, citationText, type CitationContent, type CitationRole } from "@ieumdoc/core/citation";
-import { endnoteOrder, firstReferenceNumbers } from "@ieumdoc/core/numbering";
+import { canonicalCitation, citationContentError, citationText, type CitationContent, type CitationRole } from "@litzio/core/citation";
+import { endnoteOrder, firstReferenceNumbers } from "@litzio/core/numbering";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { Combobox } from "@base-ui/react/combobox";

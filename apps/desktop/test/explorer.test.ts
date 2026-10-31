@@ -7,7 +7,7 @@ import { ExplorerFolders } from "../src/explorer.ts";
 import { createProtocolHandler, ORIGIN } from "../src/host-protocol.ts";
 
 test("Explorer only opens existing directories in currently opened, Host-listed roots", async () => {
-  const temp = mkdtempSync(path.join(os.tmpdir(), "ieumdoc-explorer-"));
+  const temp = mkdtempSync(path.join(os.tmpdir(), "litzio-explorer-"));
   try {
     const root = path.join(temp, "root");
     const child = path.join(root, "child");

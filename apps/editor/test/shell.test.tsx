@@ -25,9 +25,9 @@ import { TopBar } from "../src/shell/TopBar.tsx";
 import { i18n } from "../src/i18n.ts";
 import { MissingFileNotice, type Comparison } from "../src/shell/SourceCompare.tsx";
 import type { RecoveryDiff } from "../src/recovery-diff.ts";
-import { DocumentDiagnosticError } from "@ieumdoc/core";
+import { DocumentDiagnosticError } from "@litzio/core";
 import { labelPropertyError } from "../src/label-rename.ts";
-import { labelError, targetLabelError } from "@ieumdoc/core/label";
+import { labelError, targetLabelError } from "@litzio/core/label";
 import { FieldError } from "../src/ui/primitives.tsx";
 import { en, ko } from "../src/locales.ts";
 import { messageText, type UiMessage } from "../src/ui-message.ts";
@@ -579,7 +579,7 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
   assert.match(collapsed, /<ul\b(?=[^>]*role="tree")(?=[^>]*hidden)/);
   assert.match(collapsed, /aria-label="Expand folder docs"/);
 
-  // A file without the native marker stays listed but says it is not an IeumDoc document.
+  // A file without the native marker stays listed but says it is not an Litzio document.
   const mixed = listing(String.raw`C:\docs`, [
     { name: "plain.md", kind: "document", path: String.raw`C:\docs\plain.md`, native: false },
     { name: "note.md", kind: "document", path: String.raw`C:\docs\note.md`, native: true },

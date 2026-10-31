@@ -13,7 +13,7 @@ This stage prepared three alternatives. The user selected **B — 날개와 문�
 
 ## Existing GitHub identity
 
-The current [Ieumbird organization](https://github.com/ieumbird) avatar is a right-facing bird: dark navy head/body, cyan/teal wing and beak, and a white flowing link-shaped gap inside the wing. The live [IeumDoc repository](https://github.com/ieumbird/ieumdoc) header and generated social preview use that same organization avatar. No separate IeumDoc product mark was found in the repository's tracked assets or README. The Windows packaging configuration currently specifies no custom icon.
+The current [Ieumbird organization](https://github.com/ieumbird) avatar is a right-facing bird: dark navy head/body, cyan/teal wing and beak, and a white flowing link-shaped gap inside the wing. The live [IeumDoc repository](https://github.com/ieumbird/ieumdoc) header and generated social preview use that same organization avatar. No separate Litzio product mark was found in the repository's tracked assets or README. The Windows packaging configuration currently specifies no custom icon.
 
 - [Downloaded organization reference](assets/app-icon-170/github-ieumbird-reference.png), from [GitHub avatar](https://avatars.githubusercontent.com/u/331890781?v=4).
 - [Downloaded repository social preview](assets/app-icon-170/github-ieumdoc-reference.png), retrieved from the live repository's `og:image` metadata.
@@ -26,7 +26,7 @@ The current [Ieumbird organization](https://github.com/ieumbird) avatar is a rig
 | Choice | Direction | Decision to make |
 | --- | --- | --- |
 | [A — 새 계승형](assets/app-icon-170/concept-a-bird.png) | A simplified edition of the existing bird, retaining the wing/link gesture | Strongest direct continuity with Ieumbird |
-| [B — 문서 결합형](assets/app-icon-170/concept-b-wing-document.png) | A document and folded wing form one mark, carrying the link-shaped gap | Give IeumDoc a document identity within the bird family |
+| [B — 문서 결합형](assets/app-icon-170/concept-b-wing-document.png) | A document and folded wing form one mark, carrying the link-shaped gap | Give Litzio a document identity within the bird family |
 | [C — 연결고리 중심형](assets/app-icon-170/concept-c-linked-pages.png) | Two page-like forms connect through one open channel | Emphasize connected document structure with an abstract mark |
 
 Shared exploration constraints: navy/cyan/white, generous negative space, bold silhouettes, no lettering, no tiny document lines, and an opaque light tile with transparent outer corners. Palette values in the prompts are visual approximations for exploration, not measured brand specifications.

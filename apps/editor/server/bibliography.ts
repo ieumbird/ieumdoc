@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { BIBLIOGRAPHY_LIMITS, type BibliographySource } from "@ieumdoc/core";
-import { decodeUtf8, textRevision } from "@ieumdoc/file-commit";
+import { BIBLIOGRAPHY_LIMITS, type BibliographySource } from "@litzio/core";
+import { decodeUtf8, textRevision } from "@litzio/file-commit";
 import { RootAccess, type FileAccess } from "./file-access.ts";
 
 /** Read-only dependency I/O shared by CLI and all stateless Hosts. */

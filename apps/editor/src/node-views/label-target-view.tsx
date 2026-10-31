@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeViewWrapper, useEditorState, type ReactNodeViewProps } from "@tiptap/react";
-import { labelKey, targetLabelError } from "@ieumdoc/core/label";
+import { labelKey, targetLabelError } from "@litzio/core/label";
 import { FieldError } from "../ui/primitives.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { labelPropertyError, updateLabelProperties } from "../label-rename.ts";

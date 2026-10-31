@@ -23,7 +23,7 @@ index c6dc574fc427b11448e5ec6f800356d903ef2e51..27234cbe870d787301ed63d13aef77fc
  handlers.contextmenu = function (view) {
    return forceDOMFlush(view);
  };
-+// IeumDoc patch: keys other than a modifier alone, counted so that the focus restores below do
++// Litzio patch: keys other than a modifier alone, counted so that the focus restores below do
 +// not overwrite a selection a key made after focus (e.g. Ctrl+End read late on a busy renderer).
 +var modifierKeyCodes = [16, 17, 18, 20, 91, 92, 93, 224, 225];
 +function keyedSinceFocus(view) {
@@ -87,7 +87,7 @@ index 18d421a500137fe92f48d9f3895703257df6f7d0..7025cf2df27022fae48439eab31df8f4
      setSelectionOrigin(view, "pointer");
  };
  handlers.contextmenu = view => forceDOMFlush(view);
-+// IeumDoc patch: keys other than a modifier alone, counted so that the focus restores below do
++// Litzio patch: keys other than a modifier alone, counted so that the focus restores below do
 +// not overwrite a selection a key made after focus (e.g. Ctrl+End read late on a busy renderer).
 +const modifierKeyCodes = [16, 17, 18, 20, 91, 92, 93, 224, 225];
 +function keyedSinceFocus(view) {

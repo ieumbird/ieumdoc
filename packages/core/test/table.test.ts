@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import * as core from "@ieumdoc/core";
+import * as core from "@litzio/core";
 import {
   getEditableDocument,
   insertTable,
@@ -139,7 +139,7 @@ test("table cell code and math pipes retain exact values, alignment and stable n
 
 test("cell pipe escaping leaves prose and table captions unchanged", () => {
   const inline = "`a | b` $|x|$ $\\|x\\|$ {math}`a$|b`";
-  const source = `---\nieumdoc: 1\n---\n\n${inline}\n\n:::{table} ${inline}\n\n| H |\n| - |\n| x |\n:::\n`;
+  const source = `---\nlitzio: 1\n---\n\n${inline}\n\n:::{table} ${inline}\n\n| H |\n| - |\n| x |\n:::\n`;
   assert.equal(core.serialize(core.parse(source)), source);
 });
 

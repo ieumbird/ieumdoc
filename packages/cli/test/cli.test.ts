@@ -24,15 +24,15 @@ import {
   citationReport,
   updateLabel,
   numberingReport,
-} from "@ieumdoc/core";
-import { textRevision } from "@ieumdoc/file-commit";
+} from "@litzio/core";
+import { textRevision } from "@litzio/file-commit";
 import { runCli } from "../src/cli.ts";
 import { versionText } from "../src/version.ts";
 import { listenForFetch } from "../../../test/helpers/fetch-server.ts";
 
 const cliRoot = fileURLToPath(new URL("..", import.meta.url));
-const nativeSource = (body: string): string => `---\nieumdoc: 1\n---\n\n${body}`;
-const fixtures = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-native-fixtures-"));
+const nativeSource = (body: string): string => `---\nlitzio: 1\n---\n\n${body}`;
+const fixtures = mkdtempSync(path.join(tmpdir(), "litzio-cli-native-fixtures-"));
 
 test("docling convert delegates whole-document conversion and refuses overwrite and range options", () => {
   const input = fileURLToPath(new URL("../../docling/test/fixtures/synthetic/document.json", import.meta.url));
@@ -71,7 +71,7 @@ test("docling convert-pdf executable accepts server flag/environment and reports
   const input = path.join(fixtures, "rest.pdf"); writeFileSync(input, "%PDF-1.7\nfixture");
   async function execute(args: string[], envServer: string) {
     const child = spawn(process.execPath, ["--import", "tsx", fileURLToPath(new URL("../src/cli.ts", import.meta.url)), ...args], {
-      cwd: cliRoot, env: { ...process.env, IEUMDOC_DOCLING_SERVER: envServer }, stdio: ["ignore", "pipe", "pipe"],
+      cwd: cliRoot, env: { ...process.env, LITZIO_DOCLING_SERVER: envServer }, stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "", stderr = "";
     child.stdout.on("data", c => { stdout += c; }); child.stderr.on("data", c => { stderr += c; });
@@ -186,7 +186,7 @@ test("update-media-references supports dry-run, batch, revision conflict and fai
 });
 
 test("citation single edits, batch, check/inspect and format use the same Core report and never rewrite bibliography inputs", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-citations-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-citations-"));
   try {
     const file = path.join(dir, "paper.md"), batchFile = path.join(dir, "batch.md"), operationsFile = path.join(dir, "operations.json");
     const bib = path.join(dir, "refs.bib"), bibBytes = "% No entries. This external bibliography must never be rewritten.\r\n";
@@ -249,7 +249,7 @@ test("citation single edits, batch, check/inspect and format use the same Core r
 });
 
 test("CLI rejects malformed paths before I/O and accepts valid Unicode names", (t) => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-path-unicode-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-path-unicode-"));
   try {
     const valid = path.join(dir, "한글😀�.md");
     assert.equal(run(["create", valid]).status, 0);
@@ -277,7 +277,7 @@ test("CLI rejects malformed paths before I/O and accepts valid Unicode names", (
 });
 
 test("CLI refuses invalid UTF-8 documents/operation files and escaped surrogates without changing disk bytes", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-unicode-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-unicode-"));
   const file = path.join(dir, "document.md");
   const operations = path.join(dir, "ops.json");
   const original = Buffer.from(nativeSource("한글 😀 �\n"));
@@ -316,7 +316,7 @@ test("serve help explains the boundary and invalid invocation never starts a lis
 });
 
 test("insert-block accepts Core inline JSON and rejects ambiguous input without writing", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-inline-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-inline-"));
   const file = path.join(dir, "document.md");
   writeFileSync(file, nativeSource("# Title\n"));
   try {
@@ -334,7 +334,7 @@ test("insert-block accepts Core inline JSON and rejects ambiguous input without 
 });
 
 test("CLI writes and dry runs report the same preflight conflict and keep externally changed bytes", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-changed-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-changed-"));
   const file = path.join(dir, "document.md");
   const external = Buffer.from(nativeSource("# Edited elsewhere\r\n\r\nKept exactly ✓\r\n"), "utf8");
   writeFileSync(file, nativeSource("# Title\n"));
@@ -348,7 +348,7 @@ test("CLI writes and dry runs report the same preflight conflict and keep extern
       const inspected = run(["inspect", file, "--format", "json"]);
       assert.equal(inspected.status, 0, inspected.stderr);
       const changed = runProcess([...invocation, "--if-revision", JSON.parse(inspected.stdout).revision], ["--import", pathToFileURL(path.join(cliRoot, "test", "replace-after-read.ts")).href], {
-        ...process.env, IEUMDOC_TEST_REPLACE_AFTER_READ: file, IEUMDOC_TEST_REPLACEMENT: external.toString("base64"),
+        ...process.env, LITZIO_TEST_REPLACE_AFTER_READ: file, LITZIO_TEST_REPLACEMENT: external.toString("base64"),
       });
       assert.equal(changed.status, 1, changed.stderr);
       assert.equal(changed.stdout, "");
@@ -365,7 +365,7 @@ test("CLI writes and dry runs report the same preflight conflict and keep extern
 });
 
 test("dry runs expose the canonical result and check diagnostics without any filesystem mutation", (t) => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-dry-run-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-dry-run-"));
   const file = path.join(dir, "document.md");
   const operations = path.join(dir, "operations.json");
   const original = Buffer.from(nativeSource("# Report\r\n\r\nSee [missing](#missing). ✓\r\n"));
@@ -418,7 +418,7 @@ test("dry runs expose the canonical result and check diagnostics without any fil
 });
 
 test("single dry runs preserve failure messages and reject unsupported or ambiguous preview options", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-dry-failure-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-dry-failure-"));
   const file = path.join(dir, "document.md");
   const original = Buffer.from(nativeSource("Original.\r\n"));
   try {
@@ -445,7 +445,7 @@ test("single dry runs preserve failure messages and reject unsupported or ambigu
 });
 
 test("apply-batch matches sequential file bytes across canonical endnote and path changes and reports the committed revision", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-batch-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-batch-"));
   const file = path.join(dir, "batch.md");
   const single = path.join(dir, "single.md");
   const operationsFile = path.join(dir, "operations.json");
@@ -487,7 +487,7 @@ test("apply-batch matches sequential file bytes across canonical endnote and pat
 });
 
 test("apply-batch stdin matches file bytes and output, including UTF-8 BOM and dry run", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-batch-stdin-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-batch-stdin-"));
   const file = path.join(dir, "document.md");
   const operationsFile = path.join(dir, "operations.json");
   const original = Buffer.from(nativeSource("# Report\r\n\r\nOriginal.\r\n"));
@@ -522,7 +522,7 @@ test("apply-batch stdin matches file bytes and output, including UTF-8 BOM and d
 });
 
 test("apply-batch stdin refuses malformed input and stale revisions without writing", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-batch-stdin-failure-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-batch-stdin-failure-"));
   const file = path.join(dir, "document.md");
   const original = Buffer.from(nativeSource("# Report\r\n\r\nOriginal ✓\r\n"));
   const valid = JSON.stringify([{ command: "insert-block", at: "end", text: "Added" }]);
@@ -553,7 +553,7 @@ test("apply-batch stdin refuses malformed input and stale revisions without writ
 });
 
 test("apply-batch preserves original bytes for step errors, invalid input and stale revisions", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-batch-failure-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-batch-failure-"));
   const file = path.join(dir, "document.md");
   const operationsFile = path.join(dir, "operations.json");
   const original = Buffer.from(nativeSource("# Report\r\n\r\nOriginal ✓\r\n"));
@@ -613,7 +613,7 @@ test("apply-batch preserves original bytes for step errors, invalid input and st
 });
 
 test("CLI can check and modify a real file through Core", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-"));
   const file = path.join(dir, "document.md");
   copyFileSync(fixture, file);
   const original = readFileSync(file, "utf8");
@@ -809,7 +809,7 @@ test("command help is available from help and --help", () => {
 });
 
 test("CLI insert-heading persists a Core heading", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-heading-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-heading-"));
   const file = path.join(dir, "document.md");
   writeFileSync(file, nativeSource("Intro\n"));
   try {
@@ -835,7 +835,7 @@ test("CLI insert-heading persists a Core heading", () => {
 });
 
 test("CLI inserts admonitions, changes their kind and rejects unsafe requests without writing", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-admonition-authoring-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-admonition-authoring-"));
   const file = path.join(dir, "document.md");
   writeFileSync(file, nativeSource("Intro paragraph.\n\n## Stable heading\n\nKeep this paragraph.\n"));
   try {
@@ -897,7 +897,7 @@ test("CLI inserts admonitions, changes their kind and rejects unsafe requests wi
 });
 
 test("CLI inserts and edits quotes and dividers in a real file and rejects unsafe requests without writing", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-quote-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-quote-"));
   const file = path.join(dir, "document.md");
   writeFileSync(file, nativeSource("# Title\n\nAfter.\n"));
   try {
@@ -932,7 +932,7 @@ test("CLI inserts and edits quotes and dividers in a real file and rejects unsaf
 });
 
 test("CLI inserts footnotes and edits their definitions in a real file and rejects unsafe requests without writing", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-footnote-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-footnote-"));
   const file = path.join(dir, "document.md");
   writeFileSync(file, nativeSource("# Title\n\nA claim.\n"));
   try {
@@ -964,7 +964,7 @@ test("CLI inserts footnotes and edits their definitions in a real file and rejec
 });
 
 test("CLI writes endnotes after the body as Core and Editor Save do, and leaves refused documents intact", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-endnotes-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-endnotes-"));
   const file = path.join(dir, "document.md");
   const scattered = nativeSource("# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n[^a]: Second note.\n\n" +
     "## Section B\n\nAnother paragraph[^b].\n\n[^b]: First note.\n");
@@ -1005,7 +1005,7 @@ test("CLI writes endnotes after the body as Core and Editor Save do, and leaves 
 });
 
 test("CLI footnote deletion and batch completion retain definitions across a temporary last-reference removal", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-endnote-lifecycle-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-endnote-lifecycle-"));
   const file = path.join(dir, "document.md"), operations = path.join(dir, "operations.json");
   const original = nativeSource("## From[^a]\n\n## To\n\n[^a]: **Keep** $x$.\n");
   try {
@@ -1031,7 +1031,7 @@ test("CLI footnote deletion and batch completion retain definitions across a tem
 });
 
 test("CLI writes formatted headings and rejects line breaks without writing", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-heading-content-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-heading-content-"));
   const file = path.join(dir, "document.md");
   writeFileSync(file, nativeSource("## See {ref}`intro`\n\nIntro.\n"));
   try {
@@ -1058,7 +1058,7 @@ test("CLI writes formatted headings and rejects line breaks without writing", ()
 });
 
 test("CLI updates a real H2 file to H5 and rejects unsafe heading requests without writing", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-heading-level-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-heading-level-"));
   const file = path.join(dir, "document.md");
   writeFileSync(file, nativeSource("Intro paragraph.\n\n## Stable heading\n\nKeep this paragraph.\n"));
   try {
@@ -1097,7 +1097,7 @@ test("CLI updates a real H2 file to H5 and rejects unsafe heading requests witho
 });
 
 test("CLI converts a Paragraph to a Heading and back, rejecting invalid requests without writing", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-convert-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-convert-"));
   const file = path.join(dir, "document.md");
   writeFileSync(file, nativeSource("# Title\n\nPromote **this** text.\n\nFirst\\\nsecond.\n"));
   try {
@@ -1128,7 +1128,7 @@ test("CLI converts a Paragraph to a Heading and back, rejecting invalid requests
 });
 
 test("CLI insert-equation persists a Core equation", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-equation-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-equation-"));
   const file = path.join(dir, "document.md");
   writeFileSync(file, nativeSource("Intro\n"));
   try {
@@ -1152,7 +1152,7 @@ test("CLI insert-equation persists a Core equation", () => {
 });
 
 test("CLI inserts equation labels and table captions/labels with one file write, preserving bytes on refusal", (t) => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-insert-properties-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-insert-properties-"));
   const file = path.join(dir, "document.md");
   writeFileSync(file, nativeSource("Intro\n"));
   const writes = t.mock.method(fs, "writeFileSync");
@@ -1198,7 +1198,7 @@ test("CLI inserts equation labels and table captions/labels with one file write,
 });
 
 test("CLI top-level insertions accept end before endnotes, and batches resolve it on each snapshot", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-insert-end-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-insert-end-"));
   const file = path.join(dir, "document.md");
   const operationsFile = path.join(dir, "operations.json");
   const original = nativeSource("Claim[^a].\n\n[^a]: Evidence.\n");
@@ -1251,7 +1251,7 @@ test("CLI top-level insertions accept end before endnotes, and batches resolve i
 });
 
 test("CLI insert-figure persists a Core Figure", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-figure-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-figure-"));
   const file = path.join(dir, "document.md");
   writeFileSync(file, nativeSource("Intro\n"));
   try {
@@ -1271,7 +1271,7 @@ test("CLI insert-figure persists a Core Figure", () => {
     assert.match(readFileSync(file, "utf8"), /\*\*Bold\*\*/);
     assert.equal(run(["insert-figure", file, "--at", "1", "--image", "./only.svg"]).status, 0);
     const minimal = readFileSync(file, "utf8");
-    assert.match(minimal, /^---\nieumdoc: 1\n---\n\n:::\{figure\} \.\/only\.svg\n:::\n/);
+    assert.match(minimal, /^---\nlitzio: 1\n---\n\n:::\{figure\} \.\/only\.svg\n:::\n/);
     // Invalid under the pending Figure contract too: alt text without an image.
     for (const args of [
       ["insert-figure", file, "--at", "1", "--image", " ./a.svg"],
@@ -1288,7 +1288,7 @@ test("CLI insert-figure persists a Core Figure", () => {
 });
 
 test("check warns per missing relative Figure image and dry runs check the result beside the target file", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-missing-images-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-missing-images-"));
   const file = path.join(dir, "document.md");
   const sources = ["./missing.png", "missing.png", "present.png", "./present.png",
     "한글%20.png", "100%.png", "한글.png", "absent%20.png",
@@ -1334,7 +1334,7 @@ test("check warns per missing relative Figure image and dry runs check the resul
 });
 
 test("check follows directory links, warning for the directory but accepting a linked regular file", t => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-image-links-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-image-links-"));
   const file = path.join(dir, "document.md");
   const assets = path.join(dir, "assets");
   try {
@@ -1358,7 +1358,7 @@ test("check follows directory links, warning for the directory but accepting a l
 });
 
 test("check warns honestly when an image stat fails without failing or writing", t => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-image-stat-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-image-stat-"));
   const file = path.join(dir, "document.md");
   const source = nativeSource(":::{figure} present.png\n:::\n");
   try {
@@ -1381,7 +1381,7 @@ test("check warns honestly when an image stat fails without failing or writing",
 });
 
 test("CLI insert-figure makes a pending Figure in one write; update-figure connects and removes its image", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-pending-figure-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-pending-figure-"));
   const file = path.join(dir, "document.md");
   writeFileSync(file, nativeSource("Intro\n\nThe controller structure is shown in [Figure](#fig-pfc-control).\n"));
   const pending = ":::{figure}\n:name: fig-pfc-control\n\nPFC Current Control Architecture\n:::\n";
@@ -1443,7 +1443,7 @@ test("CLI insert-figure makes a pending Figure in one write; update-figure conne
 });
 
 test("CLI update-label sets, changes and removes labels through Core and rejects duplicates without writing", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-update-label-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-update-label-"));
   const file = path.join(dir, "technical-document.md");
   copyFileSync(technicalFixture, file);
   try {
@@ -1473,7 +1473,7 @@ test("CLI update-label sets, changes and removes labels through Core and rejects
 });
 
 test("CLI opt-in label rename shares Core, strict boolean options and atomic batch refusal", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-rename-label-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-rename-label-"));
   const file = path.join(dir, "document.md");
   const operations = path.join(dir, "operations.json");
   const source = "\uFEFF" + nativeSource("```{math}\n:label: old\nx\n```\n\n{eq}`old` and [keep](#old).\n\n# Taken\n").replaceAll("\n", "\r\n");
@@ -1536,7 +1536,7 @@ test("CLI opt-in label rename shares Core, strict boolean options and atomic bat
 });
 
 test("CLI update-figure changes Figure properties through Core and preserves the label", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-update-figure-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-update-figure-"));
   const file = path.join(dir, "technical-document.md");
   copyFileSync(technicalFixture, file);
   try {
@@ -1666,7 +1666,7 @@ test("inspect prints Core editable targets", () => {
     );
   }
 
-  const quoteDir = mkdtempSync(path.join(tmpdir(), "ieumdoc-inspect-"));
+  const quoteDir = mkdtempSync(path.join(tmpdir(), "litzio-inspect-"));
   const quoteFile = path.join(quoteDir, "quoted.md");
   try {
     writeFileSync(quoteFile, nativeSource('Paragraph "quoted" text and a \\\\ slash.\n'));
@@ -1690,7 +1690,7 @@ test("inspect prints Core editable targets", () => {
 });
 
 test("inspect and check expose stable machine-readable Core results", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-machine-contract-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-machine-contract-"));
   const file = path.join(dir, "technical-document.md");
   copyFileSync(technicalFixture, file);
   writeFileSync(path.join(dir, "diagram.svg"), "image");
@@ -1755,8 +1755,8 @@ test("inspect and check expose stable machine-readable Core results", () => {
     const external = nativeSource("## Edited elsewhere\n");
     const snapshot = runProcess(["inspect", file, "--format", "json"],
       ["--import", pathToFileURL(path.join(cliRoot, "test", "replace-after-read.ts")).href], {
-        ...process.env, IEUMDOC_TEST_REPLACE_AFTER_READ: file,
-        IEUMDOC_TEST_REPLACEMENT: Buffer.from(external).toString("base64"),
+        ...process.env, LITZIO_TEST_REPLACE_AFTER_READ: file,
+        LITZIO_TEST_REPLACEMENT: Buffer.from(external).toString("base64"),
       });
     assert.equal(snapshot.status, 0, snapshot.stderr);
     assert.deepEqual(JSON.parse(snapshot.stdout), inspectResult);
@@ -1767,7 +1767,7 @@ test("inspect and check expose stable machine-readable Core results", () => {
 });
 
 test("CLI rejects unknown, duplicate, and unnecessary arguments without writing", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-strict-options-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-strict-options-"));
   const file = path.join(dir, "document.md");
   copyFileSync(fixture, file);
   const before = readFileSync(file);
@@ -1795,7 +1795,7 @@ test("CLI rejects unknown, duplicate, and unnecessary arguments without writing"
 });
 
 test("CLI rejects empty NodePath segments in single and batch writes while accepting spaced nested paths", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-node-path-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-node-path-"));
   const file = path.join(dir, "table.md");
   const operations = path.join(dir, "operations.json");
   const original = Buffer.from(nativeSource("| A | B |\n| --- | --- |\n| C | D |\n"));
@@ -1835,7 +1835,7 @@ test("CLI rejects empty NodePath segments in single and batch writes while accep
 });
 
 test("CLI accepts an inspect revision for edits and format without printing a new revision", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-revision-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-revision-"));
   const file = path.join(dir, "document.md");
   const original = "\uFEFF" + nativeSource("## Target\r\n\r\nBody.\r\n");
   writeFileSync(file, original);
@@ -1864,7 +1864,7 @@ test("CLI accepts an inspect revision for edits and format without printing a ne
 });
 
 test("CLI refuses a stale inspect revision when structural edits retarget a valid path", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-stale-path-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-stale-path-"));
   const file = path.join(dir, "document.md");
   const original = nativeSource("## Before\n\n## Target\n\n## After\n");
   try {
@@ -1897,7 +1897,7 @@ test("CLI refuses a stale inspect revision when structural edits retarget a vali
 });
 
 test("CLI rejects malformed revision arguments without changing file bytes", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-invalid-revision-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-invalid-revision-"));
   const file = path.join(dir, "document.md");
   writeFileSync(file, nativeSource("## Target\r\n"));
   const before = readFileSync(file);
@@ -1912,7 +1912,7 @@ test("CLI rejects malformed revision arguments without changing file bytes", () 
 });
 
 test("CLI updates Equation LaTeX through Core without partial writes", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-equation-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-equation-"));
   const file = path.join(dir, "technical-document.md");
   copyFileSync(technicalFixture, file);
   try {
@@ -1936,7 +1936,7 @@ test("CLI updates Equation LaTeX through Core without partial writes", () => {
 });
 
 test("inspect does not call an admonition readonly when update-node-text can change it", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-admonition-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-admonition-"));
   const file = path.join(dir, "technical-document.md");
   copyFileSync(technicalFixture, file);
   try {
@@ -1990,7 +1990,7 @@ function corePipeline(source: string): string {
 }
 
 test("insert-target and update-label label a section that {ref} references name", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-target-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-target-"));
   const file = path.join(dir, "document.md");
   const original = nativeSource("# Title\n\n## Intro\n\nSee {ref}`intro`.\n");
   writeFileSync(file, original);
@@ -2040,7 +2040,7 @@ function runProcess(args: string[], nodeArgs: string[] = [], env?: NodeJS.Proces
 }
 
 test("CLI format keeps semantic references distinct from fragment links", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-references-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-references-"));
   const file = path.join(dir, "technical-document.md");
   const unsupported = path.join(dir, "term.md");
   copyFileSync(technicalFixture, file);
@@ -2064,7 +2064,7 @@ test("CLI format keeps semantic references distinct from fragment links", () => 
 });
 
 test("CLI updates Markdown table cells through Core and rejects unsupported text", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-table-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-table-"));
   const file = path.join(dir, "technical-document.md");
   copyFileSync(technicalFixture, file);
   try {
@@ -2100,7 +2100,7 @@ test("CLI updates Markdown table cells through Core and rejects unsupported text
 });
 
 test("CLI inserts and updates lists through Core and rejects invalid lists without writing", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-list-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-list-"));
   const file = path.join(dir, "doc.md");
   writeFileSync(file, nativeSource("# Steps\n"));
   const text = (value: string) => [{ kind: "text", text: value }];
@@ -2148,7 +2148,7 @@ test("CLI inserts and updates lists through Core and rejects invalid lists witho
 });
 
 test("CLI inserts and updates code blocks through Core and rejects invalid code without writing", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-code-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-code-"));
   const file = path.join(dir, "doc.md");
   writeFileSync(file, nativeSource("# Setup\n"));
   try {
@@ -2182,7 +2182,7 @@ test("CLI inserts and updates code blocks through Core and rejects invalid code 
 });
 
 test("CLI shows heading sections and moves or removes a section through Core", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-section-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-section-"));
   const file = path.join(dir, "doc.md");
   writeFileSync(file, nativeSource("# One\n\n(sec-a)=\n## A\n\nBody A.\n\n### A.1\n\n## B\n\nBody B.\n"));
   try {
@@ -2207,7 +2207,7 @@ test("CLI shows heading sections and moves or removes a section through Core", (
 });
 
 test("CLI creates a table, adds, moves and removes rows and columns, and aligns columns through Core, rejecting invalid shapes", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-table-insert-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-table-insert-"));
   const file = path.join(dir, "doc.md");
   writeFileSync(file, nativeSource("# Ratings\n"));
   try {
@@ -2265,7 +2265,7 @@ test("CLI creates a table, adds, moves and removes rows and columns, and aligns 
 });
 
 test("CLI paragraph commands keep ordinary links and {eq} references, and retain section references", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-links-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-links-"));
   const file = path.join(dir, "links.md");
   writeFileSync(file, nativeSource("Go to [the site](https://a.example) now.\n\nSee {eq}`eq-a`, there.\n\nSee {ref}`sec-a` there.\n"));
   try {
@@ -2286,7 +2286,7 @@ test("CLI paragraph commands keep ordinary links and {eq} references, and retain
 
 
 test("CLI writes typed straight quotes as written and formats byte-order-marked files", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-input-safety-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-input-safety-"));
   try {
     const file = path.join(dir, "quotes.md");
     writeFileSync(file, nativeSource("# Title\n\nHello.\n"));
@@ -2311,7 +2311,7 @@ test("CLI writes typed straight quotes as written and formats byte-order-marked 
 });
 
 test("native create and admission keep existing files intact and report structured errors", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-native-cli-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-native-cli-"));
   const file = path.join(dir, "new.md");
   try {
     const created = run(["create", file]);
@@ -2329,7 +2329,7 @@ test("native create and admission keep existing files intact and report structur
     for (const args of [["check", file], ["inspect", file], ["format", file], ["replace-text", file, "--from", "Older", "--to", "Changed"]]) {
       const rejected = run(args);
       assert.equal(rejected.status, 1, args.join(" "));
-      assert.match(rejected.stderr, /ieumdoc: 1/);
+      assert.match(rejected.stderr, /litzio: 1/);
       assert.equal(readFileSync(file, "utf8"), unsupported);
     }
     const json = run(["check", file, "--format", "json"]);
@@ -2354,7 +2354,7 @@ test("native create and admission keep existing files intact and report structur
 });
 
 test("single and batch metadata edits report the Core guidance and preserve original bytes", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-metadata-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-metadata-"));
   const file = path.join(dir, "empty.md");
   const operationsFile = path.join(dir, "operations.json");
   const message = "block 0 is the document metadata; body blocks start at 1";
@@ -2375,7 +2375,7 @@ test("single and batch metadata edits report the Core guidance and preserve orig
 });
 
 test("check warns about references a removal left without a target, without failing or writing", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-check-references-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-check-references-"));
   const file = path.join(dir, "document.md");
   writeFileSync(file, nativeSource("# Title\n\nSee {numref}`fig-a` and [the figure](#fig-a).\n\n:::{figure} ./a.png\n:label: fig-a\n:::\n"));
   try {
@@ -2401,7 +2401,7 @@ test("check warns about references a removal left without a target, without fail
 
 
 test("check exposes Core's MyST lookup failure reason in text and JSON without writing", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-check-myst-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-check-myst-"));
   const file = path.join(dir, "document.md");
   writeFileSync(file, nativeSource("[figure](#toString)\n\n:::{figure} ./a.png\n:name: toString\n\nCaption.\n:::\n"));
   try {
@@ -2422,7 +2422,7 @@ test("check exposes Core's MyST lookup failure reason in text and JSON without w
 });
 
 test("check and edit previews retain original literal-syntax warnings through literal writes", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-check-footnote-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-check-footnote-"));
   const file = path.join(dir, "document.md");
   const operations = path.join(dir, "operations.json");
   const source = nativeSource("Loss [^loss] here.\n\nSee [details][missing].\n\n![missing][]\n\nCode `tick without end.\n");
@@ -2481,7 +2481,7 @@ test("check and edit previews retain original literal-syntax warnings through li
 });
 
 test("CLI writes warn once per original footnote occurrence, keeping literal bytes and stdout", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-write-footnote-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-write-footnote-"));
   const file = path.join(dir, "document.md");
   const operationsFile = path.join(dir, "operations.json");
   const source = nativeSource("Loss [^loss] and [^loss], \\[^literal].\n\nOther.\n");
@@ -2531,18 +2531,18 @@ test("CLI writes warn once per original footnote occurrence, keeping literal byt
 });
 
 test("CLI format and text editing preserve front matter through the Core writer", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-front-matter-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-front-matter-"));
   try {
     for (const [name, source] of [
-      ["front-matter.md", "---\nieumdoc: 1\n---\n\n# Heading\n"],
-      ["bom-front-matter.md", "\uFEFF---\nieumdoc: 1\n---\n\n# Heading\n"],
+      ["front-matter.md", "---\nlitzio: 1\n---\n\n# Heading\n"],
+      ["bom-front-matter.md", "\uFEFF---\nlitzio: 1\n---\n\n# Heading\n"],
     ]) {
       const file = path.join(dir, name);
       writeFileSync(file, source);
       for (const args of [["format", file], ["replace-text", file, "--from", "Heading", "--to", "Changed"]]) {
         const result = run(args);
         assert.equal(result.status, 0, `${name} ${args[0]}`);
-        assert.equal(readFileSync(file, "utf8"), `---\nieumdoc: 1\n---\n\n# ${args[0] === "format" ? "Heading" : "Changed"}\n`);
+        assert.equal(readFileSync(file, "utf8"), `---\nlitzio: 1\n---\n\n# ${args[0] === "format" ? "Heading" : "Changed"}\n`);
       }
     }
   } finally {
@@ -2551,7 +2551,7 @@ test("CLI format and text editing preserve front matter through the Core writer"
 });
 
 test("Core rejects lossy text updates before CLI overwrites a real file", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-lossy-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-lossy-"));
   const file = path.join(dir, "document.md");
   try {
     writeFileSync(file, nativeSource("Original.\n"));
@@ -2566,7 +2566,7 @@ test("Core rejects lossy text updates before CLI overwrites a real file", () => 
 });
 
 test("replace-text and insert-block reject lossy text without overwriting file bytes", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-canonical-writes-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-canonical-writes-"));
   const file = path.join(dir, "document.md");
   try {
     writeFileSync(file, nativeSource("Original.\r\n"));
@@ -2600,7 +2600,7 @@ test("paragraph CLI help discovers the offset and path contracts", () => {
 });
 
 test("real-file paragraph workflow matches Core and remains canonical", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-paragraph-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-paragraph-"));
   const file = path.join(dir, "document.md");
   copyFileSync(technicalFixture, file);
   try {
@@ -2641,7 +2641,7 @@ test("real-file paragraph workflow matches Core and remains canonical", () => {
 
 
 test("CLI check and format refuse table source options without changing file bytes", async (t) => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-table-options-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-table-options-"));
   const file = path.join(dir, "document.md");
   try {
     // Core native.test.ts owns the syntax matrix. Here each command must relay
@@ -2661,7 +2661,7 @@ test("CLI check and format refuse table source options without changing file byt
 });
 
 test("CLI authors table captions and labels through Core and rejects multiline captions without writing", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-table-caption-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-table-caption-"));
   const file = path.join(dir, "table.md");
   writeFileSync(file, nativeSource("| A |\n|---|\n| 1 |\n"));
   const numbers = () => {
@@ -2699,7 +2699,7 @@ test("CLI authors table captions and labels through Core and rejects multiline c
 
 
 test("CLI heading numbering persists document settings and exposes the computed numbers", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-heading-numbering-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-heading-numbering-"));
   const file = path.join(dir, "headings.md");
   writeFileSync(file, nativeSource("# Title\n\n## First\n\n### Detail\n"));
   try {
@@ -2718,11 +2718,11 @@ test("CLI heading numbering persists document settings and exposes the computed 
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 test("CLI bibliography roots are explicit and warnings preserve actual Markdown and BibTeX files", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-cli-bibliography-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-cli-bibliography-"));
   const chapter = path.join(dir, "chapters"); fs.mkdirSync(chapter);
   const file = path.join(chapter, "paper.md"), bibFile = path.join(dir, "refs.bib");
   const bib = Buffer.from("% external source\r\n@article{a,author={Zhang, Wei},title={Study},journal={Journal},year={2024}}\r\n");
-  const source = "---\nieumdoc: 1\nbibliography: [../refs.bib]\n---\n\n{cite:p}`a,missing,a`\n";
+  const source = "---\nlitzio: 1\nbibliography: [../refs.bib]\n---\n\n{cite:p}`a,missing,a`\n";
   writeFileSync(file, source); writeFileSync(bibFile, bib);
   try {
     for (const command of ["check", "inspect", "format"]) {
@@ -2767,7 +2767,7 @@ test("CLI bibliography roots are explicit and warnings preserve actual Markdown 
 
 
 test("CLI reference templates set partial values, inspect computed text, and reset without rewriting rejected input", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-reference-templates-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-reference-templates-"));
   const file = path.join(dir, "refs.md");
   writeFileSync(file, nativeSource("```{math}\n:label: eq-a\na\n```\n\n:::{figure} ./a.png\n:label: fig-a\n:::\n\n:::{table} Data\n:label: tbl-a\n| a |\n| - |\n| 1 |\n:::\n"));
   const display = (references: string[], captions: string[]) => {
@@ -2912,7 +2912,7 @@ test("Figure Mermaid argument input supports atomic writes, inspect, dry-run and
 });
 
 test("CLI title settings support inspect, revision-safe writes, removal, batches and refusal preservation", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-title-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-title-"));
   const file = path.join(dir, "chapter.md");
   const operations = path.join(dir, "operations.json");
   const source = nativeSource("(clause)=\n# Power quality\n\n## Detail\n\nSee {ref}`clause`.\n");

@@ -16,7 +16,7 @@ test("parse and canonical write refuse unpaired surrogates in text and non-body 
       ["```python\nprint(1)\n```\n", [0], "lang"],
       ["[link](https://example.com \"Title\")\n", [0, 0], "url"],
       ["[link](https://example.com \"Title\")\n", [0, 0], "title"],
-      ["---\nieumdoc: 1\n---\n\nBody.\n", [0], "value"],
+      ["---\nlitzio: 1\n---\n\nBody.\n", [0], "value"],
     ] as const) {
       const document = parse(source);
       assert.doesNotThrow(() => serialize(document));

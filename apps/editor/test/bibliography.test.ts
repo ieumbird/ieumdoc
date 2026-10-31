@@ -3,18 +3,18 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
-import { BIBLIOGRAPHY_LIMITS } from "@ieumdoc/core";
+import { BIBLIOGRAPHY_LIMITS } from "@litzio/core";
 import { requestBibliography } from "../src/document-session.ts";
 import { readBibliographySources } from "../server/bibliography.ts";
 import { RootAccess } from "../server/file-access.ts";
 
 function fixture(t: TestContext) {
-  const base = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-bibliography-"));
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "litzio-bibliography-"));
   t.after(() => fs.rmSync(base, { recursive: true, force: true }));
   const root = path.join(base, "root"), chapter = path.join(root, "chapters"), outside = path.join(base, "outside");
   fs.mkdirSync(chapter, { recursive: true }); fs.mkdirSync(outside);
   const document = path.join(chapter, "paper.md");
-  fs.writeFileSync(document, "---\nieumdoc: 1\n---\n\nText.\n");
+  fs.writeFileSync(document, "---\nlitzio: 1\n---\n\nText.\n");
   const bib = "@misc{key,title={Title},year={2024},url={https://example.org}}";
   fs.writeFileSync(path.join(root, "refs.bib"), bib);
   fs.writeFileSync(path.join(outside, "refs.bib"), bib);

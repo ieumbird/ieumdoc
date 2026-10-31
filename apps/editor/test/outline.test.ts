@@ -6,7 +6,7 @@ import test from "node:test";
 import { getSchema } from "@tiptap/core";
 import { editorExtensions } from "../src/editor-schema.tsx";
 import { currentOutlineItem, documentOutline, documentTargets } from "../src/outline.ts";
-import { defaultHeadingNumbering } from "@ieumdoc/core/numbering";
+import { defaultHeadingNumbering } from "@litzio/core/numbering";
 import { collectSupportedEdits, type TiptapJSON, toTiptapDocument } from "../src/tiptap-document.ts";
 import { saveEdits } from "../server/document-replay.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
@@ -74,7 +74,7 @@ test("navigation targets use the current native captions and Core caption number
 });
 
 test("title metadata uses shared engine history and Save without entering body or Outline", () => {
-  const source = "---\nieumdoc: 1\ntitle: Opening title\n---\n\n# First\n\n## Detail\n";
+  const source = "---\nlitzio: 1\ntitle: Opening title\n---\n\n# First\n\n## Detail\n";
   const opening = loadEditableDocument(source);
   const schema = getSchema(editorExtensions());
   let state = EditorState.create({ schema, doc: schema.nodeFromJSON(toTiptapDocument(opening)), plugins: [history()] });

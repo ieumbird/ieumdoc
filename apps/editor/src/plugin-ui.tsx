@@ -1,8 +1,8 @@
 import * as React from "react";
 import * as jsx from "react/jsx-runtime";
 import { flushSync } from "react-dom";
-import { PLUGIN_UI, type UiRegistration } from "@document-plugins/api/config";
-import type { UiHost, UiModule } from "@document-plugins/api/ui";
+import { PLUGIN_UI, type UiRegistration } from "@litzio/plugin-api/config";
+import type { UiHost, UiModule } from "@litzio/plugin-api/ui";
 import { ReadOnlyDocument } from "./ReadOnlyDocument.tsx";
 import { Button } from "./components/ui/button.tsx";
 import { i18n, type MessageKey } from "./i18n.ts";
