@@ -265,7 +265,10 @@ test("worker kill during a partial REST download and deadline leave Host alive a
   t.after(async () => { await host.close(); await fake.close(); });
   fake.mode("partial");
   const started = await host.start(input);
-  const partial = await until(() => readdirSync(root, { recursive: true }).map(String).find(name => name.endsWith("response.json")), Boolean);
+  // createWriteStream creates the file before its first write completes. The fault must hit
+  // an actual partial download, while retaining the same bytes/private-path assertions below.
+  const partial = await until(() => readdirSync(root, { recursive: true }).map(String).find(name =>
+    name.endsWith("response.json") && statSync(path.join(root, name)).size > 0), Boolean);
   const partialPath = path.join(root, partial!);
   assert.ok(readFileSync(partialPath).length > 0);
   assert.throws(() => accessPath(partialPath, access), /not published/);

@@ -37,7 +37,7 @@ try {
   for (const channel of ["stable", "beta"]) execSync("pnpm --filter @litzio/desktop test:update", {
     cwd: repo, stdio: "inherit", windowsHide: true, env: { ...checkEnvironment, LITZIO_TEST_UPDATE_CHANNEL: channel },
   });
-  for (const command of ["pnpm --filter @litzio/desktop package", "pnpm --filter @litzio/desktop test:packaged", "pnpm --filter @litzio/desktop test:uninstall", "pnpm --filter @litzio/desktop exec tsx --test test/packaged/brand.e2e.ts"]) {
+  for (const command of ["pnpm --filter @litzio/desktop package", `pnpm --filter @litzio/desktop exec tsx scripts/verify-release.ts --tag v${version}`, "pnpm --filter @litzio/desktop test:packaged", "pnpm --filter @litzio/desktop test:uninstall", "pnpm --filter @litzio/desktop exec tsx --test test/packaged/brand.e2e.ts"]) {
     execSync(command, { cwd: repo, stdio: "inherit", windowsHide: true, env: checkEnvironment });
   }
 } finally {
