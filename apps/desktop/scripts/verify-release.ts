@@ -8,7 +8,7 @@ import { brand } from "../../../brand.ts";
 // accepts only updates from the same publisher. Prints the files to upload, one per line.
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { appendFileSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import os from "node:os";
 import { gunzipSync } from "node:zlib";
@@ -117,6 +117,11 @@ export function verifyRelease(options: { tag: string; release: string; signed: b
   return [installer, blockmap, channelFile];
 }
 
+/** Deliver exactly the verified installer/metadata and unpacked app, including custom channels. */
+export function writeReleaseArtifactPaths(files: readonly string[], release: string, outputFile: string): void {
+  appendFileSync(outputFile, `paths<<LITZIO_RELEASE_ARTIFACTS\n${[...files, path.join(release, "win-unpacked")].join("\n")}\nLITZIO_RELEASE_ARTIFACTS\n`);
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
   const tag = args[args.indexOf("--tag") + 1];
@@ -127,6 +132,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const files = verifyRelease({ tag, release: path.join(desktop, "release"), signed: args.includes("--signed"), version });
     verifyExecutableVersions(path.join(desktop, "release"), version);
     await verifyBlockmap(files[0]!, files[1]!);
+    if (process.env.GITHUB_OUTPUT) writeReleaseArtifactPaths(files, path.join(desktop, "release"), process.env.GITHUB_OUTPUT);
     for (const file of files) console.log(path.relative(process.cwd(), file));
   }
 }

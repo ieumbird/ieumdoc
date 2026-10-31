@@ -4,8 +4,8 @@
 // and starting the new version. Nothing is published; only the update host differs from a release.
 //   pnpm --filter @litzio/desktop test:update
 //   LITZIO_TEST_UPDATE_CHANNEL=beta pnpm --filter @litzio/desktop test:update
-// It installs Litzio for the current user and uninstalls it afterwards. It refuses to run if
-// Litzio is already installed or has user data on this machine.
+// It installs the configured product for the current user and uninstalls it afterwards.
+// An existing installation or user data refuses the test.
 import assert from "node:assert/strict";
 import { brand } from "../../../../brand.ts";
 import { execFileSync, spawnSync } from "node:child_process";
@@ -21,6 +21,7 @@ import { readUpdateInfo } from "../../scripts/verify-release.ts";
 import { readPreferences, writePreferences } from "../../src/preferences.ts";
 import { windowsEnvironment } from "../../src/windows-environment.ts";
 import { verifyPackagedCli } from "./cli-check.ts";
+import { installedDirectory } from "./installed-app.ts";
 
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const repo = path.resolve(desktop, "../..");
@@ -32,10 +33,10 @@ const [OLD, NEW] = LIVE ? ["0.0.2-beta.3", "0.0.2-beta.4"]
   : BETA ? ["0.1.0-beta.1", "0.1.0-beta.2"] : ["0.0.1", "0.0.2"];
 // The public beta.3 predates native documents (#232) and edits leading frontmatter as a body block.
 const NATIVE_PREFIX = LIVE && OLD === "0.0.1-beta.3" ? "" : "---\nlitzio: 1\n---\n\n";
-const CHANNEL_FILE = BETA ? "beta.yml" : "latest.yml";
+const CHANNEL_FILE = `${brand.updates.channels[BETA ? "beta" : "stable"]}.yml`;
 const { owner, repo: name } = RELEASE_REPOSITORY;
 const appData = path.join(process.env.APPDATA!, brand.folders.desktopData);
-const updaterCache = path.join(process.env.LOCALAPPDATA!, "litzio-updater");
+const updaterCache = path.join(process.env.LOCALAPPDATA!, `${brand.appName}-updater`);
 const defaultInstall = path.join(process.env.LOCALAPPDATA!, "Programs", brand.appName);
 
 function powershell(script: string): string {
@@ -44,11 +45,7 @@ function powershell(script: string): string {
 
 /** The folder of the per-user installation, from its uninstall entry (which has no InstallLocation), or "". */
 function installedEntry(): string {
-  const uninstall = powershell("$key = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall'; " +
-    "if (Test-Path -LiteralPath $key) { Get-ChildItem -LiteralPath $key -ErrorAction Stop | " +
-    "ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction Stop } | Where-Object { $_.DisplayName -like 'Litzio*' } | ForEach-Object { $_.UninstallString } }");
-  const match = /^"(.+)\\Uninstall Litzio\.exe"/.exec(uninstall);
-  return match ? match[1]! : uninstall;
+  return installedDirectory();
 }
 
 /** Package one test build and keep its installer and metadata. */
@@ -58,7 +55,7 @@ function packageVersion(version: string): string {
   mkdirSync(out, { recursive: true });
   execFileSync("pnpm --filter @litzio/desktop package", { cwd: repo, shell: process.env.ComSpec ?? "cmd.exe", stdio: "ignore",
     env: { ...process.env, LITZIO_TEST_VERSION: version, LITZIO_TEST_UPDATE_HOST: HOST, LITZIO_RELEASE: "", LITZIO_REQUIRE_SIGNED_UPDATES: "" } });
-  for (const file of [`Litzio-Setup-${version}.exe`, `Litzio-Setup-${version}.exe.blockmap`, CHANNEL_FILE]) {
+  for (const file of [`${brand.executableName}-Setup-${version}.exe`, `${brand.executableName}-Setup-${version}.exe.blockmap`, CHANNEL_FILE]) {
     copyFileSync(path.join(desktop, "release", file), path.join(out, file));
   }
   return out;
@@ -73,8 +70,8 @@ async function publicBeta(): Promise<string> {
     assert.equal(result.status, 200, `Public v${version} is required; real GitHub update validation remains Pending`);
     const release = await result.json() as { tag_name: string; draft: boolean; prerelease: boolean; assets: { name: string; size: number; digest: string; browser_download_url: string }[] };
     assert.equal(release.tag_name, `v${version}`); assert.equal(release.draft, false); assert.equal(release.prerelease, true);
-    const installer = `Litzio-Setup-${version}.exe`;
-    assert.deepEqual(release.assets.map((asset) => asset.name).sort(), [installer, `${installer}.blockmap`, "beta.yml"].sort());
+    const installer = `${brand.executableName}-Setup-${version}.exe`;
+    assert.deepEqual(release.assets.map((asset) => asset.name).sort(), [installer, `${installer}.blockmap`, `${brand.updates.channels.beta}.yml`].sort());
     const download = async (assetName: string) => {
       const asset = release.assets.find((asset) => asset.name === assetName)!;
       assert.equal(asset.browser_download_url, `https://github.com/${owner}/${name}/releases/download/v${version}/${assetName}`);
@@ -84,7 +81,7 @@ async function publicBeta(): Promise<string> {
       assert.equal(`sha256:${createHash("sha256").update(bytes).digest("hex")}`, asset.digest);
       return bytes;
     };
-    const metadata = readUpdateInfo((await download("beta.yml")).toString("utf8"));
+    const metadata = readUpdateInfo((await download(`${brand.updates.channels.beta}.yml`)).toString("utf8"));
     assert.equal(metadata.version, version); assert.equal(metadata.path, installer);
     assert.ok(Array.isArray(metadata.files) && metadata.files.length === 1);
     const file = metadata.files[0]; assert.equal(file.url, installer); assert.equal(file.sha512, metadata.sha512);
@@ -121,14 +118,14 @@ function releases(folder: string, requests: string[]): http.Server {
 /** FileVersion retains Beta identifiers; Windows ProductVersion is numeric and loses them. */
 function appProcesses(folder: string): { pid: number; version: string }[] {
   // Windows PowerShell 5.1: no ConvertTo-Json -AsArray, so the array is passed as -InputObject.
-  const raw = powershell(`ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process -Filter "Name='Litzio.exe'" | ` +
-    `Where-Object { $_.ExecutablePath -like '${folder}\\*' } | ` +
+  const raw = powershell(`ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process -Filter "Name='${brand.executableName.replaceAll("'", "''")}.exe'" | ` +
+    `Where-Object { $_.ExecutablePath -like '${folder.replaceAll("'", "''")}\\*' } | ` +
     `ForEach-Object { @{ pid = $_.ProcessId; version = (Get-Item $_.ExecutablePath).VersionInfo.FileVersion } })`);
   return raw ? [JSON.parse(raw)].flat() : [];
 }
 
 function requireCleanUser(): void {
-  assert.equal(installedEntry(), "", "Litzio is already installed; use a separate Windows test account");
+  assert.equal(installedEntry(), "", `${brand.name.en} is already installed; use a separate Windows test account`);
   for (const folder of [appData, updaterCache, defaultInstall]) assert.equal(existsSync(folder), false, `${folder} exists; this test would change it`);
 }
 
@@ -162,13 +159,13 @@ test("installs per user, then updates from Settings only after the open document
     // Per-user and silent: no administrator rights and no wizard.
     const started = Date.now();
     requireCleanUser(); // Downloads/builds can take minutes; recheck before installing.
-    const setup = spawnSync(path.join(oldBuild, `Litzio-Setup-${OLD}.exe`), ["/S", `/D=${install}`], { stdio: "ignore" });
+    const setup = spawnSync(path.join(oldBuild, `${brand.executableName}-Setup-${OLD}.exe`), ["/S", `/D=${install}`], { stdio: "ignore" });
     assert.equal(setup.status, 0, "the installer failed");
     const registered = installedEntry();
     assert.equal(path.resolve(registered).toLowerCase(), path.resolve(install).toLowerCase(), "the registered installation is not owned by this test");
     installedAt = registered;
     ownsData = true;
-    const exe = path.join(installedAt, "Litzio.exe");
+    const exe = path.join(installedAt, `${brand.executableName}.exe`);
     assert.equal(existsSync(exe), true);
     console.log(`installed ${OLD} in ${Date.now() - started} ms at ${installedAt}`);
     const prefs = { channel: BETA ? "beta" as const : "stable" as const, seenUpdate: OLD };
@@ -184,7 +181,7 @@ test("installs per user, then updates from Settings only after the open document
     await page.locator('[data-testid="status"][data-operation="ready" i]').waitFor({ state: "attached", timeout: 30_000 });
     // The installer relaunches without arguments. Persist the test's language for that launch too;
     // public beta.4 is English-only, but shares this origin/profile with the updated app.
-    await page.evaluate(() => localStorage.setItem("litzio.uiLanguage", "en"));
+    await page.evaluate(prefix => localStorage.setItem(`${prefix}.uiLanguage`, "en"), brand.storagePrefix);
     const phase = () => page.getByTestId("update-status").getAttribute("data-phase");
     await page.getByRole("button", { name: /^Settings/ }).click();
     // LIVE starts an older published build whose Settings has no categories.
@@ -197,7 +194,7 @@ test("installs per user, then updates from Settings only after the open document
       await cli.getByText("Off", { exact: true }).waitFor();
       await cli.getByRole("button", { name: "Turn on", exact: true }).click();
       await cli.getByText("Installed", { exact: true }).waitFor();
-      verifyPackagedCli(exe, "litzio", documents, OLD, await freshTerminalEnvironment());
+      verifyPackagedCli(exe, brand.cliCommand, documents, OLD, await freshTerminalEnvironment());
       await cli.getByRole("button", { name: "Turn off", exact: true }).click();
       await cli.getByText("Off", { exact: true }).waitFor();
       assert.deepEqual((await cliEnvironment.read()).user, originalUserPath, "disable preserves the original raw PATH and registry kind");
@@ -218,7 +215,7 @@ test("installs per user, then updates from Settings only after the open document
       assert.deepEqual((await cliEnvironment.read()).user, originalUserPath);
       assert.equal(readFileSync(path.join(cliBin, "owner.json"), "utf8"), "damaged owner");
       // Fixture-only cleanup after verifying preservation, then continue the update with CLI on.
-      for (const name of ["app", "litzio.cmd", "owner.json"]) unlinkSync(path.join(cliBin, name));
+      for (const name of ["app", `${brand.cliCommand}.cmd`, "owner.json"]) unlinkSync(path.join(cliBin, name));
       await cli.getByRole("button", { name: "Refresh status", exact: true }).click();
       await page.locator('[data-testid="cli-integration"][aria-busy="false"]').waitFor();
       await cli.getByRole("button", { name: "Turn on", exact: true }).click();
@@ -229,7 +226,7 @@ test("installs per user, then updates from Settings only after the open document
     // which replaces Check for updates with Download update; manual checking is exercised
     // after relaunch below. All offer/no-download/consent assertions remain the same.
     await page.getByRole("button", { name: "Download update" }).waitFor({ timeout: 30_000 });
-    assert.match(await page.getByTestId("update-status").innerText(), new RegExp(`Litzio ${NEW.replaceAll(".", "\\.")} \\(${BETA ? "Beta" : "Stable"}\\) is available`));
+    assert.match(await page.getByTestId("update-status").innerText(), new RegExp(`${brand.name.en.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} ${NEW.replaceAll(".", "\\.")} \\(${BETA ? "Beta" : "Stable"}\\) is available`));
     if (!LIVE) {
       assert.ok(requests.some((url) => url.endsWith(`/${CHANNEL_FILE}`)), "the installed channel fetched its update metadata");
       assert.equal(requests.some((url) => url.endsWith(".exe")), false, "finding the update downloaded nothing");
@@ -237,7 +234,7 @@ test("installs per user, then updates from Settings only after the open document
     await page.getByRole("button", { name: "Download update" }).click();
     await page.getByRole("button", { name: "Restart to update" }).waitFor({ timeout: 120_000 });
     assert.equal(await phase(), "downloaded");
-    if (!LIVE) assert.ok(requests.some((url) => url.endsWith(`Litzio-Setup-${NEW}.exe`)), "the installer was downloaded from the release");
+    if (!LIVE) assert.ok(requests.some((url) => url.endsWith(`${brand.executableName}-Setup-${NEW}.exe`)), "the installer was downloaded from the release");
 
     // Normal quit with a downloaded update is not consent to install. Restart the old app,
     // then explicitly download again (the updater may reuse its checksum-verified cache).
@@ -321,14 +318,14 @@ test("installs per user, then updates from Settings only after the open document
     assert.deepEqual(readPreferences(preferencesFile, NEW), savedPreferences, "saved channel and preferences survived installation");
     assert.equal(readFileSync(canary, "utf8"), "Preserve existing user data.\n");
     assert.ok(readFileSync(log, "utf8").includes(`started ${NEW} (${prefs.channel})`), "the new app loaded the preserved channel");
-    if (!LIVE) verifyPackagedCli(exe, "litzio", documents, NEW, await freshTerminalEnvironment());
+    if (!LIVE) verifyPackagedCli(exe, brand.cliCommand, documents, NEW, await freshTerminalEnvironment());
   } finally {
     if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
     for (const process of installedAt ? (() => { try { return appProcesses(installedAt); } catch { return []; } })() : []) {
       spawnSync("taskkill", ["/PID", String(process.pid), "/T", "/F"], { stdio: "ignore" });
     }
     if (installedAt) {
-      const uninstall = spawnSync(path.join(installedAt, "Uninstall Litzio.exe"), ["/S", "/currentuser"], { stdio: "ignore" });
+      const uninstall = spawnSync(path.join(installedAt, `Uninstall ${brand.executableName}.exe`), ["/S", "/currentuser"], { stdio: "ignore" });
       // The uninstaller copies itself and returns at once; wait for the entry to go.
       for (let wait = 0; wait < 60 && installedEntry(); wait++) await new Promise((resolve) => setTimeout(resolve, 1000));
       console.log(`uninstall: ${uninstall.status}; entry ${installedEntry() ? "remains" : "removed"}`);
@@ -339,7 +336,7 @@ test("installs per user, then updates from Settings only after the open document
   assert.equal(installedEntry(), "", "the uninstaller left its entry");
   if (!LIVE) {
     assert.deepEqual((await cliEnvironment.read()).user, originalUserPath, "uninstall restores only our PATH entry");
-    for (const name of ["litzio.cmd", "owner.json", "app"]) assert.equal(existsSync(path.join(cliBin, name)), false, `uninstall left ${name}`);
+    for (const name of [`${brand.cliCommand}.cmd`, "owner.json", "app"]) assert.equal(existsSync(path.join(cliBin, name)), false, `uninstall left ${name}`);
     assert.equal(existsSync(cliBin), false, "uninstall must remove an empty owned bin before the next channel runs");
   }
 });

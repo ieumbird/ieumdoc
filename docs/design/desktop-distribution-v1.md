@@ -523,3 +523,9 @@ The browser used this checkout's persistent Chrome profile. BadPasswordAttempts 
 0 before the first launch, then 1, 3, 4 and 5 after the final run; no further browser run was
 started at 5. The dedicated 5365 Vite server and owned browser context were closed. Packaged
 Desktop, installer/update/uninstall, Edge and fresh-profile probes were not run locally.
+
+## Brand-independent release checks (#859 review)
+
+The standard install/update (Stable and Beta), packaged Editor/CLI and uninstall regressions also run under the alternate brand configuration in required Windows CI. Their executable, installer, command, storage and channel names follow `brand.ts`; registry lookup uses the configured app ID and the pinned builder's NSIS GUID namespace. Existing foreign-file, PATH, unsaved-work and clean-account assertions remain in place.
+
+The release verifier emits its validated installer, blockmap, current configured channel manifest and unpacked application as the workflow artifact paths, after executable/signature/blockmap verification. The publish job downloads that same layout and revalidates it. Custom channel names are retained without collecting unverified YAML files.

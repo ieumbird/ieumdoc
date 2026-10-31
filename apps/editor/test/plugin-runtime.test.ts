@@ -37,6 +37,22 @@ async function until<T>(read: () => T | Promise<T>, accept: (value: T) => boolea
   }
 }
 function directory(name: string) { const root = path.join(fixture, name); mkdirSync(root); return root; }
+test("different brands refuse each other's real staging and crash publication leftovers", () => {
+  const root = directory("cross-brand-output");
+  const helper = fileURLToPath(new URL("./helpers/cross-brand-output.ts", import.meta.url));
+  const paths: string[] = [];
+  for (const producer of ["litzio", "brandproof"]) {
+    const result = spawnSync(process.execPath, ["--import", "tsx", helper, "produce", producer, root], { encoding: "utf8", timeout: 15_000, windowsHide: true });
+    assert.equal(result.status, 0, result.stderr);
+    paths.push(...JSON.parse(readFileSync(path.join(root, `${producer}-paths.json`), "utf8")));
+  }
+  writeFileSync(path.join(root, "paths.json"), JSON.stringify(paths));
+  for (const consumer of ["litzio", "brandproof"]) {
+    const result = spawnSync(process.execPath, ["--import", "tsx", helper, "consume", consumer, root], { encoding: "utf8", timeout: 15_000, windowsHide: true });
+    assert.equal(result.status, 0, result.stderr);
+    for (const decision of JSON.parse(result.stdout)) assert.match(decision, /not published/, `${consumer} must refuse unpublished files from both builds`);
+  }
+});
 function child(mode: string, root: string, env = process.env) {
   return fork(fileURLToPath(new URL("./helpers/plugin-owner.ts", import.meta.url)), [mode, root], {
     execArgv: ["--import", "tsx"], env, stdio: ["ignore", "ignore", "pipe", "ipc"], windowsHide: true,

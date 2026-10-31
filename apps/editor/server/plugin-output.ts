@@ -1,8 +1,9 @@
-import { brand } from "../../../brand.ts";
 import { existsSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
 
-export const INCOMPLETE = `.${brand.appName}-incomplete`;
+// Internal publication barriers must be understood by every brand sharing a document Root.
+export const INCOMPLETE = ".litzio-incomplete";
+export const STAGING_PREFIX = ".litzio-plugin-";
 function directoryStat(folder: string) {
   try { const stat = statSync(folder); return stat.isDirectory() ? stat : undefined; }
   catch (error) {
@@ -16,9 +17,9 @@ export function isPrivatePluginPath(value: string): boolean {
   const check = (target: string) => {
     for (let current = path.resolve(target); ; current = path.dirname(current)) {
       if (existsSync(path.join(current, INCOMPLETE))) return true;
-      if (path.basename(current).startsWith(`.${brand.appName}-plugin-`) && directoryStat(current)) {
+      if (path.basename(current).startsWith(STAGING_PREFIX) && directoryStat(current)) {
         // A reserved spelling may itself be a symlink to an ordinary directory.
-        if (path.basename(realpathSync.native(current)).startsWith(`.${brand.appName}-plugin-`)) return true;
+        if (path.basename(realpathSync.native(current)).startsWith(STAGING_PREFIX)) return true;
       }
       if (path.dirname(current) === current) return false;
     }

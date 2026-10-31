@@ -1,9 +1,10 @@
+import { brand } from "../../../../brand.ts";
 import type { Page } from "@playwright/test";
 
 /** Read committed records in production builds, without importing Vite source or writing test records. */
 export function recoveryRecords(page: Page): Promise<{ id: string; path: string; recoveryText: string; snapshot: unknown }[]> {
-  return page.evaluate(() => new Promise((resolve, reject) => {
-    const request = indexedDB.open("litzio-recovery");
+  return page.evaluate(database => new Promise((resolve, reject) => {
+    const request = indexedDB.open(database);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const db = request.result;
@@ -12,18 +13,18 @@ export function recoveryRecords(page: Page): Promise<{ id: string; path: string;
       tx.oncomplete = () => { db.close(); resolve(records.result); };
       tx.onabort = tx.onerror = () => { db.close(); reject(tx.error); };
     };
-  }));
+  }), `${brand.storagePrefix}-recovery`);
 }
 
 /** Reset initial recovery/tab state between tests, never between a test's crash/restarts. */
 export async function resetRecovery(page: Page): Promise<void> {
-  await page.evaluate(() => localStorage.removeItem("litzio.openTabs"));
-  await page.evaluate(() => new Promise<void>((resolve, reject) => {
-    const request = indexedDB.deleteDatabase("litzio-recovery");
+  await page.evaluate(prefix => localStorage.removeItem(`${prefix}.openTabs`), brand.storagePrefix);
+  await page.evaluate(database => new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(database);
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
     request.onblocked = () => reject(new Error("Test recovery reset was blocked"));
-  }));
+  }), `${brand.storagePrefix}-recovery`);
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: "attached" });
 }

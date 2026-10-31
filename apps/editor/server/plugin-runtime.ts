@@ -1,4 +1,3 @@
-import { brand } from "../../../brand.ts";
 import { fork, type ChildProcess } from "node:child_process";
 import { createReadStream } from "node:fs";
 import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
@@ -7,7 +6,7 @@ import path from "node:path";
 import type { ConversionJob, ConversionFailure, PdfProgress } from "@litzio/docling/server-types";
 import type { ConversionExecutor, ConversionRequest } from "@litzio/docling/server";
 import { digest, PluginStore, requestUuid, type Receipt } from "./plugin-store.ts";
-import { INCOMPLETE } from "./plugin-output.ts";
+import { INCOMPLETE, STAGING_PREFIX } from "./plugin-output.ts";
 
 async function fileHash(file: string) {
   const hash = createHash("sha256");
@@ -62,7 +61,7 @@ export class PluginRuntime implements ConversionExecutor {
       if (!installation.entry || installation.workerApi !== 1) throw new Error("Plugin has no compatible worker.");
       const entry = path.join(installation.directory, installation.entry);
       if (digest(await readFile(entry)) !== installation.sha256) throw new Error("Installed worker hash mismatch.");
-      staging = await mkdtemp(path.join(path.dirname(job.output), `.${brand.appName}-plugin-`));
+      staging = await mkdtemp(path.join(path.dirname(job.output), STAGING_PREFIX));
       receipt.staging = staging;
       this.store.update(receipt);
       await mkdir(path.join(staging, "temp"));

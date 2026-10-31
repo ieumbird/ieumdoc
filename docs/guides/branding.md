@@ -15,7 +15,7 @@
 | `name.en`, `name.ko` | `Litzio`; 창·페이지 제목, 시작 화면, Sidebar와 번역 문구 |
 | `icons.svg`, `icons.ico` | 저장소 루트 기준 원본/Windows 아이콘 경로; Editor와 패키저가 함께 사용 |
 | `appId` | `io.github.litzio.litzio`; Windows 앱·NSIS 설치 식별자·CLI 소유권 |
-| `appName` | `litzio`; 배포 manifest 이름, `%LOCALAPPDATA%\Programs\litzio` 기본 설치 폴더와 `litzio-updater` 캐시, sample/임시 출력 표식 |
+| `appName` | `litzio`; 배포 manifest 이름, `%LOCALAPPDATA%\Programs\litzio` 기본 설치 폴더와 `litzio-updater` 캐시, 관리되는 sample 표식 |
 | `executableName` | `Litzio`; EXE, uninstaller와 `Litzio-Setup-<version>.exe` |
 | `protocol` | `litzio`; Desktop의 `litzio://app` origin |
 | `folders.desktopData` | `litzio`; `%APPDATA%\litzio`의 설정·sample·로그·Chromium 저장소 |
@@ -57,12 +57,14 @@ SVG의 접근성 제목에도 해당 브랜드를 쓴다. 기본 SVG 제목은 L
 ## 고정 내부 계약과 검증
 
 `@litzio/*`, native `litzio: 1`, `@litzio/plugin-api`, worker API 1, UI API 1/React 19,
-manifest 필드·route·bridge는 제품 브랜드로 바꾸지 않는다. Core는 브랜드 설정을 import하지 않으며
+manifest 필드·route·bridge는 제품 브랜드로 바꾸지 않는다. 문서 Root에 생기는 비공개 staging `.litzio-plugin-*`와 미완료 표식 `.litzio-incomplete`도 고정 내부 식별자다. 공용 설치 폴더가 다른 브랜드라도 같은 문서 Root를 열 수 있으므로 서로의 미완료 산출물을 모두 차단한다. Core는 브랜드 설정을 import하지 않으며
 사용자 진단도 제품명을 요구하지 않는 중립 문구를 사용한다. 문서 의미는 패키저 설정의 영향을 받지 않는다.
 같은 공식 Docling worker/UI 번들이 다른 브랜드에도 설치·등록되어 실행된다.
 
 필수 Windows CI는 `scripts/check-brand-build.ts`로 **brand.ts만** 대체한 테스트 제품을 빌드한다.
 공식판과 대체판을 기본 경로에 실제로 함께 설치하고 두 프로세스를 동시에 실행하여 origin·데이터
 분리, 한국어/영어 이름·CLI 명령, 아이콘·업데이트 설정과 공식 플러그인의 worker/UI 실행을 검사한다.
-두 설치를 제거하고 시작한 프로세스를 종료한다. `brand-config` artifact에는 작은 검증 JSON과 한국어
+대체 설정에서도 기존 Stable/Beta 설치·업데이트, 전체 packaged 검사와 제거 회귀를 그대로 실행한다. 등록 조회는 표시 이름 prefix 대신 설정의 앱 ID에서 도출한 NSIS key를 사용한다. 두 설치를 제거하고 시작한 프로세스를 종료한다. `brand-config` artifact에는 작은 검증 JSON과 한국어
 640px 캡처만 남긴다. 공개 GitHub 업데이트·서명 인증·사용자 PC의 수동 Windows 수용 검증을 대신하지 않는다.
+
+릴리스 artifact는 최종 해시·버전·서명 검증을 마친 `verify-release.ts`의 파일 목록을 그대로 전달한다. 설치 프로그램·blockmap·설정된 현재 채널 manifest와 `win-unpacked/`만 포함하며 `latest.yml`/`beta.yml` 고정 glob을 쓰지 않는다.

@@ -92,7 +92,7 @@ Host death disconnects IPC; this Docling worker exits when its event loop servic
 disconnect. Trusted code is not protected against hostile infinite loops.
 No local Docling service is launched. A remote task may survive any local stop.
 
-Each execution has a private sibling `.litzio-plugin-*` directory. Worker OS
+Each execution has a private sibling `.litzio-plugin-*` directory. This prefix and the `.litzio-incomplete` publication barrier are fixed internal runtime identifiers, independent of branding (#859 review). Separate per-brand plugin installation folders do not isolate work beside a shared source PDF. Both local and Root-constrained Hosts must reject the other brand's staging and crash publication leftovers; completed results remain ordinary document paths. Worker OS
 temporary files and its complete bundle stay inside it. All ordinary Host file
 surfaces refuse private paths, including symlink, Windows case and 8.3 aliases
 and local Desktop/Vite. Native OS realpath resolves actual case, short names and

@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, test } from "node:test";
-import { readUpdateInfo, verifyBlockmap, verifyRelease } from "../scripts/verify-release.ts";
+import { readUpdateInfo, verifyBlockmap, verifyRelease, writeReleaseArtifactPaths } from "../scripts/verify-release.ts";
+import { brand } from "../../../brand.ts";
 import { signatureProblem } from "../src/signatures.ts";
 import { publishVerifiedRelease, releaseMode, resolveRelease, type ReleaseApi } from "../scripts/release.ts";
 
@@ -39,6 +40,26 @@ test("Stable and Beta releases verify with their own metadata file", () => {
     ["Litzio-Setup-0.2.0.exe", "Litzio-Setup-0.2.0.exe.blockmap", "latest.yml"]);
   assert.deepEqual(verifyRelease({ tag: "v0.3.0-beta.1", version: "0.3.0-beta.1", release: release("0.3.0-beta.1"), signed: false }).map((file) => path.basename(file)),
     ["Litzio-Setup-0.3.0-beta.1.exe", "Litzio-Setup-0.3.0-beta.1.exe.blockmap", "beta.yml"]);
+});
+
+test("custom Stable/Beta manifests survive the workflow artifact upload and download layout", () => {
+  const channels = brand.updates.channels as { stable: string; beta: string }, original = { ...channels };
+  try {
+    Object.assign(channels, { stable: "proof-stable", beta: "proof-beta" });
+    for (const [version, manifest] of [["0.2.0", "proof-stable.yml"], ["0.3.0-beta.1", "proof-beta.yml"]] as const) {
+      const source = release(version, { file: manifest });
+      writeFileSync(path.join(source, "unrelated.yml"), "not a release asset");
+      const options = { tag: `v${version}`, version, release: source, signed: false };
+      const verified = verifyRelease(options), output = path.join(source, "github-output");
+      writeReleaseArtifactPaths(verified, source, output);
+      const paths = /^paths<<([^\n]+)\n([\s\S]*)\n\1\n$/u.exec(readFileSync(output, "utf8"))![2]!.split("\n");
+      assert.deepEqual(paths.map(file => path.basename(file)), [`Litzio-Setup-${version}.exe`, `Litzio-Setup-${version}.exe.blockmap`, manifest, "win-unpacked"]);
+      const downloaded = mkdtempSync(path.join(os.tmpdir(), "litzio-downloaded-")); roots.push(downloaded);
+      for (const file of paths) cpSync(file, path.join(downloaded, path.basename(file)), { recursive: true });
+      assert.deepEqual(verifyRelease({ ...options, release: downloaded }).map(file => path.basename(file)), verified.map(file => path.basename(file)));
+      assert.equal(readFileSync(path.join(downloaded, manifest), "utf8"), readFileSync(path.join(source, manifest), "utf8"));
+    }
+  } finally { Object.assign(channels, original); }
 });
 
 test("a release that would mislead updaters or name another version is refused", () => {
