@@ -157,7 +157,7 @@ test("replaced junctions survive uninstall while their PATH entry is removed and
     assert.equal(result.status, "off");
     assert.match(result.conflict!, /Another file/);
     assert.deepEqual(data.user, original);
-    assert.equal(await readFile(path.join(root, "Litzio", "bin", "app", "keep.txt"), "utf8"), "user data");
+    assert.equal(await readFile(path.join(integration.junction, "keep.txt"), "utf8"), "user data");
   });
 });
 

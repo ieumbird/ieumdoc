@@ -265,7 +265,7 @@ test("installs per user, then updates from Settings only after the open document
     try {
       await page.getByRole("button", { name: "Restart to update" }).click();
       await page.getByTestId("update-problem").waitFor({ timeout: 15_000 });
-      assert.match(await page.getByTestId("update-problem").innerText(), /could not confirm that your work is saved/);
+      assert.equal(await page.getByTestId("update-problem").innerText(), "Could not confirm that your work is saved.");
       assert.equal(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isEnabled()), true);
       assert.equal(await phase(), "downloaded");
     } finally {
@@ -280,7 +280,7 @@ test("installs per user, then updates from Settings only after the open document
     await page.evaluate(() => window.litzioDesktop!.onRestartCheck(() => { throw new Error("renderer check failed"); }));
     await page.getByRole("button", { name: "Restart to update" }).click();
     await page.getByTestId("update-problem").waitFor();
-    assert.match(await page.getByTestId("update-problem").innerText(), /could not confirm that your work is saved/);
+    assert.equal(await page.getByTestId("update-problem").innerText(), "Could not confirm that your work is saved.");
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="ready" i]').waitFor({ state: "attached" });
 

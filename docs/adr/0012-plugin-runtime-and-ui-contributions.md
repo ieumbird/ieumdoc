@@ -145,7 +145,7 @@ plugin boundary is adopted; the historical measurements do not satisfy them:
 
 1. Convert through a real Docling server, preserving source PDF/JSON and
    publishing only a complete Core-valid result; synthetic REST is insufficient.
-2. Verify the packaged Desktop alongside the independent `ieumdoc serve` Host;
+2. Verify the packaged Desktop alongside the independent `litzio serve` Host;
    development Electron does not establish packaged behavior.
 3. Resolve lock/crash recovery and PID reuse so stale ownership cannot admit
    duplicate execution or misclassify interrupted work. Preserve `uncertain`
