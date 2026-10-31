@@ -877,7 +877,7 @@ manual Windows confirmation; browser bridge/geometry checks do not claim native 
 ### Brand title-strip verification and captures (#647)
 
 Scope: existing shell composition only; no command/menu, document semantic operation or CLI
-surface. Reuse `apps/desktop/assets/icon.svg` through a Vite asset import, without duplicating
+surface. Reuse the configured `brand.icons.png` through the `@brand-icon` Vite asset alias, without duplicating
 or redesigning it. Completion requires aligned second rows, icon-only collapsed branding,
 preserved keyboard/focus/Files actions and panel behavior, 640px containment, caption
 reservation and portal/menu drag boundaries. Related existing browser scenarios carry the

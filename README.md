@@ -5,6 +5,9 @@
 Litzio is a visual editor for structured technical documents, backed by a shared headless Core and Git-friendly plain text.
 Currently available as a Windows Beta. The primary documentation is in Korean.
 
+The name Litzio means connecting input/output (I/O) with Litz wire.
+Litzio(리치오)는 Litz wire로 입출력(I/O)을 잇는다는 뜻입니다.
+
 표·수식·참조가 있는 기술문서를 시각적으로 작성하고, 사람이 읽을 수 있는 plain-text 파일로 Git에서 관리합니다. Editor와 CLI·자동화는 같은 Core로 문서를 읽고 수정합니다.
 **Litzio 네이티브 문서만 열 수 있으며, 일반 Markdown 편집기나 Import 도구는 아닙니다.** Windows x64 Beta 단계이고 Stable은 아직 없습니다. 공개 API와 문서 지원 범위는 바뀔 수 있습니다.
 

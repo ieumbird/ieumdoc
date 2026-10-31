@@ -285,6 +285,7 @@ export function SettingsDialog({ theme, themeProblem, onThemeChange, open, highl
               {category === "about" && info && desktop ? (
                 <section className="settings-group" aria-labelledby="settings-about">
                   <h3 id="settings-about" className="settings-group-heading">{i18n.t("About")}</h3>
+                  <p className="settings-status settings-section">{i18n.t("{{product}} connects input/output (I/O) with Litz wire.")}</p>
                   <dl className="settings-facts settings-section">
                     <dt>{i18n.t("Version")}</dt>
                     <dd data-testid="app-version">{info.version}</dd>

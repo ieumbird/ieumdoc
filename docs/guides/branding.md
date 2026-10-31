@@ -14,7 +14,7 @@
 | 설정 키 | 공식 기본값 / 용도 |
 | --- | --- |
 | `name.en`, `name.ko` | `Litzio`; 창·페이지 제목, 시작 화면, Sidebar와 번역 문구 |
-| `icons.svg`, `icons.ico` | 저장소 루트 기준 원본/Windows 아이콘 경로; Editor와 패키저가 함께 사용 |
+| `icons.png`, `icons.smallPng`, `icons.ico` | 저장소 루트 기준 원본/Windows 아이콘 경로; Editor와 패키저가 함께 사용 |
 | `appId` | `io.github.litzio.litzio`; Windows 앱·NSIS 설치 식별자·CLI 소유권 |
 | `appName` | `litzio`; 배포 manifest 이름, `%LOCALAPPDATA%\Programs\litzio` 기본 설치 폴더와 `litzio-updater` 캐시, 관리되는 sample 표식 |
 | `executableName` | `Litzio`; EXE, uninstaller와 `Litzio-Setup-<version>.exe` |
@@ -34,8 +34,7 @@ pnpm --filter @litzio/cli package
 pnpm --filter @litzio/desktop package
 ```
 
-이미지를 교체할 때 두 아이콘 경로를 설정하고 `pnpm --filter @litzio/desktop icons`로 설정된 SVG에서 ICO를 재생성할 수 있다.
-SVG의 접근성 제목에도 해당 브랜드를 쓴다. 기본 SVG 제목은 Litzio다.
+이미지를 교체할 때 기본 PNG·16~32px용 PNG·ICO 경로를 설정하고 `pnpm --filter @litzio/desktop icons`로 ICO를 재생성한다. 16·24·32px는 작은 원본, 48·64·128·256px는 기본 원본을 사용한다. Editor 로고와 favicon도 각각 설정된 PNG를 사용한다. 이미지 접근성 이름은 설정된 제품명을 따른다.
 소스 개발용 `pnpm cli`는 고정 개발 도구 진입점이며, 배포 CLI 이름은 생성 manifest에서 정한다.
 
 ## 다른 브랜드와 함께 설치

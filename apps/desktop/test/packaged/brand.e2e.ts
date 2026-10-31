@@ -74,9 +74,12 @@ test("one brand setting produces independently installed identities and the unch
       if (index === 0) continue;
       const icon = await page.locator(".document-start-mark").getAttribute("src");
       assert.ok(icon);
-      const svg = icon.startsWith("data:") ? (icon.includes(";base64,") ? Buffer.from(icon.split(",")[1]!, "base64").toString("utf8") : decodeURIComponent(icon.slice(icon.indexOf(",") + 1)))
-        : await page.evaluate(url => fetch(url).then(response => response.text()), icon);
-      assert.ok(svg.includes(value.name.en), "Editor must load the configured SVG as well as Desktop's ICO");
+      const png = await page.evaluate(async url => Array.from(new Uint8Array(await (await fetch(url)).arrayBuffer())), icon);
+      assert.deepEqual(Buffer.from(png), readFileSync(path.join(repo, value.icons.png)), "Editor must load the configured PNG as well as Desktop's ICO");
+      const favicon = await page.locator('link[rel="icon"]').getAttribute("href");
+      assert.ok(favicon);
+      const smallPng = await page.evaluate(async url => Array.from(new Uint8Array(await (await fetch(url)).arrayBuffer())), favicon);
+      assert.deepEqual(Buffer.from(smallPng), readFileSync(path.join(repo, value.icons.smallPng)), "Favicon must load the configured small PNG");
       // Both installed apps remain alive: neither the single-instance lock nor origin/data collide.
       assert.equal(apps[0]!.process().exitCode, null);
       await page.evaluate(prefix => { localStorage.setItem(`${prefix}.uiLanguage`, "ko"); localStorage.setItem(`${prefix}.theme`, "dark"); }, value.storagePrefix);
