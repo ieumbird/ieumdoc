@@ -11,6 +11,10 @@ type ExpectedConsoleErrorRule = {
 };
 
 const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
+  "text-mode": [
+    {status:400, pathname:"/api/document", minimum:1, description:"a text session cannot raw-save a file that has become native"},
+    {status:409, pathname:"/api/document", minimum:1, description:"recovered text refuses an external revision without losing local input"},
+  ],
   "docling-server": [
     { networkError: "net::ERR_FAILED", pathname: "/api/docling-conversion", minimum: 4, description: "two status reads, one accepted response and one undelivered start are deliberately lost" },
     { status: 400, pathname: "/api/docling-conversion", minimum: 1, description: "a rejected new start cannot reopen an older successful job" },
@@ -27,9 +31,6 @@ const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
   "file-actions": [
     { status:400, pathname:"/api/file", minimum:2, description:"duplicate file name and dirty referenced image renames are refused" },
   ],
-  "command-center": [
-    { status: 400, pathname: "/api/document", queryPath: path.join(REPOSITORY_ROOT, "tmp", "document-tabs", "foreign.md"), minimum: 1, description: "listed non-native Markdown uses the existing admission refusal" },
-  ],
   "ui-language": [
     {status: 409, pathname: "/api/document", minimum: 1, description: "conflict guidance follows language changes while preserving edits"},
   ],
@@ -39,7 +40,7 @@ const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
     {status: 400, pathname: "/api/document", minimum: 1, description: "failed Reload retains its local recovery record"},
   ],
   "writeability-preflight": [
-    {status: 400, pathname: "/api/document", minimum: 4, description: "native document admission failures on Open, Reload and startup"},
+    {status: 400, pathname: "/api/document", minimum: 4, description: "injected Host failures on Open, Reload, startup and sample opening"},
     {status: 403, pathname: "/api/document", minimum: 1, description: "non-native Open permission failure"},
   ],
   "http-host": [

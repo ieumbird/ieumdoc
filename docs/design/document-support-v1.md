@@ -19,6 +19,29 @@
 - Previous verification: 2026-10-15 (#271 strict Unicode/UTF-8 admission and unchanged-file refusal; #266 metadata locator refusal in Core operations and single/batch CLI; #232 native admission; #236 Open refusal Alert).
 - Scope: Core, CLI and shared Editor Hosts; [ADR-0006](../adr/0006-native-document-boundary.md) and [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md).
 
+## Text files in the Editor (#817)
+
+The owner's [2026-10-31 decision](https://github.com/ieumbird/ieumdoc/issues/817)
+adds a separate text document kind: existing `.txt` files and `.md` files refused by
+Core's existing native admission open automatically in text mode. `.txt` is always
+text, even with native-looking content. No Editor-side Markdown support rules are added.
+Strict UTF-8 decoding still applies; unreadable/invalid-byte files and other extensions
+are refused. New Document still creates only native `.md` through Core.
+
+Native documents retain Core parse, operations, validation and canonical serialization.
+Text documents have only a source string and revision, no Core read model or semantic
+edits. Text Save writes the submitted string unchanged through File commit. It never
+adds a marker, imports, converts (#501), formats or repairs content. Before a raw Save,
+the stateless Host checks the current disk revision and admission again; a native file
+(including a native target reached through a text symlink) cannot use this path. If a
+text `.md` was manually edited into valid native syntax, Reload admits it through Core;
+further text Saves refuse while the on-disk file is native. Save never silently changes
+the current editor kind. See [session protection](editing-session-save-v1.md#text-editing-sessions-817).
+
+This is plain text editing, not an IeumDoc semantic operation, so no CLI command or
+Core operation is added. CLI native admission and writes are unchanged. Daemon/backend
+architecture (Discussion #834), other extensions and conversion are outside this change.
+
 ## Contract
 
 Core rejects unpaired UTF-16 surrogates before parsing source and before canonical writing, including string fields such as text, URLs, labels, code, metadata and nested options. Valid Korean, emoji and literal U+FFFD remain supported. CLI document/operations JSON reads and shared Host document/request text reads strictly decode UTF-8; malformed bytes are refused rather than replaced. A leading BOM retains the existing parse normalization rule. Refusal leaves original file bytes unchanged. This validation does not introduce a new semantic operation or CLI command.
@@ -65,7 +88,7 @@ Support is decided from Core semantic structure and existing authoring helpers, 
 | Quote, divider, admonition | An empty quote or one supported paragraph; thematic break; all standard admonition kinds with an empty body or one supported paragraph. No custom titles/options or additional nested blocks. |
 | Footnote and target | One non-empty supported paragraph per definition, no footnote references inside definitions; citations and document references are supported. Label targets and semantic references follow their existing contracts. |
 
-Ordinary Markdown images, task lists, unsupported roles/directives, attributes or nesting reject the entire file. Alternative supported Markdown/MyST spellings may be accepted and normalized. No generic Markdown Import, automatic marker insertion, Migration, unsupported read-only opening or block source replacement is provided.
+Ordinary Markdown images, task lists, unsupported roles/directives, attributes or nesting reject the entire file. Alternative supported Markdown/MyST spellings may be accepted and normalized. No generic Markdown Import, automatic marker insertion, Migration, unsupported native read-only opening or block source replacement is provided. Separate plain text editing follows #817 above.
 
 Bare `@name` (including `@kim` and `@param`) is literal text, as is already escaped `\@name`. Core disables MyST's shorthand citation extension at the parse boundary while keeping explicit roles parsed. In accordance with [ADR-0008 decision 3](../adr/0008-citations-and-bibliography.md#3-지원할-인용-형태), unescaped citation-like brackets such as `[@key]`, `[@a; @b]` and `[@key, p. 3]` are refused with `native-content` and guidance to use an explicit citation role or escape the opening bracket or the `@` for literal text. This applies to supported text surfaces including endnote definitions; actual links, code and math retain their syntax. Code or math inside such brackets, as in ``[`@param`]`` or `[$@key$]`, is still refused because default MyST reads the bracket as a citation; `\[` keeps it literal. Explicit `{cite}`, `{cite:t}` and `{cite:p}` roles follow [Citations](citations-v1.md), preserving exact keys, group order and narrative/parenthetical meaning. Prefix/suffix/partial and other unsupported attributes are refused.
 
@@ -140,9 +163,9 @@ already express these states. Migration and stored-data compatibility are out of
 - Body operations reject top-level index `0` and paths starting with `0` at Core operation time: `block 0 is the document metadata; body blocks start at 1`. This includes insertion, movement, removal and section operations. Metadata stays at snapshot index `0`; body indices and paths are not renumbered for interfaces. Single CLI edits and Editor receive the same Core guidance; `apply-batch` wraps it as `operation N (command): <reason>; nothing was written`. Refusal preserves original file bytes and never falls through to marker or round-trip errors.
 - Core native errors keep `native-marker`, `native-metadata`, `native-content`. All explicit write validation guards also carry a stable `WriteIssueCode` through `canonicalWriteIssue` / `writeIssueOf`, alongside the original English reason, action and snapshot path/source line where identified. Unknown exceptions have no code. The [diagnostic inventory](#save-diagnostic-codes-578-phase-2) defines the code families.
 - CLI `ieumdoc create <file>` exclusively creates a new `.md` file in an existing directory. It never overwrites or creates parent directories. `check` returns a failing exit code for rejected files; JSON failures contain `ok: false`, `validation.valid: false` and `error` diagnostics, without a document model. `inspect`, `format` and editing commands use the same admission and preserve rejected file bytes.
-- Shared Host Open/Reload/Save/Source and asset creation use Core admission. Vite, HTTP and Desktop do not implement separate syntax decisions. Failed Open/Reload retains the current document, selection, unsaved content and drafts; startup failure has no document installed. Filesystem permissions and revision conflicts remain independent checks.
+- Shared Host native Open/Reload/Save/Source and asset creation use Core admission; Core-refused `.md` and `.txt` opening follows the separate text kind above. Vite, HTTP and Desktop do not implement separate syntax decisions. Failed Open/Reload retains the current document, selection, unsaved content and drafts; startup failure has no document installed. Filesystem permissions and revision conflicts remain independent checks.
 - Editor explicit Open (sidebar file selection and the start screen's sample action) shows a modal Alert for Host errors whose code is `native-*`. It names the rejected file, displays Core's reason and corrective action, and states that the current document has not changed (or that no document opened). One OK button or Escape closes it and returns focus to the opening control. The same refusal is not repeated in the top error message. Other Open failures, startup failures and Reload failures retain their existing error presentation. Open/New preserves existing unsaved sessions in tabs; operation guards and Close confirmation follow the [session protection contract](editing-session-save-v1.md#switching-and-recovery).
-- Choosing a folder (Open folder…) lists names without reading document contents and has no document-opening or admission Alert behavior. The sidebar folder listing reads only the start of each listed `.md` file and asks Core `hasNativeMarker(source)` whether its leading frontmatter carries `ieumdoc: 1`, so Files can set apart files IeumDoc will refuse. This is a display hint, not admission: a marked file is still validated when opened, and Hosts do not parse frontmatter themselves. The refusal Alert explains the marker in plain words before Core's reason and action.
+- Choosing a folder (Open folder…) lists names without reading document contents and has no document-opening or admission Alert behavior. The sidebar folder listing reads only the start of each listed `.md` file and asks Core `hasNativeMarker(source)` whether its leading frontmatter carries `ieumdoc: 1`, so Files can distinguish files lacking the native marker; they open as text under #817. This is a display hint, not admission: a marked file is still validated when opened, and Hosts do not parse frontmatter themselves. The refusal Alert explains the marker in plain words before Core's reason and action.
 - Whole-document Source previews the applied native document through Core without writing. It retains visual editor state and unapplied property drafts. `replaceBlockSource`, CLI `replace-block-source`, Host source-apply/replay and Editor Edit source are removed.
 
 ## Save diagnostic codes (#578 phase 2)

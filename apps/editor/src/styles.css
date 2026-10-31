@@ -3345,3 +3345,9 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
 .notification-center .notification-reveal { padding-inline: 0; border-width: 0; }
 @media (width <= 64rem) { .notification-center { --notification-sidebar-width: var(--layout-sidebar-width-narrow); } }
 body:has(.app-shell--collapsed) .notification-center { --notification-sidebar-width: var(--layout-sidebar-rail-width); }
+
+/* Plain-text sessions use the same group viewport without a paper/editor projection. */
+.text-document { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: var(--space-4); gap: var(--space-3); }
+.text-mode-notice { margin: 0; color: var(--id-color-text-muted); font-size: var(--font-size-sm); }
+.text-document-input { flex: 1; width: 100%; min-height: 0; resize: none; padding: var(--space-3); border: var(--border-width) solid var(--id-color-border-control); border-radius: var(--radius-sm); background: var(--id-color-surface); color: var(--id-color-text); font-family: var(--font-family-mono); font-size: var(--font-size-sm); line-height: var(--line-height-label); white-space: pre; overflow: auto; }
+.text-document-input:focus-visible { outline: none; box-shadow: var(--focus-ring); }

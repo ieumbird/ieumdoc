@@ -29,6 +29,9 @@ test("start-up skips malformed paths before I/O and accepts valid Unicode names"
     assert.deepEqual(firstDocument([path.join(dir, "X\uDC00Y.md")], dir, dir, warning), { samples: first.samples });
     assert.ok(exists.mock.calls.every(call => !String(call.arguments[0]).includes("X\uDC00Y")));
     assert.equal(stat.mock.callCount(), 0);
+    const plain = path.join(dir, "notes.TXT"), other = path.join(dir, "data.json");
+    fs.writeFileSync(plain, "plain text"); fs.writeFileSync(other, "{}");
+    assert.equal(firstDocument([other, plain], dir, dir, warning).document, plain);
     assert.deepEqual(warning.mock.calls.map(call => call.arguments), Array(2).fill(
       ["Ignoring start-up document: Invalid Unicode: unpaired surrogate; nothing was written"]));
   } finally {

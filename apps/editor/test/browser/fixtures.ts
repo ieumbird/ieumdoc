@@ -32,6 +32,11 @@ const technical = [document("technical-document.md"), document("diagram.svg")];
 
 /** Scratch directory under `tmp/` → the files a fresh copy holds, and the scenarios using it. */
 export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: string[] }> = {
+  "text-mode": { files: [
+    { name: "foreign.md", create: () => "# 일반 Markdown\n\n**서식이 아닌 텍스트**와 <kbd>Ctrl</kbd>\n" },
+    { name: "notes.txt", create: () => "일반 텍스트 파일\n탭과 공백, 줄바꿈을 그대로 편집합니다.\n" },
+    { name: "native.md", create: () => nativeSource("Native stays Core-backed.\n") },
+  ], scenarios: ["text-mode"] },
   "selection-toolbar": { files: [{ name: "overlays.md", create: () => nativeSource(
     "# Overlay positioning\n\n" + Array.from({ length: 12 }, (_, i) => `Opening paragraph ${i}. Ordinary document content.\n\n`).join("") +
     "Select this [linked text](https://example.com/original) near the viewport edge. Note[^detail].\n\n" +

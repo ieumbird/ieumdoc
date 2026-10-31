@@ -16,7 +16,7 @@ Currently available as a Windows Beta. The primary documentation is in Korean.
 
 1. [Releases 목록](https://github.com/ieumbird/ieumdoc/releases)에서 사용할 Beta의 **Assets**를 열고 `IeumDoc-Setup-<버전>.exe`를 내려받아 실행합니다. 현재 사용자에게 설치하며 관리자 권한이나 별도 Node.js·pnpm이 필요하지 않습니다.
 2. **unsigned Beta**이므로 알 수 없는 게시자 또는 SmartScreen 경고가 나타날 수 있습니다. 공식 저장소의 다운로드인지 확인하고 PC의 보안 정책을 따르세요.
-3. 시작 화면에서 sample을 선택하거나 **Open folder**로 폴더를 연 뒤 Sidebar의 네이티브 `.md` 파일을 선택합니다. **New file**로 새 문서를 만들고, 편집 후 **Save**로 저장할 수 있습니다.
+3. 시작 화면에서 sample을 선택하거나 **Open folder**로 폴더를 연 뒤 Sidebar의 `.md` 또는 `.txt` 파일을 선택합니다. **New file**로 새 문서를 만들고, 편집 후 **Save**로 저장할 수 있습니다.
 
 Desktop 시작 화면이나 Command center의 **샘플 문서 열기**에서 현재 UI 언어에 맞는
 한국어·영어 전력 변환기 제어 설계 노트를 열어 직접 고칠 수 있습니다. 표·수식·그림·Mermaid,
@@ -31,7 +31,7 @@ Settings → About에서 버전·업데이트를 확인합니다. 업데이트 �
 
 ## 문서와 저장
 
-- **네이티브 전용:** YAML frontmatter의 `ieumdoc: 1` 표식과 지원되는 본문이 모두 필요합니다. 미지원 내용·메타데이터가 있으면 문서 전체를 거부하며 기존 편집 내용은 유지합니다. 일반 Markdown 자동 변환이나 Migration은 제공하지 않습니다([문서 지원 계약](docs/design/document-support-v1.md)).
+- **네이티브 편집과 텍스트 모드:** 구조화 편집에는 YAML frontmatter의 `ieumdoc: 1` 표식과 지원되는 본문이 모두 필요합니다. 미호환 `.md`와 `.txt`는 서식·미리보기 없는 텍스트 모드로 열며, 입력한 텍스트를 저장합니다. 네이티브 문서는 계속 Core의 검증·canonical 저장을 따릅니다. 일반 Markdown 자동 변환이나 Migration은 제공하지 않습니다([문서 지원 계약](docs/design/document-support-v1.md)).
 - **Canonical 저장:** 의미를 검증한 Markdown/MyST를 UTF-8·LF로 저장합니다. 원래 formatting이나 바이트를 그대로 보존하는 계약은 아닙니다.
 - **명시적 저장과 로컬 복구:** 복구 기록은 원본과 분리된 미저장 작업의 사본이며 **자동 저장이 아닙니다**. 보관·복원 범위와 한계는 [세션·저장 계약](docs/design/editing-session-save-v1.md#local-recovery-records-296-pr2)을 따릅니다.
 - **파일과 assets:** 원본 `.md`가 저장의 기준입니다. 붙여넣기·drop한 이미지는 문서 옆 `assets/`에 저장되므로 문서와 함께 옮겨야 상대 경로가 유지됩니다([파일·asset 계약](docs/design/filesystem-host-boundary-v1.md#asset-host-contract-v1-59)).

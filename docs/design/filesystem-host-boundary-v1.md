@@ -30,6 +30,19 @@ Bibliography reads reuse the shared stateless Host and existing Root checks thro
 resource errors do not block Markdown Save. The local per-document folder context, HTTP fixed Root
 union, limits and snapshot policy are specified in [Citations v1](citations-v1.md#bibliography-snapshots-and-limited-formatting-unit-b).
 
+## Plain text file boundary (#817)
+
+Shared Vite/Desktop/HTTP `GET /api/document` returns either a native Core read model
+or `{ kind: text, path, source, revision }` for `.txt` and Core-refused `.md`.
+Native semantic Save requests keep their existing strict replay schema.
+A separate tagged request `{ kind: text, path, source, revision }` allows no native
+edit/base fields. It checks Root/path, UTF-8/Unicode, current revision and current
+disk admission before invoking the existing File commit. A native file cannot be
+written through this raw path, even by forging the kind tag. New remains native `.md`.
+Folder listings include `.txt` as openable text files; other extensions are unchanged.
+Recovery's disk-only comparison also reads `.txt` without attempting native replay.
+No retained document/session state or new persistence service is introduced.
+
 ## Desktop folder Explorer action (#487)
 
 Desktop alone offers the folder More actions command described in the

@@ -1,4 +1,4 @@
-// Core rejection reaches Open/Reload without replacing the active editor or its drafts.
+// Core-unsupported Markdown opens as text; actual Host failures retain existing work.
 async (page, { openDocument }) => {
   await page.unrouteAll();
   await page.reload();
@@ -10,8 +10,9 @@ async (page, { openDocument }) => {
   const rejectedPath = [...initial.path.split(sep).slice(0,-4), 'tmp', 'writeability-preflight', 'blocked-markdown.md'].join(sep);
   const assert = (ok, message) => { if (!ok) throw Error(message); };
   const rejected = await page.request.get(`${origin}/api/document?path=${encodeURIComponent(rejectedPath)}`);
-  const refusal = await rejected.json();
-  assert(rejected.status() === 400 && refusal.code === 'native-marker' && !refusal.document, 'Core admission error was not propagated');
+  const textFile = await rejected.json();
+  assert(rejected.status() === 200 && textFile.kind === 'text' && !textFile.document, 'Unsupported Markdown was not classified as text');
+  const refusal = { code:'native-marker', error:'Host admission failed', issue:{ reason:'Host admission failed', action:'Review the file.' } };
   const editor = page.locator('[data-document-tab][data-active=true] .document-editor');
   const snapshot = () => editor.evaluate(el => JSON.stringify({doc:el.editor.getJSON(), selection:el.editor.state.selection.toJSON()}));
   const activePath = await page.getByTestId('current-file').getAttribute('title');
@@ -29,21 +30,15 @@ async (page, { openDocument }) => {
     await page.keyboard.press('Control+s'); await page.evaluate(() => new Promise(requestAnimationFrame));
     assert(writes.length === 0, 'Save request escaped the Open Alert');
   };
-  for (const [name, code] of [['blocked-markdown.md','native-marker'], ['unsupported-syntax.md','native-content']]) {
+  for (const name of ['blocked-markdown.md', 'unsupported-syntax.md']) {
     const file = rejectedPath.replace('blocked-markdown.md', name);
-    const failure = await (await page.request.get(`${origin}/api/document?path=${encodeURIComponent(file)}`)).json();
-    assert(failure.code === code, 'Wrong native rejection fixture');
-    if (code === 'native-marker') await openDocument(page, file);
-    else await page.getByRole('treeitem', {name,exact:true}).click();
-    await assertAlert(name, failure);
-    if (code === 'native-marker') await alert.getByRole('button', {name:'OK',exact:true}).click();
-    else await page.keyboard.press('Escape');
-    await alert.waitFor({state:'detached'});
-    await page.getByRole('treeitem', {name,exact:true}).evaluate(el => {
-      if (document.activeElement !== el) throw Error('Open Alert did not return focus to the sidebar file');
-    });
-    assert(await page.getByTestId('current-file').getAttribute('title') === activePath, 'Rejected Open installed another document');
-    assert(await snapshot() === before, 'Rejected Open changed the document or selection');
+    await openDocument(page, file);
+    await page.getByTestId('text-editor').filter({visible:true}).waitFor();
+    assert(await alert.count() === 0, 'Text admission asked for confirmation');
+    assert(await page.getByTestId('text-mode-notice').filter({visible:true}).count() === 1, 'Text mode has no explanation');
+    await page.getByRole('tab', {name, exact:true}).locator('..').getByRole('button').click();
+    await ready();
+    assert(await snapshot() === before, 'Opening text changed the retained native editor');
   }
 
   // A filesystem failure keeps the existing top error, even when its text resembles a native reason.
@@ -68,7 +63,7 @@ async (page, { openDocument }) => {
   await page.route('**/api/document?*', route => { reads++; return route.fulfill({status:400, json:refusal}); });
   try {
     await page.getByRole('treeitem', {name:'blocked-markdown.md',exact:true}).click();
-    await alert.waitFor();
+    await assertAlert('blocked-markdown.md', refusal);
     assert(reads === 1 && await page.getByRole('tab', {includeHidden:true}).count() === tabCount, 'Failed Open added a tab or skipped the Host');
     assert(await page.getByRole('dialog', {name:'Save changes?',exact:true}).count() === 0 && await page.getByTestId('error').count() === 0, 'Open failure duplicated confirmation/error surfaces');
     assert(await snapshot() === local && await page.getByTestId('equation-latex').inputValue() === 'x + draft', 'Failed Open discarded local work');
@@ -96,6 +91,8 @@ async (page, { openDocument }) => {
   await page.getByRole('dialog', {name:'Discard local changes?'}).waitFor();
   await page.getByRole('button', {name:'Keep editing', exact:true}).click();
 
+  // Exercise an actual default fallback, without higher-priority remembered tabs.
+  await page.evaluate(() => localStorage.removeItem('ieumdoc.openTabs'));
   // Initial admission failure has no document installed.
   await page.route('**/api/document', route => route.fulfill({status:400, json:refusal}));
   await page.reload();
@@ -103,10 +100,11 @@ async (page, { openDocument }) => {
   assert(await editor.count() === 0, 'Initial failure installed an editor');
   await page.unroute('**/api/document');
 
-  // Start without a document, then reject the existing sample through real Host admission.
+  // Start without a document, then exercise a Host refusal at the sample entry.
   await page.route('**/api/document', route => route.fulfill({json:{start:true, samples:{ko:rejectedPath,en:rejectedPath}}}));
   await page.reload();
   const sampleButton = page.getByRole('button', {name:'Open sample document', exact:true});
+  await page.route('**/api/document?*', route => route.fulfill({status:400,json:refusal}));
   await sampleButton.click();
   await alert.waitFor();
   assert((await alert.innerText()).includes('No document was opened.'), 'Rejected sample claimed an existing document');
@@ -115,6 +113,7 @@ async (page, { openDocument }) => {
   await alert.waitFor({state:'detached'});
   assert(await sampleButton.evaluate(el => document.activeElement === el), 'Rejected sample did not return focus to its button');
   await page.unroute('**/api/document');
+  await page.unroute('**/api/document?*');
   await page.reload(); await ready();
   return {openAlertAndFocus:true, nonNativeTopError:true, openPreservesState:true, reloadPreservesInputAndDraft:true, initialFailureHasNoDocument:true};
 }

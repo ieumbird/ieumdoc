@@ -168,6 +168,7 @@ export type SampleDocuments = { ko: string; en: string };
 export type SampleAvailability = { samples?: SampleDocuments; sampleProblem?: "conflict" | "unavailable" };
 
 export type DocumentFileResponse = SampleAvailability & {
+  kind?: "native";
   /** Per-open dependency context; changing the Sidebar never changes this value. */
   bibliographyRoot?: string;
   bibliography?: { declarations: string[]; sources?: BibliographySource[] };
@@ -180,6 +181,16 @@ export type DocumentFileResponse = SampleAvailability & {
    * order: the first Save moves them there, as Source shows. Opening never writes. */
   endnotesInPlace: boolean;
 };
+
+/** Plain text has no Core read model or semantic edits. */
+export type TextFileResponse = SampleAvailability & {
+  kind: "text";
+  path: string;
+  source: string;
+  revision: string;
+};
+export type EditorFileResponse = DocumentFileResponse | TextFileResponse;
+export type TextSaveRequest = { kind: "text"; path: string; revision: string; source: string };
 
 /**
  * The Host's answer to the first request, which names no document, when it opens none: the
@@ -194,10 +205,10 @@ export type SourceResponse = { markdown: string };
 
 export type DocumentErrorResponse = { error: string; code?: NativeDocumentErrorCode; issue?: WriteIssue; target?: OrderItem; failure?: SaveFailure };
 
-/** One entry of a folder listing: a regular sub-folder, or a regular `.md` file (an image file when choosing an image). */
+/** One entry of a folder listing: a regular sub-folder, or a regular `.md`/`.txt` file (an image file when choosing an image). */
 /**
  * A listed folder, document, image or other regular file. In the sidebar listing, `native` tells whether a
- * document starts with the native marker; it is absent when the file could not be read.
+ * `.md` starts with the native marker; `.txt` is always false. It is absent when a Markdown file could not be read.
  */
 export type FolderEntry = { name: string; kind: "folder" | "document" | "image" | "file"; path: string; native?: boolean };
 

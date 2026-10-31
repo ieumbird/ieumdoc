@@ -1,7 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { i18n } from "./i18n.ts";
 import { Fragment, memo, useLayoutEffect, useState, type CSSProperties } from "react";
-import type { DocumentFileResponse } from "../shared/document-protocol.ts";
+import type { DocumentFileResponse, EditorFileResponse } from "../shared/document-protocol.ts";
+import { TextDocumentTab, type TextSession, type TextSessionSnapshot } from "./TextDocumentTab.tsx";
 import { DocumentEditor } from "./DocumentEditor.tsx";
 import type { ImageRenamer } from "./image-rename.ts";
 import { EditorVisibility } from "./editor-visibility.ts";
@@ -10,25 +11,40 @@ import { MessageArea } from "./shell/MessageArea.tsx";
 import { splitDocumentPath } from "./shell/document-path.ts";
 import { useDocumentSession, type DocumentSession, type DocumentSessionSnapshot } from "./useDocumentSession.ts";
 
-/** One mounted hook/editor per tab. Reporting shell state never replaces the editor. */
-export const DocumentTab = memo(function DocumentTab({ settingsDisabled, id, file, restored, recoveryId, active, focused, groupIndex, onFocus, report, onAssetChange, renameImage, onReveal }: {
+export type EditorSession = DocumentSession | TextSession;
+export type SessionSnapshot = DocumentSessionSnapshot | TextSessionSnapshot;
+type TabProps = {
   settingsDisabled: boolean;
   id: string;
-  file: DocumentFileResponse;
-  restored?: DocumentSessionSnapshot;
+  file: EditorFileResponse;
+  restored?: SessionSnapshot;
   recoveryId: string;
   active: boolean;
   focused: boolean;
   groupIndex: number;
   onFocus(id: string): void;
   onReveal(id: string): void;
-  report(id: string, session: DocumentSession | null): void;
+  report(id: string, session: EditorSession | null): void;
   onAssetChange(documentPath: string, assetPath: string): void;
   renameImage: ImageRenamer;
-}) {
+};
+
+/** Reclassification on Reload starts the corresponding editor; Save never swaps editors. */
+export const DocumentTab = memo(function DocumentTab(props: TabProps) {
+  const [replacement, setReplacement] = useState<{ file: EditorFileResponse; generation: number } | null>(null);
+  const replaceFile = (file: EditorFileResponse) => setReplacement(previous => ({ file, generation: (previous?.generation ?? 0) + 1 }));
+  const file = replacement?.file ?? props.file;
+  const restored = replacement ? undefined : props.restored;
+  if (file.kind === "text") return <TextDocumentTab {...props} key={`text-${replacement?.generation ?? 0}`} file={file}
+    restored={restored?.kind === "text" ? restored : undefined} replaceFile={replaceFile} />;
+  return <NativeDocumentTab {...props} key={`native-${replacement?.generation ?? 0}`} file={file} restored={restored?.kind !== "text" ? restored : undefined} replaceFile={replaceFile} />;
+});
+
+const NativeDocumentTab = memo(function NativeDocumentTab({ settingsDisabled, id, file, restored, recoveryId, active, focused, groupIndex, onFocus, report, onAssetChange, renameImage, onReveal, replaceFile }:
+  Omit<TabProps, "file" | "restored"> & { file: DocumentFileResponse; restored?: DocumentSessionSnapshot; replaceFile(file: EditorFileResponse): void }) {
   useTranslation();
   const [settingsExpanded, setSettingsExpanded] = useState(false);
-  const session = useDocumentSession(file, restored, recoveryId, onAssetChange, renameImage);
+  const session = useDocumentSession(file, restored, recoveryId, onAssetChange, renameImage, replaceFile);
   useLayoutEffect(() => { if (!focused && session.noticeAction) session.setNotice(""); }, [focused]);
   useLayoutEffect(() => { report(id, session); });
   useLayoutEffect(() => () => report(id, null), [id, report]);

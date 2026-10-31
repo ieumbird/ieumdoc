@@ -24,7 +24,7 @@ async (page, { openDocument, screenshots }) => {
     if (['PUT','POST','DELETE'].includes(request.method())) writes++;
     if (request.url().includes('preview-leak') || request.url().includes('svg11.dtd')) leaks++;
   });
-  for (const name of ['archive.zip', 'README', 'notes.txt']) {
+  for (const name of ['archive.zip', 'README']) {
     await row(name).focus(); await row(name).press('Enter');
     await dialog().getByText('This file cannot be edited in IeumDoc.', {exact:true}).waitFor();
     await page.keyboard.press('Escape');

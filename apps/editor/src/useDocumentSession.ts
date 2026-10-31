@@ -6,7 +6,7 @@ import { createRecoveryRecorder } from "./recovery-storage.ts";
 import type { EditorSnapshot } from "./editor-snapshot.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { EditableDocument } from "@ieumdoc/core";
-import type { DocumentFileResponse, SaveRequest, SupportedEdits } from "../shared/document-protocol.ts";
+import type { DocumentFileResponse, EditorFileResponse, SaveRequest, SupportedEdits } from "../shared/document-protocol.ts";
 import { SaveContentError } from "../shared/save-error.ts";
 import type { DocumentEditorHandle } from "./DocumentEditor.tsx";
 import type { ImageChoice, ImageChooser } from "./editor-schema.tsx";
@@ -25,13 +25,14 @@ const ENDNOTES_MOVE_NOTICE = "Save moves this file's endnote definitions after t
 /** Opening model/source plus the acknowledged disk checkpoint and applied engine snapshots.
  * Shared by client recovery and the internal initialization tests. */
 export type DocumentSessionSnapshot = {
+  kind?: "native";
   file: DocumentFileResponse;
   editor: EditorSnapshot;
   savedEdits?: SupportedEdits;
 };
 
 /** One document's state and operations. The shell owns the shared work-loss confirmation. */
-export function useDocumentSession(initial: DocumentFileResponse, restored?: Pick<DocumentSessionSnapshot, "editor" | "savedEdits">, recoveryId?: string, onAssetChange?: (documentPath: string, assetPath: string) => void, renameImage?: ImageRenamer) {
+export function useDocumentSession(initial: DocumentFileResponse, restored?: Pick<DocumentSessionSnapshot, "editor" | "savedEdits">, recoveryId?: string, onAssetChange?: (documentPath: string, assetPath: string) => void, renameImage?: ImageRenamer, replaceFile?: (file: EditorFileResponse) => void) {
   const renameRef = useRef(renameImage);
   renameRef.current = renameImage;
   const assetChangeRef = useRef(onAssetChange);
@@ -181,7 +182,8 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
       setReloadDialog(false);
       if ("start" in next) throw new Error("The Host did not return a document.");
       recorder?.discard();
-      acceptDocument(next);
+      if (next.kind === "text") replaceFile?.(next);
+      else acceptDocument(next);
       return "";
     } catch (cause) {
       if (!current()) return null;
@@ -331,7 +333,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
   function getSnapshot(): DocumentSessionSnapshot {
     if (!isCurrent() || !editorRef.current) throw new Error("Editor is not ready");
     return structuredClone({
-      file: { bibliographyRoot, ...(bibliography ? { bibliography: { declarations: bibliography.declarations } } : {}), path: openedPathRef.current, document, source: sessionBase.current.source, revision: sourceRevision.current, endnotesInPlace: sessionBase.current.savedEdits !== undefined || !endnotesMove },
+      file: { kind: "native", bibliographyRoot, ...(bibliography ? { bibliography: { declarations: bibliography.declarations } } : {}), path: openedPathRef.current, document, source: sessionBase.current.source, revision: sourceRevision.current, endnotesInPlace: sessionBase.current.savedEdits !== undefined || !endnotesMove },
       editor: editorRef.current.getSnapshot(),
       ...(sessionBase.current.savedEdits ? { savedEdits: sessionBase.current.savedEdits } : {}),
     });
@@ -340,6 +342,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
   captureRef.current = () => isCurrent() && editorRef.current?.hasDocumentChanges() ? getSnapshot() : null;
 
   return {
+    kind: "native" as const,
     recoveryError, discardRecovery: () => recorder?.discard(),
     suspendRecovery: () => recorder?.cancel(),
     resumeRecovery: () => { if (editorRef.current?.hasDocumentChanges()) recorder?.edit(); },

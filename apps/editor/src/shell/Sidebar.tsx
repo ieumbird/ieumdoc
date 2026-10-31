@@ -282,7 +282,7 @@ function FolderTree({ onDoclingConvert, doclingBusy, onFileAction, fileActionsDi
           const { entry } = item;
           const folder = entry.kind === "folder";
           const expanded = folder && tree.expanded.has(entry.path);
-          // A file without the native marker still opens, to explain why IeumDoc refuses it.
+          // Text files and Markdown without a native marker open in text mode.
           const foreign = entry.kind === "document" && entry.native === false;
           const description = foreign ? i18n.t("Not an IeumDoc document") : entry.kind === "image" ? i18n.t("Read-only image preview") : entry.kind === "file" ? i18n.t("This file cannot be edited in IeumDoc.") : undefined;
           const Icon = foreign ? FileX : entry.kind === "image" ? ImageIcon : entry.kind === "file" ? File : FileText;

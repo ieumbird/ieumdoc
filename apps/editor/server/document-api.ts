@@ -14,7 +14,7 @@ import { readRequestBody, RequestBodyError } from "./request-body.ts";
 import { requestQuery } from "./request-query.ts";
 import { deleteFile, renameFile, ReferencedImageError, ImageRenameError } from "./file-operations.ts";
 import type { FileOperationRequest, RenameFileRequest } from "../shared/file-operations.ts";
-import { resolveDocumentPath, resolveMediaPath } from "./document-path.ts";
+import { resolveDocumentPath, resolveEditorPath, resolveMediaPath } from "./document-path.ts";
 export { DOCUMENT_DIR, resolveDocumentPath, resolveMediaPath } from "./document-path.ts";
 import {
   readModel,
@@ -28,6 +28,8 @@ import type {
   SaveRequest,
   SupportedEdits,
   DocumentFileResponse,
+  EditorFileResponse,
+  TextSaveRequest,
   SaveResponse,
   SourceResponse,
   RecoveryPreviewResponse,
@@ -90,7 +92,35 @@ export const documentRevision = textRevision;
 export function loadDocumentFile(requestedPath?: string, access: FileAccess = LOCAL_FILE_ACCESS): DocumentFileResponse {
   const filePath = resolveDocumentPath(requestedPath, access);
   const source = decodeUtf8(readFileSync(filePath));
-  return { path: filePath, source, ...readModel(source), revision: documentRevision(source) };
+  return { kind: "native", path: filePath, source, ...readModel(source), revision: documentRevision(source) };
+}
+
+function editorFile(filePath: string, source: string): EditorFileResponse {
+  const file = { path: filePath, source, revision: documentRevision(source) };
+  if (path.extname(filePath).toLowerCase() === ".md") {
+    try { return { ...file, kind: "native", ...readModel(source) }; }
+    catch { /* Core's existing admission is the only Markdown support decision. */ }
+  }
+  return { ...file, kind: "text" };
+}
+
+export function loadEditorFile(requestedPath?: string, access: FileAccess = LOCAL_FILE_ACCESS): EditorFileResponse {
+  const filePath = resolveEditorPath(requestedPath, access);
+  return editorFile(filePath, decodeUtf8(readFileSync(filePath)));
+}
+
+/** The request tag cannot grant raw writes to a native document. Recheck disk on every Save. */
+export function saveTextFile(request: TextSaveRequest, access: FileAccess = LOCAL_FILE_ACCESS): SaveResponse {
+  const filePath = fileStep(() => resolveEditorPath(request.path, access));
+  const source = fileStep(() => decodeUtf8(readFileSync(accessPath(filePath, access))));
+  if (documentRevision(source) !== request.revision) throw new DocumentConflictError();
+  const target = fileStep(() => fs.realpathSync(filePath));
+  if (editorFile(filePath, source).kind !== "text" || target !== filePath && editorFile(target, source).kind !== "text") {
+    throw new Error("This file is now an IeumDoc document. Reload before saving.");
+  }
+  assertUnicode(request.source);
+  fileStep(() => replaceDocumentFile(accessPath(filePath, access), request.source, request.revision));
+  return { revision: documentRevision(request.source) };
 }
 
 export function createDocumentFile(requestedPath?: string, access: FileAccess = LOCAL_FILE_ACCESS): DocumentFileResponse {
@@ -166,12 +196,12 @@ function previewSession(request: FileSaveRequest & { base?: SaveRequest["base"] 
 
 /** Current disk bytes and an independent session dry run. No acknowledgement or file commit. */
 export function previewRecoveryFile(requestedPath: string, request?: SaveRequest, access: FileAccess = LOCAL_FILE_ACCESS): RecoveryPreviewResponse {
-  const filePath = resolveDocumentPath(requestedPath, access, true);
+  const filePath = resolveEditorPath(requestedPath, access, true);
   let disk: RecoveryPreviewResponse["disk"] = null;
   try {
     const source = decodeUtf8(readFileSync(accessPath(filePath, access, true)));
     disk = { source, revision: documentRevision(source) };
-    try { disk.document = readModel(source).document; }
+    try { if (path.extname(filePath).toLowerCase() === ".md") disk.document = readModel(source).document; }
     catch (error) { disk.error = errorPayload(error, access).error; }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
@@ -378,7 +408,7 @@ export async function handleDocumentRequest(
       const requestedPath = query.get("path") ?? undefined;
       if (access && !requestedPath?.trim()) {
         sendJson(res, 200, { start: true, allowedRoots: access.roots, ...sampleAvailability });
-      } else sendJson(res, 200, { ...loadDocumentFile(requestedPath, access), ...sampleAvailability });
+      } else sendJson(res, 200, { ...loadEditorFile(requestedPath, access), ...sampleAvailability });
       return;
     }
     if (req.method === "PUT") {
@@ -388,7 +418,15 @@ export async function handleDocumentRequest(
       return;
     }
     if (req.method === "POST") {
-      const request = saveRequestOf(JSON.parse(await readBody(req)));
+      const body: unknown = JSON.parse(await readBody(req));
+      if (isObject(body) && body.kind === "text") {
+        if (Object.keys(body).some(key => !["kind", "path", "revision", "source"].includes(key)) ||
+            typeof body.path !== "string" || !body.path.trim() || typeof body.source !== "string" ||
+            typeof body.revision !== "string" || !/^[a-f0-9]{64}$/.test(body.revision)) throw new Error("invalid text save request");
+        sendJson(res, 200, saveTextFile(body as TextSaveRequest, access));
+        return;
+      }
+      const request = saveRequestOf(body);
       try {
         const saved = saveDocumentFile(request.path, request, access);
         sendJson(res, 200, { revision: saved.revision } satisfies SaveResponse);
@@ -462,6 +500,7 @@ const MARKER_PREFIX_BYTES = 4096;
 
 /** Reads the start of a listed document for its marker; an unreadable file stays unmarked either way. */
 function withNativeMarker(entry: FolderEntry): FolderEntry {
+  if (path.extname(entry.path).toLowerCase() === ".txt") return { ...entry, native: false };
   let descriptor: number | undefined;
   try {
     descriptor = fs.openSync(entry.path, "r");
@@ -553,7 +592,7 @@ function isDirectory(candidate: string): boolean {
 
 type FileKind = "document" | "image" | "pdf";
 const fileKinds: Record<FileKind, (extension: string) => boolean> = {
-  document: extension => extension === ".md",
+  document: extension => extension === ".md" || extension === ".txt",
   image: extension => Object.hasOwn(MEDIA_TYPES, extension),
   pdf: extension => extension === ".pdf",
 };
@@ -567,7 +606,7 @@ function readFolder<T>(folder: string, files: FileKind | "all", check: () => T):
       if (entry.name.startsWith(".")) return [];
       const extension = path.extname(entry.name).toLowerCase();
       const kind = entry.isDirectory() ? "folder" : !entry.isFile() ? undefined : files === "all"
-        ? extension === ".md" ? "document" : Object.hasOwn(MEDIA_TYPES, extension) ? "image" : "file"
+        ? extension === ".md" || extension === ".txt" ? "document" : Object.hasOwn(MEDIA_TYPES, extension) ? "image" : "file"
         : fileKinds[files](extension) ? files === "pdf" ? "file" : files : undefined;
       return kind ? [{ name: entry.name, kind, path: path.join(folder, entry.name) }] : [];
     });

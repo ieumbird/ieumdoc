@@ -7,6 +7,18 @@
 
 이 문서는 승인된 지원 경계를 기록한다. 네이티브 문서 경계는 [#234](https://github.com/ieumbird/ieumdoc/pull/234)에서 구현되었으며, 현재 동작은 [Native document support](../design/document-support-v1.md)의 Implemented 계약을 따른다. [Block source editing](../design/block-source-editing-v1.md)은 Superseded 상태로 당시 계약을 보존한다. 아래 Context와 Evidence는 결정 당시의 계약과 관찰 기록이다.
 
+## Amendment: separate text editing (#817, 2026-10-31)
+
+[#817](https://github.com/ieumbird/ieumdoc/issues/817)의 소유자 결정에 따라 미호환 `.md`와
+`.txt`는 Editor에서 별도의 텍스트 종류로 자동으로 연다. 이는 아래 네이티브 수용 거부를
+부분 편집이나 Source 교체로 완화하는 것이 아니다. 네이티브 판정·의미·쓰기는 Core가
+계속 소유하며, 텍스트 저장은 현재 파일이 네이티브가 아님을 확인한 뒤 공용 File commit으로
+입력 문자열만 쓴다. 서식·블록·미리보기·변환은 제공하지 않는다. 작업 보호와 로컬 복구는
+종류를 분리해 공용 정책을 적용한다. 의미 연산이 아니므로 CLI command는 추가하지 않는다.
+현재 세부 계약은 [Text files](../design/document-support-v1.md#text-files-in-the-editor-817)를 따른다.
+아래 Context와 원래 결정은 당시 근거를 보존하며, Editor의 무조건 열기 거부 조항만 이
+명시적 예외로 대체한다. CLI 거부와 네이티브 Source 읽기 전용 계약은 유지한다.
+
 ## Context
 
 IeumDoc은 사람이 읽고 Git에서 변경을 검토하기 좋은 영속 표현으로 Markdown/MyST를 선택했다. 현재 계약은 미지원 내용을 읽기 전용 블록으로 보존하면서 다른 부분을 편집하고, 블록별 원문을 교체하여 저장하는 경로까지 포함한다. #232는 이 호환성 범위를 줄이고 이음독이 책임지는 구조화 기술문서 저작에 집중하려는 제품 결정이다.

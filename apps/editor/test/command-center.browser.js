@@ -260,10 +260,12 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await input().fill('guide.md');
   check(await center().getByRole('option').count() === 0, 'Unlisted subfolder document appeared in search');
   check(await center().locator('.command-center-empty').isVisible(), 'Unlisted subfolder has no scope guidance');
-  for (const excluded of ['diagram.svg','notes.txt']) {
+  for (const excluded of ['diagram.svg']) {
     await input().fill(excluded);
     check(await center().getByRole('option').count() === 0, `Non-document ${excluded} appeared in document search`);
   }
+  await input().fill('notes.txt');
+  check(await center().getByRole('option',{name:'notes.txt',exact:true}).count() === 1, 'Listed text file is missing from document search');
   check(searchRequests === 0, 'Searching made a Host listing or document request');
   check(await sectionToggle.getAttribute('aria-expanded') === 'false', 'Search expanded a collapsed section');
   page.off('request', countSearchRequests);
@@ -337,9 +339,10 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   check((await foreign.innerText()).includes('Not an IeumDoc document'), 'Non-native file has no explanation');
   check(await foreign.evaluate(n => getComputedStyle(n).color) === await folder.getByRole('treeitem',{name:'foreign.md',exact:true,includeHidden:true}).evaluate(n => getComputedStyle(n).color), 'Non-native result differs from sidebar muted treatment');
   await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
-  await page.getByRole('dialog',{name:'Cannot open document',exact:true}).waitFor();
-  check(await page.getByTestId('current-file').textContent() === 'technical-1.md', 'Non-native selection replaced the document');
-  await page.keyboard.press('Escape'); await page.getByRole('dialog',{name:'Cannot open document',exact:true}).waitFor({state:'detached'});
+  await page.getByTestId('text-editor').waitFor();
+  check(await page.getByTestId('current-file').textContent() === 'foreign.md', 'Non-native selection did not open in text mode');
+  await open('technical-1.md'); await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
+  await waitForActivePath(page, file('technical-1.md'));
   result.sidebarListedDocuments = true;
 
   await editor().evaluate(n => {

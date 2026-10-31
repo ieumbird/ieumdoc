@@ -1,8 +1,8 @@
 import { SaveContentError } from "../shared/save-error.ts";
 import type { FigureContent } from "@ieumdoc/core";
-import type { DocumentFileResponse, DocumentStartResponse, DocumentErrorResponse, SaveRequest, SaveResponse, SourceResponse } from "../shared/document-protocol.ts";
+import type { DocumentFileResponse, EditorFileResponse, TextSaveRequest, DocumentStartResponse, DocumentErrorResponse, SaveRequest, SaveResponse, SourceResponse } from "../shared/document-protocol.ts";
 
-type DocumentResponse = DocumentFileResponse;
+type DocumentResponse = EditorFileResponse;
 
 /** The Host's Core admission failure, identified by code rather than message text. */
 export class NativeOpenError extends Error {
@@ -19,7 +19,7 @@ export class SaveConflictError extends SaveContentError {
   }
 }
 
-export function requestDocument(method: "PUT", filePath: string, bibliographyRoot?: string): Promise<DocumentResponse>;
+export function requestDocument(method: "PUT", filePath: string, bibliographyRoot?: string): Promise<DocumentFileResponse>;
 export function requestDocument(method: "GET", filePath?: string, bibliographyRoot?: string): Promise<DocumentResponse | DocumentStartResponse>;
 export async function requestDocument(
   method: "GET" | "PUT",
@@ -33,7 +33,7 @@ export async function requestDocument(
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
-  const payload = (await response.json()) as Partial<DocumentFileResponse> & Partial<DocumentErrorResponse> & Partial<DocumentStartResponse>;
+  const payload = (await response.json()) as Partial<Omit<DocumentFileResponse, "kind">> & { kind?: "native" | "text" } & Partial<DocumentErrorResponse> & Partial<DocumentStartResponse>;
   if (response.status === 409) {
     throw new SaveConflictError(payload.error ?? "Document changed outside the editor. Reload before saving.");
   }
@@ -43,12 +43,13 @@ export async function requestDocument(
       ...(payload.sampleProblem ? { sampleProblem: payload.sampleProblem } : {}),
       ...(Array.isArray(payload.allowedRoots) && payload.allowedRoots.every(root => typeof root === "string") ? { allowedRoots: payload.allowedRoots } : {}) };
   }
-  if (!response.ok || !payload.document || typeof payload.source !== "string" || typeof payload.revision !== "string" || typeof payload.path !== "string") {
+  if (!response.ok || (payload.kind !== "text" && !payload.document) || typeof payload.source !== "string" || typeof payload.revision !== "string" || typeof payload.path !== "string") {
     if (!response.ok && method === "GET" && payload.code?.startsWith("native-")) {
       throw new NativeOpenError(payload.issue?.reason ?? payload.error ?? "Unsupported IeumDoc document.", payload.issue?.action ?? "", payload.code);
     }
     throw new SaveContentError(payload.error ?? `request failed (${response.status})`, payload.target, payload.failure);
   }
+  if (payload.kind === "text") return { ...(payload.samples ? { samples: payload.samples } : {}), ...(payload.sampleProblem ? { sampleProblem: payload.sampleProblem } : {}), kind: "text", path: payload.path, source: payload.source, revision: payload.revision };
   const declarations = payload.bibliography?.declarations ?? [];
   const sources = await requestBibliography(payload.path, payload.revision, declarations, bibliographyRoot);
   return {
@@ -56,8 +57,9 @@ export async function requestDocument(
     ...(payload.sampleProblem ? { sampleProblem: payload.sampleProblem } : {}),
     bibliographyRoot,
     bibliography: { declarations, sources },
+    kind: "native",
     path: payload.path,
-    document: payload.document,
+    document: payload.document!,
     revision: payload.revision,
     source: payload.source,
     endnotesInPlace: payload.endnotesInPlace !== false,
@@ -79,7 +81,7 @@ export async function requestBibliography(path: string, revision: string, declar
   return [];
 }
 
-export async function requestSave(body: SaveRequest): Promise<SaveResponse> {
+export async function requestSave(body: SaveRequest | TextSaveRequest): Promise<SaveResponse> {
   let response: Response;
   let payload: Partial<SaveResponse> & Partial<DocumentErrorResponse>;
   try {

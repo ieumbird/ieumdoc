@@ -191,7 +191,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
     check(await page.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').count() === 0 && JSON.stringify(await memory()) === JSON.stringify(saved), 'Pending restoration published or remembered an incomplete tab list');
     release(); await ready();
   } finally { release(); await page.unroute('**/api/document?**',hold); }
-  check(JSON.stringify(await page.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').allTextContents()) === JSON.stringify(['technical-1.md','technical-2.md']), 'Missing/refused/non-native paths or Host aliases changed restored order/deduplication');
+  check(JSON.stringify(await page.getByRole('tablist', {name:'Documents', exact:true}).getByRole('tab').allTextContents()) === JSON.stringify(['technical-1.md','README.md','technical-2.md']), 'Missing/refused paths, text admission or Host aliases changed restored order/deduplication');
   check(await page.getByRole('tab',{name:'technical-1.md',exact:true}).getAttribute('aria-selected') === 'true', 'Missing active path did not fall back to the first surviving tab');
   check(!await page.getByTestId('error').count() && !await page.getByRole('dialog').count(), 'An excluded remembered path interrupted startup');
   await flush();
