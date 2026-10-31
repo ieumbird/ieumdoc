@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@document-plugins/api": "workspace:*",
     "@ieumdoc/core": "workspace:*",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1"

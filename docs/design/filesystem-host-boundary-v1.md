@@ -59,6 +59,9 @@ OS action, with no document write, Core semantic operation or CLI parity command
 The shared handler exposes the Docling device setting, connection check and one
 current conversion snapshot in Vite, Desktop and HTTP Host. Module REST calls
 execute in a separate worker under [Host worker plugins](plugin-runtime-v1.md).
+The shared [UI contribution route](plugin-ui-v1.md) (#857) serves only enabled,
+hash-checked installed ESM/CSS outside document Roots. Registration source files
+still obey all applicable Root/real-path checks; arbitrary file serving is not added.
 Registration and request receipts in the common user installation are the only
 additional durable Host state allowed by ADR-0012. Private staging and marked
 incomplete output are refused on every ordinary file surface, including aliases.

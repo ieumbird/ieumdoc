@@ -473,6 +473,20 @@ completion Light/Korean/Dark review states separately from normal CI assertions.
 
 ## Docling worker runtime (#853)
 
+The UI contribution boundary is checked separately by
+`pnpm --filter @ieumdoc/editor exec tsx --test test/plugin-ui.test.ts` and
+`pnpm browser:test plugin-ui docling-server docling-compare` (#857). The latter
+retains #815's fixed Read/reverse selection checks. The real worker regression
+holds the browser's UI module while accepted conversion finishes, then verifies
+the comparison opens after activation. It does not extend timeouts or weaken
+assertions. `plugin-ui` checks live contributions, exact native document identity
+and input across failures, retained-tab recovery, same-ESM reuse and unmount
+cleanup before disposal/style removal. Production serve supports the same
+feature scenarios via `IEUMDOC_BROWSER_URL`; packaged Desktop loading and
+disable/re-register run in required Windows CI. See the
+[UI contract](../design/plugin-ui-v1.md) for React compatibility and ESM memory
+limits. These trusted UI tests do not establish a sandbox or real Docling fidelity.
+
 Automated synthetic checks (no local Docling server):
 
 ```powershell

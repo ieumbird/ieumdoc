@@ -24,6 +24,8 @@
 - Scope: Windows x64 per-user Electron/NSIS app, Stable/Beta updates and local/CI packaging. Publication requires an owner-authorized release and manual workflow dispatch from master; no separate environment approval is required after validation succeeds.
 
 Docling conversion uses the shared [Host worker runtime](plugin-runtime-v1.md).
+Its dynamic commands/sidebar/tab view use [Plugin UI contributions](plugin-ui-v1.md)
+through the same in-process origin and CSP (#857); no TCP listener is introduced.
 The CLI distribution ships the self-contained worker beside its Editor assets;
 Desktop copies that trusted bundle to the common user installation before first
 conversion. It forks the installed copy with RunAsNode, retains in-process

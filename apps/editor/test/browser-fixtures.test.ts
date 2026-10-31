@@ -8,7 +8,7 @@ import { prepareBrowserFixtures, REPOSITORY_ROOT, SCRATCH_DIRS, SOURCE_DIRS } fr
 import { HTTP_SCENARIOS, selectBrowserScenarios, STABLE_SCENARIOS } from "./browser/scenarios.ts";
 import { classifyConsoleErrors } from "./browser/console-errors.ts";
 
-test("conversion fault injection permits only its explicitly expected network failures", () => {
+test("fault injection permits only its expected network failures and caught plugin render error", () => {
   const message = "Failed to load resource: net::ERR_FAILED @ http://127.0.0.1:5173/api/docling-conversion";
   const rejected = "Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:5173/api/docling-conversion";
   const injected = [message, message, message, message, rejected];
@@ -18,6 +18,9 @@ test("conversion fault injection permits only its explicitly expected network fa
   assert.deepEqual(classifyConsoleErrors("docling-live", [message]).unexpected, [message]);
   const unrelated = message.replace("/api/docling-conversion", "/api/document");
   assert.deepEqual(classifyConsoleErrors("docling-server", [unrelated]).unexpected, [unrelated]);
+  assert.deepEqual(classifyConsoleErrors("plugin-ui", ["Error: PLUGIN_UI_RENDER_FIXTURE"]).unexpected, []);
+  const uncaught = "Uncaught page error: PLUGIN_UI_RENDER_FIXTURE";
+  assert.deepEqual(classifyConsoleErrors("plugin-ui", [uncaught]).unexpected, [uncaught]);
 });
 
 const testDir = path.join(REPOSITORY_ROOT, "apps", "editor", "test");

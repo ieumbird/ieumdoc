@@ -1,3 +1,4 @@
+import { PLUGIN_UI } from "@document-plugins/api/config";
 import { fileURLToPath, URL } from "node:url";
 import { prepareSampleDocuments } from "./server/sample-documents.ts";
 import { randomBytes } from "node:crypto";
@@ -41,7 +42,7 @@ export default defineConfig({
             });
             return;
           }
-          if (url !== "/api/worker-plugins" && url !== "/api/docling-settings" && url !== "/api/docling-check" && url !== "/api/docling-conversion" && url !== "/api/file" && url !== "/api/bibliography" && url !== "/api/file-preview" && url !== "/api/document" && url !== "/api/folder" && url !== "/api/folder-browse" && url !== "/api/folder-places" && url !== "/api/document-source" && url !== "/api/docling-compare" && url !== "/api/figure-validation" && !url.startsWith("/document/")) {
+          if (url !== PLUGIN_UI.route && url !== "/api/worker-plugins" && url !== "/api/docling-settings" && url !== "/api/docling-check" && url !== "/api/docling-conversion" && url !== "/api/file" && url !== "/api/bibliography" && url !== "/api/file-preview" && url !== "/api/document" && url !== "/api/folder" && url !== "/api/folder-browse" && url !== "/api/folder-places" && url !== "/api/document-source" && url !== "/api/docling-compare" && url !== "/api/figure-validation" && !url.startsWith("/document/")) {
             next();
             return;
           }

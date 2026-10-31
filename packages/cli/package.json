@@ -15,11 +15,13 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@document-plugins/api": "workspace:*",
     "@ieumdoc/core": "workspace:*",
     "@ieumdoc/docling": "workspace:*",
     "@ieumdoc/file-commit": "workspace:*"
   },
   "devDependencies": {
+    "@babel/parser": "7.29.9",
     "esbuild": "0.28.2",
     "@types/node": "^24.5.2",
     "tsx": "^4.23.15",

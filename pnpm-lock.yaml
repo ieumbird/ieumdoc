@@ -188,6 +188,9 @@ importers:
 
   apps/desktop:
     devDependencies:
+      '@document-plugins/api':
+        specifier: workspace:*
+        version: link:../../packages/plugin-api
       '@ieumdoc/file-commit':
         specifier: workspace:*
         version: link:../../packages/file-commit
@@ -233,6 +236,9 @@ importers:
       '@base-ui/react':
         specifier: ^1.8.0
         version: 1.8.0(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@document-plugins/api':
+        specifier: workspace:*
+        version: link:../../packages/plugin-api
       '@ieumdoc/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -342,6 +348,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@document-plugins/api':
+        specifier: workspace:*
+        version: link:../plugin-api
       '@ieumdoc/core':
         specifier: workspace:*
         version: link:../core
@@ -352,6 +361,9 @@ importers:
         specifier: workspace:*
         version: link:../file-commit
     devDependencies:
+      '@babel/parser':
+        specifier: 7.29.9
+        version: 7.29.9
       '@types/node':
         specifier: ^24.5.2
         version: 24.13.6
@@ -407,6 +419,9 @@ importers:
 
   packages/docling:
     dependencies:
+      '@document-plugins/api':
+        specifier: workspace:*
+        version: link:../plugin-api
       '@ieumdoc/core':
         specifier: workspace:*
         version: link:../core
@@ -444,6 +459,16 @@ importers:
       typescript:
         specifier: 7.0.2
         version: 7.0.2
+
+  packages/plugin-api:
+    dependencies:
+      '@ieumdoc/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@types/react':
+        specifier: ^19.1.13
+        version: 19.3.0
 
 packages:
 

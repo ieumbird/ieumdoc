@@ -1,5 +1,6 @@
 import { readBibliographySources } from "./bibliography.ts";
 import { loadDoclingComparison } from "./docling-compare.ts";
+import { PLUGIN_UI } from "@document-plugins/api/config";
 import type { createDoclingHost } from "./docling.ts";
 import { MAX_ASSET_BYTES } from "../shared/asset-policy.ts";
 import { ImageValidationError, validateImage } from "./image-validation.ts";
@@ -270,6 +271,22 @@ export async function handleDocumentRequest(
   try { query = requestQuery(req.url ?? ""); }
   catch (error) { failure(error); return; }
   const url = new URL(req.url ?? "", "http://localhost").pathname;
+  if (url === PLUGIN_UI.route) {
+    if (req.method !== "GET") { res.statusCode = 405; res.end(); return; }
+    if (!docling) { sendJson(res, 503, { error: "Plugins are unavailable on this Host." }); return; }
+    try {
+      const store = docling.plugins(true), asset = query.get("asset");
+      res.setHeader("Cache-Control", "no-store");
+      if (!asset) sendJson(res, 200, store.uiList());
+      else {
+        const bytes = store.uiAsset(query.get("id") ?? "", query.get("revision") ?? "", asset);
+        res.setHeader("Content-Type", asset === PLUGIN_UI.script ? "text/javascript; charset=utf-8" : "text/css; charset=utf-8");
+        res.setHeader("X-Content-Type-Options", "nosniff");
+        res.end(bytes);
+      }
+    } catch (error) { failure(error); }
+    return;
+  }
   if (url === "/api/worker-plugins") {
     if (!docling) { sendJson(res, 503, { error: "Plugins are unavailable on this Host." }); return; }
     if (!["GET", "POST", "DELETE"].includes(req.method ?? "")) { res.statusCode = 405; res.end(); return; }
@@ -280,8 +297,7 @@ export async function handleDocumentRequest(
         const body = JSON.parse(await readBody(req));
         if (req.method === "POST") {
           const manifest = accessPath(body.manifest, access);
-          accessPath(path.join(path.dirname(manifest), "worker.cjs"), access);
-          sendJson(res, 200, store.register(manifest));
+          sendJson(res, 200, store.register(manifest, false, file => { accessPath(file, access); }));
         } else {
           if (typeof body.id !== "string") throw new Error("Plugin id is required.");
           store.unregister(body.id); sendJson(res, 200, store.list());

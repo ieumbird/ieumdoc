@@ -1,5 +1,8 @@
 /** Bundled UI resources. English source phrases are translation keys, never operation IDs. */
 export const en = {
+  "Plugin view failed.": "Plugin view failed.",
+  "Plugin could not load.": "Plugin could not load.",
+  "Plugin is disabled.": "Plugin is disabled.",
   "Unapplied draft": "Unapplied draft",
   "This label cannot name a reference target. Choose another label.": "This label cannot name a reference target. Choose another label.",
   "The label and its references cannot be preserved. Check the label and reference targets.": "The label and its references cannot be preserved. Check the label and reference targets.",
@@ -792,6 +795,9 @@ export const en = {
 } as const;
 
 export const ko: Record<keyof typeof en, string> = {
+  "Plugin view failed.": "플러그인 화면을 표시하지 못했습니다.",
+  "Plugin could not load.": "플러그인을 불러오지 못했습니다.",
+  "Plugin is disabled.": "플러그인이 꺼져 있습니다.",
   "Unapplied draft": "미적용 초안",
   "This label cannot name a reference target. Choose another label.": "이 레이블은 참조 대상을 지정할 수 없습니다. 다른 레이블을 입력하세요.",
   "The label and its references cannot be preserved. Check the label and reference targets.": "레이블과 참조의 연결을 보존할 수 없습니다. 레이블과 참조 대상을 확인하세요.",

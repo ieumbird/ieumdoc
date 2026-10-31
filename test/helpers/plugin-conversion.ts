@@ -23,4 +23,5 @@ export async function verifyPackagedWorker(send: (endpoint: string, method?: str
   assert.ok(existsSync(path.join(job.output, "document.json")));
   const comparison = await send(`docling-compare?${new URLSearchParams({ path: path.join(job.output, "document.md") })}`);
   assert.equal(comparison.status, 200); assert.equal((await comparison.json()).stale, false);
+  return job.output as string;
 }

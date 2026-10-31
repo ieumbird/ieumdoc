@@ -2,8 +2,10 @@ import { useDoclingConversion } from "@ieumdoc/docling/server-ui";
 import { doclingFailureMessage } from "@ieumdoc/docling/server-types";
 import { DoclingConversionDialog } from "./shell/DoclingConversionDialog.tsx";
 import { COMMAND_CENTER_SHORTCUT, EDITOR_SHORTCUTS, SAVE_SHORTCUT, isMac } from "./shortcuts.ts";
-import type { ComparisonSnapshot } from "@ieumdoc/docling/compare";
-import { DoclingComparisonTab } from "./DoclingComparisonTab.tsx";
+import { usePluginUi } from "./plugin-ui.tsx";
+import { contributionNotices } from "./plugin-ui-registry.ts";
+import { PluginTab, type ContributedTab } from "./PluginTab.tsx";
+import type { UiHost } from "@document-plugins/api/ui";
 import { NotificationProvider, NotificationSource } from "./components/ui/notification-center.tsx";
 import { UiError } from "./ui-message.ts";
 import { useMessageState } from "./ui-message.ts";
@@ -144,8 +146,9 @@ function EditorApp() {
   const renameImageRef = useRef<ImageRenamer | undefined>(undefined);
   const renameImage = useCallback<ImageRenamer>((...args) => renameImageRef.current!(...args), []);
   const [tabs, setTabs] = useState<Tab[]>([]);
-  const [comparisons, setComparisons] = useState<{ id: string; path: string; snapshot: ComparisonSnapshot }[]>([]);
-  const [comparePicker, setComparePicker] = useState(false);
+  const [pluginTabs, setPluginTabs] = useState<ContributedTab[]>([]);
+  const [pluginPicker, setPluginPicker] = useState<Parameters<UiHost["pickFolder"]>[0] | null>(null);
+  const [pluginActionProblem, setPluginActionProblem] = useState("");
   const converter = useDoclingConversion(import.meta.env.BASE_URL);
   const [conversionOpen, setConversionOpen] = useState(false);
   const [pdfPicker, setPdfPicker] = useState(false);
@@ -155,11 +158,25 @@ function EditorApp() {
   const conversionAttempt = useRef(0);
   const currentConversionId = useRef(converter.job?.id); currentConversionId.current = converter.job?.id;
   const [conversionNotice, setConversionNotice] = useState<{ id: string; message: string } | null>(null);
+
+  const compareReturn = useRef<HTMLElement | null>(null);
+  const ui = usePluginUi({
+    pickFolder: (options, focus) => { compareReturn.current = focus; setPluginPicker(options); },
+    openTab: openPluginTab,
+    showPdfConversion: focus => {
+      conversionReturn.current = focus;
+      if (converter.job?.state === "running") { setConversionPath(converter.job.input); setConversionOpen(true); }
+      else { setConversionPath(""); setPdfPicker(true); }
+    },
+  });
+  const currentPlugins = useRef(ui.plugins); currentPlugins.current = ui.plugins;
   useEffect(() => {
     const job = converter.job;
     if (!job) return;
     if (job.state === "running") { setConversionNotice(null); return; }
     if (finishedConversion.current === job.id) return;
+    const doclingUi = ui.plugins.find(plugin => plugin.id === "docling");
+    if (job.state === "success" && ((!ui.observed && !ui.problem) || (doclingUi && !doclingUi.contributions && !doclingUi.error))) return;
     finishedConversion.current = job.id;
     if (job.state === "success") {
       const attempt = conversionAttempt.current;
@@ -170,15 +187,21 @@ function EditorApp() {
         else { setConversionOpen(false); setConversionNotice(null); }
       });
     } else if (job.state === "error") setConversionNotice({ id: job.id, message: `${i18n.t(doclingFailureMessage(job.failure) as MessageKey)}${job.failure?.taskId ? ` (${i18n.t("Server task")}: ${job.failure.taskId})` : ""}` });
-  }, [converter.job?.id, converter.job?.state]);
-  const compareReturn = useRef<HTMLElement | null>(null);
+  }, [converter.job?.id, converter.job?.state, ui.plugins, ui.observed, ui.problem]);
+  const pluginActions = (surface: "commands" | "sidebar") => ui.plugins.flatMap(plugin =>
+    (plugin.contributions?.[surface] ?? []).map(action => ({ ...action, id: `${plugin.id}/${action.id}`,
+      run: (focus: HTMLElement | null) => {
+        try { void Promise.resolve(action.run(focus)).catch(error => setPluginActionProblem(String(error))); }
+        catch (error) { setPluginActionProblem(String(error)); }
+      },
+    })));
   const [navigation, navigate] = useReducer(editorGroups, initialEditorGroups);
   const focusedGroup = navigation.groups.find(group => group.id === navigation.focused)!;
   const activeId = focusedGroup.active;
-  const comparison = comparisons.find(tab => tab.id === activeId);
-  const comparisonLabels = tabLabels(comparisons);
-  const allTabs = [...tabs, ...comparisons.map((tab, index) => ({ ...tab,
-    title: `${comparisonLabels[index]!.folder ?? documentLocation(tab.path)[0] ?? tab.snapshot.map.source.name} · ${i18n.t("Docling comparison")}` }))];
+  const pluginTab = pluginTabs.find(tab => tab.id === activeId);
+  const pluginTabLabels = tabLabels(pluginTabs);
+  const allTabs = [...tabs, ...pluginTabs.map((tab, index) => ({ ...tab,
+    title: `${pluginTabLabels[index]!.folder ?? documentLocation(tab.path)[0]} · ${i18n.t(tab.label as MessageKey)}` }))];
   const split = navigation.groups.length === 2;
   const [canSplit, setCanSplit] = useState(false);
   const splitAvailable = useRef(false);
@@ -559,9 +582,9 @@ function EditorApp() {
     return `./${renamed.slice(directory.length).replaceAll("\\", "/")}`;
   };
   function closeTab(id: string): void {
-    if (comparisons.some(tab => tab.id === id)) {
+    if (pluginTabs.some(tab => tab.id === id)) {
       if (busy || continuation) return;
-      setComparisons(previous => previous.filter(tab => tab.id !== id));
+      setPluginTabs(previous => previous.filter(tab => tab.id !== id));
       navigate({ type: "close", id }); focusAfterClose.current = true; return;
     }
     const owner = sessions.current.get(id);
@@ -658,17 +681,22 @@ function EditorApp() {
     } finally { operationRef.current = false; setOperation(""); }
   }
   async function openComparison(folder: string, current = () => true): Promise<string> {
+    return openPluginTab("docling/comparison", folder, current);
+  }
+  async function openPluginTab(key: string, resource: string, current = () => true): Promise<string> {
     try {
-      const path = childPath(folder.replace(/[\\/]+$/, ""), "document.md");
-      const response = await fetch(`${import.meta.env.BASE_URL}api/docling-compare?${new URLSearchParams({ path })}`);
-      const payload = await response.json();
+      const [pluginId, kindId] = key.split("/");
+      const plugin = ui.plugins.find(plugin => plugin.id === pluginId);
+      const kind = plugin?.contributions?.tabs.find(kind => kind.id === kindId);
+      if (!kind) return i18n.t("Plugin is disabled.");
+      const content = await kind.open(resource);
       if (!current()) return "";
-      if (!response.ok) return payload.error ?? i18n.t("Could not open comparison.");
-      const snapshot = payload as ComparisonSnapshot;
-      const existing = comparisons.find(tab => tab.path === snapshot.path);
+      if (currentPlugins.current.find(item => item.id === pluginId)?.contributions !== plugin?.contributions) return i18n.t("Plugin is disabled.");
+      if (!content || typeof content.path !== "string" || !content.path) throw new Error("Invalid plugin tab content.");
+      const existing = pluginTabs.find(tab => tab.plugin === pluginId && tab.kind === kindId && tab.path === content.path);
       if (existing) { placeTab(existing.id); return ""; }
-      const id = `docling-${++nextId.current}`;
-      setComparisons(previous => [...previous, { id, path: snapshot.path, snapshot }]);
+      const id = `plugin-${++nextId.current}`;
+      setPluginTabs(previous => [...previous, { ...content, id, plugin: pluginId!, kind: kindId!, label: kind.label, className: kind.className }]);
       placeTab(id); return "";
     } catch (cause) { return messageOf(cause); }
   }
@@ -995,12 +1023,8 @@ function EditorApp() {
       run: () => { sidebarFocus.current = "sidebar"; setSidebarOpen(value => !value); } },
     { id: "width", kind: "command", label: i18n.t(documentWidth === "wide" ? "Standard document width" : "Wide document"), icon: documentWidth === "wide" ? Columns3 : StretchHorizontal, disabled: session?.kind === "text",
       keywords: ["document width", "문서 너비"], run: toggleDocumentWidth },
-    { id: "docling-convert", kind: "command", label: i18n.t("Convert with Docling"), icon: FileText, takesFocus: true,
-      disabled: busy || Boolean(continuation), keywords: ["PDF", "Docling", "도클링", "변환"],
-      run: () => { conversionReturn.current = commandReturnFocus.current;
-        if (converter.job?.state === "running") { setConversionPath(converter.job.input); setConversionOpen(true); }
-        else { setConversionPath(""); setPdfPicker(true); }
-      } },
+    ...pluginActions("commands").map(action => ({ id: action.id, kind: "command" as const, label: i18n.t(action.label as MessageKey), icon: FileText,
+      takesFocus: true, disabled: busy || Boolean(continuation), keywords: action.keywords, run: () => action.run(commandReturnFocus.current) })),
     ...THEMES.map(value => ({ id: `theme-${value}`, kind: "command" as const,
       label: i18n.t(`Color mode: ${THEME_LABELS[value]}`), icon: Monitor,
       keywords: ["color mode", "theme", "색상 모드", "테마", THEME_LABELS[value], { system: "시스템", light: "라이트", dark: "다크" }[value]],
@@ -1031,12 +1055,12 @@ function EditorApp() {
   ];
 
   return (
-    <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${panelOpen && !comparison && session?.kind !== "text" ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}${split ? " app-shell--split" : ""}`}>
+    <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${panelOpen && !pluginTab && session?.kind !== "text" ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}${split ? " app-shell--split" : ""}`}>
       <Sidebar
         theme={theme} onThemeChange={changeTheme}
         onDoclingConvert={(path, element) => { conversionReturn.current = element; setConversionPath(path); setConversionOpen(true); setConversionNotice(null); }}
         doclingBusy={converter.pending || converter.job?.state === "running"}
-        onDoclingCompare={element => { compareReturn.current = element; setComparePicker(true); }}
+        contributions={pluginActions("sidebar")}
         onFileAction={fileAction} fileActionsDisabled={busy || Boolean(continuation)}
         isFileDirty={path => { const tab = tabs.find(tab => tab.path === path); return !!(tab && sessions.current.get(tab.id)?.editorRef.current?.hasUnsavedChanges()); }}
         open={sidebarOpen}
@@ -1123,7 +1147,7 @@ function EditorApp() {
               unsaved={owner?.documentDirty || owner?.draftActive}
               draftNotice={owner?.draftNotice}
               textMode={owner?.kind === "text"}
-              hideViewControls={comparisons.some(tab => tab.id === group.active)}
+              hideViewControls={pluginTabs.some(tab => tab.id === group.active)}
               view={owner?.kind === "native" ? owner.view : "visual"}
               viewDisabled={!owner || groupBusy}
               onViewChange={(next) => { if (owner?.kind === "native") { if (next === "source") void owner.showSource(); else owner.setView(next); } }}
@@ -1162,7 +1186,7 @@ function EditorApp() {
           if (event.button === 0 && event.target instanceof HTMLElement && event.target.classList.contains("document-column") && (owner?.kind === "text" || owner?.view === "visual") &&
             owner.editorRef.current?.focusEnd(event.clientY)) event.preventDefault();
         }}>
-          {tabs.length === 0 && comparisons.length === 0 && start ? (
+          {tabs.length === 0 && pluginTabs.length === 0 && start ? (
             <div className="document-scroll" data-active="true"><div className="document-column"><DocumentStart
               mark={productMark}
               recovery={<RecoveryList records={recoveryRecords.filter(record => !tabs.some(tab => tab.recoveryId === record.id))} unavailable={Boolean(recoveryProblem)} onReview={reviewRecovery} />}
@@ -1185,14 +1209,14 @@ function EditorApp() {
               active={group?.active === tab.id} focused={tab.id === activeId} groupIndex={groupIndex} onFocus={focusDocument}
               report={reportSession} onAssetChange={onAssetChange} renameImage={renameImage} onReveal={revealDocument} />;
           })}
-          {comparisons.map(tab => {
+          {pluginTabs.map(tab => {
             const groupIndex = navigation.groups.findIndex(group => group.tabs.includes(tab.id));
-            return <DoclingComparisonTab key={tab.id} id={tab.id} snapshot={tab.snapshot} groupIndex={groupIndex}
+            return <PluginTab key={tab.id} tab={tab} plugin={ui.plugins.find(plugin => plugin.id === tab.plugin)} groupIndex={groupIndex}
               active={navigation.groups[groupIndex]?.active === tab.id} focused={tab.id === activeId} onFocus={focusDocument} />;
           })}
         </main>
       </div>
-      {panelOpen && !comparison && session?.kind !== "text" ? (
+      {panelOpen && !pluginTab && session?.kind !== "text" ? (
         <DocumentPanel
           overlay={panelOverlay}
           outline={document ? outlineStore : undefined}
@@ -1216,19 +1240,23 @@ function EditorApp() {
         returnFocus={conversionReturn} onClose={() => setPdfPicker(false)}
         onClosed={() => { if (conversionPath) setConversionOpen(true); }} />
       <NotificationSource items={[...(themeProblem && !settingsOpen ? [{ id: "theme-storage", severity: "error" as const, message: i18n.t("Theme could not be saved. This choice applies until you close this page.") }] : []), ...(conversionNotice ? [{ id: `docling-error-${conversionNotice.id}`, severity: "error" as const, message: conversionNotice.message,
-        reveal: () => { setConversionPath(converter.job?.input ?? conversionPath); setConversionOpen(true); } }] : []), ...comparisons.filter(tab => tab.snapshot.stale).map(tab => ({ id: `docling-stale-${tab.id}`, severity: "warning" as const,
-        message: `${tab.snapshot.map.source.name}: ${i18n.t("The correspondence map does not match this document. Connections and sync scrolling are disabled. Reconvert to compare.")}`,
+        reveal: () => { setConversionPath(converter.job?.input ?? conversionPath); setConversionOpen(true); } }] : []),
+        ...[ui.problem, pluginActionProblem, ...ui.plugins.filter(plugin => plugin.error).map(plugin => `${plugin.id}: ${plugin.error}`)].filter(Boolean).map(message => ({ id: `plugin-error-${message}`, severity: "error" as const, message })),
+        ...pluginTabs.flatMap(tab => contributionNotices(ui.plugins.find(plugin => plugin.id === tab.plugin), tab.kind, tab.data).map(notice => ({ ...notice, id: `plugin-${tab.id}-${notice.id}`,
         reveal: () => {
           activateTab(tab.id);
           requestAnimationFrame(() => globalThis.document.getElementById(`panel-${tab.id}`)?.focus());
         },
-      }))]} />
-      <FolderDialog open={comparePicker} title={i18n.t("Docling comparison")}
-        description={i18n.t("Choose a conversion folder containing document.md and document.docling-map.json.")}
+      })))]} />
+      <FolderDialog open={Boolean(pluginPicker)} title={pluginPicker?.title ?? ""}
+        description={pluginPicker?.description ?? ""}
         showSidebarHint={false}
         initialPath={folders.roots.at(-1) ?? splitDocumentPath(openedPath).directory} recent={visibleRecent}
-        restricted={allowedRoots !== undefined} browse={browseHostFolder} places={folderPlaces} onOpen={openComparison}
-        returnFocus={compareReturn} onClose={() => setComparePicker(false)} />
+        restricted={allowedRoots !== undefined} browse={browseHostFolder} places={folderPlaces} onOpen={async folder => {
+          try { return await pluginPicker?.open(folder) ?? i18n.t("Plugin is disabled."); }
+          catch (error) { return messageOf(error); }
+        }}
+        returnFocus={compareReturn} onClose={() => setPluginPicker(null)} />
       <SettingsDialog
           open={settingsOpen}
           theme={theme} themeProblem={themeProblem} onThemeChange={changeTheme}

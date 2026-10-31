@@ -28,5 +28,9 @@ export function createDoclingHost(access: FileAccess = LOCAL_FILE_ACCESS, settin
       return closing ??= runtime?.close() ?? Promise.resolve();
     },
   });
-  return Object.assign(host, { plugins: () => getRuntime().store });
+  return Object.assign(host, { plugins: (seed = false) => {
+    const runtime = getRuntime();
+    if (seed) runtime.ensureBundled();
+    return runtime.store;
+  } });
 }

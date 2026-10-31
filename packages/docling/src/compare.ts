@@ -2,14 +2,8 @@ import type { EditableDocument } from "@ieumdoc/core";
 import type { DoclingMap, MapItem, Target } from "./map.ts";
 
 export type ComparisonSnapshot = { path: string; document: EditableDocument; map: DoclingMap; stale: boolean };
-export type BlockPosition = { key: string; top: number; left: number; height: number };
-export type DocumentPosition = { blocks: BlockPosition[]; height: number };
-export type ReadingSurfaceProps = {
-  document: EditableDocument; path: string;
-  onLayout(position: DocumentPosition): void;
-  /** Current snapshot block/list-item key, or no single selected target. */
-  onSelection(key: string | undefined): void;
-};
+export type { DocumentPosition, ReadingSurfaceProps } from "@document-plugins/api/ui";
+export type BlockPosition = import("@document-plugins/api/ui").DocumentPosition["blocks"][number];
 
 /** Prefer the actual converted block over groups and picture-pixel descendants. */
 export function itemsForTarget(items: MapItem[], key: string): MapItem[] {

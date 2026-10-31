@@ -127,6 +127,12 @@ the text editor and never provides a raw native-document replacement path.
 
 ## Docling comparison tabs (#769)
 
+The command, tab kind and expanded-sidebar footer action now come from the
+[versioned UI contribution contract](plugin-ui-v1.md) (#857). The shell owns tab
+identity/group placement and generic folder navigation. Disabled contributed
+tabs retain their context, can be moved/closed, and reconstruct their content on
+re-registration without a page reload. They create no editing/recovery session.
+
 The sidebar opens the read-only module tab described in
 [Docling comparison](docling-compare-v1.md), under [ADR-0011](../adr/0011-code-module-boundary.md).
 Its entry sits in the sidebar footer above Settings, separate from Explorer's

@@ -3,19 +3,26 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { ConversionJob } from "@ieumdoc/docling/server-types";
+import { PLUGIN_UI, type UiManifest, type UiRegistration } from "@document-plugins/api/config";
 
-export type WorkerManifest = { id: string; version: string; workerApi: 1; entry: "worker.cjs" };
-export type Installation = WorkerManifest & { directory: string; sha256: string; enabled: boolean };
+export type WorkerManifest = { id: string; version: string; workerApi?: 1; entry?: "worker.cjs"; ui?: UiManifest };
+export type Installation = WorkerManifest & { directory: string; sha256: string; revision: string; uiHashes?: Record<string, string>; enabled: boolean };
 export type Receipt = { job: ConversionJob; fingerprint: string; owner: string; installation: Installation; staging?: string;
   status: "running" | "success" | "error" | "cancelled" | "uncertain" };
 export const digest = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");
 function workerManifest(value: unknown): WorkerManifest {
   const manifest = value as WorkerManifest;
   if (!manifest || typeof manifest.id !== "string" || !/^[a-z][a-z0-9-]{0,63}$/u.test(manifest.id) ||
-      typeof manifest.version !== "string" || !/^[\w.+-]{1,128}$/u.test(manifest.version) || manifest.workerApi !== 1 || manifest.entry !== "worker.cjs") {
+      typeof manifest.version !== "string" || !/^[\w.+-]{1,128}$/u.test(manifest.version) ||
+      (manifest.entry !== undefined || manifest.workerApi !== undefined ? manifest.workerApi !== 1 || manifest.entry !== "worker.cjs" : !manifest.ui)) {
     throw new Error("Invalid worker manifest or incompatible worker Host API (expected 1).");
   }
-  return { id: manifest.id, version: manifest.version, workerApi: manifest.workerApi, entry: manifest.entry };
+  if (manifest.ui !== undefined && (!manifest.ui || manifest.ui.api !== PLUGIN_UI.api || manifest.ui.reactMajor !== PLUGIN_UI.reactMajor ||
+      manifest.ui.script !== PLUGIN_UI.script || (manifest.ui.style !== undefined && manifest.ui.style !== PLUGIN_UI.style))) {
+    throw new Error("Invalid UI manifest or incompatible UI Host API / React major.");
+  }
+  return { id: manifest.id, version: manifest.version, workerApi: manifest.workerApi, entry: manifest.entry,
+    ...(manifest.ui ? { ui: { api: manifest.ui.api, reactMajor: manifest.ui.reactMajor, script: manifest.ui.script, ...(manifest.ui.style ? { style: manifest.ui.style } : {}) } } : {}) };
 }
 export function requestUuid(value: unknown): string {
   if (typeof value !== "string" || !/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/iu.test(value)) throw new Error("A request UUID is required.");
@@ -40,26 +47,43 @@ export class PluginStore {
     catch (error) { this.db.exec("ROLLBACK"); throw error; }
   }
   list(): Installation[] { return this.db.prepare("SELECT value FROM plugins ORDER BY id").all().map(row => JSON.parse(row.value as string)); }
-  register(manifestFile: string, onlyIfMissing = false): Installation {
+  register(manifestFile: string, onlyIfMissing = false, checkPath: (file: string) => void = () => {}): Installation {
     const manifest = workerManifest(JSON.parse(readFileSync(manifestFile, "utf8")));
-    const bytes = readFileSync(path.join(path.dirname(manifestFile), manifest.entry)), sha256 = digest(bytes);
-    const directory = path.join(this.directory, "installed", sha256);
+    const files = new Map<string, Buffer>();
+    for (const name of [manifest.entry, manifest.ui?.script, manifest.ui?.style]) if (name) {
+      const file = path.join(path.dirname(manifestFile), name); checkPath(file);
+      files.set(name, readFileSync(file));
+    }
+    const sha256 = digest(files.get("worker.cjs") ?? "");
+    const uiHashes = manifest.ui ? Object.fromEntries([...files].filter(([name]) => name !== "worker.cjs").map(([name, bytes]) => [name, digest(bytes)])) : undefined;
+    const revision = digest(JSON.stringify({ manifest, sha256, uiHashes }));
+    const directory = path.join(this.directory, "installed", revision);
     mkdirSync(path.dirname(directory), { recursive: true });
     const temporary = `${directory}.${randomUUID()}.tmp`;
     mkdirSync(temporary);
     try {
-      writeFileSync(path.join(temporary, "worker.cjs"), bytes, { flag: "wx" });
+      for (const [name, bytes] of files) writeFileSync(path.join(temporary, name), bytes, { flag: "wx" });
       try { renameSync(temporary, directory); }
       catch (error) { if (!existsSync(directory)) throw error; }
-      if (digest(readFileSync(path.join(directory, "worker.cjs"))) !== sha256) throw new Error("Installed worker hash mismatch.");
+      for (const [name, bytes] of files) if (digest(readFileSync(path.join(directory, name))) !== digest(bytes)) throw new Error("Installed plugin hash mismatch.");
     } finally { rmSync(temporary, { recursive: true, force: true }); }
     return this.transaction(() => {
       const existing = this.list().find(item => item.id === manifest.id);
       if (onlyIfMissing && existing) return existing;
-      const value: Installation = { ...manifest, directory, sha256, enabled: true };
+      const value: Installation = { ...manifest, directory, sha256, revision, uiHashes, enabled: true };
       this.db.prepare("INSERT OR REPLACE INTO plugins VALUES (?, ?)").run(manifest.id, JSON.stringify(value));
       return value;
     });
+  }
+  uiList(): UiRegistration[] {
+    return this.list().filter(item => item.enabled && item.ui).map(item => ({ id: item.id, revision: item.revision, ui: item.ui! }));
+  }
+  uiAsset(id: string, revision: string, name: string): Buffer {
+    const item = this.list().find(item => item.id === id && item.enabled && item.revision === revision);
+    if (!item?.ui || (name !== item.ui.script && name !== item.ui.style) || !item.uiHashes?.[name]) throw new Error("UI plugin asset is unavailable.");
+    const bytes = readFileSync(path.join(item.directory, name));
+    if (digest(bytes) !== item.uiHashes[name]) throw new Error("Installed UI asset hash mismatch.");
+    return bytes;
   }
   unregister(id: string): void {
     this.transaction(() => {
@@ -116,7 +140,8 @@ export class PluginStore {
       const installation = this.list().find(item => item.id === "docling" && item.enabled);
       if (!installation) throw new Error("The Docling worker plugin is not registered.");
       workerManifest(installation);
-      if (!/^[a-f\d]{64}$/u.test(installation.sha256) || installation.directory !== path.join(this.directory, "installed", installation.sha256)) throw new Error("Invalid installed worker location.");
+      if (!installation.entry || !/^[a-f\d]{64}$/u.test(installation.sha256) || !/^[a-f\d]{64}$/u.test(installation.revision) ||
+        installation.directory !== path.join(this.directory, "installed", installation.revision)) throw new Error("Invalid installed worker location.");
       const receipt: Receipt = { job, fingerprint, owner: this.owner, installation, status: "running" };
       this.save(receipt);
       return { receipt, fresh: true };
