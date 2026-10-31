@@ -23,6 +23,13 @@
 - Start-up/CLI path verification: 2026-10-15 (#287 unit tests for refusal before path I/O and valid Unicode names; Desktop tested without Electron).
 - Scope: Windows x64 per-user Electron/NSIS app, Stable/Beta updates and local/CI packaging. Publication requires an owner-authorized release and manual workflow dispatch from master; no separate environment approval is required after validation succeeds.
 
+Docling conversion uses the shared [Host worker runtime](plugin-runtime-v1.md).
+The CLI distribution ships the self-contained worker beside its Editor assets;
+Desktop copies that trusted bundle to the common user installation before first
+conversion. It forks the installed copy with RunAsNode, retains in-process
+`ieumdoc://app` routing and stops local workers after the ordinary close gate.
+The packaged CI smoke exercises this actual path with synthetic REST.
+
 ## Open folders in File Explorer (#487)
 
 The Desktop preload exposes `openFolderInExplorer` as the Host capability, plus

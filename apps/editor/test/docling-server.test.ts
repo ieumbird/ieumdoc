@@ -10,12 +10,15 @@ import { RootAccess } from "../server/file-access.ts";
 import { handleDocumentRequest } from "../server/document-api.ts";
 import { listenForFetch } from "../../../test/helpers/fetch-server.ts";
 import { fakeDoclingServer } from "./helpers/docling-server.ts";
+import { buildDoclingWorker } from "../../../packages/cli/scripts/build-docling-worker.ts";
+import { INCOMPLETE } from "../server/plugin-output.ts";
 
 test("shared Host persists device settings, checks the real HTTP service and safely completes, fails and cancels conversion", async t => {
   const root = mkdtempSync(path.join(tmpdir(), "ieumdoc-docling-host-"));
   const allowed = path.join(root, "allowed"); mkdirSync(allowed);
   const settings = path.join(root, "settings", "docling.json");
-  const access = new RootAccess([allowed]), docling = createDoclingHost(access, settings);
+  await buildDoclingWorker(path.join(root, "worker"));
+  const access = new RootAccess([allowed]), docling = createDoclingHost(access, settings, { directory: path.join(root, "plugins"), manifest: path.join(root, "worker", "manifest.json") });
   const fake = await fakeDoclingServer();
   const host = createServer((req, res) => { void handleDocumentRequest(req, res, () => { res.statusCode = 404; res.end(); }, access, 4096, undefined, undefined, docling); });
   await listenForFetch(host);
@@ -43,6 +46,7 @@ test("shared Host persists device settings, checks the real HTTP service and saf
   assert.equal((await send("conversion", "POST", { path: outside })).status, 403);
   assert.equal(fake.submissions(), 0);
   const existing = path.join(allowed, "paper.docling"); mkdirSync(existing); writeFileSync(path.join(existing, "keep"), "keep");
+  writeFileSync(path.join(existing, INCOMPLETE), "a previous interrupted publication");
   const wait = async () => {
     for (let i = 0; i < 200; i++) { const job = docling.current()!; if (job.state !== "running") return job; await delay(25); }
     throw new Error("Host conversion did not finish");

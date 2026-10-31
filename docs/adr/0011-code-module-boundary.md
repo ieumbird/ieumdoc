@@ -2,13 +2,14 @@
 
 - Status: Accepted
 - Decision date: 2026-10-30
-- Last verified: 2026-10-31 (documentation-only partial supersession by ADR-0012; no new runtime verification).
+- Last verified: 2026-10-31 (#853 Host worker contract and synthetic execution/crash tests; UI connections remain static).
 - Previous verification: 2026-10-30 (Docling module/CLI, comparison tab/reading surface and shared Host; package boundary and browser tests).
 - Authority: owner decisions in [Discussion #766](https://github.com/ieumbird/ieumdoc/discussions/766) and [Discussion #767](https://github.com/ieumbird/ieumdoc/discussions/767), under [AGENTS.md](../../AGENTS.md).
 - Superseded in part: [ADR-0012](0012-plugin-runtime-and-ui-contributions.md) replaces the static/no-registration/no-dynamic-loading boundary and extends process-local-only conversion state with shared request records. The remaining boundaries stay Accepted.
 
 The static connections and transient-task text below preserve the original
-decision and still describe the Implemented contracts. For the approved runtime
+decision. #853 replaces Host execution with the
+[worker contract](../design/plugin-runtime-v1.md); UI connections remain static. For the approved runtime
 plugin direction, the superseding parts of ADR-0012 take precedence; adoption
 requires its conditions and corresponding contract updates.
 

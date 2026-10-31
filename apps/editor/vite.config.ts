@@ -5,6 +5,7 @@ import { LOCAL_FILE_ACCESS } from "./server/file-access.ts";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type ViteDevServer } from "vite";
+import { buildDoclingWorker } from "../../packages/cli/scripts/build-docling-worker.ts";
 
 export default defineConfig({
   // Prebundle the lazy renderer/worker dependencies without fetching them until needed.
@@ -20,7 +21,8 @@ export default defineConfig({
     tailwindcss(),
     {
       name: "ieumdoc-document",
-      configureServer(server: ViteDevServer) {
+      async configureServer(server: ViteDevServer) {
+        await buildDoclingWorker(fileURLToPath(new URL("../../tmp/docling-worker", import.meta.url)));
         const assetSigningKey = randomBytes(32);
         let docling: Promise<ReturnType<typeof import("./server/docling.ts").createDoclingHost>> | undefined;
         const doclingHost = () => docling ??= server.ssrLoadModule("/server/docling.ts").then(mod => mod.createDoclingHost());
@@ -39,7 +41,7 @@ export default defineConfig({
             });
             return;
           }
-          if (url !== "/api/docling-settings" && url !== "/api/docling-check" && url !== "/api/docling-conversion" && url !== "/api/file" && url !== "/api/bibliography" && url !== "/api/file-preview" && url !== "/api/document" && url !== "/api/folder" && url !== "/api/folder-browse" && url !== "/api/folder-places" && url !== "/api/document-source" && url !== "/api/docling-compare" && url !== "/api/figure-validation" && !url.startsWith("/document/")) {
+          if (url !== "/api/worker-plugins" && url !== "/api/docling-settings" && url !== "/api/docling-check" && url !== "/api/docling-conversion" && url !== "/api/file" && url !== "/api/bibliography" && url !== "/api/file-preview" && url !== "/api/document" && url !== "/api/folder" && url !== "/api/folder-browse" && url !== "/api/folder-places" && url !== "/api/document-source" && url !== "/api/docling-compare" && url !== "/api/figure-validation" && !url.startsWith("/document/")) {
             next();
             return;
           }

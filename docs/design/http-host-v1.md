@@ -17,8 +17,10 @@ Docling configuration and PDF conversion run on this Host under its fixed Root
 policy. HTTP clients share the Host user's server address; they do not call a
 Docling service on the browser device. See the
 [app conversion contract](docling-conversion-v1.md#app-pdf-conversion-797) and
-[Korean administrator guide](../guides/docling-server.md). One process-local task
-is not a persistent queue or document backend.
+[Korean administrator guide](../guides/docling-server.md). Worker admission,
+shared installation/request receipts and uncertain/no-replay
+recovery follow [Host worker plugins](plugin-runtime-v1.md), under ADR-0012.
+The process-local current snapshot is not a persistent queue or document backend.
 
 ## Build and run
 

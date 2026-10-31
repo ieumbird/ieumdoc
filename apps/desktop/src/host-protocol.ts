@@ -17,7 +17,7 @@ export const SCHEME = "ieumdoc";
 export const ORIGIN = `${SCHEME}://app`;
 
 /** The Host routes the Vite dev server forwards, with the same handlers. */
-const DOCUMENT_ROUTES = new Set(["/api/docling-settings", "/api/docling-check", "/api/docling-conversion", "/api/file", "/api/bibliography", "/api/file-preview", "/api/document", "/api/folder", "/api/folder-browse", "/api/folder-places", "/api/document-source", "/api/docling-compare", "/api/figure-validation"]);
+const DOCUMENT_ROUTES = new Set(["/api/worker-plugins", "/api/docling-settings", "/api/docling-check", "/api/docling-conversion", "/api/file", "/api/bibliography", "/api/file-preview", "/api/document", "/api/folder", "/api/folder-browse", "/api/folder-places", "/api/document-source", "/api/docling-compare", "/api/figure-validation"]);
 
 type NodeResponse = { statusCode: number; setHeader(name: string, value: string): void; end(data?: string | Buffer): void };
 type Handler = (req: IncomingMessage, res: ServerResponse, notFound: () => void) => Promise<void> | void;
@@ -54,12 +54,12 @@ export type FirstDocument = { document?: string } & SampleAvailability;
  * started with or, without one, a start without a document that offers the sample. The
  * development server's default file is not part of the app.
  */
-export function createProtocolHandler(editorDir: string, first: FirstDocument, trashItem: (file: string) => Promise<void> = async () => { throw new Error("OS trash is unavailable."); }, onListedRoot?: (root: string) => void): (request: Request) => Promise<Response> {
+export function createProtocolHandler(editorDir: string, first: FirstDocument, trashItem: (file: string) => Promise<void> = async () => { throw new Error("OS trash is unavailable."); }, onListedRoot?: (root: string) => void) {
   // Lives as long as this process, as the development server's key does.
   const assetSigningKey = randomBytes(32);
   const docling = createDoclingHost();
   const sampleAvailability: SampleAvailability = { samples: first.samples, sampleProblem: first.sampleProblem };
-  return async (request) => {
+  const handle = async (request: Request) => {
     const url = new URL(request.url);
     if (url.protocol !== `${SCHEME}:` || url.host !== "app") return notFound();
     let query: URLSearchParams;
@@ -89,4 +89,5 @@ export function createProtocolHandler(editorDir: string, first: FirstDocument, t
     if (request.method !== "GET" && request.method !== "HEAD") return new Response(null, { status: 405, headers: SECURITY_HEADERS });
     return serveEditorFile(editorDir, url.pathname);
   };
+  return Object.assign(handle, { close: () => docling.close() });
 }

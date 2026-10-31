@@ -470,3 +470,44 @@ folder; captures are in `tmp/docling-797-captures`. The caller owns the external
 service's startup/model preparation and cleanup. Ordinary `--screenshots` uses
 the fake service to collect Settings success/failure, PDF-menu, progress and
 completion Light/Korean/Dark review states separately from normal CI assertions.
+
+## Docling worker runtime (#853)
+
+Automated synthetic checks (no local Docling server):
+
+```powershell
+pnpm exec tsx --test apps/editor/test/plugin-runtime.test.ts apps/editor/test/docling-server.test.ts apps/desktop/test/host-protocol.test.ts
+pnpm browser:test docling-server docling-compare
+```
+
+The [runtime contract](../design/plugin-runtime-v1.md) describes the assertions,
+shared installation and crash leftovers. Tests isolate `IEUMDOC_PLUGINS_DIR` and
+`IEUMDOC_DOCLING_SETTINGS_FILE`. For a caller-owned Vite server set both variables
+before starting it, use port 5282, then set `IEUMDOC_BROWSER_URL` for the runner.
+Both scenarios explicitly set their UI language; reuse the checkout's persistent
+profile. Shut down the caller-owned server after the runner closes its browser.
+Offline CLI and packaged Desktop worker conversion smoke tests run in required
+Windows/Linux and Windows package CI respectively. On this Windows development
+PC do not run Desktop packaging, update/uninstall or Edge for #853.
+
+Manual acceptance against an operator's existing **real** pinned Docling service:
+
+1. Use a separate `IEUMDOC_PLUGINS_DIR`/settings file and a disposable copy of a
+   known PDF. Record original PDF/JSON hashes. Start Desktop or `ieumdoc serve`
+   with the same OS user/installation; do not launch a Docling service from this
+   repository's test or agent workflow.
+2. In the unchanged Docling Settings check the server, convert from the PDF menu
+   or Command Center, and confirm progress, complete source/native bundle and
+   automatic comparison. Check the conversion record's image/content integrity,
+   canonical Core reopen and unchanged original hashes. Record task ID/server
+   versions and separately judge OCR/content fidelity.
+3. Register the same trusted manifest through Desktop's `/api/worker-plugins` and
+   execute a conversion through independent `serve` with the same plugin folder.
+   Disable while pending: accepted work drains, new UUIDs are refused. Restore
+   registration afterward. This is not cross-Host cancellation or shared UI state.
+4. Record remaining real-service/model/capacity errors without claiming synthetic
+   tests proved them. A stopped worker may leave an external server task running;
+   inspect it using the task ID before explicitly submitting a new UUID.
+
+Real-service verification was not run for #853. Required packaged CI establishes
+packaged execution; operator environment and visual/OCR fidelity remain manual.

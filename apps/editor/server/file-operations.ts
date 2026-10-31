@@ -8,6 +8,7 @@ import { loadDocumentFile, MEDIA_TYPES } from "./document-api.ts";
 import { resolveMediaPath } from "./document-path.ts";
 import { readModel } from "./document-replay.ts";
 import { figureMediaPath } from "../shared/figure-media-path.ts";
+import { isPrivatePluginPath } from "./plugin-output.ts";
 
 export class ReferencedImageError extends Error {
   constructor(readonly references: string[]) { super(`Save these documents before renaming the image: ${references.join(", ")}`); }
@@ -73,7 +74,10 @@ function imageReferences(root: string, file: string, destination: string, openDo
   const scan = (folder: string) => {
     for (const entry of fs.readdirSync(accessPath(folder, access), { withFileTypes: true })) {
       const target = path.join(folder, entry.name);
-      if (entry.isDirectory()) scan(target);
+      if (entry.isDirectory()) {
+        if (isPrivatePluginPath(target)) continue;
+        scan(target);
+      }
       else if (entry.isFile() && path.extname(entry.name).toLowerCase() === ".md") {
         let loaded: ReturnType<typeof loadDocumentFile>;
         try { loaded = loadDocumentFile(target, access); }

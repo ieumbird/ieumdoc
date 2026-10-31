@@ -13,6 +13,8 @@ import { openDocument, openFolderPicker, reloadDocument } from "../../../editor/
 import { recoveryRecords, resetRecovery } from "../../../editor/test/browser/recovery-records.ts";
 import { processTree } from "./process-tree.ts";
 import { captionPixels } from "./caption-pixels.ts";
+import { fakeDoclingServer } from "../../../editor/test/helpers/docling-server.ts";
+import { verifyPackagedWorker } from "../../../../test/helpers/plugin-conversion.ts";
 
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const repo = path.resolve(desktop, "../..");
@@ -44,8 +46,9 @@ function documentFolder(name: string): { folder: string; file: string } {
   return { folder, file };
 }
 
-async function launch(userData: string, args: string[] = []): Promise<{ app: ElectronApplication; page: Page; requests: string[] }> {
-  const app = await electron.launch({ executablePath: exe, args: ["--lang=en-US", `--user-data-dir=${userData}`, ...args], timeout: 60_000 });
+async function launch(userData: string, args: string[] = [], environment: Record<string, string> = {}): Promise<{ app: ElectronApplication; page: Page; requests: string[] }> {
+  const env = Object.fromEntries(Object.entries({ ...process.env, ...environment }).filter((entry): entry is [string, string] => entry[1] !== undefined));
+  const app = await electron.launch({ executablePath: exe, args: ["--lang=en-US", `--user-data-dir=${userData}`, ...args], env, timeout: 60_000 });
   const page = await app.firstWindow();
   // The app, not Playwright, answers beforeunload (will-prevent-unload); a listener stops Playwright's auto-dismiss.
   page.on("dialog", () => {});
@@ -99,6 +102,28 @@ async function closeApp(app: ElectronApplication): Promise<void> {
     if (timer) clearTimeout(timer);
   }
 }
+
+test("packaged in-process Host forks its shipped Docling worker and opens a complete native comparison", async () => {
+  const userData = profile("docling-worker"), folder = path.join(work, "docling-worker");
+  rmSync(folder, { recursive: true, force: true }); mkdirSync(folder, { recursive: true });
+  const fake = await fakeDoclingServer();
+  let app: ElectronApplication | undefined;
+  try {
+    const launched = await launch(userData, [], { IEUMDOC_PLUGINS_DIR: path.join(folder, "plugins"), IEUMDOC_DOCLING_SETTINGS_FILE: path.join(folder, "settings.json") });
+    app = launched.app;
+    await verifyPackagedWorker(async (endpoint, method = "GET", body) => {
+      const response = await launched.page.evaluate(async ({ endpoint, method, body }) => {
+        const response = await fetch(`/api/${endpoint}`, { method,
+          ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }) });
+        return { status: response.status, text: await response.text() };
+      }, { endpoint, method, body });
+      return new Response(response.text, { status: response.status });
+    }, folder, fake.url);
+  } finally {
+    if (app) await closeApp(app);
+    await fake.close();
+  }
+});
 
 test("started without a document, it opens none; the sample opens with its figure from ieumdoc://app when chosen", async () => {
   const userData = profile("sample");

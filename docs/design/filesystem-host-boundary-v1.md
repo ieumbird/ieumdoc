@@ -57,8 +57,12 @@ OS action, with no document write, Core semantic operation or CLI parity command
 ## Docling execution (#797)
 
 The shared handler exposes the Docling device setting, connection check and one
-transient conversion in Vite, Desktop and HTTP Host. Module REST calls execute
-only on the Host. PDF input and new sibling output use existing Root/real-path
+current conversion snapshot in Vite, Desktop and HTTP Host. Module REST calls
+execute in a separate worker under [Host worker plugins](plugin-runtime-v1.md).
+Registration and request receipts in the common user installation are the only
+additional durable Host state allowed by ADR-0012. Private staging and marked
+incomplete output are refused on every ordinary file surface, including aliases.
+PDF input and new sibling output use existing Root/real-path
 checks, repeated before publication. The settings file is selected by the Host,
 never a browser-supplied filesystem path. See the
 [conversion contract](docling-conversion-v1.md#app-pdf-conversion-797) for routes,
