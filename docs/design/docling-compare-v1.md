@@ -1,7 +1,7 @@
 # Docling comparison v1
 
 - Status: Implemented
-- Last verified: 2026-10-30
+- Last verified: 2026-10-31 (#815 fixed Read surface and reverse correspondence).
 - Authority: owner decisions in [#766](https://github.com/ieumbird/ieumdoc/discussions/766), [#767](https://github.com/ieumbird/ieumdoc/discussions/767), [#769](https://github.com/ieumbird/ieumdoc/issues/769), under [ADR-0011](../adr/0011-code-module-boundary.md).
 
 The sidebar footer's **Docling comparison** action, above Settings, opens the shared folder picker for
@@ -33,11 +33,30 @@ shows its source ref, status, reason and conversion notes, and reveals the targe
 when the map matches. Counts include every map item, including groups and items
 without provenance; only elements with provenance have source boxes.
 
-The right pane reuses Editor's existing schema, projection and read-only NodeViews
-for the public Core read model: lists, tables, equations, figures and endnotes.
-An engine transaction filter rejects document changes. The module gets block and
-recursive list-item positions through a callback, never Editor DOM. The Endnotes
+The right pane uses the ordinary `DocumentEditor` in its fixed **Read** mode
+([#849](editor-ux-shell-v1.md#read--edit--source-849)), with no Read/Edit/Source
+switches in the comparison group's tab row. It reuses block hover, selection,
+keyboard movement, text selection/copy and reading previews. Authoring controls
+are hidden, and the same engine transaction filter rejects document changes.
+The shell's thin reading-surface adapter supplies the public Core read model;
+the module receives only block/recursive list-item positions and the current
+snapshot selection key through callbacks, never Editor DOM or engine types.
+All source matching, source inspection state and scrolling stay in `packages/docling`.
+The Endnotes
 action reveals trailing definitions. Source notes retain their original language.
+
+Selecting a converted block (or placing the reading caret in it) highlights its
+source bboxes and visible connections, shows conversion notes and reveals its
+first provenance region, even with synchronized scrolling off. Multiple source
+items merged into one target are selected together. A list caret addresses its
+specific recursive item; a whole-list selection addresses its items. Direct
+block/list/endnote targets take precedence over container groups, captions and
+picture-pixel descendants, so selecting a picture does not expand all its internal
+text mappings. Source-side selection still inspects individual descendants and
+reveals the document target without changing the engine selection. Clicking the
+same document block again restores its source selection. A text range or a target
+without a matching source clears the previous source highlight. Stale maps never
+follow right-side selections. The map v1 format remains unchanged.
 
 Visible regions connect to visible document targets. Scroll synchronization is on
 by default. Picture descendants mapped as `image-content` share the picture's
@@ -99,6 +118,35 @@ page. GC-normalized JavaScript heap grew from 50,772,516 to 69,500,812 bytes
 This is one local responsiveness observation, not a sustained 60fps or memory
 ceiling guarantee. The native document is rendered whole; page pixels and wires
 are viewport-bounded. IEEE content and screenshots are not committed.
+
+### Fixed Read and reverse selection (#815)
+
+The existing `docling-compare` scenario reproduced right-picture selection leaving
+page 1 in view instead of revealing page 9, and visible disabled view switches in
+the comparison header. It now covers fixed Read/no switches, figure/table/equation
+source selection, repeated figure selection after source-child inspection,
+ArrowLeft navigation, hover, typing/explicit-transaction rejection, recursive list
+caret selection/range clearing, sync-on selection and stale-map selection.
+Existing source-to-document, grouped picture links, scroll sync,
+endnotes and comparison-group assertions remain in that scenario. Docling unit
+coverage checks merged sources, recursive list keys and direct-target precedence.
+The ordinary `read-view` regression also reproduces and protects pointer caret
+movement from a selected preview: Edit's temporary non-editable-DOM guard must
+not trap the selection in actual Read.
+
+1440px English Light and 640px Korean Dark before/after captures use the same
+page, source selection and subsequent right-figure click. The after captures show the right figure
+selected together with its source bbox and highlighted connection. Alignment,
+clipping, Korean wrapping and shell containment are manually reviewed under the
+existing wide comparison exception; no mobile layout is introduced.
+[Capture conditions and hashes](assets/docling-compare-815/capture-metadata.json)
+record the baseline and rendering environment. Full local evidence remains in
+`tmp/815-evidence`; these captures are not owner visual approval.
+
+| Viewport / theme / language | Before | After |
+| --- | --- | --- |
+| 1440×1000 / light / English | [PNG](assets/docling-compare-815/before-1440-light-en.png) | [PNG](assets/docling-compare-815/after-1440-light-en.png) |
+| 640×1000 / dark / Korean | [PNG](assets/docling-compare-815/before-640-dark-ko.png) | [PNG](assets/docling-compare-815/after-640-dark-ko.png) |
 
 ### Comparison polish (#799)
 

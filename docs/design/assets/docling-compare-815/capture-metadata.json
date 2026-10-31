@@ -1,0 +1,53 @@
+{
+  "baseline": "6ac78e4ea839b8ba235a9ec043ae1d55cc27f816",
+  "capturedAt": "2026-10-31T04:04:14.4117376Z",
+  "browser": "Windows Chrome, repository persistent profile",
+  "deviceScaleFactor": 1,
+  "zoom": "100%",
+  "fonts": "Bundled Pretendard; document.fonts.ready awaited",
+  "source": "Public NIST sp1108r4 conversion fixture",
+  "state": "Sync off, source page 9 at top, source picture #/pictures/6 selected, then right figure clicked; pointer moved off document",
+  "reproduction": "pnpm browser:test docling-compare --screenshots (IEUMDOC_BROWSER_URL=http://127.0.0.1:5281)",
+  "captures": [
+    {
+      "file": "after-1440-light-en.png",
+      "sha256": "215009ec5ff6c311145313414a957539b8dbb98524da3f6af4b25b506a9cce53",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "theme": "light",
+      "language": "en"
+    },
+    {
+      "file": "after-640-dark-ko.png",
+      "sha256": "1f3cc050dd0efbc1f59621cfc41762363713de298cfd0f29c40ee8e5186e7458",
+      "viewport": [
+        640,
+        1000
+      ],
+      "theme": "dark",
+      "language": "ko"
+    },
+    {
+      "file": "before-1440-light-en.png",
+      "sha256": "191313868376973feb478ec7f86acdc98d7e71ffad42f0ed31d1277c49a9c954",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "theme": "light",
+      "language": "en"
+    },
+    {
+      "file": "before-640-dark-ko.png",
+      "sha256": "c2e3515e36f4a1ce9b377820212719abe6b300c6e74013c47069ed596be80d5f",
+      "viewport": [
+        640,
+        1000
+      ],
+      "theme": "dark",
+      "language": "ko"
+    }
+  ]
+}

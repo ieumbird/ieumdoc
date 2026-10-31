@@ -1,4 +1,5 @@
 import { DocumentSettings, type DocumentSettingsHandle } from "./shell/DocumentSettings.tsx";
+import { useDocumentReading, type ReadingCallbacks } from "./document-reading.ts";
 import { NumberingNotice } from "./numbering-properties.tsx";
 import { documentScrollContainer } from "./document-scroll.ts";
 import type { OverlayAnchor } from "./ui/use-overlay-bounds.ts";
@@ -107,7 +108,7 @@ function caretRoom(paper: RefObject<HTMLElement | null>, side: number) {
   };
 }
 
-type DocumentEditorProps = {
+type DocumentEditorProps = ReadingCallbacks & {
   /** Reuse rendering/navigation while keeping forms and history alive. */
   readOnly?: boolean;
   settingsExpanded?: boolean;
@@ -140,7 +141,7 @@ type DocumentEditorProps = {
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { readOnly = false, settingsExpanded = false, onSettingsExpandedChange, settingsDisabled = false, document, bibliography, initialSnapshot, documentPath, onStructuralReject, onNotice, onDraftChange, onAssetPendingChange, onAssetError, onAssetChange, onDirtyChange, onAppliedEdit, onSaveLocationsChange, onHeadingNumberingChange, onReferenceTemplatesChange, validateFigure, chooseImage, renameImage, onOutlineChange },
+  { readOnly = false, onReadingLayout, onReadingSelection, settingsExpanded = false, onSettingsExpandedChange, settingsDisabled = false, document, bibliography, initialSnapshot, documentPath, onStructuralReject, onNotice, onDraftChange, onAssetPendingChange, onAssetError, onAssetChange, onDirtyChange, onAppliedEdit, onSaveLocationsChange, onHeadingNumberingChange, onReferenceTemplatesChange, validateFigure, chooseImage, renameImage, onOutlineChange },
   ref,
 ) {
   useTranslation();
@@ -399,6 +400,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
     };
   });
   const editor = useEditor(editorOptions);
+  useDocumentReading(editor, host, { onReadingLayout, onReadingSelection });
   useLayoutEffect(() => {
     if (!editor || editor.isEditable === !readOnly) return;
     editor.setEditable(!readOnly, false);

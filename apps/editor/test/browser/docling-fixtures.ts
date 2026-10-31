@@ -16,6 +16,14 @@ export function comparisonFiles() {
       };
       source.tables![0].footnotes = [add("footnote", "1 Synthetic explicit table endnote.", 620)];
       add("text", "", 650);
+      // Declared source-only supplement for recursive list selection in comparison.
+      const outer = add("list_item", "Synthetic outer item", 680), nested = add("list_item", "Synthetic nested item", 700);
+      const groups = source.groups ??= [], outerGroup = { $ref: `#/groups/${groups.length}` }, nestedGroup = { $ref: `#/groups/${groups.length + 1}` };
+      Object.assign(source.texts!.at(-2)!, { marker: "3)", enumerated: true, parent: outerGroup, children: [nestedGroup] });
+      Object.assign(source.texts!.at(-1)!, { marker: "b)", enumerated: true, parent: nestedGroup });
+      groups.push({ self_ref: outerGroup.$ref, label: "ordered_list", parent: { $ref: "#/body" }, children: [outer] },
+        { self_ref: nestedGroup.$ref, label: "list", parent: outer, children: [nested] });
+      source.body!.children!.splice(-2, 2, outerGroup);
     }
     const record = JSON.parse(readFileSync(new URL("conversion-record.json", root), "utf8")) as { images: { path: string }[] };
     const images = record.images.map(image => image.path);

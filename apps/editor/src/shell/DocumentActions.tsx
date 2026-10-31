@@ -12,6 +12,8 @@ import type { DocumentView } from "./TopBar.tsx";
 type DocumentActionsProps = {
   documentPath: string;
   textMode?: boolean;
+  /** Fixed reading surfaces have no view, width or outline controls. */
+  hideViewControls?: boolean;
   wide?: boolean;
   onToggleWide?(): void;
   status: Operation;
@@ -43,7 +45,7 @@ type DocumentActionsProps = {
 
 /** Actions and status of this tab row's active document. */
 export function DocumentActions({
-  documentPath, textMode, wide, onToggleWide, status, unsaved = false, draftNotice = "", view, viewDisabled, onViewChange, saveDisabled,
+  documentPath, textMode, hideViewControls, wide, onToggleWide, status, unsaved = false, draftNotice = "", view, viewDisabled, onViewChange, saveDisabled,
   onSave, onCompare, compareDisabled, onReload, reloadDisabled, onCopyPath, fileActionsRef,
   outline, onToggleOutline, outlineToggleRef, compact: groupCompact = false, onOpenRight, onMove, openRightDisabled, moveDisabled,
 }: DocumentActionsProps) {
@@ -83,7 +85,7 @@ export function DocumentActions({
     : status.endsWith("failed") || status === "save-conflict" ? TriangleAlert : LoaderCircle;
   return (
     <div className="top-bar-actions" data-compact={compact || undefined}>
-      {!textMode ? <div className="top-bar-group" role="group" aria-label={i18n.t("View controls")}>
+      {!textMode && !hideViewControls ? <div className="top-bar-group" role="group" aria-label={i18n.t("View controls")}>
         <div className="view-toggle" role="group" aria-label={i18n.t("Document view")}>
           <Button type="button" variant="ghost" size="sm" className="view-toggle-option"
             aria-pressed={view === "read"} onClick={() => onViewChange("read")} disabled={viewDisabled}

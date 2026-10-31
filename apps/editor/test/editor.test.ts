@@ -1,7 +1,6 @@
 import { listenForFetch } from "../../../test/helpers/fetch-server.ts";
 import { allocateBlockPath } from "../src/block-locators.ts";
 import { prepareEditorSnapshot } from "../src/editor-snapshot.ts";
-import { readOnlyDocumentPlugin } from "../src/read-only-document.ts";
 import { recoveryText, type RecoveryRecord } from "../src/recovery-storage.ts";
 import { prepareRecovery } from "../src/recovery-restore.ts";
 import type { DocumentSessionSnapshot } from "../src/useDocumentSession.ts";
@@ -124,24 +123,13 @@ test("Host file loading exposes the Core read model", () => {
   );
 });
 
-test("one editing engine owns each document; the comparison has a separate read-only surface", () => {
+test("ordinary and comparison documents reuse the same editing engine owner", () => {
   const files = listSourceFiles(path.join(editorRoot, "src"));
   const owners = files.filter((file) => /\buseEditor\s*\(/.test(readFileSync(file, "utf8")));
   assert.deepEqual(
     owners.map((file) => path.basename(file)),
-    ["DocumentEditor.tsx", "ReadOnlyDocument.tsx"],
+    ["DocumentEditor.tsx"],
   );
-});
-
-test("comparison rejects engine document changes while allowing reading selection", () => {
-  const schema = getSchema(editorExtensions());
-  const doc = schema.nodeFromJSON(toTiptapDocument(loadEditableDocument(source)));
-  const state = EditorState.create({ schema, doc, plugins: [readOnlyDocumentPlugin()] });
-  assert.equal(state.applyTransaction(state.tr.insertText("Cannot write", 1)).transactions.length, 0);
-  assert.equal(state.applyTransaction(state.tr.setDocAttribute("title", "Cannot write")).transactions.length, 0);
-  const selection = state.applyTransaction(state.tr.setSelection(TextSelection.create(doc, 1)));
-  assert.equal(selection.transactions.length, 1);
-  assert.equal(selection.state.doc, doc);
 });
 
 test("technical document projects to one typed Tiptap document", () => {

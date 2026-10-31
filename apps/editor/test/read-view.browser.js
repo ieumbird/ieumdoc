@@ -116,6 +116,8 @@ async (page, { openPath, expect, screenshots, recoveryRecords }) => {
   expect(await json()).toBe(applied);
 
   // Selection, arrow navigation, real copy and reading aids remain available.
+  await editor.locator('p').filter({hasText: 'Applied marker.'}).first().click({position:{x:5,y:10}});
+  await expect.poll(() => editor.evaluate(el => el.editor.state.selection.$from.parent.textContent.startsWith('Applied marker.'))).toBe(true);
   await panel.getByTestId('figure-image').click();
   expect(await editor.evaluate(el => el.editor.state.selection.constructor.name)).toBe('NodeSelection');
   await page.keyboard.press('ArrowLeft');

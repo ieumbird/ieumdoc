@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
-import { categories, categoryOf, pageRegion, scrollAnchors, scrollPosition, targetKey,
+import { categories, categoryOf, itemsForTarget, pageRegion, scrollAnchors, scrollPosition, targetKey,
   type ComparisonSnapshot, type DocumentPosition, type ReadingSurfaceProps } from "./compare.ts";
 import type { MapItem } from "./map.ts";
 import "./compare.css";
@@ -21,14 +21,14 @@ export function DoclingCompareView({ snapshot, ReadingSurface, Button, text, ima
   const [{ width, inset, gap }, setGeometry] = useState({ width: 400, inset: 16, gap: 16 });
   const [range, setRange] = useState<[number, number]>([0, 0]);
   const [sync, setSync] = useState(true);
-  const [selected, setSelected] = useState<MapItem>();
+  const [selected, setSelected] = useState<MapItem[]>([]);
   const [wires, setWires] = useState<Wire[]>([]);
   const [visibleNotes, setVisibleNotes] = useState<string[]>([]);
   const position = useRef<DocumentPosition>({ blocks: [], height: 0 });
   const geometryDirty = useRef(true);
   const blocksByKey = useRef(new Map<string, DocumentPosition["blocks"][number]>());
   const frame = useRef(0);
-  const suppressed = useRef<{ side: "left" | "right"; top: number } | undefined>(undefined);
+  const suppressed = useRef<Partial<Record<"left" | "right", number>>>({});
   const schedule = useRef(() => {});
   const onLayout = useCallback((value: DocumentPosition) => {
     position.current = value; blocksByKey.current = new Map(value.blocks.map(block => [block.key, block]));
@@ -75,13 +75,13 @@ export function DoclingCompareView({ snapshot, ReadingSurface, Button, text, ima
           if (geometryDirty.current && target.role !== "endnote" && target.role !== "group") points.push([sourceY, targetY]);
           // Picture pixels already represent these descendants. Keep every map entry/box,
           // but draw an individual correspondence only while that source item is selected.
-          if (target.role === "image-content" && entry.item !== selected) continue;
+          if (target.role === "image-content" && !selected.includes(entry.item)) continue;
           const y1 = sourceY - a.scrollTop, y2 = targetY - b.scrollTop;
           if (y1 < 0 || y1 > a.clientHeight || y2 < 0 || y2 > b.clientHeight) continue;
           const x1 = ar.left - hostRect.left + inset + (entry.region.left + entry.region.width) * width;
           const x2 = br.left - hostRect.left + block.left;
           const sy = ar.top - hostRect.top + y1, ty = br.top - hostRect.top + y2;
-          lines.push({ key: `${entry.key}:${targetKey(target)}`, category: categoryOf(entry.item), selected: entry.item === selected,
+          lines.push({ key: `${entry.key}:${targetKey(target)}`, category: categoryOf(entry.item), selected: selected.includes(entry.item),
             d: `M${x1},${sy} C${x1 + 32},${sy} ${x2 - 32},${ty} ${x2},${ty}` });
           if (target.role === "endnote" && target.label) notes.add(target.label);
         }
@@ -119,28 +119,43 @@ export function DoclingCompareView({ snapshot, ReadingSurface, Button, text, ima
   useLayoutEffect(() => { schedule.current(); }, [selected]);
   function scroll(side: "left" | "right") {
     const from = side === "left" ? left.current! : right.current!;
-    if (suppressed.current?.side === side && Math.abs(suppressed.current.top - from.scrollTop) < 1) {
-      suppressed.current = undefined; schedule.current(); return;
+    const expected = suppressed.current[side];
+    delete suppressed.current[side];
+    if (expected !== undefined && Math.abs(expected - from.scrollTop) < 1) {
+      schedule.current(); return;
     }
-    suppressed.current = undefined;
     if (sync && !stale) {
       const to = side === "left" ? right.current! : left.current!;
       to.scrollTop = scrollPosition(anchors.current, from.scrollTop, side === "right");
-      suppressed.current = { side: side === "left" ? "right" : "left", top: to.scrollTop };
+      suppressed.current[side === "left" ? "right" : "left"] = to.scrollTop;
     }
     schedule.current();
   }
   function reveal(item: MapItem) {
-    setSelected(item);
+    setSelected([item]);
     if (stale) return;
     const target = item.targets[0];
     const block = target && position.current.blocks.find(block => block.key === targetKey(target));
     if (block && right.current) {
       right.current.scrollTop = Math.max(0, block.top - 24);
-      suppressed.current = { side: "right", top: right.current.scrollTop };
+      suppressed.current.right = right.current.scrollTop;
       schedule.current();
     }
   }
+  const selectTarget = useCallback((key: string | undefined) => {
+    const items = key && !stale ? itemsForTarget(map.items, key) : [];
+    setSelected(items);
+    const prov = items.flatMap(item => item.provenance)[0];
+    const page = prov && pages.find(page => page.page_no === prov.page_no);
+    if (page && prov && left.current) {
+      const region = pageRegion(prov.bbox, page.size);
+      left.current.scrollTop = Math.max(0, page.top + region.top * page.height - 24);
+      // Engine navigation may have scrolled the right pane before reporting the
+      // selection. Neither that event nor this source reveal should sync back.
+      suppressed.current = { left: left.current.scrollTop, right: right.current?.scrollTop };
+    }
+    schedule.current();
+  }, [map, pages, stale]);
   function endnotes() {
     const block = snapshot.document.blocks.find(block => block.block === "footnote");
     const location = block && position.current.blocks.find(value => value.key === JSON.stringify(block.path));
@@ -162,7 +177,7 @@ export function DoclingCompareView({ snapshot, ReadingSurface, Button, text, ima
           {range[0] <= page.page_no && page.page_no <= range[1] ? <>
             {page.image?.uri ? <img alt={`${text("Source page")} ${page.page_no}`} src={imageUrl(page.image.uri)} /> : <span>{text("Page image unavailable")}</span>}
             {(itemsByPage.get(page.page_no) ?? []).map(({ item, region, key }) => <button key={key} type="button" className="docling-region"
-              data-category={categoryOf(item)} data-status={item.status} data-source-ref={item.self_ref} aria-pressed={selected === item}
+              data-category={categoryOf(item)} data-status={item.status} data-source-ref={item.self_ref} aria-pressed={selected.includes(item)}
               aria-label={`${item.label} · ${item.self_ref} · ${text(item.status)}`}
               title={[item.self_ref, item.label, item.reason, ...item.notes].filter(Boolean).join("\n")}
               style={{ left: `${region.left * 100}%`, top: `${region.top * 100}%`, width: `${region.width * 100}%`, height: `${region.height * 100}%` }}
@@ -171,15 +186,15 @@ export function DoclingCompareView({ snapshot, ReadingSurface, Button, text, ima
         </div>)}
       </div>
       <div className="docling-reading" ref={right} onScroll={() => scroll("right")} tabIndex={0} aria-label={text("Converted document")}>
-        <ReadingSurface document={snapshot.document} path={snapshot.path} onLayout={onLayout} />
+        <ReadingSurface document={snapshot.document} path={snapshot.path} onLayout={onLayout} onSelection={selectTarget} />
       </div>
       <svg className="docling-wires" aria-label={text("Visible correspondences")} data-link-count={wires.length}>
         {wires.map(wire => <path key={wire.key} d={wire.d} data-category={wire.category} data-selected={wire.selected} />)}
       </svg>
     </div>
     <div className="docling-details" aria-live="polite">
-      {selected ? <><strong>{selected.label} · {selected.self_ref} · {text(selected.status)}</strong> {selected.reason}
-        {selected.notes.map((note, index) => <span key={index}> · {note}</span>)}</> : text("Select a source region to inspect conversion notes.")}
+      {selected.length ? selected.map(item => <div key={item.self_ref}><strong>{item.label} · {item.self_ref} · {text(item.status)}</strong> {item.reason}
+        {item.notes.map((note, index) => <span key={index}> · {note}</span>)}</div>) : text("Select a source region to inspect conversion notes.")}
       {visibleNotes.length ? <span> · {text("Endnotes")}: {visibleNotes.join(", ")}</span> : null}
     </div>
   </section>;

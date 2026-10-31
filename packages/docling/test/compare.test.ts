@@ -4,7 +4,8 @@ import test from "node:test";
 import { convertDoclingDocument } from "../src/convert.ts";
 import { readDoclingMap } from "../src/map.ts";
 import { readComparison } from "../src/compare-host.ts";
-import { pageRegion, scrollAnchors, scrollPosition, targetKey } from "../src/compare.ts";
+import { itemsForTarget, pageRegion, scrollAnchors, scrollPosition, targetKey } from "../src/compare.ts";
+import type { MapItem, Target } from "../src/map.ts";
 
 test("page regions transform both origins and independent page dimensions", () => {
   const size = { width: 600, height: 800 };
@@ -29,4 +30,19 @@ test("comparison exposes stale source regions but ordinary map consumers still r
   assert.throws(() => readDoclingMap(json, `${result.markdown}\nChanged.\n`), /Stale/);
   const malformed = structuredClone(result.map); malformed.pages["1"].size.width = 0;
   assert.throws(() => readComparison("document.md", result.markdown, JSON.stringify(malformed)), /mapping page/);
+});
+
+test("reverse selection keeps merged sources and list-item precision without picture descendants", () => {
+  const item = (self_ref: string, role: Target["role"], path = [4], indexes?: number[]): MapItem => ({
+    self_ref, label: "text", content_layer: "body", parent: null, provenance: [], status: "converted", notes: [],
+    targets: [{ path, block: "paragraph", role, ...(indexes ? { item: indexes } : {}) }],
+  });
+  const a = item("a", "block"), b = item("b", "block");
+  const group = item("group", "group"), caption = item("caption", "caption"), pixels = item("pixels", "image-content");
+  assert.deepEqual(itemsForTarget([group, pixels, a, caption, b], "[4]"), [a, b]);
+  const first = item("first", "list-item", [5], [0]), nested = item("nested", "list-item", [5], [0, 1]);
+  assert.deepEqual(itemsForTarget([first, nested], "[5]:0.1"), [nested]);
+  assert.deepEqual(itemsForTarget([first, nested], "[5]"), [first, nested]);
+  assert.deepEqual(itemsForTarget([first, nested], "[50]"), []);
+  assert.deepEqual(itemsForTarget([caption], "[4]"), [caption]);
 });

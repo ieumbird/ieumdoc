@@ -4,7 +4,20 @@ import type { DoclingMap, MapItem, Target } from "./map.ts";
 export type ComparisonSnapshot = { path: string; document: EditableDocument; map: DoclingMap; stale: boolean };
 export type BlockPosition = { key: string; top: number; left: number; height: number };
 export type DocumentPosition = { blocks: BlockPosition[]; height: number };
-export type ReadingSurfaceProps = { document: EditableDocument; path: string; onLayout(position: DocumentPosition): void };
+export type ReadingSurfaceProps = {
+  document: EditableDocument; path: string;
+  onLayout(position: DocumentPosition): void;
+  /** Current snapshot block/list-item key, or no single selected target. */
+  onSelection(key: string | undefined): void;
+};
+
+/** Prefer the actual converted block over groups and picture-pixel descendants. */
+export function itemsForTarget(items: MapItem[], key: string): MapItem[] {
+  const matches = items.filter(item => item.targets.some(target => targetKey(target) === key || (!key.includes(":") && targetKey(target).startsWith(`${key}:`))));
+  const direct = matches.filter(item => item.targets.some(target => target.role !== "group" && target.role !== "image-content" && target.role !== "caption" &&
+    (targetKey(target) === key || (!key.includes(":") && targetKey(target).startsWith(`${key}:`)))));
+  return direct.length ? direct : matches;
+}
 export type Region = { left: number; top: number; width: number; height: number };
 export const targetKey = (target: Pick<Target, "path" | "item">) => JSON.stringify(target.path) + (target.item ? `:${target.item.join(".")}` : "");
 
