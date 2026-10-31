@@ -21,7 +21,7 @@
   "sourceSha256": {
     "apps/editor/src/shell/DocumentActions.tsx": "5327b774dfc03892c23b2a7f5a6b90c787bfc5a95b12c04ebb0f80e89f5b372b",
     "apps/editor/src/styles.css": "e7315ca08aa4021947d27232bf36692e8838221e7185cd8b9d4fd431aff90a4d",
-    "apps/editor/src/DocumentEditor.tsx": "112632ae1065957a077acbc93fd86c8eb4f40a3a791839340862551ee1fd5d2a",
-    "apps/editor/test/read-view.browser.js": "5f452c2af76a325bb1a009bb700d4a5d36395fe64df7fc6acbb58d7cd77cf585"
+    "apps/editor/src/DocumentEditor.tsx": "1cf7b9feeec7ac6aed70e695dbc39fdc8b632507471c40b10e9cf78c2021335a",
+    "apps/editor/test/read-view.browser.js": "95cfabba0d7ced1468e5f954e9bee2fa62bc1ae9548cff70b857888c5b6cdcc7"
   }
 }

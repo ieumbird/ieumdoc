@@ -259,6 +259,14 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
                     if (mutation) event.preventDefault();
                     return mutation;
                   }
+                  // Edit's document-end command may append a writable paragraph.
+                  // Reading document edges must only move/extend engine selection.
+                  if ((event.ctrlKey || event.metaKey) && ["Home", "End"].includes(event.key)) {
+                    const target = event.key === "Home" ? Selection.atStart(view.state.doc) : Selection.atEnd(view.state.doc);
+                    const next = event.shiftKey ? TextSelection.between(view.state.doc.resolve(view.state.selection.anchor), target.$head) : target;
+                    view.dispatch(view.state.tr.setSelection(next).scrollIntoView());
+                    event.preventDefault(); return true;
+                  }
                   if (view.someProp("handleKeyDown", handler => handler(view, event))) {
                     event.preventDefault(); return true;
                   }

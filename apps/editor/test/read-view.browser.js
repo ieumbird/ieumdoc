@@ -123,6 +123,15 @@ async (page, { openPath, expect, screenshots, recoveryRecords }) => {
   await placeCaret();
   await page.keyboard.press('ArrowRight');
   await expect.poll(selection).toEqual(editTextArrow);
+  await page.keyboard.press('Control+Home');
+  expect((await selection()).from).toBe(1);
+  await page.keyboard.press('Control+End');
+  expect(await editor.evaluate(el => el.editor.state.selection.to === el.editor.state.doc.content.size)).toBe(true);
+  expect(await json()).toBe(applied);
+  await placeCaret();
+  const extensionStart = (await selection()).from;
+  await page.keyboard.press('Shift+ArrowRight');
+  expect((await selection()).to).toBe(extensionStart + 1);
   await editor.locator('h2').hover();
   await expect(panel.getByTestId('block-hover-outline')).toBeVisible();
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
