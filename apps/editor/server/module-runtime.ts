@@ -9,8 +9,9 @@ import { DoclingHost } from "@ieumdoc/docling/server";
 import type { ConversionJob } from "@ieumdoc/docling/server-types";
 
 export const modulesDirectory = () => path.resolve(process.env.IEUMDOC_MODULES_DIR ?? path.join(os.homedir(), ".ieumdoc", "modules"));
-type Manifest = { id: "docling"; version: string; hostApiVersion: 1; entrypoint: string; permissions: string[] };
-type Registration = { manifest: Manifest; directory: string; enabled: boolean; sha256: string };
+type Manifest = { id: "docling"; version: string; hostApiVersion: 1; entrypoint: string; permissions: string[];
+  ui?: { hostApiVersion: number; entrypoint: string; stylesheet: string } };
+type Registration = { manifest: Manifest; directory: string; enabled: boolean; sha256: string; uiHashes?: { script: string; style: string } };
 type Run = ConversionJob & { ownerPid: number; hostId: string; fingerprint: string; moduleVersion: string; stage: string; workerPid?: number; readyMs?: number; elapsedMs?: number };
 const permissions = ["read-input", "write-staging", "network-docling"];
 const digest = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
@@ -27,6 +28,10 @@ function manifestAt(file: string): Manifest {
     || !/^[a-zA-Z0-9_-]+\.cjs$/u.test(value.entrypoint) || !Array.isArray(value.permissions)
     || value.permissions.length !== permissions.length || permissions.some(p => !value.permissions.includes(p))) {
     throw new Error("Unsupported Docling manifest (Host API 1, bundled CJS worker and exact requested permissions required).");
+  }
+  if (value.ui && (!Number.isSafeInteger(value.ui.hostApiVersion) || value.ui.hostApiVersion < 1
+    || !/^[a-zA-Z0-9_-]+\.mjs$/u.test(value.ui.entrypoint) || !/^[a-zA-Z0-9_-]+\.css$/u.test(value.ui.stylesheet))) {
+    throw new Error("Unsupported Docling UI manifest (versioned bundled ESM and stylesheet required).");
   }
   return value;
 }
@@ -50,12 +55,36 @@ export function moduleCommand(action: string, manifestFile?: string, root = modu
       cpSync(entry, path.join(directory, manifest.entrypoint), { errorOnExist: true });
       atomic(path.join(directory, "manifest.json"), manifest);
       const registration: Registration = { manifest, directory, enabled: true, sha256: digest(readFileSync(path.join(directory, manifest.entrypoint))) };
+      if (manifest.ui) {
+        for (const file of [manifest.ui.entrypoint, manifest.ui.stylesheet]) {
+          cpSync(path.join(path.dirname(source), file), path.join(directory, file), { errorOnExist: true });
+        }
+        registration.uiHashes = { script: digest(readFileSync(path.join(directory, manifest.ui.entrypoint))),
+          style: digest(readFileSync(path.join(directory, manifest.ui.stylesheet))) };
+      }
       atomic(registry, registration); return registration;
     }
     if (action !== "disable" && action !== "enable") throw new Error("Use module register <manifest>, enable, disable or list.");
     const registration = read<Registration>(registry);
     registration.enabled = action === "enable"; atomic(registry, registration); return registration;
   } finally { rmSync(lock, { recursive: true, force: true }); }
+}
+
+/** Only registered immutable UI assets, never arbitrary installation-folder paths. */
+export function moduleUi(asset?: string | null, revision?: string | null, root = modulesDirectory()) {
+  const registration = moduleCommand("list", undefined, root);
+  if (!registration?.enabled || !registration.manifest.ui || !registration.uiHashes) {
+    if (asset) throw new Error("Docling module is disabled or has no UI bundle.");
+    return { enabled: false } as const;
+  }
+  const ui = registration.manifest.ui;
+  const key = digest(JSON.stringify([registration.directory, ui, registration.uiHashes]));
+  if (!asset) return { enabled: true, hostApiVersion: ui.hostApiVersion, revision: key } as const;
+  if (revision !== key || !["script", "style"].includes(asset)) throw new Error("UI registration changed or asset is invalid.");
+  if (ui.hostApiVersion !== 1) throw new Error(`Unsupported UI Host API ${ui.hostApiVersion}; expected 1.`);
+  const content = readFileSync(path.join(registration.directory, asset === "script" ? ui.entrypoint : ui.stylesheet));
+  if (digest(content) !== registration.uiHashes[asset as "script" | "style"]) throw new Error("Registered UI bundle changed; register again after inspection.");
+  return { content, contentType: asset === "script" ? "text/javascript; charset=utf-8" : "text/css; charset=utf-8" } as const;
 }
 const validId = (value: unknown): value is string => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(value);
 function alive(pid: number): boolean {

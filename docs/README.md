@@ -7,6 +7,7 @@
 ## Architecture decisions
 
 Branch-only historical experiment: [Docling runtime spike](reviews/docling-plugin-runtime-spike.md).
+Branch-only historical experiment: [Docling UI contribution spike](reviews/docling-plugin-ui-spike.md).
 
 | Document | Status | Authority / description |
 | --- | --- | --- |

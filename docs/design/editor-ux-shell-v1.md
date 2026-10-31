@@ -57,6 +57,12 @@ the text editor and never provides a raw native-document replacement path.
 
 ## Docling comparison tabs (#769)
 
+Branch-only exception: the [UI contribution spike](../reviews/docling-plugin-ui-spike.md)
+adds a dynamically registered Command Center action and comparison view. The shell
+keeps tab identity and a disabled placeholder when the module is unavailable.
+Sidebar, Settings and conversion-dialog connections remain static. ADR-0011 and
+the command-center no-plugin decision below remain the accepted product contract.
+
 The sidebar opens the read-only module tab described in
 [Docling comparison](docling-compare-v1.md), under [ADR-0011](../adr/0011-code-module-boundary.md).
 Its entry sits in the sidebar footer above Settings, separate from Explorer's

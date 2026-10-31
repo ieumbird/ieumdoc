@@ -4,6 +4,12 @@
 - Last verified: 2026-10-30
 - Authority: owner decisions in [#766](https://github.com/ieumbird/ieumdoc/discussions/766), [#767](https://github.com/ieumbird/ieumdoc/discussions/767), [#769](https://github.com/ieumbird/ieumdoc/issues/769), under [ADR-0011](../adr/0011-code-module-boundary.md).
 
+Branch-only exception: [UI contribution spike](../reviews/docling-plugin-ui-spike.md)
+replaces the comparison view's static import with an opt-in registered bundle and
+adds a live Command Center contribution. An unregistered/disabled UI leaves an
+opened comparison tab in a disabled state; registration restores its opening
+snapshot. This experiment is not an amendment to ADR-0011 or a product adoption.
+
 The sidebar footer's **Docling comparison** action, above Settings, opens the shared folder picker for
 a conversion folder containing `document.md` and `document.docling-map.json`.
 The picker shows the comparison-specific description in English and Korean,

@@ -1,0 +1,41 @@
+{
+  "startedAt": "2026-10-31T03:23:35.946Z",
+  "platform": "win32",
+  "node": "v24.21.0",
+  "base": "3d4cb6e139313ab458f841f5c1514dadc3e21470",
+  "scope": "UI only; real development Electron, built serve, Vite; committed synthetic comparison, no REST conversion",
+  "hosts": [
+    {
+      "host": "Desktop",
+      "measurements": {},
+      "checks": {}
+    }
+  ],
+  "boundary": {
+    "inputs": [
+      "packages/docling/src/compare.ts",
+      "packages/docling/src/compare.css",
+      "packages/docling/src/CompareView.tsx",
+      "packages/docling/src/ui-plugin.tsx"
+    ],
+    "external": [
+      "react",
+      "react/jsx-runtime"
+    ],
+    "scriptBytes": 16628,
+    "styleBytes": 3787,
+    "sha256": "ae6fc431c37df1f591b38105eccb344bd997aa7e0c30f6ae9b7c3ab839f1ebab",
+    "secondReactBundled": false
+  },
+  "checks": {},
+  "ownedPids": [
+    44164,
+    31908
+  ],
+  "attempts": "C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\spike-docling-plugin-ui\\tmp\\docling-ui-spike\\run-ytc5sC",
+  "desktopStartupWithIsolationReloadMs": 3225,
+  "result": "fail",
+  "error": "locator.click: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /Find documents and commands/ })\u001b[22m\n\n    at commandCenter (C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\spike-docling-plugin-ui\\apps\\desktop\\test\\docling-ui-spike.ts:79:75)\n    at exercise (C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\spike-docling-plugin-ui\\apps\\desktop\\test\\docling-ui-spike.ts:99:9)\n    at async <anonymous> (C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\spike-docling-plugin-ui\\apps\\desktop\\test\\docling-ui-spike.ts:207:3)",
+  "cleanupAlive": [],
+  "finishedAt": "2026-10-31T03:23:54.941Z"
+}

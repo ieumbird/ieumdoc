@@ -6,7 +6,7 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import test from "node:test";
 import { createDoclingHost } from "../server/docling.ts";
-import { moduleCommand } from "../server/module-runtime.ts";
+import { moduleCommand, moduleUi } from "../server/module-runtime.ts";
 import { RootAccess } from "../server/file-access.ts";
 import { handleDocumentRequest } from "../server/document-api.ts";
 import { listenForFetch } from "../../../test/helpers/fetch-server.ts";
@@ -34,6 +34,29 @@ test("module registration validates the manifest before enabling a private bundl
   assert.equal(moduleCommand("list", undefined, modules)!.enabled, false);
   moduleCommand("enable", undefined, modules);
   assert.equal(moduleCommand("list", undefined, modules)!.enabled, true);
+  const ui = { hostApiVersion: 1, entrypoint: "ui.mjs", stylesheet: "ui.css" };
+  writeFileSync(path.join(root, "ui.mjs"), "export const activate = () => {};\n");
+  writeFileSync(path.join(root, "ui.css"), ".docling-compare {}\n");
+  writeFileSync(manifest, JSON.stringify({ ...valid, ui: { ...ui, entrypoint: "../outside.mjs" } }));
+  assert.throws(() => moduleCommand("register", manifest, modules), /Unsupported Docling UI manifest/u);
+  writeFileSync(manifest, JSON.stringify({ ...valid, ui }));
+  const installed = moduleCommand("register", manifest, modules)!;
+  const descriptor = moduleUi(null, null, modules);
+  assert.equal(descriptor.enabled, true);
+  const revision = "revision" in descriptor ? descriptor.revision : "";
+  assert.ok("content" in moduleUi("script", revision, modules));
+  assert.throws(() => moduleUi("script", "stale-registration", modules), /registration changed/u);
+  assert.throws(() => moduleUi("../worker.cjs", revision, modules), /asset is invalid/u);
+  writeFileSync(path.join(installed.directory, "ui.mjs"), "// tampered\n");
+  assert.throws(() => moduleUi("script", revision, modules), /bundle changed/u);
+  moduleCommand("disable", undefined, modules);
+  assert.deepEqual(moduleUi(null, null, modules), { enabled: false });
+  assert.throws(() => moduleUi("style", revision, modules), /disabled/u);
+  writeFileSync(manifest, JSON.stringify({ ...valid, ui: { ...ui, hostApiVersion: 2 } }));
+  moduleCommand("register", manifest, modules);
+  const incompatible = moduleUi(null, null, modules);
+  assert.equal(incompatible.hostApiVersion, 2);
+  assert.throws(() => moduleUi("script", incompatible.revision, modules), /Unsupported UI Host API 2/u);
 });
 
 test("shared Host persists device settings, checks the real HTTP service and safely completes, fails and cancels conversion", async t => {

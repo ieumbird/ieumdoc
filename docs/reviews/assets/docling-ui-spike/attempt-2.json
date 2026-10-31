@@ -1,0 +1,56 @@
+{
+  "startedAt": "2026-10-31T03:24:28.517Z",
+  "platform": "win32",
+  "node": "v24.21.0",
+  "base": "3d4cb6e139313ab458f841f5c1514dadc3e21470",
+  "scope": "UI only; real development Electron, built serve, Vite; committed synthetic comparison, no REST conversion",
+  "hosts": [
+    {
+      "host": "Desktop",
+      "measurements": {
+        "registrationToReadyMs": 414,
+        "importCssActivateMs": 7.5,
+        "disableToDetachedMs": 819,
+        "reregisterToViewMs": 416
+      },
+      "checks": {
+        "a": "Native ESM + installed CSS, live command opens picker and contributed read-only view; image, region, wires and Editor reading surface work.",
+        "b": "Register, disable and register again update an already-open command center and restore the same tab, without navigation.",
+        "f": "Disabled tab keeps id/path/snapshot, unmounts plugin/reading surface and removes CSS. Registration restores read-only content; transient selection/scroll reset."
+      },
+      "assetResponse": {
+        "status": 200,
+        "mime": "text/javascript; charset=utf-8",
+        "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+        "cache": "no-store"
+      }
+    }
+  ],
+  "boundary": {
+    "inputs": [
+      "packages/docling/src/compare.ts",
+      "packages/docling/src/compare.css",
+      "packages/docling/src/CompareView.tsx",
+      "packages/docling/src/ui-plugin.tsx"
+    ],
+    "external": [
+      "react",
+      "react/jsx-runtime"
+    ],
+    "scriptBytes": 16628,
+    "styleBytes": 3787,
+    "sha256": "ae6fc431c37df1f591b38105eccb344bd997aa7e0c30f6ae9b7c3ab839f1ebab",
+    "secondReactBundled": false
+  },
+  "checks": {},
+  "ownedPids": [
+    43236,
+    41424
+  ],
+  "attempts": "C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\spike-docling-plugin-ui\\tmp\\docling-ui-spike\\run-2l80Yc",
+  "desktopStartupWithIsolationReloadMs": 1047,
+  "result": "fail",
+  "error": "Error: expect(locator).toContainText(expected) failed\n\nLocator: locator('.tiptap[contenteditable=\"true\"]').first()\nExpected substring: \"Retained Desktop.\"\nReceived string:    \"Ordinary document survives plugin changes. Ret After render exception.ained Desktop.\"\nTimeout: 5000ms\n\nCall log:\n  - Expect \"toContainText\" locator('.tiptap[contenteditable=\"true\"]').first() with timeout 5000ms\n  - waiting for locator('.tiptap[contenteditable=\"true\"]').first()\n    14 × locator resolved to <div tabindex=\"0\" translate=\"no\" spellcheck=\"false\" contenteditable=\"true\" class=\"tiptap ProseMirror document-editor ProseMirror-focused\">…</div>\n       - unexpected value \"Ordinary document survives plugin changes. Ret After render exception.ained Desktop.\"\n\n    at captureRawStack (C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\spike-docling-plugin-ui\\node_modules\\.pnpm\\playwright-core@1.64.0-alpha-1789764292000\\node_modules\\playwright-core\\lib\\coreBundle.js:8727:17)\n    at callMatcherAsStep (C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\spike-docling-plugin-ui\\node_modules\\.pnpm\\playwright@1.64.0-alpha-1789764292000\\node_modules\\playwright\\lib\\matchers\\expect.js:13313:57)\n    at Object.toContainText (C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\spike-docling-plugin-ui\\node_modules\\.pnpm\\playwright@1.64.0-alpha-1789764292000\\node_modules\\playwright\\lib\\matchers\\expect.js:13305:23)\n    at ordinaryStillWorks (C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\spike-docling-plugin-ui\\apps\\desktop\\test\\docling-ui-spike.ts:157:26)\n    at async exercise (C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\spike-docling-plugin-ui\\apps\\desktop\\test\\docling-ui-spike.ts:162:3)\n    at async <anonymous> (C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\spike-docling-plugin-ui\\apps\\desktop\\test\\docling-ui-spike.ts:207:3)",
+  "cleanupAlive": [],
+  "finishedAt": "2026-10-31T03:24:38.190Z"
+}

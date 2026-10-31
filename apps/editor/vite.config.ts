@@ -39,7 +39,7 @@ export default defineConfig({
             });
             return;
           }
-          if (url !== "/api/docling-module" && url !== "/api/docling-settings" && url !== "/api/docling-check" && url !== "/api/docling-conversion" && url !== "/api/file" && url !== "/api/bibliography" && url !== "/api/file-preview" && url !== "/api/document" && url !== "/api/folder" && url !== "/api/folder-browse" && url !== "/api/folder-places" && url !== "/api/document-source" && url !== "/api/docling-compare" && url !== "/api/figure-validation" && !url.startsWith("/document/")) {
+          if (url !== "/api/docling-module-ui" && url !== "/api/docling-module" && url !== "/api/docling-settings" && url !== "/api/docling-check" && url !== "/api/docling-conversion" && url !== "/api/file" && url !== "/api/bibliography" && url !== "/api/file-preview" && url !== "/api/document" && url !== "/api/folder" && url !== "/api/folder-browse" && url !== "/api/folder-places" && url !== "/api/document-source" && url !== "/api/docling-compare" && url !== "/api/figure-validation" && !url.startsWith("/document/")) {
             next();
             return;
           }

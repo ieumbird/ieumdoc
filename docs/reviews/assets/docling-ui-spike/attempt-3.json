@@ -1,0 +1,70 @@
+{
+  "startedAt": "2026-10-31T03:25:31.553Z",
+  "platform": "win32",
+  "node": "v24.21.0",
+  "base": "3d4cb6e139313ab458f841f5c1514dadc3e21470",
+  "scope": "UI only; real development Electron, built serve, Vite; committed synthetic comparison, no REST conversion",
+  "hosts": [
+    {
+      "host": "Desktop",
+      "measurements": {
+        "registrationToReadyMs": 428,
+        "importCssActivateMs": 8.300000011920929,
+        "disableToDetachedMs": 836,
+        "reregisterToViewMs": 421
+      },
+      "checks": {
+        "a": "Native ESM + installed CSS, live command opens picker and contributed read-only view; image, region, wires and Editor reading surface work.",
+        "b": "Register, disable and register again update an already-open command center and restore the same tab, without navigation.",
+        "f": "Disabled tab keeps id/path/snapshot, unmounts plugin/reading surface and removes CSS. Registration restores read-only content; transient selection/scroll reset.",
+        "c": "Render throw, module evaluation throw and missing installed ESM isolate locally; original ordinary Editor DOM, unsaved text and typing survive each.",
+        "d": "UI API 2 reason displayed; no script request or poison-code execution; command absent, Editor usable.",
+        "e": "ieumdoc://app/index.html"
+      },
+      "assetResponse": {
+        "status": 200,
+        "mime": "text/javascript; charset=utf-8",
+        "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+        "cache": "no-store"
+      },
+      "pageErrors": [],
+      "scriptRequests": 7,
+      "mainFrameNavigations": 0
+    },
+    {
+      "host": "serve",
+      "measurements": {},
+      "checks": {}
+    }
+  ],
+  "boundary": {
+    "inputs": [
+      "packages/docling/src/compare.ts",
+      "packages/docling/src/compare.css",
+      "packages/docling/src/CompareView.tsx",
+      "packages/docling/src/ui-plugin.tsx"
+    ],
+    "external": [
+      "react",
+      "react/jsx-runtime"
+    ],
+    "scriptBytes": 16628,
+    "styleBytes": 3787,
+    "sha256": "ae6fc431c37df1f591b38105eccb344bd997aa7e0c30f6ae9b7c3ab839f1ebab",
+    "secondReactBundled": false
+  },
+  "checks": {},
+  "ownedPids": [
+    23748,
+    57672,
+    57020,
+    41212
+  ],
+  "attempts": "C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\spike-docling-plugin-ui\\tmp\\docling-ui-spike\\run-Yy33l4",
+  "desktopStartupWithIsolationReloadMs": 989,
+  "chromeProfile": "C:\\Users\\swBaek\\AppData\\Local\\Temp\\ieumdoc-browser-profile\\2d717c2fc7e5cebe",
+  "result": "fail",
+  "error": "locator.getAttribute: Error: strict mode violation: getByRole('tab', { selected: true }) resolved to 2 elements:\n    1) <button role=\"tab\" tabindex=\"0\" type=\"button\" id=\"tab-document-1\" aria-selected=\"true\" aria-disabled=\"false\" aria-controls=\"panel-document-1\" aria-label=\"ordinary.md, Unsaved changes\">…</button> aka getByRole('tab', { name: 'ordinary.md, Unsaved changes' })\n    2) <button role=\"tab\" tabindex=\"0\" type=\"button\" data-slot=\"button\" aria-selected=\"true\" data-segment-label=\"Outline\" id=\"document-panel-tab-outline\" aria-controls=\"document-panel-list-outline\" class=\"group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding font-medium whitespace-nowrap outline-none select-none focus-visible:ring-2 focus-visible:ring-[var(--id-color-border-focus)] disabled:pointer-events-none disabled:opacity-50 aria-disabled:bg-m…>…</button> aka getByRole('tab', { name: 'Outline' })\n\nCall log:\n\u001b[2m  - waiting for getByRole('tab', { selected: true })\u001b[22m\n\n    at exercise (C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\spike-docling-plugin-ui\\apps\\desktop\\test\\docling-ui-spike.ts:99:40)\n    at async <anonymous> (C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\spike-docling-plugin-ui\\apps\\desktop\\test\\docling-ui-spike.ts:230:65)",
+  "cleanupAlive": [],
+  "finishedAt": "2026-10-31T03:25:41.408Z"
+}

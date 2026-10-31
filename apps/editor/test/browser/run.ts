@@ -5,7 +5,9 @@ import { pathToFileURL } from "node:url";
 import { prepareBrowserFixtures, REPOSITORY_ROOT } from "./fixtures.ts";
 import { HTTP_SCENARIOS, selectBrowserScenarios, STABLE_SCENARIOS } from "./scenarios.ts";
 
-if (process.argv.slice(2).join(" ") === "docling-runtime") {
+if (process.argv.slice(2).join(" ") === "docling-ui") {
+  await import("../../../desktop/test/docling-ui-spike.ts");
+} else if (process.argv.slice(2).join(" ") === "docling-runtime") {
   await import("../../../desktop/test/docling-runtime-spike.ts");
 } else try {
   const { scenarios, screenshots, shard } = selectBrowserScenarios(process.argv.slice(2));

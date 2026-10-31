@@ -4,6 +4,7 @@ import { DoclingConversionDialog } from "./shell/DoclingConversionDialog.tsx";
 import { COMMAND_CENTER_SHORTCUT, EDITOR_SHORTCUTS, SAVE_SHORTCUT, isMac } from "./shortcuts.ts";
 import type { ComparisonSnapshot } from "@ieumdoc/docling/compare";
 import { DoclingComparisonTab } from "./DoclingComparisonTab.tsx";
+import { usePluginUi } from "./plugin-ui.tsx";
 import { NotificationProvider, NotificationSource } from "./components/ui/notification-center.tsx";
 import { UiError } from "./ui-message.ts";
 import { useMessageState } from "./ui-message.ts";
@@ -173,6 +174,7 @@ function EditorApp() {
     else if (job.state === "error") setConversionNotice({ id: job.id, message: `${i18n.t(doclingFailureMessage(job.failure) as MessageKey)}${job.failure?.taskId ? ` (${i18n.t("Server task")}: ${job.failure.taskId})` : ""}` });
   }, [converter.job?.id, converter.job?.state]);
   const compareReturn = useRef<HTMLElement | null>(null);
+  const pluginUi = usePluginUi(() => { compareReturn.current = commandReturnFocus.current; setComparePicker(true); });
   const [navigation, navigate] = useReducer(editorGroups, initialEditorGroups);
   const focusedGroup = navigation.groups.find(group => group.id === navigation.focused)!;
   const activeId = focusedGroup.active;
@@ -935,6 +937,9 @@ function EditorApp() {
     });
   };
   const commandItems: CommandCenterItem[] = [
+    ...(pluginUi.contribution?.commands ?? []).map(command => ({ ...command, kind: "command" as const,
+      label: i18n.t(command.label as MessageKey), icon: FileText, takesFocus: true,
+      disabled: busy || Boolean(continuation), run: command.run })),
     ...(samplePath ? [{ id: "open-sample", kind: "command" as const, label: i18n.t("Open sample document"), icon: FileText, takesFocus: true, disabled: busy || Boolean(continuation),
       keywords: ["sample", "샘플"], run: openSample }] : []),
     ...tabs.map((tab, index) => ({
@@ -1153,7 +1158,8 @@ function EditorApp() {
             onNoticeExpired={() => setNotice("")}
           />
         </div>
-        <main className="document-stage" onMouseDown={(event) => {
+        <main className="document-stage" data-plugin-ui-state={pluginUi.status} data-plugin-ui-revision={pluginUi.revision}
+          data-plugin-ui-load-ms={pluginUi.loadMs} onMouseDown={(event) => {
           // The empty area below the document places the caret at its end.
           const id = event.target instanceof Element ? event.target.closest<HTMLElement>("[data-document-tab]")?.dataset.documentTab : undefined;
           const owner = id ? sessions.current.get(id) : undefined;
@@ -1185,7 +1191,7 @@ function EditorApp() {
           })}
           {comparisons.map(tab => {
             const groupIndex = navigation.groups.findIndex(group => group.tabs.includes(tab.id));
-            return <DoclingComparisonTab key={tab.id} id={tab.id} snapshot={tab.snapshot} groupIndex={groupIndex}
+            return <DoclingComparisonTab key={tab.id} id={tab.id} snapshot={tab.snapshot} plugin={pluginUi} groupIndex={groupIndex}
               active={navigation.groups[groupIndex]?.active === tab.id} focused={tab.id === activeId} onFocus={focusDocument} />;
           })}
         </main>
@@ -1213,7 +1219,7 @@ function EditorApp() {
         onOpen={async path => { setConversionPath(path); setConversionNotice(null); return ""; }}
         returnFocus={conversionReturn} onClose={() => setPdfPicker(false)}
         onClosed={() => { if (conversionPath) setConversionOpen(true); }} />
-      <NotificationSource items={[...(themeProblem && !settingsOpen ? [{ id: "theme-storage", severity: "error" as const, message: i18n.t("Theme could not be saved. This choice applies until you close this page.") }] : []), ...(conversionNotice ? [{ id: `docling-error-${conversionNotice.id}`, severity: "error" as const, message: conversionNotice.message,
+      <NotificationSource items={[...(pluginUi.status === "error" ? [{ id: "plugin-ui-error", severity: "error" as const, message: `${i18n.t("Module UI failed.")} ${pluginUi.reason}` }] : []), ...(themeProblem && !settingsOpen ? [{ id: "theme-storage", severity: "error" as const, message: i18n.t("Theme could not be saved. This choice applies until you close this page.") }] : []), ...(conversionNotice ? [{ id: `docling-error-${conversionNotice.id}`, severity: "error" as const, message: conversionNotice.message,
         reveal: () => { setConversionPath(converter.job?.input ?? conversionPath); setConversionOpen(true); } }] : []), ...comparisons.filter(tab => tab.snapshot.stale).map(tab => ({ id: `docling-stale-${tab.id}`, severity: "warning" as const,
         message: `${tab.snapshot.map.source.name}: ${i18n.t("The correspondence map does not match this document. Connections and sync scrolling are disabled. Reconvert to compare.")}`,
         reveal: () => {
