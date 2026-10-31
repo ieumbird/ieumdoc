@@ -3,11 +3,13 @@
 - Status: Implemented
 - Last verified: 2026-10-31 (#853 and PR #855 review: shared Host tests, filesystem alias denial, ancestor-listing permission regression, scoped image-reference scans and shutdown/admission races; real Docling remains manual and packaged Desktop is checked by CI).
 - Authority: [ADR-0012](../adr/0012-plugin-runtime-and-ui-contributions.md), with [ADR-0004](../adr/0004-desktop-host-distribution.md) and [ADR-0005](../adr/0005-http-host.md).
-- Scope: trusted local worker execution in Vite, in-process Desktop and independent `ieumdoc serve`. The same registration also supports [UI contributions](plugin-ui-v1.md) under ADR-0012 (#857).
+- Scope: trusted local worker execution in Vite, in-process Desktop and independent `litzio serve`. The same registration also supports [UI contributions](plugin-ui-v1.md) under ADR-0012 (#857).
+
+Brand defaults and packager overrides follow [the branding guide](../guides/branding.md) (#859). Product identity is separate from the fixed internal Host API; earlier verification records do not establish a migration from old Beta builds.
 
 ## Installation and API
 
-All Hosts running as one OS user share `~/.ieumdoc/plugins`.
+All Hosts running as one OS user share `~/.litzio/plugins`.
 `LITZIO_PLUGINS_DIR` selects an isolated installation, including for tests.
 Use a local filesystem supporting SQLite locks; network shares and hostile
 mutation of this user-owned directory are outside the contract.
@@ -40,7 +42,7 @@ The thin shared Host surface is available without restarting:
 | `GET /api/docling-conversion?id=<UUID>` | Read that receipt, subject to this Host's input/output Root checks. Without `id`, retain the current process-local UI snapshot. |
 
 HTTP retains its Origin/Host/body limits. Desktop uses the same handler through
-`ieumdoc://app`, with no TCP listener. #857 adds the read-only UI listing/asset
+`litzio://app`, with no TCP listener. #857 adds the read-only UI listing/asset
 surface described in [Plugin UI contributions](plugin-ui-v1.md). Registration is explicit trusted code execution, without an OS
 sandbox, download, approval workflow or additional permissions model.
 
@@ -90,7 +92,7 @@ Host death disconnects IPC; this Docling worker exits when its event loop servic
 disconnect. Trusted code is not protected against hostile infinite loops.
 No local Docling service is launched. A remote task may survive any local stop.
 
-Each execution has a private sibling `.ieumdoc-plugin-*` directory. Worker OS
+Each execution has a private sibling `.litzio-plugin-*` directory. This prefix and the `.litzio-incomplete` publication barrier are fixed internal runtime identifiers, independent of branding (#859 review). Separate per-brand plugin installation folders do not isolate work beside a shared source PDF. Both local and Root-constrained Hosts must reject the other brand's staging and crash publication leftovers; completed results remain ordinary document paths. Worker OS
 temporary files and its complete bundle stay inside it. All ordinary Host file
 surfaces refuse private paths, including symlink, Windows case and 8.3 aliases
 and local Desktop/Vite. Native OS realpath resolves actual case, short names and
@@ -103,7 +105,7 @@ The module uses only public Core operations and validates its native bundle;
 original PDF/JSON remain unchanged. Input SHA-256 and Root/real-parent access
 are checked again before publication.
 
-The Host exclusively creates the final directory, adds `.ieumdoc-incomplete`,
+The Host exclusively creates the final directory, adds `.litzio-incomplete`,
 copies only a successful exited worker's complete bundle, rechecks access, then
 removes the marker. Ordinary file routes reject the entire marked directory.
 This avoids POSIX rename replacing a concurrently created empty directory and

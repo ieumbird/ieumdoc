@@ -41,6 +41,8 @@
 
 Historical verification records: [Verification record](#verification-record).
 
+Brand defaults and packager overrides follow [the branding guide](../guides/branding.md) (#859). Product identity is separate from the fixed internal Host API; earlier verification records do not establish a migration from old Beta builds.
+
 ## Read / Edit / Source (#849)
 
 Native document tabs start in **Edit** and expose **Read | Edit | Source**
@@ -710,13 +712,13 @@ The named navigation uses buttons with `aria-current="page"`: Appearance & langu
 Ordinary entry starts at Appearance; an update notice's View opens About. Theme, page style, language and
 accent changes apply immediately, with profile-local preference storage and failure notices.
 Theme offers System / Light / Dark (시스템 / 라이트 / 다크), defaulting to System.
-System follows live OS changes. `ieumdoc.theme` belongs to `preferences.ts` localStorage,
+System follows live OS changes. `litzio.theme` belongs to `preferences.ts` localStorage,
 never document content or Host preferences. Unavailable storage retains the current-page
 choice and shows the same style of localized persistence alert as accent/language.
 Page style offers Paper / Flat (종이 / 평면), defaulting to Paper.
 Flat makes canvas and paper one surface, including one dark surface in Dark theme.
 The paper's edge, elevation and corners disappear without moving or resizing content, in Visual
-and Source and at either document width. `ieumdoc.pageBackground` is profile-local localStorage,
+and Source and at either document width. `litzio.pageBackground` is profile-local localStorage,
 read before styles/UI by the existing theme initialization path. Unknown/unavailable storage
 falls back to Paper; a failed write keeps the live choice and shows a localized alert.
 The same editor instances, drafts, selection and history remain mounted across theme and page-background changes.
@@ -797,7 +799,7 @@ and #425 collapse memory remain unchanged. Tab order follows the visual order fr
 through the two actions to the retained tree stop.
 
 The first row is one full-width title strip (#647): the existing Desktop SVG icon and
-**`IEUMDOC`** at the left, shared search in the remaining width, and native caption
+**`Litzio`** at the left, shared search in the remaining width, and native caption
 buttons at the right in Desktop. HTTP Host uses the same arrangement with zero caption
 reservation and no native window dragging. The brand follows the Explorer width; collapsing
 Explorer retains only the icon. The Explorer icon button (Expand Explorer, #671) stays in the 48px rail on
@@ -827,7 +829,7 @@ its own 40px drag header, caption reservation and no-drag body. Existing surface
 native caption color synchronization remain unchanged. Native drag/double-click behavior
 requires packaged Desktop verification; browser mocks inspect geometry and CSS boundaries.
 
-The active filename sets `document.title` to `<filename> — IeumDoc`, or `IeumDoc` without
+The active filename sets `document.title` to `<filename> — Litzio`, or `Litzio` without
 a document, including tab switches, renames and last-tab closure. Outline retains #590's
 toggle-only close and Escape/focus behavior; its second-row tabs name the navigation choices, with no new navigation mode here. These changes are interface-only: no Core semantic
 operation or CLI parity command is needed.
@@ -1085,7 +1087,7 @@ Browser procedures and repeatable scratch preparation: [TEST_GUIDE](../test/TEST
 
 ## UI display language (#256)
 
-Settings in Web, HTTP Host and Desktop offers `한국어` and `English`, always written in their own languages. An explicit `ieumdoc.uiLanguage` preference wins; without a valid choice, a Korean first preferred browser/app language selects Korean and other languages select English. Both translations are bundled using i18next/react-i18next; there is no translation network request. If local preference storage fails, the current choice still applies and Settings explains that it may not persist.
+Settings in Web, HTTP Host and Desktop offers `한국어` and `English`, always written in their own languages. An explicit `litzio.uiLanguage` preference wins; without a valid choice, a Korean first preferred browser/app language selects Korean and other languages select English. Both translations are bundled using i18next/react-i18next; there is no translation network request. If local preference storage fails, the current choice still applies and Settings explains that it may not persist.
 
 Changes apply immediately to UI text, accessible names and the page `lang`. Menus support Korean and English search aliases regardless of display language. Operation IDs such as `saving` and `saved-pending` (also exposed by `data-operation`) are independent of translated status text. Translation cannot enable Save, switch documents or bypass work-loss protection.
 
@@ -1117,7 +1119,7 @@ Information states are neutral; danger and warning retain their meanings. Values
 requirements belong to [Visual Language](editor-visual-language-v1.md#tokens-and-palette).
 
 The existing browser/origin preference path stores only a preset ID in
-`ieumdoc.accentColor`, independent of documents and the Host. Vite, HTTP and Desktop
+`litzio.accentColor`, independent of documents and the Host. Vite, HTTP and Desktop
 profiles/origins do not share it. Startup applies a valid stored choice before mounting
 the first UI. Missing, unknown or unreadable preferences use Blue. A storage failure
 keeps the live choice and Settings explains that it lasts for the current page.
@@ -1176,7 +1178,7 @@ live list is a relist and preserves its section state. Reload and Desktop restar
 remembered section collapse under the owner-approved
 [ADR-0009 persistence amendment](../adr/0009-multiple-opened-folders.md#amendment-2026-10-25-remember-collapsed-folder-sections-425).
 
-The origin-specific localStorage key `ieumdoc.collapsedFolderSections` contains a JSON array of
+The origin-specific localStorage key `litzio.collapsedFolderSections` contains a JSON array of
 Host-normalized root paths, in opened-folder order; for example `["/work/docs"]`. Only collapsed,
 currently opened roots are written. Expanded roots, child-folder expansion and listings are not
 stored. Vite, Desktop and HTTP origins do not share the preference. It grants no filesystem access:
@@ -1449,7 +1451,7 @@ without changing source scope or shell action handlers. #556 adds only the two m
 virtualization library or document-content command is introduced.
 
 As in Files, a listed Markdown file with `native: false` remains selectable but uses subtle text,
-the crossed-file icon and `Not an IeumDoc document` explanation (also accessible). This keeps the
+the crossed-file icon and `Not an Litzio document` explanation (also accessible). This keeps the
 same admission explanation available through either navigation entry. The existing Host/Core
 admission check remains authoritative even for a listing marked native. Images, other regular files
 and folders are omitted: they are preview/navigation entries rather than editable documents and

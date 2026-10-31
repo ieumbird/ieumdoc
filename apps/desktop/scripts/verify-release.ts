@@ -1,3 +1,4 @@
+import { brand } from "../../../brand.ts";
 // Check packaged release artifacts before anything is uploaded:
 //   tsx scripts/verify-release.ts --tag v0.3.0-beta.1 [--signed]
 // The tag must name the app version and be Stable (vX.Y.Z) or Beta (vX.Y.Z-beta.N). The update
@@ -7,7 +8,7 @@
 // accepts only updates from the same publisher. Prints the files to upload, one per line.
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { appendFileSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import os from "node:os";
 import { gunzipSync } from "node:zlib";
@@ -40,7 +41,7 @@ export function verifyExecutableVersions(release: string, version: string): void
   const exe = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32/WindowsPowerShell/v1.0/powershell.exe");
   const env = { ...process.env };
   for (const key of Object.keys(env)) if (key.toLowerCase() === "psmodulepath") delete env[key];
-  for (const file of [path.join(release, `IeumDoc-Setup-${version}.exe`), path.join(release, "win-unpacked/IeumDoc.exe")]) {
+  for (const file of [path.join(release, `${brand.executableName}-Setup-${version}.exe`), path.join(release, `win-unpacked/${brand.executableName}.exe`)]) {
     const actual = execFileSync(exe, ["-NoProfile", "-NonInteractive", "-Command",
       `$ErrorActionPreference = 'Stop'; (Get-Item -LiteralPath '${file.replaceAll("'", "''")}').VersionInfo.FileVersion`],
       { env, encoding: "utf8", timeout: 20_000, windowsHide: true }).trim();
@@ -59,11 +60,11 @@ export function verifyRelease(options: { tag: string; release: string; signed: b
   const problems: string[] = [];
   const fail = (message: string) => problems.push(message);
   const identity = releaseIdentity(options.tag, options.version);
-  const installer = path.join(options.release, `IeumDoc-Setup-${identity.version}.exe`);
+  const installer = path.join(options.release, `${brand.executableName}-Setup-${identity.version}.exe`);
   const blockmap = `${installer}.blockmap`;
-  const channelFile = path.join(options.release, identity.channel === "beta" ? "beta.yml" : "latest.yml");
-  const otherFile = path.join(options.release, identity.channel === "beta" ? "latest.yml" : "beta.yml");
-  const appExe = path.join(options.release, "win-unpacked", "IeumDoc.exe");
+  const channelFile = path.join(options.release, `${brand.updates.channels[identity.channel]}.yml`);
+  const otherFile = path.join(options.release, `${brand.updates.channels[identity.channel === "beta" ? "stable" : "beta"]}.yml`);
+  const appExe = path.join(options.release, "win-unpacked", `${brand.executableName}.exe`);
   for (const file of [installer, blockmap, channelFile, appExe]) if (!existsSync(file)) fail(`missing ${path.basename(file)}`);
   if (existsSync(blockmap) && statSync(blockmap).size === 0) fail("installer blockmap is empty");
   // A Beta must never publish latest.yml: Stable users read only that file.
@@ -95,7 +96,7 @@ export function verifyRelease(options: { tag: string; release: string; signed: b
       fail(`the app updates from ${config.provider} ${config.owner}/${config.repo}, not GitHub ${RELEASE_REPOSITORY.owner}/${RELEASE_REPOSITORY.repo}`);
     }
     if (config.host || config.protocol) fail("the app updates from a test host, not github.com");
-    if (config.updaterCacheDirName !== "ieumdoc-updater") fail(`unexpected updaterCacheDirName ${config.updaterCacheDirName}`);
+    if (config.updaterCacheDirName !== `${brand.appName}-updater`) fail(`unexpected updaterCacheDirName ${config.updaterCacheDirName}`);
     const names = typeof config.publisherName === "string" ? [config.publisherName] : config.publisherName;
     if (Array.isArray(names) && names.every((name) => typeof name === "string" && name.trim())) publishers = names;
     if (options.signed && !publishers.length) fail("the app names no publisher to verify updates against");
@@ -116,6 +117,11 @@ export function verifyRelease(options: { tag: string; release: string; signed: b
   return [installer, blockmap, channelFile];
 }
 
+/** Deliver exactly the verified installer/metadata and unpacked app, including custom channels. */
+export function writeReleaseArtifactPaths(files: readonly string[], release: string, outputFile: string): void {
+  appendFileSync(outputFile, `paths<<LITZIO_RELEASE_ARTIFACTS\n${[...files, path.join(release, "win-unpacked")].join("\n")}\nLITZIO_RELEASE_ARTIFACTS\n`);
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
   const tag = args[args.indexOf("--tag") + 1];
@@ -126,6 +132,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const files = verifyRelease({ tag, release: path.join(desktop, "release"), signed: args.includes("--signed"), version });
     verifyExecutableVersions(path.join(desktop, "release"), version);
     await verifyBlockmap(files[0]!, files[1]!);
+    if (process.env.GITHUB_OUTPUT) writeReleaseArtifactPaths(files, path.join(desktop, "release"), process.env.GITHUB_OUTPUT);
     for (const file of files) console.log(path.relative(process.cwd(), file));
   }
 }

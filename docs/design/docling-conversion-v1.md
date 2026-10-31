@@ -6,9 +6,11 @@
 - Scope: `@litzio/docling` and thin CLI, under [ADR-0011](../adr/0011-code-module-boundary.md).
 - Decisions: [#766](https://github.com/ieumbird/ieumdoc/discussions/766), [#767](https://github.com/ieumbird/ieumdoc/discussions/767), table flattening [#778](https://github.com/ieumbird/ieumdoc/issues/778); implementation [#768](https://github.com/ieumbird/ieumdoc/issues/768), [#780](https://github.com/ieumbird/ieumdoc/issues/780).
 
+Brand defaults and packager overrides follow [the branding guide](../guides/branding.md) (#859). Product identity is separate from the fixed internal Host API; earlier verification records do not establish a migration from old Beta builds.
+
 ## Input and output
 
-`ieumdoc docling convert <document.json> --output <new-folder>` converts the
+`litzio docling convert <document.json> --output <new-folder>` converts the
 **whole** DoclingDocument 1.10.0. There is no chapter/range option. The destination
 must not exist. It contains `document.md`, `document.docling-map.json` and copied
 image assets. Input files remain unchanged. Automatic heading numbers are off;
@@ -24,7 +26,7 @@ invalid source schema/graph or an invalid final native document refuses output.
 ## External PDF service and source bundle
 
 ```sh
-ieumdoc docling convert-pdf source.pdf --server http://127.0.0.1:8001 --output new-folder
+litzio docling convert-pdf source.pdf --server http://127.0.0.1:8001 --output new-folder
 ```
 
 `--server` takes precedence over `LITZIO_DOCLING_SERVER`. The URL can include a
@@ -140,7 +142,7 @@ Settings has a Docling category with the server address (default
 `http://127.0.0.1:8001`) and Check connection beside it. A valid address is saved
 on field exit or Enter/check; there is no document Save/Apply action. Errors
 preserve the input, with an associated field message. The setting is the Host
-user's `~/.ieumdoc/docling.json`, shared by Desktop, HTTP Host and Vite running
+user's `~/.litzio/docling.json`, shared by Desktop, HTTP Host and Vite running
 as that OS user. `LITZIO_DOCLING_SETTINGS_FILE` overrides that file for an
 isolated Host/test installation. It is outside documents, Root folders and
 browser storage: HTTP clients configure the Host's external service, not their

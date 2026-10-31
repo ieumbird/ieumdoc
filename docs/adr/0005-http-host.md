@@ -12,7 +12,7 @@
 
 ## Decision
 
-- Add `ieumdoc serve` as a thin CLI entry to a Node HTTP transport in `apps/editor/server`. Reuse the document/asset handlers, Core semantics and File commit. Extract the existing production static-file helper for Desktop and HTTP. No new backend package or web framework.
+- Add a thin CLI `serve` entry to a Node HTTP transport in `apps/editor/server` (official command `litzio serve` since #859; product names follow the [brand configuration](../guides/branding.md)). Reuse the document/asset handlers, Core semantics and File commit. Extract the existing production static-file helper for Desktop and HTTP. No new backend package or web framework.
 - Require one or more existing `--root` directories at startup. Apply the fixed allowlist in the shared file operations, checking both normalized paths and real filesystem targets. HTTP cannot fall back to unrestricted access. Vite and Desktop explicitly select their existing local policy.
 - A root grants file access; it is not the selected sidebar folder or a Workspace. Open Folder chooses one allowed root or descendant at a time; since [ADR-0009](0009-multiple-opened-folders.md) the sidebar may keep several such folders open, each still checked against the roots. HTTP starts without a document and exposes only allowed starting places and breadcrumbs.
 - Bind to loopback by default. Enforce Host/Origin checks, bounded request bodies and timeouts. Remote access belongs behind operator-controlled authentication or a trusted private network; the application does not implement accounts or authentication. A configured public origin never comes from forwarded request headers.

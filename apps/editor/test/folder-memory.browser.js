@@ -12,7 +12,7 @@ async (page, { openFolderPicker, openPath, waitForActivePath }) => {
   const check = (condition, message) => { if (!condition) failures.push(message); };
   const same = (actual, expected) => JSON.stringify(actual) === JSON.stringify(expected);
   const roots = (target = page) => target.locator('[data-testid="folder"] .sidebar-folder-name').evaluateAll(nodes => nodes.map(node => node.title));
-  const remembered = () => page.evaluate(() => JSON.parse(localStorage.getItem('ieumdoc.openFolders') ?? '[]'));
+  const remembered = () => page.evaluate(() => JSON.parse(localStorage.getItem('litzio.openFolders') ?? '[]'));
   const waitRoots = (expected, target = page) => target.waitForFunction(expected => JSON.stringify([...document.querySelectorAll('[data-testid="folder"] .sidebar-folder-name')].map(node => node.title)) === JSON.stringify(expected), expected, {timeout:15000});
   const checkMemory = async (expected, context) => {
     // Let the render and its persistence effect finish before observing browser preferences.
@@ -29,9 +29,9 @@ async (page, { openFolderPicker, openPath, waitForActivePath }) => {
   };
   const seed = async (saved, collapsed = []) => {
     await page.evaluate(({saved, collapsed}) => {
-      localStorage.setItem('ieumdoc.openFolders', JSON.stringify(saved));
-      localStorage.setItem('ieumdoc.collapsedFolderSections', JSON.stringify(collapsed));
-      localStorage.removeItem('ieumdoc.openTabs');
+      localStorage.setItem('litzio.openFolders', JSON.stringify(saved));
+      localStorage.setItem('litzio.collapsedFolderSections', JSON.stringify(collapsed));
+      localStorage.removeItem('litzio.openTabs');
     }, {saved, collapsed});
     await page.reload();
     await ready();
@@ -66,7 +66,7 @@ async (page, { openFolderPicker, openPath, waitForActivePath }) => {
   };
 
   const toggle = (path, target = page) => section(path, target).getByRole('button', {name:/^(Collapse|Expand) folder /});
-  const collapsed = () => page.evaluate(() => JSON.parse(localStorage.getItem('ieumdoc.collapsedFolderSections') ?? '[]'));
+  const collapsed = () => page.evaluate(() => JSON.parse(localStorage.getItem('litzio.collapsedFolderSections') ?? '[]'));
   const checkCollapsed = async (expected, context) => {
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     check(same(await collapsed(), expected), `${context}: collapsed preference ${JSON.stringify(await collapsed())}, expected ${JSON.stringify(expected)}`);
@@ -76,7 +76,7 @@ async (page, { openFolderPicker, openPath, waitForActivePath }) => {
     window.sectionPreferenceWrites = 0;
     const setItem = Storage.prototype.setItem;
     Storage.prototype.setItem = function(key, value) {
-      if (key === 'ieumdoc.collapsedFolderSections') window.sectionPreferenceWrites++;
+      if (key === 'litzio.collapsedFolderSections') window.sectionPreferenceWrites++;
       return setItem.call(this, key, value);
     };
   });
@@ -161,12 +161,12 @@ async (page, { openFolderPicker, openPath, waitForActivePath }) => {
   await page.route('**/api/document', startScreen);
   try {
     for (const [reverse, storageBlocked] of [[false, false], [true, false], [false, true], [true, true]]) {
-      await page.evaluate(saved => localStorage.setItem('ieumdoc.recentFolders', JSON.stringify(saved)), [a, c]);
+      await page.evaluate(saved => localStorage.setItem('litzio.recentFolders', JSON.stringify(saved)), [a, c]);
       await seed([]);
       if (storageBlocked) await page.evaluate(() => {
         const setItem = Storage.prototype.setItem;
         Storage.prototype.setItem = function(key, value) {
-          if (key === 'ieumdoc.recentFolders') throw new Error('Preference storage disabled');
+          if (key === 'litzio.recentFolders') throw new Error('Preference storage disabled');
           return setItem.call(this, key, value);
         };
       });
@@ -188,7 +188,7 @@ async (page, { openFolderPicker, openPath, waitForActivePath }) => {
         const expected = [last, first, a];
         const checkRecent = async context => {
           await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-          const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('ieumdoc.recentFolders') ?? '[]'));
+          const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('litzio.recentFolders') ?? '[]'));
           const shown = await page.getByTestId('document-start').locator('button[title]').evaluateAll(nodes => nodes.map(node => node.title));
           const expectedSaved = storageBlocked ? [a, c] : expected;
           check(same(saved, expectedSaved), `${context}: recent stored ${JSON.stringify(saved)}, expected ${JSON.stringify(expectedSaved)}`);
@@ -258,7 +258,7 @@ async (page, { openFolderPicker, openPath, waitForActivePath }) => {
   const openingC = await hold(c);
   const startWithoutDocument = route => route.fulfill({json:{start:true}});
   await page.route('**/api/document', startWithoutDocument);
-  await page.evaluate(c => localStorage.setItem('ieumdoc.recentFolders', JSON.stringify([c])), c);
+  await page.evaluate(c => localStorage.setItem('litzio.recentFolders', JSON.stringify([c])), c);
   try {
     await seed([a, b]);
     await restoringB.requested();
@@ -361,7 +361,7 @@ async (page, { openFolderPicker, openPath, waitForActivePath }) => {
     window.folderPreferenceWrites = 0;
     const setItem = Storage.prototype.setItem;
     Storage.prototype.setItem = function(key, value) {
-      if (key === 'ieumdoc.openFolders') window.folderPreferenceWrites++;
+      if (key === 'litzio.openFolders') window.folderPreferenceWrites++;
       return setItem.call(this, key, value);
     };
   });

@@ -180,7 +180,7 @@ async (page, { openPath, activeDocument, expect, screenshots = false }) => {
     await surface(bid).locator('.document-editor').focus();
     check(await surface(bid).getAttribute('data-active') === 'true', 'Focus stayed in the opening group after the user focused the other visible editor');
   } finally { release(); }
-  await expect(page).toHaveTitle('technical-3.md — IeumDoc');
+  await expect(page).toHaveTitle('technical-3.md — Litzio');
   await page.unroute('**/api/document?path=*',hold);
   await page.getByRole('button',{name:'Close technical-3.md',exact:true}).click();
   await expect(surface(aid)).toBeVisible();
@@ -261,7 +261,7 @@ async (page, { openPath, activeDocument, expect, screenshots = false }) => {
   await page.getByTestId('sidebar').locator(`[role="treeitem"][data-path=${JSON.stringify(c)}]`).click({button:'right'});
   await page.getByRole('menuitem',{name:'Open to the right',exact:true}).click();
   await expect(groups()).toHaveCount(2);
-  await expect(page).toHaveTitle('technical-3.md — IeumDoc');
+  await expect(page).toHaveTitle('technical-3.md — Litzio');
   // Selecting an opened Command Center document focuses its owner instead of moving it.
   await page.keyboard.press('Control+Slash');
   const center = page.getByRole('dialog',{name:'Command center',exact:true});

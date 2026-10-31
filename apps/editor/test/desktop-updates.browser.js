@@ -118,7 +118,7 @@ async (page, { screenshots = false, openPath }) => {
   check(await page.getByTestId('cli-status').innerText() === 'Installed', 'Repair did not complete');
   await page.keyboard.press('Escape');
   await page.getByTestId('settings-dialog').waitFor({state:'detached'});
-  await page.evaluate(() => window.__cli.state = {status:'off',conflict:'C:\\Another CLI\\ieumdoc.cmd'});
+  await page.evaluate(() => window.__cli.state = {status:'off',conflict:'C:\\Another CLI\\litzio.cmd'});
   await page.getByRole('button',{name:'Settings',exact:true}).click();
   await page.getByRole('button',{name:'About & updates',exact:true}).click();
   await cli.getByText(/Another command or file conflicts/).waitFor();
@@ -353,7 +353,7 @@ async (page, { screenshots = false, openPath }) => {
   if (screenshots) await page.screenshot({path:'tmp/665/after-en-dark-640-rail.png'});
   await settings.click();
   await dialog.waitFor();
-  await waitForStatus('IeumDoc 0.3.0-beta.1 (Beta) is available. You have 0.2.0.');
+  await waitForStatus('Litzio 0.3.0-beta.1 (Beta) is available. You have 0.2.0.');
   check(await dialog.getByRole('button',{name:'About & updates',exact:true}).getAttribute('aria-current') === 'page', 'Dot did not open About');
   check((await page.getByTestId('settings-update-section').getAttribute('class')).includes('settings-update-highlight'), 'Update section is not highlighted');
   await dot.waitFor({state:'detached'});
@@ -372,13 +372,13 @@ async (page, { screenshots = false, openPath }) => {
   await push({phase:'available', version:'0.3.0-beta.1', prerelease:true});
   await settings.click(); await dialog.waitFor();
   await dialog.getByRole('button',{name:'About & updates',exact:true}).click();
-  await waitForStatus('IeumDoc 0.3.0-beta.1 (Beta) is available. You have 0.2.0.');
+  await waitForStatus('Litzio 0.3.0-beta.1 (Beta) is available. You have 0.2.0.');
   check(await dot.count() === 0, 'Viewed version notified after reload');
   await page.keyboard.press('Escape'); await dialog.waitFor({state:'detached'});
   await push({phase:'available', version:'0.3.0-beta.2', prerelease:true});
   await dot.waitFor();
   await settings.click(); await dialog.waitFor();
-  await waitForStatus('IeumDoc 0.3.0-beta.2 (Beta) is available. You have 0.2.0.');
+  await waitForStatus('Litzio 0.3.0-beta.2 (Beta) is available. You have 0.2.0.');
   await page.getByRole('button', {name:'Download update'}).click();
   await push({phase:'downloading', version:'0.3.0-beta.2', prerelease:true, percent:42.5, transferred:425, total:1000});
   await page.getByRole('progressbar', {name:'Update download'}).and(page.locator('[value="42.5"]')).waitFor({state:'attached', timeout:5000});
@@ -531,7 +531,7 @@ async (page, { screenshots = false, openPath }) => {
   // Stable, idle, no records); the updater interaction assertions above are complete.
   await stable.check();
   await push({phase:'idle'});
-  await waitForStatus('IeumDoc checks for updates automatically.');
+  await waitForStatus('Litzio checks for updates automatically.');
   await page.keyboard.press('Escape'); await dialog.waitFor({state:'detached'});
 
   // Korean/light uses the same cue and direct destination, including a new offer while About is open.

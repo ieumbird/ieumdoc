@@ -82,7 +82,7 @@ export function tabNames(tabs: readonly { path: string }[]): string[] {
 }
 
 export function allTabsPendingWork(tabs: Iterable<{ pendingWork(): string | null }>, opening: boolean): string | null {
-  if (opening) return i18n.t("IeumDoc is still opening a document. Try again in a moment.");
+  if (opening) return i18n.t("{{product}} is still opening a document. Try again in a moment.");
   for (const tab of tabs) {
     const reason = tab.pendingWork();
     if (reason) return reason;

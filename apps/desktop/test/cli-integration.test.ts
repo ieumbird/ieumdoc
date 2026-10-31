@@ -15,7 +15,7 @@ async function setup() {
   const root = await mkdtemp(path.join(os.tmpdir(), "litzio-cli-integration-"));
   const app = path.join(root, "설치 app !% & (test)");
   await mkdir(path.join(app, "resources", "cli"), { recursive: true });
-  const exe = path.join(app, "IeumDoc.exe");
+  const exe = path.join(app, "Litzio.exe");
   await writeFile(exe, "test executable");
   await writeFile(path.join(app, "resources", "cli", "cli.mjs"), "test CLI");
   const data = { user: { value: "%USERPROFILE%\\tools;;C:\\Other;", kind: "ExpandString" } as RegistryPath,
@@ -34,13 +34,13 @@ async function setup() {
 }
 
 test("PATH edits preserve raw unrelated segments/order and recognize quoted, expanded, case-varied paths", () => {
-  const bin = "C:\\Users\\Me\\IeumDoc\\bin";
+  const bin = "C:\\Users\\Me\\Litzio\\bin";
   const expand = (v: string) => v.replace(/%LOCALAPPDATA%/ig, "C:\\Users\\Me");
   const raw = "%Unrelated%\\bin;;C:\\Other;";
   const enabled = editUserPath(raw, bin, true, expand);
   assert.equal(enabled, `${raw};${bin}`);
   assert.equal(editUserPath(enabled, bin, false, expand), raw);
-  const equivalent = `${raw};"%LOCALAPPDATA%\\IEUMDOC\\bin\\"`;
+  const equivalent = `${raw};"%LOCALAPPDATA%\\Litzio\\bin\\"`;
   assert.equal(editUserPath(equivalent, bin, true, expand), equivalent);
   assert.equal(editUserPath(equivalent, bin, false, expand), raw);
   assert.equal(editUserPath("", bin, false, expand), "");
@@ -108,12 +108,12 @@ test("foreign PATH commands and foreign files are reported without replacement o
   await fixture(async ({ data, integration, root }) => {
     const foreign = path.join(root, "separate CLI");
     await mkdir(foreign);
-    const command = path.join(foreign, "ieumdoc.ps1");
+    const command = path.join(foreign, "litzio.ps1");
     await writeFile(command, "foreign");
     for (const source of ["machine", "inherited"] as const) {
       data[source] = foreign;
       assert.equal((await integration.state()).conflict, command);
-      await assert.rejects(integration.setEnabled(true), /Another ieumdoc command/);
+      await assert.rejects(integration.setEnabled(true), /Another litzio command/);
       data[source] = "";
     }
     await mkdir(integration.bin, { recursive: true });
@@ -131,9 +131,9 @@ test("repair rebinds a moved app; uninstall of an older copy does not remove the
     await integration.setEnabled(true);
     const next = path.join(root, "new app");
     await mkdir(path.join(next, "resources", "cli"), { recursive: true });
-    await writeFile(path.join(next, "IeumDoc.exe"), "new executable");
+    await writeFile(path.join(next, "Litzio.exe"), "new executable");
     await writeFile(path.join(next, "resources", "cli", "cli.mjs"), "new CLI");
-    const moved = new CliIntegration(path.join(next, "IeumDoc.exe"), root, environment);
+    const moved = new CliIntegration(path.join(next, "Litzio.exe"), root, environment);
     assert.equal((await moved.state()).status, "broken");
     await moved.setEnabled(true);
     assert.equal((await moved.state()).status, "installed");
@@ -157,7 +157,7 @@ test("replaced junctions survive uninstall while their PATH entry is removed and
     assert.equal(result.status, "off");
     assert.match(result.conflict!, /Another file/);
     assert.deepEqual(data.user, original);
-    assert.equal(await readFile(path.join(root, "IeumDoc", "bin", "app", "keep.txt"), "utf8"), "user data");
+    assert.equal(await readFile(path.join(integration.junction, "keep.txt"), "utf8"), "user data");
   });
 });
 
@@ -191,9 +191,9 @@ test("the exact shim preserves quoted Unicode arguments, binary stdin/stdout and
     const env = { ...process.env };
     for (const key of Object.keys(env)) if (["path", "nodefaultcurrentdirectoryinexepath"].includes(key.toLowerCase())) delete env[key];
     env.Path = `${integration.bin};${process.env.PATH ?? ""}`;
-    for (const command of [integration.shim, "ieumdoc"]) {
+    for (const command of [integration.shim, "litzio"]) {
       const result = spawnSync(process.env.ComSpec ?? "cmd.exe", windowsCommand(command, args), {
-        // The terminal's document folder must not contain the stand-in IeumDoc.exe: cmd
+        // The terminal's document folder must not contain the stand-in Litzio.exe: cmd
         // legitimately searches cwd before PATH on Windows, which would bypass any shim.
         cwd: root, env, windowsVerbatimArguments: true, windowsHide: true, input, timeout: 15_000,
       });

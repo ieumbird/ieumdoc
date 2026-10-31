@@ -7,18 +7,17 @@ import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { CliIntegration } from "../../src/cli-integration.ts";
 import { windowsEnvironment } from "../../src/windows-environment.ts";
+import { brand } from "../../../../brand.ts";
+import { installedUninstallCommand } from "./installed-app.ts";
 
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const work = path.resolve(desktop, "../../tmp/desktop-uninstall");
 const local = process.env.LOCALAPPDATA!;
-const logFolder = path.join(local, "IeumDoc", "uninstall-logs");
-const bin = path.join(local, "IeumDoc", "bin");
+const logFolder = path.join(local, brand.folders.cli, "uninstall-logs");
+const bin = path.join(local, brand.folders.cli, "bin");
 const environment = windowsEnvironment();
 function entries(): string {
-  return execFileSync("powershell.exe", ["-NoProfile", "-Command",
-    "$key = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall'; " +
-    "if (Test-Path -LiteralPath $key) { Get-ChildItem -LiteralPath $key -ErrorAction Stop | " +
-    "ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction Stop } | Where-Object { $_.DisplayName -like 'IeumDoc*' } | ForEach-Object { $_.UninstallString } }"], { encoding: "utf8" }).trim();
+  return installedUninstallCommand();
 }
 
 test("NSIS removal cleans owned CLI entries, preserves user files and survives optional cleanup failures", {
@@ -31,7 +30,7 @@ test("NSIS removal cleans owned CLI entries, preserves user files and survives o
   const longPath = { value: `${original.value};${'C:\\한글 도구\\"quoted";%VAR%\\bin;;'.repeat(180)}`, kind: "ExpandString" as const };
   assert.ok(longPath.value.length > 4000);
   const version = JSON.parse(readFileSync(path.join(desktop, "package.json"), "utf8")).version;
-  const installer = path.join(desktop, "release", `IeumDoc-Setup-${version}.exe`);
+  const installer = path.join(desktop, "release", `${brand.executableName}-Setup-${version}.exe`);
   mkdirSync(work, { recursive: true });
   try {
     await environment.write(original, longPath);
@@ -48,7 +47,7 @@ test("NSIS removal cleans owned CLI entries, preserves user files and survives o
       assert.equal(setup.status, 0, `${label}: ${setup.stderr}`);
       const registration = entries();
       assert.ok(registration.toLowerCase().includes(install.toLowerCase()), `${label}: registration ${registration} must identify ${install}`);
-      const integration = new CliIntegration(path.join(install, "IeumDoc.exe"), local, environment);
+      const integration = new CliIntegration(path.join(install, `${brand.executableName}.exe`), local, environment);
       await integration.setEnabled(true);
       const registered = (await environment.read()).user;
       const userFile = path.join(bin, "user-note.txt");
@@ -62,7 +61,7 @@ test("NSIS removal cleans owned CLI entries, preserves user files and survives o
       // _?= runs the real installed uninstaller without its detached self-copy. Copying it to
       // our scratch keeps its own executable outside the application tree it must remove.
       const uninstaller = path.join(work, `${label}.exe`);
-      copyFileSync(path.join(install, "Uninstall IeumDoc.exe"), uninstaller);
+      copyFileSync(path.join(install, `Uninstall ${brand.executableName}.exe`), uninstaller);
       const args = [...(silent ? ["/S"] : []), "/currentuser", `_?=${install}`];
       const temporary = path.join(work, `${label}-temporary`);
       mkdirSync(temporary, { recursive: true });

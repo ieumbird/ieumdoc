@@ -4,6 +4,8 @@
 
 Litzio는 **초기 Beta** 단계다. Windows x64 unsigned [v0.0.2-beta.4](https://github.com/ieumbird/ieumdoc/releases/tag/v0.0.2-beta.4)가 공개되었고 Stable은 아직 없다. 공개 결과와 검증 범위는 [배포 기록](docs/releases/v0.0.2-beta.4.md)을 따른다. 직전 공개 결과는 [v0.0.2-beta.3 기록](docs/releases/v0.0.2-beta.3.md)에 보존한다. 일반 사용자 설치는 [README](README.md#windows-desktop), 개발자 빌드와 릴리즈는 아래 절차를 따른다. Visual Editor의 Vite 개발 실행도 유지한다. 공개 API와 문서 지원 범위는 바뀔 수 있다.
 
+제품 브랜드·아이콘·배포 식별자는 [패키저용 안내](docs/guides/branding.md)와 `brand.ts`를 따른다. 공식 기본값은 Litzio이며 이전 공개 Beta의 데이터/업데이트 경로를 이전하지 않는다.
+
 ## Development requirements
 
 - Node.js `>=24.21.0 <25`
@@ -163,7 +165,7 @@ pnpm --filter @litzio/desktop test:packaged
 
 공개 버전은 `0.0.2-beta.4`이며 Stable 공개는 보류한다. Beta 설치본의 최초 실행 기본 채널은 Beta, Stable 설치본은 Stable이다. 유효하게 저장된 사용자 선택은 버전이 바뀌어도 유지한다. Beta는 제한된 unsigned 게시 모드를 사용할 수 있으며 Stable은 서명된 릴리즈 절차만 허용한다.
 
-일반 PR/merge-group/push CI는 unsigned package 생성·release 자산 검증·packaged 회귀와 경로 정책이 선택한 설치/업데이트·제거 검사를 유지하되 개발용 installer를 업로드하지 않는다. 실패 진단은 packaged profile의 `logs/desktop.log*`, `recovery-proof.json`, 업데이트 시험 버전의 `latest.yml`·`beta.yml`, 제거 검사의 `*-dialogs.txt`·`*-cleanup.txt`와 실제 `%LOCALAPPDATA%\IeumDoc\uninstall-logs\*.tmp` 진단만 7일 보관한다. 실행 로그와 직접 시작 측정치는 Actions 로그에서 확인한다. 실행 파일·blockmap·설치 트리·브라우저 profile·cache 전체는 진단에 포함하지 않는다. 작은 native caption 화면 근거는 성공·실패 모두 7일 보관한다. 게시 권한이나 release job은 없다.
+일반 PR/merge-group/push CI는 unsigned package 생성·release 자산 검증·packaged 회귀와 경로 정책이 선택한 설치/업데이트·제거 검사를 유지하되 개발용 installer를 업로드하지 않는다. 브랜드 설정으로 선택한 사용자 제거 로그는 Windows의 다른 드라이브 root와 섞이지 않게 `desktop-uninstall-logs` artifact로 분리한다. 실패 진단은 packaged profile의 `logs/desktop.log*`, `recovery-proof.json`, 업데이트 시험 버전의 `latest.yml`·`beta.yml`, 제거 검사의 `*-dialogs.txt`·`*-cleanup.txt`와 실제 `%LOCALAPPDATA%\litzio\uninstall-logs\*.tmp` 진단만 7일 보관한다. 실행 로그와 직접 시작 측정치는 Actions 로그에서 확인한다. 실행 파일·blockmap·설치 트리·브라우저 profile·cache 전체는 진단에 포함하지 않는다. 작은 native caption 화면 근거는 성공·실패 모두 7일 보관한다. 게시 권한이나 release job은 없다.
 
 첫 beta.1은 당시 CI 자산을 별도로 검증하여 수동 공개했다. 다음 Beta부터는 [Desktop release workflow](.github/workflows/desktop-release.yml)를 master에서 수동 실행한다. 이 workflow의 `desktop-release` Artifact는 installer·blockmap·채널 manifest와 게시 재검증 입력인 `win-unpacked/`를 14일 유지한다. Release 자산·전역 retention·queue 동시성과 CI 실행/성공 기준은 이 업로드 정책의 변경 대상이 아니다.
 

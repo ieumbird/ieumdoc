@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { buildDoclingWorker } from "./build-docling-worker.ts";
+import { brand } from "../../../brand.ts";
 
 const cli = fileURLToPath(new URL("..", import.meta.url));
 const repo = path.resolve(cli, "../..");
@@ -31,8 +32,8 @@ const result = await build({
 const executable = path.join(destination, "cli.mjs");
 writeFileSync(executable, `#!/usr/bin/env node\n${readFileSync(executable, "utf8")}`, { mode: 0o755 });
 writeFileSync(path.join(destination, "package.json"), JSON.stringify({ name: "@litzio/cli", version: manifest.version,
-  description: "IeumDoc document CLI and HTTP Editor Host", license: "MIT", type: "module", private: true,
-  bin: { ieumdoc: "cli.mjs" }, files: ["*.mjs", "*.txt", "*.md", "editor/", "docling-worker/", "LICENSE"], engines: { node: ">=24.21.0 <25" } }, null, 2) + "\n");
+  description: `${brand.name.en} document CLI and HTTP Editor Host`, license: "MIT", type: "module", private: true,
+  bin: { [brand.cliCommand]: "cli.mjs" }, files: ["*.mjs", "*.txt", "*.md", "editor/", "docling-worker/", "LICENSE"], engines: { node: ">=24.21.0 <25" } }, null, 2) + "\n");
 cpSync(path.join(repo, "LICENSE"), path.join(destination, "LICENSE"));
 // Include dependency license files for bundled runtime modules and the Editor assets.
 const packageDirs = new Set<string>();
@@ -64,5 +65,5 @@ const notices = [...packageDirs].sort().map(directory => {
     licenses.map(name => readFileSync(path.join(directory, name), "utf8")).join("\n");
 });
 writeFileSync(path.join(destination, "THIRD_PARTY_LICENSES.txt"), notices.join("\n\n--------------------\n\n"));
-writeFileSync(path.join(destination, "README.md"), "# IeumDoc CLI and HTTP Editor\n\nRequires Node.js >=24.21.0 <25.\n\n`ieumdoc --version` alone prints the build version and commit (or unknown without Git).\n\nRun `ieumdoc serve --root <folder> [--root <folder>]` after local package installation, or `node cli.mjs serve --root <folder>`.\n\nDefault: http://127.0.0.1:5180. Roots are allowed server folders, selected individually with Open Folder. No built-in authentication. Use an access-controlled reverse proxy and `--public-origin` for remote access. See https://github.com/ieumbird/ieumdoc/blob/master/docs/design/http-host-v1.md for the security and deployment contract.\n");
+writeFileSync(path.join(destination, "README.md"), `# ${brand.name.en} CLI and HTTP Editor\n\nRequires Node.js >=24.21.0 <25.\n\n\`${brand.cliCommand} --version\` alone prints the build version and commit (or unknown without Git).\n\nRun \`${brand.cliCommand} serve --root <folder> [--root <folder>]\` after local package installation, or \`node cli.mjs serve --root <folder>\`.\n\nDefault: http://127.0.0.1:5180. Roots are allowed server folders, selected individually with Open Folder. No built-in authentication. Use an access-controlled reverse proxy and \`--public-origin\` for remote access. See https://github.com/ieumbird/ieumdoc/blob/master/docs/design/http-host-v1.md for the security and deployment contract.\n`);
 console.log(`CLI and Editor built in ${path.relative(repo, destination)}`);

@@ -336,7 +336,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await page.keyboard.press('Control+z');
   await open('foreign.md');
   const foreign = center().getByRole('option',{name:'foreign.md',exact:true});
-  check((await foreign.innerText()).includes('Not an IeumDoc document'), 'Non-native file has no explanation');
+  check((await foreign.innerText()).includes('Not a Litzio document'), 'Non-native file has no explanation');
   check(await foreign.evaluate(n => getComputedStyle(n).color) === await folder.getByRole('treeitem',{name:'foreign.md',exact:true,includeHidden:true}).evaluate(n => getComputedStyle(n).color), 'Non-native result differs from sidebar muted treatment');
   await page.keyboard.press('Enter'); await center().waitFor({state:'detached'});
   await page.getByTestId('text-editor').waitFor();
@@ -802,7 +802,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   }
   // Reload into a real localized start offer; opening the sample uses the same retained mapping.
   await page.route('**/api/document', route => route.fulfill({json:{start:true,samples:loaded.samples}}));
-  await page.evaluate(() => localStorage.removeItem('ieumdoc.openTabs'));
+  await page.evaluate(() => localStorage.removeItem('litzio.openTabs'));
   page.once('dialog', dialog => dialog.accept());
   await page.reload();
   await page.getByTestId('document-start').waitFor();

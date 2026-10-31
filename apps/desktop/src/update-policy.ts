@@ -1,9 +1,10 @@
+import { brand } from "../../../brand.ts";
 // Release channels, versions and update scheduling, without Electron or the network.
 import semver from "semver";
 import type { OfferedUpdate, ReleaseChannel } from "../../editor/shared/desktop-bridge.ts";
 
 /** The GitHub repository whose Releases the app updates from. */
-export const RELEASE_REPOSITORY = { owner: "ieumbird", repo: "ieumdoc" } as const;
+export const RELEASE_REPOSITORY = brand.updates.repository;
 export const RELEASES_URL = `https://github.com/${RELEASE_REPOSITORY.owner}/${RELEASE_REPOSITORY.repo}/releases`;
 
 /** Only the GitHub adapter can establish this; generic HTTP errors are never classified here. */
@@ -48,6 +49,7 @@ export function configureUpdater(updater: UpdaterSettings, channel: ReleaseChann
   updater.autoInstallOnAppQuit = false;
   updater.disableWebInstaller = true;
   updater.fullChangelog = false;
+  // Keep the library's semver selector semantic. The provider maps only metadata filenames.
   updater.channel = channel === "beta" ? "beta" : "latest";
   updater.allowPrerelease = channel === "beta";
   updater.allowDowngrade = false;

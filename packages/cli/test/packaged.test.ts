@@ -44,7 +44,7 @@ test("the packed CLI installs offline outside the checkout and serves both roots
     writeFileSync(path.join(install, "package.json"), JSON.stringify({ name: "litzio-package-test", private: true }));
     copyFileSync(path.join(dist, archive), path.join(install, "artifact.tgz"));
     execSync("npm install --ignore-scripts --no-audit --no-fund --offline ./artifact.tgz", { cwd: install, env, stdio: "pipe" });
-    const bin = process.platform === "win32" ? ".\\node_modules\\.bin\\ieumdoc.cmd" : "./node_modules/.bin/ieumdoc";
+    const bin = process.platform === "win32" ? ".\\node_modules\\.bin\\litzio.cmd" : "./node_modules/.bin/litzio";
     assert.match(execSync(`${bin} help serve`, { cwd: install, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }), /--root/);
     const entry = path.join(install, "node_modules/@litzio/cli/cli.mjs");
     const installed = JSON.parse(readFileSync(path.join(install, "node_modules/@litzio/cli/package.json"), "utf8"));
@@ -52,7 +52,7 @@ test("the packed CLI installs offline outside the checkout and serves both roots
     const version = spawnSync(process.execPath, [entry, "--version"], { cwd, env, encoding: "utf8" });
     assert.equal(version.status, 0, version.stderr);
     assert.equal(version.stderr, "");
-    assert.match(version.stdout, new RegExp(`^ieumdoc ${installed.version.replaceAll(".", "\\.")} \\((?:[a-f0-9]{12,40}|unknown)\\)\\n$`));
+    assert.match(version.stdout, new RegExp(`^litzio ${installed.version.replaceAll(".", "\\.")} \\((?:[a-f0-9]{12,40}|unknown)\\)\\n$`));
     for (const folder of [a, b]) writeFileSync(path.join(folder, "document.md"), "---\nlitzio: 1\n---\n\n# Title\n\nAlpha.\n");
     const checked = spawnSync(process.execPath, [entry, "check", path.join(a, "document.md")], { cwd, env, encoding: "utf8" });
     assert.equal(checked.status, 0, checked.stderr);
@@ -66,7 +66,7 @@ test("the packed CLI installs offline outside the checkout and serves both roots
       const timeout = setTimeout(() => reject(new Error(`Startup timed out: ${output}\n${errors}`)), 15_000);
       child!.once("error", error => { clearTimeout(timeout); reject(error); });
       child!.once("exit", code => { clearTimeout(timeout); reject(new Error(`CLI exited ${code}: ${errors}`)); });
-      child!.stdout!.on("data", data => { output += data; if (output.includes("IeumDoc HTTP:")) { clearTimeout(timeout); resolve(); } });
+      child!.stdout!.on("data", data => { output += data; if (output.includes("Litzio HTTP:")) { clearTimeout(timeout); resolve(); } });
     });
     assert.equal((await fetch(url)).status, 200);
     assert.deepEqual((await (await fetch(url + "/api/document")).json()).allowedRoots, [a, b]);

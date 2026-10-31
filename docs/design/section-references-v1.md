@@ -125,7 +125,7 @@ profile. The Before run used the original product files; After used the final im
 
 ## CLI
 
-`ieumdoc insert-target <file> --at <index> --label <label>` inserts a target. `update-label` renames a target. `inspect` shows `target label="…"`. References use `--content` with `{"kind":"reference","role":"ref","label":"…"}`.
+`litzio insert-target <file> --at <index> --label <label>` inserts a target. `update-label` renames a target. `inspect` shows `target label="…"`. References use `--content` with `{"kind":"reference","role":"ref","label":"…"}`.
 
 ## Opt-in label rename with references (#216)
 

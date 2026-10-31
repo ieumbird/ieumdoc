@@ -61,7 +61,7 @@ async page => {
     });
     let oldClosed = false; oldDb.onversionchange = () => { oldClosed = true; oldDb.close(); };
     check((await list())[0]?.recoveryText === 'preserved', 'Storage upgrade changed an existing recovery record');
-    localStorage.setItem('ieumdoc.recoveryClean.v1.existing', '0');
+    localStorage.setItem('litzio.recoveryClean.v1.existing', '0');
     check((await list())[0]?.recoveryText === 'preserved', 'Clean metadata deleted a legacy record without a recording generation');
     const oldRefused = await new Promise(resolve => { const request=indexedDB.open(RECOVERY_DB,2); request.onerror=()=>resolve(request.error.name==='VersionError'); request.onsuccess=()=>{request.result.close();resolve(false);}; });
     check(oldRefused && oldClosed, 'Old unbounded ticket protocol can still open the database');
@@ -103,7 +103,7 @@ async page => {
     // A process crash may persist IndexedDB but revert localStorage independently.
     // Reappearing old clean metadata must never erase a newer committed dirty record.
     live = null; recorder.edit(false);
-    const cleanKey = 'ieumdoc.recoveryClean.v1.a';
+    const cleanKey = 'litzio.recoveryClean.v1.a';
     const staleClean = localStorage.getItem(cleanKey);
     live = snapshot('dirty committed after the old clean acknowledgement'); recorder.edit(); await wait();
     localStorage.setItem(cleanKey, staleClean);

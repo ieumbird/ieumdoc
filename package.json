@@ -15,10 +15,10 @@
     "docs:check": "tsx scripts/check-docs.ts",
     "test": "pnpm --filter @litzio/core test && pnpm --filter @litzio/file-commit test && pnpm --filter @litzio/docling test && pnpm --filter @litzio/cli test && pnpm --filter @litzio/editor test && pnpm --filter @litzio/desktop test",
     "typecheck": "pnpm --filter @litzio/core typecheck && pnpm --filter @litzio/file-commit typecheck && pnpm --filter @litzio/docling typecheck && pnpm --filter @litzio/cli typecheck && pnpm --filter @litzio/editor typecheck && pnpm --filter @litzio/desktop typecheck",
-    "ieumdoc": "tsx packages/cli/src/cli.ts",
     "editor": "pnpm --filter @litzio/editor dev",
     "browser:prepare": "tsx apps/editor/test/browser/prepare.ts",
-    "browser:test": "tsx apps/editor/test/browser/run.ts"
+    "browser:test": "tsx apps/editor/test/browser/run.ts",
+    "cli": "tsx packages/cli/src/cli.ts"
   },
   "devDependencies": {
     "@playwright/cli": "0.1.21",

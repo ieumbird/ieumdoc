@@ -51,7 +51,7 @@ async (page, { withBlockHover, reloadDocument, recoveryRecords, expect }) => {
   });
   await page.setViewportSize({width:1440, height:1000});
   await page.emulateMedia({colorScheme:'light'});
-  await page.evaluate(theme => {localStorage.clear(); sessionStorage.clear(); localStorage.setItem('ieumdoc.theme',theme);}, theme);
+  await page.evaluate(theme => {localStorage.clear(); sessionStorage.clear(); localStorage.setItem('litzio.theme',theme);}, theme);
   await page.reload();
   const openFolder = page.getByRole('button', {name:'Open folder…', exact:true});
   // An explicit theme ignores OS changes; System behavior is covered with the preference UI.

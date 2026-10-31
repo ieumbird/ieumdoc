@@ -30,7 +30,7 @@ its ordinary image assets. Snapshot paths have the lifetime defined by
 [ADR-0003](0003-document-addressing-identity-boundary.md); the document hash binds
 each new sidecar to exactly one generated document.
 
-The CLI offers thin `ieumdoc docling convert` and `convert-pdf` commands that
+The CLI offers thin `litzio docling convert` and `convert-pdf` commands that
 delegate conversion, external REST service access and file output to the module.
 It does not implement Docling interpretation,
 MyST syntax or document semantics. The implemented policy and sidecar contract

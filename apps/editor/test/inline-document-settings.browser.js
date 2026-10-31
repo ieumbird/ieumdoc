@@ -108,7 +108,7 @@ async (page, { openPath, screenshots, withBlockHover }) => {
 
   // Geometry is judged in this run; captures are optional manual evidence from the same states.
   const preferences = await page.evaluate(() => ({language:document.documentElement.lang,
-    theme:localStorage.getItem('ieumdoc.theme') ?? 'system', background:localStorage.getItem('ieumdoc.pageBackground') ?? 'paper'}));
+    theme:localStorage.getItem('litzio.theme') ?? 'system', background:localStorage.getItem('litzio.pageBackground') ?? 'paper'}));
   try {
     for(const language of ['en','ko']) for(const theme of ['light','dark']) for(const background of ['paper','flat']) {
       const previousLanguage=await page.locator('html').getAttribute('lang');

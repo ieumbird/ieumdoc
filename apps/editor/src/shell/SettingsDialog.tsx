@@ -31,23 +31,23 @@ export function updateStatusText(info: DesktopInfo): string {
   const channel = info.channel === "beta" ? i18n.t("Beta") : i18n.t("Stable");
   switch (state.phase) {
     case "idle":
-      return info.updatesSupported ? i18n.t("IeumDoc checks for updates automatically.") : i18n.t("Updates run in the installed app.");
+      return info.updatesSupported ? i18n.t("{{product}} checks for updates automatically.") : i18n.t("Updates run in the installed app.");
     case "checking":
       return i18n.t("Checking for updates…");
     case "no-stable-release":
       return i18n.t("No Stable release has been published yet.");
     case "up-to-date":
       return state.latest && state.latest !== info.version
-        ? i18n.t("You have {{version}}. The newest {{channel}} release is {{latest}}; IeumDoc updates when a newer {{channel}} release is published.", { version: info.version, channel: channel, latest: state.latest })
-        : i18n.t("IeumDoc is up to date.");
+        ? i18n.t("You have {{version}}. The newest {{channel}} release is {{latest}}; {{product}} updates when a newer {{channel}} release is published.", { version: info.version, channel: channel, latest: state.latest })
+        : i18n.t("{{product}} is up to date.");
     case "available":
-      return i18n.t("IeumDoc {{version}} ({{channel}}) is available. You have {{current}}.", { version: state.version, channel: kind(state), current: info.version });
+      return i18n.t("{{product}} {{version}} ({{channel}}) is available. You have {{current}}.", { version: state.version, channel: kind(state), current: info.version });
     case "downloading":
-      return i18n.t("Downloading IeumDoc {{version}}… {{percent}}%", { version: state.version, percent: Math.floor(state.percent) });
+      return i18n.t("Downloading {{product}} {{version}}… {{percent}}%", { version: state.version, percent: Math.floor(state.percent) });
     case "downloaded":
-      return i18n.t("IeumDoc {{version}} is downloaded and verified. Restart to install it.", { version: state.version });
+      return i18n.t("{{product}} {{version}} is downloaded and verified. Restart to install it.", { version: state.version });
     case "installing":
-      return i18n.t("Restarting to install IeumDoc {{version}}…", { version: state.version });
+      return i18n.t("Restarting to install {{product}} {{version}}…", { version: state.version });
     case "error":
       return state.during === "check" ? i18n.t("Could not check for updates: {{reason}}", { reason: state.message })
         : state.during === "download" ? i18n.t("Could not download the update: {{reason}}", { reason: state.message })
@@ -81,7 +81,7 @@ function CliSettings({ desktop }: { desktop: DesktopBridge }) {
       <h4 className="settings-heading">{i18n.t("Command-line tools (CLI)")}</h4>
       <p className="settings-status" role="status" data-testid="cli-status">{!state ? i18n.t("Loading…")
         : state.status === "installed" ? i18n.t("CLI installed") : state.status === "broken" ? i18n.t("CLI path is broken") : i18n.t("CLI off")}</p>
-      <p>{i18n.t("Run ieumdoc commands without installing Node.js. PATH changes apply to new terminals.")}</p>
+      <p>{i18n.t("Run {{command}} commands without installing Node.js. PATH changes apply to new terminals.")}</p>
       {state?.unsupported ? <p>{i18n.t("Available in the installed Windows app.")}</p> : null}
     </div>
     <div className="settings-actions">
@@ -93,7 +93,7 @@ function CliSettings({ desktop }: { desktop: DesktopBridge }) {
       </> : null}
       {problem || state?.conflict ? <Button size="sm" variant="ghost" disabled={busy} onClick={() => void change()}>{i18n.t("Refresh CLI status")}</Button> : null}
     </div>
-    {state?.conflict ? <Notice tone="error">{i18n.t("Another command or file conflicts with IeumDoc CLI. Nothing was overwritten.")} {state.conflict}</Notice> : null}
+    {state?.conflict ? <Notice tone="error">{i18n.t("Another command or file conflicts with {{product}} CLI. Nothing was overwritten.")} {state.conflict}</Notice> : null}
     {problem ? <Notice tone="error" data-testid="cli-problem">{problem}</Notice> : null}
   </div>;
 }
@@ -183,10 +183,10 @@ export function SettingsDialog({ theme, themeProblem, onThemeChange, open, highl
             <div className="settings-content-inner">
               <header className="settings-category-header">
                 <h2 id={`settings-category-${category}`}>{categories.find(item => item.id === category)?.label}</h2>
-                <p>{category === "appearance" ? i18n.t("How IeumDoc looks on this device.")
+                <p>{category === "appearance" ? i18n.t("How {{product}} looks on this device.")
                   : category === "recovery" ? i18n.t("Local recovery keeps applied edits on this device.")
                   : category === "docling" ? i18n.t("PDF conversion on the Host device.")
-                  : i18n.t("Version and how IeumDoc Desktop receives updates.")}</p>
+                  : i18n.t("Version and how {{product}} Desktop receives updates.")}</p>
               </header>
               {category === "docling" ? <DoclingServerSettings base={import.meta.env.BASE_URL} text={key => i18n.t(key as MessageKey)} Input={Input} Button={DoclingSettingsButton} GuideLink={DoclingGuideLink} /> : null}
               {category === "appearance" ? <>

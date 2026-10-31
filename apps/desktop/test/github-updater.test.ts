@@ -5,6 +5,7 @@
 // release at /OWNER/REPO/releases/latest; for another host the provider asks the
 // /api/v3/repos/OWNER/REPO/releases/latest form this stand-in answers. Selection is the same code.
 import assert from "node:assert/strict";
+import { brand } from "../../../brand.ts";
 import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import http, { type RequestOptions } from "node:http";
@@ -46,9 +47,9 @@ class NodeHttpExecutor extends HttpExecutor<http.ClientRequest> {
   }
 }
 
-type Release = { tag: string; prerelease?: boolean; channelFile?: "latest" | "beta"; tamper?: boolean; metadata?: string | null };
-const installerName = (version: string) => `IeumDoc-Setup-${version}.exe`;
-const installerBytes = (version: string) => Buffer.from(`IeumDoc installer ${version}\n`.repeat(64));
+type Release = { tag: string; prerelease?: boolean; channelFile?: string; tamper?: boolean; metadata?: string | null };
+const installerName = (version: string) => `Litzio-Setup-${version}.exe`;
+const installerBytes = (version: string) => Buffer.from(`Litzio installer ${version}\n`.repeat(64));
 const sha512 = (bytes: Buffer) => createHash("sha512").update(bytes).digest("base64");
 
 /** Update metadata as electron-builder writes it: Beta versions publish beta.yml, Stable latest.yml. */
@@ -118,9 +119,9 @@ function realUpdater(installed: string, host: string, options: { publisherName?:
   const folder = options.folder ?? mkdtempSync(path.join(os.tmpdir(), "litzio-updater-test-"));
   if (!options.folder) folders.push(folder);
   const config = path.join(folder, "app-update.yml");
-  writeFileSync(config, [`owner: ${owner}`, `repo: ${repo}`, "provider: github", "updaterCacheDirName: ieumdoc-updater-test",
+  writeFileSync(config, [`owner: ${owner}`, `repo: ${repo}`, "provider: github", "updaterCacheDirName: litzio-updater-test",
     ...(options.publisherName ? [`publisherName:`, `  - ${options.publisherName}`] : []), ""].join("\n"));
-  const app = { version: installed, name: "ieumdoc", isPackaged: true, appUpdateConfigPath: config, userDataPath: folder,
+  const app = { version: installed, name: "litzio", isPackaged: true, appUpdateConfigPath: config, userDataPath: folder,
     baseCachePath: path.join(folder, "cache"), whenReady: () => Promise.resolve(), relaunch() {}, quit() {}, onQuit() {} };
   const updater = new NsisUpdater(null, app as never);
   // This is a Windows app fixture even when the tests run on Linux CI. Otherwise the provider
@@ -143,6 +144,26 @@ function controller(updater: InstanceType<typeof NsisUpdater>, installed: string
   });
   return { instance, states, saved };
 }
+
+test("branded metadata channels retain Stable/Beta selection and the Stable fallback", async () => {
+  const channels = brand.updates.channels as { stable: string; beta: string };
+  const original = { ...channels };
+  const releases: Release[] = [{ tag: "v0.3.0-beta.1", prerelease: true, channelFile: "proof-beta" }, { tag: "v0.2.0", channelFile: "proof-stable" }];
+  const github = await gitHub(releases);
+  try {
+    Object.assign(channels, { stable: "proof-stable", beta: "proof-beta" });
+    const { instance } = controller(realUpdater("0.1.0", github.url).updater, "0.1.0", "stable");
+    await instance.check();
+    assert.deepEqual(instance.state, { phase: "available", version: "0.2.0", prerelease: false });
+    await instance.setChannel("beta");
+    assert.deepEqual(instance.state, { phase: "available", version: "0.3.0-beta.1", prerelease: true });
+    releases.unshift({ tag: "v0.3.0", channelFile: "proof-stable" });
+    await instance.check();
+    assert.deepEqual(instance.state, { phase: "available", version: "0.3.0", prerelease: false });
+    assert.ok(github.requests.some(url => url.endsWith("/proof-beta.yml")));
+    assert.ok(github.requests.some(url => url.endsWith("/proof-stable.yml")));
+  } finally { Object.assign(channels, original); await github.close(); }
+});
 
 test("configured updater never downloads by itself or installs on quit", async () => {
   const github = await gitHub([{ tag: "v0.2.0" }]);
@@ -348,7 +369,7 @@ test("a tampered installer is rejected and nothing is offered for installing", a
 test("an installer not signed by the app's publisher is rejected", async () => {
   const github = await gitHub([{ tag: "v0.2.0" }]);
   try {
-    const { updater } = realUpdater("0.1.0", github.url, { publisherName: "IeumDoc" });
+    const { updater } = realUpdater("0.1.0", github.url, { publisherName: "Litzio" });
     const checked: string[][] = [];
     updater.verifyUpdateCodeSignature = async (publishers, file) => {
       checked.push(publishers);
@@ -357,7 +378,7 @@ test("an installer not signed by the app's publisher is rejected", async () => {
     const { instance } = controller(updater, "0.1.0", "stable");
     await instance.check();
     await instance.download();
-    assert.deepEqual(checked, [["IeumDoc"]]);
+    assert.deepEqual(checked, [["Litzio"]]);
     assert.equal(instance.state.phase, "error");
     assert.match(instance.state.phase === "error" ? instance.state.message : "", /not signed by the application owner/);
   } finally {

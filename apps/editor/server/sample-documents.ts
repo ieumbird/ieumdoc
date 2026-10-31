@@ -1,9 +1,10 @@
+import { brand } from "../../../brand.ts";
 import { copyFileSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { SampleAvailability, SampleDocuments } from "../shared/document-protocol.ts";
 
-const OWNER_FILE = ".ieumdoc-sample";
-const OWNER = "IeumDoc managed sample 1\n";
+const OWNER_FILE = `.${brand.appName}-sample`;
+const OWNER = `${brand.appName} managed sample 1\n`;
 const FILES = ["converter-control.md", "references.bib", "assets/current-loop.svg"];
 const ENTRIES = [OWNER_FILE, "version", ...["ko", "en"].flatMap(language =>
   [`${language}/`, `${language}/assets/`, ...FILES.map(file => `${language}/${file}`)])].sort();
@@ -49,7 +50,7 @@ function copySamples(source: string, destination: string): SampleDocuments {
 
   const parent = path.dirname(destination);
   mkdirSync(parent, { recursive: true });
-  const staged = mkdtempSync(path.join(parent, ".ieumdoc-sample-stage-"));
+  const staged = mkdtempSync(path.join(parent, `.${brand.appName}-sample-stage-`));
   try {
     // Keep ASAR reads on Electron's established single-file copy path.
     for (const language of ["ko", "en"]) {

@@ -11,14 +11,15 @@ import { Arch, build, Platform, type Configuration } from "electron-builder";
 import semver from "semver";
 import { RELEASE_REPOSITORY } from "../src/update-policy.ts";
 import { appVersion, buildDesktop } from "./build.ts";
+import { brand } from "../../../brand.ts";
 
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 /** The update metadata a version publishes: `beta.yml` for a Beta, `latest.yml` for a Stable release. */
-export function updateChannelOf(appVersion: string): "latest" | "beta" {
+export function updateChannelOf(appVersion: string): string {
   const prerelease = semver.prerelease(appVersion);
   if (prerelease && prerelease[0] !== "beta") throw new Error(`Version ${appVersion} is neither Stable nor Beta`);
-  return prerelease ? "beta" : "latest";
+  return brand.updates.channels[prerelease ? "beta" : "stable"];
 }
 
 /**
@@ -33,10 +34,10 @@ function publishTarget(appVersion: string, release: boolean, testHost = process.
 
 export function packageConfiguration(appVersion: string, release: boolean): Configuration {
   return {
-    // Identity of the installed app: never change after the first public release.
-    appId: "io.github.ieumbird.ieumdoc",
-    productName: "IeumDoc",
-    copyright: "Copyright © 2026 IeumDoc contributors",
+    appId: brand.appId,
+    productName: brand.name.en,
+    executableName: brand.executableName,
+    copyright: `Copyright © 2026 ${brand.name.en} contributors`,
     directories: { app: "build/app", output: "release" },
     files: ["**/*"],
     asar: true,
@@ -49,18 +50,18 @@ export function packageConfiguration(appVersion: string, release: boolean): Conf
     detectUpdateChannel: false,
     generateUpdatesFilesForAllChannels: false,
     publish: [publishTarget(appVersion, release)],
-    win: { target: [{ target: "nsis", arch: ["x64"] }], icon: "assets/icon.ico" },
+    win: { target: [{ target: "nsis", arch: ["x64"] }], icon: path.resolve(desktop, "../..", brand.icons.ico) },
     nsis: {
-      include: "installer/cli.nsh",
-      installerIcon: "assets/icon.ico",
-      uninstallerIcon: "assets/icon.ico",
+      include: "build/cli.nsh",
+      installerIcon: path.resolve(desktop, "../..", brand.icons.ico),
+      uninstallerIcon: path.resolve(desktop, "../..", brand.icons.ico),
       // Per-user, no administrator rights, installed and updated without a wizard.
       oneClick: true,
       perMachine: false,
       allowElevation: false,
       deleteAppDataOnUninstall: false,
-      artifactName: "IeumDoc-Setup-${version}.${ext}",
-      shortcutName: "IeumDoc",
+      artifactName: `${brand.executableName}-Setup-\${version}.\${ext}`,
+      shortcutName: brand.name.en,
     },
   };
 }

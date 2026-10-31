@@ -21,8 +21,8 @@ async (page, {openPath, activeDocument, expect, screenshots}) => {
     for (const [width, language, theme] of [[1440, 'en', 'light'], [640, 'ko', 'dark']]) {
       await page.setViewportSize({width,height:900});
       await page.evaluate(({language, theme}) => {
-        localStorage.setItem('ieumdoc.uiLanguage', language);
-        localStorage.setItem('ieumdoc.theme', theme);
+        localStorage.setItem('litzio.uiLanguage', language);
+        localStorage.setItem('litzio.theme', theme);
       }, {language, theme});
       await page.reload();
       await surface.locator('.ProseMirror').waitFor();

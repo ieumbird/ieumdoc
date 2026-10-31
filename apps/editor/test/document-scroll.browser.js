@@ -84,7 +84,7 @@ async (page, { openPath, expect }) => {
   await page.getByRole('menuitem', {name:'Close folder', exact:true}).click();
   const captures = [], geometry = [];
   for (const theme of ['light', 'dark']) {
-    await page.evaluate(theme => localStorage.setItem('ieumdoc.theme', theme), theme);
+    await page.evaluate(theme => localStorage.setItem('litzio.theme', theme), theme);
     await page.reload();
     await expect(page.getByTestId('status')).toHaveAttribute('data-operation', 'ready');
     for (const width of [1440, 640]) {

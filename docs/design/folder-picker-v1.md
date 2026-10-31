@@ -23,6 +23,8 @@
 
 Vite, Windows Desktop and the standalone [HTTP Host](http-host-v1.md) reuse this picker and the same folder operations. It is the general document-navigation entry: choose a folder here, then choose a `.md` file in its sidebar tree. The Desktop start also offers recent folders and an explicit sample; `.md` execution arguments still open directly. See [Desktop distribution](desktop-distribution-v1.md).
 
+Brand defaults and packager overrides follow [the branding guide](../guides/branding.md) (#859). Product identity is separate from the fixed internal Host API; earlier verification records do not establish a migration from old Beta builds.
+
 ## Behavior
 
 - Each opened folder's More actions menu contains Open folder…, Refresh and Close folder.
@@ -55,7 +57,7 @@ Vite, Windows Desktop and the standalone [HTTP Host](http-host-v1.md) reuse this
   One already open is listed again in place, retaining its section collapse and child expansion
   (#425). Close removes that root's collapse record, so a later Open starts expanded; this differs
   from Reload/Desktop restart, which restore remembered section collapse. Only collapsed root paths
-  are stored in origin-specific `ieumdoc.collapsedFolderSections`; child expansion/listings remain
+  are stored in origin-specific `litzio.collapsedFolderSections`; child expansion/listings remain
   page state. Startup restoration never rewrites memory, including stale records: they are ignored
   and removed on the next user Open/Close, section toggle or navigation reveal. Writes during
   restoration wait for all roots, and each explicit action writes its current live list even if

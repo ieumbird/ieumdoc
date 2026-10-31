@@ -164,7 +164,7 @@ before it is built. Thus duplicate/unknown-option diagnostics also prevent admis
 including for YAML options. No new table editor engine or persistence
 architecture is introduced.
 
-CLI: `ieumdoc update-table-caption <file> --path <block> --text <caption>` (empty text removes it), or `--content <InlineContent JSON>`. `update-label` accepts tables; `inspect --format json` includes caption, label and computed table number.
+CLI: `litzio update-table-caption <file> --path <block> --text <caption>` (empty text removes it), or `--content <InlineContent JSON>`. `update-label` accepts tables; `inspect --format json` includes caption, label and computed table number.
 
 `updateEnumerator` / CLI `update-enumerator` sets or clears the `{table}` enumerator.
 Caption, label, cell and shape edits preserve it. Plain GFM inputs acquire the same canonical

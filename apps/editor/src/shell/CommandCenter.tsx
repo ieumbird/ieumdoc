@@ -69,7 +69,7 @@ export function CommandCenter({ open, initialQuery, items, returnFocus, onClose 
             {(item: CommandCenterItem, index: number) => (
               <Combobox.Item key={item.id} value={item} index={index} disabled={item.disabled}
                 className="command-center-result" aria-label={item.label} data-foreign={item.foreign || undefined}
-                aria-description={item.foreign ? i18n.t("Not an IeumDoc document") : undefined}>
+                aria-description={item.foreign ? i18n.t("Not a {{product}} document") : undefined}>
                 <item.icon aria-hidden="true" size={16} />
                 <span className="command-center-result-copy">
                   <span className="command-center-result-label">{item.label}</span>

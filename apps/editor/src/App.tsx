@@ -1,3 +1,4 @@
+import { productName } from "../../../brand.ts";
 import { useDoclingConversion } from "@litzio/docling/server-ui";
 import { doclingFailureMessage } from "@litzio/docling/server-types";
 import { DoclingConversionDialog } from "./shell/DoclingConversionDialog.tsx";
@@ -29,7 +30,7 @@ import { THEME_LABELS, THEMES, writeTheme, type ThemePreference, readDocumentWid
 import { applyTheme, currentTheme } from "./theme.ts";
 import { DocumentPanel } from "./shell/DocumentPanel.tsx";
 import { DocumentStart } from "./shell/DocumentStart.tsx";
-import productMark from "../../desktop/assets/icon.svg?url";
+import productMark from "@brand-icon";
 import { MessageArea } from "./shell/MessageArea.tsx";
 import { NewDialog, type NewDestination } from "./shell/NewDialog.tsx";
 import { FolderDialog } from "./shell/FolderDialog.tsx";
@@ -42,7 +43,7 @@ import { folderChain, knownFolders, useFolderTrees, type FolderTreeState } from 
 import { childPath, documentLocation, splitDocumentPath, unquotePath } from "./shell/document-path.ts";
 import { DocumentActions } from "./shell/DocumentActions.tsx";
 import { TopBar } from "./shell/TopBar.tsx";
-import appIcon from "../../desktop/assets/icon.svg";
+import appIcon from "@brand-icon";
 import { CommandCenter } from "./shell/CommandCenter.tsx";
 import { KeyboardShortcutsDialog } from "./shell/KeyboardShortcutsDialog.tsx";
 import type { CommandCenterItem } from "./shell/command-center.ts";
@@ -335,8 +336,8 @@ function EditorApp() {
   const selectImage = async (source: string) => nativeSession ? nativeSession.selectImage(source) : "";
 
   useEffect(() => {
-    globalThis.document.title = openedPath ? `${splitDocumentPath(openedPath).name} — IeumDoc` : "IeumDoc";
-  }, [openedPath]);
+    globalThis.document.title = openedPath ? `${splitDocumentPath(openedPath).name} — ${productName(i18n.language)}` : productName(i18n.language);
+  }, [openedPath, i18n.language]);
 
   useEffect(() => {
     if (!commandFileFocus) return;
@@ -546,7 +547,7 @@ function EditorApp() {
         if (message) reloadErrors.push(`${splitDocumentPath(current.openedPath).name}: ${message}`);
       }
       if (reloadErrors.length) setError({ key: "The files changed, but these tabs could not be reloaded: {{documents}}", values: { documents: reloadErrors.join(", ") } });
-      if (result.skippedDocuments?.length) setNotice({ key: "Skipped unreadable or non-IeumDoc documents: {{documents}}", values: { documents: result.skippedDocuments.join(", ") } });
+      if (result.skippedDocuments?.length) setNotice({ key: "Skipped unreadable or non-{{product}} documents: {{documents}}", values: { documents: result.skippedDocuments.join(", ") } });
       if (!response.ok || typeof result.path !== "string") { folders.refreshParents(entry.path); throw new Error(result.error ?? `File operation failed (${response.status})`); }
       completed = true;
       try { await recoveryStorage.changePath(entry.path, action === "rename" ? result.path : null); }
@@ -977,7 +978,7 @@ function EditorApp() {
     })),
     ...listedDocuments.filter(entry => !openedPaths.has(entry.path)).map(entry => ({
       id: `file:${entry.path}`, kind: "file" as const, label: entry.name,
-      detail: `${i18n.t("Explorer")} · ${entry.native === false ? `${i18n.t("Not an IeumDoc document")} · ` : ""}${entry.path}`,
+      detail: `${i18n.t("Explorer")} · ${entry.native === false ? `${i18n.t("Not a {{product}} document")} · ` : ""}${entry.path}`,
       icon: entry.native === false ? FileX : FileText, foreign: entry.native === false,
       disabled: busy || Boolean(continuation), takesFocus: true,
       run: () => {
@@ -1116,8 +1117,8 @@ function EditorApp() {
       />
       <div className="app-titlebar" ref={titlebar}>
         <div className="app-brand">
-          <img src={appIcon} alt="IeumDoc" />
-          {sidebarOpen ? <span aria-hidden="true">IEUMDOC</span> : null}
+          <img src={appIcon} alt={productName(i18n.language)} />
+          {sidebarOpen ? <span aria-hidden="true">{productName(i18n.language)}</span> : null}
         </div>
         <div className="top-bar-container">
           <TopBar onOpenCommandCenter={() => openCommandCenter()} documentPath={openedPath}
@@ -1363,10 +1364,10 @@ function EditorApp() {
           <DialogHeader>
             <DialogTitle>{i18n.t("Cannot open document")}</DialogTitle>
             <DialogDescription render={<div />} className="grid gap-4 [overflow-wrap:anywhere]">
-              <p>{i18n.t("“{{name}}” is not a supported IeumDoc document.", { name: openRefusal ? splitDocumentPath(openRefusal.path).name : "" })}</p>
+              <p>{i18n.t("“{{name}}” is not a supported {{product}} document.", { name: openRefusal ? splitDocumentPath(openRefusal.path).name : "" })}</p>
               {/* In plain words first; Core's exact reason and action follow as the details. */}
               {openRefusal?.code === "native-marker" ? (
-                <p>{i18n.t("IeumDoc edits only documents it created. To edit this text here, create a new document with + in the sidebar and paste it in. The file itself is left as it is.")}</p>
+                <p>{i18n.t("{{product}} edits only documents it created. To edit this text here, create a new document with + in the sidebar and paste it in. The file itself is left as it is.")}</p>
               ) : null}
               <div className="open-refusal-details">
                 <p>{i18n.t("Technical details")}</p>

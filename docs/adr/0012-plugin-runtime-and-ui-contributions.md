@@ -42,12 +42,12 @@ needed. This ADR decides only the first stage.
 
 ### Internal protocol naming (#858)
 
-The owner selected `litzio` as the internal code name in [Discussion #856](https://github.com/ieumbird/ieumdoc/discussions/856). Workspace packages use `@litzio/*`; the shared worker/UI Host contract lives in `@litzio/plugin-api`, including the single `PLUGIN_UI` identifier table. API versions, manifest fields and generic routes/assets keep their existing values. Product labels, the `ieumdoc` command, Desktop transport, installed/data/plugin folders and repository references remain separate identities. This rename adds no compatibility aliases or migration.
+The owner selected `litzio` as the internal code name in [Discussion #856](https://github.com/ieumbird/ieumdoc/discussions/856). Workspace packages use `@litzio/*`; the shared worker/UI Host contract lives in `@litzio/plugin-api`, including the single `PLUGIN_UI` identifier table. API versions, manifest fields and generic routes/assets keep their existing values. Product labels, CLI command, Desktop transport and installed/data/plugin folders follow the separate [brand configuration](../guides/branding.md) (#859; official default Litzio). Repository references remain separately managed. This rename adds no compatibility aliases or migration.
 
 ### 1. Existing Hosts share a user installation without a daemon
 
-Desktop keeps ADR-0004's in-process Host and `ieumdoc://app` transport without a
-TCP listener. `ieumdoc serve` keeps ADR-0005's independent HTTP Host. Both use a
+Desktop keeps ADR-0004's in-process Host and configured Desktop origin (official default `litzio://app`) without a
+TCP listener. `litzio serve` keeps ADR-0005's independent HTTP Host. Both use a
 common per-user plugin installation folder containing installed code, plugin
 registration state and request records.
 
@@ -145,7 +145,7 @@ plugin boundary is adopted; the historical measurements do not satisfy them:
 
 1. Convert through a real Docling server, preserving source PDF/JSON and
    publishing only a complete Core-valid result; synthetic REST is insufficient.
-2. Verify the packaged Desktop alongside the independent `ieumdoc serve` Host;
+2. Verify the packaged Desktop alongside the independent `litzio serve` Host;
    development Electron does not establish packaged behavior.
 3. Resolve lock/crash recovery and PID reuse so stale ownership cannot admit
    duplicate execution or misclassify interrupted work. Preserve `uncertain`

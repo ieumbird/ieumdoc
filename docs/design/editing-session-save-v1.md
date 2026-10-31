@@ -13,6 +13,8 @@
 
 - Boundaries: ADR-0001, ADR-0002, ADR-0003. Markdown remains the disk SSOT; Core operations and canonical validation remain the write path.
 
+Brand defaults and packager overrides follow [the branding guide](../guides/branding.md) (#859). Product identity is separate from the fixed internal Host API; earlier verification records do not establish a migration from old Beta builds.
+
 ## Text editing sessions (#817)
 
 [Text documents](document-support-v1.md#text-files-in-the-editor-817) share tab identity,
@@ -224,7 +226,7 @@ Editor session and adds client-local persistence, not a new document semantic op
 
 ## Local recovery records (#296 PR2)
 
-The client records applied dirty work in IndexedDB (`ieumdoc-recovery`) in the current browser/app
+The client records applied dirty work in IndexedDB (`litzio-recovery`) in the current browser/app
 profile and origin. The original Markdown remains the SSOT. Records contain a format version,
 independent session identifier, Host-normalized path, recording time, independent plaintext recovery copy,
 and the PR1 snapshot: current/saved engine documents (including deletion metadata and new locators),
@@ -244,7 +246,7 @@ measurement (p95 about 2.4s) remains a known limitation, not a guarantee or a ne
 An applied update that returns to the acknowledged saved snapshot, including Undo, synchronously
 acknowledges that session as clean in origin-local `localStorage` (#409). It reuses the editor's
 existing applied-content dirty comparison, including the submitted snapshot acknowledged by Save,
-rather than comparing recovery text with the current disk file. Each `ieumdoc.recoveryClean.v1.<id>`
+rather than comparing recovery text with the current disk file. Each `litzio.recoveryClean.v1.<id>`
 entry contains only that session's nonnegative recording generation counter: no path, content, revision, cursor
 or history. New v1 records carry the optional `recordingGeneration` field; existing v1 records
 without it remain readable and are never deleted by a clean acknowledgement. Restore starts the
@@ -669,7 +671,7 @@ Historical switching, dismissal and retained-error evidence: [Save, switching an
 
 Under [ADR-0007 decision 3](../adr/0007-editing-session-lifetime.md#3-여러-문서를-탭으로-열어-두고-탭마다-독립된-세션을-가진다)
 and the owner-approved [#380 decision](https://github.com/ieumbird/ieumdoc/issues/380),
-`ieumdoc.openTabs` in origin-local `localStorage` holds only `{ paths, activePath }`:
+`litzio.openTabs` in origin-local `localStorage` holds only `{ paths, activePath }`:
 Host-normalized document paths in flattened left-to-right group/tab order and the focused active
 document path (or null). Editor groups themselves are page memory; Reload restores one group.
 It stores no content, selection, cursor, undo, session snapshot, Host state or file. This is UI
@@ -866,7 +868,7 @@ records before/after restart, then exercises the matching-file recovery review d
 Restore, dirty state, unchanged disk until explicit Save, actual Save/Reload, and a second crash
 followed by an external disk change and a 409 with both external bytes and recovered work preserved.
 
-The packaged Windows Desktop regression uses the real `ieumdoc://app` protocol and verifies
+The packaged Windows Desktop regression uses the real `litzio://app` protocol and verifies
 that Electron `userData` and `sessionData` are the same isolated test profile across new app PIDs.
 Forced app-tree termination preserves the committed record including an inserted pending Figure;
 Restore and Save/Reload use the real packaged Editor and file Host. A subsequent normal window

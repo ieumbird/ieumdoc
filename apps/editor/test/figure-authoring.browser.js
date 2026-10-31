@@ -12,7 +12,7 @@ async (page, { openFolderPicker, openDocument, waitForEditorFocus, expect, scree
   page.on('pageerror', onPageError);
   await page.unrouteAll();
   // Keep the compact before/after fixture independent of earlier scenarios' recent folders.
-  await page.evaluate(() => localStorage.removeItem('ieumdoc.recentFolders'));
+  await page.evaluate(() => localStorage.removeItem('litzio.recentFolders'));
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
 

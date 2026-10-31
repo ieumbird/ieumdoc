@@ -2413,7 +2413,7 @@ test("save diagnostic guidance and badges use codes in both languages and retain
   const { i18n } = await import("../src/i18n.ts");
   const { DocumentDiagnosticError } = await import("@litzio/core");
   const cases = {
-    "native-marker": ["Open an IeumDoc", "이음독 문서를"],
+    "native-marker": ["Open a Litzio", "Litzio 문서를"],
     "native-metadata": ["Check document frontmatter", "설정을 확인"],
     "native-content": ["Remove or replace", "지우거나 바꾸세요"],
     "invalid-structure": ["report technical details", "오류를 알려"],
@@ -2484,7 +2484,7 @@ test("text Save preserves exact UTF-8 text, shares file commit and cannot overwr
   }
   const nativeBefore = readFileSync(native);
   assert.equal(loadEditorFile(native).kind, "native");
-  assert.throws(() => saveTextFile({ kind: "text", path: native, revision: documentRevision(nativeBefore.toString()), source: "bypass" }), /now an IeumDoc document/);
+  assert.throws(() => saveTextFile({ kind: "text", path: native, revision: documentRevision(nativeBefore.toString()), source: "bypass" }), /now a native document/);
   assert.deepEqual(readFileSync(native), nativeBefore);
   // .txt stays text even when its content has native syntax; it is not a native document.
   writeFileSync(plain, nativeBefore);

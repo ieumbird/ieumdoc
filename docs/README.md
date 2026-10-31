@@ -58,6 +58,7 @@ Implementation record: [UI language #256 plan and verification](design/ui-langua
 
 | Document | Status | Scope |
 | --- | --- | --- |
+| [패키저용 브랜드 설정](guides/branding.md) | Implemented | 단일 브랜드 설정, 공식 Litzio 기본값, 별도 설치와 고정 Host API·CI 검증. |
 | [Docling 서버 구성 안내](guides/docling-server.md) | Implemented | 한국어 관리자 안내. 고정 이미지·모델·영구 캐시 예시, 연결 확인의 한계, 원격 접근과 오류 진단·종료. 실기 검증 범위와 미확인 환경을 명시한다. |
 
 ## Contribution and documentation governance

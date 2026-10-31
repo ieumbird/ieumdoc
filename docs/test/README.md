@@ -4,6 +4,8 @@
 
 Last verified: 2026-10-29 (CI execution-policy/quality/scripts tests, browser fixture/shard unit checks, targeted Core parser/quote/patch tests and docs checks; no browser or Desktop execution).
 
+브랜드 기본값과 대체 브랜드 CI는 [패키저 안내](../guides/branding.md)를 따른다. #859 이전 공개 Beta는 옛 식별자이며 새 Litzio 빌드로의 업데이트·데이터 이전 대상이 아니다. 실제 GitHub 업데이트 검증에는 같은 새 브랜드의 공개 버전 두 개가 필요하다.
+
 ## 자동 검증
 
 저장소 루트에서 변경 유형에 필요한 명령을 선택한다. 패키지 선택 실행은 예를 들어 `pnpm --filter @litzio/core test`를 사용한다.
@@ -258,7 +260,7 @@ HTTP boundary tests are included in `pnpm test`; targeted command: `pnpm --filte
 
 ## Windows Desktop regression
 
-Packaged 테스트의 모든 직접 실행은 `--lang=en-US`로 Chromium UI 언어를 고정하여 OS 언어와 무관하게 영어 UI를 검증한다(#449). 이 인자는 `.md`가 아니므로 Desktop의 문서 인자 처리에서 무시된다. 업데이트 테스트는 설치기가 인자 없이 재실행해도 영어를 유지하도록 테스트 소유 profile의 `ieumdoc.uiLanguage`도 `en`으로 저장한다. 공개 beta.4는 영어 전용이며, 해당 바이너리의 `Ready`와 현재 `ready` 상태 속성은 대소문자를 무시하여 기다린다.
+Packaged 테스트의 모든 직접 실행은 `--lang=en-US`로 Chromium UI 언어를 고정하여 OS 언어와 무관하게 영어 UI를 검증한다(#449). 이 인자는 `.md`가 아니므로 Desktop의 문서 인자 처리에서 무시된다. 업데이트 테스트는 설치기가 인자 없이 재실행해도 영어를 유지하도록 테스트 소유 profile의 `litzio.uiLanguage`도 `en`으로 저장한다. 공개 beta.4는 영어 전용이며, 해당 바이너리의 `Ready`와 현재 `ready` 상태 속성은 대소문자를 무시하여 기다린다.
 
 Windows x64에서 아래 명령 중 변경 영역의 tests/typecheck·browser 회귀를 선택한다. 패키징·설치/업데이트·배포 경계 변경 시 관련 `test:update`·`package`·release 자산 검증·`test:packaged`도 로컬 실행하며, 그 외에는 필수 Windows Desktop CI에 맡긴다. `package`와 아래 tests는 공개 Release를 만들지 않는다.
 
@@ -300,7 +302,7 @@ CI의 Windows Desktop job이 선택되면 clean package·release 자산 검증·
 
 아래 opt-in 명령의 대상은 `0.0.2-beta.3 → 0.0.2-beta.4`다. 현재 공개 버전은 `0.0.2-beta.4`이며 직전 공개 버전은 `0.0.2-beta.3`다. **이 PC의 설치 상태를 바꾸지 않는다는 제약으로 이번 릴리스의 실제 GitHub 설치·업데이트는 미실행·미검증이다.** [#758 배포 기록](../releases/v0.0.2-beta.4.md)을 따른다. 별도 승인으로 실행할 경우 `litzio: 1` 표식이 있는 Markdown의 저장·보존을 확인한다. CI local-feed는 현재 소스를 테스트 버전으로 각각 빌드하므로 Stable `0.0.1 → 0.0.2`, Beta `0.1.0-beta.1 → 0.1.0-beta.2` fixture를 그대로 유지하며 공개 버전 쌍과 구별한다. 이전 배포·철회 근거는 [#632 기록](../releases/v0.0.2-beta.1.md)에 보존한다.
 
-이 opt-in 검증은 두 버전의 공개 후 명시적 승인 범위에서 실행한다. 모의 Feed 성공은 이 검증의 성공이 아니다. 이미 설치된 Litzio가나 사용자 데이터·cache를 삭제해서 실행하지 않는다. 별도 Windows 테스트 계정/VM을 권장한다. 테스트는 기존 설치, `%APPDATA%\IeumDoc`, `%LOCALAPPDATA%\ieumdoc-updater`, 기본 설치 폴더가 하나라도 있으면 거부한다. 이 검사 후에만 테스트가 소유하는 per-user 설치와 profile/cache를 만들고 정리한다. Markdown은 `tmp/desktop-update/documents/`에만 만든다.
+이 opt-in 검증은 두 버전의 공개 후 명시적 승인 범위에서 실행한다. 모의 Feed 성공은 이 검증의 성공이 아니다. 이미 설치된 Litzio가나 사용자 데이터·cache를 삭제해서 실행하지 않는다. 별도 Windows 테스트 계정/VM을 권장한다. 테스트는 기존 설치, `%APPDATA%\litzio`, `%LOCALAPPDATA%\litzio-updater`, 기본 설치 폴더가 하나라도 있으면 거부한다. 이 검사 후에만 테스트가 소유하는 per-user 설치와 profile/cache를 만들고 정리한다. Markdown은 `tmp/desktop-update/documents/`에만 만든다.
 
 ```powershell
 pnpm --filter @litzio/desktop test:update:github
@@ -358,7 +360,7 @@ The durability assertion concerns the committed IndexedDB record, not navigation
 after a forced process kill, older clean-tab memory can return and hide the start-screen list (#417).
 
 Desktop's cohesive recovery test kills only its owned packaged app tree, restarts at
-`ieumdoc://app` with the same `userData`/`sessionData`, restores applied text and a pending Figure,
+`litzio://app` with the same `userData`/`sessionData`, restores applied text and a pending Figure,
 and verifies real Save/Reload. A subsequent normal `BrowserWindow.close()` exercises the native
 close guard, with the existing dialog-answer seam choosing **Close without saving**, then verifies
 retained work and external conflict after restart. This is actual app lifecycle/storage/Host
@@ -507,7 +509,7 @@ PC do not run Desktop packaging, update/uninstall or Edge for #853.
 Manual acceptance against an operator's existing **real** pinned Docling service:
 
 1. Use a separate `LITZIO_PLUGINS_DIR`/settings file and a disposable copy of a
-   known PDF. Record original PDF/JSON hashes. Start Desktop or `ieumdoc serve`
+   known PDF. Record original PDF/JSON hashes. Start Desktop or `litzio serve`
    with the same OS user/installation; do not launch a Docling service from this
    repository's test or agent workflow.
 2. In the unchanged Docling Settings check the server, convert from the PDF menu

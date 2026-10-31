@@ -90,7 +90,7 @@ async (page, { openPath, activeDocument, screenshots = false, removeTabFixture }
   await page.getByRole('combobox').fill('Changes before saving');
   await page.getByRole('option', { name: /Changes before saving/ }).click();
   await dialog().getByRole('region', { name: 'Source differences', exact: true }).waitFor();
-  check(!(await dialog().innerText()).includes('The file changed outside IeumDoc.'), 'Acknowledged revision treated as external');
+  check(!(await dialog().innerText()).includes('The file changed outside Litzio.'), 'Acknowledged revision treated as external');
   await close();
   const external = await read();
   const target = external.document.blocks.find(block => block.block === 'paragraph');
@@ -98,7 +98,7 @@ async (page, { openPath, activeDocument, screenshots = false, removeTabFixture }
     base: { source: external.source }, paragraphs: [{ path: target.path, content: [{ kind: 'text', text: 'External version.' }] }] } });
   check(written.ok(), 'External write failed');
   await compare();
-  await dialog().getByText('The file changed outside IeumDoc. Comparing with the current disk file; Save will still report a conflict.', { exact: true }).waitFor();
+  await dialog().getByText('The file changed outside Litzio. Comparing with the current disk file; Save will still report a conflict.', { exact: true }).waitFor();
   await close();
   await page.getByTestId('save').click();
   await page.locator('[data-testid="status"][data-operation="save-conflict"]').waitFor();
@@ -107,7 +107,7 @@ async (page, { openPath, activeDocument, screenshots = false, removeTabFixture }
   await editor().evaluate(node => { const e = node.editor; e.view.dispatch(e.state.tr.delete(1, e.state.doc.firstChild.nodeSize - 1)); });
   await compare(); await dialog().getByRole('alert').waitFor();
   check((await dialog().getByRole('alert').innerText()).includes('Block 1 (heading)'), 'Preview refusal lost Save location');
-  check((await dialog().innerText()).includes('The file changed outside IeumDoc.'), 'Collection failure concealed external revision change');
+  check((await dialog().innerText()).includes('The file changed outside Litzio.'), 'Collection failure concealed external revision change');
   check(await dialog().getByRole('region', { name: 'Source differences' }).count() === 0, 'Refusal showed successful diff');
   await close(); await editor().evaluate(node => node.editor.commands.undo());
   removeTabFixture();

@@ -1,3 +1,4 @@
+import { brand } from "../../../brand.ts";
 // The manual workflow's controller. Preflight uses only Node built-ins, before running tag code.
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -6,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export type ReleaseMode = "verify" | "unsigned-beta" | "signed";
-const repository = "ieumbird/ieumdoc";
+const repository = `${brand.updates.repository.owner}/${brand.updates.repository.repo}`;
 const canonicalTag = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-beta\.(0|[1-9]\d*))?$/;
 
 export function releaseMode(mode: string, tag: string): ReleaseMode {
@@ -64,13 +65,13 @@ export function publishVerifiedRelease(options: { tag: string; mode: string; fil
   if (mode === "verify") throw new Error("Verification mode cannot publish");
   const beta = options.tag.includes("-beta.");
   const version = options.tag.slice(1);
-  const expected = [`IeumDoc-Setup-${version}.exe`, `IeumDoc-Setup-${version}.exe.blockmap`, beta ? "beta.yml" : "latest.yml"].sort();
+  const expected = [`${brand.executableName}-Setup-${version}.exe`, `${brand.executableName}-Setup-${version}.exe.blockmap`, `${brand.updates.channels[beta ? "beta" : "stable"]}.yml`].sort();
   const files = options.files.map((file) => ({ file, name: path.basename(file), size: statSync(file).size,
     digest: `sha256:${createHash("sha256").update(readFileSync(file)).digest("hex")}` }));
   if (JSON.stringify(files.map((file) => file.name).sort()) !== JSON.stringify(expected)) throw new Error("Unexpected publication assets");
   refuseExistingRelease(options.tag, api);
   const draft = api(`repos/${repository}/releases`, "POST", {
-    tag_name: options.tag, name: `IeumDoc ${version}`, draft: true, prerelease: beta, make_latest: "false", generate_release_notes: true,
+    tag_name: options.tag, name: `${brand.name.en} ${version}`, draft: true, prerelease: beta, make_latest: "false", generate_release_notes: true,
     ...(mode === "unsigned-beta" ? { body: "Unsigned Windows Beta. Windows may show publisher or SmartScreen warnings. SHA-512 checks file integrity; it does not authenticate the publisher." } : {}),
   }) as Release;
   if (!Number.isSafeInteger(draft.id) || draft.id < 1) throw new Error("Draft creation returned no release ID; inspect GitHub before retrying");

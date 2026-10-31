@@ -30,7 +30,7 @@
 
 ## Internal naming
 
-- 내부 코드 이름은 `litzio`다(Discussion #856, #858). 패키지는 `@litzio/*`, 플러그인 Host API는 `@litzio/plugin-api`를 사용한다. 제품 표시 이름, CLI `ieumdoc`, Desktop 프로토콜·설치·데이터 경로와 저장소 참조는 별도 계약을 따른다.
+- 내부 코드 이름은 `litzio`다(Discussion #856, #858). 패키지는 `@litzio/*`, 플러그인 Host API는 `@litzio/plugin-api`를 사용한다. 제품 표시 이름, CLI·Desktop 프로토콜·설치·데이터 경로는 `brand.ts`와 패키저용 안내를 따른다(공식 기본값 Litzio). 저장소 참조는 별도 계약을 따른다.
 
 ## Repository map
 

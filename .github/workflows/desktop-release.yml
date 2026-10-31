@@ -152,6 +152,7 @@ jobs:
           pnpm --filter @litzio/desktop package
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify final artifacts, executable versions and required signatures
+        id: release_artifacts
         shell: pwsh
         env:
           RELEASE_TAG: ${{ inputs.tag }}
@@ -166,12 +167,7 @@ jobs:
       - uses: actions/upload-artifact@v6
         with:
           name: desktop-release
-          path: |
-            apps/desktop/release/IeumDoc-Setup-*.exe
-            apps/desktop/release/IeumDoc-Setup-*.exe.blockmap
-            apps/desktop/release/latest.yml
-            apps/desktop/release/beta.yml
-            apps/desktop/release/win-unpacked/
+          path: ${{ steps.release_artifacts.outputs.paths }}
           if-no-files-found: error
           retention-days: 14
 

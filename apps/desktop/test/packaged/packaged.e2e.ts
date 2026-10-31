@@ -1,5 +1,6 @@
+import { brand } from "../../../../brand.ts";
 // The packaged Windows app (release/win-unpacked, or LITZIO_DESKTOP_EXE for an installed copy)
-// under Playwright: the Editor and Host behind ieumdoc://app with real files, no Vite and no TCP port.
+// under Playwright: the configured in-process origin with real files, no Vite and no TCP port.
 //   pnpm --filter @litzio/desktop package && pnpm --filter @litzio/desktop test:packaged
 // Files live in the repository's ignored tmp/desktop-e2e; each test uses its own fixed profile there.
 import assert from "node:assert/strict";
@@ -18,8 +19,9 @@ import { verifyPackagedWorker } from "../../../../test/helpers/plugin-conversion
 
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const repo = path.resolve(desktop, "../..");
-const exe = process.env.LITZIO_DESKTOP_EXE ?? path.join(desktop, "release", "win-unpacked", "IeumDoc.exe");
+const exe = process.env.LITZIO_DESKTOP_EXE ?? path.join(desktop, "release", "win-unpacked", `${brand.executableName}.exe`);
 const work = path.join(repo, "tmp", "desktop-e2e");
+const origin = `${brand.protocol}://app`;
 const resetProfiles = new Set<string>();
 if (process.platform !== "win32") throw new Error("The packaged app tests run on Windows.");
 if (!existsSync(exe)) throw new Error(`Package the app first: ${exe} is missing.`);
@@ -141,19 +143,19 @@ test("packaged in-process Host forks its shipped Docling worker and opens a comp
   }
 });
 
-test("started without a document, it opens none; the sample opens with its figure from ieumdoc://app when chosen", async () => {
+test("started without a document, it opens none; the sample opens with its figure from the app origin when chosen", async () => {
   const userData = profile("sample");
   const oldSample = path.join(userData, "sample", "technical-document.md");
   mkdirSync(path.dirname(oldSample), { recursive: true });
   writeFileSync(oldSample, "User-modified legacy sample.\n");
   const { app, page, requests } = await launch(userData);
   try {
-    assert.equal(page.url(), "ieumdoc://app/index.html");
+    assert.equal(page.url(), `${origin}/index.html`);
     assert.deepEqual(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getMinimumSize()), [640, 480], "native minimum size follows ADR-0010");
     const expectedVersion = process.env.LITZIO_TEST_VERSION ?? JSON.parse(readFileSync(path.join(desktop, "package.json"), "utf8")).version;
     assert.equal(await page.evaluate(async () => (await window.litzioDesktop!.info()).version), expectedVersion, "the packaged version matches its source");
     await page.getByTestId("document-start").waitFor();
-    await expect(page).toHaveTitle("IeumDoc");
+    await expect(page).toHaveTitle(brand.name.en);
     await expect.poll(() => page.evaluate(() => (navigator as Navigator & { windowControlsOverlay: { visible: boolean } }).windowControlsOverlay.visible),
       { message: "native caption buttons are exposed through Window Controls Overlay" }).toBe(true);
     assert.equal(await page.getByRole("button", { name: "Open file…", exact: true }).count(), 0);
@@ -161,9 +163,9 @@ test("started without a document, it opens none; the sample opens with its figur
     assert.equal(await page.locator(".ProseMirror").count(), 0, "nothing opens until the user chooses");
     await page.getByRole("button", { name: "Open sample document", exact: true }).click();
     await page.locator(".ProseMirror h1").first().waitFor();
-    await expect(page).toHaveTitle("converter-control.md — IeumDoc");
+    await expect(page).toHaveTitle(`converter-control.md — ${brand.name.en}`);
     await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getTitle()),
-      { message: "native taskbar title follows the active file" }).toBe("converter-control.md — IeumDoc");
+      { message: "native taskbar title follows the active file" }).toBe(`converter-control.md — ${brand.name.en}`);
     assert.equal(await figuresLoaded(page), true);
     await page.evaluate(async () => { await document.fonts.ready; });
     for (const width of [1440, 640]) {
@@ -272,7 +274,7 @@ test("started without a document, it opens none; the sample opens with its figur
     assert.equal(await page.locator(".ProseMirror h1").first().innerText(), "Current control for a 48 V converter");
     assert.equal(readFileSync(oldSample, "utf8"), "User-modified legacy sample.\n", "unrelated legacy sample directory is outside the versioned copy");
     assert.equal(await page.evaluate(() => typeof (globalThis as { process?: unknown }).process), "undefined", "the page has no Node.js");
-    const foreign = requests.filter((url) => !/^(ieumdoc:\/\/app\/|data:|blob:)/.test(url));
+    const foreign = requests.filter((url) => !url.startsWith(`${origin}/`) && !/^(data:|blob:)/.test(url));
     assert.deepEqual(foreign, [], "every request stays inside the app");
   } finally {
     await closeApp(app);
@@ -310,7 +312,7 @@ test("a .md argument opens; edits save to disk and reopen", async () => {
     assert.equal(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isVisible()), false, "later appearance updates must not show a hidden window");
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.show());
     await page.keyboard.press("Escape");
-    assert.equal(await page.evaluate(() => localStorage.getItem("ieumdoc.theme")), "dark");
+    assert.equal(await page.evaluate(prefix => localStorage.getItem(`${prefix}.theme`), brand.storagePrefix), "dark");
     // Persist the production-shortened #fff combination that used to leave the next launch hidden.
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByTestId("theme").selectOption("light");
@@ -349,7 +351,7 @@ test("local recovery survives a packaged app crash and normal close, with real S
     const pid = app.process().pid!;
     assert.ok(pid > 0 && !processes.includes(pid), "restart must create a new owned app process");
     processes.push(pid);
-    assert.equal(page.url(), "ieumdoc://app/index.html");
+    assert.equal(page.url(), `${origin}/index.html`);
     assert.equal(await app.evaluate(({ app }) => app.getPath("userData")), userData);
     assert.equal(await app.evaluate(({ app }) => app.getPath("sessionData")), userData);
   };
@@ -421,14 +423,14 @@ test("local recovery survives a packaged app crash and normal close, with real S
     await page!.getByRole("button", { name: "Restore work", exact: true }).click();
     await page!.getByRole("tab", { name: "doc.md, Unsaved changes", exact: true }).waitFor();
     assert.equal(readFileSync(file, "utf8"), outside);
-    const response = page!.waitForResponse(r => r.request().method() === "POST" && r.url() === "ieumdoc://app/api/document");
+    const response = page!.waitForResponse(r => r.request().method() === "POST" && r.url() === `${origin}/api/document`);
     await page!.getByTestId("save").click();
     assert.equal((await response).status(), 409);
     await page!.getByText("Save conflict", { exact: true }).waitFor();
     await expect(page!.locator(".document-editor")).toContainText("NORMAL CLOSE RECORDED");
     assert.equal(readFileSync(file, "utf8"), outside);
     assert.ok((await recoveryRecords(page!)).some(r => r.recoveryText.includes("NORMAL CLOSE RECORDED")));
-    writeFileSync(path.join(work, "recovery-proof.json"), JSON.stringify({ platform: process.platform, exe, userData, origin: "ieumdoc://app", processes, forcedAppRestarts: 1, normalWindowClose: true, nativeDialogAnswerStub: true, committedRecordsSurvived: true, pendingFigure: true, restoreDirty: true, originalUnchangedUntilSave: true, saveReload: true, externalConflict409: true }, null, 2));
+    writeFileSync(path.join(work, "recovery-proof.json"), JSON.stringify({ platform: process.platform, exe, userData, origin, processes, forcedAppRestarts: 1, normalWindowClose: true, nativeDialogAnswerStub: true, committedRecordsSurvived: true, pendingFigure: true, restoreDirty: true, originalUnchangedUntilSave: true, saveReload: true, externalConflict409: true }, null, 2));
   } finally {
     if (app && app.process().exitCode === null && app.process().signalCode === null) {
       await answerClose(app, 0);
@@ -474,7 +476,7 @@ test("pasting an image writes an asset; Open folder lists the folder and New cre
   }
 });
 
-test("a file changed outside IeumDoc is a Save conflict and is not overwritten", async () => {
+test("a file changed outside the app is a Save conflict and is not overwritten", async () => {
   const { file } = documentFolder("conflict");
   const { app, page } = await launch(profile("conflict"), [file]);
   try {
@@ -553,7 +555,7 @@ test("a damaged update configuration leaves the Editor and Settings usable", {
   skip: Boolean(process.env.LITZIO_DESKTOP_EXE) && "Fault injection is confined to the generated package",
 }, async () => {
   // Only mutate this task's generated package, never an LITZIO_DESKTOP_EXE user installation.
-  const generated = path.join(desktop, "release", "win-unpacked", "IeumDoc.exe");
+  const generated = path.join(desktop, "release", "win-unpacked", `${brand.executableName}.exe`);
   assert.equal(path.resolve(exe), generated, "configuration fault injection requires the generated test package");
   const config = path.join(path.dirname(exe), "resources", "app-update.yml");
   const original = readFileSync(config);

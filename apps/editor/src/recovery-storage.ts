@@ -1,7 +1,8 @@
+import { brand } from "../../../brand.ts";
 import type { SessionSnapshot } from "./DocumentTab.tsx";
 
 export const RECOVERY_DAYS = 10;
-export const RECOVERY_DB = "ieumdoc-recovery";
+export const RECOVERY_DB = `${brand.storagePrefix}-recovery`;
 export type RecoveryRecord = {
   id: string;
   version: number;
@@ -13,7 +14,7 @@ export type RecoveryRecord = {
   snapshot: SessionSnapshot;
 };
 const TICKET_LIFETIME = RECOVERY_DAYS * 86400000;
-const CLEAN_PREFIX = "ieumdoc.recoveryClean.v1.";
+const CLEAN_PREFIX = `${brand.storagePrefix}.recoveryClean.v1.`;
 type Ticket = [number, string | null, number];
 type Barrier = { generation: string; expiresAt: number; path: string };
 

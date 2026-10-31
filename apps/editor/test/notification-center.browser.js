@@ -1,6 +1,6 @@
 // Window-scoped notifications: applied Core numbering, render failures, lifecycle and navigation.
 async (page, { openPath, expect, screenshots }) => {
-  await page.evaluate(() => localStorage.setItem('ieumdoc.uiLanguage','en'));
+  await page.evaluate(() => localStorage.setItem('litzio.uiLanguage','en'));
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor();
   const origin = page.url().split('/').slice(0, 3).join('/');
@@ -257,7 +257,7 @@ async (page, { openPath, expect, screenshots }) => {
   // Independently caused standing warnings must never share a dismissal identity.
   const warningWindow = await page.context().newPage();
   try {
-    await warningWindow.addInitScript(() => { localStorage.removeItem('ieumdoc.openTabs'); localStorage.setItem('ieumdoc.uiLanguage','en'); });
+    await warningWindow.addInitScript(() => { localStorage.removeItem('litzio.openTabs'); localStorage.setItem('litzio.uiLanguage','en'); });
     await warningWindow.route('**/api/document', route => route.fulfill({json:{start:true,sampleProblem:'conflict'}}));
     await warningWindow.goto(origin);
     const warnings = warningWindow.locator('.notification-center');

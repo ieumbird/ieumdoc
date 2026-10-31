@@ -187,7 +187,7 @@ async (page, { openDocument, expect, screenshots }) => {
   await tabs.nth(2).click();
   await expect(figures).toHaveText('No figures');
   try {
-    await page.evaluate(() => localStorage.setItem('ieumdoc.uiLanguage', 'ko'));
+    await page.evaluate(() => localStorage.setItem('litzio.uiLanguage', 'ko'));
     await page.reload();
     await expect(tabs).toHaveText(['개요', '표', '그림']);
     await expect(tabs.first()).toHaveAttribute('aria-selected', 'true');
@@ -206,7 +206,7 @@ async (page, { openDocument, expect, screenshots }) => {
     await tabs.nth(1).click();
     await expect(tables.getByRole('button').first()).toHaveText('Table 1. Measured results');
   } finally {
-    await page.evaluate(() => localStorage.setItem('ieumdoc.uiLanguage', 'en'));
+    await page.evaluate(() => localStorage.setItem('litzio.uiLanguage', 'en'));
   }
   return { captions: true, keyboard: true, reveal: true, scrollTracking: true, liveEdits: true, geometry: true, emptyAndLocalized: true };
 }

@@ -117,7 +117,7 @@ export function saveTextFile(request: TextSaveRequest, access: FileAccess = LOCA
   if (documentRevision(source) !== request.revision) throw new DocumentConflictError();
   const target = fileStep(() => fs.realpathSync(filePath));
   if (editorFile(filePath, source).kind !== "text" || target !== filePath && editorFile(target, source).kind !== "text") {
-    throw new Error("This file is now an IeumDoc document. Reload before saving.");
+    throw new Error("This file is now a native document. Reload before saving.");
   }
   assertUnicode(request.source);
   fileStep(() => replaceDocumentFile(accessPath(filePath, access), request.source, request.revision));

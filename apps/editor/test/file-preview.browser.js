@@ -26,7 +26,7 @@ async (page, { openDocument, screenshots }) => {
   });
   for (const name of ['archive.zip', 'README']) {
     await row(name).focus(); await row(name).press('Enter');
-    await dialog().getByText('This file cannot be edited in IeumDoc.', {exact:true}).waitFor();
+    await dialog().getByText('This file cannot be edited in Litzio.', {exact:true}).waitFor();
     await page.keyboard.press('Escape');
     await dialog().waitFor({state:'detached'});
     check(await row(name).evaluate(el => document.activeElement === el), 'Other-file close must return to its row');
@@ -94,7 +94,7 @@ async (page, { openDocument, screenshots }) => {
   await page.keyboard.press('Escape'); await dialog().waitFor({state:'detached'});
   release(); await finished; await page.unroute('**/api/file-preview?*', delayed);
   await activateRow('README');
-  await dialog().getByText('This file cannot be edited in IeumDoc.',{exact:true}).waitFor();
+  await dialog().getByText('This file cannot be edited in Litzio.',{exact:true}).waitFor();
   await page.keyboard.press('Escape'); await dialog().waitFor({state:'detached'});
   const damaged = route => route.fulfill({status:200, contentType:'image/png', body:'invalid image'});
   await page.route('**/api/file-preview?*', damaged);
@@ -110,7 +110,7 @@ async (page, { openDocument, screenshots }) => {
   if (screenshots) await page.screenshot({path:'tmp/file-preview-capture/image-ko.png'});
   await page.keyboard.press('Escape'); await dialog().waitFor({state:'detached'});
   await activateRow('README');
-  await dialog().getByText('이 파일은 이음독에서 편집할 수 없습니다.',{exact:true}).waitFor();
+  await dialog().getByText('이 파일은 Litzio에서 편집할 수 없습니다.',{exact:true}).waitFor();
   await page.keyboard.press('Escape'); await dialog().waitFor({state:'detached'});
   await activate(page.getByRole('button',{name:'설정',exact:true})); await dialogFocus();
   await page.getByTestId('ui-language').selectOption('en');

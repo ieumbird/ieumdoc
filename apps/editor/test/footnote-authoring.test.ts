@@ -188,7 +188,7 @@ test("an opened document shows Core's order; unchanged Save writes the canonical
   assert.equal(saveEdits(scattered, edits).markdown, placed);
   assert.equal(serialize(parse(scattered)), placed);
   assert.equal(saveEdits(placed, collectSupportedEdits(loadEditableDocument(placed), toTiptapDocument(loadEditableDocument(placed)))).markdown, placed);
-  // The document the CLI test formats: Editor Save writes the same bytes as `ieumdoc format`.
+  // The document the CLI test formats: Editor Save writes the same bytes as `litzio format`.
   const sections = nativeSource("# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n[^a]: Second note.\n\n## Section B\n\nAnother paragraph[^b].\n\n[^b]: First note.\n");
   assert.equal(saveEdits(sections, collectSupportedEdits(loadEditableDocument(sections), toTiptapDocument(loadEditableDocument(sections)))).markdown,
     nativeSource("# Document\n\n## Section A\n\nFirst claim[^b] and another[^a].\n\n## Section B\n\nAnother paragraph[^b].\n\n[^b]: First note.\n\n[^a]: Second note.\n"));

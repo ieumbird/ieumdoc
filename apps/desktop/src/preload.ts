@@ -10,7 +10,7 @@ ipcRenderer.on("desktop:restart-check", (_event, id: number) => {
   try {
     answer = restartCheck ? restartCheck() : { ok: false, reason: "The editor is not ready to restart." };
   } catch {
-    answer = { ok: false, reason: "IeumDoc could not confirm that your work is saved." };
+    answer = { ok: false, reason: "Could not confirm that your work is saved." };
   }
   ipcRenderer.send("desktop:restart-check-result", id, answer);
 });

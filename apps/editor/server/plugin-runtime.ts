@@ -6,7 +6,7 @@ import path from "node:path";
 import type { ConversionJob, ConversionFailure, PdfProgress } from "@litzio/docling/server-types";
 import type { ConversionExecutor, ConversionRequest } from "@litzio/docling/server";
 import { digest, PluginStore, requestUuid, type Receipt } from "./plugin-store.ts";
-import { INCOMPLETE } from "./plugin-output.ts";
+import { INCOMPLETE, STAGING_PREFIX } from "./plugin-output.ts";
 
 async function fileHash(file: string) {
   const hash = createHash("sha256");
@@ -61,7 +61,7 @@ export class PluginRuntime implements ConversionExecutor {
       if (!installation.entry || installation.workerApi !== 1) throw new Error("Plugin has no compatible worker.");
       const entry = path.join(installation.directory, installation.entry);
       if (digest(await readFile(entry)) !== installation.sha256) throw new Error("Installed worker hash mismatch.");
-      staging = await mkdtemp(path.join(path.dirname(job.output), ".ieumdoc-plugin-"));
+      staging = await mkdtemp(path.join(path.dirname(job.output), STAGING_PREFIX));
       receipt.staging = staging;
       this.store.update(receipt);
       await mkdir(path.join(staging, "temp"));
@@ -108,7 +108,7 @@ export class PluginRuntime implements ConversionExecutor {
       if (outputOwned) await rm(job.output, { recursive: true, force: true });
       job.state = execution.stopped === "cancelled" ? "cancelled" : "error";
       receipt.status = job.state;
-      job.error = execution.stopped === "cancelled" ? "Cancelled; only IeumDoc waiting stopped. The server task may continue."
+      job.error = execution.stopped === "cancelled" ? "Cancelled; only local waiting stopped. The server task may continue."
         : execution.stopped === "timeout" ? "Docling worker timed out. The server task may continue."
         : error instanceof Error ? error.message : String(error);
       job.failure ??= { code: execution.stopped === "timeout" ? "timeout" : "output", taskId: job.progress.taskId };

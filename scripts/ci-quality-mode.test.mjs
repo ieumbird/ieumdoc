@@ -210,8 +210,11 @@ test('ordinary CI retains small diagnostics and screen evidence without distribu
     'tmp/desktop-update/v*/beta.yml',
     'tmp/desktop-uninstall/*-dialogs.txt',
     'tmp/desktop-uninstall/*-cleanup.txt',
-    '~/AppData/Local/IeumDoc/uninstall-logs/*.tmp',
   ]), 'diagnostics must explicitly select generated evidence, never whole install/profile/cache trees');
+  const uninstall = desktop.find(step => step.with.name === 'desktop-uninstall-logs');
+  assert.equal(uninstall.if, 'failure()');
+  assert.equal(uninstall.with.path, '${{ steps.uninstall_logs.outputs.path }}', 'brand-selected user logs must have their own artifact root across Windows drives');
+  assert.equal(uninstall.with['if-no-files-found'], 'ignore');
   const caption = desktop.find(step => step.with.name === 'desktop-caption-pixels');
   assert.equal(caption.if, 'always()');
   assert.equal(caption.with.path, 'tmp/desktop-e2e/caption-pixels/');
@@ -221,10 +224,18 @@ test('ordinary CI retains small diagnostics and screen evidence without distribu
   }
   const release = load(readFileSync(new URL('../.github/workflows/desktop-release.yml', import.meta.url), 'utf8'));
   const delivery = uploads(release.jobs.build).find(step => step.with.name === 'desktop-release');
-  assert.match(delivery.with.path, /apps\/desktop\/release\/win-unpacked\//);
+  assert.equal(delivery.with.path, '${{ steps.release_artifacts.outputs.paths }}');
   assert.equal(delivery.with['retention-days'], 14);
   assert.equal(release.jobs.publish.steps.find(step => step.uses?.startsWith('actions/download-artifact@')).with.name,
     delivery.with.name, 'publication must retain its verified build input');
+});
+
+test('release artifacts consume the verified file list instead of fixed channel filenames', () => {
+  const release = load(readFileSync(new URL('../.github/workflows/desktop-release.yml', import.meta.url), 'utf8'));
+  const upload = release.jobs.build.steps.find(step => step.with?.name === 'desktop-release');
+  assert.equal(upload.with.path, '${{ steps.release_artifacts.outputs.paths }}', 'custom channel manifests must travel with the verified installer');
+  const verification = release.jobs.build.steps.find(step => step.id === 'release_artifacts');
+  assert.match(verification.run, /scripts\/verify-release\.ts/);
 });
 
 test('queue concurrency isolates group SHAs while only newer PR runs cancel older runs', () => {

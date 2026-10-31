@@ -1,3 +1,4 @@
+import { brand } from "../../../../brand.ts";
 // Packaged RunAsNode and the shipped CLI, with an isolated integration directory.
 import { listenForFetch } from "../../../../test/helpers/fetch-server.ts";
 import assert from "node:assert/strict";
@@ -14,7 +15,7 @@ import { verifyPackagedCli } from "./cli-check.ts";
 
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const repo = path.resolve(desktop, "../..");
-const exe = path.join(desktop, "release", "win-unpacked", "IeumDoc.exe");
+const exe = path.join(desktop, "release", "win-unpacked", `${brand.executableName}.exe`);
 if (process.platform !== "win32") throw new Error("Packaged CLI verification runs on Windows.");
 
 test("packaged RunAsNode satisfies CLI engines and the shim runs version/check/help/serve", async () => {
@@ -44,7 +45,7 @@ test("packaged RunAsNode satisfies CLI engines and the shim runs version/check/h
         child.once("exit", code => { clearTimeout(timer); reject(new Error(`CLI serve exited ${code}: ${errors}`)); });
         child.stdout.on("data", data => {
           output += data;
-          if (output.includes("IeumDoc HTTP:")) { clearTimeout(timer); resolve(); }
+          if (output.includes(`${brand.name.en} HTTP:`)) { clearTimeout(timer); resolve(); }
         });
       });
       const response = await fetch(`http://127.0.0.1:${address.port}/`);

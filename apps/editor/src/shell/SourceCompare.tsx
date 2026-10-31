@@ -56,7 +56,7 @@ export default function SourceCompare({ load, recovery = false }: { load(signal:
     {result?.failure ? <p role="alert">{i18n.t("Save preview unavailable: {{reason}}", { reason: result.failure.message })}</p> : null}
     {error ? <p role="alert">{i18n.t("Comparison unavailable: {{reason}}", { reason: error })}</p> : null}
     {error ? <Button size="sm" variant="secondary" onClick={() => setAttempt(attempt + 1)}>{i18n.t("Retry comparison")}</Button> : null}
-    {result?.changed ? <p role="status">{i18n.t(recovery ? "The file changed after this record. Comparing with the current disk file." : "The file changed outside IeumDoc. Comparing with the current disk file; Save will still report a conflict.")}</p> : null}
+    {result?.changed ? <p role="status">{i18n.t(recovery ? "The file changed after this record. Comparing with the current disk file." : "The file changed outside {{product}}. Comparing with the current disk file; Save will still report a conflict.")}</p> : null}
     <MissingFileNotice result={result} diff={diff} recovery={recovery} />
     {result?.fallback ? <p role="status">{i18n.t("Plaintext comparison instead of Save preview: {{reason}}", { reason: result.fallback })}</p> : null}
     {diff ? <>

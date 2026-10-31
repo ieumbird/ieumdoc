@@ -37,6 +37,22 @@ async function until<T>(read: () => T | Promise<T>, accept: (value: T) => boolea
   }
 }
 function directory(name: string) { const root = path.join(fixture, name); mkdirSync(root); return root; }
+test("different brands refuse each other's real staging and crash publication leftovers", () => {
+  const root = directory("cross-brand-output");
+  const helper = fileURLToPath(new URL("./helpers/cross-brand-output.ts", import.meta.url));
+  const paths: string[] = [];
+  for (const producer of ["litzio", "brandproof"]) {
+    const result = spawnSync(process.execPath, ["--import", "tsx", helper, "produce", producer, root], { encoding: "utf8", timeout: 15_000, windowsHide: true });
+    assert.equal(result.status, 0, result.stderr);
+    paths.push(...JSON.parse(readFileSync(path.join(root, `${producer}-paths.json`), "utf8")));
+  }
+  writeFileSync(path.join(root, "paths.json"), JSON.stringify(paths));
+  for (const consumer of ["litzio", "brandproof"]) {
+    const result = spawnSync(process.execPath, ["--import", "tsx", helper, "consume", consumer, root], { encoding: "utf8", timeout: 15_000, windowsHide: true });
+    assert.equal(result.status, 0, result.stderr);
+    for (const decision of JSON.parse(result.stdout)) assert.match(decision, /not published/, `${consumer} must refuse unpublished files from both builds`);
+  }
+});
 function child(mode: string, root: string, env = process.env) {
   return fork(fileURLToPath(new URL("./helpers/plugin-owner.ts", import.meta.url)), [mode, root], {
     execArgv: ["--import", "tsx"], env, stdio: ["ignore", "ignore", "pipe", "ipc"], windowsHide: true,
@@ -51,7 +67,7 @@ test("readable document endpoints do not require listing an ancestor outside the
   const parent = directory("unlistable-parent"), allowed = path.join(parent, "allowed"); mkdirSync(allowed);
   const document = path.join(allowed, "document.md"), source = "---\nlitzio: 1\n---\n\nReadable without listing its ancestor.\n";
   writeFileSync(document, source);
-  const staging = path.join(allowed, ".ieumdoc-plugin-private"); mkdirSync(staging);
+  const staging = path.join(allowed, ".litzio-plugin-private"); mkdirSync(staging);
   writeFileSync(path.join(staging, "document.md"), source);
   const access = new RootAccess([allowed]);
   const original = fs.readdirSync;
@@ -83,7 +99,7 @@ test("readable document endpoints do not require listing an ancestor outside the
 });
 
 test("private staging document endpoints reject filesystem aliases without hiding ordinary siblings", async t => {
-  const root = directory("private-aliases"), staging = path.join(root, ".ieumdoc-plugin-private");
+  const root = directory("private-aliases"), staging = path.join(root, ".litzio-plugin-private");
   mkdirSync(staging);
   const source = "---\nlitzio: 1\n---\n\nPrivate staging text.\n";
   writeFileSync(path.join(staging, "document.md"), source);
@@ -234,7 +250,7 @@ test("a new owner session at the identical live PID cannot revive an interrupted
 
 test("worker kill during a partial REST download and deadline leave Host alive and results private", async t => {
   const root = directory("faults"), input = path.join(root, "source.pdf");
-  const otherStaging = path.join(root, ".ieumdoc-plugin-other-request"); mkdirSync(otherStaging);
+  const otherStaging = path.join(root, ".litzio-plugin-other-request"); mkdirSync(otherStaging);
   const otherFile = path.join(otherStaging, "document.md"); writeFileSync(otherFile, "another request's retained output");
   writeFileSync(input, "%PDF-1.7\nimmutable"); const original = readFileSync(input);
   const sourceJson = fileURLToPath(new URL("../../../packages/docling/test/fixtures/synthetic/document.json", import.meta.url));
@@ -249,7 +265,10 @@ test("worker kill during a partial REST download and deadline leave Host alive a
   t.after(async () => { await host.close(); await fake.close(); });
   fake.mode("partial");
   const started = await host.start(input);
-  const partial = await until(() => readdirSync(root, { recursive: true }).map(String).find(name => name.endsWith("response.json")), Boolean);
+  // createWriteStream creates the file before its first write completes. The fault must hit
+  // an actual partial download, while retaining the same bytes/private-path assertions below.
+  const partial = await until(() => readdirSync(root, { recursive: true }).map(String).find(name =>
+    name.endsWith("response.json") && statSync(path.join(root, name)).size > 0), Boolean);
   const partialPath = path.join(root, partial!);
   assert.ok(readFileSync(partialPath).length > 0);
   assert.throws(() => accessPath(partialPath, access), /not published/);

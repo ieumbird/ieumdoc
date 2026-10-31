@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, test } from "node:test";
-import { readUpdateInfo, verifyBlockmap, verifyRelease } from "../scripts/verify-release.ts";
+import { readUpdateInfo, verifyBlockmap, verifyRelease, writeReleaseArtifactPaths } from "../scripts/verify-release.ts";
+import { brand } from "../../../brand.ts";
 import { signatureProblem } from "../src/signatures.ts";
 import { publishVerifiedRelease, releaseMode, resolveRelease, type ReleaseApi } from "../scripts/release.ts";
 
@@ -17,7 +18,7 @@ after(() => { for (const root of roots) rmSync(root, { recursive: true, force: t
 function release(version: string, faults: { file?: string; extraFile?: string; sha?: boolean; host?: boolean; publisher?: boolean } = {}): string {
   const root = mkdtempSync(path.join(os.tmpdir(), "litzio-release-"));
   roots.push(root);
-  const name = `IeumDoc-Setup-${version}.exe`;
+  const name = `Litzio-Setup-${version}.exe`;
   const bytes = Buffer.from(`installer ${version}`);
   const sha512 = createHash("sha512").update(faults.sha ? Buffer.from("other") : bytes).digest("base64");
   writeFileSync(path.join(root, name), bytes);
@@ -27,18 +28,38 @@ function release(version: string, faults: { file?: string; extraFile?: string; s
   writeFileSync(path.join(root, faults.file ?? (version.includes("-beta.") ? "beta.yml" : "latest.yml")), yml);
   if (faults.extraFile) writeFileSync(path.join(root, faults.extraFile), yml);
   mkdirSync(path.join(root, "win-unpacked", "resources"), { recursive: true });
-  writeFileSync(path.join(root, "win-unpacked", "IeumDoc.exe"), bytes);
+  writeFileSync(path.join(root, "win-unpacked", "Litzio.exe"), bytes);
   writeFileSync(path.join(root, "win-unpacked", "resources", "app-update.yml"), ["owner: ieumbird", "repo: ieumdoc", "provider: github",
-    ...(faults.host ? ["host: 127.0.0.1:47320", "protocol: http"] : []), ...(faults.publisher ? ["publisherName:", "  - IeumDoc"] : []),
-    "updaterCacheDirName: ieumdoc-updater", ""].join("\n"));
+    ...(faults.host ? ["host: 127.0.0.1:47320", "protocol: http"] : []), ...(faults.publisher ? ["publisherName:", "  - Litzio"] : []),
+    "updaterCacheDirName: litzio-updater", ""].join("\n"));
   return root;
 }
 
 test("Stable and Beta releases verify with their own metadata file", () => {
   assert.deepEqual(verifyRelease({ tag: "v0.2.0", version: "0.2.0", release: release("0.2.0"), signed: false }).map((file) => path.basename(file)),
-    ["IeumDoc-Setup-0.2.0.exe", "IeumDoc-Setup-0.2.0.exe.blockmap", "latest.yml"]);
+    ["Litzio-Setup-0.2.0.exe", "Litzio-Setup-0.2.0.exe.blockmap", "latest.yml"]);
   assert.deepEqual(verifyRelease({ tag: "v0.3.0-beta.1", version: "0.3.0-beta.1", release: release("0.3.0-beta.1"), signed: false }).map((file) => path.basename(file)),
-    ["IeumDoc-Setup-0.3.0-beta.1.exe", "IeumDoc-Setup-0.3.0-beta.1.exe.blockmap", "beta.yml"]);
+    ["Litzio-Setup-0.3.0-beta.1.exe", "Litzio-Setup-0.3.0-beta.1.exe.blockmap", "beta.yml"]);
+});
+
+test("custom Stable/Beta manifests survive the workflow artifact upload and download layout", () => {
+  const channels = brand.updates.channels as { stable: string; beta: string }, original = { ...channels };
+  try {
+    Object.assign(channels, { stable: "proof-stable", beta: "proof-beta" });
+    for (const [version, manifest] of [["0.2.0", "proof-stable.yml"], ["0.3.0-beta.1", "proof-beta.yml"]] as const) {
+      const source = release(version, { file: manifest });
+      writeFileSync(path.join(source, "unrelated.yml"), "not a release asset");
+      const options = { tag: `v${version}`, version, release: source, signed: false };
+      const verified = verifyRelease(options), output = path.join(source, "github-output");
+      writeReleaseArtifactPaths(verified, source, output);
+      const paths = /^paths<<([^\n]+)\n([\s\S]*)\n\1\n$/u.exec(readFileSync(output, "utf8"))![2]!.split("\n");
+      assert.deepEqual(paths.map(file => path.basename(file)), [`Litzio-Setup-${version}.exe`, `Litzio-Setup-${version}.exe.blockmap`, manifest, "win-unpacked"]);
+      const downloaded = mkdtempSync(path.join(os.tmpdir(), "litzio-downloaded-")); roots.push(downloaded);
+      for (const file of paths) cpSync(file, path.join(downloaded, path.basename(file)), { recursive: true });
+      assert.deepEqual(verifyRelease({ ...options, release: downloaded }).map(file => path.basename(file)), verified.map(file => path.basename(file)));
+      assert.equal(readFileSync(path.join(downloaded, manifest), "utf8"), readFileSync(path.join(source, manifest), "utf8"));
+    }
+  } finally { Object.assign(channels, original); }
 });
 
 test("a release that would mislead updaters or name another version is refused", () => {
@@ -56,24 +77,24 @@ test("a release that would mislead updaters or name another version is refused",
 
 test("a valid signature must match both the file and an allowed publisher", () => {
   const file = path.resolve("installer.exe");
-  const valid = { status: "Valid", path: file, subject: "CN=IeumDoc,O=IeumDoc contributors,C=KR" };
-  assert.equal(signatureProblem(["CN=IeumDoc,O=IeumDoc contributors,C=KR"], file, valid), null);
-  assert.equal(signatureProblem(["IeumDoc"], file, valid), null);
-  assert.match(signatureProblem(["CN=IeumDoc,O=Other"], file, valid)!, /publisher does not match/);
+  const valid = { status: "Valid", path: file, subject: "CN=Litzio,O=Litzio contributors,C=KR" };
+  assert.equal(signatureProblem(["CN=Litzio,O=Litzio contributors,C=KR"], file, valid), null);
+  assert.equal(signatureProblem(["Litzio"], file, valid), null);
+  assert.match(signatureProblem(["CN=Litzio,O=Other"], file, valid)!, /publisher does not match/);
   assert.match(signatureProblem([], file, valid)!, /no allowed publisher/);
-  assert.match(signatureProblem(["IeumDoc"], file, { ...valid, status: "NotSigned" })!, /signature is NotSigned/);
-  assert.match(signatureProblem(["IeumDoc"], file, { ...valid, path: path.resolve("other.exe") })!, /another file/);
+  assert.match(signatureProblem(["Litzio"], file, { ...valid, status: "NotSigned" })!, /signature is NotSigned/);
+  assert.match(signatureProblem(["Litzio"], file, { ...valid, path: path.resolve("other.exe") })!, /another file/);
 });
 
 test("a signed release must name the publisher updates are verified against", { skip: process.platform !== "win32" && "Authenticode is checked on Windows" }, () => {
   // The synthetic installer is not a signed executable: both it and the missing publisher are reported.
   assert.throws(() => verifyRelease({ tag: "v0.2.0", version: "0.2.0", release: release("0.2.0"), signed: true }),
-    (error: Error) => /names no publisher/.test(error.message) && /IeumDoc-Setup-0\.2\.0\.exe signature is (?!Valid)\w+/.test(error.message));
+    (error: Error) => /names no publisher/.test(error.message) && /Litzio-Setup-0\.2\.0\.exe signature is (?!Valid)\w+/.test(error.message));
 });
 
 test("the builder blockmap is bound to this installer, including chunk checksums", async () => {
   const root = release("0.2.0");
-  const installer = path.join(root, "IeumDoc-Setup-0.2.0.exe");
+  const installer = path.join(root, "Litzio-Setup-0.2.0.exe");
   const blockmap = `${installer}.blockmap`;
   const require = createRequire(import.meta.url);
   const builder = createRequire(require.resolve("electron-builder"));

@@ -91,7 +91,7 @@ async (page, { openPath, expect, screenshots }) => {
   // Capture walk is manual evidence, separate from the assertions above.
   const captures = [];
   if (screenshots) for (const language of ['en', 'ko']) {
-    await page.evaluate(language => localStorage.setItem('ieumdoc.uiLanguage', language), language);
+    await page.evaluate(language => localStorage.setItem('litzio.uiLanguage', language), language);
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: 'attached' });
     for (const width of [1440, 640]) {

@@ -7,8 +7,17 @@ import semver from "semver";
 import { GitHubProvider } from "electron-updater/out/providers/GitHubProvider.js";
 import type { ProviderRuntimeOptions } from "electron-updater/out/providers/Provider.js";
 import { NoStableReleaseError, releaseIdentity } from "./update-policy.ts";
+import { brand } from "../../../brand.ts";
 
 export class IeumGitHubProvider extends GitHubProvider {
+  protected override getDefaultChannelName(): string {
+    return super.getCustomChannelName(brand.updates.channels.stable);
+  }
+
+  protected override getCustomChannelName(channel: string): string {
+    return super.getCustomChannelName(channel === "beta" ? brand.updates.channels.beta : channel === "latest" ? brand.updates.channels.stable : channel);
+  }
+
   private betaOnlyFeed = false;
   private emptyFeed = false;
   private latestAbsent = false;

@@ -1,7 +1,7 @@
 // Manual real-service proof. Not part of the stable suite; explicitly requires the external server.
 async (page, { expect, openFolderPicker, doclingFixture: fixture }) => {
   page.setDefaultTimeout(60000);
-  await page.evaluate(() => { localStorage.setItem('ieumdoc.uiLanguage', 'en'); localStorage.setItem('ieumdoc.theme', 'light'); });
+  await page.evaluate(() => { localStorage.setItem('litzio.uiLanguage', 'en'); localStorage.setItem('litzio.theme', 'light'); });
   await page.reload();
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByRole('button', { name: 'Settings', exact: true }).click();

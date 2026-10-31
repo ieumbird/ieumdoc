@@ -29,8 +29,10 @@ through the same in-process origin and CSP (#857); no TCP listener is introduced
 The CLI distribution ships the self-contained worker beside its Editor assets;
 Desktop copies that trusted bundle to the common user installation before first
 conversion. It forks the installed copy with RunAsNode, retains in-process
-`ieumdoc://app` routing and stops local workers after the ordinary close gate.
+`litzio://app` routing and stops local workers after the ordinary close gate.
 The packaged CI smoke exercises this actual path with synthetic REST.
+
+Brand defaults and packager overrides follow [the branding guide](../guides/branding.md) (#859). Product identity is separate from the fixed internal Host API; earlier verification records do not establish a migration from old Beta builds.
 
 ## Open folders in File Explorer (#487)
 
@@ -75,14 +77,14 @@ because packaging and update boundaries are unchanged.
 Settings exposes **Command-line tools (CLI)** only when the Desktop bridge exists. The initial
 state is Off; neither setup nor update adds anything to PATH. Enabled reports Installed, while
 missing or mismatched owned files, application target or PATH registration report Broken path.
-Broken registrations offer Repair and Turn off. A conflicting external `ieumdoc` command or an
+Broken registrations offer Repair and Turn off. A conflicting external `litzio` command or an
 unowned file is reported without overwriting it. Operations report failures and allow another try.
 The UI follows existing Settings sections, controls and tokens, in Korean and English.
 
-The per-user `%LOCALAPPDATA%\IeumDoc\bin` directory contains a marked `ieumdoc.cmd`, ownership
+The per-user `%LOCALAPPDATA%\litzio\bin` directory contains a marked `litzio.cmd`, ownership
 record and an owned `app` junction to the fixed installation folder. The ASCII shim uses relative
 paths, disables delayed expansion, forwards `%*` directly, preserves standard streams and returns
-the CLI exit code. It runs `app\IeumDoc.exe` with `ELECTRON_RUN_AS_NODE=1` and the existing
+the CLI exit code. It runs `app\Litzio.exe` with `ELECTRON_RUN_AS_NODE=1` and the existing
 `resources\cli\cli.mjs` bundle. It neither invokes a second command interpreter with `call` nor
 changes the console code page. Core/CLI document semantics remain unchanged.
 
@@ -92,12 +94,12 @@ whose deprecation Node suppresses in npm's `node_modules` context but reports un
 Other warnings and errors remain visible. Remove this targeted option when the shared bundle no
 longer loads built-in punycode. This changes neither the dependency nor document parsing behavior.
 
-The common CLI's standalone `--version` prints `ieumdoc <CLI package version> (<commit>)`;
-Desktop's bundle prints `ieumdoc <Desktop package version> (desktop, <commit>)`. Both are one
+The common CLI's standalone `--version` prints `litzio <CLI package version> (<commit>)`;
+Desktop's bundle prints `litzio <Desktop package version> (desktop, <commit>)`. Both are one
 stdout line with exit code 0. Combining it with any other argument fails through the existing
 argument-error path. Build metadata is injected as literals, never read from files at runtime.
 The commit is the actual checkout's `git rev-parse --short=12 HEAD`; a build without Git uses
-`unknown`. Unbuilt source/tsx execution explicitly reports `ieumdoc development (unknown)`.
+`unknown`. Unbuilt source/tsx execution explicitly reports `litzio development (unknown)`.
 
 The existing CLI build and all its chunks/notices/assets are packaged outside ASAR as
 `resources/cli`. Desktop and CLI `serve` both use its `editor/` production files: one build and one
@@ -117,15 +119,15 @@ Updates preserve the external integration and fixed installation target. NSIS ac
 runs the same cleanup before removing application files; update's internal uninstall skips it.
 Cleanup removes owned files/junctions and the integration's PATH entry, then removes the bin
 directory with a nonrecursive `rmdir` if it is empty. A nonempty bin is preserved without error,
-including user files and subdirectories. The parent `%LOCALAPPDATA%\IeumDoc` stays: its creation
+including user files and subdirectories. The parent `%LOCALAPPDATA%\litzio` stays: its creation
 is not ownership-tracked and it also holds uninstall diagnostics. User data remains at
-`%APPDATA%\IeumDoc`, the updater cache at `%LOCALAPPDATA%\ieumdoc-updater`, and the default
-installation at `%LOCALAPPDATA%\Programs\IeumDoc`; none is part of CLI directory cleanup. An uninstall
+`%APPDATA%\litzio`, the updater cache at `%LOCALAPPDATA%\litzio-updater`, and the default
+installation at `%LOCALAPPDATA%\Programs\litzio`; none is part of CLI directory cleanup. An uninstall
 from another installation cannot remove a registration owned by the current one. Damaged ownership
 or conflicting files do not prevent removing our bin's PATH entries; unverifiable files stay and
 Settings reports Off with the remaining conflict after successful PATH removal. Registry failures
 remain errors. Optional cleanup failure never aborts app removal, including `/S`: NSIS writes a
-unique diagnostic under `%LOCALAPPDATA%\IeumDoc\uninstall-logs` (TEMP fallback), with the bin path,
+unique diagnostic under `%LOCALAPPDATA%\litzio\uninstall-logs` (TEMP fallback), with the bin path,
 helper error and manual Environment Variables cleanup instructions. Interactive removal displays
 a warning; silent removal logs it without waiting for input. This does not claim CLI cleanup
 succeeded. Moving an installation leaves a broken target;
@@ -159,7 +161,7 @@ document** on the start screen or in Command center, including when an argument 
 Changing UI language does not translate or replace an already open document.
 
 On startup, Desktop offers samples only after safe preparation succeeds. A new copy carries
-`.ieumdoc-sample` ownership text and `version`. Replacement requires a real directory (no
+`.litzio-sample` ownership text and `version`. Replacement requires a real directory (no
 junction/symlink in its ancestry or contents), the expected ownership marker and exact known
 file/directory set. Added files, extra empty directories, changed entry types or unconfirmed
 ownership cause a conflict: the existing folder is preserved and no sample paths are offered.
@@ -204,7 +206,7 @@ not run locally by owner decision. The packaged regression expectations are upda
 
 ## Scope and completion
 
-The Desktop Host lives in `apps/desktop`. It ships the existing Editor production build and directly imports the existing document/asset Host handlers. `ieumdoc://app` serves files and Host requests inside Electron; it starts neither Vite nor a TCP server. Core, File commit and CLI document operations do not change. There is no portable release, remote service, original-file autosave, cloud account or second editor state.
+The Desktop Host lives in `apps/desktop`. It ships the existing Editor production build and directly imports the existing document/asset Host handlers. `litzio://app` serves files and Host requests inside Electron; it starts neither Vite nor a TCP server. Core, File commit and CLI document operations do not change. There is no portable release, remote service, original-file autosave, cloud account or second editor state.
 
 Completion requires the Windows installer, channel/state tests, packaged app and actual install/update regressions, the existing Core/CLI/Editor/browser checks, CI configuration and this documentation. Unsigned publication is restricted to exact `vX.Y.Z-beta.N` releases after these checks, with its signature status and possible Windows warnings disclosed. Authenticode credentials are prerequisites for signed releases and Stable publication. All publication requires owner authorization and actual master-only environment protection configured in GitHub; it does not require a second approval of the publish job. Real GitHub update delivery is distinct from the local feed checks.
 
@@ -212,7 +214,7 @@ The native window enforces a minimum width of **640px** (minimum height 480px), 
 
 ## App and Host
 
-- App/product name: `IeumDoc`; App ID: `io.github.ieumbird.ieumdoc`; updater cache: `%LOCALAPPDATA%\ieumdoc-updater`; preferences/sample/logs: `%APPDATA%\IeumDoc`. Keep these identities stable after first publication.
+- App/product name: `Litzio`; App ID: `io.github.litzio.litzio`; updater cache: `%LOCALAPPDATA%\litzio-updater`; preferences/sample/logs: `%APPDATA%\litzio`. These official defaults come from [brand.ts](../../brand.ts); #859 intentionally starts new identities without migrating previous Beta data.
 - Windows EXE, NSIS installer/uninstaller, shortcuts and runtime window use the [Litzio wing/document icon](app-icon-v1.md). Its SVG source and generated ICO are tracked together; this does not replace previously published Beta assets.
 - The per-user one-click NSIS installer requires no separate Node.js/pnpm/browser installation. Uninstall keeps user data. The Host supplies the first valid existing `.md` command-line file, or start information with writable samples copied into user data once per bundled sample version. Without an accepted argument it supplies no default document; the Editor may still restore tabs. Startup priority and session protection follow [Editing session and Save](editing-session-save-v1.md#tab-navigation-memory-383); if no tabs open, the Editor shows its [start](editor-ux-shell-v1.md#start-without-a-document-174). The sample opens only when chosen, through the same Open path as any file. Opening another argument into an already running instance and OS file association are not implemented.
 - Electron main owns window lifecycle, protocol, preferences and updater. The sandboxed, isolated renderer has no Node integration; its typed preload exposes only update/settings calls and a restart check. Host/Markdown/file writes never pass through this bridge.
@@ -251,7 +253,7 @@ and its pinned [WinFrameView layout](https://github.com/electron/electron/blob/v
 and [opaque caption background](https://github.com/electron/electron/blob/v44.7.0/shell/browser/ui/views/win_caption_button_container.cc):
 the old height 40 covers y=39, where the web separator is painted. A DOM border reaching the
 right edge (#636) does not establish that the line survives native composition.
-The renderer title is the active filename followed by ` — IeumDoc`, or `IeumDoc` without a
+The renderer title is the active filename followed by ` — Litzio`, or `Litzio` without a
 document, for native taskbar/Alt+Tab identification as well as browser tabs. The existing
 beforeunload/unsaved-work protection remains authoritative for native Close.
 
@@ -394,7 +396,7 @@ Electron retains its native **Close without saving / Keep editing** dialog. All-
 the distinction from single-tab Close and recovery retention follow the
 [session protection contract](editing-session-save-v1.md#switching-and-recovery).
 
-Client recovery uses IndexedDB at the stable `ieumdoc://app` origin in Electron's persistent
+Client recovery uses IndexedDB at the stable `litzio://app` origin in Electron's persistent
 default session, under the app profile. The packaged regression checks identical `userData` and
 `sessionData` paths across new app PIDs, actual forced termination and normal window close, and
 record/Restore/Save/Reload/conflict preservation. It keeps its test profile and resets recovery
@@ -426,7 +428,7 @@ electron-updater 6.8.9 does not use a detached signature for `latest.yml`/`beta.
 
 Development and package/test commands, the CI jobs, signing setup and the publication boundary are documented in [Contributing](../../CONTRIBUTING.md) and [Verification](../test/README.md). Packaging removes its generated output first so test feeds, versions and old channel files cannot survive into a normal build. No build command publishes.
 
-PR/merge-group/push CI builds and tests unsigned packages and cannot publish. It does not upload development installers. Package creation, release-asset verification, packaged regressions and policy-selected install/update/uninstall checks remain required. Failure artifacts retain only packaged `profiles/*/logs/desktop.log*`, `recovery-proof.json`, update test `v*/latest.yml` and `v*/beta.yml`, uninstall `*-dialogs.txt`/`*-cleanup.txt` and durable `%LOCALAPPDATA%\IeumDoc\uninstall-logs\*.tmp` diagnostics for 7 days. Execution logs and direct-start measurements remain in Actions logs. Diagnostic uploads exclude executables, blockmaps and whole installation, browser-profile or cache trees. Small native caption evidence remains available on success or failure for 7 days.
+PR/merge-group/push CI builds and tests unsigned packages and cannot publish. It does not upload development installers. Package creation, release-asset verification, packaged regressions and policy-selected install/update/uninstall checks remain required. Failure artifacts retain only packaged `profiles/*/logs/desktop.log*`, `recovery-proof.json`, update test `v*/latest.yml` and `v*/beta.yml`, uninstall `*-dialogs.txt`/`*-cleanup.txt` and durable `%LOCALAPPDATA%\litzio\uninstall-logs\*.tmp` diagnostics for 7 days. The latter use a separate `desktop-uninstall-logs` artifact with a path selected from `brand.ts`, because Windows runner user logs and the checkout can be on different drives. Execution logs and direct-start measurements remain in Actions logs. Diagnostic uploads exclude executables, blockmaps and whole installation, browser-profile or cache trees. Small native caption evidence remains available on success or failure for 7 days.
 
 The manual workflow runs only from master and defaults to `verify`. Its `desktop-release` artifact retains the installer, blockmap, channel manifests and `win-unpacked/` for 14 days because publication downloads and revalidates them. Release assets, global retention, queue concurrency and CI execution/success policy are unchanged by the ordinary-CI upload policy. `unsigned-beta` publishes only exact Beta tags; `signed` retains mandatory credentials, forceCodeSigning and strict publisher verification for Stable or Beta.
 
@@ -521,3 +523,9 @@ The browser used this checkout's persistent Chrome profile. BadPasswordAttempts 
 0 before the first launch, then 1, 3, 4 and 5 after the final run; no further browser run was
 started at 5. The dedicated 5365 Vite server and owned browser context were closed. Packaged
 Desktop, installer/update/uninstall, Edge and fresh-profile probes were not run locally.
+
+## Brand-independent release checks (#859 review)
+
+The standard install/update (Stable and Beta), packaged Editor/CLI and uninstall regressions also run under the alternate brand configuration in required Windows CI. Their executable, installer, command, storage and channel names follow `brand.ts`; registry lookup uses the configured app ID and the pinned builder's NSIS GUID namespace. Existing foreign-file, PATH, unsaved-work and clean-account assertions remain in place.
+
+The release verifier emits its validated installer, blockmap, current configured channel manifest and unpacked application as the workflow artifact paths, after executable/signature/blockmap verification. The publish job downloads that same layout and revalidates it. Custom channel names are retained without collecting unverified YAML files.

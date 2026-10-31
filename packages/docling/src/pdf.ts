@@ -155,7 +155,7 @@ export async function convertDoclingPdf(input: string, output: string, options: 
     return record;
   } catch (error) {
     if (ownedOutput) await rm(output, { recursive: true, force: true });
-    const reason = options.signal?.aborted ? "Cancelled; only IeumDoc waiting stopped. The server task may continue." : deadline.aborted ? `Timed out after ${timeoutMs} ms` : error instanceof Error ? error.message : String(error);
+    const reason = options.signal?.aborted ? "Cancelled; only local waiting stopped. The server task may continue." : deadline.aborted ? `Timed out after ${timeoutMs} ms` : error instanceof Error ? error.message : String(error);
     throw new DoclingPdfError(`${reason}${taskId ? ` (Docling task ${taskId})` : "; submission is never automatically retried"}`,
       { ...(deadline.aborted ? { code: "timeout" as const } : error instanceof DoclingPdfError ? error.failure : { code: "output" as const }), ...(taskId ? { taskId } : {}) }, { cause: error });
   } finally { await rm(temp, { recursive: true, force: true }); }

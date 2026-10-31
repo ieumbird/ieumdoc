@@ -455,7 +455,7 @@ pass existing Figure validity/round-trip rules, and the complete input/output mu
 serialization's loss-prevention guards. Mappings do not cascade (`a → b`, `b → c` changes an
 original `a` only to `b`). Core does not decide filesystem identity or existence.
 
-`ieumdoc update-media-references <file> --from ./old.svg --to ./new.svg` is the thin one-document
+`litzio update-media-references <file> --from ./old.svg --to ./new.svg` is the thin one-document
 CLI command. Normal dry-run, JSON output, revision-checked writes and `apply-batch` apply.
 Matching is exact, without path/URL normalization. This command does not rename image files or
 scan folders. The [Host image rename](filesystem-host-boundary-v1.md#referenced-image-rename-504-pr-b)
@@ -465,14 +465,14 @@ this same operation, then coordinates the file writes and image rename.
 ### Figure commands
 
 ```bash
-pnpm ieumdoc insert-figure doc.md --at 2 --label fig-pfc-control --caption "PFC Current Control Architecture"
-pnpm ieumdoc insert-figure doc.md --at 2 --label fig-label-only
-pnpm ieumdoc update-figure doc.md --path 2 --image ./pfc-control.svg --alt "PFC current control diagram"
-pnpm ieumdoc update-figure doc.md --path 2 --image "" --alt ""
-pnpm ieumdoc insert-figure doc.md --at end --mermaid "graph LR; A --> B" --label fig-flow --caption "신호 흐름"
-pnpm ieumdoc update-figure doc.md --path 2 --mermaid "graph TD; B --> C"
-pnpm ieumdoc inspect doc.md --format json
-pnpm ieumdoc check doc.md --format json
+pnpm cli insert-figure doc.md --at 2 --label fig-pfc-control --caption "PFC Current Control Architecture"
+pnpm cli insert-figure doc.md --at 2 --label fig-label-only
+pnpm cli update-figure doc.md --path 2 --image ./pfc-control.svg --alt "PFC current control diagram"
+pnpm cli update-figure doc.md --path 2 --image "" --alt ""
+pnpm cli insert-figure doc.md --at end --mermaid "graph LR; A --> B" --label fig-flow --caption "신호 흐름"
+pnpm cli update-figure doc.md --path 2 --mermaid "graph TD; B --> C"
+pnpm cli inspect doc.md --format json
+pnpm cli check doc.md --format json
 ```
 
 `--mermaid <source>` follows existing `--latex`/`--code` argument input, including multiline

@@ -311,7 +311,7 @@ test("serve help explains the boundary and invalid invocation never starts a lis
   for (const args of [[], ["--port", "0"], ["--port", "1.5"], ["--port", "5180", "--port", "5181"], ["--unknown", "x"], ["--root"]]) {
     const result = runProcess(["serve", ...args]);
     assert.notEqual(result.status, 0, args.join(" "));
-    assert.doesNotMatch(result.stdout, /IeumDoc HTTP:/);
+    assert.doesNotMatch(result.stdout, /Litzio HTTP:/);
   }
 });
 
@@ -654,12 +654,12 @@ test("CLI can check and modify a real file through Core", () => {
 });
 
 test("--version prints one build identity line and rejects every combination before document I/O", () => {
-  assert.equal(versionText({ version: "0.0.0", desktop: false, commit: "123456abcdef" }), "ieumdoc 0.0.0 (123456abcdef)\n");
-  assert.equal(versionText({ version: "0.1.0-beta.1", desktop: true, commit: "123456abcdef" }), "ieumdoc 0.1.0-beta.1 (desktop, 123456abcdef)\n");
-  assert.equal(versionText({ version: "0.0.0", desktop: false, commit: "unknown" }), "ieumdoc 0.0.0 (unknown)\n");
+  assert.equal(versionText({ version: "0.0.0", desktop: false, commit: "123456abcdef" }), "litzio 0.0.0 (123456abcdef)\n");
+  assert.equal(versionText({ version: "0.1.0-beta.1", desktop: true, commit: "123456abcdef" }), "litzio 0.1.0-beta.1 (desktop, 123456abcdef)\n");
+  assert.equal(versionText({ version: "0.0.0", desktop: false, commit: "unknown" }), "litzio 0.0.0 (unknown)\n");
   const version = run(["--version"]);
   assert.equal(version.status, 0);
-  assert.equal(version.stdout, "ieumdoc development (unknown)\n");
+  assert.equal(version.stdout, "litzio development (unknown)\n");
   assert.equal(version.stderr, "");
   for (const args of [["--version", "check"], ["--version", "--help"], ["--help", "--version"],
     ["help", "--version"], ["--version", "--version"], ["check", "missing.md", "--version"], ["serve", "--version"]]) {
@@ -670,17 +670,17 @@ test("--version prints one build identity line and rejects every combination bef
   }
 });
 
-test("ieumdoc help exits successfully", () => {
+test("litzio help exits successfully", () => {
   for (const args of [[], ["help"], ["--help"], ["-h"]] as const) {
     const result = runProcess([...args]);
     if (args.length === 0) {
       assert.equal(result.status, 2);
       assert.equal(result.stdout, "");
-      assert.match(result.stderr, /IeumDoc CLI/);
+      assert.match(result.stderr, /Litzio CLI/);
     } else {
       assert.equal(result.status, 0, result.stderr);
       assert.equal(result.stderr, "");
-      assert.match(result.stdout, /IeumDoc CLI/);
+      assert.match(result.stdout, /Litzio CLI/);
     }
     const help = args.length === 0 ? result.stderr : result.stdout;
     const expectedGroups: Record<string, string[]> = {
@@ -728,7 +728,7 @@ test("ieumdoc help exits successfully", () => {
     assert.match(guidance, /One edit:.*command below.*Multiple edits:.*apply-batch/);
     assert.match(guidance, /--if-revision.*--dry-run/);
     assert.match(guidance, /Batch paths.*preceding step's result.*not tracked automatically/);
-    assert.match(help, /ieumdoc help <command>/);
+    assert.match(help, /litzio help <command>/);
   }
 });
 
@@ -741,14 +741,14 @@ test("command help is available from help and --help", () => {
   assert.equal(fromShort.status, 0, fromShort.stderr);
   assert.equal(fromHelp.stdout, fromFlag.stdout);
   assert.equal(fromHelp.stdout, fromShort.stdout);
-  assert.match(fromHelp.stdout, /ieumdoc check <file>/);
+  assert.match(fromHelp.stdout, /litzio check <file>/);
   assert.match(fromHelp.stdout, /optional error\.code from Core/);
   assert.match(fromHelp.stdout, /unclassified errors may omit the code/);
 
   const update = run(["help", "update-node-text"]);
   assert.equal(update.status, 0, update.stderr);
-  assert.match(update.stdout, /ieumdoc update-node-text <file> --path <indexes> --from <text> --to <text>/);
-  assert.match(update.stdout, /ieumdoc inspect <file>/);
+  assert.match(update.stdout, /litzio update-node-text <file> --path <indexes> --from <text> --to <text>/);
+  assert.match(update.stdout, /litzio inspect <file>/);
   assert.match(update.stdout, /current document snapshot/);
   assert.equal(run(["update-node-text", "--help"]).stdout, update.stdout);
 
@@ -776,7 +776,7 @@ test("command help is available from help and --help", () => {
 
   const equation = run(["help", "update-equation-latex"]);
   assert.equal(equation.status, 0, equation.stderr);
-  assert.match(equation.stdout, /ieumdoc update-equation-latex <file>/);
+  assert.match(equation.stdout, /litzio update-equation-latex <file>/);
   assert.equal(run(["update-equation-latex", "--help"]).stdout, equation.stdout);
 
   const insert = run(["help", "insert-block"]);
@@ -805,7 +805,7 @@ test("command help is available from help and --help", () => {
   assert.match(batch.stdout, /operation <1-based index>/);
   assert.match(batch.stdout, /objects\/arrays/);
   assert.match(batch.stdout, /stdin with -/);
-  assert.match(batch.stdout, /cat operations.json \| ieumdoc apply-batch document.md --operations -/);
+  assert.match(batch.stdout, /cat operations.json \| litzio apply-batch document.md --operations -/);
 });
 
 test("CLI insert-heading persists a Core heading", () => {
@@ -2591,7 +2591,7 @@ test("paragraph CLI help discovers the offset and path contracts", () => {
     assert.ok(top.includes(command));
     const help = run(["help", command]);
     assert.equal(help.status, 0);
-    assert.match(help.stdout, /ieumdoc inspect <file>/);
+    assert.match(help.stdout, /litzio inspect <file>/);
     assert.match(help.stdout, /run inspect again/);
     assert.equal(run([command, "--help"]).stdout, help.stdout);
     if (command !== "merge-paragraph") assert.match(help.stdout, /UTF-16.*\nA hard break and an inline math expression each count as one character position/);

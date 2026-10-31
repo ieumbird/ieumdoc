@@ -284,7 +284,7 @@ function FolderTree({ onDoclingConvert, doclingBusy, onFileAction, fileActionsDi
           const expanded = folder && tree.expanded.has(entry.path);
           // Text files and Markdown without a native marker open in text mode.
           const foreign = entry.kind === "document" && entry.native === false;
-          const description = foreign ? i18n.t("Not an IeumDoc document") : entry.kind === "image" ? i18n.t("Read-only image preview") : entry.kind === "file" ? i18n.t("This file cannot be edited in IeumDoc.") : undefined;
+          const description = foreign ? i18n.t("Not a {{product}} document") : entry.kind === "image" ? i18n.t("Read-only image preview") : entry.kind === "file" ? i18n.t("This file cannot be edited in {{product}}.") : undefined;
           const Icon = foreign ? FileX : entry.kind === "image" ? ImageIcon : entry.kind === "file" ? File : FileText;
           const row = (
             <li

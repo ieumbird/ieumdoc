@@ -4,6 +4,8 @@
 - Last verified: 2026-10-31 (#857; shared Host, boundary, activation and browser checks; packaged Desktop runs in required CI).
 - Authority: [ADR-0012](../adr/0012-plugin-runtime-and-ui-contributions.md), [Discussion #767](https://github.com/ieumbird/ieumdoc/discussions/767) and [brand-neutral Host API decision #856](https://github.com/ieumbird/ieumdoc/discussions/856).
 
+Brand defaults and packager overrides follow [the branding guide](../guides/branding.md) (#859). Product identity is separate from the fixed internal Host API; earlier verification records do not establish a migration from old Beta builds.
+
 ## Manifest and assets
 
 The brand-independent `@litzio/plugin-api` contract owns the identifiers in

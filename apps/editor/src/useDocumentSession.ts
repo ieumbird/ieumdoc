@@ -266,7 +266,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
     if (!document || !editorRef.current) return i18n.t("The editor is not ready to restart.");
     if (status === "saving") return i18n.t("A save is in progress. Restart to update after it finishes.");
     if (assetPending) return i18n.t("An image is still being added. Restart to update after it finishes.");
-    if (sourcePending || switching) return i18n.t("IeumDoc is still working on the document. Try again in a moment.");
+    if (sourcePending || switching) return i18n.t("{{product}} is still working on the document. Try again in a moment.");
     if (editorRef.current?.hasUnsavedChanges()) {
       return draftActive ? i18n.t("Apply or Cancel the open edits and save your changes, then restart to update.")
         : i18n.t("Save your changes, then restart to update.");

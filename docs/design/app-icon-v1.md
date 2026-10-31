@@ -2,7 +2,7 @@
 
 - Status: Implemented
 - Last verified: 2026-10-13 (Windows implementation for #170; validation evidence below).
-- Scope: Windows Desktop EXE, NSIS installer/uninstaller, shortcuts and runtime window. Browser branding, app identity, versions and release publication are outside this change.
+- Scope: Windows Desktop EXE, NSIS installer/uninstaller, shortcuts and runtime window. Brand/icon selection follows [the packager guide](../guides/branding.md) (#859); source SVG title defaults to Litzio. Versions and release publication follow the Desktop contract.
 - Authority: [ADR-0004](../adr/0004-desktop-host-distribution.md), [Desktop distribution](desktop-distribution-v1.md), and the user's [B concept selection](app-icon-v1-plan.md).
 
 ## Artwork and provenance

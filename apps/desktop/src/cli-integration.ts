@@ -1,3 +1,4 @@
+import { brand } from "../../../brand.ts";
 // Optional Windows shell integration only. All document commands remain in packages/cli.
 import * as fs from "node:fs/promises";
 import path from "node:path";
@@ -12,13 +13,13 @@ export interface EnvironmentPort {
   expand(value: string): string;
 }
 
-const OWNER = "io.github.ieumbird.ieumdoc.cli/v1";
+const OWNER = `${brand.appId}.cli/v1`;
 const MARKER = `rem ${OWNER}`;
 export const CLI_SHIM = ["@echo off", MARKER, "setlocal DisableDelayedExpansion",
   'set "ELECTRON_RUN_AS_NODE=1"',
   // Bundled markdown-it loads built-in punycode. Node suppresses its DEP0040 inside npm's
   // node_modules, but resources/cli is outside that boundary. Keep other warnings/errors visible.
-  '"%~dp0app\\IeumDoc.exe" --disable-warning=DEP0040 "%~dp0app\\resources\\cli\\cli.mjs" %*',
+  `"%~dp0app\\${brand.executableName}.exe" --disable-warning=DEP0040 "%~dp0app\\resources\\cli\\cli.mjs" %*`,
   "exit /b %errorlevel%", ""].join("\r\n");
 type Ownership = { owner: typeof OWNER; executable: string };
 
@@ -55,8 +56,8 @@ export class CliIntegration {
   readonly junction: string;
   private busy = false;
   constructor(readonly executable: string, localAppData: string, readonly environment: EnvironmentPort) {
-    this.bin = path.join(localAppData, "IeumDoc", "bin");
-    this.shim = path.join(this.bin, "ieumdoc.cmd");
+    this.bin = path.join(localAppData, brand.folders.cli, "bin");
+    this.shim = path.join(this.bin, `${brand.cliCommand}.cmd`);
     this.record = path.join(this.bin, "owner.json");
     this.junction = path.join(this.bin, "app");
   }
@@ -97,7 +98,7 @@ export class CliIntegration {
       for (const extension of new Set(["", ".ps1", ".com", ".exe", ".bat", ".cmd",
         ...(process.env.PATHEXT ?? "").toLowerCase().split(";").filter(value => /^\.[a-z0-9]+$/.test(value))])) {
         if (ownBin && extension === ".cmd") continue; // ownFiles checks the reserved shim itself.
-        const candidate = path.join(folder, `ieumdoc${extension}`);
+        const candidate = path.join(folder, `${brand.cliCommand}${extension}`);
         if (await entry(candidate)) return candidate;
       }
     }
@@ -138,9 +139,9 @@ export class CliIntegration {
       const snapshot = await this.environment.read();
       if (enabled) {
         const collision = await this.conflict(snapshot);
-        if (collision) throw new Error(`Another ieumdoc command is on PATH: ${collision}`);
+        if (collision) throw new Error(`Another ${brand.cliCommand} command is on PATH: ${collision}`);
         if (!await exists(this.executable) || !await exists(path.join(path.dirname(this.executable), "resources", "cli", "cli.mjs"))) {
-          throw new Error("CLI integration requires the installed IeumDoc app and its CLI bundle.");
+          throw new Error("CLI integration requires the installed app and its CLI bundle.");
         }
         await fs.mkdir(this.bin, { recursive: true });
         // Claim the record before creating other files, so a partial failure remains repairable.

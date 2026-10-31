@@ -125,7 +125,7 @@ filesystem watch는 현재 제공하지 않으며 향후 검토 대상이다.
 
 Host는 요청된 document locator를 실제 filesystem 동작으로 연결한다. Locator는 interface/host layer의 값이며 Core의 semantic document model에 포함하지 않는다.
 
-Host 구현은 교체 가능해야 한다. Vite는 개발 HTTP, Windows Desktop은 `ieumdoc://app` custom protocol, 독립 HTTP Host는 Node listener와 production 정적 파일을 사용하며 같은 stateless document/asset handler를 호출한다. Vite/Desktop은 기존 local 파일 정책을 명시적으로 선택하고 HTTP는 고정 Root allowlist를 반드시 적용한다. [Desktop contract](desktop-distribution-v1.md)와 [HTTP contract](http-host-v1.md)가 각 배포·접근 경계를 정한다. 이 재사용을 장기 persistence/backend 또는 Workspace 결정으로 확대하지 않는다.
+Host 구현은 교체 가능해야 한다. Vite는 개발 HTTP, Windows Desktop은 `litzio://app` custom protocol, 독립 HTTP Host는 Node listener와 production 정적 파일을 사용하며 같은 stateless document/asset handler를 호출한다. Vite/Desktop은 기존 local 파일 정책을 명시적으로 선택하고 HTTP는 고정 Root allowlist를 반드시 적용한다. [Desktop contract](desktop-distribution-v1.md)와 [HTTP contract](http-host-v1.md)가 각 배포·접근 경계를 정한다. 이 재사용을 장기 persistence/backend 또는 Workspace 결정으로 확대하지 않는다.
 
 Litzio는 browser file upload를 기본 document access model로 사용하지 않는다.
 
@@ -307,9 +307,9 @@ Stdin verification: 2026-10-28 (#681: actual piped UTF-8/BOM input, file-byte/ou
 **배치 사용 예제:** 아래 예제는 저장소 밖의 기존 임시 폴더에 아직 없는 `document.md`를 만들고, H1 제목만 추가한 상태에서 시작합니다. 명령은 저장소 루트에서 실행하며, `<임시 폴더>`는 실제 절대 경로로 바꿉니다.
 
 ```bash
-pnpm ieumdoc create "<임시 폴더>/document.md"
-pnpm ieumdoc insert-heading "<임시 폴더>/document.md" --at end --level 1 --text "Example document"
-pnpm ieumdoc inspect "<임시 폴더>/document.md" --format json
+pnpm cli create "<임시 폴더>/document.md"
+pnpm cli insert-heading "<임시 폴더>/document.md" --at end --level 1 --text "Example document"
+pnpm cli inspect "<임시 폴더>/document.md" --format json
 ```
 
 이 상태의 Core snapshot은 metadata가 인덱스 0, H1 제목이 경로 `[1]`이며 다른 본문은 없습니다. 다음 두 작업은 H2를 끝(인덱스 2)에 삽입한 뒤 그 heading을 수정합니다. 제목은 첫 본문 위치에 유지합니다. 같은 임시 폴더의 `operations.json`에 저장합니다.
@@ -322,21 +322,21 @@ pnpm ieumdoc inspect "<임시 폴더>/document.md" --format json
 ```
 
 ```bash
-pnpm ieumdoc apply-batch "<임시 폴더>/document.md" --operations "<임시 폴더>/operations.json" --if-revision <위 inspect에서 얻은 revision> --format json
-pnpm ieumdoc check "<임시 폴더>/document.md"
+pnpm cli apply-batch "<임시 폴더>/document.md" --operations "<임시 폴더>/operations.json" --if-revision <위 inspect에서 얻은 revision> --format json
+pnpm cli check "<임시 폴더>/document.md"
 ```
 
 같은 초기 문서와 revision에서 파일 입력 대신 stdin을 사용할 수 있습니다. 아래 두 예제는 대안이며 연속으로 실행하지 않습니다.
 
 ```bash
-cat "<임시 폴더>/operations.json" | pnpm ieumdoc apply-batch "<임시 폴더>/document.md" --operations - --if-revision <위 inspect에서 얻은 revision> --format json
+cat "<임시 폴더>/operations.json" | pnpm cli apply-batch "<임시 폴더>/document.md" --operations - --if-revision <위 inspect에서 얻은 revision> --format json
 ```
 
 Windows PowerShell에서는 파이프를 UTF-8로 인코딩합니다. JSON을 만드는 명령의 출력도 같은 방식으로 전달할 수 있습니다.
 
 ```powershell
 $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
-Get-Content -Raw -Encoding utf8 "<임시 폴더>/operations.json" | pnpm ieumdoc apply-batch "<임시 폴더>/document.md" --operations - --if-revision <위 inspect에서 얻은 revision> --format json
+Get-Content -Raw -Encoding utf8 "<임시 폴더>/operations.json" | pnpm cli apply-batch "<임시 폴더>/document.md" --operations - --if-revision <위 inspect에서 얻은 revision> --format json
 ```
 
 ### CLI dry run (#292)

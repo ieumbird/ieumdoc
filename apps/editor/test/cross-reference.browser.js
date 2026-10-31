@@ -689,7 +689,7 @@ async (page, { showNotifications, openPath, screenshots, expect, recoveryRecords
       language:document.documentElement.lang, viewport:[innerWidth,innerHeight],
       dialogs:[...document.querySelectorAll('[role="dialog"]')].map(n => n.textContent),
       sidebar:document.querySelector('[data-testid="sidebar"]')?.outerHTML.slice(0,3000),
-      memory:localStorage.getItem('ieumdoc.openTabs'),
+      memory:localStorage.getItem('litzio.openTabs'),
     }));
     throw new Error(`Apple reload navigation failed: ${JSON.stringify(state)}`, {cause});
   }

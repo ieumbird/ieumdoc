@@ -7,6 +7,7 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type ViteDevServer } from "vite";
 import { buildDoclingWorker } from "../../packages/cli/scripts/build-docling-worker.ts";
+import { brand } from "../../brand.ts";
 
 export default defineConfig({
   // Prebundle the lazy renderer/worker dependencies without fetching them until needed.
@@ -15,11 +16,19 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      "@brand-icon": fileURLToPath(new URL(`../../${brand.icons.svg}`, import.meta.url)),
     },
   },
   plugins: [
     react(),
     tailwindcss(),
+    {
+      name: "product-brand",
+      transformIndexHtml(html) {
+        return html.replace("%PRODUCT_NAME%", () => brand.name.en.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;"))
+          .replace("%STORAGE_PREFIX%", () => encodeURIComponent(brand.storagePrefix));
+      },
+    },
     {
       name: "litzio-document",
       async configureServer(server: ViteDevServer) {

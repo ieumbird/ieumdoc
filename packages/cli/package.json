@@ -4,9 +4,6 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "bin": {
-    "ieumdoc": "./src/cli.ts"
-  },
   "scripts": {
     "build": "tsx scripts/build.ts",
     "package": "pnpm build && npm pack ./dist --pack-destination ./dist --ignore-scripts",

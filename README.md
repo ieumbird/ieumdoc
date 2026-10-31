@@ -12,6 +12,8 @@ Currently available as a Windows Beta. The primary documentation is in Korean.
 
 <a id="windows-desktop"></a>
 
+소스 빌드의 제품 이름·CLI·설치 식별자는 [brand.ts](brand.ts)에서 정하며 공식 기본값은 Litzio다. [패키저 안내](docs/guides/branding.md)를 따른다. 아래 공개 Beta 기록은 #859 이전 이름을 유지하며 새 식별자로의 이전을 제공하지 않는다.
+
 ## 설치하고 시작하기
 
 1. [Releases 목록](https://github.com/ieumbird/ieumdoc/releases)에서 사용할 Beta의 **Assets**를 열고 `IeumDoc-Setup-<버전>.exe`를 내려받아 실행합니다. 현재 사용자에게 설치하며 관리자 권한이나 별도 Node.js·pnpm이 필요하지 않습니다.
@@ -71,10 +73,10 @@ pnpm editor
 `http://127.0.0.1:5173`에서 개발 Editor를 엽니다. 소스 실행은 공개 설치본과 기능 시점이 다를 수 있습니다.
 
 ```bash
-pnpm ieumdoc help
-pnpm ieumdoc check apps/editor/document/technical-document.md
-pnpm ieumdoc inspect apps/editor/samples/ko/converter-control.md --format json
-pnpm ieumdoc docling convert /path/to/document.json --output /path/to/new-folder
+pnpm cli help
+pnpm cli check apps/editor/document/technical-document.md
+pnpm cli inspect apps/editor/samples/ko/converter-control.md --format json
+pnpm cli docling convert /path/to/document.json --output /path/to/new-folder
 ```
 
 문서를 수정할 때는 저장소 밖의 사본을 사용하세요. 단건 명령은 `help <command>`, 여러 수정은 [배치 예제](docs/design/filesystem-host-boundary-v1.md#cli-batch-application-215)를 참고합니다.

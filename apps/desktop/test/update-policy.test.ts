@@ -46,7 +46,7 @@ test("packaging names the update metadata by channel and requires signing for re
   assert.equal(local.forceCodeSigning, false);
   assert.deepEqual(local.publish, [{ provider: "github", owner: "ieumbird", repo: "ieumdoc", channel: "beta" }]);
   assert.equal(packageConfiguration("0.3.0", true).forceCodeSigning, true);
-  assert.equal(local.appId, "io.github.ieumbird.ieumdoc");
+  assert.equal(local.appId, "io.github.litzio.litzio");
   assert.deepEqual([local.nsis?.oneClick, local.nsis?.perMachine], [true, false]);
 });
 
