@@ -111,12 +111,12 @@ test("one brand setting produces independently installed identities and the unch
   } finally {
     try {
       const closed = await Promise.allSettled(apps.map(async app => {
+        const child = app.process();
         let timer: ReturnType<typeof setTimeout> | undefined;
         try {
           await Promise.race([app.close(), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Brand app did not close")), 15_000); })]);
         } finally {
           clearTimeout(timer);
-          const child = app.process();
           if (child.pid && child.exitCode === null && child.signalCode === null) spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true });
         }
       }));
