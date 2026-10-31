@@ -224,7 +224,7 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
   const sourceIsolation=await checkUIIsolation(['.source-view-text','.source-line']);
   check(JSON.stringify(sourceIsolation.before)===JSON.stringify(sourceIsolation.after),
     `Document typography leaked into Source: ${JSON.stringify(sourceIsolation)}`);
-  await page.getByRole('button',{name:'Visual',exact:true}).click();
+  await page.getByRole('button',{name:'Edit',exact:true}).click();
   await page.locator('[data-document-tab][data-active=true] .document-editor').waitFor();
   results.push({wrapping,uiIsolation,sourceIsolation});
   const wrapResults = [];

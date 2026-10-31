@@ -12,7 +12,7 @@ import { endnoteOrder, firstReferenceNumbers } from "@ieumdoc/core/numbering";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { Combobox } from "@base-ui/react/combobox";
-import { useEditorVisible } from "./editor-visibility.ts";
+import { useEditorAuthoring } from "./editor-visibility.ts";
 import { canEditEndnoteAt, endnoteBlocks } from "./endnotes.ts";
 import { i18n } from "./i18n.ts";
 import { useMessageState } from "./ui-message.ts";
@@ -108,7 +108,7 @@ function CitationView({ node, editor, getPos, updateAttributes, selected }: Reac
   const [editing, setEditing] = useState(false);
   const canEdit = useEditorState({ editor, selector: ({ editor: current }) => {
     const pos = getPos();
-    return !!current && typeof pos === "number" && canEditEndnoteAt(current.state, pos);
+    return !!current?.isEditable && typeof pos === "number" && canEditEndnoteAt(current.state, pos);
   } });
   useEffect(() => { if (!canEdit) setEditing(false); }, [canEdit]);
   const close = () => {
@@ -191,7 +191,7 @@ export function CitationForm({ entries, current, className, style, anchor, onApp
   onDismiss?: () => void;
 }) {
   useTranslation();
-  const visible = useEditorVisible();
+  const visible = useEditorAuthoring();
   const id = useId();
   const keyInput = useRef<HTMLInputElement>(null);
   const [role, setRole] = useState<CitationRole>(current?.role ?? "cite:p");

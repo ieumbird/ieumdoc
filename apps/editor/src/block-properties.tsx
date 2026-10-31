@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { i18n } from "./i18n.ts";
 import { useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
-import { useEditorVisible } from "./editor-visibility.ts";
+import { useEditorAuthoring } from "./editor-visibility.ts";
 import { useDocumentBounds } from "./ui/use-document-bounds.ts";
 import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
 import { Button } from "@/components/ui/button.tsx";
@@ -27,7 +27,7 @@ export function BlockProperties({
   children: ReactNode;
 }) {
   useTranslation();
-  const visible = useEditorVisible();
+  const visible = useEditorAuthoring();
   const bounds = useDocumentBounds(anchor, open);
   const wasOpen = useRef(false);
   const openingFocus = useRef<RefObject<HTMLElement | null> | false>(false);

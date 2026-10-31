@@ -41,6 +41,70 @@
 
 Historical verification records: [Verification record](#verification-record).
 
+## Read / Edit / Source (#849)
+
+Native document tabs start in **Edit** and expose **Read | Edit | Source**
+(**읽기 | 편집 | 소스**) in their owning group's tab row. The Command Center exposes
+**View: Read / Edit / Source** through the same handlers. Each tab retains its own
+view while switching or moving between groups; reopening starts in Edit. This is
+window-memory presentation state, absent from document settings, saved content,
+recovery snapshots and restored-tab preferences. Text-mode tabs expose none of these
+three switches or commands.
+
+Read uses the same mounted `DocumentEditor`, projection, NodeViews and single
+Tiptap/ProseMirror state as Edit, with `setEditable(false)`. Block hover/selection,
+keyboard movement, native text selection/copy, reading previews and Outline remain
+available. Browser Find/Print/zoom shortcuts retain their native defaults while the
+reading surface has focus. Navigation within Read, including notification/problem navigation, stays
+in Read. Since ProseMirror skips editable key handling, a Read-only DOM bridge
+forwards navigation to the existing keymaps and uses ProseMirror selection APIs at
+selected block boundaries. Text caret movement/extension delegates to the browser's
+native Selection and maps back through ProseMirror's public position/selection APIs;
+no alternate renderer or editor engine is introduced.
+
+Read hides authoring tools, formatting, block/table actions, document settings and
+property forms, and disables Save (button, shortcut, command and close-confirmation
+Save). A transaction filter additionally refuses every document-changing transaction,
+including explicit commands, Undo/Redo and late form callbacks. Native paste/drop
+cannot insert text, HTML or image assets. Reload/close keep their existing work-loss
+confirmation; Cancel returns to Read, and saving requires returning to Edit first.
+
+Unapplied forms stay mounted with their owners' draft values and registration. Read
+suspends authoring UI and renders applied Equation/Mermaid source instead of the
+draft. Its tab-row draft indicator remains visible; Edit restores the forms and
+values. Clicking Read or opening the Command Center does not complete metadata as
+an outside click. View changes do not acknowledge Save, reset history or write
+recovery records. Applied work, dirty state and revision are unchanged.
+
+`DocumentEditor`'s `readOnly` prop is the rendering/navigation boundary for later
+module consumers. Docling comparison still uses its existing `ReadOnlyDocument`;
+its migration, fixed Read surface without switches and bidirectional correspondence
+are deliberately deferred to #815. This view-only change needs no Core/CLI operation.
+
+### Read view verification and captures (2026-10-31)
+
+`read-view` covers the mutation boundary and retained drafts/recovery, including a
+validation result arriving during Read; it also compares block/text keyboard movement
+with Edit and verifies real pointer selection/Copy, previews, Outline, commands,
+independent tab/groups, close protection and reopening. The related Source/property,
+group, Command Center, text-mode, layout, quiet-document and focus regressions retain
+their existing assertions. A 640px English filename regression was caught before
+compact segment insets were reduced to the existing navigation-panel spacing.
+
+The paired controls use the same `fields.md`, English/Light, top scroll and persistent
+Chrome profile. Read uses applied `reading.md` content with a retained Mermaid draft;
+Korean/Dark and split groups are separate states. Alignment, padding, clipping,
+Korean UI word boundaries, themes and the same segment pattern in Document navigation
+were manually inspected. [Capture conditions and hashes](assets/read-view-849/capture-metadata.json)
+record the baseline and source/image hashes; these are visual evidence, not owner approval.
+
+| State | 1440px | 640px |
+| --- | --- | --- |
+| Previous Edit controls | [Before](assets/read-view-849/before-1440.png) | [Before](assets/read-view-849/before-640.png) |
+| Read/Edit/Source controls | [After](assets/read-view-849/after-controls-1440.png) | [After](assets/read-view-849/after-controls-640.png) |
+| Read with retained draft | [English Light](assets/read-view-849/after-1440-light-en.png) | [Korean Dark](assets/read-view-849/after-640-dark-ko.png) |
+| Independent split groups | [Source / Read](assets/read-view-849/split-1440.png) | Groups merge under the existing minimum-width rule. |
+
 ## Plain text mode (#817)
 
 Existing `.txt` and Core-incompatible `.md` files open automatically in a separate
@@ -71,7 +135,7 @@ Save/recovery sessions and startup tab restoration.
 
 There are at most two editor groups, in fixed equal columns separated by a 1px
 structural boundary. Each has its own scrolling tablist and active-document
-Visual/Source, Save/status and File actions at the right. The title strip is shared.
+Read/Edit/Source, Save/status and File actions at the right. The title strip is shared.
 Pointer or keyboard focus in a group's tabs, actions or document makes that group
 the target of Outline, Command Center and shell shortcuts. Both documents remain
 independently scrollable and editable. The focused group's tab row uses the existing
@@ -177,13 +241,13 @@ shortcut and accessible name remain unchanged. One 1px DOM bottom separator span
 the entire viewport at y=39, including the native caption reservation.
 
 The second row is always 32px plus its 1px boundary, including the start screen with
-no document. Only the tablist scrolls horizontally; Visual/Source, layout toggles,
+no document. Only the tablist scrolls horizontally; Read/Edit/Source, layout toggles,
 status, Save and File actions stay fixed at the right of that row. At viewport widths
 up to 1024px the less frequent Wide document toggle moves into ⋯ as a checked menu
 item. Outline remains a direct button so its overlay Escape/focus-return path remains
 stable. The compact menu stays available without a document and during pending work
 for the width preference; document-specific commands retain their disabled guards.
-Visual/Source and Save are disabled on the empty start screen. No special tab is added.
+Read/Edit/Source and Save are disabled on the empty start screen. No special tab is added.
 
 Each row receives the actions and status of its own active document. #488 phase 1
 adds the groups described above. Existing independent tab sessions, Save/shortcut,
@@ -839,7 +903,7 @@ The shell has three responsibilities: the Sidebar on the left browses opened fol
 | Document panel | Outline, Tables and Figures navigation (#613), with 600 semibold, themed surface and segment shadow for the selected tab, muted inactive labels and reserved semibold label width (#620), titled Outline, with no internal close button (#590). The tab-row Outline toggle opens and closes it. The outline is derived from the editor document, indents 12px per level below H1 up to three levels and wraps labels to two lines, marks the section being read with selected background/text and 600 semibold (no left marker, #515); a hidden semibold copy reserves its two-line text extent to prevent selection height jumps. The current item stays inside the list's visible area. The list scrolls by itself and is never written to the document. Table/Figure items reuse the body caption prefix and Core reference template (for example `Table 1. Caption`), including in Korean UI; a missing caption shows only the number. At 1424px and wider the panel is docked and starts open; below 1424px it starts closed and, opened, overlays the document below the sticky header instead of narrowing it, so Save, File actions and the Outline toggle stay usable; Escape closes it and returns focus to the tab-row Outline toggle. The docking width is independent of the 1024px narrow sidebar. Entering the overlay layout always closes it. Returning to docked restores the user's last explicit docked open/closed choice, or opens by default if none exists. Overlay interactions do not overwrite that choice. Open/closed is page memory only and resets on reload; no persistent preference is added. |
 | TopBar | Shared single-row brand/search/caption strip; document actions and compact status belong to their owning tab row. See [#695](#title-strip-and-tab-row-actions-695) for responsive search, menu guards and status. Save, Source, Compare, Reload/discard, Copy path and layout preferences retain their existing operations and shortcuts. |
 | Document tabs | Fixed second row below the title strip, with a flat current accent marker (#581). Filename, dirty dot, close button and full-path tooltip; same-named files show the distinguishing parent folder. Only the tablist scrolls; its active-document actions remain fixed to its right (#695). Accessible tablist/tab/tabpanel relationships, Left/Right/Home/End switching and Delete to close remain. Closing selects the right neighbour, else left; an inactive close keeps the current tab. |
-| MessageArea | Registers load/save errors, conflict and temporary notices with the window NotificationCenter; renders no row below tabs. Table deletion retains its existing five-second notice and Undo lifecycle. Unapplied draft context instead appears as a separate short status immediately left of Save in the owning tab row (#839): text at 1440px, icon at 640px/compact, full Save/Source explanation on hover/focus and in the accessible name. It stays available in Visual and Source, takes no document height, and has no jump-to-draft action. [P07](ui-patterns-v1.md#p07-입력-오류와-알림-센터) owns the message classification. |
+| MessageArea | Registers load/save errors, conflict and temporary notices with the window NotificationCenter; renders no row below tabs. Table deletion retains its existing five-second notice and Undo lifecycle. Unapplied draft context instead appears as a separate short status immediately left of Save in the owning tab row (#839): text at 1440px, icon at 640px/compact, full Save/Source explanation on hover/focus and in the accessible name. It stays available in Read, Edit and Source, takes no document height, and has no jump-to-draft action. [P07](ui-patterns-v1.md#p07-입력-오류와-알림-센터) owns the message classification. |
 | Document | Continuous white writing surface with a subtle edge on a muted canvas, extending at least to the bottom of the viewport minus its outer gap. Block tools occupy its gutter. Empty editable documents expose a first-line hint and `+`. No fixed formatting toolbar. |
 
 General file navigation is Open folder… followed by choosing a `.md` or `.txt` file in the sidebar tree; there is no full-file-path dialog (#190). Closing the folder dialog returns focus to the control that opened it. Open folder uses an in-app [folder picker](folder-picker-v1.md), with path completion, breadcrumbs, Up, New folder, recent folders and starting places. Navigating never opens a folder: Enter or Open applies the typed path to the sidebar. A document clicked in the folder opens through Open and its checks ([Folder listing v1](filesystem-host-boundary-v1.md#folder-listing-v1-112)). Source previews canonical Markdown read-only. Long source lines, including unbroken URLs/words, soft-wrap to the available width without horizontal scrolling (#476). Line numbers count Markdown lines only; continuations align with their line's text and have no new number. Wrapping changes no document text or saved content, inserts no copied characters or line breaks, and the generated numbers are never copied. Native selection/Copy retains its existing omission of the terminal newline in Chromium. Source does not replace or reconstruct that tab's visual editor state. Pending Source work blocks switching tabs within its group. Unapplied drafts remain unsaved while Save/Source use applied content; Reload explicitly confirms discarding local work. See [Editing session and Save v1](editing-session-save-v1.md). Clean loaded state is silent; document changes/drafts show `Unsaved changes`. `Saved` is shown only following a successful save with no remaining edits. Saving/errors/conflict retain their meaning; there is no autosave.
@@ -1196,7 +1260,7 @@ The placeholder explicitly names open tabs, loaded documents and commands in bot
 No-match guidance explains that unread subfolders contribute no documents until expanded, and
 Refresh updates already loaded listings; it does not claim that Refresh recursively reads unopened folders.
 
-Commands reuse Open folder, Save, Reload, Copy path, Visual/Source, Outline, sidebar, document width
+Commands reuse Open folder, Save, Reload, Copy path, Read/Edit/Source, Outline, sidebar, document width
 and app/document Settings handlers and their current availability, plus the history and read-only shortcut guide below (#471). Switching to an opened document reuses tab
 activation: no document read/write, new editor state or implicit save. Pending operations retain the
 same switching and document-action restrictions; unavailable results remain visibly disabled.

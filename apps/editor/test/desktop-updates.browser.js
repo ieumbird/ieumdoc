@@ -494,7 +494,7 @@ async (page, { screenshots = false, openPath }) => {
   } finally { releaseSource(); }
   await page.locator('[data-document-tab][data-active=true]').getByTestId('source-view').waitFor();
   await page.unroute('**/api/document-source', holdSource);
-  await page.getByRole('button', {name:'Visual', exact:true}).click();
+  await page.getByRole('button', {name:'Edit', exact:true}).click();
 
   let releaseAsset;
   const assetGate = new Promise(resolve => { releaseAsset = resolve; });

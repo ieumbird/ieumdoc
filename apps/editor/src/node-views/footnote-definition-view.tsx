@@ -10,6 +10,7 @@ import { handleTextblockMouseDown } from "./shared.ts";
 
 export function FootnoteDefinitionView({ node, editor, getPos, selected }: ReactNodeViewProps) {
   useTranslation();
+  const editable = useEditorState({ editor, selector: ({ editor: current }) => current.isEditable });
   const label = String(node.attrs.label ?? "");
   const editing = useEditorState({ editor, selector: ({ editor: current }) => !!current && endnoteEditingKey.getState(current.state)?.label === label });
   const begin = () => {
@@ -34,13 +35,13 @@ export function FootnoteDefinitionView({ node, editor, getPos, selected }: React
       data-testid="footnote-definition"
       data-label={label}
       data-selected={String(selected)}
-      data-editing={String(editing)}
+      data-editing={String(editable && editing)}
       data-endnote-owner={label}
       data-endnote-editor={endnoteEditorToken(editor)}
       data-endnotes-heading={i18n.t("Endnotes")}
       role="textbox"
       aria-label={`${i18n.t("Endnote")} ${useEndnoteNumber(editor, label) ?? label}`}
-      aria-readonly={!editing}
+      aria-readonly={!editable || !editing}
       aria-multiline="true"
       data-source-path={String(node.attrs.sourcePath ?? "")}
       onMouseDown={(event: ReactMouseEvent) => {
@@ -57,7 +58,7 @@ export function FootnoteDefinitionView({ node, editor, getPos, selected }: React
       }}
     >
       <EndnoteNumber editor={editor} label={label} />
-      {editor.isEditable ? <div className="endnote-actions" contentEditable={false}>
+      {editable ? <div className="endnote-actions" contentEditable={false}>
         {editing ? <>
           <Button size="sm" variant="outline" data-testid="endnote-cancel" onClick={() => finish(true)}>{i18n.t("Cancel")}</Button>
           <Button size="sm" data-testid="endnote-apply" onClick={() => finish(false)}>{i18n.t("Done")}</Button>

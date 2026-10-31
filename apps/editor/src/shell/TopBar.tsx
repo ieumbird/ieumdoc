@@ -6,7 +6,7 @@ import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { splitDocumentPath } from "./document-path.ts";
 
-export type DocumentView = "visual" | "source";
+export type DocumentView = "read" | "visual" | "source";
 
 type TopBarProps = {
   onOpenCommandCenter?(): void;

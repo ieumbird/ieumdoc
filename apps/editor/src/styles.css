@@ -2765,7 +2765,7 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
   }
 }
 
-/* Visual | Source: two views of one document, not actions. A segmented control on a quiet track:
+/* Read | Edit | Source: views of one document, not actions. A segmented control on a quiet track:
  * the chosen view is a raised white segment, the other muted text that darkens on hover. */
 .view-toggle {
   display: inline-flex;
@@ -2780,6 +2780,10 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
   height: var(--size-view-segment);
   color: var(--id-color-text-muted);
 }
+
+/* Compact tab rows keep a readable filename and full close/Save targets beside
+ * all three views and the draft icon. Match the navigation panel's segment inset. */
+.top-bar-actions[data-compact="true"] .view-toggle-option { padding-inline: var(--space-1); }
 
 /* Reserve the selected label's extent without adding accessible or copyable text. */
 .view-toggle-label,

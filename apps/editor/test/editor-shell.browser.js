@@ -173,8 +173,8 @@ async page => {
     result.toolbarKeyAppliesOnce = bolded.bold === 1 && bolded.undo && await editorState() === keyboardSelection.replace('"redo":false', '"redo":true');
 
     // Drafts stay visible and explicitly separate from applied Save content.
-    await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
-    await page.getByRole('button',{name:'Edit',exact:true}).click();
+    await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
+    await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').getByRole('button',{name:'Edit',exact:true}).click();
     await page.getByTestId('equation-edit-source').click();
     await page.getByTestId('equation-latex').fill('x + 1');
     result.equationDraftInBlock = await page.locator('[data-document-tab][data-active=true]').getByTestId('equation-draft-status').isVisible();
@@ -228,8 +228,8 @@ async page => {
 
     // Handle click opens the block menu; Delete removes the table block
     // without resetting another block's in-progress Equation draft.
-    await page.getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
-    await page.getByRole('button',{name:'Edit',exact:true}).click();
+    await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').getByRole('button',{name:'Edit',exact:true}).locator('..').hover({position:{x:4,y:4}});
+    await page.locator('[data-document-tab][data-active=true] [data-block="equation"]').getByRole('button',{name:'Edit',exact:true}).click();
     await page.getByTestId('equation-edit-source').click();
     await page.getByTestId('equation-latex').fill('x + 2');
     // Hover the table while the Equation draft remains open.

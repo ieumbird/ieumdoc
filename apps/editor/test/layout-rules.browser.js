@@ -268,12 +268,12 @@ async (page, { openFolderPicker, openPath, withBlockHover, expect }) => {
       const narrow=await page.evaluate(()=>{
         // Visual/Source is one segmented control: its track is measured as a single control.
         const views=document.querySelector('.view-toggle');
-        if(!views||!['Visual','Source'].every(name=>[...views.querySelectorAll('button')].some(n=>n.textContent.trim()===name)))throw Error('Missing view control');
+        if(!views||!['Read','Edit','Source'].every(name=>[...views.querySelectorAll('button')].some(n=>n.textContent.trim()===name)))throw Error('Missing view control');
         const buttons=[views,...[...document.querySelectorAll('.top-bar-actions button')].filter(n=>!views.contains(n))].map(n=>{
           const r=n.getBoundingClientRect();
-          return {name:n===views?'Visual/Source':n.getAttribute('aria-label')??n.textContent.trim(),group:n.closest('.top-bar-group')?.getAttribute('aria-label'),left:r.left,right:r.right,top:r.top,bottom:r.bottom};
+          return {name:n===views?'Read/Edit/Source':n.getAttribute('aria-label')??n.textContent.trim(),group:n.closest('.top-bar-group')?.getAttribute('aria-label'),left:r.left,right:r.right,top:r.top,bottom:r.bottom};
         });
-        if(!['Visual/Source','Outline','Save','File actions'].every(name=>buttons.some(b=>b.name===name)))throw Error('Missing TopBar controls');
+        if(!['Read/Edit/Source','Outline','Save','File actions'].every(name=>buttons.some(b=>b.name===name)))throw Error('Missing TopBar controls');
         if(buttons.some(b=>b.top<40||b.bottom>73))throw Error('Document actions left the tab row');
         const outside=buttons.filter(b=>b.left<0||b.right>innerWidth+0.5).map(b=>b.name);
         const disorder=[],gaps=[];

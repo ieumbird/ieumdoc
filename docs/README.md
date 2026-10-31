@@ -44,7 +44,7 @@ Implementation record: [UI language #256 plan and verification](design/ui-langua
 | [Table caption and label](design/table-caption-v1.md) | Implemented | 현재 계약. table caption/label과 reference target. |
 | [Table interaction](design/table-interaction-v1.md) | Implemented | 현재 계약. cell·행·열 handle, menu와 engine history. |
 | [Figure authoring](design/figure-authoring-v1.md) | Implemented | 현재 계약. pending/image/Mermaid Figure의 Core·CLI 계약, Editor 원문·미리보기·속성 팝오버와 초안, canonical Save와 CLI readiness 경고. |
-| [Editor UX Shell](design/editor-ux-shell-v1.md) | Implemented | 현재 계약. 공용 제목 줄, 최대 두 에디터 그룹, Sidebar, 작성 interaction과 상태 표시. |
+| [Editor UX Shell](design/editor-ux-shell-v1.md) | Implemented | 현재 계약. 공용 제목 줄, 최대 두 에디터 그룹, 탭별 읽기·편집·소스와 초안 유지, Sidebar, 작성 interaction과 상태 표시. |
 | [Editor Layout Rules](design/editor-layout-rules-v1.md) | Implemented | 현재 geometry 규범. 정렬·간격·control 치수와 검증. |
 | [Editor Visual Language — Quiet Document](design/editor-visual-language-v1.md) | Implemented | 현재 토큰·팔레트, 서체, 표면·테마, 상태와 조절 값 규칙. 배치·치수와 반복 동작은 Layout Rules·UI 패턴에 연결한다. |
 

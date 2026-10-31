@@ -19,7 +19,7 @@ import { PropertyForm } from "../block-properties.tsx";
 import { MetadataLabel } from "../metadata-properties.tsx";
 import { FigureProperties } from "../figure-properties.tsx";
 import { NumberField, useNumberDraft } from "../numbering-properties.tsx";
-import { useEditorVisible } from "../editor-visibility.ts";
+import { useEditorAuthoring } from "../editor-visibility.ts";
 import { updateFigure } from "../block-commands.ts";
 import { captionPrefixText, useCaptionNumberText } from "../cross-reference.tsx";
 import { MermaidPreview } from "../mermaid-preview.tsx";
@@ -183,7 +183,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
   // Apply commits only a value Core accepts as persistent; an invalid draft keeps the form open.
   // Core checks the live target/reference context before committing a label rename.
   const apply = async (rename = false, returnCaret = true) => {
-    if (validating || choosing) return;
+    if (!view.editable || validating || choosing) return;
     setErrorField(undefined);
     if (!numberDraft.validate()) return;
     if (rename && canRename && filenameDraft && !validFileStem(filename)) {
@@ -224,6 +224,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
     // destroyed before React runs the NodeView's effect cleanup.
     if (request !== pendingRequest.current || editor.isDestroyed) return;
     setValidating(false);
+    if (!view.editable) return; // Read keeps the validated input as an unapplied draft.
     if (message) {
       setError(message);
       return;
@@ -314,12 +315,12 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
       as="figure"
       className="figure"
       data-block="figure"
-      data-editing={editing}
+      data-editing={editableFigure && editing}
       data-selected={selected}
       data-source-path={sourcePath}
     >
       <p ref={anchor} className="block-kind block-metadata" contentEditable={false}><MetadataLabel kind={numbered ?? i18n.t("Figure")} label={label} onEdit={editableFigure && !editing ? () => { beginEdit(); setLabelEntry(true); } : undefined} /></p>
-      {hasUnappliedDraft ? (
+      {editableFigure && hasUnappliedDraft ? (
         <p className="draft-status" role="status" data-testid="figure-draft-status" contentEditable={false}>{i18n.t(filenameDraft
           ? "File name changes require Rename in Advanced. Press Esc to discard them."
           : "Unapplied figure properties are not saved. Choose Done or press Esc to cancel.")}</p>
@@ -408,7 +409,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
   useTranslation();
   const editable = useEditorState({ editor, selector: ({ editor: current }) => current.isEditable });
   const placeholder = useCaptionPlaceholder({ editor, getPos }, "figure");
-  const visible = useEditorVisible();
+  const visible = useEditorAuthoring();
   const numbered = useCaptionNumberText(editor, getPos, "figure");
   const kind = numbered ?? i18n.t("Figure");
   const applied = figureAttrs(node);
@@ -510,6 +511,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
     finally { tracking.abort(); }
     if (request.current !== pending || editor.isDestroyed) return;
     setBusy(false);
+    if (!view.editable) return; // Do not close or acknowledge a suspended source draft.
     if (message) { reject(message); return; }
     const latestPosition = getPos();
     const latest = typeof latestPosition === "number" ? view.state.doc.nodeAt(latestPosition) : null;
@@ -535,15 +537,15 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
     view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, position))); view.focus();
   };
   return <NodeViewWrapper as="figure" className="figure mermaid-figure" data-block="figure"
-    data-content-kind="mermaid" data-editing={editing || properties} data-selected={selected} data-source-path={sourcePath}>
+    data-content-kind="mermaid" data-editing={editable && (editing || properties)} data-selected={selected} data-source-path={sourcePath}>
     <p ref={anchor} className={`block-kind block-metadata${editable ? " mermaid-metadata" : ""}`} contentEditable={false}>
       {editable ? <span className="mermaid-kind" data-testid="mermaid-kind" aria-hidden="true">Mermaid</span> : null}
       <span className="mermaid-metadata-label"><MetadataLabel kind={kind} label={label} onEdit={editable && !editing && !properties ? () => { beginEdit(); setLabelEntry(true); } : undefined} /></span>
     </p>
-    {hasDraft ? <p className="draft-status" role="status" data-testid="figure-draft-status" contentEditable={false}>
+    {editable && hasDraft ? <p className="draft-status" role="status" data-testid="figure-draft-status" contentEditable={false}>
       {i18n.t(editing ? "Unapplied changes are not saved. Apply to include them, or Cancel."
         : "Unapplied figure properties are not saved. Choose Done or press Esc to cancel.")}</p> : null}
-    {editing ? visible ? <div contentEditable={false} data-testid="mermaid-properties" onDragStart={isolateInputDrag}
+    {editable && editing ? visible ? <div contentEditable={false} data-testid="mermaid-properties" onDragStart={isolateInputDrag}
       onDragEnter={isolateInputDrag} onDragOver={isolateInputDrag} onDragLeave={isolateInputDrag} onDrop={isolateInputDrag} onDragEnd={isolateInputDrag}>
       <PropertyForm kind={kind} testId="mermaid" error={errorField ? undefined : error} busy={busy} onApply={() => void apply()} onCancel={cancel}>
         <div className="form-field"><label className="form-label" htmlFor={`${formId}-source`}>{i18n.t("Mermaid source")}</label>
@@ -562,7 +564,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
         <NumberField editor={editor} getPos={getPos} testId="mermaid" draft={numberDraft} onChange={() => setError("")} disabled={busy} />
       </PropertyForm>
     </div> : null : null}
-    {typeof applied.mermaidSource === "string" ? <div hidden={editing} contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>
+    {typeof applied.mermaidSource === "string" ? <div hidden={editable && editing} contentEditable={false} onMouseDown={selectFigure} onDoubleClick={beginEdit}>
       <MermaidPreview source={applied.mermaidSource ?? ""} onReveal={() => { focusBlock(view, getPos); anchor.current?.scrollIntoView({ block: "center" }); }} />
     </div> : null}
     <figcaption className="caption" data-number={numbered} data-caption-prefix={numbered === undefined ? undefined : captionPrefixText(numbered)}

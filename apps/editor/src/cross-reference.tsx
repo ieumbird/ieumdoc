@@ -6,7 +6,7 @@ import { NodeSelection, TextSelection, type EditorState, type Transaction } from
 import { NodeViewWrapper, ReactNodeViewRenderer, useEditorState, type ReactNodeViewProps } from "@tiptap/react";
 import { Pencil } from "lucide-react";
 import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
-import { useEditorVisible } from "./editor-visibility.ts";
+import { useEditorAuthoring } from "./editor-visibility.ts";
 import type { ReferenceRole } from "@ieumdoc/core";
 import { labelKey, resolveLabelReference, targetLabelError } from "@ieumdoc/core/label";
 import { referenceNumberText, captionNumberText, headingNumbers, sectionReferenceText, type ReferenceTemplates, blockTargets, targetNumbers, type NumberedKind, type NumberedTargets } from "@ieumdoc/core/numbering";
@@ -388,7 +388,7 @@ function CrossReferenceView({ node, editor, getPos, updateAttributes, selected }
   const path = typeof position === "number" ? String(editor.state.doc.resolve(position).node(1).attrs.sourcePath) : "";
   const canEdit = useEditorState({ editor, selector: ({ editor: current }) => {
     const pos = getPos();
-    return !!current && typeof pos === "number" && canEditEndnoteAt(current.state, pos);
+    return !!current?.isEditable && typeof pos === "number" && canEditEndnoteAt(current.state, pos);
   } });
   // Resolution follows label changes anywhere in the document, including unsaved ones.
   const targets = useEditorState({
@@ -471,7 +471,7 @@ export function ReferenceForm({ editor, current, preferredLabel, className, styl
   endnoteOwner?: string;
 }) {
   useTranslation();
-  const visible = useEditorVisible();
+  const visible = useEditorAuthoring();
   const formId = useId();
   const mounted = useRef(false);
   useEffect(() => { mounted.current = true; }, []);

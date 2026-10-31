@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
 
 /** Work-loss confirmation only; the caller owns Save and the action that ends the session. */
-export function UnsavedChangesDialog({ open, pending, documentName, hasDrafts, finalFocus, onSave, onDiscard, onCancel }: {
+export function UnsavedChangesDialog({ open, pending, documentName, hasDrafts, readOnly = false, finalFocus, onSave, onDiscard, onCancel }: {
   open: boolean;
   pending: boolean;
   documentName: string;
   hasDrafts: boolean;
+  readOnly?: boolean;
   finalFocus: ComponentProps<typeof DialogContent>["finalFocus"];
   onSave(): void;
   onDiscard(): void;
@@ -23,13 +24,14 @@ export function UnsavedChangesDialog({ open, pending, documentName, hasDrafts, f
           <DialogTitle>{i18n.t("Save changes?")}</DialogTitle>
           <DialogDescription render={<div />} className="grid gap-3 [overflow-wrap:anywhere]">
             <p>{i18n.t("Save changes to {{name}} before closing this tab?", { name: documentName })}</p>
+            {readOnly ? <p>{i18n.t("Switch to Edit to save changes.")}</p> : null}
             {hasDrafts ? <p>{i18n.t("Unapplied property drafts will be lost with both Save and Don't save. Save includes applied content only. Cancel to keep editing.")}</p> : null}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="secondary" size="sm" disabled={pending} onClick={onCancel} autoFocus>{i18n.t("Cancel")}</Button>
           <Button variant="destructive" size="sm" disabled={pending} onClick={onDiscard}>{i18n.t("Don't save")}</Button>
-          <Button size="sm" disabled={pending} onClick={onSave}>{i18n.t("Save")}</Button>
+          <Button size="sm" disabled={pending || readOnly} onClick={onSave}>{i18n.t("Save")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

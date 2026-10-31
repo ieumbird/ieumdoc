@@ -106,7 +106,7 @@ async (page, { openPath, reloadDocument, expect, screenshots, waitForEditorFocus
 
   await page.getByRole('button', {name:'Source',exact:true}).click();
   await expect(active.getByTestId('source-view')).toContainText('title: Updated chapter title');
-  await page.getByRole('button', {name:'Visual',exact:true}).click();
+  await page.getByRole('button', {name:'Edit',exact:true}).click();
   await reloadDocument(page);
   await expect(title).toHaveValue('Updated chapter title');
   await title.fill('');

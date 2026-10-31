@@ -139,7 +139,7 @@ async (page, { openPath, reloadDocument, waitForEditorFocus, bibliographyFixture
   assert(await page.getByRole('option', { name: 'Connect bibliography…', exact: true }).getAttribute('aria-disabled') === 'true', 'Command cannot connect from Source');
   await page.keyboard.press('Escape');
   await page.getByRole('dialog', { name: 'Command center', exact: true }).waitFor({ state: 'detached' });
-  await page.getByRole('button', { name: 'Visual', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
   // Hold the successful response after disk commit to exercise edits after the submitted snapshot.
   let release;
   const held = new Promise(resolve => { release = resolve; });

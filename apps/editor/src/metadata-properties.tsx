@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Popover, PopoverContent } from "@/components/ui/popover.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { useDocumentBounds } from "./ui/use-document-bounds.ts";
-import { useEditorVisible } from "./editor-visibility.ts";
+import { useEditorAuthoring } from "./editor-visibility.ts";
 import { PROPERTY_APPLY_SHORTCUT } from "./shortcuts.ts";
 import { Notice } from "./ui/primitives.tsx";
 
@@ -13,7 +13,7 @@ export function MetadataProperties({ anchor, target, initialFocus, kind, testId,
   busy?: boolean; choosing?: boolean; error?: string; onApply(outside?: boolean): void; onCancel(): void; children: ReactNode;
 }) {
   const { t } = useTranslation();
-  const visible = useEditorVisible();
+  const visible = useEditorAuthoring();
   const bounds = useDocumentBounds(anchor, open);
   const wasOpen = useRef(false);
   const openingFocus = useRef<RefObject<HTMLElement | null> | false>(false);
@@ -41,8 +41,10 @@ export function MetadataProperties({ anchor, target, initialFocus, kind, testId,
     // pointer click completes metadata; focus/keyboard navigation alone does not.
     // Other dialogs own their clicks, including Cancel/Back that unmount the
     // dialog during this event. Its composed path still records that owner.
+    const switchingView = details.event.composedPath().some(target => target instanceof Element &&
+      target.matches('[data-testid="view-read"], .command-center-trigger'));
     const inDialog = details.event.composedPath().some(target => target instanceof Element && target.getAttribute("role") === "dialog");
-    if (details.reason === "outside-press" && !inDialog && !busy && details.event instanceof MouseEvent && details.event.detail > 0 && outsideCompletion.current === undefined) {
+    if (details.reason === "outside-press" && !inDialog && !switchingView && !busy && details.event instanceof MouseEvent && details.event.detail > 0 && outsideCompletion.current === undefined) {
       // Let the engine read the native pointer selection before a synchronous
       // metadata transaction writes its selection back to the DOM.
       outsideCompletion.current = window.setTimeout(() => { outsideCompletion.current = undefined; onApply(true); }, 0);

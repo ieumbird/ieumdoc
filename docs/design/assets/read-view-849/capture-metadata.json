@@ -1,0 +1,27 @@
+{
+  "issue": 849,
+  "date": "2026-10-31",
+  "baseline": "19b759391b9d09dba7cf19ade5a2e38edeb2456f",
+  "origin": "http://127.0.0.1:5281",
+  "browser": "Windows installed Chrome; checkout-owned persistent profile",
+  "devicePixelRatio": 1,
+  "zoom": "100%",
+  "fonts": "bundled Pretendard ready; document uses existing fonts",
+  "comparison": "Before/after-controls: same fields.md, Edit, English, Light, scrollTop 0, 1440x900/640x900. Read captures: reading.md with retained unapplied Mermaid draft, 1440x900 English Light and 640x900 Korean Dark. Split: left Source/right Read, 1440x900.",
+  "review": "Manual inspection: row centers/padding, control and close/filename clipping, Korean UI word boundaries, light/dark, split ownership, matching segments in Document navigation. Screenshots are not pixel assertions or owner approval.",
+  "sha256": {
+    "before-640.png": "4fcb71dbeb6a927486a2dccf33900a73641cf84a6239a7cd0cd19774ef297695",
+    "before-1440.png": "8f48eed3754de0146cd4fa371779abbe6fc0a9aa471a7b8e49dd10d600426ad4",
+    "after-controls-640.png": "11dbc34f7f63f36f11c1cd8ffea04ec86f24f36d3454b2b09771c698f7b3e622",
+    "after-1440-light-en.png": "d7a754bb67bbbbd033ede9fde53900aff02316f8ba6e7f6ff8286a78eda171e7",
+    "split-1440.png": "f4bff1c9a98196249d8a6a1b0b75b694c47766faf90c48c15d66a77c1cca82fa",
+    "after-640-dark-ko.png": "3b547bdf67d9b2edb76c5d5f15e9175403987674fed4751aa0af3cc2195d29c1",
+    "after-controls-1440.png": "3f5510db167b5dcdce1f8797e598d9512a8063e44983414588646cb3b1935131"
+  },
+  "sourceSha256": {
+    "apps/editor/src/shell/DocumentActions.tsx": "5327b774dfc03892c23b2a7f5a6b90c787bfc5a95b12c04ebb0f80e89f5b372b",
+    "apps/editor/src/styles.css": "e7315ca08aa4021947d27232bf36692e8838221e7185cd8b9d4fd431aff90a4d",
+    "apps/editor/src/DocumentEditor.tsx": "1cf7b9feeec7ac6aed70e695dbc39fdc8b632507471c40b10e9cf78c2021335a",
+    "apps/editor/test/read-view.browser.js": "95cfabba0d7ced1468e5f954e9bee2fa62bc1ae9548cff70b857888c5b6cdcc7"
+  }
+}

@@ -379,7 +379,7 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, waitForActiveP
   await page.getByRole('button',{name:'Source',exact:true}).click();
   const source=await active.getByTestId('source-view').locator('pre').textContent();
   expect(source).toContain('graph LR');expect(source).not.toContain('Draft --> Next');
-  await page.getByRole('button',{name:'Visual',exact:true}).click();expect(await field().inputValue()).toBe('graph TD\n  Draft --> Next');
+  await page.getByRole('button',{name:'Edit',exact:true}).click();expect(await field().inputValue()).toBe('graph TD\n  Draft --> Next');
   await openPath(page,[root,'tmp','mermaid-authoring','other.md'].join(separator));
   await page.getByRole('tab',{name:'diagram.md, Unsaved changes',exact:true}).click();
   expect(await field().inputValue()).toBe('graph TD\n  Draft --> Next');

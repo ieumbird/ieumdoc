@@ -480,6 +480,18 @@ HTTP/Desktop execution details and native-dialog automation limits: [Host persis
 
 ## Applied content and drafts
 
+Read (#849) is a per-tab, nonpersistent view of applied content. Entering it keeps
+unapplied drafts registered and retained by their mounted owners while hiding their
+forms; returning to Edit restores them. No content, saved checkpoint, undo event,
+revision, dirty state or recovery record is changed by the switch. The existing
+tab-row draft status remains. Read cannot Save through the tab button, shortcut,
+Command Center or close confirmation; the confirmation retains Don't save/Cancel
+and explains that saving requires Edit. Close/Reload/beforeunload still protect
+both applied changes and retained drafts. Source keeps its existing applied-only
+preview and Save behavior. [Shell](editor-ux-shell-v1.md#read--edit--source-849) owns
+the Read interaction boundary.
+
+
 Undo/Redo from nonediting shell focus (#772) uses only the active editor's applied
 history. It neither applies nor discards unrelated drafts; input/textarea/contenteditable
 fields retain native Undo, and existing target-change/draft lifecycle rules remain in force.

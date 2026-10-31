@@ -696,7 +696,7 @@ test("status presentation distinguishes loaded, dirty, confirmed save and in-fli
   }
 });
 
-test("top bar exposes the active document view and disables both views during unavailable work", () => {
+test("top bar exposes the active document view and disables all views during unavailable work", () => {
   const html = renderToStaticMarkup(
     <TooltipProvider>
       <DocumentActions documentPath={PATH} status="ready" saveDisabled={false} onSave={noop} view="source" onViewChange={noop} />
@@ -705,14 +705,15 @@ test("top bar exposes the active document view and disables both views during un
   assert.match(html, /<[^>]+\b(?=[^>]*role="group")(?=[^>]*aria-label="Document view")[^>]*>/);
   assert.match(html, /<button\b(?=[^>]*data-testid="view-visual")(?=[^>]*aria-pressed="false")[^>]*>/);
   assert.match(html, /<button\b(?=[^>]*data-testid="view-source")(?=[^>]*aria-pressed="true")[^>]*>/);
-  assert.match(html, />Visual</);
+  assert.match(html, />Read</);
+  assert.match(html, />Edit</);
   assert.match(html, />Source</);
   const blocked = renderToStaticMarkup(
     <TooltipProvider>
       <DocumentActions documentPath={PATH} status="loading" saveDisabled onSave={noop} view="visual" onViewChange={noop} viewDisabled />
     </TooltipProvider>,
   );
-  for (const view of ["visual", "source"]) {
+  for (const view of ["read", "visual", "source"]) {
     assert.match(blocked, new RegExp(`<button\\b(?=[^>]*data-testid="view-${view}")(?=[^>]*disabled)[^>]*>`));
   }
 });
