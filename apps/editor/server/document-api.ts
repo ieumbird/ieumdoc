@@ -1,6 +1,6 @@
 import { readBibliographySources } from "./bibliography.ts";
 import { loadDoclingComparison } from "./docling-compare.ts";
-import type { DoclingHost } from "@ieumdoc/docling/server";
+import type { createDoclingHost } from "./docling.ts";
 import { MAX_ASSET_BYTES } from "../shared/asset-policy.ts";
 import { ImageValidationError, validateImage } from "./image-validation.ts";
 import fs, { readFileSync, statSync, writeFileSync } from "node:fs";
@@ -259,7 +259,7 @@ export async function handleDocumentRequest(
   bodyLimit = Infinity,
   removeFile?: (file: string) => void | Promise<void>,
   sampleAvailability?: SampleAvailability,
-  docling?: DoclingHost,
+  docling?: ReturnType<typeof createDoclingHost>,
 ): Promise<void> {
   const readBody = async (request: IncomingMessage) => decodeUtf8(await readRequestBody(request, bodyLimit));
   const failure = (error: unknown) => sendJson(res,
@@ -270,6 +270,26 @@ export async function handleDocumentRequest(
   try { query = requestQuery(req.url ?? ""); }
   catch (error) { failure(error); return; }
   const url = new URL(req.url ?? "", "http://localhost").pathname;
+  if (url === "/api/worker-plugins") {
+    if (!docling) { sendJson(res, 503, { error: "Plugins are unavailable on this Host." }); return; }
+    if (!["GET", "POST", "DELETE"].includes(req.method ?? "")) { res.statusCode = 405; res.end(); return; }
+    try {
+      const store = docling.plugins();
+      if (req.method === "GET") sendJson(res, 200, store.list());
+      else {
+        const body = JSON.parse(await readBody(req));
+        if (req.method === "POST") {
+          const manifest = accessPath(body.manifest, access);
+          accessPath(path.join(path.dirname(manifest), "worker.cjs"), access);
+          sendJson(res, 200, store.register(manifest));
+        } else {
+          if (typeof body.id !== "string") throw new Error("Plugin id is required.");
+          store.unregister(body.id); sendJson(res, 200, store.list());
+        }
+      }
+    } catch (error) { failure(error); }
+    return;
+  }
   if (["/api/docling-settings", "/api/docling-check", "/api/docling-conversion"].includes(url)) {
     if (!docling) { sendJson(res, 503, { error: "Docling is unavailable on this Host." }); return; }
     const methods = url === "/api/docling-settings" ? ["GET", "PUT"] : url === "/api/docling-check" ? ["POST"] : ["GET", "POST", "DELETE"];
@@ -278,7 +298,7 @@ export async function handleDocumentRequest(
       const body = req.method === "GET" ? undefined : JSON.parse(await readBody(req));
       const result = url === "/api/docling-settings" ? req.method === "GET" ? docling.settings() : docling.configure(body.server)
         : url === "/api/docling-check" ? await docling.check()
-        : req.method === "GET" ? docling.current() : req.method === "DELETE" ? await docling.cancel(body.id) : docling.start(body.path);
+        : req.method === "GET" ? docling.current(query.get("id") ?? undefined) : req.method === "DELETE" ? await docling.cancel(body.id) : await docling.start(body.path, body.id);
       sendJson(res, 200, result);
     } catch (error) { failure(error); }
     return;

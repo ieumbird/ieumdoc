@@ -49,7 +49,7 @@ export async function buildDesktop(): Promise<string> {
     format: "esm",
     target: "node22",
     external: ["electron"],
-    define: { __IEUMDOC_REQUIRE_SIGNED_UPDATES__: String(requireSigned) },
+    define: { __IEUMDOC_DOCLING_DIRECTORY__: JSON.stringify("../cli/docling-worker"), __IEUMDOC_REQUIRE_SIGNED_UPDATES__: String(requireSigned) },
     // Bundled CommonJS dependencies (electron-updater) load `electron` and Node modules with require.
     banner: { js: 'import { createRequire as __ieumdocCreateRequire } from "node:module"; const require = __ieumdocCreateRequire(import.meta.url);' },
     legalComments: "none",

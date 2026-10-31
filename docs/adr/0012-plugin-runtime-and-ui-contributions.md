@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Decision date: 2026-10-31
-- Last verified: 2026-10-31 (owner-approved decision and two historical spike records compared with ADR-0004/0005/0007/0011 and implemented contracts; documentation only, no runtime adoption or new execution verification).
+- Last verified: 2026-10-31 (owner-approved decision and two historical spike records compared with ADR-0004/0005/0007/0011 and implemented contracts; #853 Host worker implementation and synthetic crash/identity verification; UI adoption and real Docling remain pending).
 - Authority: owner approval in [Discussion #767](https://github.com/ieumbird/ieumdoc/discussions/767#discussioncomment-19307920), under [AGENTS.md](../../AGENTS.md). Related: [ADR-0011](0011-code-module-boundary.md), [ADR-0004](0004-desktop-host-distribution.md), [ADR-0005](0005-http-host.md), [ADR-0007](0007-editing-session-lifetime.md), [staged Host decision #834](https://github.com/ieumbird/ieumdoc/discussions/834#discussioncomment-19307667).
 - Supersedes: the static/no-registration/no-dynamic-loading boundary and process-local-only conversion task state in ADR-0011; its Core, package, external-data and thin-interface boundaries remain Accepted.
 
@@ -10,6 +10,7 @@ This records an approved architectural direction. It does not adopt either spike
 implementation. Current behavior remains described by the Implemented
 [Docling conversion](../design/docling-conversion-v1.md),
 [Docling comparison](../design/docling-compare-v1.md),
+[Host worker plugins](../design/plugin-runtime-v1.md),
 [Editor UX Shell](../design/editor-ux-shell-v1.md),
 [Filesystem Host](../design/filesystem-host-boundary-v1.md) and
 [HTTP Host](../design/http-host-v1.md) contracts until implementation PRs satisfy
@@ -151,6 +152,28 @@ plugin boundary is adopted; the historical measurements do not satisfy them:
    module records, resource cleanup and repeated registration; native ESM
    unloading cannot be claimed. Preserve disabled-tab context and accepted-work
    lifetime through detachment.
+
+## Host implementation progress (#853)
+
+[Host worker plugins v1](../design/plugin-runtime-v1.md) implements the worker
+manifest/API, common trusted installation, live register/unregister with drain,
+UUID transactions, session-lock recovery independent of PID reuse, uncertain/no
+replay and complete-result Host visibility. Synthetic shared Host tests include
+Desktop protocol registration and execution by an independent HTTP process.
+Required CI includes offline CLI and packaged Desktop worker smoke tests.
+Original PDF/JSON and Core semantics remain unchanged. This code was written
+anew; neither historical spike is adopted.
+
+Condition 3 is implemented and automatically verified with SQLite crash rollback,
+OS lock release, identical-live-PID owner replacement and exclusive marked output
+publication on supported CI platforms. Publication means atomic Host visibility;
+direct filesystem tools can observe a reserved directory during copying. Crash
+leftovers remain private. See the contract for the check/use boundary.
+Condition 1 remains a [manual real-service check](../test/README.md#docling-worker-runtime-853).
+Condition 2 is covered by required Windows packaged CI, not a local packaging run.
+Conditions 4 and 5, UI manifests/contributions, conversion-dialog migration, AI
+installation/approval, OS sandbox and daemon remain outside #853. The full UI
+plugin boundary is not claimed as adopted by this Host-only implementation.
 
 ## Non-decisions
 

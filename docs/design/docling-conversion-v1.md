@@ -1,6 +1,7 @@
 # Docling conversion v1
 
 - Status: Implemented
+- Worker boundary verified: 2026-10-31 (#853 synthetic REST/shared Host tests; real service and packaged checks follow the plugin contract).
 - Last verified: 2026-10-30 (module/CLI tests, public and synthetic fixtures, canonical reopen, local IEEE conversion and NIST PDF REST conversion).
 - Scope: `@ieumdoc/docling` and thin CLI, under [ADR-0011](../adr/0011-code-module-boundary.md).
 - Decisions: [#766](https://github.com/ieumbird/ieumdoc/discussions/766), [#767](https://github.com/ieumbird/ieumdoc/discussions/767), table flattening [#778](https://github.com/ieumbird/ieumdoc/issues/778); implementation [#768](https://github.com/ieumbird/ieumdoc/issues/768), [#780](https://github.com/ieumbird/ieumdoc/issues/780).
@@ -163,8 +164,10 @@ choice. PDF read and output checks use the Host's existing Root/real-path policy
 including a recheck before publication. No browser request goes directly to
 Docling. The native document is created by the existing converter/Core.
 
-Each Host admits one conversion at a time, retaining only its current transient
-job snapshot. The browser polls the Host once a second while work is active;
+Each Host admits one conversion at a time. Its UI snapshot remains process-local;
+execution uses a separate installed worker with shared UUID request receipts under
+[Host worker plugins](plugin-runtime-v1.md). Interrupted outcomes become uncertain
+and are never automatically replayed. The browser polls the Host once a second while work is active;
 the module polls Docling. Progress shows checking/upload/queue/processing/download/
 bundle stages, elapsed seconds, task ID once known and the result folder, without
 invented page percentages. Closing the progress dialog leaves work running;
@@ -199,8 +202,8 @@ server logs and profile models using the task ID, rather than asserting a model
 is missing. The existing CLI diagnostic retains its error/context.
 
 This is Host/UI access to the already headless `docling convert-pdf` operation;
-no new Core semantics or CLI command is needed. Connection checks, execution and
-module UI stay in `@ieumdoc/docling`; Editor provides shared controls, translation,
+no new Core semantics or CLI command is needed. Connection checks, REST conversion and module UI stay in `@ieumdoc/docling`;
+the Host owns worker admission, lifetime, request receipts and result publication; Editor provides shared controls, translation,
 file picker, shell dialogs/tabs and external-link handling under ADR-0011.
 
 ## Correspondence sidecar

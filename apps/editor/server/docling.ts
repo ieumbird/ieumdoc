@@ -3,7 +3,23 @@ import path from "node:path";
 import { DoclingHost } from "@ieumdoc/docling/server";
 import { accessPath, type FileAccess, LOCAL_FILE_ACCESS } from "./file-access.ts";
 
+import { fileURLToPath } from "node:url";
+import { PluginRuntime } from "./plugin-runtime.ts";
+
+declare const __IEUMDOC_DOCLING_DIRECTORY__: string;
+export function bundledDoclingManifest() {
+  return fileURLToPath(new URL(`${typeof __IEUMDOC_DOCLING_DIRECTORY__ === "string" ? __IEUMDOC_DOCLING_DIRECTORY__ : "../../../tmp/docling-worker"}/manifest.json`, import.meta.url));
+}
+export function pluginsDirectory() { return process.env.IEUMDOC_PLUGINS_DIR ?? path.join(os.homedir(), ".ieumdoc", "plugins"); }
+
 /** Host-user device setting: HTTP clients share the server account's configuration. */
-export function createDoclingHost(access: FileAccess = LOCAL_FILE_ACCESS, settingsFile = process.env.IEUMDOC_DOCLING_SETTINGS_FILE ?? path.join(os.homedir(), ".ieumdoc", "docling.json")) {
-  return new DoclingHost(settingsFile, (file, create) => accessPath(file, access, create));
+export function createDoclingHost(access: FileAccess = LOCAL_FILE_ACCESS, settingsFile = process.env.IEUMDOC_DOCLING_SETTINGS_FILE ?? path.join(os.homedir(), ".ieumdoc", "docling.json"), options?: { directory?: string; manifest?: string; timeoutMs?: number }) {
+  let runtime: PluginRuntime | undefined;
+  const directory = options?.directory ?? pluginsDirectory();
+  const getRuntime = () => runtime ??= new PluginRuntime(directory, options?.manifest ?? bundledDoclingManifest(), options?.timeoutMs);
+  const host = new DoclingHost(settingsFile, (file, create) => accessPath(file, access, create), {
+    start: request => getRuntime().start(request), current: id => getRuntime().current(id),
+    cancel: id => getRuntime().cancel(id), close: async () => { await runtime?.close(); },
+  });
+  return Object.assign(host, { plugins: () => getRuntime().store });
 }

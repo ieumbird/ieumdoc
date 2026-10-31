@@ -53,6 +53,7 @@ function showWhenReady(): void {
 let preferences: Preferences;
 let updates: UpdateController;
 let cliIntegration: CliIntegration | undefined;
+let documentHost: ReturnType<typeof createProtocolHandler> | undefined;
 const explorerFolders = new ExplorerFolders();
 /** Set after the Editor agreed to restart for an update; the installer starts once the window closed. */
 let installing = false;
@@ -320,7 +321,8 @@ if (!app.requestSingleInstanceLock()) {
     session.defaultSession.setPermissionCheckHandler(() => false);
     preferences = readPreferences(preferencesFile(), app.getVersion());
     const cliRoot = path.join(app.isPackaged ? process.resourcesPath : path.dirname(appRoot), "cli");
-    protocol.handle(SCHEME, createProtocolHandler(path.join(cliRoot, "editor"), firstDocument(process.argv.slice(app.isPackaged ? 1 : 2), app.getPath("userData"), appRoot, log), file => shell.trashItem(file), root => explorerFolders.listedRoot(root)));
+    documentHost = createProtocolHandler(path.join(cliRoot, "editor"), firstDocument(process.argv.slice(app.isPackaged ? 1 : 2), app.getPath("userData"), appRoot, log), file => shell.trashItem(file), root => explorerFolders.listedRoot(root));
+    protocol.handle(SCHEME, documentHost);
     if (app.isPackaged && process.platform === "win32" && process.env.LOCALAPPDATA) {
       cliIntegration = new CliIntegration(process.execPath, process.env.LOCALAPPDATA, windowsEnvironment());
     }
@@ -363,8 +365,9 @@ if (!app.requestSingleInstanceLock()) {
       app.exit(1);
     }
   });
-  app.on("window-all-closed", () => {
+  app.on("window-all-closed", async () => {
     updates?.stop();
+    try { await documentHost?.close(); } catch (error) { log(`worker shutdown failed: ${String(error)}`); }
     // Only the restart the Editor allowed installs an update; quitting the app never does.
     if (installing) {
       updates.finishInstall();

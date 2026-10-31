@@ -20,7 +20,7 @@ export default defineConfig({
     command: httpHost ? "node packages/cli/dist/cli.mjs serve --port 5181 --root tmp/http-host-a --root tmp/http-host-b"
       : process.platform !== "win32" && process.env.IEUMDOC_BROWSER_SERVER_LOG ? 'pnpm editor > "$IEUMDOC_BROWSER_SERVER_LOG" 2>&1' : "pnpm editor",
     cwd: REPOSITORY_ROOT,
-    env: { IEUMDOC_DOCLING_SETTINGS_FILE: path.join(REPOSITORY_ROOT, "tmp", "browser-docling-settings.json") },
+    env: { IEUMDOC_DOCLING_SETTINGS_FILE: path.join(REPOSITORY_ROOT, "tmp", "browser-docling-settings.json"), IEUMDOC_PLUGINS_DIR: path.join(REPOSITORY_ROOT, "tmp", "browser-plugins") },
     url: `${url}/api/document`,
     reuseExistingServer: !httpHost && !process.env.CI,
     timeout: 60_000,

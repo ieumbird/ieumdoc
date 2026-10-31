@@ -4,6 +4,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync,
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
+import { buildDoclingWorker } from "./build-docling-worker.ts";
 
 const cli = fileURLToPath(new URL("..", import.meta.url));
 const repo = path.resolve(cli, "../..");
@@ -16,13 +17,14 @@ catch { /* An exported source tree can be built without Git. */ }
 // Fixed output directory, never a caller-supplied path.
 rmSync(destination, { recursive: true, force: true });
 mkdirSync(destination, { recursive: true });
+await buildDoclingWorker(path.join(destination, "docling-worker"));
 execSync("pnpm --filter @ieumdoc/editor build", { cwd: repo, stdio: "inherit" });
 cpSync(path.join(repo, "apps/editor/dist"), path.join(destination, "editor"), { recursive: true });
 const result = await build({
   absWorkingDir: repo,
   entryPoints: { cli: path.join(cli, "src/cli.ts") }, outdir: destination, outExtension: { ".js": ".mjs" },
   bundle: true, splitting: true, platform: "node", format: "esm", target: "node24", metafile: true,
-  define: { __IEUMDOC_CLI_BUILD__: JSON.stringify({ version: desktopVersion ?? manifest.version, desktop: desktopVersion !== undefined, commit }) },
+  define: { __IEUMDOC_DOCLING_DIRECTORY__: JSON.stringify("./docling-worker"), __IEUMDOC_CLI_BUILD__: JSON.stringify({ version: desktopVersion ?? manifest.version, desktop: desktopVersion !== undefined, commit }) },
   banner: { js: 'import { createRequire as __ieumdocCreateRequire } from "node:module"; const require = __ieumdocCreateRequire(import.meta.url);' },
   legalComments: "linked", logLevel: "warning",
 });
@@ -30,7 +32,7 @@ const executable = path.join(destination, "cli.mjs");
 writeFileSync(executable, `#!/usr/bin/env node\n${readFileSync(executable, "utf8")}`, { mode: 0o755 });
 writeFileSync(path.join(destination, "package.json"), JSON.stringify({ name: "@ieumdoc/cli", version: manifest.version,
   description: "IeumDoc document CLI and HTTP Editor Host", license: "MIT", type: "module", private: true,
-  bin: { ieumdoc: "cli.mjs" }, files: ["*.mjs", "*.txt", "*.md", "editor/", "LICENSE"], engines: { node: ">=24.21.0 <25" } }, null, 2) + "\n");
+  bin: { ieumdoc: "cli.mjs" }, files: ["*.mjs", "*.txt", "*.md", "editor/", "docling-worker/", "LICENSE"], engines: { node: ">=24.21.0 <25" } }, null, 2) + "\n");
 cpSync(path.join(repo, "LICENSE"), path.join(destination, "LICENSE"));
 // Include dependency license files for bundled runtime modules and the Editor assets.
 const packageDirs = new Set<string>();

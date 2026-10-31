@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { listenForFetch } from "../../../../test/helpers/fetch-server.ts";
 
-export type DoclingMode = "success" | "pending" | "failure" | "model-missing" | "redacted" | "version" | "not-ready";
+export type DoclingMode = "success" | "pending" | "partial" | "failure" | "model-missing" | "redacted" | "version" | "not-ready";
 /** Real HTTP/multipart and polling; small valid source bundle keeps UI/Host tests independent of Docker. */
 export async function fakeDoclingServer() {
   let mode: DoclingMode = "success", polls = 0, submissions = 0;
@@ -23,6 +23,7 @@ export async function fakeDoclingServer() {
         error_message: mode === "redacted" ? "Internal processing error." : "Fixture conversion failed",
         failure: mode === "model-missing" ? { category: "internal", message: "Model 'docling-project/CodeFormulaV2' not found in artifacts_path.\nTraceback: secret-server-path" } : null }));
     } else if (req.url?.startsWith("/v1/result/")) {
+      if (mode === "partial") { res.write('{"status":"success","document":'); return; }
       res.end(JSON.stringify({ status: "success", errors: [], document: { json_content: {
         schema_name: "DoclingDocument", version: "1.10.0", name: "Fixture PDF",
         body: { self_ref: "#/body", children: [{ $ref: "#/texts/0" }] },
