@@ -151,6 +151,7 @@ test("every accent preset meets text, primary-action, focus and control contrast
 // Keep the reasons aligned with Visual Language's B1 exceptions.
 const nativeButtons = new Map([
   ["CommandMenu.tsx:command-menu-item", "Menu keyboard/selection owner; #516 owns its row treatment."],
+  ["metadata-properties.tsx:metadata-label-button", "Content-sized block metadata; #847 preserves the out-of-flow gap without covering adjacent document text."],
   ["node-views/label-target-view.tsx:label-target-edit", "Content-sized monospace section metadata."],
   ["cross-reference.tsx:cross-reference-edit", "Tiny inline corner target must not cover adjacent text."],
   ["citation.tsx:cross-reference-edit", "Same inline corner exception for citations."],

@@ -164,8 +164,11 @@ In the editable Visual Editor, an always-visible small **Mermaid** badge identif
 even without hover, focus or selection (#771), including render failures and pending Mermaid
 source drafts. It occupies the left of the existing out-of-flow metadata row; the right-hand
 Figure number/label retains its interaction visibility and truncates within the remaining width.
-The badge uses existing 12/16px metadata typography, muted text, structural border, small radius
-and spacing tokens. It adds no block height and leaves Edit unobstructed. It is decorative
+The badge uses the shared 12/16px metadata typography with normal text contrast, muted
+surface, structural border, small radius and existing padding tokens (#846). Selection adds
+the existing interaction-soft fill and interaction border. A compact-control-height extra
+top gap reserves clearance from the preceding block outline; hover/selection never changes
+that geometry or Edit placement. It is decorative
 (`aria-hidden`) because the preview/status/source field already identifies the diagram kind.
 It exists only in editable NodeView chrome, never in document content, Source, read-only
 previews, serialized HTML or saved/exported content. This adds no Core or CLI operation.
@@ -181,6 +184,9 @@ pattern. `mermaid-authoring` covers the cue at rest, both themes/widths, read-on
 failure/draft states; `pending-figure` covers the empty Mermaid source draft.
 
 Edit, selected-node Enter and diagram double-click open the shared Figure metadata popover.
+The label chip also opens that popover on click or keyboard Enter/Space, focusing Label
+(#847); image and pending Figure labels follow the same entry. Edit retains its existing
+image/source focus. Read-only and source-editing metadata has no interactive label.
 Its **Edit source** action applies the metadata draft through Core validation, then closes the
 popover and opens the existing full-column code-style textarea,
 debounced draft preview, label and shared explicit Apply/Cancel actions. Plain Enter adds a

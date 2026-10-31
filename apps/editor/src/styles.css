@@ -1826,6 +1826,12 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
   visibility: visible;
 }
 
+/* Reserve clearance for the always-visible badge and a neighboring block outline.
+ * The row remains out of flow; hover/selection never changes block geometry. */
+.mermaid-figure:has(> .mermaid-metadata) {
+  margin-top: calc(var(--space-document-block) + var(--size-control-compact));
+}
+
 /* The Editor-only kind cue shares the out-of-flow metadata row, including at rest. */
 .mermaid-metadata {
   left: 0;
@@ -1837,11 +1843,29 @@ ol.list[data-list-delimiter=")"][data-list-style="upper-roman"] > li::marker { c
 .mermaid-kind {
   visibility: visible;
   flex: none;
-  padding-inline: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  color: var(--id-color-text);
+  background: var(--id-color-surface-muted);
   border: var(--border-width) solid var(--id-color-border);
   border-radius: var(--id-radius-sm);
   user-select: none;
 }
+.mermaid-figure[data-selected="true"] .mermaid-kind {
+  background: var(--id-color-interaction-soft);
+  border-color: var(--id-color-interaction);
+}
+.metadata-label-button {
+  padding: 0 var(--space-1);
+  border: 0;
+  border-radius: var(--id-radius-sm);
+  color: inherit;
+  background: var(--id-color-surface-muted);
+  font: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.metadata-label-button:hover { color: var(--id-color-text); text-decoration: underline; }
+.metadata-label-button:focus-visible { outline: none; box-shadow: var(--focus-ring-inset); }
 .mermaid-metadata-label {
   min-width: 0;
   overflow: hidden;

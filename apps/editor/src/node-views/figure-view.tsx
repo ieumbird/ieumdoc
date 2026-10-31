@@ -16,6 +16,7 @@ import { ImageRenameContext, imageFileStem } from "../image-rename.ts";
 import { validFileStem } from "../../shared/file-operations.ts";
 import { figureMediaPath } from "../../shared/figure-media-path.ts";
 import { PropertyForm } from "../block-properties.tsx";
+import { MetadataLabel } from "../metadata-properties.tsx";
 import { FigureProperties } from "../figure-properties.tsx";
 import { NumberField, useNumberDraft } from "../numbering-properties.tsx";
 import { useEditorVisible } from "../editor-visibility.ts";
@@ -73,6 +74,8 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
   // Core's computed label prefixes the caption; it is never saved.
   const numbered = useCaptionNumberText(editor, getPos, "figure");
   const anchor = useRef<HTMLParagraphElement>(null);
+  const labelInput = useRef<HTMLInputElement>(null);
+  const [labelEntry, setLabelEntry] = useState(false);
   const imageInput = useRef<HTMLInputElement>(null);
   const chooseButton = useRef<HTMLButtonElement>(null);
   const replaceButton = useRef<HTMLButtonElement>(null);
@@ -86,7 +89,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
   const imageFailed = !!src && failedSource === src;
   const label = String(node.attrs.label ?? "");
   const sourcePath = String(node.attrs.sourcePath ?? "");
-  const editableFigure = view.editable;
+  const editableFigure = useEditorState({ editor, selector: ({ editor: current }) => current.isEditable });
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(applied);
   const previousImage = useRef(applied.imageUrl);
@@ -129,13 +132,14 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
 
   function beginEdit() {
     if (!editableFigure || editing) return;
+    setLabelEntry(false);
     setDraft(applied);
     setLabelDraft(label); numberDraft.reset(enumerator);
     setReplacing(false);
     if (!filenameDraft) setError("");
     setEditing(true);
   }
-  useSourceInputFocus(replaceButton, editing);
+  useSourceInputFocus(labelEntry ? labelInput : replaceButton, editing);
   useSourceInputFocus(imageInput, editing && replacing);
   usePropertyEntry(anchor, beginEdit);
   const releaseCopy = () => {
@@ -314,7 +318,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
       data-selected={selected}
       data-source-path={sourcePath}
     >
-      <p ref={anchor} className="block-kind block-metadata" contentEditable={false}>{[numbered ?? i18n.t("Figure"), label].filter(Boolean).join(" · ")}</p>
+      <p ref={anchor} className="block-kind block-metadata" contentEditable={false}><MetadataLabel kind={numbered ?? i18n.t("Figure")} label={label} onEdit={editableFigure && !editing ? () => { beginEdit(); setLabelEntry(true); } : undefined} /></p>
       {hasUnappliedDraft ? (
         <p className="draft-status" role="status" data-testid="figure-draft-status" contentEditable={false}>{i18n.t(filenameDraft
           ? "File name changes require Rename in Advanced. Press Esc to discard them."
@@ -367,7 +371,7 @@ function ImageFigureView({ node, editor, selected, getPos, view, documentPath: i
         <div className="figure-property-columns">
         <div className="form-field">
           <label className="form-label" htmlFor={`${formId}-label`}>{i18n.t("Label")}</label>
-          <Input id={`${formId}-label`}
+          <Input ref={labelInput} id={`${formId}-label`}
             aria-invalid={!!error && errorField === "label" || undefined}
             aria-describedby={error && errorField === "label" ? `${formId}-label-error` : undefined}
             data-testid="figure-label"
@@ -411,6 +415,8 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
   const label = String(node.attrs.label ?? "");
   const sourcePath = String(node.attrs.sourcePath ?? "");
   const anchor = useRef<HTMLParagraphElement>(null);
+  const labelInput = useRef<HTMLInputElement>(null);
+  const [labelEntry, setLabelEntry] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
   const sourceButton = useRef<HTMLButtonElement>(null);
   const [properties, setProperties] = useState(false);
@@ -437,7 +443,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
   }, [busy, editing, properties, error, visible]);
   const hasDraft = (editing || properties) && (draft !== (applied.mermaidSource ?? "") || labelDraft !== label || numberDraft.changedFrom(enumerator));
   const cancelFocus = useSourceInputFocus(input, editing);
-  useSourceInputFocus(sourceButton, properties);
+  useSourceInputFocus(labelEntry ? labelInput : sourceButton, properties);
   useEffect(() => () => { request.current++; focusTracking.current?.abort(); }, []);
   useEffect(() => {
     if (!editing && !properties) { setDraft(applied.mermaidSource ?? ""); setLabelDraft(label); numberDraft.reset(enumerator); }
@@ -448,6 +454,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
   }, [sourcePath, hasDraft, onDraftChange]);
   function beginEdit() {
     if (!view.editable || editing || properties) return;
+    setLabelEntry(false);
     setDraft(applied.mermaidSource ?? ""); setLabelDraft(label); numberDraft.reset(enumerator); setError(""); setProperties(true);
   }
   const [openOnInsert] = useState(() => view.editable && isNewBlockPath(sourcePath));
@@ -531,7 +538,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
     data-content-kind="mermaid" data-editing={editing || properties} data-selected={selected} data-source-path={sourcePath}>
     <p ref={anchor} className={`block-kind block-metadata${editable ? " mermaid-metadata" : ""}`} contentEditable={false}>
       {editable ? <span className="mermaid-kind" data-testid="mermaid-kind" aria-hidden="true">Mermaid</span> : null}
-      <span className="mermaid-metadata-label">{[kind, label].filter(Boolean).join(" · ")}</span>
+      <span className="mermaid-metadata-label"><MetadataLabel kind={kind} label={label} onEdit={editable && !editing && !properties ? () => { beginEdit(); setLabelEntry(true); } : undefined} /></span>
     </p>
     {hasDraft ? <p className="draft-status" role="status" data-testid="figure-draft-status" contentEditable={false}>
       {i18n.t(editing ? "Unapplied changes are not saved. Apply to include them, or Cancel."
@@ -574,7 +581,7 @@ function MermaidFigureView({ node, editor, selected, getPos, view, onDraftChange
       </div>
       <div className="figure-property-columns">
         <div className="form-field"><label className="form-label" htmlFor={`${formId}-label`}>{i18n.t("Label")}</label>
-          <Input id={`${formId}-label`} aria-invalid={!!error && errorField === "label" || undefined}
+          <Input ref={labelInput} id={`${formId}-label`} aria-invalid={!!error && errorField === "label" || undefined}
             aria-describedby={error && errorField === "label" ? `${formId}-label-error` : undefined} data-testid="mermaid-property-label" disabled={busy} value={labelDraft} placeholder={i18n.t("None")}
             onChange={event => { setLabelDraft(event.target.value); setError(""); }} />
           <FieldError id={`${formId}-label-error`}>{errorField === "label" ? error : ""}</FieldError>

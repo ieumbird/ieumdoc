@@ -48,6 +48,79 @@ async (page, { openPath, screenshots, expect, waitForEditorFocus, waitForActiveP
     await expect(figure.getByTestId('figure-file-name')).toHaveCount(0);
   };
   await rendered(figure.getByTestId('mermaid-preview'), '>A<');
+  // #846/#847: all four metadata patterns share label entry; the always-visible
+  // Mermaid cue must stay separate from the preceding selected Equation.
+  await openPath(page, file.replace('diagram.md', 'metadata.md'));
+  const metadataModel = await model();
+  const metadataMermaid = active.locator('[data-content-kind="mermaid"]');
+  const metadataTable = active.locator('[data-block="table"]');
+  for (const [width, language, theme] of [[1440,'en','light'],[640,'ko','dark']]) {
+    await page.setViewportSize({width,height:1000});
+    await page.evaluate(async ({language,theme}) => {
+      await (await import('/src/i18n.ts')).i18n.changeLanguage(language);
+      (await import('/src/theme.ts')).applyTheme(theme);
+    },{language,theme});
+    await page.evaluate(() => document.fonts.ready);
+    await expect(metadataMermaid.getByTestId('mermaid-preview')).toHaveAttribute('aria-busy','false');
+    for (const [label, fieldId] of [['eq-meta','equation-property-label'],['fig-meta','mermaid-property-label'],
+      ['tbl-meta','table-label'],['fig-image-meta','figure-label']]) {
+      const block = active.locator('[data-block]').filter({has:page.locator('.block-metadata').filter({hasText:label})});
+      await block.hover({position:{x:4,y:4}});
+      const chip = block.getByRole('button',{name:label,exact:true});
+      for (const entry of ['click','Enter','Space']) {
+        await block.hover({position:{x:4,y:4}});
+        if (entry === 'click') await chip.click();
+        else { await chip.focus(); await chip.press(entry); }
+        const input = page.getByTestId(fieldId);
+        await expect(input).toBeFocused();
+        await expect(input).toHaveValue(label);
+        const form = input.locator('xpath=ancestor::form');
+        const bounds = await form.boundingBox();
+        expect(bounds.x).toBeGreaterThanOrEqual(0);
+        expect(bounds.x+bounds.width).toBeLessThanOrEqual(width);
+        await input.press('Escape');
+        await expect(input).toHaveCount(0);
+      }
+    }
+    await editor.evaluate(el => {
+      el.editor.state.doc.forEach((node,pos) => { if(node.type.name==='equation') el.editor.commands.setNodeSelection(pos); });
+      el.editor.view.focus();
+    });
+    await metadataMermaid.scrollIntoViewIfNeeded();
+    await page.mouse.move(0,0);
+    const badge = metadataMermaid.getByTestId('mermaid-kind');
+    const rest = await badge.evaluate(el => {
+      const s=getComputedStyle(el); return {background:s.backgroundColor,border:s.borderColor,font:s.fontSize};
+    });
+    expect(rest.font).toBe(await metadataTable.locator('.block-metadata').evaluate(el=>getComputedStyle(el).fontSize));
+    const separate = await active.locator('[data-block="equation"]').evaluate(eq => {
+      const badge=eq.closest('.document-editor').querySelector('[data-testid="mermaid-kind"]').getBoundingClientRect();
+      return badge.top > eq.getBoundingClientRect().bottom + parseFloat(getComputedStyle(eq).getPropertyValue('--space-block-hover-block'));
+    });
+    expect(separate, 'Mermaid badge overlaps the preceding selected block outline').toBe(true);
+    if (screenshots) await page.screenshot({path:`tmp/meta-evidence/after-${width}-equation.png`,animations:'disabled'});
+    const box = await metadataMermaid.boundingBox();
+    await metadataMermaid.getByTestId('mermaid-preview').click();
+    await expect(metadataMermaid).toHaveAttribute('data-selected','true');
+    const selected=await badge.evaluate(el=>({background:getComputedStyle(el).backgroundColor,border:getComputedStyle(el).borderColor}));
+    expect(selected.background).not.toBe(rest.background);
+    expect(selected.border).not.toBe(rest.border);
+    expect((await metadataMermaid.boundingBox()).height).toBe(box.height);
+    await metadataTable.hover({position:{x:4,y:4}});
+    if (screenshots) await page.screenshot({path:`tmp/meta-evidence/after-${width}.png`,animations:'disabled'});
+    expect(await active.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+    expect(await model()).toEqual(metadataModel);
+  }
+  await page.setViewportSize({width:1440,height:1000});
+  await page.evaluate(async () => {
+    await (await import('/src/i18n.ts')).i18n.changeLanguage('en');
+    (await import('/src/theme.ts')).applyTheme('light');
+  });
+  await editor.evaluate(el=>el.editor.setEditable(false));
+  await expect(active.locator('.metadata-label-button')).toHaveCount(0);
+  await editor.evaluate(el=>el.editor.setEditable(true));
+  await expect(active.locator('.metadata-label-button')).toHaveCount(4);
+  await openPath(page,file);
   // #771: the kind cue remains visible without hover, focus or selection.
   await active.getByText('Before.', {exact:true}).click();
   await page.mouse.move(0,0);

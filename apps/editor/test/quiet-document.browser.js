@@ -633,8 +633,8 @@ async (page, { openFolderPicker, screenshots = false, openDocument, openPath, wi
   await rest();
   results.push({noHoverHidden:true, mainPagePreserved:true});
   const metadata=page.locator('[data-document-tab][data-active=true] .block-metadata');
-  const metadataState=await metadata.evaluateAll(nodes=>nodes.map(n=>({visibility:getComputedStyle(n).visibility,pointer:getComputedStyle(n).pointerEvents,controls:n.querySelectorAll('button,a,input').length})));
-  check(metadataState.length===await page.locator('[data-document-tab][data-active=true] :is([data-block="figure"], [data-block="equation"], [data-block="table"])').count()&&metadataState.every(m=>m.visibility==='hidden'&&m.pointer==='none'&&m.controls===0),'Rest metadata must be hidden, inert text; controls remain separate');
+  const metadataState=await metadata.evaluateAll(nodes=>nodes.map(n=>({visibility:getComputedStyle(n).visibility,pointer:getComputedStyle(n).pointerEvents,controlsHidden:[...n.querySelectorAll('button,a,input')].every(c=>getComputedStyle(c).visibility==='hidden')})));
+  check(metadataState.length===await page.locator('[data-document-tab][data-active=true] :is([data-block="figure"], [data-block="equation"], [data-block="table"])').count()&&metadataState.every(m=>m.visibility==='hidden'&&m.pointer==='none'&&m.controlsHidden),'Rest metadata and its label entry must be hidden and inert');
   check(await page.getByTestId('current-file').textContent()==='quiet-document.md','Filename must be the visible identity');
   check(await page.getByTestId('status').textContent()==='','Loaded document should have quiet idle status');
   for(const kind of ['figure','equation','table-block']) {

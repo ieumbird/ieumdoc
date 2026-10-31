@@ -33,8 +33,10 @@ writes a `{table}` directive even when both are absent (#584; [format contract](
 
 ## Property entry (#557)
 
-The metadata line selects the whole Table on single click, opens its Label properties on
-double-click, and supports Enter on the engine's Table node selection. Edit uses the same
+The number area of the metadata line selects the whole Table on single click, opens its
+Label properties on double-click, and supports Enter on the engine's Table node selection.
+The label chip opens the same properties directly on click or keyboard Enter/Space and
+focuses Label (#847), matching Figure, Mermaid and Equation metadata. Edit uses the same
 form. Keyboard re-entry keeps the existing draft/error. The short Label/Number form shares
 Figure's target-wide metadata popover (#791), including the complete table and caption,
 inside the document content viewport. Done applies, Escape cancels and a valid outside
