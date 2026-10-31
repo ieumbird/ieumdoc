@@ -24,7 +24,7 @@
 - Visual Editor는 ADR-0001에 따라 Tiptap/ProseMirror 기반의 single-document editor state를 사용한다. IeumDoc이 selection, history, cursor, clipboard 등을 포함한 자체 rich-text editor engine을 재구현하지 않는다.
 - Editor-engine-specific types and document models stay inside `apps/editor`. Core exposes editor-neutral document semantics.
 - Editor는 ADR-0010에 따라 최소 640px의 데스크톱급 창과 키보드·포인터 입력을 지원 대상으로 한다. 휴대폰 폭·터치 전용 레이아웃이나 검증은 실제 사용자가 확인되어 별도 결정이 나기 전까지 계획하지 않는다.
-- `apps/editor/server`의 stateless 파일 Host handler는 Vite 개발 adapter, ADR-0004의 Desktop Host, ADR-0005의 HTTP Host가 재사용한다. 이를 장기 persistence/backend architecture로 전제하여 확장하지 않는다.
+- `apps/editor/server`의 stateless 파일 Host handler는 Vite 개발 adapter, ADR-0004의 Desktop Host, ADR-0005의 HTTP Host가 재사용한다. 이를 장기 persistence/backend architecture로 전제하여 확장하지 않는다. [ADR-0012](docs/adr/0012-plugin-runtime-and-ui-contributions.md)에 따라 공용 설치 폴더의 플러그인 등록 상태와 요청 기록만 예외로 허용한다.
 
 이 원칙을 이유로 미래 구조나 기능을 선제적으로 구현하지 않는다.
 

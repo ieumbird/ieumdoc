@@ -1,7 +1,8 @@
 # ADR-0005: Standalone HTTP Host
 
 - Status: Accepted
-- Last verified: 2026-10-13 (Node-only package, shared Host and real browser Save/Reload verification; Windows/Linux CI required).
+- Last verified: 2026-10-31 (documentation-only ADR-0012 exception for plugin registration state and request records; no new runtime verification).
+- Previous verification: 2026-10-13 (Node-only package, shared Host and real browser Save/Reload verification; Windows/Linux CI required).
 - Authority: architectural decision under [AGENTS.md](../../AGENTS.md). Related: [ADR-0002](0002-document-persistence-semantic-ownership.md), [ADR-0004](0004-desktop-host-distribution.md), [HTTP Host contract](../design/http-host-v1.md).
 - Decision date: 2026-10-13
 
@@ -19,7 +20,7 @@
 
 ## Consequences
 
-Three transports reuse the same stateless file handlers. HTTP file state is startup configuration and an asset-receipt signing key; documents remain plain-text files. [ADR-0011](0011-code-module-boundary.md#app-conversion-connections-797) adds the explicitly scoped Docling device setting and one transient module task (#797); this is not document persistence or a job backend. Core gains no HTTP, filesystem or editor-engine types. This adds a Host launch command, not a document semantic operation.
+Three transports reuse the same stateless file handlers. HTTP file state is startup configuration and an asset-receipt signing key; documents remain plain-text files. [ADR-0011](0011-code-module-boundary.md#app-conversion-connections-797) adds the explicitly scoped Docling device setting and one transient module task (#797); this is not document persistence or a job backend. [ADR-0012](0012-plugin-runtime-and-ui-contributions.md) additionally permits only plugin registration state and request records in the common installation folder as an exception to this stateless Host scope. Core gains no HTTP, filesystem or editor-engine types. This adds a Host launch command, not a document semantic operation.
 
 Root validation does not create an OS sandbox against a hostile filesystem administrator. File commit's existing check/use race boundary remains. Protect all proxy routes, including HTML, static assets, API and media, and restrict direct upstream access. Exact limits, deployment settings and supported platforms are in the [HTTP contract](../design/http-host-v1.md).
 

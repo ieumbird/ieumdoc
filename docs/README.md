@@ -18,7 +18,8 @@
 | [ADR-0008: Citations and bibliography](adr/0008-citations-and-bibliography.md) | Accepted | #327의 승인된 방향. 단위 A·B·C는 Citations 계약으로 구현. MIT BibTeX 입력·Core 제한 IEEE·Root 경계 포함. 단위 D 확장은 각각 별도 결정. #328과의 경계·실행 근거 포함. **2026-10-30 동결:** 기존 동작은 유지하고 새 작업 범위에서는 제외. |
 | [ADR-0009: Multiple opened folders](adr/0009-multiple-opened-folders.md) | Accepted | #235 / #425 / #582 / #702. 포함 관계 없는 루트와 상위 흡수·하위 reveal, origin별 폴더 섹션 접힘 기억과 폴더 줄의 작업 진입점, 순서 있는 여러 폴더, 경로만 브라우저 환경설정으로 복원, 문서 폴더 맥락은 가장 바깥쪽 열린 폴더. #582가 #385의 헤더 진입점 배치를 대체. Workspace 파일·Host 상태 없음. |
 | [ADR-0010: Supported viewport and input](adr/0010-supported-viewport-and-input.md) | Accepted | 2026-10-27 소유자 결정. 지원 최소 폭 640px의 데스크톱급 창과 키보드·포인터 입력. 휴대폰·터치 전용 지원은 실제 사용자 확인 후 별도 결정. 정리 작업은 #602. |
-| [ADR-0011: Code module boundary](adr/0011-code-module-boundary.md) | Accepted | 첫 모듈의 패키지 위치, 모듈 → Core 공개 API 의존, 문서 밖 데이터와 얇은 CLI, 대조 탭·사이드바·읽기 표현·Host 연결. |
+| [ADR-0011: Code module boundary](adr/0011-code-module-boundary.md) | Accepted | 첫 모듈의 패키지 위치, 모듈 → Core 공개 API 의존, 문서 밖 데이터와 얇은 CLI. 정적 연결·등록/동적 로딩 금지와 process-local 전용 작업 상태는 ADR-0012로 일부 Superseded. |
+| [ADR-0012: Plugin runtime and UI contributions](adr/0012-plugin-runtime-and-ui-contributions.md) | Accepted | 2026-10-31 소유자 승인. 데몬 없는 공용 설치 폴더, 별도 worker, 같은 origin의 검증된 ESM/CSS와 좁은 UI API, 동적 기여·drain·비활성 탭, UUID·uncertain·완료 결과 공개. 구현 채택 조건과 범위 제외를 명시하며 스파이크 코드 채택은 아님. |
 
 ## Current implemented contracts
 
@@ -97,6 +98,8 @@ Implementation record: [UI language #256 plan and verification](design/ui-langua
 | [Footnote region verification](reviews/footnote-regions-2026-10-12.md) | Historical | #185 원문 위치의 각주 구역 Before/After, 좁은 화면과 원문·편집·복사·저장 보존 검증. |
 | [Endnotes verification](reviews/endnotes-2026-10-12.md) | Historical | #194 단일 미주 구역 Before/After, 원문 보존·명시적 변환·참조 복귀·초안 보호 검증. |
 | [Single Editor Foundation review](reviews/single-editor-foundation.md) | Historical | 당시 architecture 검토 근거. 현재 authority는 ADR-0001과 design contracts. |
+| [Docling plugin runtime spike](reviews/docling-plugin-runtime-spike.md) | Historical | 2026-10-31 별도 worker·공용 설치·UUID·drain·uncertain의 개발 Desktop/serve 실측. 실제 Docling 서버·패키지 Desktop 미검증. 승인된 후속 결정은 ADR-0012. |
+| [Docling plugin UI spike](reviews/docling-plugin-ui-spike.md) | Historical | 2026-10-31 ESM/CSS 명령·대조 탭의 동적 등록/해제·오류 격리·API 경계 실측. React 호환·ESM 해제 한계와 미이전 화면을 보존. 승인된 후속 결정은 ADR-0012. |
 | [MyST security alignment review](reviews/myst-security-alignment-v1.md) | Historical | 당시 security 분석. 현재 후속 작업은 issue #11; 현재 안전성의 영구 보증이 아님. |
 | [Desktop shell spike](reviews/desktop-shell-spike-v1.md) | Historical | 실행 가능성과 비용의 실험 근거. 제품 Host·배포 결정이 아님. |
 | [VS Code host spike](reviews/vscode-host-spike-v1.md) | Historical | provider와 저장 모델의 실험 근거. 제품 Host 결정이 아님. |
