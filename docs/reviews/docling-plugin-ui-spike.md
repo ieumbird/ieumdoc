@@ -1,5 +1,7 @@
 # Docling UI contribution spike
 
+당시 이름: 이음독(IeumDoc), 현재 Litzio
+
 - Status: Historical
 - Last verified: 2026-10-31 (branch-only measurement; no merge or adoption).
 - Scope: `spike/docling-plugin-ui`, based on runtime spike head `3d4cb6e139313ab458f841f5c1514dadc3e21470`.

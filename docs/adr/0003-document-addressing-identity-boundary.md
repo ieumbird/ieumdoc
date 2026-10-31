@@ -13,7 +13,7 @@ ADR-0001은 Editor의 single-document state와 typed block UX를 결정한다. �
 
 ## Decision
 
-IeumDoc은 다음을 채택한다.
+Litzio는 다음을 채택한다.
 
 - Core의 `NodePath`와 Editor의 `sourcePath`는 현재 document snapshot에 유효한 locator다.
 - insert, remove, split, merge 또는 reorder 후에는 locator가 변경될 수 있으며, 필요한 경우 현재 snapshot에서 다시 계산한다.

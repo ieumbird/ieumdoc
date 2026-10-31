@@ -1,6 +1,6 @@
 /**
  * External clipboard HTML (web pages, Notion, Word) rewritten into the HTML the editor's own
- * parse rules read, before ProseMirror parses it. Only structure IeumDoc already supports is
+ * parse rules read, before ProseMirror parses it. Only structure Litzio already supports is
  * produced, and Core still validates it on Save. Presentation noise (wrappers, classes, data
  * attributes, layout styles) is dropped silently; lost visible formatting is reported in a
  * notice; structure that cannot be represented rejects the whole paste.
@@ -16,7 +16,7 @@ const REJECTED: [selector: string, reason: string][] = [
   // Flattened, annotations run into their base text ("漢kan").
   ["ruby", "ruby annotations cannot become plain text"],
 ];
-/** Standard inline semantics with no IeumDoc form: their text is kept, their meaning (and title/datetime) is not. */
+/** Standard inline semantics with no Litzio form: their text is kept, their meaning (and title/datetime) is not. */
 const SEMANTIC = "abbr,acronym,cite,data,dfn,kbd,q,samp,time,var";
 const NOTICES = {
   styles: "unsupported visual styles were removed",
@@ -97,7 +97,7 @@ export function normalizeExternalHTML(html: string): ExternalHTML {
   return { html: body.innerHTML, ...(notice ? { notice: `Pasted with normalization: ${notice}.` } : {}) };
 }
 
-/** Records visible formatting and inline semantics that have no IeumDoc meaning. Classes, ids and layout styles are not reported. */
+/** Records visible formatting and inline semantics that have no Litzio meaning. Classes, ids and layout styles are not reported. */
 function visualFormatting(body: HTMLElement, notices: Set<Notice>): void {
   if (body.querySelector(SEMANTIC)) notices.add("semantic");
   if (body.querySelector("u,ins,mark,font,small,big,center,ol[type]:not([type='1']),[align]:not(td,th)")) notices.add("styles");

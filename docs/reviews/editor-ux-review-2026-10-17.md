@@ -1,5 +1,7 @@
 # Editor UX review and improvements (2026-10-17)
 
+당시 이름: 이음독(IeumDoc), 현재 Litzio
+
 - Status: Historical
 - Last verified: 2026-10-17 (implementation and verification recorded below; visual approval is pending with the user).
 - Authority: evidence for one UX review of the running Editor and the changes made from it, not a separate behavior contract. Current contracts: [UX shell](../design/editor-ux-shell-v1.md), [layout](../design/editor-layout-rules-v1.md), [visual language v4.7](../design/editor-visual-language-v1.md), [Filesystem Host boundary](../design/filesystem-host-boundary-v1.md#folder-listing-v1-112), [Native document support](../design/document-support-v1.md), [Table caption](../design/table-caption-v1.md).

@@ -54,7 +54,7 @@ There is no profile selector or individual conversion-option flag. Its request
 values are copied verbatim from the owner's `crd-engine` profile
 `profiles/crd-pdf-rest-v1.json`, under that project's ADR-0003. The copied source
 file hash and reference OpenAPI hash are in `provenance`; that project's profile
-name is not an IeumDoc profile. The independent local copy avoids a runtime
+name is not an Litzio profile. The independent local copy avoids a runtime
 dependency on another checkout.
 
 | Request group | Fixed values |
@@ -171,7 +171,7 @@ and are never automatically replayed. The browser polls the Host once a second w
 the module polls Docling. Progress shows checking/upload/queue/processing/download/
 bundle stages, elapsed seconds, task ID once known and the result folder, without
 invented page percentages. Closing the progress dialog leaves work running;
-Command Center opens it again. **Stop waiting** aborts IeumDoc requests/waiting,
+Command Center opens it again. **Stop waiting** aborts Litzio requests/waiting,
 waits for local cleanup and explicitly says the server task may continue. There
 is no API cancellation call, retry, persisted queue or resume service. The CLI
 still has no interactive cancellation UI. Completed jobs/tabs are not restored
@@ -197,7 +197,7 @@ are interpreted in the module, with short translated cause/action text and task
 ID in the UI. Explicit missing-model/capacity/source/timeout causes are retained;
 raw traces are not displayed. The tested missing-CodeFormulaV2 case returns only
 `Internal processing error.` and `failure: null` (the result endpoint returns
-404). IeumDoc cannot recover that hidden cause: it asks the operator to check
+404). Litzio cannot recover that hidden cause: it asks the operator to check
 server logs and profile models using the task ID, rather than asserting a model
 is missing. The existing CLI diagnostic retains its error/context.
 

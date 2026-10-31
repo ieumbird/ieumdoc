@@ -3,7 +3,7 @@ import type { MystDocument } from "./myst/tree.ts";
 declare const opaqueDocument: unique symbol;
 
 /**
- * A parsed IeumDoc document. Opaque to consumers: read it through Core
+ * A parsed Litzio document. Opaque to consumers: read it through Core
  * projections (`getEditableDocument`, `inspectDocument`) and change it through
  * Core operations. Its internal representation is not part of the public contract.
  */

@@ -1,4 +1,4 @@
-// IeumDoc Desktop: one window with the Editor, the local Host behind `ieumdoc://app`, preferences
+// Litzio Desktop: one window with the Editor, the local Host behind `ieumdoc://app`, preferences
 // and updates. Documents are read and written only through the existing Host handlers.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync } from "node:fs";
 import path from "node:path";

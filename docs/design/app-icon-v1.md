@@ -14,7 +14,7 @@ The mark combines a navy document with a folded corner, a cyan wing and an open 
 - [Production preview](assets/app-icon-170/production.png).
 - Palette: navy `#083b66`, cyan `#00adbd`, lower wing `#009eaf`, white `#ffffff`.
 
-The SVG paths were authored for IeumDoc on 2026-10-13 by Codex, refining the B raster concept explicitly selected by the user. The concept was created with the built-in image generation tool; the [prompts and input references](app-icon-v1-plan.md#existing-github-identity) are retained. The original GitHub organization avatar informed the family colors and wing/link motif. Its downloaded pixels and the rejected concepts are review references and are not shipped in the application. No stock icon pack, external font, or third-party SVG was used. The authored SVG and derived ICO are supplied under the repository's [MIT license](../../LICENSE).
+The SVG paths were authored for Litzio on 2026-10-13 by Codex, refining the B raster concept explicitly selected by the user. The concept was created with the built-in image generation tool; the [prompts and input references](app-icon-v1-plan.md#existing-github-identity) are retained. The original GitHub organization avatar informed the family colors and wing/link motif. Its downloaded pixels and the rejected concepts are review references and are not shipped in the application. No stock icon pack, external font, or third-party SVG was used. The authored SVG and derived ICO are supplied under the repository's [MIT license](../../LICENSE).
 
 ## Regeneration and integration
 

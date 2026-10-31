@@ -18,7 +18,7 @@ the adoption conditions below and update the affected contracts.
 
 ## Context
 
-The owner wants AI agents to attach capabilities as plugins while IeumDoc is
+The owner wants AI agents to attach capabilities as plugins while Litzio is
 running, with Docling as the first plugin. ADR-0011 established the first module's
 dependency boundary, but its Host and Editor connections are static.
 

@@ -1,5 +1,7 @@
 # Footnote region verification — 2026-10-12
 
+당시 이름: 이음독(IeumDoc), 현재 Litzio
+
 - Status: Historical
 - Last verified: 2026-10-12 (actual Windows browser captures and focused regression).
 - Authority: evidence for #185; current behavior belongs to [Footnotes](../design/footnotes-v1.md), [Visual Language](../design/editor-visual-language-v1.md) and [Layout Rules](../design/editor-layout-rules-v1.md).

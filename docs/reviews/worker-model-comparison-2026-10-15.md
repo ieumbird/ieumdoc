@@ -1,5 +1,7 @@
 # Worker model comparison on #216
 
+당시 이름: 이음독(IeumDoc), 현재 Litzio
+
 - Status: Historical
 - Last verified: 2026-10-15 (one-time internal comparison; the eight implementations were not pushed or preserved, so the results below cannot be independently re-verified).
 - Authority: evidence only. It is not a contract or a model-assignment rule. The defect found is tracked in #308.

@@ -579,7 +579,7 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
   assert.match(collapsed, /<ul\b(?=[^>]*role="tree")(?=[^>]*hidden)/);
   assert.match(collapsed, /aria-label="Expand folder docs"/);
 
-  // A file without the native marker stays listed but says it is not an IeumDoc document.
+  // A file without the native marker stays listed but says it is not an Litzio document.
   const mixed = listing(String.raw`C:\docs`, [
     { name: "plain.md", kind: "document", path: String.raw`C:\docs\plain.md`, native: false },
     { name: "note.md", kind: "document", path: String.raw`C:\docs\note.md`, native: true },

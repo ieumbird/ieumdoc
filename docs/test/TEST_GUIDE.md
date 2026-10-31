@@ -1,4 +1,4 @@
-# IeumDoc Test Guide
+# Litzio Test Guide
 
 [검증 진입점](README.md) · [준비](#준비) · [자동 검증](#자동-검증) · [Browser regression](#browser-regression) · [CI](#ci) · [사람이 직접 볼 것](#사람이-직접-볼-것)
 

@@ -1,5 +1,7 @@
 # Editor Visual Language history through 2026-10-30
 
+당시 이름: 이음독(IeumDoc), 현재 Litzio
+
 - Status: Historical
 - Last verified: 2026-10-30 (#785: original text, capture paths and incoming anchors preserved; no browser rerun).
 - Scope: Snapshot of the mixed contract/verification document at master `e6eb3282565abb999c3f23c3cc01220f37628983`.

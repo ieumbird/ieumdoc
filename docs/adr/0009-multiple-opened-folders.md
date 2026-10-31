@@ -135,7 +135,7 @@ Entry placement is superseded by the [2026-10-27 explorer amendment](#amendment-
 
 - Status: Accepted. The owner approved the composition in [#647](https://github.com/ieumbird/ieumdoc/issues/647) (2026-10-28).
 - Refine the #582/#605 shell composition: the first row spans all columns, with the existing
-  Desktop SVG icon and IEUMDOC at the left, existing TopBar controls in the remaining width,
+  Desktop SVG icon and `IEUMDOC` at the left, existing TopBar controls in the remaining width,
   and Desktop-only native caption reservation at the right. HTTP Host shares the arrangement.
 - Files / Collapse and Outline / Tables / Figures move to the document-tab row, with aligned
   boundaries. The separate visible Outline title row is replaced by its existing accessible

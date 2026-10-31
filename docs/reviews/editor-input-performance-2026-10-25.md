@@ -1,5 +1,7 @@
 # Mixed document input performance (#362)
 
+당시 이름: 이음독(IeumDoc), 현재 Litzio
+
 - Status: Historical
 - Last verified: 2026-10-25 (before/after input and CPU/timeline measurements, complete canonical Save/Reload; mixed 2000 p95 96.7ms).
 - Scope: Windows development Editor input; [Continuous editing](../design/document-editing-v1.md) and [ADR-0001](../adr/0001-single-document-editor-architecture.md) remain authoritative.

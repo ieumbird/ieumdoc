@@ -1,5 +1,7 @@
 # 반복 UI 패턴 인벤토리와 목표 디자인 제안 — #777 1단계
 
+당시 이름: 이음독(IeumDoc), 현재 Litzio
+
 - Status: Historical
 - Last verified: 2026-10-30. 기준 `a4d2f64bbcefa48f436bce916aecd0772ad15e93`의 코드·Implemented 계약·이슈 댓글 대조와 실제 Vite Editor 수동 검토용 촬영. 동작 회귀 suite를 재검증했다는 뜻은 아니다.
 - Scope: [#777](https://github.com/ieumbird/ieumdoc/issues/777)의 **1단계 인벤토리와 당시 목표 제안**. 제품 코드·화면·문서 의미 변경 없음. 승인 전 비교·질문은 역사적 근거로 보존하며 현재 구현 지침으로 사용하지 않는다.

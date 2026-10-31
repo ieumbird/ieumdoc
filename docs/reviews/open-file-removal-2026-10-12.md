@@ -1,5 +1,7 @@
 # Open File entry removal verification
 
+당시 이름: 이음독(IeumDoc), 현재 Litzio
+
 - Status: Historical
 - Last verified: 2026-10-12 (real Editor captures before/after #190; Windows packaged navigation and existing file-opening contracts).
 - Authority: verification evidence only. Current behavior belongs to [Editor UX Shell](../design/editor-ux-shell-v1.md), [Folder picker](../design/folder-picker-v1.md) and [Visual Language](../design/editor-visual-language-v1.md).

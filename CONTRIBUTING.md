@@ -1,8 +1,8 @@
-# Contributing to IeumDoc
+# Contributing to Litzio
 
 ## Project status
 
-IeumDoc은 **초기 Beta** 단계다. Windows x64 unsigned [v0.0.2-beta.4](https://github.com/ieumbird/ieumdoc/releases/tag/v0.0.2-beta.4)가 공개되었고 Stable은 아직 없다. 공개 결과와 검증 범위는 [배포 기록](docs/releases/v0.0.2-beta.4.md)을 따른다. 직전 공개 결과는 [v0.0.2-beta.3 기록](docs/releases/v0.0.2-beta.3.md)에 보존한다. 일반 사용자 설치는 [README](README.md#windows-desktop), 개발자 빌드와 릴리즈는 아래 절차를 따른다. Visual Editor의 Vite 개발 실행도 유지한다. 공개 API와 문서 지원 범위는 바뀔 수 있다.
+Litzio는 **초기 Beta** 단계다. Windows x64 unsigned [v0.0.2-beta.4](https://github.com/ieumbird/ieumdoc/releases/tag/v0.0.2-beta.4)가 공개되었고 Stable은 아직 없다. 공개 결과와 검증 범위는 [배포 기록](docs/releases/v0.0.2-beta.4.md)을 따른다. 직전 공개 결과는 [v0.0.2-beta.3 기록](docs/releases/v0.0.2-beta.3.md)에 보존한다. 일반 사용자 설치는 [README](README.md#windows-desktop), 개발자 빌드와 릴리즈는 아래 절차를 따른다. Visual Editor의 Vite 개발 실행도 유지한다. 공개 API와 문서 지원 범위는 바뀔 수 있다.
 
 ## Development requirements
 

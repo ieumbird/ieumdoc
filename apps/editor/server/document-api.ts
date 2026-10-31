@@ -517,7 +517,7 @@ const entryOrder = new Intl.Collator(undefined, { numeric: true });
  * One level of a folder the user chose. Regular folders and files of every extension are listed:
  * hidden entries and symlinks are left out, and a requested folder must stay inside the chosen
  * one, symlinks resolved. Each document says whether its leading frontmatter carries the native
- * marker, so the tree can set apart files IeumDoc will not open. Nothing is remembered between requests.
+ * marker, so the tree can set apart files Litzio will not open. Nothing is remembered between requests.
  */
 export function listFolder(requestedRoot: string | undefined, requestedPath?: string, access: FileAccess = LOCAL_FILE_ACCESS): FolderResponse {
   if (!requestedRoot?.trim()) throw new Error("folder path is required");

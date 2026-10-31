@@ -7,7 +7,7 @@
 
 ## Context
 
-IeumDoc은 Vite 개발 서버의 local Host adapter로만 실행되었다. 사용자가 Node.js, pnpm, 브라우저 없이 설치하고 업데이트할 수 있는 제품 Host가 없었고, [Filesystem Host boundary](../design/filesystem-host-boundary-v1.md)는 제품 Host를 미정으로 두었다.
+Litzio는 Vite 개발 서버의 local Host adapter로만 실행되었다. 사용자가 Node.js, pnpm, 브라우저 없이 설치하고 업데이트할 수 있는 제품 Host가 없었고, [Filesystem Host boundary](../design/filesystem-host-boundary-v1.md)는 제품 Host를 미정으로 두었다.
 
 [Desktop shell spike](../reviews/desktop-shell-spike-v1.md)는 Editor와 Host 코드를 바꾸지 않고 Electron main의 custom protocol에서 기존 `handleDocumentRequest`/`handleAssetRequest`를 호출해 TCP 포트 없이 문서 열기·저장·asset·폴더 탐색을 할 수 있음을 보였다. 그 spike의 `portable` 단일 exe는 실행마다 약 6초와 약 840 MB의 임시 디스크를 썼고 자동 업데이트가 없었다.
 
@@ -15,7 +15,7 @@ IeumDoc은 Vite 개발 서버의 local Host adapter로만 실행되었다. 사�
 
 ## Decision
 
-IeumDoc은 다음을 채택한다.
+Litzio는 다음을 채택한다.
 
 - **Desktop Host**: Electron 기반 `apps/desktop`을 Windows 제품 Host로 둔다. Editor의 production build를 그대로 싣고, custom protocol `ieumdoc://app`에서 Editor 정적 파일과 기존 `apps/editor/server`의 document/asset handler를 같은 프로세스 안에서 호출한다. TCP listener와 새 HTTP 서버를 만들지 않는다.
 - **Host 코드 재사용**: `apps/editor/server`의 handler는 Vite dev server와 Desktop Host가 함께 쓰는 Host 구현이 된다. Desktop은 Vite runtime(`ssrLoadModule`)이 아니라 handler를 직접 import해 번들한다. Desktop은 별도의 문서 저장 규칙, Markdown 처리나 경로 정책을 구현하지 않는다. 문서 의미와 write contract는 계속 Core([ADR-0002](0002-document-persistence-semantic-ownership.md))가 소유하고, 파일 교체는 CLI와 같은 File commit을 쓴다.

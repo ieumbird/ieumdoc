@@ -102,7 +102,7 @@ export function isInternalClipboard(html: string): boolean {
   return /\bdata-litzio-type\s*=/.test(html);
 }
 
-/** IeumDoc's own clipboard must hold only typed content it can paste losslessly. */
+/** Litzio's own clipboard must hold only typed content it can paste losslessly. */
 function internalPasteError(html: string, schema: Schema): UiMessage | undefined {
   const document = new DOMParser().parseFromString(html, "text/html");
   const allowed = new Set(["P", "DIV", "SPAN", "S", "DEL", "H1", "H2", "H3", "H4", "H5", "H6", "STRONG", "B", "EM", "I", "A", "BR", "CODE", "TABLE", "THEAD", "TBODY", "TR", "TD", "TH"]);
@@ -549,7 +549,7 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
             return copyWithFootnotes(view, event, true);
           },
         },
-        // IeumDoc's typed clipboard is pasted as is; other HTML is normalized to supported structure first.
+        // Litzio's typed clipboard is pasted as is; other HTML is normalized to supported structure first.
         transformPastedHTML: html => {
           pastedFootnotes = [];
           external = !isInternalClipboard(html);

@@ -38,7 +38,7 @@ text `.md` was manually edited into valid native syntax, Reload admits it throug
 further text Saves refuse while the on-disk file is native. Save never silently changes
 the current editor kind. See [session protection](editing-session-save-v1.md#text-editing-sessions-817).
 
-This is plain text editing, not an IeumDoc semantic operation, so no CLI command or
+This is plain text editing, not an Litzio semantic operation, so no CLI command or
 Core operation is added. CLI native admission and writes are unchanged. Daemon/backend
 architecture (Discussion #834), other extensions and conversion are outside this change.
 
@@ -50,7 +50,7 @@ The native marker is `litzio: 1`, an internal document-format identifier indepen
 
 Core rejects unpaired UTF-16 surrogates before parsing source and before canonical writing, including string fields such as text, URLs, labels, code, metadata and nested options. Valid Korean, emoji and literal U+FFFD remain supported. CLI document/operations JSON reads and shared Host document/request text reads strictly decode UTF-8; malformed bytes are refused rather than replaced. A leading BOM retains the existing parse normalization rule. Refusal leaves original file bytes unchanged. This validation does not introduce a new semantic operation or CLI command.
 
-Public `parse(source)` accepts an IeumDoc native document. It validates the marker, metadata and complete semantic structure, then performs canonical write preflight. It never returns a partially supported document. Public `serialize(document)` validates native semantics before and after canonical output. Existing serializer diagnostics, complete semantic fingerprints and round-trip guards remain mandatory. MyST fragment parsing is internal to Core operations and serialization.
+Public `parse(source)` accepts an Litzio native document. It validates the marker, metadata and complete semantic structure, then performs canonical write preflight. It never returns a partially supported document. Public `serialize(document)` validates native semantics before and after canonical output. Existing serializer diagnostics, complete semantic fingerprints and round-trip guards remain mandatory. MyST fragment parsing is internal to Core operations and serialization.
 
 HTML recognition remains enabled so unsupported HTML is refused instead of silently admitted as literal text. Public source diagnostics reach the URL recognizer even though automatic linkification is off. The [Parser security boundary](parser-security-v1.md) records the pinned URL/inline HTML backports, public API verification and removal conditions.
 

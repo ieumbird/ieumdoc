@@ -147,7 +147,7 @@ export function imageAssetsPlugin(options: Options): Plugin {
       handleDOMEvents: {
         paste: (view, event) => {
           const data = event.clipboardData;
-          // Preserve IeumDoc's lossless typed clipboard, even if the OS adds an image flavor.
+          // Preserve Litzio's lossless typed clipboard, even if the OS adds an image flavor.
           if (isInternalClipboard(data?.getData("text/html") ?? "")) return false;
           return files(view, event, data?.files, view.state.selection.from);
         },

@@ -45,7 +45,7 @@ async (page, { showNotifications, openPath }) => {
     '<p>Text with <strong>bold <em>both</em></strong>, <s>gone</s>, <code>x = 1</code> and <a href="https://example.com/a" title="Example">a link</a>.</p>' +
     '<ul><li>One<ul><li>Nested</li></ul></li><li>Two</li></ul><ol start="3"><li>Third</li></ol>' +
     '<blockquote><p>Quoted <span style="color:#c00">red</span> text.</p></blockquote>' +
-    // Inline semantics IeumDoc cannot express keep their text, with a notice.
+    // Inline semantics Litzio cannot express keep their text, with a notice.
     '<p>Press <kbd>Ctrl+C</kbd> and see <cite>Example</cite>.</p>' +
     '<pre><code class="language-python">def f():\n    return 1\n</code></pre><hr>' +
     '<table><thead><tr><th align="right">Key</th><th>Value</th></tr></thead><tbody><tr><td align="right">a</td><td>1</td></tr></tbody></table>';
@@ -128,7 +128,7 @@ async (page, { showNotifications, openPath }) => {
     result[name] = true;
   }
 
-  // C. Structure IeumDoc cannot represent refuses the whole paste; document and selection stay.
+  // C. Structure Litzio cannot represent refuses the whole paste; document and selection stay.
   const refused = {
     'merged table cells are not supported': '<table><tr><th colspan="2">Merged</th></tr><tr><td>a</td><td>b</td></tr></table>',
     'nested tables are not supported': '<table><tr><th><table><tr><td>x</td></tr></table></th></tr></table>',

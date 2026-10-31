@@ -229,7 +229,7 @@ const SourcedCodeBlock = CodeBlockLowlight.extend({
     return ReactNodeViewRenderer(CodeBlockView);
   },
 }).configure({
-  // Stock lowlight auto-detects unknown languages; IeumDoc's fallback is literal plain code.
+  // Stock lowlight auto-detects unknown languages; Litzio's fallback is literal plain code.
   lowlight: { ...lowlight, highlightAuto: () => ({ children: [] }) },
   defaultLanguage: null, enableTabIndentation: true, tabSize: 4,
 });

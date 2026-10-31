@@ -1,5 +1,7 @@
 # Native document boundary implementation
 
+당시 이름: 이음독(IeumDoc), 현재 Litzio
+
 - Status: Historical
 - Last verified: 2026-10-14 (implementation and regression verification for #232).
 - Authority: evidence only; current rules are [ADR-0006](../adr/0006-native-document-boundary.md) and [Native document support](../design/document-support-v1.md).

@@ -566,7 +566,7 @@ External clipboard HTML (web pages, Notion, Word) is normalized before the
 engine parses it (`transformPastedHTML`, `apps/editor/src/external-html.ts`). It
 rewrites semantic HTML into the editor's own block markup, so ProseMirror still
 parses, fits and replaces the selection in one transaction (one Undo), and Save
-still goes through Core validation. IeumDoc's typed clipboard is not normalized, and
+still goes through Core validation. Litzio's typed clipboard is not normalized, and
 a clipboard image file (PNG, JPEG, GIF or WebP) still takes the #59 asset path first.
 
 - Kept: paragraphs, H1–H6, bullet/numbered lists within List v1, single-paragraph

@@ -1,5 +1,7 @@
 # Persistent Figure Draft spike v1
 
+당시 이름: 이음독(IeumDoc), 현재 Litzio
+
 - Status: Historical
 - Last verified: 2026-10-10. 이 문서의 결과는 실제 실행 결과다(아래 재현 명령). 제품 동작은 바꾸지 않았다.
 - Scope: Technical spike evidence. Figure 계약이나 제품 결정이 아니다.

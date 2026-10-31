@@ -16,7 +16,7 @@
 - Current contract: v4 with #714 / #715 explicit edit controls over #579 read-only interaction, on v2 (#140) and v1 (#119); v3 (#194) source-anchor placement is replaced. Historical filename retained for link stability.
 - Scope: footnote references, endnote placement and numbering, inserting footnotes, in-place editing of supported one-paragraph definitions, sections and fail-closed writes; [Native document support](document-support-v1.md).
 
-Issue #119 made paragraphs with footnotes editable and stopped silent loss of definitions MyST would drop. Issue #140 added inserting footnotes and in-place editing of one-paragraph definitions. Issue #194 showed definitions as one endnotes region. Endnotes v4 makes that region the document's placement: every IeumDoc write puts the definitions after the body, in first-reference order.
+Issue #119 made paragraphs with footnotes editable and stopped silent loss of definitions MyST would drop. Issue #140 added inserting footnotes and in-place editing of one-paragraph definitions. Issue #194 showed definitions as one endnotes region. Endnotes v4 makes that region the document's placement: every Litzio write puts the definitions after the body, in first-reference order.
 
 ## Product contract
 

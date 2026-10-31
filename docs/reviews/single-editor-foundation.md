@@ -1,5 +1,7 @@
 # Single Editor Foundation architecture review
 
+당시 이름: 이음독(IeumDoc), 현재 Litzio
+
 - Status: Historical
 - Last verified: 2026-10-08 (status, links and current authority checked; historical experiments/audits not rerun).
 - Scope: Historical architecture review; results and debt below describe the reviewed baseline only.

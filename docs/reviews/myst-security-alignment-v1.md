@@ -1,5 +1,7 @@
 # MyST dependency alignment and security remediation v1
 
+당시 이름: 이음독(IeumDoc), 현재 Litzio
+
 - Status: Historical
 - Last verified: 2026-10-23 (current authority link updated; historical experiments/audits below not rerun).
 - Scope: Historical security review with current follow-up tracked in [issue #11](https://github.com/ieumbird/ieumdoc/issues/11). No permanent assurance of current security.

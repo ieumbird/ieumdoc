@@ -7,7 +7,7 @@ import { cloneDocument, type MystDocument, type MystNode } from "./tree.ts";
 
 /**
  * Footnotes at the MyST boundary. The syntax and node names are MyST's (`[^label]`,
- * `footnoteReference`, `footnoteDefinition`); IeumDoc presents them as endnotes: definitions
+ * `footnoteReference`, `footnoteDefinition`); Litzio presents them as endnotes: definitions
  * belong to the document, not to the block or section they are written after, and canonical
  * Markdown writes them after the body in endnote order.
  *

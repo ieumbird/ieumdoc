@@ -317,7 +317,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         }),
       ],
       content: restored?.editorDocument ?? projection,
-      // Only IeumDoc's Markdown shortcuts; they never drop typed text where a result is not allowed.
+      // Only Litzio's Markdown shortcuts; they never drop typed text where a result is not allowed.
       enableInputRules: [MARKDOWN_INPUT_RULES],
       onTransaction({ editor, transaction }) {
         // The final state includes appended transactions even when the root changed no content.

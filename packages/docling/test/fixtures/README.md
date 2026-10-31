@@ -110,7 +110,7 @@ Each dataset contains the unchanged `source.pdf` alongside the CLI output:
 for NIST, `pictures/picture-NNN.png` (zero-based picture array index).
 
 Normal regeneration uses the committed PDFs and needs Node/pnpm and the external
-Docling service, **not Python on the host**. Commands run from the IeumDoc checkout
+Docling service, **not Python on the host**. Commands run from the Litzio checkout
 in PowerShell. The local GPU setup uses the existing
 `C:\Projects\docling-local\compose.yaml` with
 `ghcr.io/docling-project/docling-serve-cu128:v1.32.0`; do not edit that project.
@@ -181,7 +181,7 @@ checkouts with `core.autocrlf` enabled.
 
 To rebuild the input PDFs themselves, an optional, isolated Python invocation
 uses pypdf 6.21.4 and ReportLab 5.1.0. This is test-source preparation, not an
-IeumDoc runtime dependency. Verify the full PDF against the SHA-256 above first:
+Litzio runtime dependency. Verify the full PDF against the SHA-256 above first:
 
 ```powershell
 Invoke-WebRequest https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.1108r4.pdf -OutFile tmp/784/nist-full.pdf

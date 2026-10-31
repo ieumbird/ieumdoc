@@ -1,5 +1,7 @@
 # Document tabs #204: implementation and review
 
+당시 이름: 이음독(IeumDoc), 현재 Litzio
+
 - Status: Historical
 - Last verified: 2026-10-16 (implementation and user-approved visual review; verification recorded below).
 - Authority: evidence for [#204](https://github.com/ieumbird/ieumdoc/issues/204), not a separate behavior contract. Current contracts: [Editing session and Save](../design/editing-session-save-v1.md), [UX shell](../design/editor-ux-shell-v1.md), [layout](../design/editor-layout-rules-v1.md), [visual language](../design/editor-visual-language-v1.md).

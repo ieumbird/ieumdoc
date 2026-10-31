@@ -4,8 +4,8 @@
 // and starting the new version. Nothing is published; only the update host differs from a release.
 //   pnpm --filter @litzio/desktop test:update
 //   LITZIO_TEST_UPDATE_CHANNEL=beta pnpm --filter @litzio/desktop test:update
-// It installs IeumDoc for the current user and uninstalls it afterwards. It refuses to run if
-// IeumDoc is already installed or has user data on this machine.
+// It installs Litzio for the current user and uninstalls it afterwards. It refuses to run if
+// Litzio is already installed or has user data on this machine.
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
