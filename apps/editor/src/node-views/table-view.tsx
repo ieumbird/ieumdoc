@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { NodeViewContent, NodeViewWrapper, type ReactNodeViewProps } from "@tiptap/react";
+import { NodeViewContent, NodeViewWrapper, useEditorState, type ReactNodeViewProps } from "@tiptap/react";
 import { NodeSelection } from "@tiptap/pm/state";
 import { labelError } from "@ieumdoc/core/label";
 import { FieldError } from "../ui/primitives.tsx";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input.tsx";
 import { labelPropertyError, updateLabelProperties } from "../label-rename.ts";
 import { useMessageState } from "../ui-message.ts";
 import { i18n } from "../i18n.ts";
-import { MetadataProperties } from "../metadata-properties.tsx";
+import { MetadataLabel, MetadataProperties } from "../metadata-properties.tsx";
 import { NumberField, useNumberDraft } from "../numbering-properties.tsx";
 import { captionPrefixText, useCaptionNumberText } from "../cross-reference.tsx";
 import { TableTools } from "../table-tools.tsx";
@@ -27,6 +27,7 @@ export function TableCaptionView({ node, editor, getPos }: ReactNodeViewProps) {
 
 export function TableView({ node, editor, getPos, selected, onDraftChange }: ReactNodeViewProps & { onDraftChange?: DraftListener }) {
   useTranslation();
+  const editable = useEditorState({ editor, selector: ({ editor: current }) => current.isEditable });
   const formId = useId();
   const grid = useRef<HTMLDivElement>(null);
   const rowLayer = useRef<HTMLDivElement>(null);
@@ -66,7 +67,7 @@ export function TableView({ node, editor, getPos, selected, onDraftChange }: Rea
       event.preventDefault();
       editor.view.dispatch(editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, position)));
       editor.view.focus();
-    }} onDoubleClick={begin}>{[kind, label].filter(Boolean).join(" · ")}</p>
+    }} onDoubleClick={begin}><MetadataLabel kind={kind} label={label} onEdit={editable && !editing ? begin : undefined} /></p>
     <div ref={actionLayer} className="figure-edit table-action-bar" contentEditable={false} />
     <div className="table-scroll"><div ref={grid} className="table-grid">
       <NodeViewContent as="div" className="table" />

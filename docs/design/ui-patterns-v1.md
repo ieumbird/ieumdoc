@@ -29,6 +29,10 @@ U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사�
 - **사용처:** U01–U11 그림·수식·표·미주·inline/절 label, U12 제목, U13 문서 설정, U22 앱 설정.
 - **결정·불일치:** [소유자 결정 P01][decision]. 표·절 label의 [D03](#알려진-불일치)은 #791에서 구현했다. 수식의 상단 metadata 진입과 직접 원문 진입 D04는 #788에서 분리했다([현재 계약](document-editing-v1.md#continuous-editing)). 작은 폼의 가용 영역·교차참조 가림 D02는 #782에서 해결했다. 단일/두 그룹 모두 Sidebar·Outline·스크롤바를 제외하며 겹쳐 열린 Outline도 제외한다. [검증·전후 캡처](editor-layout-rules-v1.md#form-content-viewport-782)를 따른다.
 
+상단 metadata 라벨 칩은 클릭 또는 키보드 Enter/Space로 Edit와 같은 팝오버를 열고
+Label 입력칸에 focus를 준다(#847). 이미지/pending Figure·Mermaid·수식·표가 같은 진입을
+공유한다. Edit의 기존 첫 focus와 원문 진입은 유지한다.
+
 ## P02 자동·고정 번호
 
 - **목적·사용/비사용:** 그림·표·블록 수식의 번호 지정에 쓴다. 제목 번호 설정이나 새 Core 문서 모드를 만들지 않는다.
@@ -136,6 +140,14 @@ After는 #792 작업 소스로 촬영했다. source/disk 쓰기 없이 번호 �
 - **현재 기준:** [그림][figure-view]·[수식][equation-view] NodeView의 상단 도구와 높이를 차지하지 않는 metadata. [표 #793](table-interaction-v1.md#whole-table-tools-793)은 가로 스크롤 밖 상단 행에 Edit/More·metadata를 두고, Delete는 More 메뉴에 둔다. 표는 앞 문단·열 핸들과 겹치지 않도록 상단 행의 공간을 항상 확보하며 도구 표시로 본문 높이를 바꾸지 않는다. 행·열·Append와 caption 간격은 유지한다. 수식도 같은 상단 Edit/metadata 행에서 작은 속성을 열며, 본문 폭 원문 폼은 별도 경로로 유지한다(#788).
 - **사용처:** U01–U06 그림·수식·표·미주, U11 절 label, U18 블록/표 구조 도구.
 - **결정·불일치:** [소유자 결정 P09][decision]은 #517/#721 배치를 바꾼다. 표 배치 D08의 현재 계약·1440/640px 캡처·키보드/가로 스크롤 검증은 [표 도구 기록](table-interaction-v1.md#whole-table-tools-793)에 연결한다. 수식 metadata D04와 미주 예외는 유지한다.
+
+Mermaid의 상시 종류 배지는 공용 metadata 서체, 일반 text 대비, muted 표면과 기존
+padding을 쓴다. 선택하면 interaction-soft fill과 interaction border를 더한다(#846).
+상단 여유를 항상 확보해 앞 블록의 선택 테두리와 겹치지 않는다.
+기존 `mermaid-authoring`이 1440px Light/영어·640px Dark/한국어에서 네 라벨 패턴의 진입,
+배지 상태와 인접 테두리 분리, 문서·history 보존을 검사한다.
+[전후 캡처와 조건](assets/block-meta-846-847/capture-metadata.json)은 자동 단언과 구별하는
+수동 시각 근거다.
 
 ## P10 메뉴와 선택 도구
 

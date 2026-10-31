@@ -1,0 +1,19 @@
+{
+  "baseline": "a06706f4d08bed3c9879d45a498f9c3cdd7958a9",
+  "browser": "Windows Chrome, checkout-owned persistent profile; pnpm browser:test; Vite 5281",
+  "conditions": "1440x1000 Light English; 640x1000 Dark Korean; DPR 1; 100% zoom; loaded bundled fonts; same metadata.md fixture",
+  "baseline_findings": "Both widths: 12px typography already matches other metadata; badge face identical selected/unselected; preceding Equation outline overlaps badge; Table label click does not open properties. Badge glyph size retained, padding and contrast corrected.",
+  "after": "pnpm browser:test mermaid-authoring --screenshots; same fixture; selected Mermaid with hovered Table, and selected preceding Equation",
+  "manual_review": "Inspected vertical centers, text-border padding, Korean wrapping, viewport clipping, dark theme, all four metadata patterns and adjacent Equation outline. Existing file/tab title truncation remains.",
+  "reproduce_before": "On baseline, add the metadata.md fixture from this PR, copy capture.browser.js to apps/editor/test/meta-capture.browser.js and run pnpm browser:test meta-capture. After captures use the extended mermaid-authoring scenario.",
+  "sha256": {
+    "before-1440.png": "c2c6bd764810f3282b45854b50074c290db3b4f0d7a2b067895ced4e043f1fd1",
+    "before-1440-equation.png": "0803d85fa6d6078111931a8ce7c25123948a3e200fc5d9801276c20bfc530d27",
+    "before-640.png": "db52c13d7e0a60fb761257b8497681400ce03635fe92f67653deaf9b5fce6ac1",
+    "before-640-equation.png": "94908405fea3dafafc15335bdae4e3dd0d055fd15b3fa73d818d2faf22649149",
+    "after-1440.png": "3192c4f2d2bda67046baaa0041f64d08110bbf57bf36c40d489d3753bd98e017",
+    "after-1440-equation.png": "3d410c63c3817fa93c3ce07b786b26075042ac0ca9240539e4c506975d16f095",
+    "after-640.png": "c69eb1a3c4e28aef948dc6709bd47404c090a26085de74981a8c035d11078647",
+    "after-640-equation.png": "56f048dc267cd1fb0b5a595a783d6cb959525d3fcf55896d4dce59fde9fed945"
+  }
+}

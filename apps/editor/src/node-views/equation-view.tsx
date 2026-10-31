@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { NodeViewWrapper, type ReactNodeViewProps } from "@tiptap/react";
+import { NodeViewWrapper, useEditorState, type ReactNodeViewProps } from "@tiptap/react";
 import { labelError } from "@ieumdoc/core/label";
 import { Input } from "@/components/ui/input.tsx";
 import { Button } from "@/components/ui/button.tsx";
@@ -8,7 +8,7 @@ import { labelPropertyError, updateLabelProperties } from "../label-rename.ts";
 import { useMessageState } from "../ui-message.ts";
 import { i18n } from "../i18n.ts";
 import { PropertyForm } from "../block-properties.tsx";
-import { MetadataProperties } from "../metadata-properties.tsx";
+import { MetadataLabel, MetadataProperties } from "../metadata-properties.tsx";
 import { NumberField, useNumberDraft } from "../numbering-properties.tsx";
 import { useEditorVisible } from "../editor-visibility.ts";
 import { useBlockNumber, useCaptionNumberText } from "../cross-reference.tsx";
@@ -30,6 +30,7 @@ export function createEquationNodeView(onDraftChange?: DraftListener) {
 
 function EquationView({ node, editor, selected, getPos, view, onDraftChange }: ReactNodeViewProps & { onDraftChange?: DraftListener }) {
   useTranslation();
+  const editable = useEditorState({ editor, selector: ({ editor: current }) => current.isEditable });
   const formId = useId();
   const visible = useEditorVisible();
   const label = String(node.attrs.label ?? "");
@@ -131,7 +132,7 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
       data-source-path={String(node.attrs.sourcePath ?? "")}
       contentEditable={false}
     >
-      <p ref={anchor} className="block-kind block-metadata">{[kind, label].filter(Boolean).join(" · ")}</p>
+      <p ref={anchor} className="block-kind block-metadata"><MetadataLabel kind={kind} label={label} onEdit={editable && !editing && !properties ? beginProperties : undefined} /></p>
       {hasUnappliedDraft ? (
         <p className="draft-status" role="status" data-testid="equation-draft-status">{i18n.t(editing
           ? "Unapplied changes are not saved. Apply to include them, or Cancel."

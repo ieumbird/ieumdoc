@@ -51,9 +51,9 @@ async (page, { openPath, expect }) => {
     await table.hover({position:{x:4,y:4}});
     const metadata = table.locator('.block-metadata');
     const before = await json();
-    await metadata.click();
-    check(await page.getByTestId('table-editor').count() === 0, 'Table click opened properties');
-    if (entry === 'double-click') await metadata.dblclick();
+    await metadata.click({position:{x:1,y:4}});
+    check(await page.getByTestId('table-editor').count() === 0, 'Table number click opened properties');
+    if (entry === 'double-click') await metadata.dblclick({position:{x:1,y:4}});
     else await page.keyboard.press('Enter');
     check(await focused('table-label'), `${entry} did not focus table label`);
     await page.getByTestId('table-label').fill('preserved-table-draft');

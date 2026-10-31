@@ -78,3 +78,10 @@ export function MetadataProperties({ anchor, target, initialFocus, kind, testId,
     </PopoverContent>
   </Popover>;
 }
+
+/** Applied number and label share the existing metadata row; only the label opens editing. */
+export function MetadataLabel({ kind, label, onEdit }: { kind: string; label: string; onEdit?: () => void }) {
+  return <>{kind}{label ? <> · {onEdit ? <button type="button" className="metadata-label-button"
+    onMouseDown={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); onEdit(); }}
+    onDoubleClick={event => event.stopPropagation()}>{label}</button> : label}</> : null}</>;
+}

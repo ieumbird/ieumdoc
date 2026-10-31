@@ -61,6 +61,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   ], scenarios: ["table-caption"] },
   "mermaid-authoring": { files: [
     { name: "diagram.md", create: () => nativeSource('# Mermaid figures\n\nBefore.\n\n:::{figure}\n:name: fig-flow\n\n```{mermaid}\ngraph LR\n  A --> B\n```\n\nSignal flow\n:::\n\n:::{figure} ./diagram.svg\n:name: fig-image\n\nImage caption\n:::\n\nSee {numref}`fig-flow` and {numref}`fig-image`.\n\nAfter.\n') },
+    { name: "metadata.md", create: () => nativeSource("# Block metadata\n\nBefore.\n\n```{math}\n:label: eq-meta\nx=1\n```\n\n:::{figure}\n:name: fig-meta\n\n```{mermaid}\ngraph LR\n A --> B\n```\n\n흐름도\n:::\n\n:::{table} 측정 결과\n:name: tbl-meta\n\n| 항목 | 값 |\n| --- | --- |\n| 출력 | 1 |\n:::\n\n:::{figure} ./diagram.svg\n:name: fig-image-meta\n\n그림\n:::\n\nAfter.\n") },
     { name: "other.md", create: () => nativeSource("# Other tab\n\nOther document.\n") },
     document("diagram.svg"),
   ], scenarios: ["mermaid-authoring"] },
