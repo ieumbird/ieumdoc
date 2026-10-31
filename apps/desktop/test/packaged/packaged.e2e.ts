@@ -272,7 +272,7 @@ test("started without a document, it opens none; the sample opens with its figur
     assert.equal(await page.locator(".ProseMirror h1").first().innerText(), "Current control for a 48 V converter");
     assert.equal(readFileSync(oldSample, "utf8"), "User-modified legacy sample.\n", "unrelated legacy sample directory is outside the versioned copy");
     assert.equal(await page.evaluate(() => typeof (globalThis as { process?: unknown }).process), "undefined", "the page has no Node.js");
-    const foreign = requests.filter((url) => !/^(litzio:\/\/app\/|data:|blob:)/.test(url));
+    const foreign = requests.filter((url) => !/^(ieumdoc:\/\/app\/|data:|blob:)/.test(url));
     assert.deepEqual(foreign, [], "every request stays inside the app");
   } finally {
     await closeApp(app);
