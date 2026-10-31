@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { PLUGIN_UI } from "@document-plugins/api/config";
+import { PLUGIN_UI } from "@litzio/plugin-api/config";
 
 /** Trusted, synthetic UI bundle; deliberately no Editor import or conversion. */
 export function uiPluginFixture(root: string) {

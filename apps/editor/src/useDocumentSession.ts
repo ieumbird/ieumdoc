@@ -5,7 +5,7 @@ import { type Operation } from "./operation.ts";
 import { createRecoveryRecorder } from "./recovery-storage.ts";
 import type { EditorSnapshot } from "./editor-snapshot.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { EditableDocument } from "@ieumdoc/core";
+import type { EditableDocument } from "@litzio/core";
 import type { DocumentFileResponse, EditorFileResponse, SaveRequest, SupportedEdits } from "../shared/document-protocol.ts";
 import { SaveContentError } from "../shared/save-error.ts";
 import type { DocumentEditorHandle } from "./DocumentEditor.tsx";
@@ -55,7 +55,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
   }));
   const sessionBase = useRef(initialBase);
   const [headingNumbering, setHeadingNumbering] = useState(false);
-  const [referenceTemplates, setReferenceTemplates] = useState<import("@ieumdoc/core").ReferenceTemplates | null>(null);
+  const [referenceTemplates, setReferenceTemplates] = useState<import("@litzio/core").ReferenceTemplates | null>(null);
   const [reloadDialog, setReloadDialog] = useState(false);
   const [status, setStatus] = useState<Operation>("ready");
   const [error, setError, errorValue] = useMessageState("");
@@ -124,7 +124,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
       onAssetError: (reason: string) => { if (isCurrent()) setError(reason); },
       onAppliedEdit: (dirty: boolean) => { if (isCurrent()) recorder?.edit(dirty); },
       onDirtyChange: (dirty: boolean) => { if (isCurrent()) setDocumentDirty(dirty); },
-      onReferenceTemplatesChange: (templates: import("@ieumdoc/core").ReferenceTemplates | null) => { if (isCurrent()) setReferenceTemplates(templates); },
+      onReferenceTemplatesChange: (templates: import("@litzio/core").ReferenceTemplates | null) => { if (isCurrent()) setReferenceTemplates(templates); },
       onHeadingNumberingChange: (enabled: boolean) => { if (isCurrent()) setHeadingNumbering(enabled); },
       onOutlineChange: (outline: Parameters<typeof outlineStore.set>[0]) => { if (isCurrent()) outlineStore.set(outline); },
       validateFigure,

@@ -85,8 +85,8 @@ IeumDoc은 **Markdown을 영속 형식으로 쓰는 구조화 기술문서 에�
 2026-10-14, 기준 commit `2c05b52172e1871b00980b5db5931f0b6d0771a7`의 코드·계약을 읽고 메모리 내 검사를 수행했다. 아래는 현재 구현에 대한 관찰이며 새 지원 경계의 구현 완료 근거가 아니다.
 
 - [문서 생성 Host](../../apps/editor/server/document-api.ts)는 `serialize(parse(""))` 결과를 새 파일에 쓰며, [현재 CLI](../../packages/cli/src/cli.ts)에는 문서 생성 명령이 없다. 네이티브 생성의 Core 소유권과 CLI 생성 경로를 구현해야 하는 근거다.
-- 현재 의존성 `myst-parser 1.7.4`, `myst-frontmatter 1.10.1`, `myst-to-md 1.0.17`에서 시험용 `ieumdoc: 1` frontmatter는 canonical 직렬화·재파싱과 제목 번호 변경 후에도 유지되었다. `validatePageFrontmatter`를 별도로 호출하면 알 수 없는 키 경고를 내고 검증 결과에서 제외했지만, 현재 [Core 저장 경로](../../packages/core/src/myst/serialize.ts)는 전체 frontmatter 스키마 검증을 호출하지 않으므로 저장은 성공했다. 외부 frontmatter 검증과 canonical writer 진단은 같은 경로가 아니다. 이는 표식 형식 채택이나 전체 외부 MyST 빌드 호환성을 보증하지 않는다.
-- 같은 frontmatter에 `ieumdoc: 1`과 `ieumdoc: 2`를 함께 둔 입력도 현재 `canonicalWriteIssue`는 문제없음으로 판정했다. 동일 YAML에 대한 `yaml.parseDocument`는 중복 키 오류를 반환했다. 따라서 표식의 유효성은 별도로 검사해야 한다.
+- 현재 의존성 `myst-parser 1.7.4`, `myst-frontmatter 1.10.1`, `myst-to-md 1.0.17`에서 시험용 `litzio: 1` frontmatter는 canonical 직렬화·재파싱과 제목 번호 변경 후에도 유지되었다. `validatePageFrontmatter`를 별도로 호출하면 알 수 없는 키 경고를 내고 검증 결과에서 제외했지만, 현재 [Core 저장 경로](../../packages/core/src/myst/serialize.ts)는 전체 frontmatter 스키마 검증을 호출하지 않으므로 저장은 성공했다. 외부 frontmatter 검증과 canonical writer 진단은 같은 경로가 아니다. 이는 표식 형식 채택이나 전체 외부 MyST 빌드 호환성을 보증하지 않는다.
+- 같은 frontmatter에 `litzio: 1`과 `litzio: 2`를 함께 둔 입력도 현재 `canonicalWriteIssue`는 문제없음으로 판정했다. 동일 YAML에 대한 `yaml.parseDocument`는 중복 키 오류를 반환했다. 따라서 표식의 유효성은 별도로 검사해야 한다.
 - [현재 Desktop 코드](../../apps/desktop/src/main.ts)는 사용자 데이터에 샘플 파일이 없을 때만 복사한다. [업데이트 설정](../../apps/desktop/src/update-policy.ts)은 자동 다운로드와 종료 시 자동 설치를 비활성화한다. beta.3 공개 배포와 당시 업데이트 실행 근거는 [릴리스 기록](../releases/v0.0.1-beta.3.md)에 있다.
 
 ## Non-decisions

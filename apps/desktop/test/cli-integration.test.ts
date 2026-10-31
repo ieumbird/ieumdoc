@@ -12,7 +12,7 @@ async function fixture(run: (f: Awaited<ReturnType<typeof setup>>) => Promise<vo
   try { await run(f); } finally { await rm(f.root, { recursive: true, force: true }); }
 }
 async function setup() {
-  const root = await mkdtemp(path.join(os.tmpdir(), "ieumdoc-cli-integration-"));
+  const root = await mkdtemp(path.join(os.tmpdir(), "litzio-cli-integration-"));
   const app = path.join(root, "설치 app !% & (test)");
   await mkdir(path.join(app, "resources", "cli"), { recursive: true });
   const exe = path.join(app, "IeumDoc.exe");

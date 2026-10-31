@@ -41,7 +41,7 @@ export function supportedHeadingContent(node: MystNode): InlineContent[] | undef
 }
 
 /**
- * Whether source starts with frontmatter carrying the native marker `ieumdoc: 1`, read from the
+ * Whether source starts with frontmatter carrying the native marker `litzio: 1`, read from the
  * leading frontmatter alone so a folder listing can tell native files apart without parsing them.
  * It is not admission: a marked file can still be rejected for its metadata or content.
  */
@@ -49,20 +49,20 @@ export function hasNativeMarker(source: string): boolean {
   const match = /^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(source.replace(/^\uFEFF/, ""));
   if (!match) return false;
   const yaml = parseDocument(match[1]!);
-  const marker = isMap(yaml.contents) ? yaml.get("ieumdoc", true) : undefined;
+  const marker = isMap(yaml.contents) ? yaml.get("litzio", true) : undefined;
   return isScalar(marker) && marker.value === 1;
 }
 
 /** Validate source metadata before accepting a file; canonicalization cannot detect duplicate YAML keys. */
 function metadata(document: MystDocument): void {
   const first = document.children[0];
-  if (first?.[FRONT_MATTER_FIELD] !== true) throw new NativeDocumentError("native-marker", "A native document requires leading frontmatter with ieumdoc: 1", [0], 1);
+  if (first?.[FRONT_MATTER_FIELD] !== true) throw new NativeDocumentError("native-marker", "A native document requires leading frontmatter with litzio: 1", [0], 1);
   const yaml = parseDocument(String(first.value ?? ""));
   if (yaml.errors.length || !isMap(yaml.contents)) throw new NativeDocumentError("native-metadata", `Invalid native frontmatter: ${yaml.errors[0]?.message ?? "expected a YAML mapping"}`, [0], 1);
-  const marker = yaml.get("ieumdoc", true);
-  if (!isScalar(marker) || marker.value !== 1) throw new NativeDocumentError("native-marker", "Unsupported native document marker; expected YAML number ieumdoc: 1", [0], 1);
+  const marker = yaml.get("litzio", true);
+  if (!isScalar(marker) || marker.value !== 1) throw new NativeDocumentError("native-marker", "Unsupported native document marker; expected YAML number litzio: 1", [0], 1);
   for (const pair of yaml.contents.items) {
-    if (!isScalar(pair.key) || !["ieumdoc", "title", "numbering", "bibliography"].includes(String(pair.key.value))) throw new NativeDocumentError("native-metadata", "Native frontmatter supports only ieumdoc, title, numbering and bibliography", [0], 1);
+    if (!isScalar(pair.key) || !["litzio", "title", "numbering", "bibliography"].includes(String(pair.key.value))) throw new NativeDocumentError("native-metadata", "Native frontmatter supports only litzio, title, numbering and bibliography", [0], 1);
   }
   try { getDocumentTitle(document); declaredBibliography(document); }
   catch (error) {
@@ -167,7 +167,7 @@ export function serializeNativeDocument(document: MystDocument): string {
 }
 
 export function createDocument(): MystDocument {
-  return parseNativeDocument("---\nieumdoc: 1\n---\n");
+  return parseNativeDocument("---\nlitzio: 1\n---\n");
 }
 
 export function canonicalWriteIssue(document: MystDocument): WriteIssue | undefined {

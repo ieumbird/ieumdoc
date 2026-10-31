@@ -114,7 +114,7 @@ test("literal syntax respects backslash parity and exact backtick run lengths", 
 
 test("shared literal diagnostics retain body/container locations and source order", () => {
   const source = [
-    "---\nieumdoc: 1\n---", "# Heading [h][missing]", "> First line\n> `tick",
+    "---\nlitzio: 1\n---", "# Heading [h][missing]", "> First line\n> `tick",
     "- ![alt][missing]", "| A |\n| - |\n| [cell][] |", ":::{note}\n[note][]\n:::",
     ":::{figure}\n[caption][]\n:::", "Loss [^loss] and [details][missing] and `tick",
   ].join("\n\n") + "\n";

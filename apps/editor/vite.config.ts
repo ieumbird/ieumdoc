@@ -1,4 +1,4 @@
-import { PLUGIN_UI } from "@document-plugins/api/config";
+import { PLUGIN_UI } from "@litzio/plugin-api/config";
 import { fileURLToPath, URL } from "node:url";
 import { prepareSampleDocuments } from "./server/sample-documents.ts";
 import { randomBytes } from "node:crypto";
@@ -21,7 +21,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     {
-      name: "ieumdoc-document",
+      name: "litzio-document",
       async configureServer(server: ViteDevServer) {
         await buildDoclingWorker(fileURLToPath(new URL("../../tmp/docling-worker", import.meta.url)));
         const assetSigningKey = randomBytes(32);

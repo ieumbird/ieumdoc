@@ -1,5 +1,5 @@
 {
-  "format": "ieumdoc-docling-conversion",
+  "format": "litzio-docling-conversion",
   "version": 1,
   "status": "success",
   "startedAt": "2026-10-30T06:13:13.731Z",
@@ -26,7 +26,7 @@
     "baselineOpenapiMatches": true
   },
   "profile": {
-    "profile_id": "ieumdoc-pdf-en-v1",
+    "profile_id": "litzio-pdf-en-v1",
     "server_version": "1.32.0",
     "document_version": "1.10.0",
     "provenance": {

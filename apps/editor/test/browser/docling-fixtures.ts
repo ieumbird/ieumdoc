@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { convertDoclingDocument } from "@ieumdoc/docling";
+import { convertDoclingDocument } from "@litzio/docling";
 import type { SourceDocument, SourceItem } from "../../../../packages/docling/src/source.ts";
 
 /** Public fixtures, with a declared synthetic supplement for unsupported/TOPLEFT/endnote UI. */

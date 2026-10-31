@@ -188,10 +188,10 @@ importers:
 
   apps/desktop:
     devDependencies:
-      '@document-plugins/api':
+      '@litzio/plugin-api':
         specifier: workspace:*
         version: link:../../packages/plugin-api
-      '@ieumdoc/file-commit':
+      '@litzio/file-commit':
         specifier: workspace:*
         version: link:../../packages/file-commit
       '@playwright/test':
@@ -236,16 +236,16 @@ importers:
       '@base-ui/react':
         specifier: ^1.8.0
         version: 1.8.0(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      '@document-plugins/api':
+      '@litzio/plugin-api':
         specifier: workspace:*
         version: link:../../packages/plugin-api
-      '@ieumdoc/core':
+      '@litzio/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@ieumdoc/docling':
+      '@litzio/docling':
         specifier: workspace:*
         version: link:../../packages/docling
-      '@ieumdoc/file-commit':
+      '@litzio/file-commit':
         specifier: workspace:*
         version: link:../../packages/file-commit
       '@tiptap/core':
@@ -348,16 +348,16 @@ importers:
 
   packages/cli:
     dependencies:
-      '@document-plugins/api':
+      '@litzio/plugin-api':
         specifier: workspace:*
         version: link:../plugin-api
-      '@ieumdoc/core':
+      '@litzio/core':
         specifier: workspace:*
         version: link:../core
-      '@ieumdoc/docling':
+      '@litzio/docling':
         specifier: workspace:*
         version: link:../docling
-      '@ieumdoc/file-commit':
+      '@litzio/file-commit':
         specifier: workspace:*
         version: link:../file-commit
     devDependencies:
@@ -419,10 +419,10 @@ importers:
 
   packages/docling:
     dependencies:
-      '@document-plugins/api':
+      '@litzio/plugin-api':
         specifier: workspace:*
         version: link:../plugin-api
-      '@ieumdoc/core':
+      '@litzio/core':
         specifier: workspace:*
         version: link:../core
       ajv:
@@ -462,7 +462,7 @@ importers:
 
   packages/plugin-api:
     dependencies:
-      '@ieumdoc/core':
+      '@litzio/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:

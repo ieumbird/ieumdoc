@@ -1,4 +1,4 @@
-import { getEditableDocument, parse } from "@ieumdoc/core";
+import { getEditableDocument, parse } from "@litzio/core";
 import { inspectDoclingMap } from "./map.ts";
 import type { ComparisonSnapshot } from "./compare.ts";
 

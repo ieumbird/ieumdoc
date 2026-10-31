@@ -111,7 +111,7 @@ async (page, { openFolderPicker, openPath, openDocument, screenshots, recoveryRe
 
   // Typed internal rich paste wins over the OS image flavor and stays lossless.
   await select('Beta.');
-  await syntheticPaste('<p data-ieumdoc-type="paragraph" data-ieumdoc-attrs="{}"><strong>Internal rich </strong></p>');
+  await syntheticPaste('<p data-litzio-type="paragraph" data-litzio-attrs="{}"><strong>Internal rich </strong></p>');
   assert(await figures.count() === 3 && await page.locator('[data-document-tab][data-active=true] .document-editor strong').filter({hasText:'Internal rich'}).count() === 1, 'Internal rich clipboard must bypass asset upload');
   result.internalClipboard = true;
 

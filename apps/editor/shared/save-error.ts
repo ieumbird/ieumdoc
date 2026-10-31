@@ -1,4 +1,4 @@
-import { writeIssueOf, type WriteIssueCode } from "@ieumdoc/core";
+import { writeIssueOf, type WriteIssueCode } from "@litzio/core";
 import type { OrderItem } from "./document-protocol.ts";
 
 export type SaveFailure = {

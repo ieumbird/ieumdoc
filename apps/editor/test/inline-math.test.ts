@@ -7,7 +7,7 @@ import test from "node:test";
 import { getSchema } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { EditorState } from "@tiptap/pm/state";
-import type { InlineContent } from "@ieumdoc/core";
+import type { InlineContent } from "@litzio/core";
 import { editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
 import { documentRevision, saveDocumentFile } from "../server/document-api.ts";
@@ -137,7 +137,7 @@ test("splitting a paragraph at a caret next to inline math saves both parts exac
 });
 
 test("Host rejects inline math Core cannot preserve without writing", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-inline-math-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-inline-math-"));
   const file = path.join(dir, "math.md");
   const markdown = nativeSource("See $x$.\n");
   writeFileSync(file, markdown);

@@ -211,7 +211,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
   const desktopPage = await page.context().newPage();
   try {
     await desktopPage.addInitScript(() => {
-      window.ieumdocDesktop = {
+      window.litzioDesktop = {
         setTheme: async theme => theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches),
         setWindowBackground: async () => {},
         cliIntegration: async () => ({status:'off'}),

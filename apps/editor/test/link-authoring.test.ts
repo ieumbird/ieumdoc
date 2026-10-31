@@ -10,7 +10,7 @@ import test from "node:test";
 import { getSchema } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { EditorState } from "@tiptap/pm/state";
-import { parse, serialize, type InlineContent } from "@ieumdoc/core";
+import { parse, serialize, type InlineContent } from "@litzio/core";
 import { editorExtensions, structureGuardPlugin } from "../src/editor-schema.tsx";
 import { collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
 import { documentRevision, saveDocumentFile } from "../server/document-api.ts";
@@ -140,7 +140,7 @@ test("fragment links stay ordinary links and cross-references stay untouched", (
 });
 
 test("Host rejects links Core cannot preserve without writing", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-link-save-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-link-save-"));
   const file = path.join(dir, "links.md");
   const markdown = nativeSource("See OpenAI.\n");
   writeFileSync(file, markdown);

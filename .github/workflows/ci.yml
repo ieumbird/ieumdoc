@@ -108,11 +108,11 @@ jobs:
 
       - name: Verify the installed smartquotes dependency patch
         if: needs.changes.outputs.smartquotes == 'true'
-        run: pnpm --filter @ieumdoc/core test:smartquotes
+        run: pnpm --filter @litzio/core test:smartquotes
 
       - name: Build Editor for production
         if: needs.changes.outputs.quality == 'true'
-        run: pnpm --filter @ieumdoc/editor build
+        run: pnpm --filter @litzio/editor build
 
   browser:
     name: Editor browser regressions (${{ matrix.shard }}/4)
@@ -131,7 +131,7 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     env:
-      IEUMDOC_BROWSER_SHARD: ${{ matrix.shard }}/4
+      LITZIO_BROWSER_SHARD: ${{ matrix.shard }}/4
 
     steps:
       - name: Check out repository
@@ -166,8 +166,8 @@ jobs:
 
       - name: Run Editor browser regressions
         env:
-          IEUMDOC_BROWSER_SERVER_LOG: ${{ runner.temp }}/editor-vite.log
-        run: pnpm browser:test --shard="$IEUMDOC_BROWSER_SHARD"
+          LITZIO_BROWSER_SERVER_LOG: ${{ runner.temp }}/editor-vite.log
+        run: pnpm browser:test --shard="$LITZIO_BROWSER_SHARD"
 
       - name: Upload Editor browser diagnostics on failure
         if: failure()
@@ -220,11 +220,11 @@ jobs:
           cache: true
           run_install: false
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @ieumdoc/cli package
-      - run: pnpm --filter @ieumdoc/cli test:packaged
+      - run: pnpm --filter @litzio/cli package
+      - run: pnpm --filter @litzio/cli test:packaged
       - name: Check Windows filesystem and HTTP boundaries
         if: runner.os == 'Windows'
-        run: pnpm --filter @ieumdoc/editor exec tsx --test test/http-host.test.ts test/plugin-ui.test.ts test/plugin-runtime.test.ts test/file-operations.test.ts
+        run: pnpm --filter @litzio/editor exec tsx --test test/http-host.test.ts test/plugin-ui.test.ts test/plugin-runtime.test.ts test/file-operations.test.ts
       - name: Cache Playwright browsers
         if: runner.os == 'Linux'
         uses: actions/cache@v6
@@ -272,25 +272,25 @@ jobs:
           cache: true
           run_install: false
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @ieumdoc/desktop typecheck
-      - run: pnpm --filter @ieumdoc/desktop test
+      - run: pnpm --filter @litzio/desktop typecheck
+      - run: pnpm --filter @litzio/desktop test
       - name: Stable install/update regression before the final package
         if: needs.changes.outputs.update == 'true'
-        run: pnpm --filter @ieumdoc/desktop test:update
+        run: pnpm --filter @litzio/desktop test:update
       - name: Beta install/update regression before the final package
         if: needs.changes.outputs.update == 'true'
         env:
-          IEUMDOC_TEST_UPDATE_CHANNEL: beta
-        run: pnpm --filter @ieumdoc/desktop test:update
+          LITZIO_TEST_UPDATE_CHANNEL: beta
+        run: pnpm --filter @litzio/desktop test:update
       - name: Build a clean package from the actual app version
-        run: pnpm --filter @ieumdoc/desktop package
+        run: pnpm --filter @litzio/desktop package
       - name: Validate installer and update metadata
         shell: pwsh
         run: |
           $version = (Get-Content apps/desktop/package.json -Raw | ConvertFrom-Json).version
-          pnpm --filter @ieumdoc/desktop exec tsx scripts/verify-release.ts --tag "v$version"
+          pnpm --filter @litzio/desktop exec tsx scripts/verify-release.ts --tag "v$version"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - run: pnpm --filter @ieumdoc/desktop test:packaged
+      - run: pnpm --filter @litzio/desktop test:packaged
       - name: Upload native caption screen pixels
         if: always()
         uses: actions/upload-artifact@v6
@@ -299,7 +299,7 @@ jobs:
           path: tmp/desktop-e2e/caption-pixels/
           if-no-files-found: warn
           retention-days: 7
-      - run: pnpm --filter @ieumdoc/desktop test:uninstall
+      - run: pnpm --filter @litzio/desktop test:uninstall
         if: needs.changes.outputs.update == 'true'
       - name: Upload Desktop diagnostics on failure
         if: failure()

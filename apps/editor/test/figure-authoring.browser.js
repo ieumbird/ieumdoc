@@ -127,7 +127,7 @@ async (page, { openFolderPicker, openDocument, waitForEditorFocus, expect, scree
         if (entry === 'double-click') {
           if (!await page.getByTestId('figure-image-url').isVisible()) await page.getByTestId('figure-replace').click();
           await page.getByTestId('figure-image-url').fill('./unapplied.svg');
-          await image.evaluate(el => el.closest('[data-node-view-wrapper]').dispatchEvent(new Event('ieumdoc-edit-properties', {cancelable:true})));
+          await image.evaluate(el => el.closest('[data-node-view-wrapper]').dispatchEvent(new Event('litzio-edit-properties', {cancelable:true})));
           expect(await page.getByTestId('figure-image-url').inputValue(), 'Already editing keeps the draft').toBe('./unapplied.svg');
         }
         await page.getByTestId('figure-alt').press('Escape');

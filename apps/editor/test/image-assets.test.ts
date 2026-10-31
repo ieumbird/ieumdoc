@@ -31,7 +31,7 @@ const GIF = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA
 const WEBP = Buffer.from("UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==", "base64");
 const key = randomBytes(32);
 function fixture(t: test.TestContext) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-asset-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "litzio-asset-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const doc = path.join(root, "document.md");
   fs.writeFileSync(doc, nativeSource("# Images\n\nKeep this text.\n"));
@@ -289,7 +289,7 @@ test("rollback does not adopt a quarantine file replaced just after byte validat
 
 test("asset and media symlink escapes are rejected", t => {
   const { root, doc, assets } = fixture(t);
-  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-asset-outside-"));
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "litzio-asset-outside-"));
   t.after(() => fs.rmSync(outside, { recursive: true, force: true }));
   fs.writeFileSync(path.join(outside, "outside.png"), PNG);
   // Windows junctions do not require developer-mode symlink permission.
@@ -389,7 +389,7 @@ test("unwritable Core snapshots and abnormal document locators cannot create ass
 
 test("a chosen image inside the document's folder is linked in place; one elsewhere is copied like a paste", t => {
   const { root, doc, assets } = fixture(t);
-  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-choice-outside-"));
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "litzio-choice-outside-"));
   t.after(() => fs.rmSync(outside, { recursive: true, force: true }));
   const choose = (source: string) => chooseImageAsset({ documentPath: doc, source }, key);
   fs.mkdirSync(path.join(root, "figures 1"));
@@ -616,7 +616,7 @@ test("destroyed Editor rolls back delayed upload; internal rich and text-only in
     create: async file => { await ready; return createImageAsset(doc, file.type, Buffer.from(await file.arrayBuffer()), key); },
     rollback: async created => rollbackImageAsset({ documentPath: doc, ...created }, key),
   });
-  assert.equal(e.paste('<p data-ieumdoc-type="paragraph">Internal</p>'), false);
+  assert.equal(e.paste('<p data-litzio-type="paragraph">Internal</p>'), false);
   assert.equal(e.plugin.props.handleDOMEvents!.paste!.call(e.plugin, e.view, { clipboardData: { files: [], getData: () => "text" }, preventDefault() {} } as unknown as ClipboardEvent), false);
   e.paste(); e.destroy(); resolve(); await e.finished();
   assert.deepEqual(fs.readdirSync(assets), []);

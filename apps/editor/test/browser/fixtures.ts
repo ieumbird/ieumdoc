@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parse, serialize } from "@ieumdoc/core";
+import { parse, serialize } from "@litzio/core";
 
 /**
  * Scratch fixtures for the Editor browser regressions (`apps/editor/test/*.browser.js`).
@@ -14,7 +14,7 @@ import { parse, serialize } from "@ieumdoc/core";
  * same state. Source files are only read.
  */
 export const REPOSITORY_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
-export const FILE_ACTIONS_ROOT = path.join(tmpdir(), "ieumdoc-file-actions-" + createHash("sha256").update(REPOSITORY_ROOT).digest("hex").slice(0, 16));
+export const FILE_ACTIONS_ROOT = path.join(tmpdir(), "litzio-file-actions-" + createHash("sha256").update(REPOSITORY_ROOT).digest("hex").slice(0, 16));
 const DOCUMENT_DIR = path.join(REPOSITORY_ROOT, "apps", "editor", "document");
 const FIXTURE_DIR = fileURLToPath(new URL("./fixtures/", import.meta.url));
 
@@ -126,14 +126,14 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
     { name: "bibliography.md", create: () => fixture("bibliography.md").create() },
     { name: "a.md", create: () => nativeSource("# HTTP A\n\nAlpha.\n") },
     document("diagram.svg"),
-    { name: "unsafe.svg", create: () => '<svg xmlns="http://www.w3.org/2000/svg"><script>window.__ieumdocSVG = true; fetch("/api/folder-places");</script><text y="20">Untrusted media</text></svg>' },
+    { name: "unsafe.svg", create: () => '<svg xmlns="http://www.w3.org/2000/svg"><script>window.__litzioSVG = true; fetch("/api/folder-places");</script><text y="20">Untrusted media</text></svg>' },
   ], scenarios: ["http-host"] },
   "http-host-b/fixture": { files: [{ name: "b.md", create: () => nativeSource("# HTTP B\n\nBeta.\n") }], scenarios: ["http-host"] },
   "new-document": { files: [], scenarios: ["new-document", "recovery-structure"] },
   "open-files": { files: [
     { name: "긴파일이름" + "unbrokendocumentname".repeat(7) + ".md", create: () => nativeSource("# Long name\n") },
-    { name: "ieumdoc-a.md", create: () => nativeSource("# A\n") },
-    { name: "ieumdoc-b.md", create: () => nativeSource("# B\n") },
+    { name: "litzio-a.md", create: () => nativeSource("# A\n") },
+    { name: "litzio-b.md", create: () => nativeSource("# B\n") },
   ], scenarios: ["open-files", "desktop-updates"] },
   "image-assets": { files: [{ name: "fresh/images.md", create: () => nativeSource("# Images\n\nAlpha.\n\nBeta.\n") }, { name: "images.md", create: () => nativeSource("# Images\n\nAlpha.\n\nBeta.\n") },
     { name: "fresh/figures/diagram.svg", create: () => document("diagram.svg").create() },
@@ -179,20 +179,20 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "bibliography": { files: [
     { name: "refs.bib", create: bibliography },
     { name: "chapters/paper.md", create: () => fixture("bibliography.md").create() },
-    { name: "chapters/other.md", create: () => '---\nieumdoc: 1\nbibliography: [../refs.bib]\n---\n\n# Other bibliography\n\n{cite}`unicode,unsafe`\n' },
+    { name: "chapters/other.md", create: () => '---\nlitzio: 1\nbibliography: [../refs.bib]\n---\n\n# Other bibliography\n\n{cite}`unicode,unsafe`\n' },
     { name: "References [2024].bib", create: bibliography },
     { name: "References-" + "unbroken".repeat(18) + ".bib", create: bibliography },
-    ...["./refs.bib", "sub/../refs.bib"].map((source, index) => ({ name: `connected-${index}.md`, create: () => `---\nieumdoc: 1\nbibliography: [${source}]\n---\n\n# Connected bibliography\n\n{cite:p}\`article\`\n` })),
+    ...["./refs.bib", "sub/../refs.bib"].map((source, index) => ({ name: `connected-${index}.md`, create: () => `---\nlitzio: 1\nbibliography: [${source}]\n---\n\n# Connected bibliography\n\n{cite:p}\`article\`\n` })),
     { name: "connect.md", create: () => nativeSource("# Connect bibliography\n\nExisting {cite:p}`article`.\n\nWrite here.\n") },
     { name: "unused.md", create: () => nativeSource("# No bibliography\n\nWrite here.\n") },
-    { name: "chapters/authoring.md", create: () => '---\nieumdoc: 1\nbibliography: [../refs.bib]\n---\n\n# Citation authoring\n\nFirst claim {cite:p}`article`.\n\nWrite here.\n' },
-    { name: "chapters/nested.md", create: () => '---\nieumdoc: 1\nbibliography: [../refs.bib]\n---\n\n# Nested inline\n\n(section)=\n\n## Target\n\n## Heading.\n\n- Only citation\n- Item.\n  - Nested item.\n\n> Quote.\n\n:::{note}\nCallout.\n:::\n\nBody[^n].\n\n| Header |\n| --- |\n| Cell. |\n\n:::{figure}\n\nCaption.\n:::\n\n```\nCode.\n```\n\n[^n]: Definition.{ref}`missing`\n' },
+    { name: "chapters/authoring.md", create: () => '---\nlitzio: 1\nbibliography: [../refs.bib]\n---\n\n# Citation authoring\n\nFirst claim {cite:p}`article`.\n\nWrite here.\n' },
+    { name: "chapters/nested.md", create: () => '---\nlitzio: 1\nbibliography: [../refs.bib]\n---\n\n# Nested inline\n\n(section)=\n\n## Target\n\n## Heading.\n\n- Only citation\n- Item.\n  - Nested item.\n\n> Quote.\n\n:::{note}\nCallout.\n:::\n\nBody[^n].\n\n| Header |\n| --- |\n| Cell. |\n\n:::{figure}\n\nCaption.\n:::\n\n```\nCode.\n```\n\n[^n]: Definition.{ref}`missing`\n' },
   ], scenarios: ["bibliography", "citation-authoring", "bibliography-connection"] },
   "citations": { files: [fixture("citations.md")], scenarios: ["citations"] },
   "block-move": { files: [...technical, { name: "draft-boundaries.md", create: () => nativeSource(
     "# Draft boundaries\n\n```{math}\nx = 1\n```\n\nBetween the equations.\n\n```{math}\ny = 2\n```\n") }], scenarios: ["block-move"] },
   "document-title": { files: [...technical,
-    { name: "chapter.md", create: () => '---\nieumdoc: 1\ntitle: IEEE 1547 · Chapter 7\nnumbering:\n  headings: true\n  title: false\n---\n\n(clause-7)=\n# Power quality\n\n## Detail\n\nSee {ref}`clause-7`.\n\n# Next clause\n\nBody.\n' },
+    { name: "chapter.md", create: () => '---\nlitzio: 1\ntitle: IEEE 1547 · Chapter 7\nnumbering:\n  headings: true\n  title: false\n---\n\n(clause-7)=\n# Power quality\n\n## Detail\n\nSee {ref}`clause-7`.\n\n# Next clause\n\nBody.\n' },
     { name: "untitled.md", create: () => nativeSource("Lead paragraph.\n\n## Part\n\nBody.\n") },
     { name: "untitled-empty.md", create: () => nativeSource("Lead paragraph.\n") }], scenarios: ["document-title"] },
   "table-authoring": { files: [fixture("tables.md")], scenarios: ["table-authoring", "table-caption", "save-error"] },

@@ -1,6 +1,6 @@
 // Stage main/preload/sample in build/app and the shared CLI/Editor distribution in build/cli.
 // Neither needs node_modules or Vite at runtime.
-// IEUMDOC_REQUIRE_SIGNED_UPDATES=1 (release builds) makes the app refuse updates it cannot verify.
+// LITZIO_REQUIRE_SIGNED_UPDATES=1 (release builds) makes the app refuse updates it cannot verify.
 // Runtime libraries (electron-updater, semver) are bundled here, so they are devDependencies and
 // electron-builder copies no node_modules into the app.
 import { execSync } from "node:child_process";
@@ -16,11 +16,11 @@ const manifest = JSON.parse(readFileSync(path.join(desktop, "package.json"), "ut
   productName: string; version: string; description: string; author: string; license: string;
 };
 
-/** The app version: package.json's, or IEUMDOC_TEST_VERSION for the update test's builds only. */
+/** The app version: package.json's, or LITZIO_TEST_VERSION for the update test's builds only. */
 export function appVersion(): string {
-  const override = process.env.IEUMDOC_TEST_VERSION;
+  const override = process.env.LITZIO_TEST_VERSION;
   if (!override) return manifest.version;
-  if (process.env.IEUMDOC_RELEASE === "1") throw new Error("IEUMDOC_TEST_VERSION cannot be used for a release build");
+  if (process.env.LITZIO_RELEASE === "1") throw new Error("LITZIO_TEST_VERSION cannot be used for a release build");
   return override;
 }
 
@@ -28,8 +28,8 @@ export async function buildDesktop(): Promise<string> {
   rmSync(stage, { recursive: true, force: true });
   mkdirSync(stage, { recursive: true });
 
-  execSync("pnpm --filter @ieumdoc/cli build", { cwd: repo, stdio: ["ignore", "inherit", "inherit"],
-    env: { ...process.env, IEUMDOC_CLI_DESKTOP_VERSION: appVersion() } });
+  execSync("pnpm --filter @litzio/cli build", { cwd: repo, stdio: ["ignore", "inherit", "inherit"],
+    env: { ...process.env, LITZIO_CLI_DESKTOP_VERSION: appVersion() } });
   const cliBuild = path.join(repo, "packages", "cli", "dist");
   const editorBuild = path.join(cliBuild, "editor");
   if (!existsSync(path.join(editorBuild, "index.html"))) throw new Error("The Editor build has no index.html");
@@ -40,7 +40,7 @@ export async function buildDesktop(): Promise<string> {
   // Runtime window icon (also used by the development Electron shell).
   cpSync(path.join(desktop, "assets", "icon.ico"), path.join(stage, "icon.ico"));
 
-  const requireSigned = process.env.IEUMDOC_REQUIRE_SIGNED_UPDATES === "1";
+  const requireSigned = process.env.LITZIO_REQUIRE_SIGNED_UPDATES === "1";
   await build({
     entryPoints: [path.join(desktop, "src", "main.ts")],
     outfile: path.join(stage, "main.mjs"),
@@ -49,9 +49,9 @@ export async function buildDesktop(): Promise<string> {
     format: "esm",
     target: "node22",
     external: ["electron"],
-    define: { __IEUMDOC_DOCLING_DIRECTORY__: JSON.stringify("../cli/docling-worker"), __IEUMDOC_REQUIRE_SIGNED_UPDATES__: String(requireSigned) },
+    define: { __LITZIO_DOCLING_DIRECTORY__: JSON.stringify("../cli/docling-worker"), __LITZIO_REQUIRE_SIGNED_UPDATES__: String(requireSigned) },
     // Bundled CommonJS dependencies (electron-updater) load `electron` and Node modules with require.
-    banner: { js: 'import { createRequire as __ieumdocCreateRequire } from "node:module"; const require = __ieumdocCreateRequire(import.meta.url);' },
+    banner: { js: 'import { createRequire as __litzioCreateRequire } from "node:module"; const require = __litzioCreateRequire(import.meta.url);' },
     legalComments: "none",
     logLevel: "warning",
   });

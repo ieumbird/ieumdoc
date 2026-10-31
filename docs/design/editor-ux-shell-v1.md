@@ -2037,7 +2037,7 @@ Reproduce the browser delivery audit from this checkout with
 `pnpm exec tsx apps/editor/test/browser/shortcut-probe.ts chrome` and then `... msedge`.
 The script closes its context in `finally` and writes raw event results to `tmp/shortcut-probe-*.json`.
 Chrome reuses the runner's existing checkout hash profile; Edge reuses its one fixed `-edge` sibling.
-`IEUMDOC_BROWSER_CHANNEL=msedge pnpm browser:test command-center link-authoring` reuses that same
+`LITZIO_BROWSER_CHANNEL=msedge pnpm browser:test command-center link-authoring` reuses that same
 Edge profile for product integration. Run channels sequentially, never with temporary profiles.
 
 This proves page delivery/cancellation for protocol-injected keys in these installed Windows builds,

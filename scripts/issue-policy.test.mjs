@@ -93,7 +93,7 @@ test('events read the latest issue, deduplicate guidance and clear the repair st
 });
 
 test('CLI previews offline by default and rejects missing fields before a publish request', () => {
-  const directory = mkdtempSync(path.join(os.tmpdir(), 'ieumdoc-issue-cli-'));
+  const directory = mkdtempSync(path.join(os.tmpdir(), 'litzio-issue-cli-'));
   try {
     const file = path.join(directory, 'issue.json'), command = fileURLToPath(new URL('./issues.mjs', import.meta.url));
     writeFileSync(file, JSON.stringify(proposal));

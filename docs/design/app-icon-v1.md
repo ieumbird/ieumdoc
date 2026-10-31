@@ -21,8 +21,8 @@ The SVG paths were authored for IeumDoc on 2026-10-13 by Codex, refining the B r
 From the repository root after the frozen install:
 
 ```powershell
-pnpm --filter @ieumdoc/desktop icons
-pnpm --filter @ieumdoc/desktop package
+pnpm --filter @litzio/desktop icons
+pnpm --filter @litzio/desktop package
 ```
 
 `icons` uses the icon toolset already pinned and checksum-verified by electron-builder 26.15.3 (icons 1.1.0). It renders the SVG and writes the tracked ICO; no additional image dependency or custom encoder is introduced. The helper uses an internal builder entry point, so a builder upgrade must recheck regeneration. Packaging uses the committed ICO and does not need icon conversion. Commit the SVG and regenerated ICO together.

@@ -1,4 +1,4 @@
-import { figureCaptionContent } from "@ieumdoc/core/figure";
+import { figureCaptionContent } from "@litzio/core/figure";
 import {
   endnotesInPlace,
   citationReport,
@@ -61,7 +61,7 @@ import {
   type InlineContent,
   type NodePath,
   writeIssueOf,
-} from "@ieumdoc/core";
+} from "@litzio/core";
 import type {
   OrderItem,
   SupportedEdits,

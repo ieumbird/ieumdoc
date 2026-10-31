@@ -14,7 +14,7 @@
 - Scope: Core-owned settings and Editor/CLI projection; [Native document support](document-support-v1.md).
 
 Core persists `numbering.headings: boolean` and `numbering.title: false` alongside
-`ieumdoc: 1`. Omitted numbering remains off. The optional frontmatter `title` is
+`litzio: 1`. Omitted numbering remains off. The optional frontmatter `title` is
 unnumbered. All body headings H1–H6 use the Core section counter policy: H1 `1`,
 H2 `1.1`, through H6, advancing/resetting by document order. Heading text never
 contains generated numbers. Custom starts, prefixes and per-level settings are

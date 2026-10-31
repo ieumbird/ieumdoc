@@ -8,10 +8,10 @@ import { HTTP_SCENARIOS, selectBrowserScenarios, STABLE_SCENARIOS } from "./scen
 try {
   const { scenarios, screenshots, shard } = selectBrowserScenarios(process.argv.slice(2));
   if (scenarios.some(name => HTTP_SCENARIOS.includes(name))) {
-    if (!process.env.IEUMDOC_BROWSER_URL && !existsSync(path.join(REPOSITORY_ROOT, "packages/cli/dist/cli.mjs"))) {
-      throw new Error("Build the production HTTP Host first: pnpm --filter @ieumdoc/cli build");
+    if (!process.env.LITZIO_BROWSER_URL && !existsSync(path.join(REPOSITORY_ROOT, "packages/cli/dist/cli.mjs"))) {
+      throw new Error("Build the production HTTP Host first: pnpm --filter @litzio/cli build");
     }
-    process.env.IEUMDOC_BROWSER_HOST = "http";
+    process.env.LITZIO_BROWSER_HOST = "http";
     prepareBrowserFixtures();
   }
   const unknown = scenarios.filter(name => !existsSync(path.join(REPOSITORY_ROOT, "apps/editor/test", `${name}.browser.js`)));
@@ -19,11 +19,11 @@ try {
   if (shard) console.log(`Browser shard ${shard}: ${scenarios.length} scenarios\n${scenarios.join(", ")}`);
   const require = createRequire(import.meta.url);
   const cli = require.resolve("@playwright/test/cli");
-  process.env.IEUMDOC_BROWSER_SCENARIOS = JSON.stringify(scenarios);
-  process.env.IEUMDOC_BROWSER_SCREENSHOTS = String(screenshots);
+  process.env.LITZIO_BROWSER_SCENARIOS = JSON.stringify(scenarios);
+  process.env.LITZIO_BROWSER_SCREENSHOTS = String(screenshots);
   process.argv = [process.execPath, cli, "test", "--config", path.join(REPOSITORY_ROOT, "apps/editor/test/browser/playwright.config.ts")];
   process.once("exit", code => {
-    const log = process.env.IEUMDOC_BROWSER_SERVER_LOG;
+    const log = process.env.LITZIO_BROWSER_SERVER_LOG;
     if (code && log && existsSync(log)) console.error(readFileSync(log, "utf8"));
   });
   // The exported CLI bin owns asynchronous completion, process signals and teardown.

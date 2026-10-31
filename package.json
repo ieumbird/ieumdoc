@@ -1,5 +1,5 @@
 {
-  "name": "ieumdoc",
+  "name": "litzio",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -13,10 +13,10 @@
     "issues:labels": "node scripts/issues.mjs labels",
     "issue:create": "node scripts/issues.mjs create",
     "docs:check": "tsx scripts/check-docs.ts",
-    "test": "pnpm --filter @ieumdoc/core test && pnpm --filter @ieumdoc/file-commit test && pnpm --filter @ieumdoc/docling test && pnpm --filter @ieumdoc/cli test && pnpm --filter @ieumdoc/editor test && pnpm --filter @ieumdoc/desktop test",
-    "typecheck": "pnpm --filter @ieumdoc/core typecheck && pnpm --filter @ieumdoc/file-commit typecheck && pnpm --filter @ieumdoc/docling typecheck && pnpm --filter @ieumdoc/cli typecheck && pnpm --filter @ieumdoc/editor typecheck && pnpm --filter @ieumdoc/desktop typecheck",
+    "test": "pnpm --filter @litzio/core test && pnpm --filter @litzio/file-commit test && pnpm --filter @litzio/docling test && pnpm --filter @litzio/cli test && pnpm --filter @litzio/editor test && pnpm --filter @litzio/desktop test",
+    "typecheck": "pnpm --filter @litzio/core typecheck && pnpm --filter @litzio/file-commit typecheck && pnpm --filter @litzio/docling typecheck && pnpm --filter @litzio/cli typecheck && pnpm --filter @litzio/editor typecheck && pnpm --filter @litzio/desktop typecheck",
     "ieumdoc": "tsx packages/cli/src/cli.ts",
-    "editor": "pnpm --filter @ieumdoc/editor dev",
+    "editor": "pnpm --filter @litzio/editor dev",
     "browser:prepare": "tsx apps/editor/test/browser/prepare.ts",
     "browser:test": "tsx apps/editor/test/browser/run.ts"
   },

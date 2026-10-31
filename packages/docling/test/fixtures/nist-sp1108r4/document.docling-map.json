@@ -1,5 +1,5 @@
 {
-  "format": "ieumdoc-docling-map",
+  "format": "litzio-docling-map",
   "version": 1,
   "source": {
     "schema_name": "DoclingDocument",
@@ -9,7 +9,7 @@
   },
   "document": {
     "file": "document.md",
-    "sha256": "ecec187b876330477803fa0a5e1d26af97f9395e8191afa44ceffcebdbe5bd55"
+    "sha256": "f49c488ce5cf728c76f86165802047a2582590b5c1eeff55b328d371e7921b11"
   },
   "pages": {
     "1": {

@@ -7,9 +7,9 @@ import { NodeViewWrapper, ReactNodeViewRenderer, useEditorState, type ReactNodeV
 import { Pencil } from "lucide-react";
 import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { useEditorAuthoring } from "./editor-visibility.ts";
-import type { ReferenceRole } from "@ieumdoc/core";
-import { labelKey, resolveLabelReference, targetLabelError } from "@ieumdoc/core/label";
-import { referenceNumberText, captionNumberText, headingNumbers, sectionReferenceText, type ReferenceTemplates, blockTargets, targetNumbers, type NumberedKind, type NumberedTargets } from "@ieumdoc/core/numbering";
+import type { ReferenceRole } from "@litzio/core";
+import { labelKey, resolveLabelReference, targetLabelError } from "@litzio/core/label";
+import { referenceNumberText, captionNumberText, headingNumbers, sectionReferenceText, type ReferenceTemplates, blockTargets, targetNumbers, type NumberedKind, type NumberedTargets } from "@litzio/core/numbering";
 import { Button } from "@/components/ui/button.tsx";
 import { useOverlayBounds, type OverlayAnchor } from "./ui/use-overlay-bounds.ts";
 import { FieldError } from "./ui/primitives.tsx";

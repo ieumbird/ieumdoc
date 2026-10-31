@@ -18,7 +18,7 @@ pnpm install --frozen-lockfile
 pnpm docs:check
 pnpm typecheck
 pnpm test
-pnpm --filter @ieumdoc/editor build
+pnpm --filter @litzio/editor build
 ```
 
 `pnpm editor`로 개발용 Visual Editor를 시작하고 `http://127.0.0.1:5173`을 연다. 별도 터미널의 `pnpm browser:test`가 실행 중인 dev server에 접속한다. 선택 실행과 수동 확인은 [검증 안내](docs/test/README.md), Windows의 profile/session 규칙은 [Windows browser automation](docs/contributing/windows-browser-automation.md)을 따른다. 작업 후 직접 시작한 서버와 세션을 정리한다.
@@ -105,14 +105,14 @@ CLI/Desktop `package`, `test:packaged`, release/artifact 검증, 설치·업데�
 | Documentation only | `pnpm docs:check`, `git diff --check` |
 | Issue forms / registration tooling | `pnpm issues:forms --check`, `pnpm issues:test`, `pnpm docs:check`, `git diff --check` |
 | Commit provenance tooling / policy | `node --test scripts/commit-provenance.test.mjs`, `pnpm docs:check`, `git diff --check`; 실제 commit의 Git parsed trailers 확인 |
-| CI 실행 정책 / browser shard 설정 | `node --test scripts/ci-quality-mode.test.mjs scripts/ci-execution-policy.test.mjs`, `pnpm --filter @ieumdoc/editor exec tsx --test test/browser-fixtures.test.ts`, `pnpm docs:check`, `git diff --check`; PR의 실제 shard CI 결과 확인 |
+| CI 실행 정책 / browser shard 설정 | `node --test scripts/ci-quality-mode.test.mjs scripts/ci-execution-policy.test.mjs`, `pnpm --filter @litzio/editor exec tsx --test test/browser-fixtures.test.ts`, `pnpm docs:check`, `git diff --check`; PR의 실제 shard CI 결과 확인 |
 | Core semantics | Core tests, `pnpm typecheck`, 관련 canonical round-trip/거부 regression |
 | CLI | Core/CLI tests, `pnpm typecheck`, 실제 파일 write 및 실패 시 원본 보존 |
-| Editor logic | Editor tests, `pnpm typecheck`, `pnpm --filter @ieumdoc/editor build` |
+| Editor logic | Editor tests, `pnpm typecheck`, `pnpm --filter @litzio/editor build` |
 | Host/save behavior | 관련 browser regression과 실제 파일 Save → Reload/충돌 검증 |
 | HTTP Host / CLI distribution | 관련 HTTP boundary tests와 production `pnpm browser:test http-host` (실제 Save → Reload/충돌). 공유 handler 변경은 관련 handler tests와 Vite browser 회귀도 로컬 실행하며 Desktop packaged 회귀는 CI에 맡김. CLI 배포 경계 변경 시 CLI package + offline `test:packaged`도 로컬 실행; Windows/Linux 검증은 CI |
 | Visual change | `layout-rules` / `quiet-document` 검사와 같은 상태의 Before/After 근거 ([절차](docs/test/README.md#reviewing-a-visual-change)) |
-| Dependency change | frozen install, audit/reachability 검토, 영향받는 계층의 전체 관련 regression. MyST·markdown-it/patch/lockfile/parser 설정 변경은 `pnpm --filter @ieumdoc/core test:smartquotes`도 실행 |
+| Dependency change | frozen install, audit/reachability 검토, 영향받는 계층의 전체 관련 regression. MyST·markdown-it/patch/lockfile/parser 설정 변경은 `pnpm --filter @litzio/core test:smartquotes`도 실행 |
 | Desktop/update/release | 관련 Desktop tests/typecheck·browser 회귀. 패키징·배포 경계 변경 시 clean Windows package + artifact verification·`test:packaged`도 로컬 실행; updater/installer 변경 시 actual install/update regression도 실행. 해당 경계 변경이 없으면 패키징·설치/업데이트 회귀는 CI |
 
 문서 checker를 바꾸면 `pnpm exec tsx --test scripts/check-docs.test.ts`도 실행한다. 검증 명령의 자세한 사용법은 [검증 안내](docs/test/README.md)에 있다.
@@ -131,7 +131,7 @@ CI 경로 규칙의 기준은 changes job이 호출하는 [ci-execution-policy.m
 
 패키지 내부 Markdown은 fixture나 배포 입력일 수 있어 패키지 경로 규칙을 적용한다. browser는 Editor 4개 shard로 stable 시나리오를 정확히 한 번씩 실행한다. 목록 순서의 순환 분배를 사용하며 각 shard의 배정은 CI 로그에 출력한다. http는 Windows/Linux CLI package·`test:packaged`·HTTP browser 회귀를 실행한다. desktop이 선택되면 clean package·release 자산 검증·`test:packaged`는 항상 실행하고, 로컬 feed 설치·업데이트 및 `test:uninstall`은 기존 `update` 출력으로 선택한다. 선택되면 release workflow와 같은 Windows 러너에서 Stable 다음 Beta를 연달아 실행해 채널 사이의 CLI 정리도 검증한다. 이 설치·업데이트 e2e는 Editor의 Settings·업데이트 알림·Desktop bridge를 직접 조작하므로 해당 파일도 `update` 대상이다. `App.tsx`의 재시작 거부 판단처럼 그 밖의 Editor 변경은 browser `desktop-updates`(mock bridge)와 Desktop packaged 회귀로 검증하고, 실제 설치·업데이트·삭제는 `update` 대상 변경 또는 전체 실행 fallback에서 확인한다. Editor와 CLI는 Core/File commit을 공유하고, Desktop은 Editor 코드와 Host를 직접 사용하며 HTTP용 CLI package도 Editor를 빌드하므로 이 의존 경로를 함께 검증한다.
 
-smartquotes 대형 검사는 기본 Core suite에서 분리한 `pnpm --filter @ieumdoc/core test:smartquotes`로 #11의 설치된 패치를 검증한다. `package.json`, `packages/core/package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `patches/**`, parser/tokenizer 설정을 소유한 `packages/core/src/myst/`의 `parse.ts`·`serialize.ts`·`footnote.ts`·`literal-syntax.ts` 또는 해당 검사 파일 변경 때 선택한다. manifest는 MyST·markdown-it 버전 선언을, lockfile은 전이 의존성을 포함한다. 새 parser/tokenizer 설정 파일을 추가하면 이 선택 목록도 함께 갱신한다. diff/API를 확인할 수 없어 전체 실행할 때도 포함한다. 일반 Core의 따옴표 원문 보존 및 공개 parser의 URL·HTML 보안 검사는 계속 기본 suite에서 실행한다. 패치 제거 조건은 [Parser security boundary](docs/design/parser-security-v1.md)를 따른다.
+smartquotes 대형 검사는 기본 Core suite에서 분리한 `pnpm --filter @litzio/core test:smartquotes`로 #11의 설치된 패치를 검증한다. `package.json`, `packages/core/package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `patches/**`, parser/tokenizer 설정을 소유한 `packages/core/src/myst/`의 `parse.ts`·`serialize.ts`·`footnote.ts`·`literal-syntax.ts` 또는 해당 검사 파일 변경 때 선택한다. manifest는 MyST·markdown-it 버전 선언을, lockfile은 전이 의존성을 포함한다. 새 parser/tokenizer 설정 파일을 추가하면 이 선택 목록도 함께 갱신한다. diff/API를 확인할 수 없어 전체 실행할 때도 포함한다. 일반 Core의 따옴표 원문 보존 및 공개 parser의 URL·HTML 보안 검사는 계속 기본 suite에서 실행한다. 패치 제거 조건은 [Parser security boundary](docs/design/parser-security-v1.md)를 따른다.
 
 master push 중복 판정은 이 저장소의 `ci.yml` workflow runs API에서 `event=merge_group`, `head_sha=github.sha`, `status=completed`, `conclusion=success`인 실행을 찾는다. 성공 run URL과 생략/전체 실행 사유를 changes 로그에 남긴다. 성공 기록 없음, 권한·네트워크·응답 오류는 전체 제품 검사·browser·HTTP·Desktop·update/uninstall·smartquotes로 되돌아간다. release workflow는 이 재사용 정책을 적용하지 않는다.
 
@@ -145,21 +145,21 @@ Linux Editor 4개 shard와 HTTP browser job은 공식 `mcr.microsoft.com/playwri
 
 ## HTTP Host builds
 
-`pnpm --filter @ieumdoc/cli package`는 Node CLI 번들과 production Editor를 `packages/cli/dist/*.tgz`로 만든다. `pnpm --filter @ieumdoc/cli test:packaged`는 checkout 밖에 offline 설치해 Node만으로 실행·저장·종료를 검사한다. 이어 `pnpm browser:test http-host`가 production Host를 직접 시작하고 정리한다. Vite 시나리오와 한 호출에 섞지 않는다.
+`pnpm --filter @litzio/cli package`는 Node CLI 번들과 production Editor를 `packages/cli/dist/*.tgz`로 만든다. `pnpm --filter @litzio/cli test:packaged`는 checkout 밖에 offline 설치해 Node만으로 실행·저장·종료를 검사한다. 이어 `pnpm browser:test http-host`가 production Host를 직접 시작하고 정리한다. Vite 시나리오와 한 호출에 섞지 않는다.
 
-Windows/Linux CI는 이 세 검사를 수행하되 tarball은 Artifact로 보관하지 않는다. 생성된 화면 근거는 성공·실패 모두 7일 보관하고, 실패 시 browser diagnostics도 7일 보관한다. 앞선 단계가 실패해 아직 생성되지 않은 화면 근거는 업로드하지 않는다. 로컬에서는 관련 boundary tests와 HTTP browser 회귀를 실행한다 (`pnpm --filter @ieumdoc/cli build` 선행). `package`·`test:packaged`는 CLI 패키징·배포 경계를 변경할 때 실행한다. 공개 registry 게시·버전 release는 수행하지 않는다. 설치/실행과 원격 프록시 전제는 [HTTP Host contract](docs/design/http-host-v1.md)를 따른다.
+Windows/Linux CI는 이 세 검사를 수행하되 tarball은 Artifact로 보관하지 않는다. 생성된 화면 근거는 성공·실패 모두 7일 보관하고, 실패 시 browser diagnostics도 7일 보관한다. 앞선 단계가 실패해 아직 생성되지 않은 화면 근거는 업로드하지 않는다. 로컬에서는 관련 boundary tests와 HTTP browser 회귀를 실행한다 (`pnpm --filter @litzio/cli build` 선행). `package`·`test:packaged`는 CLI 패키징·배포 경계를 변경할 때 실행한다. 공개 registry 게시·버전 release는 수행하지 않는다. 설치/실행과 원격 프록시 전제는 [HTTP Host contract](docs/design/http-host-v1.md)를 따른다.
 
 ## Windows Desktop builds and releases
 
 Windows에서 아래 명령으로 로컬 개발용 installer를 만든다. 패키징·설치/업데이트·배포 경계를 변경하지 않은 작업에서는 아래 package·자산 검증·packaged 회귀와 install/update 회귀를 필수 Windows Desktop CI에 맡기고, 관련 tests/typecheck·browser 회귀를 로컬 실행한다. 빌드 산출물은 `apps/desktop/build/`와 `apps/desktop/release/`이며 Git에 포함하지 않는다. `package`는 generated release 폴더를 비우고 빌드하며, 항상 `publish: never`다.
 
 ```bash
-pnpm --filter @ieumdoc/desktop package
-pnpm --filter @ieumdoc/desktop exec tsx scripts/verify-release.ts --tag v0.0.2-beta.4
-pnpm --filter @ieumdoc/desktop test:packaged
+pnpm --filter @litzio/desktop package
+pnpm --filter @litzio/desktop exec tsx scripts/verify-release.ts --tag v0.0.2-beta.4
+pnpm --filter @litzio/desktop test:packaged
 ```
 
-`--tag`에는 `apps/desktop/package.json`의 실제 버전을 사용한다. 현재 소스와 공개 버전은 `0.0.2-beta.4`다([#758 배포 기록](docs/releases/v0.0.2-beta.4.md)). 직전 `0.0.2-beta.3`는 [#690 배포 기록](docs/releases/v0.0.2-beta.3.md)에, 이전 `0.0.2-beta.2`는 [#659 배포 기록](docs/releases/v0.0.2-beta.2.md)에, `0.0.2-beta.1`의 근거는 [#632 배포·철회 기록](docs/releases/v0.0.2-beta.1.md)에 보존한다. 앞선 #632에서는 기존 사용자가 없다는 소유자 확인에 따라 버전만 정정했으며 다운그레이드 허용·migration은 추가하지 않았다. 새 공개 자산 검증 후 기존 `v0.1.0-beta.1`·`v0.1.0-beta.2` Release·자산·원격 tag를 철회했고 소스 commit과 과거 검증 기록은 보존했다. `pnpm --filter @ieumdoc/desktop start`는 먼저 `build`한 staging app을 실행한다. 설치·업데이트 E2E는 [검증 안내](docs/test/README.md#windows-desktop-regression)의 사용 조건을 먼저 확인한다.
+`--tag`에는 `apps/desktop/package.json`의 실제 버전을 사용한다. 현재 소스와 공개 버전은 `0.0.2-beta.4`다([#758 배포 기록](docs/releases/v0.0.2-beta.4.md)). 직전 `0.0.2-beta.3`는 [#690 배포 기록](docs/releases/v0.0.2-beta.3.md)에, 이전 `0.0.2-beta.2`는 [#659 배포 기록](docs/releases/v0.0.2-beta.2.md)에, `0.0.2-beta.1`의 근거는 [#632 배포·철회 기록](docs/releases/v0.0.2-beta.1.md)에 보존한다. 앞선 #632에서는 기존 사용자가 없다는 소유자 확인에 따라 버전만 정정했으며 다운그레이드 허용·migration은 추가하지 않았다. 새 공개 자산 검증 후 기존 `v0.1.0-beta.1`·`v0.1.0-beta.2` Release·자산·원격 tag를 철회했고 소스 commit과 과거 검증 기록은 보존했다. `pnpm --filter @litzio/desktop start`는 먼저 `build`한 staging app을 실행한다. 설치·업데이트 E2E는 [검증 안내](docs/test/README.md#windows-desktop-regression)의 사용 조건을 먼저 확인한다.
 
 공개 버전은 `0.0.2-beta.4`이며 Stable 공개는 보류한다. Beta 설치본의 최초 실행 기본 채널은 Beta, Stable 설치본은 Stable이다. 유효하게 저장된 사용자 선택은 버전이 바뀌어도 유지한다. Beta는 제한된 unsigned 게시 모드를 사용할 수 있으며 Stable은 서명된 릴리즈 절차만 허용한다.
 

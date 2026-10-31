@@ -87,7 +87,7 @@ of the upstream security fix; the source diagnostics themselves have not been re
 
 The large smartquotes child-process probe remains unchanged (160,000 quotes and the
 10-second hang guard), in `packages/core/test/smartquotes-patch.test.ts`. It is outside
-the default Core suite and runs via `pnpm --filter @ieumdoc/core test:smartquotes`.
+the default Core suite and runs via `pnpm --filter @litzio/core test:smartquotes`.
 CI selects it for root/Core package manifests, lockfile/workspace dependency configuration,
 `patches/**`, the parser/tokenizer settings in `packages/core/src/myst/` (`parse.ts`,
 `serialize.ts`, `footnote.ts`, `literal-syntax.ts`) and the probe itself. New tokenizer

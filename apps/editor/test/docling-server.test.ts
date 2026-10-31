@@ -14,7 +14,7 @@ import { buildDoclingWorker } from "../../../packages/cli/scripts/build-docling-
 import { INCOMPLETE } from "../server/plugin-output.ts";
 
 test("shared Host persists device settings, checks the real HTTP service and safely completes, fails and cancels conversion", async t => {
-  const root = mkdtempSync(path.join(tmpdir(), "ieumdoc-docling-host-"));
+  const root = mkdtempSync(path.join(tmpdir(), "litzio-docling-host-"));
   const allowed = path.join(root, "allowed"); mkdirSync(allowed);
   const settings = path.join(root, "settings", "docling.json");
   await buildDoclingWorker(path.join(root, "worker"));

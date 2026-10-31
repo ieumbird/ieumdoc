@@ -93,11 +93,11 @@ import {
   type CitationRole,
   type CitationReport,
   type ListContent,
-} from "@ieumdoc/core";
-import { assertUnicode, commitFile, decodeUtf8, preflightFileCommit, textRevision } from "@ieumdoc/file-commit";
+} from "@litzio/core";
+import { assertUnicode, commitFile, decodeUtf8, preflightFileCommit, textRevision } from "@litzio/file-commit";
 import { resolveMediaPath } from "../../../apps/editor/server/document-path.ts";
 import { figureMediaPath } from "../../../apps/editor/shared/figure-media-path.ts";
-import { convertDoclingFile, convertDoclingPdf } from "@ieumdoc/docling";
+import { convertDoclingFile, convertDoclingPdf } from "@litzio/docling";
 
 const HELP_GROUPS = [
   "Create and inspect",
@@ -224,7 +224,7 @@ const COMMANDS: CommandSpec[] = [
     usage: "ieumdoc docling convert <document.json> --output <new-folder>",
     details: ["Accepts DoclingDocument 1.10.0. The output directory must not exist.",
       "ieumdoc docling convert-pdf <pdf> --server <url> --output <new-folder> [--timeout <seconds>]",
-      "--server defaults to IEUMDOC_DOCLING_SERVER. Uses the fixed ieumdoc-pdf-en-v1 profile.",
+      "--server defaults to LITZIO_DOCLING_SERVER. Uses the fixed litzio-pdf-en-v1 profile.",
       "PDF conversion creates document.json, readable image files, conversion-record.json and the native document/map.",
       "Creates document.md, document.docling-map.json and local image assets.",
       "Furniture and unsupported elements are reported in the sidecar. No chapter/range selection.",
@@ -1878,8 +1878,8 @@ export async function runCliAsync(args: string[]): Promise<number> {
       if (!["--server", "--output", "--timeout"].includes(key) || flags.has(key) || !value || value.startsWith("-")) throw new Error(commandHelp("docling"));
       flags.set(key, value);
     }
-    const output = flags.get("--output"), server = flags.get("--server") ?? process.env.IEUMDOC_DOCLING_SERVER;
-    if (!output || !server) throw new Error("convert-pdf requires --output and --server (or IEUMDOC_DOCLING_SERVER)");
+    const output = flags.get("--output"), server = flags.get("--server") ?? process.env.LITZIO_DOCLING_SERVER;
+    if (!output || !server) throw new Error("convert-pdf requires --output and --server (or LITZIO_DOCLING_SERVER)");
     const seconds = flags.has("--timeout") ? Number(flags.get("--timeout")) : 1800;
     if (!Number.isFinite(seconds) || seconds <= 0) throw new Error("--timeout must be a positive number of seconds");
     const record = await convertDoclingPdf(input, output, { server, timeoutMs: seconds * 1000 });

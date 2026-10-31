@@ -16,7 +16,7 @@ import {
   type MystDocument,
 } from "./core-internal.ts";
 import { referenceTargetIndex } from "../src/myst/label.ts";
-import { planLabelRename, type LabelRenameBlock, type LabelRenameReference } from "@ieumdoc/core";
+import { planLabelRename, type LabelRenameBlock, type LabelRenameReference } from "@litzio/core";
 
 const source = readFileSync(new URL("./fixtures/technical-document.md", import.meta.url), "utf8");
 const EQUATION = 9;

@@ -1,4 +1,4 @@
-import { writeIssueOf, planLabelRename, type LabelRenameBlock, type LabelRenameReference } from "@ieumdoc/core";
+import { writeIssueOf, planLabelRename, type LabelRenameBlock, type LabelRenameReference } from "@litzio/core";
 import type { UiMessage } from "./ui-message.ts";
 import { closeHistory } from "@tiptap/pm/history";
 import type { Fragment } from "@tiptap/pm/model";

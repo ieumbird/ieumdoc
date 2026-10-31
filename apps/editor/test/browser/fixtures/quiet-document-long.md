@@ -1,5 +1,5 @@
 ---
-ieumdoc: 1
+litzio: 1
 ---
 
 # 긴 콘텐츠 · Long content

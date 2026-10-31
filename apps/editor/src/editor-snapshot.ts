@@ -1,4 +1,4 @@
-import { referenceTemplatesError } from "@ieumdoc/core/numbering";
+import { referenceTemplatesError } from "@litzio/core/numbering";
 import type { Schema } from "@tiptap/pm/model";
 import { reserveBlockPaths } from "./block-locators.ts";
 import { DELETED_PATHS_ATTR, type TiptapJSON } from "./tiptap-document.ts";

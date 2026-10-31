@@ -14,7 +14,7 @@ import { loadDocumentFile, previewDocumentFile, saveDocumentFile } from "../serv
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
 import { saveErrorMessage } from "../src/save-error.ts";
-import { citationReport, parse, serialize, sameInlineContent, type CitationContent } from "@ieumdoc/core";
+import { citationReport, parse, serialize, sameInlineContent, type CitationContent } from "@litzio/core";
 import { citationNumbers } from "../src/citation.tsx";
 import { toTiptapContent } from "../src/tiptap-inline.ts";
 import { i18n } from "../src/i18n.ts";
@@ -132,7 +132,7 @@ test("missing reference chips identify the broken reference without guessing its
 });
 
 test("citation atoms round-trip through the engine and Save, including groups, captions and metadata", () => {
-  const source = "---\nieumdoc: 1\nbibliography: [../missing.bib]\n---\n\n" +
+  const source = "---\nlitzio: 1\nbibliography: [../missing.bib]\n---\n\n" +
     "# Citation document\n\nBefore **{cite}`Key`** and {cite:t}`Key` or {cite:p}`Other,Key`.\n\n" +
     ":::{figure}\n\nFigure {cite}`Figure`\n:::\n\n" +
     ":::{table} Caption {cite}`Caption`\n\n| Name |\n| --- |\n| {cite}`Cell` |\n:::\n\n" +
@@ -376,7 +376,7 @@ test("caption words after Unicode punctuation match without changing menu names"
 });
 
 test("unresolved references save unchanged; Source preview shows unsaved reference edits and matches Save", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-xref-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-xref-"));
   const file = path.join(dir, "refs.md");
   try {
     writeFileSync(file, source);
@@ -498,7 +498,7 @@ test("reference styles derive from template values and editor Save replays autho
 });
 
 test("numbered section references use Core H1-H6 counters after body section changes", async () => {
-  const { defaultHeadingNumbering } = await import("@ieumdoc/core/numbering");
+  const { defaultHeadingNumbering } = await import("@litzio/core/numbering");
   const json = toTiptapDocument(loadEditableDocument(nativeSource("(first)=\n# First\n\n(detail)=\n## Detail\n\n(second)=\n# Second\n")));
   json.attrs = { ...json.attrs, title: "Independent title", headingNumbering: defaultHeadingNumbering(true) };
   const schema = getSchema(editorExtensions());

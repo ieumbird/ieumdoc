@@ -1,6 +1,6 @@
 // Package the staged app as the per-user Windows x64 NSIS installer with its update metadata.
-//   pnpm --filter @ieumdoc/desktop package             local build; unsigned unless CSC_LINK is set
-//   IEUMDOC_RELEASE=1 pnpm --filter @ieumdoc/desktop package
+//   pnpm --filter @litzio/desktop package             local build; unsigned unless CSC_LINK is set
+//   LITZIO_RELEASE=1 pnpm --filter @litzio/desktop package
 //     release build: fails unless Windows code signing succeeds, and the app refuses updates
 //     that are not signed by the same publisher.
 // Nothing is published: the release workflow uploads the verified artifacts.
@@ -23,10 +23,10 @@ export function updateChannelOf(appVersion: string): "latest" | "beta" {
 
 /**
  * Where the app looks for updates: GitHub Releases. The update test alone points its builds at a
- * local stand-in (IEUMDOC_TEST_UPDATE_HOST); a release build refuses it.
+ * local stand-in (LITZIO_TEST_UPDATE_HOST); a release build refuses it.
  */
-function publishTarget(appVersion: string, release: boolean, testHost = process.env.IEUMDOC_TEST_UPDATE_HOST) {
-  if (testHost && release) throw new Error("IEUMDOC_TEST_UPDATE_HOST cannot be used for a release build");
+function publishTarget(appVersion: string, release: boolean, testHost = process.env.LITZIO_TEST_UPDATE_HOST) {
+  if (testHost && release) throw new Error("LITZIO_TEST_UPDATE_HOST cannot be used for a release build");
   return { provider: "github" as const, owner: RELEASE_REPOSITORY.owner, repo: RELEASE_REPOSITORY.repo, channel: updateChannelOf(appVersion),
     ...(testHost ? { host: testHost, protocol: "http" as const } : {}) };
 }
@@ -66,8 +66,8 @@ export function packageConfiguration(appVersion: string, release: boolean): Conf
 }
 
 async function main(): Promise<void> {
-  const release = process.env.IEUMDOC_RELEASE === "1";
-  if (release && process.env.IEUMDOC_REQUIRE_SIGNED_UPDATES !== "1") process.env.IEUMDOC_REQUIRE_SIGNED_UPDATES = "1";
+  const release = process.env.LITZIO_RELEASE === "1";
+  if (release && process.env.LITZIO_REQUIRE_SIGNED_UPDATES !== "1") process.env.LITZIO_REQUIRE_SIGNED_UPDATES = "1";
   await buildDesktop();
   // This fixed child folder contains generated artifacts only. Old test feeds/versions and
   // channel files must never be mixed into another build.

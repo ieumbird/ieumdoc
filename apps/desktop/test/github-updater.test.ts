@@ -115,7 +115,7 @@ after(() => { for (const folder of folders) rmSync(folder, { recursive: true, fo
 
 /** The real updater, as the installed app (app-update.yml from electron-builder) would create it. */
 function realUpdater(installed: string, host: string, options: { publisherName?: string; folder?: string; publicHost?: boolean } = {}) {
-  const folder = options.folder ?? mkdtempSync(path.join(os.tmpdir(), "ieumdoc-updater-test-"));
+  const folder = options.folder ?? mkdtempSync(path.join(os.tmpdir(), "litzio-updater-test-"));
   if (!options.folder) folders.push(folder);
   const config = path.join(folder, "app-update.yml");
   writeFileSync(config, [`owner: ${owner}`, `repo: ${repo}`, "provider: github", "updaterCacheDirName: ieumdoc-updater-test",

@@ -42,7 +42,7 @@ test('merge_group payloads apply the same path rules as PRs to the entire group 
 });
 
 test('actual group diff includes successive PR commits, removed paths and both sides of renames', async () => {
-  const dir = mkdtempSync(path.join(tmpdir(), 'ieumdoc-queue-policy-'));
+  const dir = mkdtempSync(path.join(tmpdir(), 'litzio-queue-policy-'));
   const git = args => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
   const commit = message => {
     git(['add', '-A']); git(['commit', '-qm', message]);

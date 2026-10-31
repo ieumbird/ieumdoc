@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { NodeViewContent, NodeViewWrapper, type ReactNodeViewProps } from "@tiptap/react";
-import { isAdmonitionVariant } from "@ieumdoc/core";
+import { isAdmonitionVariant } from "@litzio/core";
 import { i18n } from "../i18n.ts";
 import { ADMONITION_LABELS, admonitionTone } from "../block-commands.ts";
 

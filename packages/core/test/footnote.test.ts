@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { writeIssueOf } from "@ieumdoc/core";
+import { writeIssueOf } from "@litzio/core";
 import {
   canonicalWriteError, endnotesInPlace, footnoteNumbers, getEditableDocument, insertFootnote,
   insertFootnoteDefinition, insertQuote, nextFootnoteLabel, parse, removeBlock, serialize,
@@ -34,7 +34,7 @@ test("undefined footnote-shaped source warns without changing text or blocking c
 
 test("footnote source diagnostics use exact labels and body block/container locations", () => {
   const source = [
-    "---\nieumdoc: 1\n---", "# Title [^heading]", "A[^ok] and [^OK], [^미주], [^two words], [^].",
+    "---\nlitzio: 1\n---", "# Title [^heading]", "A[^ok] and [^OK], [^미주], [^two words], [^].",
     "> First line\n> **[^quote]**", "- [^item]", "| A | B |\n| - | - |\n| \\[^cell] | [^cell] |",
     ":::{note}\nText [^note]\n:::", ":::{figure}\nCaption [^caption]\n:::",
     ":::{table} Caption [^table-caption]\n| A |\n| - |\n| a |\n:::", "[^ok]: Defined.",

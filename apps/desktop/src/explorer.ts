@@ -1,7 +1,7 @@
 import { realpathSync, statSync } from "node:fs";
 import path from "node:path";
 import { RootAccess } from "../../editor/server/file-access.ts";
-import { assertUnicode } from "@ieumdoc/file-commit";
+import { assertUnicode } from "@litzio/file-commit";
 
 function localDirectory(value: unknown): string {
   if (typeof value !== "string" || !value || value !== value.trim() || !path.isAbsolute(value) ||

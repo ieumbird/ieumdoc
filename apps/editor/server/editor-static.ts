@@ -1,7 +1,7 @@
 // Fixed production Editor assets shared by the Desktop and HTTP transports.
 import { readFileSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
-import { assertUnicode } from "@ieumdoc/file-commit";
+import { assertUnicode } from "@litzio/file-commit";
 import { inside } from "./file-access.ts";
 
 const TYPES: Record<string, string> = {

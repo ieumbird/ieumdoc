@@ -1,4 +1,4 @@
-/** Brand-independent protocol identifiers. Branding must never change these. */
+/** Litzio protocol identifiers, independent of product branding. Branding must never change these. */
 export const PLUGIN_UI = {
   api: 1, reactMajor: 19, route: "/api/ui-plugins", script: "ui.mjs", style: "ui.css",
 } as const;

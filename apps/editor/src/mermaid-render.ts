@@ -14,7 +14,7 @@ export function renderMermaid(source: string, dark: boolean): Promise<string> {
       mermaid.initialize({ startOnLoad: false, securityLevel: "strict", suppressErrorRendering: true,
         secure: ["secure", "securityLevel", "startOnLoad", "maxTextSize", "suppressErrorRendering", "maxEdges", "theme", "themeVariables"],
         theme: dark ? "dark" : "default" });
-      const { svg } = await mermaid.render(`ieumdoc-mermaid-${++sequence}`, source, container);
+      const { svg } = await mermaid.render(`litzio-mermaid-${++sequence}`, source, container);
       // Mermaid's sanitizer returns HTML serialization (e.g. <br> inside foreignObject).
       // Image SVG is XML: serialize the sanitized tree with namespaces and closed void tags.
       // Keep this parsed document detached from the live Editor DOM.

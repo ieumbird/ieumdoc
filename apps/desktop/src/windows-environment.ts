@@ -58,13 +58,13 @@ try {
 Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
-public static class IeumDocEnvironment {
+public static class LitzioEnvironment {
   [DllImport("user32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
   public static extern IntPtr SendMessageTimeout(IntPtr h, uint m, UIntPtr w, string l, uint f, uint t, out UIntPtr r);
 }
 '@
 $result = [UIntPtr]::Zero
-[void][IeumDocEnvironment]::SendMessageTimeout([IntPtr]0xffff, 0x001a, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result)
+[void][LitzioEnvironment]::SendMessageTimeout([IntPtr]0xffff, 0x001a, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$result)
 `, data);
     },
   };

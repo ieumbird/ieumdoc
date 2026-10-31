@@ -15,7 +15,7 @@ after(() => { for (const root of roots) rmSync(root, { recursive: true, force: t
 
 /** A release folder as electron-builder leaves it, with optional faults. */
 function release(version: string, faults: { file?: string; extraFile?: string; sha?: boolean; host?: boolean; publisher?: boolean } = {}): string {
-  const root = mkdtempSync(path.join(os.tmpdir(), "ieumdoc-release-"));
+  const root = mkdtempSync(path.join(os.tmpdir(), "litzio-release-"));
   roots.push(root);
   const name = `IeumDoc-Setup-${version}.exe`;
   const bytes = Buffer.from(`installer ${version}`);
@@ -94,7 +94,7 @@ test("manual release modes reject unsigned Stable and unsafe tags", () => {
 });
 
 test("preflight accepts only an existing, version-matched tag in the captured master history", () => {
-  const root = mkdtempSync(path.join(os.tmpdir(), "ieumdoc-release-git-")); roots.push(root);
+  const root = mkdtempSync(path.join(os.tmpdir(), "litzio-release-git-")); roots.push(root);
   const git = (...args: string[]) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
   git("init", "-b", "master"); git("config", "user.name", "Fixture"); git("config", "user.email", "fixture@example.invalid");
   mkdirSync(path.join(root, "apps/desktop"), { recursive: true });

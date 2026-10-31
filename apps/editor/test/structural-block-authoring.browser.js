@@ -18,7 +18,7 @@ async (page, { showNotifications, openDocument }) => {
     if (response.status() !== 200) throw new Error(`Prepare ${file} first`);
     return (await response.text()).replaceAll('\r\n', '\n');
   };
-  const fresh = '---\nieumdoc: 1\n---\n\n# Structural authoring\n\nIntro paragraph.\n\n## Existing heading\n\nKeep this paragraph.\n\n## Demote me\n\nSome **bold** text.\n\nLine one\\\nline two.\n\n# Existing body H1\n';
+  const fresh = '---\nlitzio: 1\n---\n\n# Structural authoring\n\nIntro paragraph.\n\n## Existing heading\n\nKeep this paragraph.\n\n## Demote me\n\nSome **bold** text.\n\nLine one\\\nline two.\n\n# Existing body H1\n';
   if (await markdown() !== fresh) throw new Error('Scratch document is not a fresh structural authoring fixture');
 
   const openScratch = async () => {
@@ -218,7 +218,7 @@ async (page, { showNotifications, openDocument }) => {
   }
   const saved = await markdown();
   const expected = [
-    '---', 'ieumdoc: 1', '---', '',
+    '---', 'litzio: 1', '---', '',
     '# Structural authoring',
     '',
     '## Intro paragraph.',

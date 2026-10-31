@@ -2,7 +2,7 @@
 export function figureMediaPath(imageUrl: string): string | undefined {
   // URL handles schemes (including Windows drive prefixes); slash/backslash roots are absolute.
   if (!imageUrl || imageUrl.startsWith("/") || imageUrl.startsWith("\\") || URL.canParse(imageUrl) ||
-    !URL.canParse(imageUrl, "https://ieumdoc.invalid/")) return undefined;
+    !URL.canParse(imageUrl, "https://litzio.invalid/")) return undefined;
   const relativePath = imageUrl.startsWith("./") ? imageUrl.slice(2) : imageUrl;
   const segments = relativePath.split("/");
   // Keep normal separators proxy-safe; dot segments must reach the Host without URL normalization.

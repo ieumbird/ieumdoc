@@ -32,7 +32,7 @@ import {
   removeBlock,
   serialize,
   type InlineContent,
-} from "@ieumdoc/core";
+} from "@litzio/core";
 import { editorExtensions, isUnappliedEquationDraft, resolveFigureSource } from "../src/editor-schema.tsx";
 import { renderEquation } from "../src/equation-render.ts";
 import { fromTiptapContent, toTiptapContent, type TiptapJSON } from "../src/tiptap-inline.ts";
@@ -51,7 +51,7 @@ import { RootAccess } from "../server/file-access.ts";
 import { readFilePreview } from "../server/document-api.ts";
 
 test("folder preview validates bytes and size, rejects links, and stays within the selected folder", t => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-preview-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-preview-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const chosen = path.join(dir, "chosen"); mkdirSync(chosen);
   const image = path.join(chosen, "한글.PNG");
@@ -548,7 +548,7 @@ test("formatted paragraph is an editable target", () => {
 
 
 test("selected Markdown files keep load, save, and revision boundaries", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-open-files-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-open-files-"));
   const fileA = path.join(dir, "a.md");
   const fileB = path.join(dir, "b.md");
   try {
@@ -591,7 +591,7 @@ test("selected Markdown files keep load, save, and revision boundaries", () => {
 });
 
 test("partial writes and conflicts during replacement preserve the disk and permit retry", (context) => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-failed-write-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-failed-write-"));
   const file = path.join(dir, "document.md");
   const source = nativeSource("Original paragraph.\n");
   writeFileSync(file, source);
@@ -732,7 +732,7 @@ test("an empty new document can hold a transient heading but cannot save it empt
 });
 
 test("new Markdown files use Core's canonical empty document and can be edited and saved", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-new-files-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-new-files-"));
   const file = path.join(dir, "new-document.md");
   try {
     const created = createDocumentFile(file);
@@ -754,7 +754,7 @@ test("new Markdown files use Core's canonical empty document and can be edited a
 });
 
 test("new Markdown files reject overwrite, invalid extensions, and missing parent directories", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-new-file-errors-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-new-file-errors-"));
   const existing = path.join(dir, "existing.md");
   try {
     writeFileSync(existing, nativeSource("Keep this content\n"));
@@ -768,7 +768,7 @@ test("new Markdown files reject overwrite, invalid extensions, and missing paren
 });
 
 test("Host paths refuse unpaired surrogates without creating or reading replacement names", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-path-unicode-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-path-unicode-"));
   try {
     assert.throws(() => createFolder(dir, "A\uD800B"), /Invalid Unicode: unpaired surrogate/);
     assert.throws(() => createDocumentFile(path.join(dir, "X\uDC00Y.md")), /Invalid Unicode: unpaired surrogate/);
@@ -798,7 +798,7 @@ test("Host paths refuse unpaired surrogates without creating or reading replacem
 });
 
 test("a chosen folder lists all regular files, marks only documents, and stays inside", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-folder-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-folder-"));
   const chosen = path.join(dir, "docs");
   const outside = path.join(dir, "outside");
   try {
@@ -864,7 +864,7 @@ test("a chosen folder lists all regular files, marks only documents, and stays i
 });
 
 test("a new folder is created once, inside an existing folder, with a single portable name", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-new-folder-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-new-folder-"));
   try {
     const created = createFolder(dir, "자료");
     assert.equal(created.path, path.join(dir, "자료"));
@@ -887,7 +887,7 @@ test("a new folder is created once, inside an existing folder, with a single por
 });
 
 test("relative figure media follows the opened document directory", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-media-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-media-"));
   const aDir = path.join(dir, "a");
   const bDir = path.join(dir, "b");
   const outside = path.join(dir, "outside.svg");
@@ -1023,7 +1023,7 @@ test("session saves replay Core edits against their opening source and prove the
 });
 
 test("Host rejects invalid document/request encoding and Source/Save surrogates without acknowledging or changing files", async () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-encoding-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-encoding-"));
   const server = createServer((req, res) => { void handleDocumentRequest(req, res, () => res.end()); });
   await listenForFetch(server);
   try {
@@ -1062,7 +1062,7 @@ test("Host rejects invalid document/request encoding and Source/Save surrogates 
 });
 
 test("shared Host strictly decodes document and media queries without reading replacement names", async () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-query-encoding-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-query-encoding-"));
   const server = createServer((req, res) => { void handleDocumentRequest(req, res, () => res.end()); });
   await listenForFetch(server);
   try {
@@ -1102,7 +1102,7 @@ test("shared Host strictly decodes document and media queries without reading re
 });
 
 test("Host save fails over HTTP before writing when canonical Markdown would lose semantics", async () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-lossy-save-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-lossy-save-"));
   const server = createServer((req, res) => {
     void handleDocumentRequest(req, res, () => { res.statusCode = 404; res.end(); });
   });
@@ -1131,7 +1131,7 @@ test("Host save fails over HTTP before writing when canonical Markdown would los
 });
 
 test("Host opens unsupported Markdown as text while native Save stays fail-closed", async () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-writeability-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-writeability-"));
   const server = createServer((req, res) => {
     void handleDocumentRequest(req, res, () => { res.statusCode = 404; res.end(); });
   });
@@ -1214,7 +1214,7 @@ test("Host opens unsupported Markdown as text while native Save stays fail-close
 });
 
 test("HTTP Save reports file and revision failures without leaking paths or writing", async (t) => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-save-failure-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-save-failure-"));
   const file = path.join(dir, "document.md");
   const original = nativeSource("# Title\n\nBody.\n");
   writeFileSync(file, original);
@@ -1252,7 +1252,7 @@ test("HTTP Save reports file and revision failures without leaking paths or writ
 });
 
 test("Source preview is the canonical Markdown Save would write, without writing the file", async () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-source-preview-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-source-preview-"));
   const file = path.join(dir, "technical-document.md");
   const server = createServer((req, res) => {
     void handleDocumentRequest(req, res, () => { res.statusCode = 404; res.end(); });
@@ -1316,7 +1316,7 @@ test("stale revision save leaves an externally edited file unchanged", () => {
   const loaded = documentRevision(source);
   const external = source.replace(PARAGRAPH_FROM, "Changed outside the editor.");
   assert.notEqual(documentRevision(external), loaded);
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-conflict-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-conflict-"));
   const file = path.join(dir, "technical-document.md");
   try {
     writeFileSync(file, external);
@@ -1352,7 +1352,7 @@ test("stale revision rejects a shifted paragraph path before the edit is applied
   assert.equal(unguarded.markdown.includes("Stale editor text."), true);
   assert.equal(unguarded.markdown.includes("External paragraph."), false);
 
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-structure-conflict-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-structure-conflict-"));
   const file = path.join(dir, "technical-document.md");
   try {
     writeFileSync(file, external);
@@ -1791,7 +1791,7 @@ test("typed straight quotes save through the Editor adapter and Host and reload 
 });
 
 test("a byte-order-marked file opens with its heading and saves without the mark", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-editor-bom-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-editor-bom-"));
   try {
     const file = path.join(dir, "bom.md");
     const bytes = "\uFEFF" + nativeSource("# Heading\n\nBody.\n");
@@ -1811,7 +1811,7 @@ test("a byte-order-marked file opens with its heading and saves without the mark
 });
 
 test("an Editor save or Source preview preserves front matter while editing the body", () => {
-  const input = "---\nieumdoc: 1\nnumbering:\n  headings: false\n---\n\n# Heading\n\nBody.\n";
+  const input = "---\nlitzio: 1\nnumbering:\n  headings: false\n---\n\n# Heading\n\nBody.\n";
   const editable = loadEditableDocument(input);
   assert.deepEqual(editable.blocks.map(block => block.path), [[1], [2]]);
   const projected = normalizedDocument(toTiptapDocument(editable));
@@ -2334,7 +2334,7 @@ test("plaintext salvage keeps readable content without dumping internal attribut
 
 
 test("Recovery preview uses Save bytes without changing disk, acknowledgement, or missing files", async () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-recovery-preview-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-recovery-preview-"));
   const file = path.join(dir, "record.md");
   const server = createServer((req, res) => { void handleDocumentRequest(req, res, () => res.end()); });
   await listenForFetch(server);
@@ -2411,7 +2411,7 @@ test("startup sample problems survive client decoding for both file and empty st
 
 test("save diagnostic guidance and badges use codes in both languages and retain original details", async () => {
   const { i18n } = await import("../src/i18n.ts");
-  const { DocumentDiagnosticError } = await import("@ieumdoc/core");
+  const { DocumentDiagnosticError } = await import("@litzio/core");
   const cases = {
     "native-marker": ["Open an IeumDoc", "이음독 문서를"],
     "native-metadata": ["Check document frontmatter", "설정을 확인"],
@@ -2434,7 +2434,7 @@ test("save diagnostic guidance and badges use codes in both languages and retain
   } as const;
   try {
     for (const [code, expected] of Object.entries(cases)) {
-      const cause = new DocumentDiagnosticError(code as import("@ieumdoc/core").WriteIssueCode, "Original diagnostic.");
+      const cause = new DocumentDiagnosticError(code as import("@litzio/core").WriteIssueCode, "Original diagnostic.");
       const failure = new SaveContentError("Original diagnostic.", undefined, { cause, block: { index: 0, type: "table" } });
       const display = new SaveDisplayError([failure]);
       assert.equal(failure.code, code);
@@ -2463,7 +2463,7 @@ test("save diagnostic guidance and badges use codes in both languages and retain
 
 
 test("text Save preserves exact UTF-8 text, shares file commit and cannot overwrite native documents", t => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-text-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-text-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const plain = path.join(dir, "notes.TXT"), markdown = path.join(dir, "foreign.md"), native = path.join(dir, "native.md");
   const original = "\uFEFF# 일반 Markdown\r\n\t**literal**  \r\n";

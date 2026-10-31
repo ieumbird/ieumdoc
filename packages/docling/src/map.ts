@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { getEditableDocument, parse, type EditableBlock, type ListContent } from "@ieumdoc/core";
+import { getEditableDocument, parse, type EditableBlock, type ListContent } from "@litzio/core";
 import type { ImageRef, Provenance, SourceDocument } from "./source.ts";
 
 export type Target = {
@@ -13,7 +13,7 @@ export type MapItem = {
   targets: Target[]; reason?: string; notes: string[];
 };
 export type DoclingMap = {
-  format: "ieumdoc-docling-map"; version: 1;
+  format: "litzio-docling-map"; version: 1;
   source: { schema_name: string; version: string; name: string; sha256: string };
   document: { file: "document.md"; sha256: string };
   pages: Record<string, { page_no: number; size: { width: number; height: number }; image?: ImageRef | null }>;
@@ -22,7 +22,7 @@ export type DoclingMap = {
 export const sha256 = (text: string | Uint8Array): string => createHash("sha256").update(text).digest("hex");
 
 export function createMap(source: SourceDocument, input: string, markdown: string, items: MapItem[]): DoclingMap {
-  return { format: "ieumdoc-docling-map", version: 1,
+  return { format: "litzio-docling-map", version: 1,
     source: { schema_name: source.schema_name, version: source.version, name: source.name, sha256: sha256(input) },
     document: { file: "document.md", sha256: sha256(markdown) }, pages: structuredClone(source.pages ?? {}), items };
 }
@@ -35,7 +35,7 @@ export function readDoclingMap(json: string, markdown: string): DoclingMap {
 /** A stale snapshot can still show source regions, but its targets must never be followed. */
 export function inspectDoclingMap(json: string, markdown: string, allowStale = true): { map: DoclingMap; stale: boolean } {
   const map = JSON.parse(json) as DoclingMap;
-  if (!map || map.format !== "ieumdoc-docling-map" || map.version !== 1) throw new Error("Unsupported Docling map format/version");
+  if (!map || map.format !== "litzio-docling-map" || map.version !== 1) throw new Error("Unsupported Docling map format/version");
   const stale = map.document?.sha256 !== sha256(markdown);
   if (stale && !allowStale) throw new Error("Stale Docling map: document SHA-256 mismatch");
   if (!Array.isArray(map.items) || !map.source || map.source.schema_name !== "DoclingDocument" || map.source.version !== "1.10.0" ||

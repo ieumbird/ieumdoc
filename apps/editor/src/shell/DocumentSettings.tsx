@@ -2,7 +2,7 @@ import { forwardRef, useId, useImperativeHandle, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight, Check } from "lucide-react";
 import { Menu } from "@base-ui/react/menu";
-import { DEFAULT_REFERENCE_TEMPLATES, type ReferenceTemplates } from "@ieumdoc/core/numbering";
+import { DEFAULT_REFERENCE_TEMPLATES, type ReferenceTemplates } from "@litzio/core/numbering";
 import { Button } from "@/components/ui/button.tsx";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 import { i18n } from "../i18n.ts";

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useEditorState } from "@tiptap/react";
 import type { Editor } from "@tiptap/core";
 import type { Node } from "@tiptap/pm/model";
-import { numberingReport } from "@ieumdoc/core/numbering";
+import { numberingReport } from "@litzio/core/numbering";
 import { Input } from "@/components/ui/input.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { FieldError } from "./ui/primitives.tsx";

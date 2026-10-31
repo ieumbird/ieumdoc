@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { firstDocument } from "../src/first-document.ts";
 
 test("start-up skips malformed paths before I/O and accepts valid Unicode names", (t) => {
-  const dir = fs.mkdtempSync(path.join(tmpdir(), "ieumdoc-startup-"));
+  const dir = fs.mkdtempSync(path.join(tmpdir(), "litzio-startup-"));
   const valid = path.join(dir, "한글😀�.md");
   fs.writeFileSync(valid, "sentinel");
   const exists = t.mock.method(fs, "existsSync");
@@ -42,7 +42,7 @@ test("start-up skips malformed paths before I/O and accepts valid Unicode names"
 });
 
 test("sample version replaces edited old copies once and preserves same-version edits in both languages", () => {
-  const dir = fs.mkdtempSync(path.join(tmpdir(), "ieumdoc-sample-"));
+  const dir = fs.mkdtempSync(path.join(tmpdir(), "litzio-sample-"));
   try {
     fs.cpSync(fileURLToPath(new URL("../../editor/samples", import.meta.url)), path.join(dir, "sample"), { recursive: true });
     const copy = path.join(dir, "sample-native-v1");
@@ -72,11 +72,11 @@ test("sample version replaces edited old copies once and preserves same-version 
 });
 
 function sampleFixture(run: (fixture: { dir: string; copy: string; source: string; valid: string; warning: (message: string) => void; warnings: string[] }) => void): void {
-  const dir = fs.mkdtempSync(path.join(tmpdir(), "ieumdoc-sample-safety-"));
+  const dir = fs.mkdtempSync(path.join(tmpdir(), "litzio-sample-safety-"));
   try {
     fs.cpSync(fileURLToPath(new URL("../../editor/samples", import.meta.url)), path.join(dir, "sample"), { recursive: true });
     const valid = path.join(dir, "document.md");
-    fs.writeFileSync(valid, "---\nieumdoc: 1\n---\n\n# My document\n");
+    fs.writeFileSync(valid, "---\nlitzio: 1\n---\n\n# My document\n");
     const warnings: string[] = [];
     run({ dir, source: path.join(dir, "sample"), copy: path.join(dir, "sample-native-v1"), valid, warnings, warning: message => warnings.push(message) });
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }

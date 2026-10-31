@@ -6,7 +6,7 @@ import path from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { setTimeout as delay } from "node:timers/promises";
-import profile from "../profiles/ieumdoc-pdf-en-v1.json" with { type: "json" };
+import profile from "../profiles/litzio-pdf-en-v1.json" with { type: "json" };
 import { parseJsonPreservingIntegers, writeBundleDocument } from "./bundle.ts";
 import { doclingFailureOf, type ConversionFailure, type PdfProgress, type ServerCheck } from "./server-types.ts";
 
@@ -79,7 +79,7 @@ export async function convertDoclingPdf(input: string, output: string, options: 
   const source = await fileDigest(input);
   const pdf = await openAsBlob(input, { type: "application/pdf" });
   if (!(await pdf.slice(0, 5).text()).startsWith("%PDF-")) throw new Error("Input must be a PDF");
-  const temp = await mkdtemp(path.join(tmpdir(), "ieumdoc-docling-pdf-"));
+  const temp = await mkdtemp(path.join(tmpdir(), "litzio-docling-pdf-"));
   let taskId: string | undefined, ownedOutput = false;
   async function request(endpoint: string, init?: RequestInit): Promise<Response> {
     let response: Response;
@@ -135,7 +135,7 @@ export async function convertDoclingPdf(input: string, output: string, options: 
     const after = await fileDigest(input);
     if (source.sha256 !== after.sha256 || source.bytes !== after.bytes) throw new Error("Source PDF changed during conversion");
     const record = {
-      format: "ieumdoc-docling-conversion", version: 1, status: "success",
+      format: "litzio-docling-conversion", version: 1, status: "success",
       startedAt: new Date(started).toISOString(), completedAt: new Date().toISOString(), elapsedMs: Date.now() - started,
       source: { path: path.resolve(input), ...source },
       server: { url: base.href, versions, openapiSha256, baselineOpenapiMatches: openapiSha256 === profile.provenance.openapi_sha256 },

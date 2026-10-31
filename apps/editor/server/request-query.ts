@@ -1,4 +1,4 @@
-import { assertUnicode } from "@ieumdoc/file-commit";
+import { assertUnicode } from "@litzio/file-commit";
 
 /** Decode the raw target once, before URLSearchParams can replace malformed UTF-8. */
 export function requestQuery(target: string): URLSearchParams {

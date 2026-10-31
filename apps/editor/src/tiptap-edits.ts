@@ -1,8 +1,8 @@
 import { allocateBlockPath } from "./block-locators.ts";
 import { SaveContentError } from "../shared/save-error.ts";
-import { inlineContentText as inlineText, sameInlineContent as sameInline, isAdmonitionVariant, type CodeBlockContent, type EditableDocument, type FigureContent, type InlineContent, type ListContent } from "@ieumdoc/core";
-import { defaultHeadingNumbering, referenceTemplatesError, NUMBERED_KINDS, type ReferenceTemplates } from "@ieumdoc/core/numbering";
-import { figureCaptionContent, figureContentError } from "@ieumdoc/core/figure";
+import { inlineContentText as inlineText, sameInlineContent as sameInline, isAdmonitionVariant, type CodeBlockContent, type EditableDocument, type FigureContent, type InlineContent, type ListContent } from "@litzio/core";
+import { defaultHeadingNumbering, referenceTemplatesError, NUMBERED_KINDS, type ReferenceTemplates } from "@litzio/core/numbering";
+import { figureCaptionContent, figureContentError } from "@litzio/core/figure";
 import { fromTiptapContent, toTiptapContent, type TiptapJSON } from "./tiptap-inline.ts";
 import {
   isNewBlockPath,

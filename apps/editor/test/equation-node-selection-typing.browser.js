@@ -45,7 +45,7 @@ async (page, { showNotifications, openPath, reloadDocument }) => {
         undo:e.can().undo(), redo:e.can().redo(), focused:e.view.hasFocus()});
       const before = state();
       // Real parsing/transform/handlePaste/default-paste pipeline: non-null empty Slice.
-      const handled = e.view.pasteHTML('<!-- data-ieumdoc-type="paragraph" -->');
+      const handled = e.view.pasteHTML('<!-- data-litzio-type="paragraph" -->');
       return {before, after:state(), handled};
     });
     check(result.handled && same(result.before,result.after),

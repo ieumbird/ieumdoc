@@ -6,7 +6,7 @@ import test from "node:test";
 import { checkDependencyPatches, checkDocs, headingAnchors } from "./check-docs.ts";
 
 function repository(run: (root: string, write: (file: string, source: string) => void) => void) {
-  const root = mkdtempSync(path.join(os.tmpdir(), "ieumdoc-docs-check-"));
+  const root = mkdtempSync(path.join(os.tmpdir(), "litzio-docs-check-"));
   const write = (file: string, source: string) => {
     mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
     writeFileSync(path.join(root, file), source);

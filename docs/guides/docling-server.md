@@ -8,7 +8,7 @@
 
 Docling은 PDF를 읽는 **별도 서비스**다. 이음독이 서버를 설치하거나 모델을 내려받지는 않는다. 관리자가 서비스를 준비하고 앱의 **설정 → Docling → 서버 주소**에 주소를 넣는다. 기본값은 `http://127.0.0.1:8001`이다.
 
-요청은 Desktop 앱의 Host, `ieumdoc serve`의 HTTP Host 또는 개발 Vite 서버에서 보낸다. 웹브라우저에서 Docling으로 직접 요청하지 않는다. HTTP Host에서 `127.0.0.1`은 접속자의 PC가 아니라 **이음독 Host 서버**다. 서버 주소도 그 Host OS 사용자 계정의 `~/.ieumdoc/docling.json`에 저장한다. 별도 구성 파일은 `IEUMDOC_DOCLING_SETTINGS_FILE` 환경변수로 지정할 수 있다.
+요청은 Desktop 앱의 Host, `ieumdoc serve`의 HTTP Host 또는 개발 Vite 서버에서 보낸다. 웹브라우저에서 Docling으로 직접 요청하지 않는다. HTTP Host에서 `127.0.0.1`은 접속자의 PC가 아니라 **이음독 Host 서버**다. 서버 주소도 그 Host OS 사용자 계정의 `~/.ieumdoc/docling.json`에 저장한다. 별도 구성 파일은 `LITZIO_DOCLING_SETTINGS_FILE` 환경변수로 지정할 수 있다.
 
 탐색기의 PDF 메뉴나 Command Center의 **Docling으로 변환**에서 실행한다. PDF 옆의 새 `<이름>.docling` 폴더에 원본 묶음·이음독 문서를 만들고 대조 탭을 연다. 같은 이름이 있으면 `-2`, `-3`을 붙인다. 원본 PDF·기존 결과는 덮어쓰지 않는다. HTTP Host에서는 PDF와 결과 폴더 모두 허용 Root 안에 있어야 한다.
 
@@ -70,7 +70,7 @@ curl --fail http://127.0.0.1:8001/ready
 
 ## 프로필 모델 준비
 
-이음독은 `ieumdoc-pdf-en-v1` 프로필 하나를 고정해서 보낸다. 영어 RapidOCR, 기본 layout, accurate TableFormer, 코드·수식용 **`docling-project/CodeFormulaV2`**, 그림 분류용 **DocumentFigureClassifier-v2.5**가 필요하다. 프로필의 개별 옵션을 꺼서 누락 모델을 우회하지 않는다.
+이음독은 `litzio-pdf-en-v1` 프로필 하나를 고정해서 보낸다. 영어 RapidOCR, 기본 layout, accurate TableFormer, 코드·수식용 **`docling-project/CodeFormulaV2`**, 그림 분류용 **DocumentFigureClassifier-v2.5**가 필요하다. 프로필의 개별 옵션을 꺼서 누락 모델을 우회하지 않는다.
 
 이번 공식 CUDA 이미지에는 기본 OCR/layout/table/그림 분류 모델이 있었지만 CodeFormulaV2는 없었다. `/ready`가 성공해도 그 모델을 요구하는 변환은 실패했다. **실행 중인 일회용 컨테이너에만** 추가하려면 다음을 쓴다. 이 명령은 PowerShell과 Linux에서 같다.
 

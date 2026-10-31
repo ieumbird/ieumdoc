@@ -7,7 +7,7 @@ import path from "node:path";
 import test from "node:test";
 import { listenForFetch } from "../../../test/helpers/fetch-server.ts";
 import { convertDoclingPdf, readDoclingMap } from "../src/index.ts";
-import profile from "../profiles/ieumdoc-pdf-en-v1.json" with { type: "json" };
+import profile from "../profiles/litzio-pdf-en-v1.json" with { type: "json" };
 import { doclingFailureOf } from "../src/server-types.ts";
 
 test("public failure causes distinguish explicit missing models from redacted and other model errors", () => {
@@ -28,7 +28,7 @@ function document() {
 }
 type Mode = "ok" | "version" | "openapi" | "ready" | "submit" | "submit-timeout" | "failure" | "partial" | "timeout" | "download-timeout" | "schema" | "image" | "result" | "graph" | "task-id" | "source-changed" | "output-race";
 async function fixture(mode: Mode = "ok") {
-  const root = mkdtempSync(path.join(tmpdir(), "ieumdoc-rest-test-"));
+  const root = mkdtempSync(path.join(tmpdir(), "litzio-rest-test-"));
   const input = path.join(root, "input.pdf"), output = path.join(root, "output");
   writeFileSync(input, "%PDF-1.7\nfixture");
   const requests: string[] = []; let polls = 0; let fields: FormData | undefined;
@@ -79,7 +79,7 @@ test("official REST submits the fixed multipart profile, polls and produces an e
     for (const [key, value] of Object.entries(profile.request)) assert.deepEqual(f.fields().getAll(key), (Array.isArray(value) ? value : [value]).map(v => typeof v === "string" ? v : JSON.stringify(v)), key);
     assert.equal(f.fields().get("page_range"), null, "official default converts the complete PDF");
     assert.deepEqual(Buffer.from(await (f.fields().get("files") as File).arrayBuffer()), before);
-    assert.equal(record.profile.profile_id, "ieumdoc-pdf-en-v1");
+    assert.equal(record.profile.profile_id, "litzio-pdf-en-v1");
     const hash = (s: string | Buffer) => createHash("sha256").update(s).digest("hex");
     assert.deepEqual(record.response, { sha256: hash(f.responseText), bytes: Buffer.byteLength(f.responseText) });
     assert.equal(record.server.openapiSha256, hash(f.spec));

@@ -19,7 +19,7 @@ async (page, { openDocument }) => {
   };
   const apostrophe = "The first paragraph. Don't panic.";
   const quoted = 'The second paragraph. The state is "READY".';
-  if (await markdown() !== '---\nieumdoc: 1\n---\n\n# Quote save reload\n\nThe first paragraph.\n\nThe second paragraph.\n') {
+  if (await markdown() !== '---\nlitzio: 1\n---\n\n# Quote save reload\n\nThe first paragraph.\n\nThe second paragraph.\n') {
     throw new Error('Scratch document is not a fresh quotes.md copy');
   }
   const open = async () => {
@@ -51,7 +51,7 @@ async (page, { openDocument }) => {
   await open();
   const paragraphs = await page.locator('[data-document-tab][data-active=true] [data-testid="document-editor"] [data-block="paragraph"]').allInnerTexts();
   const result = {
-    savedAsTyped: saved === `---\nieumdoc: 1\n---\n\n# Quote save reload\n\n${apostrophe}\n\n${quoted}\n`,
+    savedAsTyped: saved === `---\nlitzio: 1\n---\n\n# Quote save reload\n\n${apostrophe}\n\n${quoted}\n`,
     reloadedAsTyped: JSON.stringify(paragraphs) === JSON.stringify([apostrophe, quoted]),
     noTypographicQuotes: !/[‘’“”]/.test(saved + paragraphs.join('')),
   };

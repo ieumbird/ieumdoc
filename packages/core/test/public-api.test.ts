@@ -3,8 +3,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
 import type { GenericParent } from "myst-common";
 // Imported by package name, exactly as CLI, Editor Host and other consumers do.
-import * as core from "@ieumdoc/core";
-import { getEditableDocument, inspectDocument, parse, serialize, type Document } from "@ieumdoc/core";
+import * as core from "@litzio/core";
+import { getEditableDocument, inspectDocument, parse, serialize, type Document } from "@litzio/core";
 
 // The public Document is opaque: its MyST representation is not a consumer contract.
 // `pnpm typecheck` fails if any expectation below stops being an error.
@@ -27,15 +27,15 @@ function consumerContract(document: Document): void {
 export type RemovedNode = core.DocumentNode;
 
 test("public Core API exposes semantic operations, not MyST tree access", () => {
-  consumerContract(parse("---\nieumdoc: 1\n---\n\n# Title\n"));
+  consumerContract(parse("---\nlitzio: 1\n---\n\n# Title\n"));
   for (const name of ["getNode", "insertBlock", "cloneDocument", "replaceBlockSource"]) {
     assert.equal(name in core, false, `${name} must not be public`);
   }
-  assert.equal(serialize(parse("---\nieumdoc: 1\n---\n\n# Title\n")), "---\nieumdoc: 1\n---\n\n# Title\n");
+  assert.equal(serialize(parse("---\nlitzio: 1\n---\n\n# Title\n")), "---\nlitzio: 1\n---\n\n# Title\n");
 });
 
 test("bodyEndIndex locates insertion before endnotes, after body blocks, or at the first body position", () => {
-  const native = (body: string) => parse(`---\nieumdoc: 1\n---\n\n${body}`);
+  const native = (body: string) => parse(`---\nlitzio: 1\n---\n\n${body}`);
   assert.equal(core.bodyEndIndex(native("# Report\n\nClaim[^a] and evidence[^b].\n\n[^a]: First.\n\n[^b]: Second.\n")), 3);
   assert.equal(core.bodyEndIndex(native("# Report\n\nBody.\n")), 3);
   assert.equal(core.bodyEndIndex(core.createDocument()), 1);

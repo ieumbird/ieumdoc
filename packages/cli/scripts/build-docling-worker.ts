@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
-import { PLUGIN_UI } from "@document-plugins/api/config";
+import { PLUGIN_UI } from "@litzio/plugin-api/config";
 import { parse } from "@babel/parser";
 
 /** Include erased type imports: esbuild's runtime graph alone cannot prove the
@@ -11,8 +11,8 @@ import { parse } from "@babel/parser";
 function checkUiSources(entry: string) {
   const sourceDirectory = path.dirname(entry);
   const root = existsSync(path.join(sourceDirectory, "../package.json")) ? path.dirname(sourceDirectory) : sourceDirectory;
-  const apiSources = new Map(["ui", "config"].map(name => [`@document-plugins/api/${name}`, fileURLToPath(import.meta.resolve(`@document-plugins/api/${name}`))]));
-  const roots = [root, path.dirname(apiSources.get("@document-plugins/api/ui")!)];
+  const apiSources = new Map(["ui", "config"].map(name => [`@litzio/plugin-api/${name}`, fileURLToPath(import.meta.resolve(`@litzio/plugin-api/${name}`))]));
+  const roots = [root, path.dirname(apiSources.get("@litzio/plugin-api/ui")!)];
   const visited = new Set<string>();
   const visit = (file: string) => {
     if (visited.has(file)) return; visited.add(file);
@@ -30,9 +30,9 @@ function checkUiSources(entry: string) {
     walk(parse(readFileSync(file, "utf8"), { sourceType: "module", plugins: ["typescript", "jsx"] }));
     for (const name of imports) {
       if (apiSources.has(name)) { visit(apiSources.get(name)!); continue; }
-      if (/^(?:react(?:\/jsx-runtime)?|@ieumdoc\/core(?:\/[\w-]+)?)$/u.test(name)) continue;
+      if (/^(?:react(?:\/jsx-runtime)?|@litzio\/core(?:\/[\w-]+)?)$/u.test(name)) continue;
       if (!name.startsWith(".")) {
-        if (/(?:@tiptap|prosemirror|react-dom|apps[\\/]editor|^@\/|^@ieumdoc\/|^@document-plugins\/)/u.test(name)) throw new Error(`Plugin UI cannot import editor/non-public code: ${name}`);
+        if (/(?:@tiptap|prosemirror|react-dom|apps[\\/]editor|^@\/|^@litzio\/)/u.test(name)) throw new Error(`Plugin UI cannot import editor/non-public code: ${name}`);
         continue; // Type-only module data may reference Node or validation libraries.
       }
       const resolved = path.resolve(path.dirname(file), name);

@@ -1,5 +1,5 @@
 {
-  "name": "@ieumdoc/docling",
+  "name": "@litzio/docling",
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
@@ -10,8 +10,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@document-plugins/api": "workspace:*",
-    "@ieumdoc/core": "workspace:*",
+    "@litzio/plugin-api": "workspace:*",
+    "@litzio/core": "workspace:*",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1"
   },

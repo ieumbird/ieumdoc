@@ -28,6 +28,10 @@
 
 이 원칙을 이유로 미래 구조나 기능을 선제적으로 구현하지 않는다.
 
+## Internal naming
+
+- 내부 코드 이름은 `litzio`다(Discussion #856, #858). 패키지는 `@litzio/*`, 플러그인 Host API는 `@litzio/plugin-api`를 사용한다. 제품 표시 이름, CLI `ieumdoc`, Desktop 프로토콜·설치·데이터 경로와 저장소 참조는 별도 계약을 따른다.
+
 ## Repository map
 
 - `docs/README.md` — central documentation index, including each document's status and authority.
@@ -40,7 +44,7 @@
 - `packages/core/` — IeumDoc의 headless document engine. 문서의 parse, semantic operations, structural validation, canonical serialization을 소유한다.
 - `packages/core/src/myst/` — MyST integration boundary. MyST-specific parsing/serialization logic은 이 경계 안에 둔다.
 - `packages/core/test/` — Core의 document semantics와 canonical round-trip 계약을 검증한다.
-- `packages/cli/` — `@ieumdoc/core`의 얇은 명령줄 인터페이스. 문서 의미나 AST 처리 로직을 구현하지 않는다.
+- `packages/cli/` — `@litzio/core`의 얇은 명령줄 인터페이스. 문서 의미나 AST 처리 로직을 구현하지 않는다.
 - `packages/file-commit/` — CLI와 Editor Host가 공유하는 Node 전용 파일 교체(revision 확인, temporary sibling, rename). 문서 의미를 알지 않는다.
 - `apps/editor/` — Core-backed Visual Editor. MyST AST를 직접 다루지 않고 Core read model과 Core operations만 사용한다.
 - `apps/desktop/` — Electron Windows Host, NSIS 패키징과 Stable/Beta 업데이트. 기존 파일 Host handler를 재사용하며 문서 의미를 구현하지 않는다.

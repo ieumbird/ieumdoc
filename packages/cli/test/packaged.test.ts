@@ -30,30 +30,30 @@ async function stop(child: ChildProcess) {
 
 test("the packed CLI installs offline outside the checkout and serves both roots using Node alone", { timeout: 60_000 }, async () => {
   const archive = readdirSync(dist).find(name => name.endsWith(".tgz"));
-  assert.ok(archive, "Run pnpm --filter @ieumdoc/cli package first");
-  const scratch = mkdtempSync(path.join(tmpdir(), "ieumdoc-packed-"));
+  assert.ok(archive, "Run pnpm --filter @litzio/cli package first");
+  const scratch = mkdtempSync(path.join(tmpdir(), "litzio-packed-"));
   const install = path.join(scratch, "install"), cwd = path.join(scratch, "unrelated cwd");
   const a = path.join(scratch, "문서 A"), b = path.join(scratch, "documents B");
   for (const folder of [install, cwd, a, b]) mkdirSync(folder);
-  const env: NodeJS.ProcessEnv = { ...process.env, IEUMDOC_PLUGINS_DIR: path.join(scratch, "plugins"), IEUMDOC_DOCLING_SETTINGS_FILE: path.join(scratch, "docling.json") };
+  const env: NodeJS.ProcessEnv = { ...process.env, LITZIO_PLUGINS_DIR: path.join(scratch, "plugins"), LITZIO_DOCLING_SETTINGS_FILE: path.join(scratch, "docling.json") };
   delete env.NODE_PATH; delete env.NODE_OPTIONS;
   let child: ChildProcess | undefined;
   const fake = await fakeDoclingServer();
   try {
     // Anchor npm here even when an ancestor of the OS temp directory is another npm project.
-    writeFileSync(path.join(install, "package.json"), JSON.stringify({ name: "ieumdoc-package-test", private: true }));
+    writeFileSync(path.join(install, "package.json"), JSON.stringify({ name: "litzio-package-test", private: true }));
     copyFileSync(path.join(dist, archive), path.join(install, "artifact.tgz"));
     execSync("npm install --ignore-scripts --no-audit --no-fund --offline ./artifact.tgz", { cwd: install, env, stdio: "pipe" });
     const bin = process.platform === "win32" ? ".\\node_modules\\.bin\\ieumdoc.cmd" : "./node_modules/.bin/ieumdoc";
     assert.match(execSync(`${bin} help serve`, { cwd: install, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }), /--root/);
-    const entry = path.join(install, "node_modules/@ieumdoc/cli/cli.mjs");
-    const installed = JSON.parse(readFileSync(path.join(install, "node_modules/@ieumdoc/cli/package.json"), "utf8"));
+    const entry = path.join(install, "node_modules/@litzio/cli/cli.mjs");
+    const installed = JSON.parse(readFileSync(path.join(install, "node_modules/@litzio/cli/package.json"), "utf8"));
     assert.equal(installed.dependencies, undefined, "No runtime install should fetch dependencies");
     const version = spawnSync(process.execPath, [entry, "--version"], { cwd, env, encoding: "utf8" });
     assert.equal(version.status, 0, version.stderr);
     assert.equal(version.stderr, "");
     assert.match(version.stdout, new RegExp(`^ieumdoc ${installed.version.replaceAll(".", "\\.")} \\((?:[a-f0-9]{12,40}|unknown)\\)\\n$`));
-    for (const folder of [a, b]) writeFileSync(path.join(folder, "document.md"), "---\nieumdoc: 1\n---\n\n# Title\n\nAlpha.\n");
+    for (const folder of [a, b]) writeFileSync(path.join(folder, "document.md"), "---\nlitzio: 1\n---\n\n# Title\n\nAlpha.\n");
     const checked = spawnSync(process.execPath, [entry, "check", path.join(a, "document.md")], { cwd, env, encoding: "utf8" });
     assert.equal(checked.status, 0, checked.stderr);
     const formatted = spawnSync(process.execPath, [entry, "format", path.join(a, "document.md")], { cwd, env, encoding: "utf8" });
@@ -79,7 +79,7 @@ test("the packed CLI installs offline outside the checkout and serves both roots
         body: JSON.stringify({ path: file, revision: loaded.revision, base: { source: loaded.source },
           paragraphs: [{ path: [2], content: [{ kind: "text", text: "Packed save." }] }] }) });
       assert.equal(response.status, 200, await response.text());
-      assert.equal(readFileSync(file, "utf8"), "---\nieumdoc: 1\n---\n\n# Title\n\nPacked save.\n");
+      assert.equal(readFileSync(file, "utf8"), "---\nlitzio: 1\n---\n\n# Title\n\nPacked save.\n");
     }
     const conflict = spawnSync(process.execPath, [entry, "serve", "--port", String(port), "--root", a], { cwd, env, encoding: "utf8", timeout: 10_000 });
     assert.notEqual(conflict.status, 0);

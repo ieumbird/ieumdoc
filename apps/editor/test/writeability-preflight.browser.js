@@ -42,7 +42,7 @@ async (page, { openDocument }) => {
   }
 
   // A filesystem failure keeps the existing top error, even when its text resembles a native reason.
-  await page.route('**/api/document?*', route => route.fulfill({status:403, json:{error:'Permission denied. A native document requires leading frontmatter with ieumdoc: 1'}}));
+  await page.route('**/api/document?*', route => route.fulfill({status:403, json:{error:'Permission denied. A native document requires leading frontmatter with litzio: 1'}}));
   try {
     await page.getByRole('treeitem', {name:'blocked-markdown.md',exact:true}).click();
     await page.getByTestId('error').filter({hasText:'Permission denied.'}).waitFor();

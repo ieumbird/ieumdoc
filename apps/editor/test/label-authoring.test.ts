@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { referencesBrokenByDeletion } from "../src/cross-reference.tsx";
 import { fileURLToPath } from "node:url";
-import { parse, serialize, type EditableDocument } from "@ieumdoc/core";
+import { parse, serialize, type EditableDocument } from "@litzio/core";
 import { collectSupportedEdits, toTiptapDocument, type TiptapJSON } from "../src/tiptap-document.ts";
 import { loadDocumentFile, previewDocumentFile, saveDocumentFile } from "../server/document-api.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
@@ -156,7 +156,7 @@ test("new Equation and Figure blocks save their labels", () => {
 });
 
 test("Source preview shows unsaved label edits; rejected labels fail closed before any write", () => {
-  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-label-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "litzio-label-"));
   const file = path.join(dir, "technical-document.md");
   try {
     writeFileSync(file, source);

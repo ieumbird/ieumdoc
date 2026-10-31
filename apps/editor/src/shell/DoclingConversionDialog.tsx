@@ -1,5 +1,5 @@
 import { useEffect, useState, type RefObject } from "react";
-import { doclingFailureMessage, type ConversionJob, type PdfProgress } from "@ieumdoc/docling/server-types";
+import { doclingFailureMessage, type ConversionJob, type PdfProgress } from "@litzio/docling/server-types";
 import { i18n, type MessageKey } from "../i18n.ts";
 import { Button } from "@/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";

@@ -44,7 +44,7 @@ async (page, { openPath }) => {
   };
 
   const before = await markdown();
-  if (!before.startsWith('---\nieumdoc: 1\n---\n\n# Admonition authoring')) throw new Error('Scratch document is not a fresh authoring.md copy');
+  if (!before.startsWith('---\nlitzio: 1\n---\n\n# Admonition authoring')) throw new Error('Scratch document is not a fresh authoring.md copy');
   const result = {};
   await open();
   result.admonitionCount = await admonitions().count() === 3;
@@ -60,7 +60,7 @@ async (page, { openPath }) => {
   await page.getByText('Saved', {exact:true}).filter({visible:true}).waitFor();
   const saved = await markdown();
   result.canonicalMarkdown = saved === [
-    '---', 'ieumdoc: 1', '---', '',
+    '---', 'litzio: 1', '---', '',
     '# Admonition authoring',
     '',
     'Intro paragraph.',

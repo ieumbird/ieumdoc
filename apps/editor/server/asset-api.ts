@@ -1,6 +1,6 @@
 import { ImageValidationError, validateImage } from "./image-validation.ts";
-import { NativeDocumentError } from "@ieumdoc/core";
-import { assertUnicode, decodeUtf8 } from "@ieumdoc/file-commit";
+import { NativeDocumentError } from "@litzio/core";
+import { assertUnicode, decodeUtf8 } from "@litzio/file-commit";
 import { validFileStem } from "../shared/file-operations.ts";
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import fs from "node:fs";

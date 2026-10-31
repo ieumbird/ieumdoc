@@ -497,7 +497,7 @@ block menu). Heading marks and references retain their existing rules. The
 leading H1 and its label can move, accept preceding blocks, change level, or be
 removed like other sections. There is no fixed-title guard, label exception or
 Save replay bypass. Adding, changing or removing metadata title never changes
-body heading levels, labels or content. `ieumdoc: 1` remains unchanged; existing
+body heading levels, labels or content. `litzio: 1` remains unchanged; existing
 leading-H1 input opens as a body section without migration.
 
 Stored logical levels are independent of output heading placement. The installed
@@ -550,7 +550,7 @@ See [unified menu behavior](editor-ux-shell-v1.md#unified-action-menus-516).
 A section can be moved or deleted. It is computed from the current
 top-level blocks: a heading, the label targets directly before it, and the blocks up to
 the next heading of the same or a higher level. It has no identity or Markdown syntax
-of its own (ADR-0003). One Core rule (`@ieumdoc/core/section`) serves Core `moveSection`/
+of its own (ADR-0003). One Core rule (`@litzio/core/section`) serves Core `moveSection`/
 `removeSection` (CLI move-section/remove-section; `inspect` shows each heading's range)
 and the Editor. A heading's block menu moves its section past the previous or next
 sibling section, or deletes it, in one engine transaction. Save reuses the existing
@@ -763,7 +763,7 @@ handlers before its own keydown handler skips key code 229, while `domchange.ts`
 can invoke `handleTextInput` during composition. Tiptap remains pinned at 3.31.3.
 
 Review follow-up baseline (`9198093`): after typing `QR`, selecting `eq-power`
-and calling `view.pasteHTML('<!-- data-ieumdoc-type="paragraph" -->')` removed
+and calling `view.pasteHTML('<!-- data-litzio-type="paragraph" -->')` removed
 the Equation/label and changed NodeSelection at 29 to TextSelection at 30.
 The HTML parser produced a non-null empty Slice; returning false delegated it
 to `doPaste`'s default `replaceSelection`. The regression failed on that HEAD.

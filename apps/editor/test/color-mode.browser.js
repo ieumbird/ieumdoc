@@ -142,7 +142,7 @@ async (page, { expect, screenshots = false }) => {
   await expect(page.getByText('테마를 저장하지 못했습니다. 이 페이지를 닫을 때까지 적용됩니다.',{exact:true})).toHaveCount(0);
   // Existing update-dot geometry stays separate from the new control in both layouts.
   await page.addInitScript(() => {
-    window.ieumdocDesktop = {
+    window.litzioDesktop = {
       info: async () => ({version:'0.1.0',channel:'beta',updatesSupported:true,update:{phase:'available',version:'0.2.0',prerelease:true}}),
       onUpdateState: () => () => {}, onRestartCheck: () => () => {},
       setTheme: async theme => theme==='dark' || (theme==='system' && matchMedia('(prefers-color-scheme: dark)').matches),

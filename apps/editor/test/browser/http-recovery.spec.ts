@@ -11,13 +11,13 @@ import type { Editor } from "@tiptap/core";
 
 // Same checkout-owned persistent Chrome profile as the serial HTTP harness. No server restart.
 const profile = path.join(tmpdir(), "ieumdoc-browser-profile", createHash("sha256").update(REPOSITORY_ROOT).digest("hex").slice(0, 16));
-const origin = process.env.IEUMDOC_BROWSER_URL ?? "http://127.0.0.1:5181";
+const origin = process.env.LITZIO_BROWSER_URL ?? "http://127.0.0.1:5181";
 const ready = (page: Page) => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: "attached" });
 
 test("HTTP recovery survives an owned browser process crash, then Save/Reload and conflict", async ({}, info) => {
   prepareBrowserFixtures();
   const file = path.join(REPOSITORY_ROOT, "tmp/http-host-a/fixture/a.md");
-  writeFileSync(file, "---\nieumdoc: 1\n---\n");
+  writeFileSync(file, "---\nlitzio: 1\n---\n");
   const original = readFileSync(file, "utf8");
   let context: BrowserContext | undefined;
   const processes: number[] = [];

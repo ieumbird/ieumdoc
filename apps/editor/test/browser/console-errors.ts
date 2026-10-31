@@ -68,14 +68,14 @@ const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
     {
       status: 404,
       pathname: "/document/diagram.svg",
-      queryPath: path.join(REPOSITORY_ROOT, "tmp", "open-files", "ieumdoc-a.md"),
+      queryPath: path.join(REPOSITORY_ROOT, "tmp", "open-files", "litzio-a.md"),
       minimum: 1,
       description: "missing diagram for mocked file A",
     },
     {
       status: 404,
       pathname: "/document/diagram.svg",
-      queryPath: path.join(REPOSITORY_ROOT, "tmp", "open-files", "ieumdoc-b.md"),
+      queryPath: path.join(REPOSITORY_ROOT, "tmp", "open-files", "litzio-b.md"),
       minimum: 1,
       description: "missing diagram for mocked file B",
     },

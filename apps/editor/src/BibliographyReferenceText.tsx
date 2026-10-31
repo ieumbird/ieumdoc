@@ -1,4 +1,4 @@
-import type { BibliographyEvaluation } from "@ieumdoc/core";
+import type { BibliographyEvaluation } from "@litzio/core";
 import { bibliographyState } from "./citation.tsx";
 
 /** Shared by the derived References list and the read-only citation preview. */

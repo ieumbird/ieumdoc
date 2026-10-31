@@ -3,7 +3,7 @@ import {
   insertFigure, insertFootnoteDefinition, insertHeading, insertList, insertParagraph,
   insertTable, parse, serialize, updateHeadingNumbering, updateTableCaption,
   type Document, type InlineContent, type ListContent, type ListStyle,
-} from "@ieumdoc/core";
+} from "@litzio/core";
 import { createMap, readDoclingMap, type MapItem, type Target, type DoclingMap } from "./map.ts";
 import { readSource, type SourceItem } from "./source.ts";
 

@@ -3,7 +3,7 @@
 - Status: Implemented
 - Worker boundary verified: 2026-10-31 (#853 synthetic REST/shared Host tests; real service and packaged checks follow the plugin contract).
 - Last verified: 2026-10-30 (module/CLI tests, public and synthetic fixtures, canonical reopen, local IEEE conversion and NIST PDF REST conversion).
-- Scope: `@ieumdoc/docling` and thin CLI, under [ADR-0011](../adr/0011-code-module-boundary.md).
+- Scope: `@litzio/docling` and thin CLI, under [ADR-0011](../adr/0011-code-module-boundary.md).
 - Decisions: [#766](https://github.com/ieumbird/ieumdoc/discussions/766), [#767](https://github.com/ieumbird/ieumdoc/discussions/767), table flattening [#778](https://github.com/ieumbird/ieumdoc/issues/778); implementation [#768](https://github.com/ieumbird/ieumdoc/issues/768), [#780](https://github.com/ieumbird/ieumdoc/issues/780).
 
 ## Input and output
@@ -27,7 +27,7 @@ invalid source schema/graph or an invalid final native document refuses output.
 ieumdoc docling convert-pdf source.pdf --server http://127.0.0.1:8001 --output new-folder
 ```
 
-`--server` takes precedence over `IEUMDOC_DOCLING_SERVER`. The URL can include a
+`--server` takes precedence over `LITZIO_DOCLING_SERVER`. The URL can include a
 reverse-proxy base path; credentials, query strings and fragments are refused.
 `--timeout <seconds>` sets the overall deadline (default 1800 seconds), including
 preflight, upload, polling and result download. The destination must not exist;
@@ -49,7 +49,7 @@ retried, including after a timeout: an upload can have reached the server even
 when the client has no task ID. This command does not cancel or resume server jobs.
 
 The sole fixed profile is
-[`ieumdoc-pdf-en-v1`](../../packages/docling/profiles/ieumdoc-pdf-en-v1.json).
+[`litzio-pdf-en-v1`](../../packages/docling/profiles/litzio-pdf-en-v1.json).
 There is no profile selector or individual conversion-option flag. Its request
 values are copied verbatim from the owner's `crd-engine` profile
 `profiles/crd-pdf-rest-v1.json`, under that project's ADR-0003. The copied source
@@ -109,7 +109,7 @@ reuse these same image files; there is no duplicate hashed asset directory.
 Node's native JSON reviver source/`rawJSON` preserves integers outside JavaScript's
 safe numeric range (including Docling's uint64 `origin.binary_hash`).
 
-`conversion-record.json` has `format: ieumdoc-docling-conversion`, `version: 1`
+`conversion-record.json` has `format: litzio-docling-conversion`, `version: 1`
 and `status: success`. It records source PDF absolute path, SHA-256 and byte size;
 server URL and reported package versions; fetched OpenAPI SHA-256 and reference
 match; the full profile/request and its provenance; task ID; timestamps/elapsed
@@ -141,7 +141,7 @@ Settings has a Docling category with the server address (default
 on field exit or Enter/check; there is no document Save/Apply action. Errors
 preserve the input, with an associated field message. The setting is the Host
 user's `~/.ieumdoc/docling.json`, shared by Desktop, HTTP Host and Vite running
-as that OS user. `IEUMDOC_DOCLING_SETTINGS_FILE` overrides that file for an
+as that OS user. `LITZIO_DOCLING_SETTINGS_FILE` overrides that file for an
 isolated Host/test installation. It is outside documents, Root folders and
 browser storage: HTTP clients configure the Host's external service, not their
 own localhost. Settings links to the administration guide through the existing
@@ -202,13 +202,13 @@ server logs and profile models using the task ID, rather than asserting a model
 is missing. The existing CLI diagnostic retains its error/context.
 
 This is Host/UI access to the already headless `docling convert-pdf` operation;
-no new Core semantics or CLI command is needed. Connection checks, REST conversion and module UI stay in `@ieumdoc/docling`;
+no new Core semantics or CLI command is needed. Connection checks, REST conversion and module UI stay in `@litzio/docling`;
 the Host owns worker admission, lifetime, request receipts and result publication; Editor provides shared controls, translation,
 file picker, shell dialogs/tabs and external-link handling under ADR-0011.
 
 ## Correspondence sidecar
 
-Format `ieumdoc-docling-map`, `version: 1` is owned by the module. `source`
+Format `litzio-docling-map`, `version: 1` is owned by the module. `source`
 identifies the Docling name/schema/version and SHA-256 of the exact input UTF-8
 text; `document.sha256` binds the map to the exact generated Markdown bytes.
 `pages` records original page numbers, page sizes and image references. Coordinates

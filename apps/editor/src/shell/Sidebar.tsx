@@ -336,7 +336,7 @@ function FolderTree({ onDoclingConvert, doclingBusy, onFileAction, fileActionsDi
         })}
       </ul>
       {fileAction ? <FileActionDialog action={fileAction.action} entry={fileAction.item.entry}
-        trash={window.ieumdocDesktop?.fileDeletion === "trash"} dirty={isFileDirty(fileAction.item.entry.path)}
+        trash={window.litzioDesktop?.fileDeletion === "trash"} dirty={isFileDirty(fileAction.item.entry.path)}
         returnFocus={actionReturn} onClose={() => setFileAction(undefined)} onExecute={async name => {
           const index = items.findIndex(item => item.entry.path === fileAction.item.entry.path);
           const next = await onFileAction(fileAction.action, tree.root, fileAction.item.entry, name);

@@ -13,7 +13,7 @@ const numbers = (document: MystDocument) => targetNumbers(getEditableDocument(do
 
 test("fixed enumerators survive canonical writing, edits, moves and MyST target resolution", async () => {
   const core = await import("../src/index.ts");
-  const source = "---\nieumdoc: 1\n---\n\n:::{figure} ./image.png\n:name: fig\n:enumerator: 17\n:alt: Image\n\nCaption with $x$ and {eq}`eq`.\n:::\n\n:::{table} Values\n:name: tbl\n:enumerator: A.3\n\n| A | B |\n| :--- | ---: |\n| $x$ | `a` |\n:::\n\n```{math}\n:label: eq\n:enumerator: 4-2\n\nx=1\n```\n\n:::{figure}\n:name: diagram\n:enumerator: A.3\n\n```{mermaid}\ngraph TD; A-->B\n```\n\nDiagram with $x$ and {eq}`eq`.\n:::\n\n:::{figure}\n:enumerator: 5\n:::\n\nSee {numref}`fig`, {numref}`tbl`, {eq}`eq` and {numref}`diagram`.\n";
+  const source = "---\nlitzio: 1\n---\n\n:::{figure} ./image.png\n:name: fig\n:enumerator: 17\n:alt: Image\n\nCaption with $x$ and {eq}`eq`.\n:::\n\n:::{table} Values\n:name: tbl\n:enumerator: A.3\n\n| A | B |\n| :--- | ---: |\n| $x$ | `a` |\n:::\n\n```{math}\n:label: eq\n:enumerator: 4-2\n\nx=1\n```\n\n:::{figure}\n:name: diagram\n:enumerator: A.3\n\n```{mermaid}\ngraph TD; A-->B\n```\n\nDiagram with $x$ and {eq}`eq`.\n:::\n\n:::{figure}\n:enumerator: 5\n:::\n\nSee {numref}`fig`, {numref}`tbl`, {eq}`eq` and {numref}`diagram`.\n";
   const document = core.parse(source);
   const saved = core.serialize(document);
   assert.equal(core.serialize(core.parse(saved)), saved);
@@ -48,7 +48,7 @@ test("fixed enumerators survive canonical writing, edits, moves and MyST target 
 
 test("fixed-number operations preserve exact strings and report nonblocking missing/duplicate numbers", async () => {
   const core = await import("../src/index.ts");
-  let document = core.parse("---\nieumdoc: 1\n---\n\n:::{figure}\n:::\n\n| A |\n| --- |\n\n$$\n$$\n\n:::{figure} ./a.png\n:::\n");
+  let document = core.parse("---\nlitzio: 1\n---\n\n:::{figure}\n:::\n\n| A |\n| --- |\n\n$$\n$$\n\n:::{figure} ./a.png\n:::\n");
   const original = core.serialize(document);
   const report = () => core.numberingReport(core.getEditableDocument(document).blocks);
   assert.equal(report().mode, "automatic");
@@ -106,7 +106,7 @@ test("all tables keep official numbers through canonical directives and caption/
   const core = await import("../src/index.ts");
   const grids = ["|  |  |\n| --- | --- |\n|  |  |", "| Header | Only |\n| --- | --- |",
     "| Left | Center | Right |\n| :--- | :---: | ---: |\n| **a** | b | $x$ |"];
-  const source = `---\nieumdoc: 1\n---\n\n${grids[0]}\n\n:::{table}\n\n${grids[1]}\n:::\n\n${grids[2]}\n\n:::{table} Last\n:name: last\n\n${grids[1]}\n:::\n\nSee {numref}\`last\`.\n`;
+  const source = `---\nlitzio: 1\n---\n\n${grids[0]}\n\n:::{table}\n\n${grids[1]}\n:::\n\n${grids[2]}\n\n:::{table} Last\n:name: last\n\n${grids[1]}\n:::\n\nSee {numref}\`last\`.\n`;
   let document = core.parse(source);
   const expected = [{ table: 1 }, { table: 2 }, { table: 3 }, { table: 4 }, {}];
   const read = () => core.getEditableDocument(document);
@@ -166,12 +166,12 @@ test("native target numbers agree with MyST and follow insertions, moves and rem
 });
 
 test("native H1 body numbering preserves stored levels independently of MyST output policy", () => {
-  const source = "---\nieumdoc: 1\n# Native document\n---\n\n# Title\n\n## First\n\n### Detail\n\n## Second\n";
+  const source = "---\nlitzio: 1\n# Native document\n---\n\n# Title\n\n## First\n\n### Detail\n\n## Second\n";
   const document = parse(source);
   const before = structuredClone(document);
   const next = updateHeadingNumbering(document, true);
   const markdown = serialize(next);
-  assert.match(markdown, /ieumdoc: 1/);
+  assert.match(markdown, /litzio: 1/);
   assert.match(markdown, /## First/);
   assert.doesNotMatch(markdown, /## 1/);
   assert.deepEqual(document, before);
@@ -195,7 +195,7 @@ test("native H1 body numbering preserves stored levels independently of MyST out
 
 test("reference templates use MyST defaults, accept shorthand, and coexist losslessly with heading settings", async () => {
   const core = await import("../src/index.ts");
-  const source = "---\nieumdoc: 1 # marker\nbibliography: [refs.bib] # resources\nnumbering:\n  headings: true # sections\n  title: false\n  figure: 'Illustration %s' # shorthand\n  equation: { template: 'Formula {number}' }\n---\n\n## Section\n\nText.\n";
+  const source = "---\nlitzio: 1 # marker\nbibliography: [refs.bib] # resources\nnumbering:\n  headings: true # sections\n  title: false\n  figure: 'Illustration %s' # shorthand\n  equation: { template: 'Formula {number}' }\n---\n\n## Section\n\nText.\n";
   const document = core.parse(source);
   const original = core.serialize(document);
   const templates = core.getEditableDocument(document).referenceTemplates;
@@ -232,7 +232,7 @@ test("reference templates refuse invalid values and unknown numbering settings w
     assert.equal(core.serialize(document), original);
   }
   for (const numbering of ["other: '%s'", "figure: { template: '%s', start: 2 }", "figure: { template: '' }", "figure: true", "table: { template: 'Table' }", "headings: true\n  start: 2", "title: true"]) {
-    assert.throws(() => core.parse(`---\nieumdoc: 1\nnumbering:\n  ${numbering}\n---\n`), /Numbering/);
+    assert.throws(() => core.parse(`---\nlitzio: 1\nnumbering:\n  ${numbering}\n---\n`), /Numbering/);
   }
 });
 
@@ -243,7 +243,7 @@ test("reference template updates retain comments on mappings, scalars and shorth
     "figure: { template: 'Figure %s' } # keep this explanation",
     "figure: # kind explanation\n    # template explanation\n    template: 'Figure %s' # value explanation",
   ]) {
-    const source = `---\nieumdoc: 1\nnumbering:\n  ${figure}\n---\n\nText.\n`;
+    const source = `---\nlitzio: 1\nnumbering:\n  ${figure}\n---\n\nText.\n`;
     const document = core.parse(source);
     const original = core.serialize(document);
     assert.equal(core.serialize(core.updateReferenceTemplates(document, {figure: "Figure %s"})), original);
@@ -253,7 +253,7 @@ test("reference template updates retain comments on mappings, scalars and shorth
     assert.equal(core.getEditableDocument(core.parse(changed)).referenceTemplates?.figure, "Illustration %s");
     assert.equal(core.serialize(document), original);
   }
-  const shorthand = core.parse("---\nieumdoc: 1\nnumbering:\n  figure: 'Figure %s' # shorthand explanation\n---\n");
+  const shorthand = core.parse("---\nlitzio: 1\nnumbering:\n  figure: 'Figure %s' # shorthand explanation\n---\n");
   const changed = core.serialize(core.updateReferenceTemplates(shorthand, {figure: "Illustration %s"}));
   assert.ok(changed.includes("# shorthand explanation"));
   assert.ok(parseDocument(changed.split("---")[1]).hasIn(["numbering", "figure", "template"]));

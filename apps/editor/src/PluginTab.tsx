@@ -1,5 +1,5 @@
 import { Component, memo, type CSSProperties, type ReactNode } from "react";
-import type { TabContent } from "@document-plugins/api/ui";
+import type { TabContent } from "@litzio/plugin-api/ui";
 import type { ActiveUi } from "./plugin-ui-registry.ts";
 import { EditorVisibility } from "./editor-visibility.ts";
 import { i18n } from "./i18n.ts";

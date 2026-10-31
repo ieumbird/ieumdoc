@@ -2,8 +2,8 @@
 // GitHub Releases, the per-user NSIS installer run silently, and the update the user asks for in
 // Settings: download, the Editor refusing the restart with unsaved work, then installing after Save
 // and starting the new version. Nothing is published; only the update host differs from a release.
-//   pnpm --filter @ieumdoc/desktop test:update
-//   IEUMDOC_TEST_UPDATE_CHANNEL=beta pnpm --filter @ieumdoc/desktop test:update
+//   pnpm --filter @litzio/desktop test:update
+//   LITZIO_TEST_UPDATE_CHANNEL=beta pnpm --filter @litzio/desktop test:update
 // It installs IeumDoc for the current user and uninstalls it afterwards. It refuses to run if
 // IeumDoc is already installed or has user data on this machine.
 import assert from "node:assert/strict";
@@ -26,11 +26,11 @@ const repo = path.resolve(desktop, "../..");
 const work = path.join(repo, "tmp", "desktop-update");
 const HOST = "127.0.0.1:47320";
 const LIVE = process.argv.includes("--github");
-const BETA = LIVE || process.env.IEUMDOC_TEST_UPDATE_CHANNEL === "beta";
+const BETA = LIVE || process.env.LITZIO_TEST_UPDATE_CHANNEL === "beta";
 const [OLD, NEW] = LIVE ? ["0.0.2-beta.3", "0.0.2-beta.4"]
   : BETA ? ["0.1.0-beta.1", "0.1.0-beta.2"] : ["0.0.1", "0.0.2"];
 // The public beta.3 predates native documents (#232) and edits leading frontmatter as a body block.
-const NATIVE_PREFIX = LIVE && OLD === "0.0.1-beta.3" ? "" : "---\nieumdoc: 1\n---\n\n";
+const NATIVE_PREFIX = LIVE && OLD === "0.0.1-beta.3" ? "" : "---\nlitzio: 1\n---\n\n";
 const CHANNEL_FILE = BETA ? "beta.yml" : "latest.yml";
 const { owner, repo: name } = RELEASE_REPOSITORY;
 const appData = path.join(process.env.APPDATA!, "IeumDoc");
@@ -55,8 +55,8 @@ function packageVersion(version: string): string {
   const out = path.join(work, `v${version}`);
   rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });
-  execFileSync("pnpm --filter @ieumdoc/desktop package", { cwd: repo, shell: process.env.ComSpec ?? "cmd.exe", stdio: "ignore",
-    env: { ...process.env, IEUMDOC_TEST_VERSION: version, IEUMDOC_TEST_UPDATE_HOST: HOST, IEUMDOC_RELEASE: "", IEUMDOC_REQUIRE_SIGNED_UPDATES: "" } });
+  execFileSync("pnpm --filter @litzio/desktop package", { cwd: repo, shell: process.env.ComSpec ?? "cmd.exe", stdio: "ignore",
+    env: { ...process.env, LITZIO_TEST_VERSION: version, LITZIO_TEST_UPDATE_HOST: HOST, LITZIO_RELEASE: "", LITZIO_REQUIRE_SIGNED_UPDATES: "" } });
   for (const file of [`IeumDoc-Setup-${version}.exe`, `IeumDoc-Setup-${version}.exe.blockmap`, CHANNEL_FILE]) {
     copyFileSync(path.join(desktop, "release", file), path.join(out, file));
   }
@@ -277,7 +277,7 @@ test("installs per user, then updates from Settings only after the open document
     }
 
     // A renderer callback failure is also a refusal, not an implicit permission to install.
-    await page.evaluate(() => window.ieumdocDesktop!.onRestartCheck(() => { throw new Error("renderer check failed"); }));
+    await page.evaluate(() => window.litzioDesktop!.onRestartCheck(() => { throw new Error("renderer check failed"); }));
     await page.getByRole("button", { name: "Restart to update" }).click();
     await page.getByTestId("update-problem").waitFor();
     assert.match(await page.getByTestId("update-problem").innerText(), /could not confirm that your work is saved/);

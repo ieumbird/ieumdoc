@@ -4,8 +4,8 @@ import { closeHistory, isHistoryTransaction } from "@tiptap/pm/history";
 import type { Fragment, Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey, Selection, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { useEditorState } from "@tiptap/react";
-import { endnoteOrder, footnoteNumbers, nextFootnoteLabel, planEndnoteLifecycle, type EndnoteBlock } from "@ieumdoc/core/numbering";
-import { endnoteRemovalEmptiesParagraph } from "@ieumdoc/core";
+import { endnoteOrder, footnoteNumbers, nextFootnoteLabel, planEndnoteLifecycle, type EndnoteBlock } from "@litzio/core/numbering";
+import { endnoteRemovalEmptiesParagraph } from "@litzio/core";
 import { LABEL_PROPERTIES_META } from "./label-rename.ts";
 import { fromTiptapContent } from "./tiptap-inline.ts";
 

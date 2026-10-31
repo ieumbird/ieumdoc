@@ -1,6 +1,6 @@
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
-import { assertUnicode } from "@ieumdoc/file-commit";
+import { assertUnicode } from "@litzio/file-commit";
 import { prepareSampleDocuments } from "../../editor/server/sample-documents.ts";
 import type { FirstDocument } from "./host-protocol.ts";
 

@@ -15,7 +15,7 @@ function render(dark: boolean): void {
 }
 
 function syncBackground(): Promise<void> | undefined {
-  const desktop = window.ieumdocDesktop;
+  const desktop = window.litzioDesktop;
   if (!desktop) return;
   // Keep the color value in tokens.css, including the native window's unpainted background.
   const style = getComputedStyle(root);
@@ -39,7 +39,7 @@ export async function applyTheme(theme: ThemePreference): Promise<void> {
   preference = theme;
   const request = ++revision;
   render(theme === "dark" || (theme === "system" && media.matches));
-  const desktop = window.ieumdocDesktop;
+  const desktop = window.litzioDesktop;
   if (desktop) {
     // Electron's explicit theme also overrides matchMedia. Reset nativeTheme first when
     // returning to System, then use its actual answer, not the previous override's match.

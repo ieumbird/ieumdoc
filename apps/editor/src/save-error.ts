@@ -1,4 +1,4 @@
-import type { WriteIssueCode } from "@ieumdoc/core";
+import type { WriteIssueCode } from "@litzio/core";
 import type { TiptapJSON } from "./tiptap-inline.ts";
 import { i18n, type MessageKey } from "./i18n.ts";
 import { isSessionPlaceholder } from "./tiptap-edits.ts";

@@ -1,5 +1,5 @@
-import type { EditableBlock, InlineContent, ReferenceRole } from "@ieumdoc/core";
-import { citationContentError, type CitationContent, type CitationRole } from "@ieumdoc/core/citation";
+import type { EditableBlock, InlineContent, ReferenceRole } from "@litzio/core";
+import { citationContentError, type CitationContent, type CitationRole } from "@litzio/core/citation";
 
 export type TiptapMark = {
   type: string;
@@ -10,7 +10,7 @@ export type TiptapJSON = {
   type?: string;
   text?: string;
   marks?: TiptapMark[];
-  attrs?: Record<string, undefined | null | string | number | boolean | string[] | number[] | InlineContent[] | import("@ieumdoc/core").HeadingNumbering | import("@ieumdoc/core").ReferenceTemplates>;
+  attrs?: Record<string, undefined | null | string | number | boolean | string[] | number[] | InlineContent[] | import("@litzio/core").HeadingNumbering | import("@litzio/core").ReferenceTemplates>;
   content?: TiptapJSON[];
 };
 

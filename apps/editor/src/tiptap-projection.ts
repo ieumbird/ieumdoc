@@ -1,4 +1,4 @@
-import type { EditableBlock, EditableDocument, InlineContent, ListContent, NodePath } from "@ieumdoc/core";
+import type { EditableBlock, EditableDocument, InlineContent, ListContent, NodePath } from "@litzio/core";
 import { toTiptapContent, type TiptapJSON } from "./tiptap-inline.ts";
 
 /**

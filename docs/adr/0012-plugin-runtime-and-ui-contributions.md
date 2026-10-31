@@ -40,6 +40,10 @@ needed. This ADR decides only the first stage.
 
 ## Decision
 
+### Internal protocol naming (#858)
+
+The owner selected `litzio` as the internal code name in [Discussion #856](https://github.com/ieumbird/ieumdoc/discussions/856). Workspace packages use `@litzio/*`; the shared worker/UI Host contract lives in `@litzio/plugin-api`, including the single `PLUGIN_UI` identifier table. API versions, manifest fields and generic routes/assets keep their existing values. Product labels, the `ieumdoc` command, Desktop transport, installed/data/plugin folders and repository references remain separate identities. This rename adds no compatibility aliases or migration.
+
 ### 1. Existing Hosts share a user installation without a daemon
 
 Desktop keeps ADR-0004's in-process Host and `ieumdoc://app` transport without a

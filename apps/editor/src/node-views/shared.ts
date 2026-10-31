@@ -7,7 +7,7 @@ import { i18n } from "../i18n.ts";
 export type DraftKind = "Equation" | "Figure" | "Table" | "Section label" | "Inline math" | "Link" | "Cross-reference";
 export type DraftListener = (kind: DraftKind, path: string, active: boolean, id?: string) => void;
 
-export const EDIT_PROPERTIES = "ieumdoc-edit-properties";
+export const EDIT_PROPERTIES = "litzio-edit-properties";
 
 export function usePropertyEntry(anchor: RefObject<HTMLElement | null>, begin: () => void) {
   useEffect(() => {
