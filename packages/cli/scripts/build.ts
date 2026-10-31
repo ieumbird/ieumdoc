@@ -32,7 +32,7 @@ const executable = path.join(destination, "cli.mjs");
 writeFileSync(executable, `#!/usr/bin/env node\n${readFileSync(executable, "utf8")}`, { mode: 0o755 });
 writeFileSync(path.join(destination, "package.json"), JSON.stringify({ name: "@litzio/cli", version: manifest.version,
   description: "IeumDoc document CLI and HTTP Editor Host", license: "MIT", type: "module", private: true,
-  bin: { litzio: "cli.mjs" }, files: ["*.mjs", "*.txt", "*.md", "editor/", "docling-worker/", "LICENSE"], engines: { node: ">=24.21.0 <25" } }, null, 2) + "\n");
+  bin: { ieumdoc: "cli.mjs" }, files: ["*.mjs", "*.txt", "*.md", "editor/", "docling-worker/", "LICENSE"], engines: { node: ">=24.21.0 <25" } }, null, 2) + "\n");
 cpSync(path.join(repo, "LICENSE"), path.join(destination, "LICENSE"));
 // Include dependency license files for bundled runtime modules and the Editor assets.
 const packageDirs = new Set<string>();
