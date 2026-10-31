@@ -354,6 +354,6 @@ function DoclingSettingsButton(props: { children?: React.ReactNode; onClick(): v
   return <Button size="sm" variant="secondary" {...props} />;
 }
 function DoclingGuideLink({ children }: { children?: React.ReactNode }) {
-  const href = "https://github.com/ieumbird/ieumdoc/blob/master/docs/guides/docling-server.md";
+  const href = "https://github.com/litzio/litzio/blob/master/docs/guides/docling-server.md";
   return <a href={href} className="w-fit text-primary underline underline-offset-4" onClick={event => { event.preventDefault(); openExternalLink(href); }}>{children}</a>;
 }

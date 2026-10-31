@@ -2,7 +2,7 @@
 
 - Status: Historical
 - Last verified: 2026-10-20 (approved implementation scope and verification record below).
-- Scope: [Issue #256](https://github.com/ieumbird/ieumdoc/issues/256), under [AGENTS.md](../../AGENTS.md). Current UI contract: [Editor UX Shell](editor-ux-shell-v1.md).
+- Scope: [Issue #256](https://github.com/litzio/litzio/issues/256), under [AGENTS.md](../../AGENTS.md). Current UI contract: [Editor UX Shell](editor-ux-shell-v1.md).
 
 ## Scope and decisions
 

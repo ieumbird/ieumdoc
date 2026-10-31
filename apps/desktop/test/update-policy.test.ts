@@ -44,16 +44,16 @@ test("packaging names the update metadata by channel and requires signing for re
   assert.throws(() => updateChannelOf("0.3.0-rc.1"), /neither Stable nor Beta/);
   const local = packageConfiguration("0.3.0-beta.1", false);
   assert.equal(local.forceCodeSigning, false);
-  assert.deepEqual(local.publish, [{ provider: "github", owner: "ieumbird", repo: "ieumdoc", channel: "beta" }]);
+  assert.deepEqual(local.publish, [{ provider: "github", owner: "litzio", repo: "litzio", channel: "beta" }]);
   assert.equal(packageConfiguration("0.3.0", true).forceCodeSigning, true);
   assert.equal(local.appId, "io.github.litzio.litzio");
   assert.deepEqual([local.nsis?.oneClick, local.nsis?.perMachine], [true, false]);
 });
 
 test("release notes links stay on the repository's releases", () => {
-  assert.equal(releaseNotesUrl("0.3.0-beta.1"), "https://github.com/ieumbird/ieumdoc/releases/tag/v0.3.0-beta.1");
-  assert.equal(releaseNotesUrl(), "https://github.com/ieumbird/ieumdoc/releases");
-  assert.equal(releaseNotesUrl("../../evil"), "https://github.com/ieumbird/ieumdoc/releases");
+  assert.equal(releaseNotesUrl("0.3.0-beta.1"), "https://github.com/litzio/litzio/releases/tag/v0.3.0-beta.1");
+  assert.equal(releaseNotesUrl(), "https://github.com/litzio/litzio/releases");
+  assert.equal(releaseNotesUrl("../../evil"), "https://github.com/litzio/litzio/releases");
 });
 
 test("preferences follow the installed channel by default and preserve a saved choice across versions", () => {

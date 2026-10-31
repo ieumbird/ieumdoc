@@ -29,7 +29,7 @@ function release(version: string, faults: { file?: string; extraFile?: string; s
   if (faults.extraFile) writeFileSync(path.join(root, faults.extraFile), yml);
   mkdirSync(path.join(root, "win-unpacked", "resources"), { recursive: true });
   writeFileSync(path.join(root, "win-unpacked", "Litzio.exe"), bytes);
-  writeFileSync(path.join(root, "win-unpacked", "resources", "app-update.yml"), ["owner: ieumbird", "repo: ieumdoc", "provider: github",
+  writeFileSync(path.join(root, "win-unpacked", "resources", "app-update.yml"), ["owner: litzio", "repo: litzio", "provider: github",
     ...(faults.host ? ["host: 127.0.0.1:47320", "protocol: http"] : []), ...(faults.publisher ? ["publisherName:", "  - Litzio"] : []),
     "updaterCacheDirName: litzio-updater", ""].join("\n"));
   return root;
@@ -146,14 +146,14 @@ test("publication uses a new Draft ID, checks all uploaded hashes and activates 
         if (fault === "page2-draft") return endpoint.endsWith("page=1") ? Array.from({ length: 100 }, () => ({ tag_name: "v0.0.0-beta.1" })) : [{ tag_name: tag, draft: true }];
         return [];
       }
-      if (endpoint === "repos/ieumbird/ieumdoc/releases") { assert.equal(method, "POST"); assert.equal((body as { make_latest: string }).make_latest, "false"); return draft; }
+      if (endpoint === "repos/litzio/litzio/releases") { assert.equal(method, "POST"); assert.equal((body as { make_latest: string }).make_latest, "false"); return draft; }
       if (file) {
         if (fault === "upload") throw new Error("Partial upload");
         draft.assets.push({ name: path.basename(file), size: statSync(file).size, state: fault === "state" ? "starter" : "uploaded",
           digest: fault === "digest" ? "sha256:wrong" : `sha256:${createHash("sha256").update(readFileSync(file)).digest("hex")}` });
         return {};
       }
-      assert.equal(endpoint, "repos/ieumbird/ieumdoc/releases/123", "never resolve a Draft by tag");
+      assert.equal(endpoint, "repos/litzio/litzio/releases/123", "never resolve a Draft by tag");
       if (method === "PATCH") {
         assert.equal((body as { make_latest: string }).make_latest, "false");
         if (fault === "activate") throw new Error("Lost response");

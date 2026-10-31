@@ -3,7 +3,7 @@
 - Status: Accepted
 - Decision date: 2026-10-31
 - Last verified: 2026-10-31 (#853 Host worker and #857 UI manifest/assets/contributions, React compatibility, disposal/re-registration and failure-isolation verification; real Docling remains manual).
-- Authority: owner approval in [Discussion #767](https://github.com/ieumbird/ieumdoc/discussions/767#discussioncomment-19307920), under [AGENTS.md](../../AGENTS.md). Related: [ADR-0011](0011-code-module-boundary.md), [ADR-0004](0004-desktop-host-distribution.md), [ADR-0005](0005-http-host.md), [ADR-0007](0007-editing-session-lifetime.md), [staged Host decision #834](https://github.com/ieumbird/ieumdoc/discussions/834#discussioncomment-19307667).
+- Authority: owner approval in [Discussion #767](https://github.com/litzio/litzio/discussions/767#discussioncomment-19307920), under [AGENTS.md](../../AGENTS.md). Related: [ADR-0011](0011-code-module-boundary.md), [ADR-0004](0004-desktop-host-distribution.md), [ADR-0005](0005-http-host.md), [ADR-0007](0007-editing-session-lifetime.md), [staged Host decision #834](https://github.com/litzio/litzio/discussions/834#discussioncomment-19307667).
 - Supersedes: the static/no-registration/no-dynamic-loading boundary and process-local-only conversion task state in ADR-0011; its Core, package, external-data and thin-interface boundaries remain Accepted.
 
 This records an approved architectural direction. It does not adopt either spike
@@ -42,7 +42,7 @@ needed. This ADR decides only the first stage.
 
 ### Internal protocol naming (#858)
 
-The owner selected `litzio` as the internal code name in [Discussion #856](https://github.com/ieumbird/ieumdoc/discussions/856). Workspace packages use `@litzio/*`; the shared worker/UI Host contract lives in `@litzio/plugin-api`, including the single `PLUGIN_UI` identifier table. API versions, manifest fields and generic routes/assets keep their existing values. Product labels, CLI command, Desktop transport and installed/data/plugin folders follow the separate [brand configuration](../guides/branding.md) (#859; official default Litzio). Repository references remain separately managed. This rename adds no compatibility aliases or migration.
+The owner selected `litzio` as the internal code name in [Discussion #856](https://github.com/litzio/litzio/discussions/856). Workspace packages use `@litzio/*`; the shared worker/UI Host contract lives in `@litzio/plugin-api`, including the single `PLUGIN_UI` identifier table. API versions, manifest fields and generic routes/assets keep their existing values. Product labels, CLI command, Desktop transport and installed/data/plugin folders follow the separate [brand configuration](../guides/branding.md) (#859; official default Litzio). Repository references remain separately managed. This rename adds no compatibility aliases or migration.
 
 ### 1. Existing Hosts share a user installation without a daemon
 

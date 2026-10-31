@@ -2,7 +2,7 @@
 
 ## 확인된 원인과 적용 범위
 
-일부 Windows 환경에서는 설치형 Chrome을 새 임시 profile로 반복 실행할 때 로그온 실패가 누적되어 계정 잠금 정책에 도달할 수 있다. 프로젝트의 [PR #121](https://github.com/ieumbird/ieumdoc/pull/121)은 Chrome이 빈 암호 로그온으로 계정의 빈 암호 여부를 확인하고 결과를 profile에 캐시하는 경로를 재현했다. 새 profile은 이 확인을 다시 수행했다. 모든 Windows 설정에서 동일하게 잠긴다는 뜻은 아니다.
+일부 Windows 환경에서는 설치형 Chrome을 새 임시 profile로 반복 실행할 때 로그온 실패가 누적되어 계정 잠금 정책에 도달할 수 있다. 프로젝트의 [PR #121](https://github.com/litzio/litzio/pull/121)은 Chrome이 빈 암호 로그온으로 계정의 빈 암호 여부를 확인하고 결과를 profile에 캐시하는 경로를 재현했다. 새 profile은 이 확인을 다시 수행했다. 모든 Windows 설정에서 동일하게 잠긴다는 뜻은 아니다.
 
 같은 PR에서 persistent profile을 재사용하면 최초 생성 이후 반복 실행의 실패 카운터가 증가하지 않는 것을 확인했다. 계정 정책 변경이나 비활성화로 우회하지 않고 profile을 재사용한다.
 
@@ -16,9 +16,11 @@
 
 ## Profile reuse and test isolation
 
+기존 checkout의 Chrome 인증 캐시를 재사용하기 위해 browser fixture와 shortcut probe의 임시 경로 prefix `ieumdoc-browser-profile`은 역사적 식별자로 유지한다. 제품 브랜드나 GitHub 저장소 주소가 아니며, 저장소 이전 때 이 경로를 바꿔 새 profile을 만들지 않는다.
+
 공통 `scenarios.spec.ts` persistent context는 `extraHTTPHeaders: { Connection: "close" }`를 사용한다.
 Playwright의 Node 측 `page.request.*`와 `route.fetch()`가 Vite의 만료 직전 유휴 keep-alive
-소켓을 재사용하는 경합을 피하기 위한 테스트 하네스 설정이다([#658](https://github.com/ieumbird/ieumdoc/issues/658)).
+소켓을 재사용하는 경합을 피하기 위한 테스트 하네스 설정이다([#658](https://github.com/litzio/litzio/issues/658)).
 제품 Host와 Vite 서버 설정은 바꾸지 않으며 재시도·timeout 증가·HTTP 오류 단언 완화로 대신하지 않는다.
 context 전체에 적용되므로 변경 시 실제 서버가 받은 두 Node 경로의 헤더, Chromium의 문서·asset·fetch
 요청과 전체 suite의 shard별 실행 시간을 함께 확인한다. 고정 profile과 storage 격리는 그대로 유지한다.

@@ -5,7 +5,7 @@
 - Status: Historical
 - Last verified: 2026-10-25 (before/after input and CPU/timeline measurements, complete canonical Save/Reload; mixed 2000 p95 96.7ms).
 - Scope: Windows development Editor input; [Continuous editing](../design/document-editing-v1.md) and [ADR-0001](../adr/0001-single-document-editor-architecture.md) remain authoritative.
-- Issue: [#362](https://github.com/ieumbird/ieumdoc/issues/362); preceding [measurement report](editor-guard-performance-2026-10-23.md).
+- Issue: [#362](https://github.com/litzio/litzio/issues/362); preceding [measurement report](editor-guard-performance-2026-10-23.md).
 
 ## Result
 

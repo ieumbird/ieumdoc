@@ -6,7 +6,7 @@
 - Last verified: 2026-10-30 (#785: original text, capture paths and incoming anchors preserved; no browser rerun).
 - Scope: Snapshot of the mixed contract/verification document at master `e6eb3282565abb999c3f23c3cc01220f37628983`.
 - Authority: Historical evidence only. Current [visual rules](../design/editor-visual-language-v1.md), [layout rules](../design/editor-layout-rules-v1.md), [UI pattern targets](../design/ui-patterns-v1.md) and feature contracts own current behavior.
-- Related: [#785](https://github.com/ieumbird/ieumdoc/issues/785).
+- Related: [#785](https://github.com/litzio/litzio/issues/785).
 
 This snapshot preserves every original section, measurement, capture and unresolved manual
 check, including rules embedded in verification prose. Statements such as “current”, “this PR”
@@ -32,7 +32,7 @@ The current capture procedure is [Reviewing a visual change](../test/README.md#r
 - Theme verification: 2026-10-27 (#595: System/Light/Dark, six dark accents, independent paper roles, live preferences and native appearance bridge; [values, contrast and captures](#system-light-and-dark-595)).
 - Document tab verification: 2026-10-27 (#581: flat bottom accent marker and adjustable 32px height; [comparison and measurements](#slim-document-tabs-581)).
 - Document settings verification: 2026-10-27 (#580: inline settings, per-tab expansion, notation previews and existing document operations; [integration, checks and captures](../design/editor-ux-shell-v1.md#document-settings-placement-554)).
-- Type-scale verification: 2026-10-27 ([#558](https://github.com/ieumbird/ieumdoc/issues/558): Editor tests, typecheck/build, layout-rules and quiet-document pass; 1440px 15/16px manual comparison remains pending because the Windows account failure counter reached the owner stop threshold of 6).
+- Type-scale verification: 2026-10-27 ([#558](https://github.com/litzio/litzio/issues/558): Editor tests, typecheck/build, layout-rules and quiet-document pass; 1440px 15/16px manual comparison remains pending because the Windows account failure counter reached the owner stop threshold of 6).
 - Accent verification: 2026-10-27 (#559: six local accent presets, shared interaction/selection/number colors and neutral information states; [contract and contrast results](#single-accent-presets-559)).
 - Table handle verification: 2026-10-26 (#517: B2 transparent-rest line handles with S4 neutral current/open states, accessible address names/tooltips, keyboard discovery and touch fallback; [verification and actual Before/After](../design/table-interaction-v1.md#light-handle-verification-and-comparison)).
 - Previous verification: 2026-10-26 (#515 P1/P3 owner review correction: contrast-qualified tab edges, 600 list cue and stable Outline row extent; targeted regressions and [1440/390px comparison](#selection-cue-review-correction-515)).
@@ -284,7 +284,7 @@ The following base values describe Light; [Dark overrides](#system-light-and-dar
 | Figure / Equation | Transparent at rest; authoring metadata takes no space, hidden at rest and shown on hover/focus/selection/editing at 12/16px in the gap above the block, right-aligned and clear of the hover outline; caption unchanged. Selected/editing outline uses the interaction role. |
 | Editing surfaces | White popovers/dialogs with shared border/radius/shadow; block Equation uses the code-block surface in the document, inline math uses a wider wrapping popover; 32px inputs, 28px form actions, explicit labels and errors |
 
-The owner decision in [#558](https://github.com/ieumbird/ieumdoc/issues/558) treats callout content as body prose and raises table content to 15/22px while retaining its UI font for dense columns. Captions remain secondary information at 14/20px; H5/H6 retain their existing sizes. Callout bodies consume the existing document font, size and line-height tokens; table size and line height use the existing document-table tokens. Cell padding, minimum width, grid and table tool reservations are unchanged; reservation design belongs to [#518](https://github.com/ieumbird/ieumdoc/issues/518). This changes presentation only, so no Core operation or CLI surface is needed.
+The owner decision in [#558](https://github.com/litzio/litzio/issues/558) treats callout content as body prose and raises table content to 15/22px while retaining its UI font for dense columns. Captions remain secondary information at 14/20px; H5/H6 retain their existing sizes. Callout bodies consume the existing document font, size and line-height tokens; table size and line height use the existing document-table tokens. Cell padding, minimum width, grid and table tool reservations are unchanged; reservation design belongs to [#518](https://github.com/litzio/litzio/issues/518). This changes presentation only, so no Core operation or CLI surface is needed.
 
 Document and UI share `Pretendard Variable → Pretendard → Noto Sans KR → Apple SD Gothic Neo → Malgun Gothic → Segoe UI → sans-serif`; the document token aliases the UI stack. The Editor pins the official `pretendard` package to `1.3.9` and imports its variable dynamic-subset CSS. Vite resolves the relative WOFF2 URLs into app-hosted assets. All upstream subsets remain available for newly entered text; only needed ranges are requested. The upstream `font-display: swap` and weight range are retained, so a system fallback can appear while a font loads or for unsupported characters. No CSS size adjustment or new typography dimensions are introduced. UI and document text use Pretendard's `cv08` variant (capital I with serifs, `--font-feature-sans`), so the product name never reads as "leumDoc" and a capital I stays distinct from l in technical text; KaTeX and code fonts are unaffected.
 
@@ -661,7 +661,7 @@ Same-state product captures below are **manual review only**, not screenshot ass
 Windows Chrome 155, bundled Pretendard Variable, 1440×1000 / 375×1000, DPR 1, zoom 1,
 scroll 0, no selection/hover, no folder displayed; Outline is open on desktop and closed
 by the existing phone layout. These original captures use the
-[Korean technical fixture at 587877e](https://github.com/ieumbird/ieumdoc/blob/587877e6301b793444648b18405f29b66e870fa7/apps/editor/test/browser/fixtures/quiet-document-wrap.md),
+[Korean technical fixture at 587877e](https://github.com/litzio/litzio/blob/587877e6301b793444648b18405f29b66e870fa7/apps/editor/test/browser/fixtures/quiet-document-wrap.md),
 before the review probes below were added.
 Only wrapping changes: font sizes, spacing, paper and shell rules are unchanged.
 
@@ -691,7 +691,7 @@ where master inherited `keep-all`. The new computed-style comparison fails again
 The fix restores inheritance only inside headings; all other excluded surfaces remain
 `normal`. No overflow-wrap value is changed.
 
-The [historical master baseline](https://github.com/ieumbird/ieumdoc/blob/dfddc2ae799f7de407dd582b1fbad8842968335b/apps/editor/test/browser/fixtures/quiet-document-wrap-master.json)
+The [historical master baseline](https://github.com/litzio/litzio/blob/dfddc2ae799f7de407dd582b1fbad8842968335b/apps/editor/test/browser/fixtures/quiet-document-wrap-master.json)
 recorded actual computed values from `325704e73871303b70aa4c73fc930eb2f975b8c1` in this
 worktree with that revision's complete styles.css/tokens.css and the expanded real fixture.
 This was not a synthetic CSS override. At that review, `quiet-document` compared code in heading, paragraph,
@@ -1292,7 +1292,7 @@ The initial implementation below is historical. Its text/background contrast che
 prove that the current state itself was distinguishable. The owner-approved review correction
 below supersedes that reasoning and adds a contrast-qualified tab edge and semibold list cue. #620 subsequently replaces the text-segment edge with a semibold non-color cue; see the current state rules above.
 
-Owner [A1 decision](https://github.com/ieumbird/ieumdoc/issues/507#issuecomment-6408955209)
+Owner [A1 decision](https://github.com/litzio/litzio/issues/507#issuecomment-6408955209)
 is implemented with existing tokens: S1 raised white tab segments on a pressed-surface track,
 S2 selected background/text for current lists, S3 unchanged single blue block outline and
 independent neutral hover extent. The collapsed rail reuses S1's raised white current face

@@ -5,7 +5,7 @@
 - Status: Historical
 - Last verified: 2026-10-31 (branch-only measurement; no merge or adoption).
 - Scope: `spike/docling-plugin-ui`, based on runtime spike head `3d4cb6e139313ab458f841f5c1514dadc3e21470`.
-- Authority: owner-authorized experiment in [Discussion 767](https://github.com/ieumbird/ieumdoc/discussions/767); current [ADR-0001](../adr/0001-single-document-editor-architecture.md), [ADR-0004](../adr/0004-desktop-host-distribution.md), [ADR-0011](../adr/0011-code-module-boundary.md), [AGENTS.md](../../AGENTS.md).
+- Authority: owner-authorized experiment in [Discussion 767](https://github.com/litzio/litzio/discussions/767); current [ADR-0001](../adr/0001-single-document-editor-architecture.md), [ADR-0004](../adr/0004-desktop-host-distribution.md), [ADR-0011](../adr/0011-code-module-boundary.md), [AGENTS.md](../../AGENTS.md).
 - Related: [runtime spike](docling-plugin-runtime-spike.md), [comparison contract](../design/docling-compare-v1.md), [shell contract](../design/editor-ux-shell-v1.md).
 
 ## Question and implementation
@@ -89,19 +89,19 @@ The UI used the declared synthetic comparison fixture with real Core read model,
 real images and the actual Editor reading surface. No Docling REST conversion or
 OCR was performed in this UI spike; the runtime spike's real-server gap remains.
 
-The earliest complete valid run is [attempt 5](https://github.com/ieumbird/ieumdoc/blob/b35f854b69fc7d7c762097326045b34de0610c96/docs/reviews/assets/docling-ui-spike/attempt-5.json),
+The earliest complete valid run is [attempt 5](https://github.com/litzio/litzio/blob/b35f854b69fc7d7c762097326045b34de0610c96/docs/reviews/assets/docling-ui-spike/attempt-5.json),
 12:27:08–12:27:34 KST. All conditions below passed independently in each of
 Desktop, serve and Vite. There were **0 main-frame navigations** during each
 registration/fault/recovery sequence; `performance.timeOrigin` stayed unchanged.
 
 | Condition | Result and direct evidence |
 | --- | --- |
-| a. Dynamic command + comparison tab | Pass: live command opened the picker; installed ESM/CSS rendered images, selected bbox, correspondence wires and read-only Core content. [Desktop](https://github.com/ieumbird/ieumdoc/blob/b35f854b69fc7d7c762097326045b34de0610c96/docs/reviews/assets/docling-ui-spike/Desktop-ready.png), [serve](https://github.com/ieumbird/ieumdoc/blob/b35f854b69fc7d7c762097326045b34de0610c96/docs/reviews/assets/docling-ui-spike/serve-ready.png), [Vite](https://github.com/ieumbird/ieumdoc/blob/b35f854b69fc7d7c762097326045b34de0610c96/docs/reviews/assets/docling-ui-spike/Vite-ready.png). |
+| a. Dynamic command + comparison tab | Pass: live command opened the picker; installed ESM/CSS rendered images, selected bbox, correspondence wires and read-only Core content. [Desktop](https://github.com/litzio/litzio/blob/b35f854b69fc7d7c762097326045b34de0610c96/docs/reviews/assets/docling-ui-spike/Desktop-ready.png), [serve](https://github.com/litzio/litzio/blob/b35f854b69fc7d7c762097326045b34de0610c96/docs/reviews/assets/docling-ui-spike/serve-ready.png), [Vite](https://github.com/litzio/litzio/blob/b35f854b69fc7d7c762097326045b34de0610c96/docs/reviews/assets/docling-ui-spike/Vite-ready.png). |
 | b. Register/disable/register without reload | Pass: an already-open Command Center gained/lost its exact command; registration restored the same tab id and identical reading content. |
-| c. Render/load failure isolation | Pass: injected render throw, module-evaluation throw, and deleted installed ESM each stayed local. The ordinary document retained its exact DOM instance and unsaved text, then accepted more real keyboard input after each fault. Re-registration recovered. [Render error](https://github.com/ieumbird/ieumdoc/blob/b35f854b69fc7d7c762097326045b34de0610c96/docs/reviews/assets/docling-ui-spike/Desktop-render-error.png). |
+| c. Render/load failure isolation | Pass: injected render throw, module-evaluation throw, and deleted installed ESM each stayed local. The ordinary document retained its exact DOM instance and unsaved text, then accepted more real keyboard input after each fault. Re-registration recovered. [Render error](https://github.com/litzio/litzio/blob/b35f854b69fc7d7c762097326045b34de0610c96/docs/reviews/assets/docling-ui-spike/Desktop-render-error.png). |
 | d. Version mismatch | Pass: API 2 displayed “UI Host API 2 is incompatible; expected 1.”; script request count did not increase and poison code never ran. Command absent; ordinary Editor usable. Host unit check also refuses direct incompatible-asset access. |
 | e. Desktop + serve | Pass: actual `ieumdoc://app/index.html` with CSP and a separate built CLI process at HTTP 5284; also Vite 5283. Packaged Desktop is unverified. |
-| f. Disable an open comparison | Pass: same shell tab, explicit disabled state, zero contributed views or stylesheet links; re-registration restored the snapshot. [Disabled tab](https://github.com/ieumbird/ieumdoc/blob/b35f854b69fc7d7c762097326045b34de0610c96/docs/reviews/assets/docling-ui-spike/serve-disabled.png). |
+| f. Disable an open comparison | Pass: same shell tab, explicit disabled state, zero contributed views or stylesheet links; re-registration restored the snapshot. [Disabled tab](https://github.com/litzio/litzio/blob/b35f854b69fc7d7c762097326045b34de0610c96/docs/reviews/assets/docling-ui-spike/serve-disabled.png). |
 | g. Internal-import boundary | Pass: transitive build graph and source/type-contract inspection, React externalization and hook rendering; no Editor/Tiptap/ProseMirror dependency in the plugin. Raw input list/hashes in attempt 5. |
 
 | Measurement (one observation, ms) | Desktop | serve | Vite |
@@ -121,10 +121,10 @@ clean startup benchmark. Original source PDF/JSON hashes matched before/after.
 
 ### Attempts retained without timing selection
 
-1. [Attempt 1](https://github.com/ieumbird/ieumdoc/blob/b35f854b69fc7d7c762097326045b34de0610c96/docs/reviews/assets/docling-ui-spike/attempt-1.json): Desktop followed its system Korean language; the English command-button locator timed out. Set the test UI language explicitly.
-2. [Attempt 2](https://github.com/ieumbird/ieumdoc/blob/b35f854b69fc7d7c762097326045b34de0610c96/docs/reviews/assets/docling-ui-spike/attempt-2.json): Desktop passed dynamic loading/lifecycle; a later keyboard insertion split the sentinel string. The harness now compares the exact unsaved text before a new insertion and verifies removing that insertion yields the original text; it does not assume an unrelated cursor placement.
-3. [Attempt 3](https://github.com/ieumbird/ieumdoc/blob/b35f854b69fc7d7c762097326045b34de0610c96/docs/reviews/assets/docling-ui-spike/attempt-3.json): Desktop passed a–f; serve's selected-tab locator also matched Outline. Scope it to document-tab controls.
-4. [Attempt 4](https://github.com/ieumbird/ieumdoc/blob/b35f854b69fc7d7c762097326045b34de0610c96/docs/reviews/assets/docling-ui-spike/attempt-4.json): Desktop/serve passed a–f; Vite's existing sample left a hidden editable tab first in DOM. Reuse the existing exact-path/active-document helper.
+1. [Attempt 1](https://github.com/litzio/litzio/blob/b35f854b69fc7d7c762097326045b34de0610c96/docs/reviews/assets/docling-ui-spike/attempt-1.json): Desktop followed its system Korean language; the English command-button locator timed out. Set the test UI language explicitly.
+2. [Attempt 2](https://github.com/litzio/litzio/blob/b35f854b69fc7d7c762097326045b34de0610c96/docs/reviews/assets/docling-ui-spike/attempt-2.json): Desktop passed dynamic loading/lifecycle; a later keyboard insertion split the sentinel string. The harness now compares the exact unsaved text before a new insertion and verifies removing that insertion yields the original text; it does not assume an unrelated cursor placement.
+3. [Attempt 3](https://github.com/litzio/litzio/blob/b35f854b69fc7d7c762097326045b34de0610c96/docs/reviews/assets/docling-ui-spike/attempt-3.json): Desktop passed a–f; serve's selected-tab locator also matched Outline. Scope it to document-tab controls.
+4. [Attempt 4](https://github.com/litzio/litzio/blob/b35f854b69fc7d7c762097326045b34de0610c96/docs/reviews/assets/docling-ui-spike/attempt-4.json): Desktop/serve passed a–f; Vite's existing sample left a hidden editable tab first in DOM. Reuse the existing exact-path/active-document helper.
 5. Attempt 5 above is the first complete valid run. No product assertion, timeout or fault case was relaxed. Every attempt's owned process liveness check ended empty.
 
 Reproduction (development builds, no package/install):

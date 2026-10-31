@@ -2,7 +2,7 @@
 
 - Status: Implemented
 - Last verified: 2026-10-31 (#815 fixed Read surface/reverse correspondence; #857 dynamic UI contribution with unchanged comparison behavior).
-- Authority: owner decisions in [#766](https://github.com/ieumbird/ieumdoc/discussions/766), [#767](https://github.com/ieumbird/ieumdoc/discussions/767), [#769](https://github.com/ieumbird/ieumdoc/issues/769), under [ADR-0011](../adr/0011-code-module-boundary.md).
+- Authority: owner decisions in [#766](https://github.com/litzio/litzio/discussions/766), [#767](https://github.com/litzio/litzio/discussions/767), [#769](https://github.com/litzio/litzio/issues/769), under [ADR-0011](../adr/0011-code-module-boundary.md).
 
 The Docling plugin contributes its sidebar footer's **Docling comparison** action,
 tab kind and conversion command through [Plugin UI contributions](plugin-ui-v1.md).
@@ -29,7 +29,7 @@ It does not interrupt Collapse Explorer → Open folder keyboard order and is hi
 with the other Explorer navigation when the sidebar collapses.
 The footer's keyboard sequence after file navigation is Docling comparison → Settings.
 The empty-state help therefore describes only file browsing, separately from the comparison action
-([#799](https://github.com/ieumbird/ieumdoc/issues/799), sidebar item only).
+([#799](https://github.com/litzio/litzio/issues/799), sidebar item only).
 
 The left pane displays original page images with source bboxes using the map v1
 page sizes and each bbox's TOPLEFT/BOTTOMLEFT origin. Categories have token colors
@@ -79,7 +79,7 @@ parses/validates the sidecar once per open; no repeated source JSON parsing runs
 on the browser scroll path.
 
 A Markdown SHA-256 mismatch appears in the shared bottom-right notification
-center, following owner P07 in [#777](https://github.com/ieumbird/ieumdoc/issues/777).
+center, following owner P07 in [#777](https://github.com/litzio/litzio/issues/777).
 It expands without taking focus, can be collapsed/dismissed and offers Go to
 problem. Open comparison tabs contribute warnings to one window-level center;
 switching tabs does not resurrect a dismissed cause. Go to problem selects its

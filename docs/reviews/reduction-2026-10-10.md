@@ -113,19 +113,19 @@ Editor225, typecheck/build/docs 통과. code-highlighting/image-assets/visual-st
 
 | ID | 판정/commit | PR | 검증 또는 유지 근거 |
 | --- | --- | --- | --- |
-| C01 | 구현 `d4e4c15` | [#156](https://github.com/ieumbird/ieumdoc/pull/156) | 비활성 sourceHint 제거; Source pending/shell |
+| C01 | 구현 `d4e4c15` | [#156](https://github.com/litzio/litzio/pull/156) | 비활성 sourceHint 제거; Source pending/shell |
 | C02 | 구현 `d4e4c15` | #156 | test-only loader/re-export 제거; 실제 Open/file/replay 경계 |
-| C03 | 구현 `35af134`, `0cb8507` | [#157](https://github.com/ieumbird/ieumdoc/pull/157) | revision ack/최종 projection 제거; Save/history/conflict/label 조합 |
+| C03 | 구현 `35af134`, `0cb8507` | [#157](https://github.com/litzio/litzio/pull/157) | revision ack/최종 projection 제거; Save/history/conflict/label 조합 |
 | C04 | 구현 `97fea98` | #157 | HTTP session required와 malformed400; 내부 pure helper 보존 |
-| C05 | 구현 `39abb98` | [#158](https://github.com/ieumbird/ieumdoc/pull/158) | Base UI 한 구현; ref/aria/selection/focus/keyboard |
-| C06 | 구현 `d4e4c15`, `39abb98`, `c6fffcd` | #156/#158/[#160](https://github.com/ieumbird/ieumdoc/pull/160) | exports/bin/alias/CSS side effects 검사; 생성 잔여물만 제거 |
+| C05 | 구현 `39abb98` | [#158](https://github.com/litzio/litzio/pull/158) | Base UI 한 구현; ref/aria/selection/focus/keyboard |
+| C06 | 구현 `d4e4c15`, `39abb98`, `c6fffcd` | #156/#158/[#160](https://github.com/litzio/litzio/pull/160) | exports/bin/alias/CSS side effects 검사; 생성 잔여물만 제거 |
 | C07 | 구현 `39abb98` | #158 | 자동 summary/dismiss 제거; 명시 Edit/Apply/Cancel/Undo |
 | C08 | 구현 `39abb98`, `c6fffcd` | #158/#160 | overlay 모션/unused tw-animate 제거; 위치·닫힘·focus/spinner |
-| C09 | 구현 `aafc122` | [#159](https://github.com/ieumbird/ieumdoc/pull/159) | 실제 lazy projection 계측과 remount/Save 회귀 |
+| C09 | 구현 `aafc122` | [#159](https://github.com/litzio/litzio/pull/159) | 실제 lazy projection 계측과 remount/Save 회귀 |
 | C10 | 구현 `aafc122` | #159 | kind+locator 집계; 미보고 source/section 및 late Apply 보호 |
 | C11 | 유지 `c6fffcd` 기록 | #160 | 기존 menu 없음; 새 menu/state/추가 클릭이 증가 |
 | C12 | 구현 `c6fffcd` | #160 | common 집합 전체 지연; 실제 upload/plugin 수명/언어/실패 |
-| C13 | 구현 `528f3f1` | [#162](https://github.com/ieumbird/ieumdoc/pull/162) | 공식 Test fixture; 정상/실패/ownership 격리 + 전체42 |
+| C13 | 구현 `528f3f1` | [#162](https://github.com/litzio/litzio/pull/162) | 공식 Test fixture; 정상/실패/ownership 격리 + 전체42 |
 | C14 | 유지 `c6fffcd` 기록 | #160 | 유일 development Host; 동일 기능의 adopted native 대체 없음 |
 | C15 | 구현 `c6fffcd` | #160 | 역사 evidence 재배치, 동일경계 중복 assertion3만 제거 |
 

@@ -1,9 +1,9 @@
 ---
-name: ieumdoc-orchestrator
-description: Orchestrate several IeumDoc GitHub issues end to end by planning waves, launching Paseo worker agents in isolated worktrees, reviewing risky PRs, and merging through the merge queue. Use only when the user explicitly invokes ieumdoc-orchestrator inside the ieumbird/ieumdoc repository.
+name: litzio-orchestrator
+description: Orchestrate several Litzio GitHub issues end to end by planning waves, launching Paseo worker agents in isolated worktrees, reviewing risky PRs, and merging through the merge queue. Use only when the user explicitly invokes litzio-orchestrator inside the litzio/litzio repository.
 ---
 
-# IeumDoc Orchestrator
+# Litzio Orchestrator
 
 여러 이슈를 작업자 agent에게 나눠 맡기고, 결과 PR을 확인해 merge queue로 병합하는 통합 담당자 절차다. 오케스트레이터는 직접 제품 코드를 고치지 않는다. 판단, 배정, 확인, 병합, 정리를 맡는다. 사용자에게는 한국어로 보고한다.
 
@@ -11,7 +11,7 @@ description: Orchestrate several IeumDoc GitHub issues end to end by planning wa
 
 ## 0. 적용 범위 확인
 
-- `git remote get-url origin`이 `github.com/ieumbird/ieumdoc`이 아니면 즉시 멈추고 이 스킬은 이 저장소 전용이라고 알린다.
+- `git remote get-url origin`이 `github.com/litzio/litzio`이 아니면 즉시 멈추고 이 스킬은 이 저장소 전용이라고 알린다.
 - 사용자가 이 스킬을 명시적으로 호출한 경우에만 쓴다. 단일 이슈를 직접 구현하는 일에는 쓰지 않는다.
 - 저장소 규칙의 우선순위는 사용자 지시 → [AGENTS.md](../../../AGENTS.md) → [CONTRIBUTING.md](../../../CONTRIBUTING.md) → 이 스킬이다. 충돌하면 사용자에게 어떤 규칙에서 벗어나는지 밝힌다.
 

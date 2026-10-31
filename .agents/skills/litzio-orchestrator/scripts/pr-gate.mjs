@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// Check that an IeumDoc PR can enter the merge queue; optionally comment and enqueue it.
+// Check that a Litzio PR can enter the merge queue; optionally comment and enqueue it.
 // Usage: node pr-gate.mjs --pr <N> [--enqueue --note-file <file>]
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const REPO = 'ieumbird/ieumdoc';
+const REPO = 'litzio/litzio';
 const run = (command, args, options = {}) => execFileSync(command, args, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], ...options }).trim();
 const gh = args => run('gh', args);
 const git = args => run('git', args);
@@ -18,8 +18,8 @@ const noteFile = option('--note-file');
 if (!Number.isInteger(pr) || pr <= 0) throw new Error('Usage: pr-gate.mjs --pr <N> [--enqueue --note-file <file>]');
 if (enqueue && !noteFile) throw new Error('--enqueue requires --note-file with the orchestrator record');
 
-if (!/github\.com[/:]ieumbird\/ieumdoc(\.git)?$/.test(git(['remote', 'get-url', 'origin']))) {
-  throw new Error('This script only runs inside the ieumbird/ieumdoc repository');
+if (!/github\.com[/:]litzio\/litzio(\.git)?$/.test(git(['remote', 'get-url', 'origin']))) {
+  throw new Error('This script only runs inside the litzio/litzio repository');
 }
 const root = git(['rev-parse', '--show-toplevel']);
 
@@ -40,7 +40,7 @@ if (pending.length) problems.push(`checks pending: ${pending.map(check => check.
 if (failed.length) problems.push(`checks failed: ${failed.map(check => `${check.name ?? check.context}=${state(check)}`).join(', ')}`);
 
 const threads = JSON.parse(gh(['api', 'graphql', '-f',
-  `query={repository(owner:"ieumbird",name:"ieumdoc"){pullRequest(number:${pr}){reviewThreads(first:100){nodes{isResolved}}}}}`]))
+  `query={repository(owner:"litzio",name:"litzio"){pullRequest(number:${pr}){reviewThreads(first:100){nodes{isResolved}}}}}`]))
   .data.repository.pullRequest.reviewThreads.nodes;
 const unresolved = threads.filter(thread => !thread.isResolved).length;
 if (unresolved) problems.push(`${unresolved} unresolved review thread(s)`);

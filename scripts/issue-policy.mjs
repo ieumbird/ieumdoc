@@ -47,7 +47,7 @@ export function issueForm(type) {
     name: definition.name, description: definition.description,
     labels: [`type:${type}`, ...(type === 'decision' ? ['status:needs-decision'] : [])],
     body: [
-      { type: 'markdown', attributes: { value: '제목은 `영역: 구체적인 증상 또는 원하는 결과`로 작성합니다. 예: `Editor: 문서 끝에서 커서 아래 여백이 부족함`. 영역을 모르면 Product를 선택합니다. 원인·구현안·테스트 계획을 추정해 채우지 않습니다. [작성 규칙](https://github.com/ieumbird/ieumdoc/blob/master/docs/contributing/issues.md)' } },
+      { type: 'markdown', attributes: { value: '제목은 `영역: 구체적인 증상 또는 원하는 결과`로 작성합니다. 예: `Editor: 문서 끝에서 커서 아래 여백이 부족함`. 영역을 모르면 Product를 선택합니다. 원인·구현안·테스트 계획을 추정해 채우지 않습니다. [작성 규칙](https://github.com/litzio/litzio/blob/master/docs/contributing/issues.md)' } },
       { type: 'dropdown', id: 'area', attributes: { label: '영역', options: areas, default: areas.indexOf('Product') }, validations: { required: true } },
       ...definition.fields.map(item => ({
         type: item.options ? 'dropdown' : 'textarea', id: item.id,

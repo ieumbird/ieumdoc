@@ -6,7 +6,7 @@
 - Previous verification: 2026-10-25 (#425: collapsible folder sections; Editor tests/typecheck/build, folder-navigation/folder-memory/command-center/editor-shell/layout-rules/ui-language/quiet-document and [desktop/phone captures](../design/editor-ux-shell-v1.md#section-disclosure-verification-and-captures)).
 - Previous verification: 2026-10-24 (#385: Sidebar header entry, Close-only folder menus; folder-navigation browser check, Editor tests/typecheck/build and same-state desktop/phone captures; [evidence](../design/editor-ux-shell-v1.md#sidebar-open-folder-entry-385)).
 - Previous verification: 2026-10-23 (implemented with this decision; [Editor UX shell](../design/editor-ux-shell-v1.md), [Folder listing](../design/filesystem-host-boundary-v1.md#folder-listing-v1-112) and [Folder picker](../design/folder-picker-v1.md) contracts updated in the same change).
-- Authority: product and architectural decision under [AGENTS.md](../../AGENTS.md). Related: [#235](https://github.com/ieumbird/ieumdoc/issues/235), [ADR-0005](0005-http-host.md) (#186).
+- Authority: product and architectural decision under [AGENTS.md](../../AGENTS.md). Related: [#235](https://github.com/litzio/litzio/issues/235), [ADR-0005](0005-http-host.md) (#186).
 - Decision date: 2026-10-23
 
 ## Context
@@ -46,7 +46,7 @@ child-folder expansion and listings remain unremembered. The original decisions 
 
 ### 4. Workspace 파일이나 project 개념은 만들지 않는다
 
-- 폴더 목록을 plain-text 파일이나 `.ieumdoc/` 설정으로 저장하지 않는다. Host endpoint, Host 상태, Core 의미, Markdown은 바뀌지 않는다.
+- 폴더 목록을 plain-text 파일이나 `.litzio/` 설정으로 저장하지 않는다. Host endpoint, Host 상태, Core 의미, Markdown은 바뀌지 않는다.
 - CLI parity 대상이 아니다. 사이드바 폴더 목록은 interface 탐색 상태이며 문서 의미 operation이 아니다. headless에서는 파일 경로를 직접 지정한다.
 - HTTP Root는 계속 접근 경계다. 열어 둔 폴더 각각은 허용 Root나 그 하위여야 하며 Root를 합치거나 넓히지 않는다.
 
@@ -60,7 +60,7 @@ child-folder expansion and listings remain unremembered. The original decisions 
 
 Entry placement is superseded by the [2026-10-27 explorer amendment](#amendment-2026-10-27-explorer-sidebar-582); the historical decision below is retained.
 
-- Status: Accepted. Repository owner approved [#380 decision 3](https://github.com/ieumbird/ieumdoc/issues/380); implemented by [#385](https://github.com/ieumbird/ieumdoc/issues/385).
+- Status: Accepted. Repository owner approved [#380 decision 3](https://github.com/litzio/litzio/issues/380); implemented by [#385](https://github.com/litzio/litzio/issues/385).
 - The expanded Sidebar header has one always-visible `Open folder…` entry in the same position with zero, one or several opened folders, including while Display is selected. The collapsed rail retains its existing expand/tool controls.
 - Each folder's `⋯` contains only actions on that folder (`Close folder`). Remove the repeated `Open folder…` and the duplicate empty-Files entry. Keep the start-screen entry and command-center command.
 - This supersedes only section 1's folder-menu entry placement. Existing picker/handler, append/relist behavior, opened/recent folder preferences, Host authorization and all other decisions remain unchanged.
@@ -69,7 +69,7 @@ Entry placement is superseded by the [2026-10-27 explorer amendment](#amendment-
 ## Amendment 2026-10-25: Collapsible folder sections (#425)
 
 - Status: Accepted. Repository owner requested collapsible opened-folder sections in
-  [#425](https://github.com/ieumbird/ieumdoc/issues/425).
+  [#425](https://github.com/litzio/litzio/issues/425).
 - The no-section-persistence portion of this initial implementation decision is superseded by
   the owner's later same-day [persistence decision](#amendment-2026-10-25-remember-collapsed-folder-sections-425).
 - Each opened folder's heading has a disclosure button hiding/showing its entire tree; its
@@ -90,7 +90,7 @@ Entry placement is superseded by the [2026-10-27 explorer amendment](#amendment-
 ## Amendment 2026-10-25: Remember collapsed folder sections (#425)
 
 - Status: Accepted. The repository owner explicitly changed the decision on 2026-10-25 for
-  [#425](https://github.com/ieumbird/ieumdoc/issues/425): remember collapsed opened-folder sections
+  [#425](https://github.com/litzio/litzio/issues/425): remember collapsed opened-folder sections
   across page Reload and Desktop restart, within the same origin/browser preference boundary as
   the opened-folder list. This narrows section 2's original prohibition and supersedes only the
   initial section-disclosure amendment's no-section-persistence rule. Keep both earlier decisions,
@@ -114,7 +114,7 @@ Entry placement is superseded by the [2026-10-27 explorer amendment](#amendment-
 
 ## Amendment 2026-10-27: Explorer sidebar (#582)
 
-- Status: Accepted. The owner selected proposal A in [#582](https://github.com/ieumbird/ieumdoc/issues/582).
+- Status: Accepted. The owner selected proposal A in [#582](https://github.com/litzio/litzio/issues/582).
 - Sidebar header contains Files and Collapse only. Each opened folder shows New document…
   and More actions (New folder…, Open folder…, Refresh, Close folder, in that order). Remove the separate New
   document row when folders are open; use one New document… / 새 문서… action name.
@@ -133,7 +133,7 @@ Entry placement is superseded by the [2026-10-27 explorer amendment](#amendment-
 
 ## Amendment 2026-10-28: Shared brand title strip (#647)
 
-- Status: Accepted. The owner approved the composition in [#647](https://github.com/ieumbird/ieumdoc/issues/647) (2026-10-28).
+- Status: Accepted. The owner approved the composition in [#647](https://github.com/litzio/litzio/issues/647) (2026-10-28).
 - Refine the #582/#605 shell composition: the first row spans all columns, with the existing
   configured product SVG icon and name (official default `Litzio` since #859) at the left, existing TopBar controls in the remaining width,
   and Desktop-only native caption reservation at the right. HTTP Host shares the arrangement.
@@ -151,7 +151,7 @@ Entry placement is superseded by the [2026-10-27 explorer amendment](#amendment-
 
 ## Amendment 2026-10-29: Non-overlapping roots (#702)
 
-- Status: Accepted. The [owner decision on #702](https://github.com/ieumbird/ieumdoc/issues/702#issuecomment-6482705677)
+- Status: Accepted. The [owner decision on #702](https://github.com/litzio/litzio/issues/702#issuecomment-6482705677)
   replaces section 1's rule that nested/overlapping folders each have their own section, and narrows
   its unconditional append rule. Retain the original decision, date and historical verification
   under [documentation governance](../contributing/documentation-governance.md#update-rules).
@@ -167,10 +167,10 @@ Entry placement is superseded by the [2026-10-27 explorer amendment](#amendment-
   not rewrite preferences; the next explicit navigation writes the reduced current roots.
 - Compare Host-normalized path strings with separator boundaries, using the existing identity
   policy. Do not fold case or introduce realpath resolution in the Editor: Windows case identity
-  remains deferred in [#372](https://github.com/ieumbird/ieumdoc/issues/372); junction, symlink and
+  remains deferred in [#372](https://github.com/litzio/litzio/issues/372); junction, symlink and
   UNC handling follow existing Host results and access checks.
 - Reason: duplicate files in separate trees make active-document indication, file operations,
-  New destinations ([#367](https://github.com/ieumbird/ieumdoc/issues/367)), future AI reference
+  New destinations ([#367](https://github.com/litzio/litzio/issues/367)), future AI reference
   scope and the tab's folder context ambiguous. A later need for deep-folder shortcuts should
   be considered separately, rather than reopening nested sections.
 - This changes Editor navigation state only. No Workspace, Core semantic operation, CLI surface

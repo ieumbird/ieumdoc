@@ -1,8 +1,8 @@
 # ADR-0010: 지원 화면 폭과 입력 방식
 
 - Status: Accepted
-- Last verified: 2026-10-27 (decision record only; code and contract alignment is tracked in [#602](https://github.com/ieumbird/ieumdoc/issues/602)).
-- Authority: product decision under [AGENTS.md](../../AGENTS.md). Related: [#602](https://github.com/ieumbird/ieumdoc/issues/602), [#321](https://github.com/ieumbird/ieumdoc/issues/321), [#223](https://github.com/ieumbird/ieumdoc/issues/223), [Editor Layout Rules](../design/editor-layout-rules-v1.md).
+- Last verified: 2026-10-27 (decision record only; code and contract alignment is tracked in [#602](https://github.com/litzio/litzio/issues/602)).
+- Authority: product decision under [AGENTS.md](../../AGENTS.md). Related: [#602](https://github.com/litzio/litzio/issues/602), [#321](https://github.com/litzio/litzio/issues/321), [#223](https://github.com/litzio/litzio/issues/223), [Editor Layout Rules](../design/editor-layout-rules-v1.md).
 - Decision date: 2026-10-27
 
 ## Context

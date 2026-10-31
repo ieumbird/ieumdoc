@@ -158,7 +158,7 @@ one Undo restores the rich content. This is Editor-only selection behavior and
 adds no Core operation or CLI surface. The existing `continuous-editing` browser
 regression covers selection, replacement, Backspace, empty surfaces, Undo and
 Chromium composition across these textblocks, including Mermaid caption input/model
-checks restored with [#750](https://github.com/ieumbird/ieumdoc/issues/750).
+checks restored with [#750](https://github.com/litzio/litzio/issues/750).
 The separate caption regression also verifies composition cancellation and real-file
 Save → Reload; see [Figure authoring](figure-authoring-v1.md).
 Native Windows IME and native macOS

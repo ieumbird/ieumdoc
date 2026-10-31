@@ -3,7 +3,7 @@
 `<...>`만 바꾸고 공통 규칙은 그대로 붙인다. 승인된 결정은 사용자가 확정한 내용만 쓴다. 해결책을 새로 지어내지 않는다.
 
 ```text
-IeumDoc 저장소 worktree(현재 디렉터리, 브랜치 <branch>, master 기준)에서 GitHub 이슈 #<N>을 해결하고 PR을 만들어라. `gh issue view <N>`과 <관련 계약 문서·코드 경로>를 먼저 읽어라.
+Litzio 저장소 worktree(현재 디렉터리, 브랜치 <branch>, master 기준)에서 GitHub 이슈 #<N>을 해결하고 PR을 만들어라. `gh issue view <N>`과 <관련 계약 문서·코드 경로>를 먼저 읽어라.
 
 ## 소유자가 승인한 결정
 - <결정 1>
@@ -31,6 +31,6 @@ IeumDoc 저장소 worktree(현재 디렉터리, 브랜치 <branch>, master 기�
 
 - **master 반영:** "PR #<M>(<무엇을 바꿨는지>)이 master에 병합됐다. origin/master를 merge해 양쪽 의도를 보존하며 충돌을 해결하라. merge 커밋 trailer를 확인하고, 단위 테스트·typecheck·충돌 파일 관련 브라우저 시나리오만 실행한 뒤 push하라. CI까지 확인해 새 head와 결과를 보고하라. 병합하지 않는다."
 - **queue 실패:** "PR #<N>이 merge queue 실행 <run-id>의 <job>에서 `<오류>`로 실패했다. `gh run download <run-id>`로 artifact를 받아 원인을 판정하라. (공통 규칙의 판정 기준을 적용) push 후 CI까지 확인해 원인, 수정, 새 head를 보고하라."
-- **queue 감시(완료 알림이 오는 백그라운드 실행이 없는 하네스):** "PR #<N>을 merge queue에 넣었다. `node .agents/skills/ieumdoc-orchestrator/scripts/queue-watch.mjs --wait <N>`을 실행해 병합이나 이탈을 확인하고 결과를 한 줄로 보고하라. 이탈했으면 원인(충돌 또는 merge_group 실패 run)까지 확인해 보고하라. 수정은 하지 않는다."
+- **queue 감시(완료 알림이 오는 백그라운드 실행이 없는 하네스):** "PR #<N>을 merge queue에 넣었다. `node .agents/skills/litzio-orchestrator/scripts/queue-watch.mjs --wait <N>`을 실행해 병합이나 이탈을 확인하고 결과를 한 줄로 보고하라. 이탈했으면 원인(충돌 또는 merge_group 실패 run)까지 확인해 보고하라. 수정은 하지 않는다."
 - **리뷰 중 대기:** "같은 worktree에서 독립 리뷰어가 브라우저로 검토한다. 이 worktree에서 브라우저와 서버를 실행하지 말고 CI 결과만 확인해 보고하라."
 - **재개:** "모델 오류로 턴이 중단됐다. `git status`, `git log --oneline -3`, 열린 PR을 확인한 뒤 처음 지시대로 이어서 진행하라. 끝낸 단계는 반복하지 마라."

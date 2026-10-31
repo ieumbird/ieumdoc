@@ -2,7 +2,8 @@
 
 - Status: Implemented
 - Last verified: 2026-10-31 (#859; 로컬 타입·단위·Editor 빌드와 persistent Chrome의 한국어/영어 640px·1440px. 실제 두 브랜드 설치·플러그인 실행은 Windows CI 검사).
-- Authority: [Discussion #856](https://github.com/ieumbird/ieumdoc/discussions/856), [AGENTS.md](../../AGENTS.md), [Desktop 계약](../design/desktop-distribution-v1.md), [ADR-0012](../adr/0012-plugin-runtime-and-ui-contributions.md).
+- Repository verification: 2026-10-31 (#860; `litzio/litzio` 기본값, 업데이트·릴리스 단위 검사와 전체 typecheck. 실제 패키징·업데이트는 필수 CI).
+- Authority: [Discussion #856](https://github.com/litzio/litzio/discussions/856), [AGENTS.md](../../AGENTS.md), [Desktop 계약](../design/desktop-distribution-v1.md), [ADR-0012](../adr/0012-plugin-runtime-and-ui-contributions.md).
 
 ## 설정과 빌드
 
@@ -23,7 +24,7 @@
 | `folders.shared`, `folders.plugins` | `.litzio`, `plugins`; 모든 같은 브랜드 Host의 `~/.litzio/plugins`, Docling 설정은 `~/.litzio/docling.json` |
 | `cliCommand` | `litzio`; 생성 npm manifest의 bin, Desktop shim·충돌 탐지·도움말·버전 출력 |
 | `storagePrefix` | `litzio`; localStorage 키와 `litzio-recovery` IndexedDB |
-| `updates.repository` | 현재 `ieumbird/ieumdoc`; 배포와 업데이트를 받는 GitHub 저장소 |
+| `updates.repository` | 현재 `litzio/litzio`; 배포와 업데이트를 받는 GitHub 저장소 |
 | `updates.channels.stable`, `.beta` | `latest`, `beta`; 업데이트 메타데이터 파일명. Stable/Beta의 semver 선택·다운그레이드 거부 정책은 고정 |
 | `officialPluginsUrl` | `null`; 공식 목록이 아직 게시되지 않았음을 뜻함. 주소와 설치 UI는 후속 플러그인 설치 작업에서 사용 |
 
@@ -49,7 +50,7 @@ SVG의 접근성 제목에도 해당 브랜드를 쓴다. 기본 SVG 제목은 L
 업데이트가 공식 설치 프로그램을 받을 수 있다. `latest`/`beta` 메타데이터 이름은 별도
 저장소에서는 공유해도 되며, 바꾼 경우 빌드·게시·읽기가 같은 설정을 사용한다.
 서명된 빌드는 자신의 인증서/게시자 설정과 기존 릴리스 검증 절차도 따라야 한다.
-공식판의 저장소 이전은 #860에서 처리하므로 현재 설정은 옛 GitHub 주소를 유지한다.
+공식판의 배포·업데이트 저장소 기본값은 `litzio/litzio`다(#860). 과거 Beta의 업데이트 경로를 이전하거나 호환 alias를 제공하지 않는다.
 
 기존 `LITZIO_PLUGINS_DIR`, `LITZIO_DOCLING_SETTINGS_FILE`, `--user-data-dir` 같은 명시적 운영자/테스트 경로는
 기본값보다 우선한다. 두 브랜드를 의도적으로 같은 경로로 덮어쓰면 격리를 보장하지 않는다.

@@ -5,7 +5,7 @@
 - Status: Historical
 - Last verified: 2026-10-31 (branch-only experiment; measured results below).
 - Scope: `spike/docling-plugin-runtime`; owner-authorized experiment, no adoption or merge.
-- Authority: current [ADR-0004](../adr/0004-desktop-host-distribution.md), [ADR-0005](../adr/0005-http-host.md), [ADR-0011](../adr/0011-code-module-boundary.md), [AGENTS.md](../../AGENTS.md). Context: [Discussion 767](https://github.com/ieumbird/ieumdoc/discussions/767), [Discussion 834](https://github.com/ieumbird/ieumdoc/discussions/834).
+- Authority: current [ADR-0004](../adr/0004-desktop-host-distribution.md), [ADR-0005](../adr/0005-http-host.md), [ADR-0011](../adr/0011-code-module-boundary.md), [AGENTS.md](../../AGENTS.md). Context: [Discussion 767](https://github.com/litzio/litzio/discussions/767), [Discussion 834](https://github.com/litzio/litzio/discussions/834).
 
 ## Question and boundary
 
@@ -64,7 +64,7 @@ output. Source input is hashed before execution and rechecked before publishing.
 Windows 2026-10-31, base `19b75939`, Node 24.21.0, pnpm 12.5.1,
 development Electron 44.7.0, bundled worker SHA-256
 `fa59dbd4bec38124a54015092c25cdae92027f6e4f4b932a1eb8700ca204ca17`.
-The first valid complete run is [attempt 3](https://github.com/ieumbird/ieumdoc/blob/3d4cb6e139313ab458f841f5c1514dadc3e21470/docs/reviews/assets/docling-runtime-spike/attempt-3.json),
+The first valid complete run is [attempt 3](https://github.com/litzio/litzio/blob/3d4cb6e139313ab458f841f5c1514dadc3e21470/docs/reviews/assets/docling-runtime-spike/attempt-3.json),
 11:48:29–11:48:45 KST. Assertions operate on actual child PIDs, on-disk files,
 real TCP HTTP and the actual Electron renderer. Only the external Docling REST
 service is synthetic. The local `127.0.0.1:8001/version` connection was refused;
@@ -127,7 +127,7 @@ its focused help regressions passed after that expected public-surface update.
 
 ### Unsuccessful measurement attempts
 
-- [Attempt 1](https://github.com/ieumbird/ieumdoc/blob/3d4cb6e139313ab458f841f5c1514dadc3e21470/docs/reviews/assets/docling-runtime-spike/attempt-1.json): the harness tried GET
+- [Attempt 1](https://github.com/litzio/litzio/blob/3d4cb6e139313ab458f841f5c1514dadc3e21470/docs/reviews/assets/docling-runtime-spike/attempt-1.json): the harness tried GET
   on the POST-only document-source route and parsed an empty 405 response as JSON.
   The product check was corrected to the existing file-preview route and now
   requires an actual 403. All recorded owned PIDs exited.

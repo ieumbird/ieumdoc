@@ -4,10 +4,10 @@
 
 - Status: Historical
 - Last verified: 2026-10-30. 기준 `a4d2f64bbcefa48f436bce916aecd0772ad15e93`의 코드·Implemented 계약·이슈 댓글 대조와 실제 Vite Editor 수동 검토용 촬영. 동작 회귀 suite를 재검증했다는 뜻은 아니다.
-- Scope: [#777](https://github.com/ieumbird/ieumdoc/issues/777)의 **1단계 인벤토리와 당시 목표 제안**. 제품 코드·화면·문서 의미 변경 없음. 승인 전 비교·질문은 역사적 근거로 보존하며 현재 구현 지침으로 사용하지 않는다.
+- Scope: [#777](https://github.com/litzio/litzio/issues/777)의 **1단계 인벤토리와 당시 목표 제안**. 제품 코드·화면·문서 의미 변경 없음. 승인 전 비교·질문은 역사적 근거로 보존하며 현재 구현 지침으로 사용하지 않는다.
 - Authority: [AGENTS.md](../../AGENTS.md), [문서 상태 규칙](../contributing/documentation-governance.md), [ADR-0001](../adr/0001-single-document-editor-architecture.md), [ADR-0010](../adr/0010-supported-viewport-and-input.md). 현재 UI 권위는 [Visual Language][visual], [Layout Rules][layout] 및 아래 개별 계약이다.
-- Related: [#776](https://github.com/ieumbird/ieumdoc/issues/776), [#740 소유자 결정][i740], [#757 그림 구현][i757], [#714 미주 결정][i714]. 2단계의 확정 목표·운영 규칙·불일치 추적은 [UI 패턴](../design/ui-patterns-v1.md)을 따른다.
-- Lifecycle checked: 2026-10-30. [소유자 결정](https://github.com/ieumbird/ieumdoc/issues/777#issuecomment-6510554436)으로 P01–P06/P08–P12 추천이 채택되고 P07은 창 오른쪽 아래 알림 센터 안으로 대체되었다. 아래 추천·대안·질문·이후 단계는 당시 기록이며 새 목표나 미결 질문이 아니다. 캡처와 검증 결과는 다시 실행하지 않았다.
+- Related: [#776](https://github.com/litzio/litzio/issues/776), [#740 소유자 결정][i740], [#757 그림 구현][i757], [#714 미주 결정][i714]. 2단계의 확정 목표·운영 규칙·불일치 추적은 [UI 패턴](../design/ui-patterns-v1.md)을 따른다.
+- Lifecycle checked: 2026-10-30. [소유자 결정](https://github.com/litzio/litzio/issues/777#issuecomment-6510554436)으로 P01–P06/P08–P12 추천이 채택되고 P07은 창 오른쪽 아래 알림 센터 안으로 대체되었다. 아래 추천·대안·질문·이후 단계는 당시 기록이며 새 목표나 미결 질문이 아니다. 캡처와 검증 결과는 다시 실행하지 않았다.
 
 ## 제안의 중심
 
@@ -293,7 +293,7 @@
 5. 구현 검증은 기존 보호 범위를 보완한다. `reference-save-reload`는 번호 의미·저장 경계, `property-drafts`/`save-during-edit`는 초안, `mermaid-authoring`/`equation-insertion`은 원문/진입, `footnotes`는 미주 예외, `link-authoring`/`citation-authoring`/`cross-reference`는 inline, `table-authoring`/`table-caption`은 도구, `layout-rules`/`quiet-document`는 geometry의 출발점이다. 캡처만 하는 순회는 별도 수동 검토로 둔다. 실제 새 결함을 잡지 않는 계층별 중복 테스트는 추가하지 않는다.
 6. UI-only 변경에는 새 CLI command가 필요 없다. 번호/문서 의미를 바꾸기로 별도 결정하면 Core operation·CLI 얇은 표면을 먼저 검토한다. single-document engine·기존 history/selection/draft를 우회하지 않는다.
 
-과거 [#92](https://github.com/ieumbird/ieumdoc/issues/92)는 수식·그림의 요약/폼 패널을 통일하려던 결정이다. 이후 #637의 본문 원문 편집과 #740의 가벼운 metadata가 목적별로 갈라졌다. 따라서 #92의 동일 패널을 지금 그대로 복원하기보다, 각 목적의 현재 결정과 남은 차이를 함께 판단한다.
+과거 [#92](https://github.com/litzio/litzio/issues/92)는 수식·그림의 요약/폼 패널을 통일하려던 결정이다. 이후 #637의 본문 원문 편집과 #740의 가벼운 metadata가 목적별로 갈라졌다. 따라서 #92의 동일 패널을 지금 그대로 복원하기보다, 각 목적의 현재 결정과 남은 차이를 함께 판단한다.
 
 외부 자료는 [Brad Frost의 interface inventory](https://bradfrost.com/blog/post/interface-inventory/)에서 서로 다른 표현을 캡처·분류하는 방법, [GOV.UK Patterns](https://design-system.service.gov.uk/patterns/)에서 사용자 과업별 사용 맥락을 문서화하는 방법을 참고했다. 이 자료가 이음독의 popup/완료 동작을 정해 주는 것은 아니다. 외부 제품 실행 결과나 사용성 실험으로 주장하지 않는다. 외부 페이지 확인일은 2026-10-30이다.
 
@@ -347,9 +347,9 @@
 [picker]: ../../apps/editor/src/shell/FolderDialog.tsx
 [new]: ../../apps/editor/src/shell/NewDialog.tsx
 [unsaved]: ../../apps/editor/src/shell/UnsavedChangesDialog.tsx
-[i740]: https://github.com/ieumbird/ieumdoc/issues/740#issuecomment-6494575173
-[i757]: https://github.com/ieumbird/ieumdoc/issues/757
-[i714]: https://github.com/ieumbird/ieumdoc/issues/714
+[i740]: https://github.com/litzio/litzio/issues/740#issuecomment-6494575173
+[i757]: https://github.com/litzio/litzio/issues/757
+[i714]: https://github.com/litzio/litzio/issues/714
 
 [figure-view]: ../../apps/editor/src/node-views/figure-view.tsx
 [equation-view]: ../../apps/editor/src/node-views/equation-view.tsx

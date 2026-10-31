@@ -8,7 +8,7 @@
 
 Docling은 PDF를 읽는 **별도 서비스**다. Litzio가 서버를 설치하거나 모델을 내려받지는 않는다. 관리자가 서비스를 준비하고 앱의 **설정 → Docling → 서버 주소**에 주소를 넣는다. 기본값은 `http://127.0.0.1:8001`이다.
 
-요청은 Desktop 앱의 Host, `ieumdoc serve`의 HTTP Host 또는 개발 Vite 서버에서 보낸다. 웹브라우저에서 Docling으로 직접 요청하지 않는다. HTTP Host에서 `127.0.0.1`은 접속자의 PC가 아니라 **Litzio Host 서버**다. 서버 주소도 그 Host OS 사용자 계정의 `~/.ieumdoc/docling.json`에 저장한다. 별도 구성 파일은 `LITZIO_DOCLING_SETTINGS_FILE` 환경변수로 지정할 수 있다.
+요청은 Desktop 앱의 Host, `litzio serve`의 HTTP Host 또는 개발 Vite 서버에서 보낸다. 웹브라우저에서 Docling으로 직접 요청하지 않는다. HTTP Host에서 `127.0.0.1`은 접속자의 PC가 아니라 **Litzio Host 서버**다. 서버 주소도 그 Host OS 사용자 계정의 `~/.litzio/docling.json`에 저장한다. 별도 구성 파일은 `LITZIO_DOCLING_SETTINGS_FILE` 환경변수로 지정할 수 있다.
 
 탐색기의 PDF 메뉴나 Command Center의 **Docling으로 변환**에서 실행한다. PDF 옆의 새 `<이름>.docling` 폴더에 원본 묶음·Litzio 문서를 만들고 대조 탭을 연다. 같은 이름이 있으면 `-2`, `-3`을 붙인다. 원본 PDF·기존 결과는 덮어쓰지 않는다. HTTP Host에서는 PDF와 결과 폴더 모두 허용 Root 안에 있어야 한다.
 

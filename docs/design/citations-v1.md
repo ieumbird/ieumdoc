@@ -154,7 +154,7 @@ Owner decision (2026-10-25): connections apply on Save. The existing Host read c
 continues to accept only declarations from an admitted, saved document; the Editor cannot
 ask it to read arbitrary resource targets. No Host read capability or persistence is added.
 
-Owner decision (2026-10-26, [#473](https://github.com/ieumbird/ieumdoc/issues/473)) supersedes
+Owner decision (2026-10-26, [#473](https://github.com/litzio/litzio/issues/473)) supersedes
 the earlier #438 sentence “including when the document has no declaration or citations.”
 The trailing References area exists only while the current document has a bibliography
 declaration (saved or staged) or at least one citation. Removing the last citation or staging
@@ -293,7 +293,7 @@ remain required. No new operation, CLI surface, parser or Editor schema change i
 existing CLI commands already call these Core operations. Verification uses Core tests,
 targeted Editor replay tests, repository typecheck/docs checks and the `citations` browser scenario.
 
-Results for [#351](https://github.com/ieumbird/ieumdoc/issues/351): the new split and conversion
+Results for [#351](https://github.com/litzio/litzio/issues/351): the new split and conversion
 regressions failed on base `496d800` with the non-empty error before the fix. After the fix,
 Core 243 tests, Editor `editor.test.ts` 89 tests, repository typecheck, Editor build,
 `pnpm docs:check` and `git diff --check` passed. The `citations` browser scenario passed against
@@ -567,7 +567,7 @@ near-white edge pixels (335,630 and 335,845), with no document layout change.
 | Citation form, 375px | — | [Wrapped candidates](assets/citation-key-list-463/after-375.png) |
 
 Escape/reopen correction (2026-10-27): merge queue run
-[40348049812](https://github.com/ieumbird/ieumdoc/actions/runs/40348049812)
+[40348049812](https://github.com/litzio/litzio/actions/runs/40348049812)
 showed a visible list without an active descendant after Escape → Down. Base UI's inline
 navigation stays open internally, but its popup close lifecycle temporarily rejects navigation
 while the transition is `ending`. Reopening during that lifecycle loses the key, rather than

@@ -4,7 +4,7 @@
 
 - Status: Historical
 - Last verified: 2026-10-09 (Windows Chromium, actual glyph fonts, responsive captures and production assets).
-- Authority: evidence for [issue #137](https://github.com/ieumbird/ieumdoc/issues/137); current contract is [Visual Language](../design/editor-visual-language-v1.md).
+- Authority: evidence for [issue #137](https://github.com/litzio/litzio/issues/137); current contract is [Visual Language](../design/editor-visual-language-v1.md).
 - Scope: Editor font delivery. Core/CLI semantics, KaTeX, code fonts, font sizes, line heights and layout dimensions are unchanged. No CLI command is needed for presentation assets.
 
 ## Delivery and actual use
