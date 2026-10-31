@@ -54,7 +54,8 @@ three switches or commands.
 Read uses the same mounted `DocumentEditor`, projection, NodeViews and single
 Tiptap/ProseMirror state as Edit, with `setEditable(false)`. Block hover/selection,
 keyboard movement, native text selection/copy, reading previews and Outline remain
-available. Navigation within Read, including notification/problem navigation, stays
+available. Browser Find/Print/zoom shortcuts retain their native defaults while the
+reading surface has focus. Navigation within Read, including notification/problem navigation, stays
 in Read. Since ProseMirror skips editable key handling, a Read-only DOM bridge
 forwards navigation to the existing keymaps and uses ProseMirror selection APIs at
 selected block boundaries. Text caret movement/extension delegates to the browser's

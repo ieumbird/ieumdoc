@@ -249,8 +249,15 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
                   if (current.isEditable) return false;
                   const navigation = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown", "Tab", "Escape"].includes(event.key);
                   const copy = (event.ctrlKey || event.metaKey) && ["a", "c"].includes(event.key.toLowerCase());
-                  if (!navigation && !copy && (event.key.length === 1 || ["Enter", "Backspace", "Delete"].includes(event.key))) {
-                    event.preventDefault(); return true;
+                  if (!navigation && !copy) {
+                    const modified = event.ctrlKey || event.metaKey;
+                    const mutation = ["Enter", "Backspace", "Delete"].includes(event.key) ||
+                      (!modified && !event.altKey && event.key.length === 1) ||
+                      (modified && ["b", "i", "u", "x", "v", "z", "y"].includes(event.key.toLowerCase()));
+                    // Do not forward authoring shortcuts to keymaps. Browser Find,
+                    // Print, zoom and other native commands retain their defaults.
+                    if (mutation) event.preventDefault();
+                    return mutation;
                   }
                   if (view.someProp("handleKeyDown", handler => handler(view, event))) {
                     event.preventDefault(); return true;
