@@ -18,11 +18,10 @@ import { SaveContentError } from "../shared/save-error.ts";
 import { RecoveryList, RecoveryPrompt } from "./shell/Recovery.tsx";
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { DocumentEditorHandle } from "./DocumentEditor.tsx";
-import { DocumentTab } from "./DocumentTab.tsx";
+import { DocumentTab, type EditorSession, type SessionSnapshot } from "./DocumentTab.tsx";
 import { documentScrollContainer, scrollDocumentFromShell } from "./document-scroll.ts";
 import { DocumentTabs } from "./shell/DocumentTabs.tsx";
 import { editorGroups, initialEditorGroups, allTabsPendingWork, openedTab, tabLabels, tabNames } from "./document-tabs.ts";
-import { type DocumentSession, type DocumentSessionSnapshot } from "./useDocumentSession.ts";
 import { messageOf, NativeOpenError, requestDocument } from "./document-session.ts";
 import { THEME_LABELS, THEMES, writeTheme, type ThemePreference, readDocumentWidth, readOpenTabs, readRecentFolders, rememberRecentFolder, visibleRecentFolders, writeDocumentWidth, writeOpenTabs, type DocumentWidth } from "./preferences.ts";
 import { applyTheme, currentTheme } from "./theme.ts";
@@ -48,7 +47,7 @@ import type { CommandCenterItem } from "./shell/command-center.ts";
 import { Monitor, Bookmark, Quote, Columns3, Copy, FileDiff, FileText, FileX, FolderOpen, Keyboard, PanelLeft, PanelRight, PanelRightOpen, ArrowLeftRight, RotateCcw, RotateCw, Save, Settings2, SlidersHorizontal, SquareCode, StretchHorizontal } from "lucide-react";
 import type {
   DocumentErrorResponse,
-  DocumentFileResponse,
+  EditorFileResponse,
   DocumentStartResponse,
   FolderBrowseResponse,
   FolderCreateRequest,
@@ -69,7 +68,7 @@ const SaveCompare = lazy(() => import("./shell/SaveCompare.tsx"));
 const PANEL_OVERLAY_LAYOUT = "(width < 89rem)";
 // 640px supported viewport - 200px narrow Explorer; two groups plus their boundary.
 const SPLIT_MIN_WIDTH = 440 * 2 + 1;
-type Tab = { id: string; path: string; file: DocumentFileResponse; recoveryId: string; restored?: DocumentSessionSnapshot };
+type Tab = { id: string; path: string; file: EditorFileResponse; recoveryId: string; restored?: SessionSnapshot };
 
 /** The Desktop app's bridge; the browser Editor has none and shows no Desktop UI. */
 const desktop = typeof window === "undefined" ? undefined : window.ieumdocDesktop;
@@ -193,9 +192,9 @@ function EditorApp() {
   useEffect(() => {
     if (tabsRestored && rememberVersion > 0) writeOpenTabs(JSON.parse(serializedTabs));
   }, [serializedTabs, tabsRestored, rememberVersion]);
-  const sessions = useRef(new Map<string, DocumentSession>());
+  const sessions = useRef(new Map<string, EditorSession>());
   const [, refreshShell] = useReducer(value => value + 1, 0);
-  const reportSession = useCallback((id: string, next: DocumentSession | null) => {
+  const reportSession = useCallback((id: string, next: EditorSession | null) => {
     if (next) sessions.current.set(id, next);
     else sessions.current.delete(id);
     refreshShell();
@@ -219,7 +218,7 @@ function EditorApp() {
     try { prepareRecovery(record); } catch (cause) { reason = messageOf(cause); }
     setRecoveryReview({ record, reason });
   }
-  async function offerRecovery(file: DocumentFileResponse): Promise<void> {
+  async function offerRecovery(file: EditorFileResponse): Promise<void> {
     const records = await refreshRecovery();
     const matching = records?.find(record => record.path === file.path && !tabs.some(tab => tab.recoveryId === record.id));
     if (matching) reviewRecovery(matching);
@@ -276,25 +275,25 @@ function EditorApp() {
   const [notice, setNotice, noticeCause] = useMessageState("");
   const [openRefusal, setOpenRefusal] = useState<{ path: string; reason: string; action: string; code?: string } | null>(null);
   const openRefusalReturnFocus = useRef<HTMLElement | null>(null);
-  const [continuation, setContinuation] = useState<{ id: string; session: DocumentSession } | null>(null);
+  const [continuation, setContinuation] = useState<{ id: string; session: EditorSession } | null>(null);
   const [continuationPending, setContinuationPending] = useState(false);
   const continuationRunning = useRef(false);
   const continuationReturnFocus = useRef<HTMLElement | null>(null);
   const emptyEditorRef = useRef<DocumentEditorHandle>(null);
   const emptyImageRef = useRef<HTMLElement | null>(null);
   const session = activeId ? sessions.current.get(activeId) : undefined;
+  const nativeSession = session?.kind === "native" ? session : undefined;
   // A fresh editor action replaces an older shell notice such as Copy path.
-  useLayoutEffect(() => { if (session?.noticeAction) setNotice(""); }, [session?.noticeAction]);
+  useLayoutEffect(() => { if (nativeSession?.noticeAction) setNotice(""); }, [nativeSession?.noticeAction]);
   const {
-    editorRef = emptyEditorRef, document, openedPath = "", outlineStore,
-    view = "visual",
-    draftActive = false, documentDirty = false,
-    reloadDialog = false, imageChoice = null, imageReturnFocus = emptyImageRef,
-  } = session ?? {};
+    editorRef = emptyEditorRef, document, outlineStore, view = "visual",
+    imageChoice = null, imageReturnFocus = emptyImageRef,
+  } = nativeSession ?? {};
+  const { openedPath = "", draftActive = false, documentDirty = false, reloadDialog = false } = session ?? {};
   const busy = Boolean(operation || fileOperationPending || session?.busy || continuationPending);
   const switching = Boolean(operation || session?.switching);
   function compareBeforeSave(returnFocus: HTMLElement | null, owner = session): void {
-    if (!owner || operationRef.current || owner.busy || !(owner.documentDirty || owner.draftActive)) return;
+    if (!owner || owner.kind !== "native" || operationRef.current || owner.busy || !(owner.documentDirty || owner.draftActive)) return;
     saveComparisonReturnFocus.current = returnFocus;
     const submitted = owner.editorRef.current?.getDocument();
     try { setSaveComparison({ path: owner.openedPath, revision: owner.acknowledgedRevision, submitted, request: owner.savePreviewRequest() }); }
@@ -304,13 +303,13 @@ function EditorApp() {
     }
   }
   const save = () => session?.save();
-  const showSource = () => session?.showSource();
-  const setView = (next: "visual" | "source") => session?.setView(next);
+  const showSource = () => nativeSession?.showSource();
+  const setView = (next: "visual" | "source") => nativeSession?.setView(next);
   const reload = () => session?.reload();
   const reloadFromDisk = () => session?.reloadFromDisk();
   const setReloadDialog = (open: boolean) => session?.setReloadDialog(open);
-  const closeImageChoice = () => session?.closeImageChoice();
-  const selectImage = async (source: string) => session ? session.selectImage(source) : "";
+  const closeImageChoice = () => nativeSession?.closeImageChoice();
+  const selectImage = async (source: string) => nativeSession ? nativeSession.selectImage(source) : "";
 
   useEffect(() => {
     globalThis.document.title = openedPath ? `${splitDocumentPath(openedPath).name} — IeumDoc` : "IeumDoc";
@@ -389,7 +388,7 @@ function EditorApp() {
     return () => observer.disconnect();
   }, [split]);
 
-  function acceptFile(file: DocumentFileResponse, group = navigation.focused): void {
+  function acceptFile(file: EditorFileResponse, group = navigation.focused): void {
     const existing = openedTab(tabs, file.path);
     const target = splitAvailable.current ? group : navigation.focused;
     if (existing) placeTab(existing.id, target);
@@ -410,7 +409,7 @@ function EditorApp() {
       const saved = readOpenTabs();
       // Keep Host metadata and Desktop launch-file precedence. A browser default that
       // will not be used is optional; its failure cannot block the higher-priority route.
-      let first: DocumentFileResponse | DocumentStartResponse;
+      let first: EditorFileResponse | DocumentStartResponse;
       try { first = await requestDocument("GET"); }
       catch (cause) {
         if (!path && (desktop || !saved)) throw cause;
@@ -422,7 +421,7 @@ function EditorApp() {
       const records = await refreshRecovery();
       if (!current) return;
       const initialTabs: Tab[] = [];
-      const add = (file: DocumentFileResponse) => {
+      const add = (file: EditorFileResponse) => {
         if (!openedTab(initialTabs, file.path)) initialTabs.push({ id: `document-${++nextId.current}`, path: file.path, file, recoveryId: newRecoveryId() });
       };
       // Explicit URL/ Desktop launch documents win over navigation memory. The Vite default
@@ -478,7 +477,7 @@ function EditorApp() {
     if (operationRef.current || [...sessions.current.values()].some(owner => owner.busyRef.current)) throw new Error(i18n.t("Wait for the current file operation to finish."));
     operationRef.current = true; setFileOperationPending(true);
     if (figure) setFigureRenamePending(true);
-    const formSession = figure && [...sessions.current.values()].find(owner => owner.openedPath === figure.documentPath);
+    const formSession = figure && [...sessions.current.values()].filter(owner => owner.kind === "native").find(owner => owner.openedPath === figure.documentPath);
     const tab = tabs.find(tab => tab.path === entry.path);
     const owner = tab && sessions.current.get(tab.id);
     owner?.suspendRecovery();
@@ -493,7 +492,7 @@ function EditorApp() {
       const openDocuments = [];
       if (action === "rename" && entry.kind === "image") {
         for (const current of sessions.current.values()) {
-          if (current.openedPath === figure?.documentPath) continue;
+          if (current.kind !== "native" || current.openedPath === figure?.documentPath) continue;
           if (folderChain(root, current.openedPath).length && current.editorRef.current?.hasUnsavedChanges()) {
             try {
               openDocuments.push({ path: current.openedPath,
@@ -531,8 +530,12 @@ function EditorApp() {
       catch { setError({ key: "The file changed, but local recovery could not be updated. Review local recovery in Settings." }); }
       if (action === "rename") {
         owner?.relocate(result.path);
-        setTabs(previous => previous.map(tab => tab.path === entry.path ? { ...tab, path: result.path,
-          file: { ...tab.file, path: result.path }, ...(tab.restored ? { restored: { ...tab.restored, file: { ...tab.restored.file, path: result.path } } } : {}) } : tab));
+        setTabs(previous => previous.map(tab => {
+          if (tab.path !== entry.path) return tab;
+          const restored = tab.restored && structuredClone(tab.restored);
+          if (restored) restored.file.path = result.path;
+          return { ...tab, path: result.path, file: { ...tab.file, path: result.path }, ...(restored ? { restored } : {}) };
+        }));
       } else if (tab) {
         sessions.current.delete(tab.id);
         setTabs(previous => previous.filter(item => item.id !== tab.id));
@@ -625,7 +628,7 @@ function EditorApp() {
   async function openFile(path: string, openedNotice = "", group = navigation.focused): Promise<string | null> {
     const requestedPath = unquotePath(path);
     if (!requestedPath) return i18n.t("Enter a Markdown file path.");
-    if (!requestedPath.toLowerCase().endsWith(".md")) return i18n.t("Only .md files can be opened.");
+    if (!/\.(md|txt)$/i.test(requestedPath)) return i18n.t("Only .md and .txt files can be opened.");
     if (operationRef.current || busy || continuation) return i18n.t("Wait for the current operation to finish.");
     const existing = openedTab(tabs, requestedPath);
     if (existing) {
@@ -940,7 +943,7 @@ function EditorApp() {
         activateTab(tab.id);
         const owner = sessions.current.get(tab.id);
         // The retained target can still be hidden here; Dialog focuses it after activation/dismissal.
-        commandReturnFocus.current = owner?.view === "visual" ? owner.editorRef.current?.getFocusTarget() ?? null
+        commandReturnFocus.current = (owner?.kind === "text" || owner?.view === "visual") ? owner.editorRef.current?.getFocusTarget() ?? null
           : globalThis.document.getElementById(`tab-${tab.id}`);
       },
     })),
@@ -970,25 +973,25 @@ function EditorApp() {
     ...folders.trees.map(tree => ({ id: 'refresh-folder:' + tree.root, kind: "command" as const,
       label: i18n.t("Refresh folder"), detail: tree.root, icon: RotateCw,
       keywords: ["refresh folder", "폴더 새로고침"], run: () => folders.refreshRoot(tree.root) })),
-    { id: "save", kind: "command", label: i18n.t("Save"), icon: Save, disabled: !document || busy,
+    { id: "save", kind: "command", label: i18n.t("Save"), icon: Save, disabled: !session || busy,
       keywords: ["save", "저장"], shortcut: SAVE_SHORTCUT.label, run: () => { void save(); } },
     { id: "save-comparison", kind: "command", label: i18n.t("Changes before saving"), icon: FileDiff,
-      disabled: !(documentDirty || draftActive) || busy, takesFocus: true, keywords: ["diff compare save preview", "저장 전 변경 내용 보기"],
+      disabled: !document || !(documentDirty || draftActive) || busy, takesFocus: true, keywords: ["diff compare save preview", "저장 전 변경 내용 보기"],
       run: () => compareBeforeSave(commandReturnFocus.current) },
-    { id: "reload", kind: "command", label: i18n.t("Reload"), icon: RotateCcw, disabled: !document || busy, takesFocus: true,
+    { id: "reload", kind: "command", label: i18n.t("Reload"), icon: RotateCcw, disabled: !session || busy, takesFocus: true,
       keywords: ["reload", "다시 불러오기", "새로고침"], run: () => { void reload(); } },
-    { id: "copy-path", kind: "command", label: i18n.t("Copy path"), icon: Copy, disabled: !document || busy,
+    { id: "copy-path", kind: "command", label: i18n.t("Copy path"), icon: Copy, disabled: !session || busy,
       keywords: ["copy path", "경로 복사"], run: () => { void copyPath(); } },
     { id: "visual", kind: "command", label: i18n.t("Visual"), icon: FileText, disabled: !document || busy, takesFocus: true,
       keywords: ["visual view", "비주얼 보기"], run: () => { globalThis.document.querySelector<HTMLElement>(`[data-editor-group="${navigation.focused}"] [data-testid="view-visual"]`)?.focus(); setView("visual"); } },
     { id: "source", kind: "command", label: i18n.t("Source"), icon: SquareCode, disabled: !document || busy, takesFocus: true,
       keywords: ["source markdown", "소스 보기"], run: () => { globalThis.document.querySelector<HTMLElement>(`[data-editor-group="${navigation.focused}"] [data-testid="view-source"]`)?.focus(); void showSource(); } },
-    { id: "outline", kind: "command", label: i18n.t(panelOpen ? "Hide outline" : "Show outline"), icon: PanelRight, takesFocus: true,
+    { id: "outline", kind: "command", label: i18n.t(panelOpen ? "Hide outline" : "Show outline"), icon: PanelRight, takesFocus: true, disabled: session?.kind === "text",
       keywords: ["outline", "개요"], run: () => { outlineToggle.current?.focus(); choosePanelOpen(!panelOpen); } },
     { id: "sidebar", kind: "command", label: i18n.t(sidebarOpen ? "Collapse Explorer" : "Expand Explorer"), icon: PanelLeft,
       keywords: ["sidebar", "사이드바"], takesFocus: true,
       run: () => { sidebarFocus.current = "sidebar"; setSidebarOpen(value => !value); } },
-    { id: "width", kind: "command", label: i18n.t(documentWidth === "wide" ? "Standard document width" : "Wide document"), icon: documentWidth === "wide" ? Columns3 : StretchHorizontal,
+    { id: "width", kind: "command", label: i18n.t(documentWidth === "wide" ? "Standard document width" : "Wide document"), icon: documentWidth === "wide" ? Columns3 : StretchHorizontal, disabled: session?.kind === "text",
       keywords: ["document width", "문서 너비"], run: toggleDocumentWidth },
     { id: "docling-convert", kind: "command", label: i18n.t("Convert with Docling"), icon: FileText, takesFocus: true,
       disabled: busy || Boolean(continuation), keywords: ["PDF", "Docling", "도클링", "변환"],
@@ -1026,7 +1029,7 @@ function EditorApp() {
   ];
 
   return (
-    <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${panelOpen && !comparison ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}${split ? " app-shell--split" : ""}`}>
+    <div ref={shell} className={`app-shell${sidebarOpen ? "" : " app-shell--collapsed"}${panelOpen && !comparison && session?.kind !== "text" ? "" : " app-shell--panel-closed"}${documentWidth === "wide" ? " app-shell--wide" : ""}${split ? " app-shell--split" : ""}`}>
       <Sidebar
         theme={theme} onThemeChange={changeTheme}
         onDoclingConvert={(path, element) => { conversionReturn.current = element; setConversionPath(path); setConversionOpen(true); setConversionNotice(null); }}
@@ -1112,20 +1115,21 @@ function EditorApp() {
             <DocumentActions
               documentPath={owner?.openedPath ?? ""}
               wide={documentWidth === "wide"}
-              onToggleWide={toggleDocumentWidth}
+              onToggleWide={owner?.kind === "text" ? undefined : toggleDocumentWidth}
               compact={split}
               status={operation || (owner?.assetPending ? "adding-image" : owner?.status ?? "ready")}
               unsaved={owner?.documentDirty || owner?.draftActive}
               draftNotice={owner?.draftNotice}
-              view={owner?.view ?? "visual"}
-              viewDisabled={!owner?.document || groupBusy}
-              onViewChange={(next) => (next === "source" ? void owner?.showSource() : owner?.setView("visual"))}
-              saveDisabled={!owner?.document || groupBusy}
+              textMode={owner?.kind === "text"}
+              view={owner?.kind === "native" ? owner.view : "visual"}
+              viewDisabled={!owner || groupBusy}
+              onViewChange={(next) => { if (owner?.kind === "native") { if (next === "source") void owner.showSource(); else owner.setView("visual"); } }}
+              saveDisabled={!owner || groupBusy}
               onSave={() => void owner?.save()}
-              onCompare={() => compareBeforeSave(fileActionsToggle.current, owner)}
+              onCompare={owner?.kind === "text" ? undefined : () => compareBeforeSave(fileActionsToggle.current, owner)}
               compareDisabled={!(owner?.documentDirty || owner?.draftActive) || groupBusy}
               onReload={() => void owner?.reload()}
-              reloadDisabled={!owner?.document || groupBusy}
+              reloadDisabled={!owner || groupBusy}
               onCopyPath={() => void copyPath(owner?.openedPath)}
               fileActionsRef={group.id === navigation.focused ? fileActionsToggle : undefined}
               onOpenRight={() => { if (group.active) moveTab(group.active, true); }}
@@ -1133,7 +1137,7 @@ function EditorApp() {
               openRightDisabled={!owner || !canSplit || groupBusy}
               moveDisabled={!owner || !split || groupBusy}
               outline={panelOpen}
-              onToggleOutline={() => choosePanelOpen(!panelOpen)}
+              onToggleOutline={owner?.kind === "text" ? undefined : () => choosePanelOpen(!panelOpen)}
               outlineToggleRef={group.id === navigation.focused ? outlineToggle : undefined}
             />
           } />
@@ -1152,7 +1156,7 @@ function EditorApp() {
           // The empty area below the document places the caret at its end.
           const id = event.target instanceof Element ? event.target.closest<HTMLElement>("[data-document-tab]")?.dataset.documentTab : undefined;
           const owner = id ? sessions.current.get(id) : undefined;
-          if (event.button === 0 && event.target instanceof HTMLElement && event.target.classList.contains("document-column") && owner?.view === "visual" &&
+          if (event.button === 0 && event.target instanceof HTMLElement && event.target.classList.contains("document-column") && (owner?.kind === "text" || owner?.view === "visual") &&
             owner.editorRef.current?.focusEnd(event.clientY)) event.preventDefault();
         }}>
           {tabs.length === 0 && comparisons.length === 0 && start ? (
@@ -1185,11 +1189,11 @@ function EditorApp() {
           })}
         </main>
       </div>
-      {panelOpen && !comparison ? (
+      {panelOpen && !comparison && session?.kind !== "text" ? (
         <DocumentPanel
           overlay={panelOverlay}
           outline={document ? outlineStore : undefined}
-          onSelectItem={item => session?.revealItem(item)}
+          onSelectItem={item => nativeSession?.revealItem(item)}
           onClose={() => {
             choosePanelOpen(false);
             // Escape dismisses the overlay; its toggle keeps the focus.

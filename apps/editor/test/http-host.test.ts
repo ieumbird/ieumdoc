@@ -230,9 +230,26 @@ test("HTTP starts with only allowed places and saves both roots through Core and
   const blocked = path.join(a, "readonly.md"), original = nativeSource("Press {kbd}`Ctrl` now.\n\n# Heading\n\nBody.\n");
   fs.writeFileSync(blocked, original);
   const loaded = await (await send(documentQuery(blocked))).json();
-  assert.match(loaded.error, /Unsupported native content/);
+  assert.equal(loaded.kind, "text");
+  assert.equal(loaded.source, original);
   assert.equal((await send("/api/document", "POST", { path: blocked, revision: documentRevision(original), base: { source: original } })).status, 400);
   assert.equal(fs.readFileSync(blocked, "utf8"), original);
+  const textRequest = { kind: "text", path: blocked, revision: loaded.revision, source: "\t한글 <kbd>\r\n  " };
+  for (const invalid of [{ ...textRequest, base: { source: original } }, { ...textRequest, paragraphs: [] }]) {
+    assert.equal((await send("/api/document", "POST", invalid)).status, 400);
+    assert.equal(fs.readFileSync(blocked, "utf8"), original);
+  }
+  assert.equal((await send("/api/document", "POST", textRequest)).status, 200);
+  assert.equal(fs.readFileSync(blocked, "utf8"), textRequest.source);
+  const plain = path.join(a, "notes.txt"); fs.writeFileSync(plain, "plain");
+  const plainFile = await (await send(documentQuery(plain))).json();
+  assert.equal(plainFile.kind, "text");
+  assert.equal((await send("/api/document", "POST", { kind: "text", path: plain, revision: plainFile.revision, source: "exact\n" })).status, 200);
+  const preview = await (await send("/api/document-source?recovery=1", "POST", { path: plain })).json();
+  assert.equal(preview.disk.source, "exact\n");
+  const native = path.join(b, "document.md"), nativeBytes = fs.readFileSync(native, "utf8");
+  assert.equal((await send("/api/document", "POST", { ...textRequest, path: native, revision: documentRevision(nativeBytes) })).status, 400);
+  assert.equal(fs.readFileSync(native, "utf8"), nativeBytes);
   await host.close();
   await assert.rejects(fetch(url), /fetch failed/);
 });

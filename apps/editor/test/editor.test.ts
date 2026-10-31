@@ -43,7 +43,7 @@ import {
   isSupportedDocumentChange,
   toTiptapDocument,
 } from "../src/tiptap-document.ts";
-import { commitDocumentSave, createDocumentFile, createFolder, documentRevision, DocumentConflictError, browseFolder, folderPlaces, handleDocumentRequest, listFolder, loadDocumentFile, previewDocumentFile, previewRecoveryFile, resolveMediaPath, resolveDocumentPath, saveCurrentDocument, saveDocumentFile } from "../server/document-api.ts";
+import { loadEditorFile, saveTextFile, commitDocumentSave, createDocumentFile, createFolder, documentRevision, DocumentConflictError, browseFolder, folderPlaces, handleDocumentRequest, listFolder, loadDocumentFile, previewDocumentFile, previewRecoveryFile, resolveMediaPath, resolveDocumentPath, saveCurrentDocument, saveDocumentFile } from "../server/document-api.ts";
 import { loadEditableDocument } from "./helpers/document.ts";
 import { saveEdits } from "../server/document-replay.ts";
 import { SaveContentError } from "../shared/save-error.ts";
@@ -826,10 +826,10 @@ test("a chosen folder lists all regular files, marks only documents, and stays i
     assert.equal(top.path, path.resolve(chosen));
     assert.equal(top.parent, undefined);
     assert.deepEqual(top.entries.map(entry => `${entry.kind}:${entry.name}`),
-      ["folder:guides", "document:a9.md", "document:a10.md", "document:b.md", "file:notes.txt", "document:UPPER.MD"]);
+      ["folder:guides", "document:a9.md", "document:a10.md", "document:b.md", "document:notes.txt", "document:UPPER.MD"]);
     assert.equal(top.entries[1]?.path, path.join(path.resolve(chosen), "a9.md"));
     // The tree can tell files without the native marker apart before anyone opens them.
-    assert.deepEqual(top.entries.map(entry => entry.native), [undefined, true, true, false, undefined, true]);
+    assert.deepEqual(top.entries.map(entry => entry.native), [undefined, true, true, false, false, true]);
 
     // Choosing a folder can browse outside the eventual sidebar root, with Host-owned crumbs.
     const browsed = browseFolder(chosen);
@@ -845,13 +845,13 @@ test("a chosen folder lists all regular files, marks only documents, and stays i
     // Choosing an image lists images where the folder picker lists Markdown files.
     for (const file of ["photo.JPG", "diagram.svg", ".hidden.png"]) writeFileSync(path.join(chosen, file), nativeSource("x\n"));
     assert.deepEqual(browseFolder(chosen).entries.map(entry => `${entry.kind}:${entry.name}`),
-      ["folder:guides", "document:a9.md", "document:a10.md", "document:b.md", "document:UPPER.MD"]);
+      ["folder:guides", "document:a9.md", "document:a10.md", "document:b.md", "document:notes.txt", "document:UPPER.MD"]);
     assert.deepEqual(browseFolder(chosen, undefined, "image").entries.map(entry => `${entry.kind}:${entry.name}`),
       ["folder:guides", "image:diagram.svg", "image:photo.JPG"]);
     for (const name of ["a2.PNG", "a11", "자료.txt"]) writeFileSync(path.join(chosen, name), "names only");
     const files = listFolder(chosen).entries.filter(entry => entry.kind !== "folder");
     // Korean collation differs by Host locale; Latin names still interleave numerically across kinds.
-    assert.ok(files.some(entry => entry.name === "자료.txt" && entry.kind === "file"));
+    assert.ok(files.some(entry => entry.name === "자료.txt" && entry.kind === "document"));
     assert.deepEqual(files.filter(entry => entry.name !== "자료.txt").map(entry => entry.name), ["a2.PNG", "a9.md", "a10.md", "a11", "b.md", "diagram.svg", "notes.txt", "photo.JPG", "UPPER.MD"]);
     assert.equal(files.find(entry => entry.name === "a2.PNG")?.kind, "image");
     assert.equal(files.find(entry => entry.name === "a11")?.kind, "file");
@@ -1142,7 +1142,7 @@ test("Host save fails over HTTP before writing when canonical Markdown would los
   }
 });
 
-test("Host refuses unsupported documents and Save acknowledges only the written revision", async () => {
+test("Host opens unsupported Markdown as text while native Save stays fail-closed", async () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-writeability-"));
   const server = createServer((req, res) => {
     void handleDocumentRequest(req, res, () => { res.statusCode = 404; res.end(); });
@@ -1160,9 +1160,10 @@ test("Host refuses unsupported documents and Save acknowledges only the written 
     assert.equal(loadDocumentFile(writable).document.blocks.length, 2);
     assert.throws(() => loadDocumentFile(blocked), /Unsupported native content/);
     const response = await fetch(`http://127.0.0.1:${port}/api/document?path=${encodeURIComponent(blocked)}`);
-    assert.equal(response.status, 400);
+    assert.equal(response.status, 200);
     const rejected = await response.json();
-    assert.match(rejected.error, /Unsupported native content/);
+    assert.equal(rejected.kind, "text");
+    assert.equal(rejected.source, source);
     assert.equal(rejected.document, undefined);
     let written = false;
     assert.throws(() => commitDocumentSave(() => source, () => { written = true; }, {
@@ -2316,6 +2317,7 @@ test("unsupported recovery leaves its plaintext copy and other records available
   record.recoveryText = recoveryText(record.snapshot);
   const unsupported = structuredClone(record);
   unsupported.id = "unsupported";
+  if (unsupported.snapshot.kind === "text") throw new Error("Expected native snapshot");
   unsupported.snapshot.editor.editorDocument.attrs!.deletedPaths = [""];
   // Rejection must preserve the stored copy verbatim, independently of schema traversal.
   unsupported.recoveryText = "Unsent work.\nPreviously stored caption.";
@@ -2469,4 +2471,64 @@ test("save diagnostic guidance and badges use codes in both languages and retain
     assert.equal(fileFailure.locations[0].code, undefined);
 
   } finally { await i18n.changeLanguage("en"); }
+});
+
+
+test("text Save preserves exact UTF-8 text, shares file commit and cannot overwrite native documents", t => {
+  const dir = mkdtempSync(path.join(tmpdir(), "ieumdoc-text-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const plain = path.join(dir, "notes.TXT"), markdown = path.join(dir, "foreign.md"), native = path.join(dir, "native.md");
+  const original = "\uFEFF# 일반 Markdown\r\n\t**literal**  \r\n";
+  writeFileSync(plain, original); writeFileSync(markdown, original); writeFileSync(native, nativeSource("Native.\n"));
+  const access = new RootAccess([dir]);
+  for (const file of [plain, markdown]) {
+    const loaded = loadEditorFile(file, access);
+    assert.equal(loaded.kind, "text");
+    assert.equal(loaded.source, original);
+    const source = "\uFEFF  한글 😀\r\n\t<div>literal</div>  \r\n\r\n";
+    const saved = saveTextFile({ kind: "text", path: file, revision: loaded.revision, source }, access);
+    assert.equal(readFileSync(file, "utf8"), source);
+    assert.equal(saved.revision, documentRevision(source));
+    assert.equal(loadEditorFile(file, access).source, source);
+    assert.throws(() => saveTextFile({ kind: "text", path: file, revision: loaded.revision, source: "stale" }, access), DocumentConflictError);
+    assert.equal(readFileSync(file, "utf8"), source);
+    assert.throws(() => saveTextFile({ kind: "text", path: file, revision: saved.revision, source: "\uD800" }, access), /Invalid Unicode/);
+  }
+  const nativeBefore = readFileSync(native);
+  assert.equal(loadEditorFile(native).kind, "native");
+  assert.throws(() => saveTextFile({ kind: "text", path: native, revision: documentRevision(nativeBefore.toString()), source: "bypass" }), /now an IeumDoc document/);
+  assert.deepEqual(readFileSync(native), nativeBefore);
+  // .txt stays text even when its content has native syntax; it is not a native document.
+  writeFileSync(plain, nativeBefore);
+  assert.equal(loadEditorFile(plain).kind, "text");
+  assert.throws(() => createDocumentFile(path.join(dir, "new.txt")), /\.md file/);
+  const other = path.join(dir, "other.json"); writeFileSync(other, "{}");
+  assert.throws(() => loadEditorFile(other), /\.md or \.txt/);
+  assert.throws(() => saveTextFile({ kind: "text", path: other, revision: documentRevision("{}"), source: "bad" }), /\.md or \.txt/);
+  mkdirSync(path.join(dir, "restricted"));
+  const restricted = new RootAccess([path.join(dir, "restricted")]);
+  assert.throws(() => saveTextFile({ kind: "text", path: plain, revision: documentRevision(readFileSync(plain, "utf8")), source: "outside" }, restricted), /allowed folders/);
+  const before = readFileSync(markdown, "utf8");
+  const rename = fs.renameSync;
+  fs.renameSync = () => { throw new Error("Text rename failed"); };
+  try {
+    assert.throws(() => saveTextFile({ kind: "text", path: markdown, revision: documentRevision(before), source: "replacement" }), /Text rename failed/);
+  } finally { fs.renameSync = rename; }
+  assert.equal(readFileSync(markdown, "utf8"), before);
+  assert.ok(!readdirSync(dir).some(name => name.endsWith(".tmp")));
+});
+
+test("text recovery validates its own snapshot and cannot masquerade as native recovery", () => {
+  const filePath = path.join(tmpdir(), "notes.txt");
+  const snapshot = { kind: "text" as const, file: { kind: "text" as const, path: filePath, source: "saved", revision: documentRevision("saved") }, text: "未保存\n한글", savedSource: "saved" };
+  const record: RecoveryRecord = { id: "text", version: 1, path: filePath, recordedAt: Date.now(), recoveryText: recoveryText(snapshot), snapshot };
+  assert.deepEqual(prepareRecovery(record), snapshot);
+  assert.equal(record.recoveryText, snapshot.text);
+  const before = structuredClone(record);
+  for (const broken of [
+    { ...snapshot, kind: "native" }, { ...snapshot, editor: {} },
+    { ...snapshot, savedEdits: {} }, { ...snapshot, savedSource: "other" },
+    { ...snapshot, file: { ...snapshot.file, kind: "native" } },
+  ]) assert.throws(() => prepareRecovery({ ...record, snapshot: broken } as RecoveryRecord), /incomplete/);
+  assert.deepEqual(record, before);
 });

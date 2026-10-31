@@ -13,6 +13,41 @@
 
 - Boundaries: ADR-0001, ADR-0002, ADR-0003. Markdown remains the disk SSOT; Core operations and canonical validation remain the write path.
 
+## Text editing sessions (#817)
+
+[Text documents](document-support-v1.md#text-files-in-the-editor-817) share tab identity,
+explicit Save/shortcut, dirty indication, Save/Don't save/Cancel on close, all-tab
+beforeunload and Desktop restart protection with native documents. A plain textarea
+uses browser editing/selection/history. There is no formatting, block UI, preview,
+Source toggle or native pre-save comparison. A short permanent text-mode explanation
+sits above the input, below the shared tab/Save row. Text has no unapplied properties.
+
+Save captures a string and acknowledges only that submitted string plus its returned
+revision. It keeps the mounted input, selection and native history. Input typed while
+Save waits remains dirty and recoverable. Failure/conflict keeps local text; external
+bytes remain untouched. Reload uses the shared discard confirmation and asks Host to
+classify the file again, replacing the editor only after a successful read. Unedited
+source preserves BOM, CRLF and trailing whitespace. Once edited, the submitted text
+is the textarea value (browser line breaks are LF); Host performs no normalization.
+
+The existing IndexedDB recorder, barriers, retention, deletion and path changes also
+serve text sessions. A text snapshot carries `kind: text`, a text file descriptor,
+current text, acknowledged saved source and revision. It carries no native read model,
+Tiptap snapshot or semantic edits. Restore validates this shape and mounts only the
+text editor; native recovery cannot consume text snapshots. Restore does not write or
+reclassify a file, and retains the old revision so an external change still conflicts.
+Comparison reads current disk text without Core replay; the recovery copy is the exact
+recorded string. Native recovery and canonical replay remain unchanged.
+
+`pnpm browser:test text-mode` covers exact Save/Reload, retained input during delayed
+acknowledgement, close cancellation/Save/discard, unload protection, text recovery and
+external conflict, and Reload across native/text admission. Host tests cover raw-request
+schema isolation, native-write refusal, file commit failure/cleanup and unchanged bytes.
+
+Text editing has no CLI command because it adds no document semantic operation.
+The shared Host remains stateless, using existing revision checks, temporary sibling
+and rename in `packages/file-commit`; no daemon, backend state or autosave is added.
+
 ## File deletion and rename (#505 / #504 PR A)
 
 Confirmed file deletion closes its open tab, discards applied edits/property drafts and deletes
@@ -635,7 +670,7 @@ existing start/default document remains usable while folders restore independent
 remembered path has been attempted sequentially, then publishes one final tab list. Open/New,
 Close and switching cannot compete with pending restoration responses. Cancelled startup sends no
 further requests after the current request settles. The Host still validates every read; moved,
-missing, refused and non-native paths are quietly omitted. Equal Host-normalized paths get one tab.
+missing and Host-refused paths are quietly omitted; `.txt` and Core-incompatible `.md` restore as text tabs (#817). Equal Host-normalized paths get one tab.
 The remembered active path is selected when it survives; otherwise the first surviving tab is active.
 
 Restoration alone never writes preferences, including excluded paths and active-path fallback.

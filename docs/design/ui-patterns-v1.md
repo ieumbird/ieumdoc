@@ -176,6 +176,7 @@ padding을 쓴다. 선택하면 interaction-soft fill과 interaction border를 �
 - **키보드 경계 (#831):** 공용 Dialog는 native Undo/Redo가 modal 밖 입력·초안으로 이동하거나 수정하는 것을 차단한다. modal 안 입력의 자체 Undo/Redo는 유지하고, Escape는 활성 modal만 닫아 바깥 미적용 초안을 보존한다. 명령 센터도 같은 경계를 쓰며 비모달 알림 센터의 문서 history는 유지한다. [현재 Undo 계약](document-editing-v1.md#shared-history-and-editing-boundaries).
 - **추가 사용처:** #797 Docling 서버 Settings는 Host 기기 설정·field exit 저장, PDF 선택은 기존 FolderDialog, 실행은 명시적 변환 확인·진행·대기 중단 dialog다. 연결 확인 실패 뒤에도 서버 구성 안내 링크를 유지한다. 같은 Settings/파일 dialog 패턴을 재사용한다.
 - **추가 사용처:** [Docling 대조](docling-compare-v1.md)는 기존 FolderDialog로 변환 폴더를 명시적으로 연다. 문서 쓰기·미저장 확인과 연결하지 않는다. bbox·연결선·변환 메모 띠는 비교 전용 새 표현이며 기존 편집 패턴을 바꾸지 않는다.
+- **추가 사용처 (#817):** 별도 텍스트 문서도 U24의 미저장 확인·복구·삭제·비교 경계를 재사용한다. 텍스트 편집 화면은 Source 읽기 화면과 분리하며, 소유자가 요구한 짧은 종류 표시는 오류/알림 대신 입력 위 문맥 정보로 유지한다. 고정폭 입력은 Source의 기존 서체·색/간격 토큰을 공유하고 탭·Save 줄은 이동하지 않는다. `text-mode`에서 닫기 취소/Save/버리기·지연 응답·종류별 복구/충돌, 1440/640px·한국어·다크를 검증했다. [현재 계약](editing-session-save-v1.md#text-editing-sessions-817).
 - **결정·불일치:** [소유자 결정 P12][decision], [현재 저장·복구 계약](editing-session-save-v1.md#switching-and-recovery). 이 작업·확정 경계의 알려진 불일치 없음. 메시지 표시는 P07/D07에서 별도 추적한다.
 
 ## 알려진 불일치

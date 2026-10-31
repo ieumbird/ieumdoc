@@ -10,6 +10,15 @@ async function compare(record: RecoveryRecord, signal: AbortSignal): Promise<Com
   let fallback = "";
   try {
     const snapshot = prepareRecovery(record);
+    if (snapshot.kind === "text") {
+      const response = await fetch(`${import.meta.env.BASE_URL}api/document-source?recovery=1`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: record.path }), signal,
+      });
+      const result: RecoveryPreviewResponse = await response.json();
+      if (!response.ok || result.disk === undefined) throw new Error(result.error ?? `HTTP ${response.status}`);
+      return { before: result.disk?.source ?? "", after: snapshot.text, fallback: "",
+        changed: Boolean(result.disk && result.disk.revision !== snapshot.file.revision), missing: result.disk === null };
+    }
     save = { path: record.path, revision: snapshot.file.revision,
       base: { source: snapshot.file.source, savedEdits: snapshot.savedEdits },
       ...collectSupportedEdits(snapshot.file.document, snapshot.editor.editorDocument) };
@@ -28,7 +37,7 @@ async function compare(record: RecoveryRecord, signal: AbortSignal): Promise<Com
       if (!result.disk.document) throw new Error(result.disk.error);
       const editorDocument = toTiptapDocument(result.disk.document);
       // Identical salvage traversal to newly recorded recovery copies; no Markdown conversion.
-      before = recoveryText({ ...record.snapshot, editor: { editorDocument, savedDocument: editorDocument } });
+      before = recoveryText({ file: { path: record.path, source: result.disk.source, revision: result.disk.revision, document: result.disk.document, endnotesInPlace: true }, editor: { editorDocument, savedDocument: editorDocument } });
     }
     after = record.recoveryText;
   }

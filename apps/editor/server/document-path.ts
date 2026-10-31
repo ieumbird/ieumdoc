@@ -11,10 +11,15 @@ export const DOCUMENT_DIR = path.join(editorRoot, "document");
 const DEFAULT_DOCUMENT_PATH = path.join(DOCUMENT_DIR, "technical-document.md");
 
 export function resolveDocumentPath(requestedPath?: string, access: FileAccess = LOCAL_FILE_ACCESS, create = false): string {
+  return resolveEditorPath(requestedPath, access, create, false);
+}
+
+/** Only opening existing files and plain-text saving admit .txt. New remains native .md. */
+export function resolveEditorPath(requestedPath?: string, access: FileAccess = LOCAL_FILE_ACCESS, create = false, text = true): string {
   const candidate = requestedPath?.trim() || DEFAULT_DOCUMENT_PATH;
   const resolved = path.resolve(accessPath(candidate, access, create));
-  if (path.extname(resolved).toLowerCase() !== ".md") {
-    throw new Error("document path must point to a .md file");
+  if (!(text ? [".md", ".txt"] : [".md"]).includes(path.extname(resolved).toLowerCase())) {
+    throw new Error(text ? "file path must point to a .md or .txt file" : "document path must point to a .md file");
   }
   return resolved;
 }

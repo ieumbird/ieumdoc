@@ -7,7 +7,7 @@ import { useDocumentSession, type DocumentSession, type DocumentSessionSnapshot 
 export async function mountDocumentSessionHarness(snapshot?: DocumentSessionSnapshot) {
   const { requestDocument } = await import("../../src/document-session.ts");
   const initial = snapshot?.file ?? await requestDocument("GET");
-  if ("start" in initial) throw new Error("Harness requires a first document");
+  if ("start" in initial || initial.kind === "text") throw new Error("Harness requires a first document");
   const file = initial;
   const host = document.createElement("div");
   document.body.append(host);

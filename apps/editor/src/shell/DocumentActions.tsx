@@ -11,6 +11,7 @@ import type { DocumentView } from "./TopBar.tsx";
 
 type DocumentActionsProps = {
   documentPath: string;
+  textMode?: boolean;
   wide?: boolean;
   onToggleWide?(): void;
   status: Operation;
@@ -42,7 +43,7 @@ type DocumentActionsProps = {
 
 /** Actions and status of this tab row's active document. */
 export function DocumentActions({
-  documentPath, wide, onToggleWide, status, unsaved = false, draftNotice = "", view, viewDisabled, onViewChange, saveDisabled,
+  documentPath, textMode, wide, onToggleWide, status, unsaved = false, draftNotice = "", view, viewDisabled, onViewChange, saveDisabled,
   onSave, onCompare, compareDisabled, onReload, reloadDisabled, onCopyPath, fileActionsRef,
   outline, onToggleOutline, outlineToggleRef, compact: groupCompact = false, onOpenRight, onMove, openRightDisabled, moveDisabled,
 }: DocumentActionsProps) {
@@ -82,7 +83,7 @@ export function DocumentActions({
     : status.endsWith("failed") || status === "save-conflict" ? TriangleAlert : LoaderCircle;
   return (
     <div className="top-bar-actions">
-      <div className="top-bar-group" role="group" aria-label={i18n.t("View controls")}>
+      {!textMode ? <div className="top-bar-group" role="group" aria-label={i18n.t("View controls")}>
         <div className="view-toggle" role="group" aria-label={i18n.t("Document view")}>
           <Button
             type="button"
@@ -108,7 +109,7 @@ export function DocumentActions({
             <PanelRight aria-hidden="true" />
           </Button>
         ) : null}
-      </div>
+      </div> : null}
       <div className="top-bar-group" role="group" aria-label={i18n.t("File actions")}>
         <p className="document-status status" data-testid="status" data-operation={status} role="status" title={displayStatus || undefined}>
           {displayStatus ? <><StatusIcon aria-hidden="true" className={unsaved && idle ? "document-status-dirty" : undefined} /><span className="sr-only">{displayStatus}</span></> : null}

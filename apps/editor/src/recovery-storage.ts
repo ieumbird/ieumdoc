@@ -1,4 +1,4 @@
-import type { DocumentSessionSnapshot } from "./useDocumentSession.ts";
+import type { SessionSnapshot } from "./DocumentTab.tsx";
 
 export const RECOVERY_DAYS = 10;
 export const RECOVERY_DB = "ieumdoc-recovery";
@@ -10,7 +10,7 @@ export type RecoveryRecord = {
   /** Optional for existing v1 records; changes when dirty work follows clean state. */
   recordingGeneration?: number;
   recoveryText: string;
-  snapshot: DocumentSessionSnapshot;
+  snapshot: SessionSnapshot;
 };
 const TICKET_LIFETIME = RECOVERY_DAYS * 86400000;
 const CLEAN_PREFIX = "ieumdoc.recoveryClean.v1.";
@@ -240,7 +240,8 @@ export const recoveryStorage = {
 };
 
 /** Plaintext escape hatch independent of schema/canonical validation, including atom attributes. */
-export function recoveryText(snapshot: DocumentSessionSnapshot): string {
+export function recoveryText(snapshot: SessionSnapshot): string {
+  if (snapshot.kind === "text") return snapshot.text;
   // A readable salvage copy, not Markdown serialization or a document write path.
   function visit(value: unknown): string {
     if (!value || typeof value !== "object") return "";
@@ -265,7 +266,7 @@ export function recoveryText(snapshot: DocumentSessionSnapshot): string {
 }
 
 /** One recorder per mounted document session. Recovery never gates editing, Save or closing. */
-export function createRecoveryRecorder(id: string, documentPath: () => string, capture: () => DocumentSessionSnapshot | null, failed: (error: unknown) => void, succeeded: () => void = () => {}) {
+export function createRecoveryRecorder(id: string, documentPath: () => string, capture: () => SessionSnapshot | null, failed: (error: unknown) => void, succeeded: () => void = () => {}) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let epoch = 0;
   let permit: Promise<Ticket | null> | undefined;
