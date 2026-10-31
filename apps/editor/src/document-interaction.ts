@@ -446,9 +446,10 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
           };
         },
         props: {
-        // A native focus caret cannot turn a read-only block selection into title text.
-        // Property navigation enables native input before delegating to the engine's gap cursor.
-        createSelectionBetween: (view, anchor, head) => anchor.pos === head.pos && view.hasFocus() &&
+        // Edit temporarily makes a selected preview's DOM read-only: a focus caret
+        // cannot turn that selection into title text. Actual Read must still accept
+        // a native pointer caret in another block.
+        createSelectionBetween: (view, anchor, head) => view.editable && anchor.pos === head.pos && view.hasFocus() &&
           !view.dom.isContentEditable && selectedPreview(view.state) ? view.state.selection : null,
         clipboardSerializer: new DOMSerializer(serializers, DOMSerializer.marksFromSchema(schema)),
         clipboardParser: parser,

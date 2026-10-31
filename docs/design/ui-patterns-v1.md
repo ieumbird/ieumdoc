@@ -165,7 +165,7 @@ padding을 쓴다. 선택하면 interaction-soft fill과 interaction border를 �
 - **목표:** 짧은 상호배타 값은 segment, 많은 값은 선택 메뉴, on/off는 checkbox를 기본으로 한다. 번호 field는 32px, shell view track은 28px이다. current와 keyboard focus의 단서는 독립적으로 유지한다.
 - **현재 기준:** [DocumentActions](../../apps/editor/src/shell/DocumentActions.tsx)의 `읽기 | 편집 | 소스` / `Read | Edit | Source` 보기 segment(#849, 28px track, 탭별 일시 상태). 읽기는 기존 편집기의 입력·도구를 막고 초안을 유지하며, 텍스트 모드에는 전환을 보이지 않는다([계약](editor-ux-shell-v1.md#read--edit--source-849)). [DocumentSettings](../../apps/editor/src/shell/DocumentSettings.tsx)의 문서 값, Settings의 기기 설정. 보기·탐색의 toggle/tablist와 문서 draft는 서로 다른 의미다.
 - **사용처:** U09–U10 인용·참조 값, U13–U14 문서 설정·번호, U19–U22 언어/종류·메뉴·보기/탐색·앱 설정.
-- **추가 사용처:** [Docling 대조](docling-compare-v1.md)의 동기 스크롤 checkbox와 원문 상자 선택은 탭 안의 일시적 보기 상태이며 문서/기기 설정에 저장하지 않는다. 그림 자식 연결은 기본적으로 그림 하나로 묶고, 자식 상자를 선택하면 해당 연결·변환 메모를 강조한다(#799).
+- **추가 사용처:** [Docling 대조](docling-compare-v1.md)의 동기 스크롤 checkbox와 원문 상자 선택은 탭 안의 일시적 보기 상태이며 문서/기기 설정에 저장하지 않는다. 그림 자식 연결은 기본적으로 그림 하나로 묶고, 자식 상자를 선택하면 해당 연결·변환 메모를 강조한다(#799). 오른쪽은 공용 읽기로 고정하고 보기 segment를 숨긴다(#815). 오른쪽 블록 선택·키보드 이동은 대응 원문 상자·연결선·변환 메모를 같은 일시 상태로 갱신하며, 일반 편집기의 읽기 hover·선택 표현을 재사용한다.
 - **결정·불일치:** [소유자 결정 P11][decision]. 번호 세그먼트는 P02의 다섯 폼에 적용했다(#776). 알려진 불일치 없음.
 
 ## P12 모달·파일·복구·설정 범위

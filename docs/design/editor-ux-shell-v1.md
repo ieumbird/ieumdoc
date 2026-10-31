@@ -62,6 +62,10 @@ selected block boundaries. Text caret movement/extension delegates to the browse
 native Selection and maps back through ProseMirror's public position/selection APIs;
 no alternate renderer or editor engine is introduced.
 
+In Read, clicking text after a selected preview must move the reading caret
+normally (#815). Edit's guard against a focus-only caret replacing its temporarily
+non-editable preview selection applies only while the engine is editable.
+
 Read hides authoring tools, formatting, block/table actions, document settings and
 property forms, and disables Save (button, shortcut, command and close-confirmation
 Save). A transaction filter additionally refuses every document-changing transaction,
@@ -76,10 +80,12 @@ values. Clicking Read or opening the Command Center does not complete metadata a
 an outside click. View changes do not acknowledge Save, reset history or write
 recovery records. Applied work, dirty state and revision are unchanged.
 
-`DocumentEditor`'s `readOnly` prop is the rendering/navigation boundary for later
-module consumers. Docling comparison still uses its existing `ReadOnlyDocument`;
-its migration, fixed Read surface without switches and bidirectional correspondence
-are deliberately deferred to #815. This view-only change needs no Core/CLI operation.
+`DocumentEditor`'s `readOnly` prop is also the rendering/navigation boundary for
+module consumers. Docling comparison's thin `ReadOnlyDocument` adapter uses it
+in fixed Read without view controls (#815). Optional engine-neutral geometry and
+selection callbacks connect that surface to the module's own source matching;
+see [Docling comparison](docling-compare-v1.md). These view-only changes need no
+Core/CLI operation.
 
 ### Read view verification and captures (2026-10-31)
 

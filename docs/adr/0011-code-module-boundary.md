@@ -39,7 +39,9 @@ editing/recovery session and are not restored at startup.
 
 The module's `./ui` entry receives shared controls and product tokens, plus an
 Editor-owned reading surface through `ReadingSurfaceProps`: a public Core read
-model, document path and block/list-item position callback. Editor engine types,
+model, document path, block/list-item position and snapshot selection callbacks.
+The shell supplies the ordinary Editor's fixed Read mode (#815); source matching
+and inspection state stay in the module. Editor engine types,
 DOM and CSS remain private to Editor. The module measures only its own pane and
 source-page DOM. Its `./compare` entry contains browser-safe types/geometry;
 Node parsing and hash checks stay behind `./compare-host`.

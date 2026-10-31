@@ -160,6 +160,25 @@ async (page, { expect, screenshots }) => {
   await pictureRegion.focus();
   await page.keyboard.press('Enter');
   await expect.poll(figureLinks).toBe(1 + captionVisible);
+  // A selection in the fixed Read surface reveals the original even with sync off.
+  await source.evaluate(element => { element.scrollTop = 0; });
+  const rightPicture = reading.locator(`[data-source-path="${targetPath}"]`);
+  await rightPicture.getByTestId('figure-image').click();
+  await expect(source.locator('[data-page="9"] img')).toBeVisible();
+  await expect(source.locator(`[data-source-ref="${picture.self_ref}"]`)).toHaveAttribute('aria-pressed', 'true');
+  await expect(tab.locator('.docling-wires path[data-selected=true]')).toHaveCount(1);
+  // Inspect a pixel descendant, then reselect the already selected document figure.
+  await source.locator(`[data-source-ref="${child.self_ref}"]`).focus();
+  await page.keyboard.press('Enter');
+  await rightPicture.getByTestId('figure-image').click();
+  await expect(source.locator(`[data-source-ref="${picture.self_ref}"]`)).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('ArrowLeft');
+  expect(await reading.locator('.document-editor').evaluate(el => el.editor.state.selection.constructor.name)).not.toBe('NodeSelection');
+  await tab.getByRole('checkbox', { name: 'Sync scrolling' }).check();
+  await source.evaluate(element => { element.scrollTop = 0; });
+  await rightPicture.getByTestId('figure-image').click();
+  await expect(source.locator(`[data-source-ref="${picture.self_ref}"]`)).toHaveAttribute('aria-pressed', 'true');
+  await expect(rightPicture).toHaveAttribute('data-selected', 'true');
   await open('synthetic');
   await expect(page.getByRole('tab', { selected: true })).toHaveAccessibleName('synthetic · Docling comparison');
   const synthetic = page.locator('.docling-tab[data-active=true]');
@@ -167,11 +186,38 @@ async (page, { expect, screenshots }) => {
   await expect(synthetic.locator('[data-category=formula].docling-region')).toHaveCount(1);
   await expect(synthetic.locator('[data-status=unsupported].docling-region')).toHaveCount(1);
   expect(await synthetic.locator('[data-testid=comparison-document] .ProseMirror[contenteditable=false]').count()).toBe(1);
+  await expect(synthetic.locator('[data-testid=document-editor]')).toHaveAttribute('data-read-only', 'true');
+  const controls = page.locator('.editor-group-headers [data-focused=true]');
+  await expect(controls.getByTestId('view-read')).toHaveCount(0);
+  await expect(controls.getByTestId('view-visual')).toHaveCount(0);
+  await expect(controls.getByTestId('view-source')).toHaveCount(0);
+  await expect(synthetic.locator('.block-insert, .block-handle, .endnote-actions')).toHaveCount(0);
   expect(await synthetic.locator('[data-testid=comparison-document] button:enabled').count()).toBe(0);
   const docBefore = await synthetic.locator('.ProseMirror').textContent();
   await synthetic.locator('.ProseMirror').click();
   await page.keyboard.type('Do not edit');
   expect(await synthetic.locator('.ProseMirror').textContent()).toBe(docBefore);
+  expect(await synthetic.locator('.document-editor').evaluate(el => {
+    const before = JSON.stringify(el.editor.getJSON());
+    el.editor.commands.insertContent('Forbidden command');
+    el.editor.view.dispatch(el.editor.state.tr.setDocAttribute('title', 'Forbidden title'));
+    return JSON.stringify(el.editor.getJSON()) === before;
+  })).toBe(true);
+  for (const [kind, ref] of [['table', '#/tables/0'], ['equation', '#/texts/5']]) {
+    await synthetic.locator('.docling-source').evaluate(el => { el.scrollTop = el.scrollHeight; });
+    const block = synthetic.locator(`[data-block=${kind}]`);
+    await block.click({ position: { x: 8, y: 16 } });
+    await expect(synthetic.locator(`[data-source-ref="${ref}"]`)).toHaveAttribute('aria-pressed', 'true');
+    await expect(synthetic.getByTestId('block-hover-outline')).toBeVisible();
+    await page.keyboard.press('Enter');
+    await expect(synthetic.locator('[data-testid$="-source"] textarea, [data-testid$="-properties"]')).toHaveCount(0);
+  }
+  await synthetic.locator('li p').filter({ hasText: 'Synthetic nested item' }).click({ position: { x: 5, y: 8 } });
+  const syntheticSnapshot = await (await page.request.get(`${origin}/api/docling-compare?path=${encodeURIComponent(folder('synthetic') + separator + 'document.md')}`)).json();
+  const nestedSource = syntheticSnapshot.map.items.find(item => item.targets.some(target => target.role === 'list-item' && target.item.length === 2));
+  await expect(synthetic.locator('.docling-region[aria-pressed=true]')).toHaveAttribute('data-source-ref', nestedSource.self_ref);
+  await page.keyboard.press('Shift+ArrowRight');
+  await expect(synthetic.locator('.docling-region[aria-pressed=true]')).toHaveCount(0);
   await synthetic.locator('.docling-region[data-status=unsupported]').click();
   await expect(synthetic.locator('.docling-details')).toContainText('unsupported');
   await synthetic.getByRole('button', { name: 'Endnotes', exact: true }).click();
@@ -194,6 +240,10 @@ async (page, { expect, screenshots }) => {
   await expect(center).toContainText('does not match');
   await expect(stale.getByRole('checkbox', { name: 'Sync scrolling' })).toBeDisabled();
   expect(await stale.locator('.docling-wires path').count()).toBe(0);
+  const staleSourceTop = await stale.locator('.docling-source').evaluate(el => el.scrollTop);
+  await stale.locator('.document-editor h1').first().click();
+  expect(await stale.locator('.docling-source').evaluate(el => el.scrollTop)).toBe(staleSourceTop);
+  await expect(stale.locator('.docling-region[aria-pressed=true]')).toHaveCount(0);
   await center.getByRole('button', { name: 'Go to problem' }).click();
   await expect(stale).toBeFocused();
   await center.getByRole('button', { name: /^Notifications:/ }).click();
@@ -243,10 +293,15 @@ async (page, { expect, screenshots }) => {
       const picture = comparison.locator('[data-source-ref="#/pictures/6"]');
       await expect(picture).toBeAttached();
       await picture.focus(); await page.keyboard.press('Enter');
+      await comparison.locator(`[data-source-path="${targetPath}"]`).getByTestId('figure-image').click();
+      await expect(comparison.locator('.docling-region[aria-pressed=true]')).toHaveAttribute('data-source-ref', '#/pictures/6');
+      await comparison.locator('.docling-source').evaluate(element => {
+        element.scrollTop = element.querySelector('[data-page="9"]').offsetTop - element.offsetTop;
+      });
       await comparison.locator('img').evaluateAll(async images => { await Promise.all(images.map(image => image.decode())); });
       await page.evaluate(async () => { await document.fonts.ready; await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); });
       await page.mouse.move(0, 0);
-      await page.screenshot({ path: `tmp/799-evidence/after-${width}-${theme}-${language}.png` });
+      await page.screenshot({ path: `tmp/815-evidence/after-${width}-${theme}-${language}.png` });
     }
     await page.evaluate(() => { localStorage.setItem('ieumdoc.uiLanguage', 'en'); localStorage.setItem('ieumdoc.theme', 'light'); });
   }

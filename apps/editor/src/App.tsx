@@ -1123,6 +1123,7 @@ function EditorApp() {
               unsaved={owner?.documentDirty || owner?.draftActive}
               draftNotice={owner?.draftNotice}
               textMode={owner?.kind === "text"}
+              hideViewControls={comparisons.some(tab => tab.id === group.active)}
               view={owner?.kind === "native" ? owner.view : "visual"}
               viewDisabled={!owner || groupBusy}
               onViewChange={(next) => { if (owner?.kind === "native") { if (next === "source") void owner.showSource(); else owner.setView(next); } }}
