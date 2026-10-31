@@ -42,6 +42,8 @@ test("one brand setting produces independently installed identities and the unch
   const apps: ElectronApplication[] = [], installed: number[] = [];
   const shared = path.join(os.homedir(), brand.folders.shared);
   assert.equal(existsSync(shared), false, "alternate shared plugin folder must be new");
+  const updaterCache = path.join(process.env.LOCALAPPDATA!, `${brand.appName}-updater`);
+  assert.equal(existsSync(updaterCache), false, "alternate updater cache must be new");
   const fake = await fakeDoclingServer();
   try {
     for (let index = 0; index < brands.length; index++) {
@@ -134,6 +136,9 @@ test("one brand setting produces independently installed identities and the unch
         rmSync(data[index]!, { recursive: true, force: true });
       }
       rmSync(shared, { recursive: true, force: true });
+      // The updater initializes this even without downloading; the fresh-path guard above
+      // proves ownership so the following lifecycle regressions can keep their clean-user guard.
+      rmSync(updaterCache, { recursive: true, force: true });
     }
   }
 });
