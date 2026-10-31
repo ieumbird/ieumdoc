@@ -1,7 +1,7 @@
 # Host worker plugins v1
 
 - Status: Implemented
-- Last verified: 2026-10-31 (#853: shared Host tests with synthetic REST, independent HTTP process, Desktop protocol, crash/lock recovery and identical-PID owner replacement; real Docling remains manual and packaged Desktop is checked by CI).
+- Last verified: 2026-10-31 (#853 and PR #855 review: shared Host tests, filesystem alias denial, scoped image-reference scans and shutdown/admission races; real Docling remains manual and packaged Desktop is checked by CI).
 - Authority: [ADR-0012](../adr/0012-plugin-runtime-and-ui-contributions.md), with [ADR-0004](../adr/0004-desktop-host-distribution.md) and [ADR-0005](../adr/0005-http-host.md).
 - Scope: trusted local worker execution in Vite, in-process Desktop and independent `ieumdoc serve`. UI connections remain static under [ADR-0011](../adr/0011-code-module-boundary.md).
 
@@ -46,7 +46,8 @@ sandbox, download, approval workflow or additional permissions model.
 
 The only durable authority is `runtime.sqlite`: the `plugins` table holds
 registration state; `requests` holds UUID, source/server fingerprint, pinned
-installation, progress/task ID, owning session UUID and final job status.
+installation, progress/task ID, owning session UUID, exact staging path once
+created and final job status.
 The fingerprint includes the PDF's absolute locator, SHA-256 and server URL.
 An admitted UUID returns its original receipt, even after disable; changed input
 bytes, locator or server refuse conflicting reuse. SQLite transactions make
@@ -79,13 +80,21 @@ required for publication; failure messages preserve module failure codes. The
 Host deadline defaults to 30 minutes and covers startup through publication.
 Stop waiting, deadline and normal Host close terminate local workers and await
 cleanup. Desktop closes workers only after its ordinary unsaved-work close gate.
+Close first permanently blocks lazy runtime creation and new admissions, including
+HTTP bodies that finish arriving during shutdown. An initialized runtime blocks
+forks immediately, stops all its accepted workers and awaits every execution's
+exit and cleanup before closing the ownership store, even when one cleanup fails.
 Host death disconnects IPC; this Docling worker exits when its event loop services
 disconnect. Trusted code is not protected against hostile infinite loops.
 No local Docling service is launched. A remote task may survive any local stop.
 
 Each execution has a private sibling `.ieumdoc-plugin-*` directory. Worker OS
 temporary files and its complete bundle stay inside it. All ordinary Host file
-surfaces refuse private paths, including symlink aliases and local Desktop/Vite.
+surfaces refuse private paths, including symlink, Windows case and 8.3 aliases
+and local Desktop/Vite. The actual reserved directory entry is identified by its
+filesystem device/inode, using integer identities rather than the caller's path
+spelling or Unicode case folding. A private candidate disappearing during cleanup
+does not turn an unrelated sibling into private data.
 The module uses only public Core operations and validates its native bundle;
 original PDF/JSON remain unchanged. Input SHA-256 and Root/real-parent access
 are checked again before publication.
@@ -103,6 +112,22 @@ marker removal but before receipt commit may leave a complete result with an
 uncertain receipt; it still cannot cause duplicate execution. External hostile
 filesystem replacement retains the shared Host's existing check/use limitation.
 
+Image-reference discovery excludes only these private directories and their
+contents. Ordinary directories, including hidden folders, still participate in
+dirty-document refusal and reference updates. A retained private directory does
+not block a rename elsewhere in the same Root, and renames never edit or remove
+its files. Other file-access errors are not silently excluded.
+
+Cleanup is scoped to the current execution's exact recorded staging path and,
+if this execution exclusively created it, its incomplete output. Neither startup
+nor unrelated file operations scan the Root to delete other requests' leftovers.
+After a crash, keep the receipt and private files for inspection; do not replay
+or publish them. An operator may stop the owning Host, confirm `uncertain` and the
+request UUID, then remove only that receipt's recorded staging and its matching
+UUID-marked incomplete output. Preserve ordinary files, complete results and
+other requests' directories. An unrecorded empty directory from interruption
+between creation and recording is not an automatic cleanup candidate.
+
 ## Verification and remaining adoption
 
 The shared tests cover synthetic conversion, worker kill while downloading a
@@ -112,6 +137,10 @@ Host death/restart, no replay, crashed registry-lock rollback and new ownership
 at an identical live PID. Desktop registers the same installation an independent
 HTTP Host executes. Distribution smoke tests exercise the shipped worker through
 offline Node CLI and the actual packaged Desktop protocol in required CI.
+Review regressions additionally cover real document endpoints through Windows
+case/available 8.3 and junction aliases, unrelated image renames with retained
+private data, ordinary hidden-folder references, a partial HTTP body completing
+after close begins, and closing before fork or during an actual running worker.
 
 The existing `docling-server` and `docling-compare` browser scenarios exercise the
 unchanged screens. Real Docling verification remains an explicit

@@ -6,7 +6,7 @@ import type { ConversionJob } from "@ieumdoc/docling/server-types";
 
 export type WorkerManifest = { id: string; version: string; workerApi: 1; entry: "worker.cjs" };
 export type Installation = WorkerManifest & { directory: string; sha256: string; enabled: boolean };
-export type Receipt = { job: ConversionJob; fingerprint: string; owner: string; installation: Installation;
+export type Receipt = { job: ConversionJob; fingerprint: string; owner: string; installation: Installation; staging?: string;
   status: "running" | "success" | "error" | "cancelled" | "uncertain" };
 export const digest = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");
 function workerManifest(value: unknown): WorkerManifest {

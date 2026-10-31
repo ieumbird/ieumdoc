@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { fork, type ChildProcess } from "node:child_process";
+import { fork, spawnSync, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { createServer, request as httpRequest } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,6 +17,9 @@ import { accessPath, RootAccess } from "../server/file-access.ts";
 import { PluginStore } from "../server/plugin-store.ts";
 import { INCOMPLETE } from "../server/plugin-output.ts";
 import { fakeDoclingServer } from "./helpers/docling-server.ts";
+import { handleDocumentRequest } from "../server/document-api.ts";
+import { startHttpHost } from "../server/http-host.ts";
+import { listenForFetch } from "../../../test/helpers/fetch-server.ts";
 
 const fixture = mkdtempSync(path.join(tmpdir(), "ieumdoc-worker-tests-"));
 const bundled = path.join(fixture, "bundled");
@@ -40,6 +44,115 @@ async function kill(process: ChildProcess) {
   if (process.exitCode !== null || process.signalCode !== null) return;
   const exited = once(process, "exit"); process.kill("SIGKILL"); await exited;
 }
+
+test("private staging document endpoints reject filesystem aliases without hiding ordinary siblings", async t => {
+  const root = directory("private-aliases"), staging = path.join(root, ".ieumdoc-plugin-private");
+  mkdirSync(staging);
+  const source = "---\nieumdoc: 1\n---\n\nPrivate staging text.\n";
+  writeFileSync(path.join(staging, "document.md"), source);
+  const ordinary = path.join(root, "ordinary"); mkdirSync(ordinary);
+  writeFileSync(path.join(ordinary, "document.md"), source);
+  const junction = path.join(root, "alias");
+  symlinkSync(staging, junction, process.platform === "win32" ? "junction" : "dir");
+  const aliases = [staging, junction];
+  if (process.platform === "win32") {
+    aliases.push(path.join(root, path.basename(staging).toUpperCase()));
+    const shortName = spawnSync(process.env.ComSpec ?? "cmd.exe", ["/d", "/c", `for %I in ("${staging}") do @echo %~sI`], { encoding: "utf8", windowsHide: true, windowsVerbatimArguments: true });
+    assert.equal(shortName.status, 0, shortName.stderr);
+    const short = shortName.stdout.trim();
+    if (path.basename(short) !== path.basename(staging)) { aliases.push(path.join(root, path.basename(short))); t.diagnostic(`8.3 alias: ${path.basename(short)}`); }
+    else t.diagnostic("This filesystem supplies no 8.3 name; case and junction aliases are still exercised.");
+  }
+  for (const alias of aliases) {
+    assert.equal(statSync(alias, { bigint: true }).ino, statSync(staging, { bigint: true }).ino, "the alias must identify the actual private directory");
+  }
+  for (const access of [null, new RootAccess([root])]) {
+    const server = createServer((req, res) => { void handleDocumentRequest(req, res, () => { res.statusCode = 404; res.end(); }, access); });
+    await listenForFetch(server);
+    t.after(async () => { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); });
+    const url = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/document?`;
+    for (const alias of aliases) {
+      const response = await fetch(url + new URLSearchParams({ path: path.join(alias, "document.md") }));
+      assert.equal(response.status, 403, `${access ? "Root" : "local"} must reject ${alias}`);
+    }
+    const response = await fetch(url + new URLSearchParams({ path: path.join(ordinary, "document.md") }));
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).source, source, "an unrelated directory sharing the parent remains readable");
+  }
+});
+
+test("closing a fresh HTTP Host rejects a first conversion whose body finishes after shutdown starts", async t => {
+  const root = directory("late-admission"), plugins = path.join(root, "plugins"), settings = path.join(root, "settings.json");
+  const input = path.join(root, "paper.pdf"), id = randomUUID();
+  writeFileSync(input, "%PDF-1.7\nlate admission"); writeFileSync(path.join(root, "index.html"), "<!doctype html>");
+  const store = new PluginStore(plugins); store.register(path.join(bundled, "manifest.json")); store.close();
+  const fake = await fakeDoclingServer(); fake.mode("pending");
+  writeFileSync(settings, JSON.stringify({ server: fake.url }));
+  const previous = { plugins: process.env.IEUMDOC_PLUGINS_DIR, settings: process.env.IEUMDOC_DOCLING_SETTINGS_FILE };
+  process.env.IEUMDOC_PLUGINS_DIR = plugins; process.env.IEUMDOC_DOCLING_SETTINGS_FILE = settings;
+  let host: Awaited<ReturnType<typeof startHttpHost>>;
+  try { host = await startHttpHost({ roots: [root], editorDir: root, port: 0 }); }
+  finally {
+    if (previous.plugins === undefined) delete process.env.IEUMDOC_PLUGINS_DIR; else process.env.IEUMDOC_PLUGINS_DIR = previous.plugins;
+    if (previous.settings === undefined) delete process.env.IEUMDOC_DOCLING_SETTINGS_FILE; else process.env.IEUMDOC_DOCLING_SETTINGS_FILE = previous.settings;
+  }
+  t.after(async () => { await host.close(); await fake.close(); });
+  const receiving = Promise.withResolvers<void>();
+  host.server.once("request", req => req.once("data", () => receiving.resolve()));
+  const listeningStopped = Promise.withResolvers<void>(), originalClose = host.server.close.bind(host.server);
+  host.server.close = ((callback?: (error?: Error) => void) => {
+    const result = originalClose(callback); listeningStopped.resolve(); return result;
+  }) as typeof host.server.close;
+  const body = JSON.stringify({ path: input, id });
+  const response = Promise.withResolvers<{ status: number; body: string }>();
+  const request = httpRequest(`${host.url}/api/docling-conversion`, { method: "POST", headers: { Origin: host.url, Connection: "close", "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) } }, res => {
+    let text = ""; res.on("data", chunk => { text += chunk; }); res.on("end", () => response.resolve({ status: res.statusCode!, body: text }));
+  });
+  request.on("error", response.reject); t.after(() => request.destroy());
+  request.write(body.slice(0, 1));
+  await receiving.promise;
+  const closed = host.close();
+  await listeningStopped.promise;
+  request.end(body.slice(1));
+  const [result] = await Promise.all([response.promise, closed]);
+  assert.equal(host.server.listening, false);
+  assert.equal(result.status, 400, result.body);
+  assert.match(JSON.parse(result.body).error, /clos/);
+  assert.equal(fake.submissions(), 0);
+  const observer = new PluginStore(plugins);
+  try { assert.equal(observer.get(id), null, "shutdown cannot leave an admitted request or ownership lock"); }
+  finally { observer.close(); }
+});
+
+test("Host close awaits admitted workers and permanently prevents another runtime or worker", async t => {
+  const root = directory("close-workers"), fake = await fakeDoclingServer(); fake.mode("pending");
+  t.after(() => fake.close());
+  for (const phase of ["before-worker", "running-worker"]) {
+    const folder = path.join(root, phase), worker = path.join(folder, "worker"); mkdirSync(worker, { recursive: true });
+    const input = path.join(folder, "paper.pdf"), pidFile = path.join(folder, "worker.pid"); writeFileSync(input, "%PDF-1.7\nclose");
+    writeFileSync(path.join(worker, "worker.cjs"), `require('node:fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)); require(${JSON.stringify(path.join(bundled, "worker.cjs"))});`);
+    writeFileSync(path.join(worker, "manifest.json"), JSON.stringify({ id: "docling", version: "close-test", workerApi: 1, entry: "worker.cjs" }));
+    const plugins = path.join(folder, "plugins"), host = createDoclingHost(new RootAccess([folder]), path.join(folder, "settings.json"), { directory: plugins, manifest: path.join(worker, "manifest.json") });
+    t.after(() => host.close()); host.configure(fake.url);
+    const submissions = fake.submissions(), job = await host.start(input);
+    if (phase === "running-worker") await until(() => fake.submissions(), count => count === submissions + 1);
+    else assert.equal(existsSync(pidFile), false, "the close begins before the admitted worker is created");
+    const closing = host.close();
+    await assert.rejects(host.start(input), /closing/);
+    assert.throws(() => host.plugins(), /closing/);
+    await closing;
+    if (existsSync(pidFile)) assert.throws(() => process.kill(Number(readFileSync(pidFile, "utf8")), 0), "close must await the actual worker exit");
+    assert.equal(fake.submissions(), submissions + (phase === "running-worker" ? 1 : 0));
+    const observer = new PluginStore(plugins);
+    try {
+      const receipt = observer.get(job.id)!;
+      assert.equal(receipt.status, "cancelled");
+      assert.ok(receipt.staging); assert.equal(existsSync(receipt.staging), false);
+      assert.equal(existsSync(job.output), false);
+    } finally { observer.close(); }
+    await host.close();
+  }
+});
 
 test("manifest/API validation and crashed registry lock recovery preserve the committed registration", async t => {
   const root = directory("store"), store = new PluginStore(root);
@@ -84,6 +197,8 @@ test("a new owner session at the identical live PID cannot revive an interrupted
 
 test("worker kill during a partial REST download and deadline leave Host alive and results private", async t => {
   const root = directory("faults"), input = path.join(root, "source.pdf");
+  const otherStaging = path.join(root, ".ieumdoc-plugin-other-request"); mkdirSync(otherStaging);
+  const otherFile = path.join(otherStaging, "document.md"); writeFileSync(otherFile, "another request's retained output");
   writeFileSync(input, "%PDF-1.7\nimmutable"); const original = readFileSync(input);
   const sourceJson = fileURLToPath(new URL("../../../packages/docling/test/fixtures/synthetic/document.json", import.meta.url));
   const jsonBefore = readFileSync(sourceJson);
@@ -130,6 +245,7 @@ test("worker kill during a partial REST download and deadline leave Host alive a
   const reserved = path.join(root, "reserved"); mkdirSync(reserved); writeFileSync(path.join(reserved, INCOMPLETE), "interrupted");
   writeFileSync(path.join(reserved, "document.md"), "partial");
   assert.throws(() => accessPath(path.join(reserved, "document.md"), access), /not published/);
+  assert.equal(readFileSync(otherFile, "utf8"), "another request's retained output", "kill, timeout and cleanup stay within their own request's staging");
 });
 
 test("Desktop registration is used by an independent serve; UUID conflict, disable/drain and restart never replay", async t => {
@@ -189,5 +305,10 @@ test("Desktop registration is used by an independent serve; UUID conflict, disab
   assert.equal((await http("docling-conversion", "POST", { path: input, id: interrupted })).status, 200);
   assert.equal(fake.submissions(), 2, "restart and replay do not submit to the external service");
   const store = new PluginStore(plugins);
-  assert.equal(store.get(interrupted)!.status, "uncertain"); store.close();
+  try {
+    const retained = store.get(interrupted)!;
+    assert.equal(retained.status, "uncertain");
+    assert.ok(retained.staging); assert.equal(existsSync(retained.staging), true, "restart retains only this request's recorded staging for inspection");
+    assert.throws(() => accessPath(retained.staging!, null), /not published/);
+  } finally { store.close(); }
 });

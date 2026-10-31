@@ -15,11 +15,18 @@ export function pluginsDirectory() { return process.env.IEUMDOC_PLUGINS_DIR ?? p
 /** Host-user device setting: HTTP clients share the server account's configuration. */
 export function createDoclingHost(access: FileAccess = LOCAL_FILE_ACCESS, settingsFile = process.env.IEUMDOC_DOCLING_SETTINGS_FILE ?? path.join(os.homedir(), ".ieumdoc", "docling.json"), options?: { directory?: string; manifest?: string; timeoutMs?: number }) {
   let runtime: PluginRuntime | undefined;
+  let closed = false, closing: Promise<void> | undefined;
   const directory = options?.directory ?? pluginsDirectory();
-  const getRuntime = () => runtime ??= new PluginRuntime(directory, options?.manifest ?? bundledDoclingManifest(), options?.timeoutMs);
+  const getRuntime = () => {
+    if (closed) throw new Error("The plugin runtime is closing.");
+    return runtime ??= new PluginRuntime(directory, options?.manifest ?? bundledDoclingManifest(), options?.timeoutMs);
+  };
   const host = new DoclingHost(settingsFile, (file, create) => accessPath(file, access, create), {
     start: request => getRuntime().start(request), current: id => getRuntime().current(id),
-    cancel: id => getRuntime().cancel(id), close: async () => { await runtime?.close(); },
+    cancel: id => getRuntime().cancel(id), close: () => {
+      closed = true;
+      return closing ??= runtime?.close() ?? Promise.resolve();
+    },
   });
   return Object.assign(host, { plugins: () => getRuntime().store });
 }

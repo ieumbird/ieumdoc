@@ -56,11 +56,13 @@ export class PluginRuntime implements ConversionExecutor {
     const { job, installation } = receipt;
     let staging: string | undefined, outputOwned = false;
     const timer = setTimeout(() => { execution.stopped = "timeout"; execution.child?.kill(); }, this.timeoutMs);
-    const stopped = () => { if (execution.stopped) throw new Error(execution.stopped); };
+    const stopped = () => { if (this.closed || execution.stopped) throw new Error(execution.stopped ?? "The plugin runtime is closing."); };
     try {
       const entry = path.join(installation.directory, installation.entry);
       if (digest(await readFile(entry)) !== installation.sha256) throw new Error("Installed worker hash mismatch.");
       staging = await mkdtemp(path.join(path.dirname(job.output), ".ieumdoc-plugin-"));
+      receipt.staging = staging;
+      this.store.update(receipt);
       await mkdir(path.join(staging, "temp"));
       stopped();
       await new Promise<void>((resolve, reject) => {
@@ -133,8 +135,12 @@ export class PluginRuntime implements ConversionExecutor {
   }
   private async shutdown() {
     this.closed = true;
+    const executions = [...this.active.values()];
+    for (const execution of executions) { execution.stopped = "cancelled"; execution.child?.kill(); }
     try {
-      for (const [id] of this.active) await this.cancel(id);
+      const outcomes = await Promise.allSettled(executions.map(execution => execution.done));
+      const failed = outcomes.find(outcome => outcome.status === "rejected");
+      if (failed?.status === "rejected") throw failed.reason;
       if (this.fault) throw this.fault;
     } finally { this.store.close(); }
   }

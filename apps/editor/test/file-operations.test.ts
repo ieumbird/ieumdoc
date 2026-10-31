@@ -4,10 +4,40 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { deleteFile, renameFile, ReferencedImageError, ImageRenameError } from "../server/file-operations.ts";
-import { RootAccess } from "../server/file-access.ts";
+import { accessPath, RootAccess } from "../server/file-access.ts";
 import { nativeSource } from "./helpers/document.ts";
 import { getEditableDocument, parse } from "@ieumdoc/core";
 import { loadDocumentFile } from "../server/document-api.ts";
+import { INCOMPLETE } from "../server/plugin-output.ts";
+
+for (const leftover of ["staging", "publication"] as const) {
+  test(`image rename skips only private ${leftover} while retaining ordinary document reference checks`, t => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-private-rename-"));
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const privateFolder = path.join(root, leftover === "staging" ? ".ieumdoc-plugin-interrupted" : "paper.docling");
+    fs.mkdirSync(privateFolder);
+    if (leftover === "publication") fs.writeFileSync(path.join(privateFolder, INCOMPLETE), "interrupted-request");
+    const reference = nativeSource(":::{figure} ./.ordinary/old.svg\n:alt: Keep\n\nCaption\n:::\n");
+    const normal = path.join(root, "normal.md"), hidden = path.join(root, ".ordinary", "ref.md");
+    fs.mkdirSync(path.dirname(hidden));
+    const image = path.join(path.dirname(hidden), "old.svg"); fs.writeFileSync(image, "<svg/>");
+    fs.writeFileSync(normal, reference); fs.writeFileSync(hidden, reference.replace("./.ordinary/old.svg", "./old.svg"));
+    const privateFile = path.join(privateFolder, "document.md"), privateSource = reference;
+    fs.writeFileSync(privateFile, privateSource);
+    const access = new RootAccess([root]);
+    assert.throws(() => accessPath(privateFile, access), /not published/);
+    assert.throws(() => renameFile({ root, path: image, name: "new", openDocuments: [{ path: hidden }] }, access), error => {
+      assert.ok(error instanceof ReferencedImageError, "private data must not prevent checking an ordinary hidden folder's dirty document");
+      assert.ok(error.references.includes(path.relative(root, hidden))); return true;
+    });
+    const result = renameFile({ root, path: image, name: "new" }, access);
+    assert.deepEqual(new Set(result.updatedDocuments), new Set([normal, hidden]));
+    assert.match(fs.readFileSync(normal, "utf8"), /\.\/\.ordinary\/new.svg/);
+    assert.match(fs.readFileSync(hidden, "utf8"), /\.\/new.svg/);
+    assert.equal(fs.readFileSync(privateFile, "utf8"), privateSource, "unrelated operations neither edit nor remove another request's leftovers");
+    assert.throws(() => accessPath(privateFile, access), /not published/);
+  });
+}
 
 test("Figure-form rename verifies its checkpoint and reports live/saved paths without saving local properties", t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "ieumdoc-figure-rename-"));
