@@ -32,13 +32,17 @@ for (const key of ["desktopData", "cli", "shared"] as const) assert.notEqual(alt
 writeFileSync(path.join(work, "alternate.svg"), readFileSync(path.join(repo, brand.icons.svg), "utf8").replaceAll("Litzio", alternate.name.en).replaceAll("#083b66", "#4d2a85"));
 try {
   writeFileSync(sourceFile, `/** Alternate CI packager configuration. */\nexport const brand = ${JSON.stringify(alternate, null, 2)} as const;\n` + source.slice(source.indexOf("export function productName")));
-  const checkEnvironment = { ...process.env, LITZIO_PLUGINS_DIR: path.join(work, "check-plugins"), LITZIO_DOCLING_SETTINGS_FILE: path.join(work, "check-docling.json") };
-  execSync("pnpm --filter @litzio/desktop icons", { cwd: repo, stdio: "inherit", windowsHide: true });
+  const verify = `pnpm --filter @litzio/desktop exec tsx scripts/verify-release.ts --tag v${version}`;
+  // Prove fresh default folders before updater relaunches can initialize them. NSIS relaunch
+  // need not inherit test-only environment overrides; keep the coinstallation guard intact.
+  for (const command of ["pnpm --filter @litzio/desktop icons", "pnpm --filter @litzio/desktop package", verify, "pnpm --filter @litzio/desktop exec tsx --test test/packaged/brand.e2e.ts"]) {
+    execSync(command, { cwd: repo, stdio: "inherit", windowsHide: true });
+  }
   for (const channel of ["stable", "beta"]) execSync("pnpm --filter @litzio/desktop test:update", {
-    cwd: repo, stdio: "inherit", windowsHide: true, env: { ...checkEnvironment, LITZIO_TEST_UPDATE_CHANNEL: channel },
+    cwd: repo, stdio: "inherit", windowsHide: true, env: { ...process.env, LITZIO_TEST_UPDATE_CHANNEL: channel },
   });
-  for (const command of ["pnpm --filter @litzio/desktop package", `pnpm --filter @litzio/desktop exec tsx scripts/verify-release.ts --tag v${version}`, "pnpm --filter @litzio/desktop test:packaged", "pnpm --filter @litzio/desktop test:uninstall", "pnpm --filter @litzio/desktop exec tsx --test test/packaged/brand.e2e.ts"]) {
-    execSync(command, { cwd: repo, stdio: "inherit", windowsHide: true, env: checkEnvironment });
+  for (const command of ["pnpm --filter @litzio/desktop package", verify, "pnpm --filter @litzio/desktop test:packaged", "pnpm --filter @litzio/desktop test:uninstall"]) {
+    execSync(command, { cwd: repo, stdio: "inherit", windowsHide: true });
   }
 } finally {
   writeFileSync(sourceFile, source);
