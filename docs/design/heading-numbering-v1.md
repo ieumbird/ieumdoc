@@ -25,7 +25,7 @@ H1–H6. See [document title](document-editing-v1.md#document-title-255).
 
 In the inline Document settings block above the title (#580), Number headings belongs to Saved in this document. The block starts collapsed; the command center expands and focuses it. It is disabled without a document, during pending work and in Source. Wide document is a separate TopBar toggle and device preference. Source is read-only. Supported top-level headings advance counters; unsupported nested structures never enter a native document.
 
-CLI: `ieumdoc update-heading-numbering <file> --enabled true|false`. `inspect --format json` reports computed `headingNumber` values. Figure/equation numbering is independent.
+CLI: `litzio update-heading-numbering <file> --enabled true|false`. `inspect --format json` reports computed `headingNumber` values. Figure/equation numbering is independent.
 
 Verification covers Core logical counters and the observed difference from MyST output defaults, native metadata writes, CLI edits, Editor path retention, Outline agreement, Undo/Redo and Save → Reload.
 
@@ -88,7 +88,7 @@ enter equation content or clear the fixed number. MyST 1.7.4 requires a non-empt
 body and `$$` cannot carry options; no dummy content or parser extension is used. An empty
 equation without a fixed number is savable and merely warns in fixed mode.
 
-CLI: `ieumdoc update-enumerator <file> --path <index> --enumerator "A.3"`; an empty value
+CLI: `litzio update-enumerator <file> --path <index> --enumerator "A.3"`; an empty value
 clears it. Existing revision, dry-run and atomic file replacement rules apply. `inspect`
 reports authored enumerators and computed numbers/display text; both `inspect` and `check`
 include `numbering` with the complete Core report in JSON and mode/warnings in text.
@@ -239,7 +239,7 @@ slash-menu labels/search share Core display text. Search treats normal spaces an
 
 Only Default uses MyST no-break spaces. The authored Concise/Formal/Korean values above retain their normal U+0020 spaces. Choice matching compares actual template values; explicitly authored `Figure %s` with a normal space is not the MyST default.
 
-CLI: `ieumdoc update-reference-templates <file> --figure "그림 %s" --table "표 %s" --equation "식 (%s)"`.
+CLI: `litzio update-reference-templates <file> --figure "그림 %s" --table "표 %s" --equation "식 (%s)"`.
 Omitted kinds are unchanged. `--reset figure|table|equation|all` removes settings; setting
 and resetting the same kind together is refused. `inspect --format json` adds `referenceText`
 to labeled numbered target nodes, computed by the same Core rule. Single commands and

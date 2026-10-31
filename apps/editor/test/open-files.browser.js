@@ -67,7 +67,7 @@ async (page, { showNotifications, openDocument, openPath, screenshots = false })
 
   try {
     // Started without a document: choose a folder, then a tree file; the sample remains explicit.
-    await page.evaluate(recent => localStorage.setItem('ieumdoc.recentFolders', JSON.stringify([recent])), folder);
+    await page.evaluate(recent => localStorage.setItem('litzio.recentFolders', JSON.stringify([recent])), folder);
     await page.reload();
     const start = page.getByTestId('document-start');
     await start.waitFor();
@@ -131,7 +131,7 @@ async (page, { showNotifications, openDocument, openPath, screenshots = false })
 
     // Exercise the existing Host default when there is no navigation preference. A remembered
     // empty list instead deliberately keeps the start screen after the last close (#383).
-    await page.evaluate(() => localStorage.removeItem('ieumdoc.openTabs'));
+    await page.evaluate(() => localStorage.removeItem('litzio.openTabs'));
     await page.reload();
     await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
     if (!(await page.getByTestId('current-file').getAttribute('title')).includes(pathA)) throw new Error('File A was not opened');
@@ -299,7 +299,7 @@ async (page, { showNotifications, openDocument, openPath, screenshots = false })
     await confirmation.waitFor({state:'detached'});
     if (await page.getByTestId('current-file').getAttribute('title') !== pathB || requests.length !== draftWrites) throw new Error('Inactive discard changed B or wrote a draft');
     if (longDialogFailures.length) throw Error(JSON.stringify(longDialogLayouts));
-    await page.evaluate(() => localStorage.removeItem('ieumdoc.recentFolders'));
+    await page.evaluate(() => localStorage.removeItem('litzio.recentFolders'));
     return {longDialogLayouts, start:true, independentSaves:true, savingSwitchGuarded:true, closeCancel:true, closeSave:true, closeDiscard:true, failureRetained:true, conflictRetained:true, newerEditsRetained:true, inactiveClose:true};
   } finally {
     // The page fixture closes the page and its routes. Do not evaluate in a timed-out page:

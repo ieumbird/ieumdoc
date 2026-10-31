@@ -117,7 +117,7 @@ test("title refuses nonstrings and formatted inline meaning instead of flattenin
   }
 });
 
-test("literal @ text opens, edits and writes safely for both IeumDoc and default MyST", () => {
+test("literal @ text opens, edits and writes safely for both Litzio and default MyST", () => {
   for (const input of ["Contact @kim for details.", "Contact \\@kim for details.", "@param value",
     "(@kim), @a and @username", "한글 @kim", "Hi\n@kim", "a@b.com", "https://example.com/@kim"]) {
     const document = parse(native(input + "\n"));

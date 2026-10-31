@@ -1,3 +1,4 @@
+import { brand } from "../../../brand.ts";
 import { readBibliographySources } from "../../../apps/editor/server/bibliography.ts";
 import { versionText } from "./version.ts";
 import fs, { readFileSync, writeFileSync } from "node:fs";
@@ -135,7 +136,7 @@ const PATH_NOTE = [
 ];
 
 const REVISION_NOTE = [
-  "Use --if-revision with the revision from ieumdoc inspect <file> --format json.",
+  `Use --if-revision with the revision from ${brand.cliCommand} inspect <file> --format json.`,
   "Revision must be 64 lowercase hexadecimal characters; a mismatch refuses the edit (exit 1).",
   "Successful writes do not print a new revision for single edits.",
   "Before each subsequent edit, run inspect again to get the new revision and paths.",
@@ -150,7 +151,7 @@ const DRY_RUN_NOTE = [
 ];
 
 const PARAGRAPH_PATH_NOTE = [
-  "Use ieumdoc inspect <file> to find a NodePath in the current snapshot.",
+  `Use ${brand.cliCommand} inspect <file> to find a NodePath in the current snapshot.`,
   "Structural edits may change paths; run inspect again after editing.",
 ];
 const OFFSET_NOTE = [
@@ -182,11 +183,11 @@ const COMMANDS: CommandSpec[] = [
     name: "apply-batch",
     group: "Edit — batch",
     summary: "Apply document edits in order with one atomic file commit",
-    usage: "ieumdoc apply-batch <file> --operations <json-file|-> [--if-revision <revision>] [--dry-run] [--format <text|json>]",
+    usage: `${brand.cliCommand} apply-batch <file> --operations <json-file|-> [--if-revision <revision>] [--dry-run] [--format <text|json>]`,
     details: [
       "--operations reads a non-empty JSON array of { command, ...options } from a UTF-8 file, or stdin with -.",
       "Stdin accepts one leading UTF-8 BOM for Windows PowerShell pipes; file input rules are unchanged.",
-      "Example: cat operations.json | ieumdoc apply-batch document.md --operations -",
+      `Example: cat operations.json | ${brand.cliCommand} apply-batch document.md --operations -`,
       "Use existing flag names without -- as keys. Scalar options accept string, number or boolean only.",
       "JSON options (content, caption-content, cells, list, keys, paths, and insert-table align) accept objects/arrays",
       "directly or existing JSON strings. Required, unknown and mutually exclusive options follow single edits.",
@@ -213,17 +214,17 @@ const COMMANDS: CommandSpec[] = [
   {
     name: "create",
     group: "Create and inspect",
-    summary: "Create an empty IeumDoc native document",
-    usage: "ieumdoc create <file>",
+    summary: `Create an empty ${brand.name.en} native document`,
+    usage: `${brand.cliCommand} create <file>`,
     details: ["Create a new .md file in an existing directory. Existing files are never overwritten."],
   },
   {
     name: "docling",
     group: "Create and inspect",
     summary: "Convert a whole DoclingDocument and create its correspondence sidecar",
-    usage: "ieumdoc docling convert <document.json> --output <new-folder>",
+    usage: `${brand.cliCommand} docling convert <document.json> --output <new-folder>`,
     details: ["Accepts DoclingDocument 1.10.0. The output directory must not exist.",
-      "ieumdoc docling convert-pdf <pdf> --server <url> --output <new-folder> [--timeout <seconds>]",
+      `${brand.cliCommand} docling convert-pdf <pdf> --server <url> --output <new-folder> [--timeout <seconds>]`,
       "--server defaults to LITZIO_DOCLING_SERVER. Uses the fixed litzio-pdf-en-v1 profile.",
       "PDF conversion creates document.json, readable image files, conversion-record.json and the native document/map.",
       "Creates document.md, document.docling-map.json and local image assets.",
@@ -234,7 +235,7 @@ const COMMANDS: CommandSpec[] = [
     name: "update-bibliography",
     group: "Edit — labels, footnotes and numbering",
     summary: "Set relative .bib declarations and evaluate bounded bibliography resources",
-    usage: "ieumdoc update-bibliography <file> --paths <json>",
+    usage: `${brand.cliCommand} update-bibliography <file> --paths <json>`,
     details: ["--paths is a JSON array of relative .bib paths; [] removes the optional declaration.",
       "Paths use /; ./ and .. are allowed. Duplicate paths, globs, URLs and absolute paths are refused.",
       "Declared bibliography resources are read within the configured boundary. Resource warnings do not block writing."],
@@ -243,7 +244,7 @@ const COMMANDS: CommandSpec[] = [
     name,
     group: "Edit — labels, footnotes and numbering" as const,
     summary: name === "insert-citation" ? "Insert an explicit citation at an inline offset" : "Replace a citation's role and key group",
-    usage: `ieumdoc ${name} <file> --path <indexes> --offset <number> --role <cite|cite:t|cite:p> --keys <json>`,
+    usage: `${brand.cliCommand} ${name} <file> --path <indexes> --offset <number> --role <cite|cite:t|cite:p> --keys <json>`,
     details: ["--keys is a non-empty JSON array of exact bibliography keys, in group order.",
       "Targets: paragraph, heading, quote, simple admonition, endnote definition, or table cell [table,row,cell].",
       "Offsets use Core UTF-16 inline units; a whole citation group is one unit.",
@@ -254,7 +255,7 @@ const COMMANDS: CommandSpec[] = [
     name: "remove-citation",
     group: "Edit — labels, footnotes and numbering",
     summary: "Remove one citation atom at an inline offset",
-    usage: "ieumdoc remove-citation <file> --path <indexes> --offset <number>",
+    usage: `${brand.cliCommand} remove-citation <file> --path <indexes> --offset <number>`,
     details: ["Uses the same targets and Core inline offsets as update-citation.",
       "Offset must point to an existing citation; it removes the whole group. An unsaveable empty block is refused.", ...PATH_NOTE],
   },
@@ -262,7 +263,7 @@ const COMMANDS: CommandSpec[] = [
     name: "serve",
     group: "Serve",
     summary: "Serve the production Editor inside explicitly allowed folders",
-    usage: "ieumdoc serve --root <folder> [--root <folder> ...] [--port <port>] [--host <IP>] [--public-origin <origin>]",
+    usage: `${brand.cliCommand} serve --root <folder> [--root <folder> ...] [--port <port>] [--host <IP>] [--public-origin <origin>]`,
     details: [
       "At least one existing --root is required. Roots are server filesystem access boundaries,",
       "not a workspace or an initial folder selection. Use Open Folder to choose a root or subfolder.",
@@ -276,21 +277,21 @@ const COMMANDS: CommandSpec[] = [
     name: "insert-hard-break",
     group: "Edit — text and content",
     summary: "Insert a hard break within a supported Paragraph",
-    usage: "ieumdoc insert-hard-break <file> --path <indexes> --offset <number>",
+    usage: `${brand.cliCommand} insert-hard-break <file> --path <indexes> --offset <number>`,
     details: ["Insert a line break without creating a new paragraph.", ...OFFSET_NOTE, ...PARAGRAPH_PATH_NOTE],
   },
   {
     name: "split-paragraph",
     group: "Edit — structure",
     summary: "Split a top-level Paragraph",
-    usage: "ieumdoc split-paragraph <file> --path <indexes> --offset <number>",
+    usage: `${brand.cliCommand} split-paragraph <file> --path <indexes> --offset <number>`,
     details: ["Split a supported top-level paragraph; both sides must be non-empty.", ...OFFSET_NOTE, ...PARAGRAPH_PATH_NOTE],
   },
   {
     name: "merge-paragraph",
     group: "Edit — structure",
     summary: "Merge a Paragraph with the previous Paragraph",
-    usage: "ieumdoc merge-paragraph <file> --path <indexes>",
+    usage: `${brand.cliCommand} merge-paragraph <file> --path <indexes>`,
     details: ["Merge the current top-level paragraph with the immediately previous paragraph.",
       "Both paragraphs must have supported inline content. No automatic space is inserted.", ...PARAGRAPH_PATH_NOTE],
   },
@@ -298,9 +299,9 @@ const COMMANDS: CommandSpec[] = [
     name: "check",
     group: "Check",
     summary: "Validate a document",
-    usage: "ieumdoc check <file> [--format <text|json>]",
+    usage: `${brand.cliCommand} check <file> [--format <text|json>]`,
     details: [
-      "Validate a document: its structure, and whether IeumDoc can rewrite it as canonical",
+      `Validate a document: its structure, and whether ${brand.name.en} can rewrite it as canonical`,
       "Markdown without losing semantics (the same check format and Editor Save use).",
       "Exits 1 when it cannot.",
       "JSON failures may include optional error.code from Core; unclassified errors may omit the code.",
@@ -324,7 +325,7 @@ const COMMANDS: CommandSpec[] = [
     name: "inspect",
     group: "Create and inspect",
     summary: "Inspect semantic blocks and editable targets",
-    usage: "ieumdoc inspect <file> [--format <text|json>]",
+    usage: `${brand.cliCommand} inspect <file> [--format <text|json>]`,
     details: [
       "Inspect semantic blocks and editable targets.",
       "JSON includes revision: the SHA-256 of the original UTF-8 text read for this inspect.",
@@ -343,15 +344,15 @@ const COMMANDS: CommandSpec[] = [
     name: "format",
     group: "Format",
     summary: "Canonically format a document",
-    usage: "ieumdoc format <file>",
+    usage: `${brand.cliCommand} format <file>`,
     details: ["Canonically format a document. Footnote definitions are written after the body, in the",
-      "order of the first reference to each (endnotes), as every IeumDoc write does."],
+      `order of the first reference to each (endnotes), as every ${brand.name.en} write does.`],
   },
   {
     name: "replace-text",
     group: "Edit — text and content",
     summary: "Replace text in the first matching paragraph or heading",
-    usage: "ieumdoc replace-text <file> --from <text> --to <text>",
+    usage: `${brand.cliCommand} replace-text <file> --from <text> --to <text>`,
     details: ["Select only the first matching paragraph or heading by rendered text, not throughout the document.",
       "Replace all matches within that block's individual text nodes.",
       "Matches crossing formatting/text-node boundaries may be left unchanged, still exiting 0 (e.g. a**bc**d, --from abc).",
@@ -364,7 +365,7 @@ const COMMANDS: CommandSpec[] = [
     name: "insert-block",
     group: "Edit — insert blocks",
     summary: "Insert a Paragraph block at a top-level index",
-    usage: "ieumdoc insert-block <file> --at <index|end> (--text <text> | --content <json>)",
+    usage: `${brand.cliCommand} insert-block <file> --at <index|end> (--text <text> | --content <json>)`,
     details: [
       "Insert a Paragraph block at a top-level index.",
       "Use --text for plain text or --content for Core InlineContent JSON (marks, math, links and references).",
@@ -376,7 +377,7 @@ const COMMANDS: CommandSpec[] = [
     name: "insert-heading",
     group: "Edit — insert blocks",
     summary: "Insert a Heading block at a top-level index",
-    usage: "ieumdoc insert-heading <file> --at <index|end> --level <1-6> (--text <text> | --content <json>)",
+    usage: `${brand.cliCommand} insert-heading <file> --at <index|end> --level <1-6> (--text <text> | --content <json>)`,
     details: [
       "Insert a Heading block at a top-level index.",
       "Heading levels 1 through 6 are supported. --content is Core InlineContent JSON without line breaks.",
@@ -386,7 +387,7 @@ const COMMANDS: CommandSpec[] = [
     name: "update-heading",
     group: "Edit — text and content",
     summary: "Replace the text of a Heading, keeping its level",
-    usage: "ieumdoc update-heading <file> --path <index> (--text <text> | --content <json>)",
+    usage: `${brand.cliCommand} update-heading <file> --path <index> (--text <text> | --content <json>)`,
     details: [
       "Replace the entire inline content of one editable top-level Heading, keeping its level.",
       "--content is Core InlineContent JSON (marks, links, inline math and references); headings cannot hold line breaks.",
@@ -399,7 +400,7 @@ const COMMANDS: CommandSpec[] = [
     name: "insert-admonition",
     group: "Edit — insert blocks",
     summary: "Insert a simple admonition of a standard MyST kind",
-    usage: "ieumdoc insert-admonition <file> --at <index|end> --variant <kind> --text <text>",
+    usage: `${brand.cliCommand} insert-admonition <file> --at <index|end> --variant <kind> --text <text>`,
     details: [
       "Insert a top-level admonition through Core.",
       ADMONITION_KIND_NOTE,
@@ -410,7 +411,7 @@ const COMMANDS: CommandSpec[] = [
     name: "update-admonition-variant",
     group: "Edit — text and content",
     summary: "Change the kind of a simple admonition",
-    usage: "ieumdoc update-admonition-variant <file> --path <index> --variant <kind>",
+    usage: `${brand.cliCommand} update-admonition-variant <file> --path <index> --variant <kind>`,
     details: [
       "Change one editable top-level admonition to another kind, keeping its body.",
       ADMONITION_KIND_NOTE,
@@ -421,7 +422,7 @@ const COMMANDS: CommandSpec[] = [
     name: "insert-quote",
     group: "Edit — insert blocks",
     summary: "Insert a Quote at a top-level index",
-    usage: "ieumdoc insert-quote <file> --at <index|end> (--text <text> | --content <json>)",
+    usage: `${brand.cliCommand} insert-quote <file> --at <index|end> (--text <text> | --content <json>)`,
     details: [
       "Insert a top-level block quote holding one paragraph.",
       "Use --text for plain text or --content for Core InlineContent JSON. An empty quote is a supported authoring state.",
@@ -431,7 +432,7 @@ const COMMANDS: CommandSpec[] = [
     name: "update-quote",
     group: "Edit — text and content",
     summary: "Replace the text of a Quote",
-    usage: "ieumdoc update-quote <file> --path <index> (--text <text> | --content <json>)",
+    usage: `${brand.cliCommand} update-quote <file> --path <index> (--text <text> | --content <json>)`,
     details: [
       "Replace the entire paragraph content of one editable top-level Quote.",
       "Quotes contain one paragraph of supported native inline content.",
@@ -443,7 +444,7 @@ const COMMANDS: CommandSpec[] = [
     name: "insert-footnote",
     group: "Edit — labels, footnotes and numbering",
     summary: "Insert a footnote reference and its definition",
-    usage: "ieumdoc insert-footnote <file> --path <indexes> --offset <number> (--text <text> | --content <json>)",
+    usage: `${brand.cliCommand} insert-footnote <file> --path <indexes> --offset <number> (--text <text> | --content <json>)`,
     details: [
       "Insert a footnote reference at --offset in one editable top-level Paragraph, Heading, Quote or",
       "simple admonition, or a table cell (--path table,row,cell), and its definition at the end of the",
@@ -458,14 +459,14 @@ const COMMANDS: CommandSpec[] = [
     name: "remove-footnote",
     group: "Edit — labels, footnotes and numbering",
     summary: "Remove a footnote definition and all its references",
-    usage: "ieumdoc remove-footnote <file> --path <index>",
+    usage: `${brand.cliCommand} remove-footnote <file> --path <index>`,
     details: ["Remove one definition and every reference to its label through Core.", ...PATH_NOTE],
   },
   {
     name: "update-footnote",
     group: "Edit — labels, footnotes and numbering",
     summary: "Replace the text of a footnote definition",
-    usage: "ieumdoc update-footnote <file> --path <index> (--text <text> | --content <json>)",
+    usage: `${brand.cliCommand} update-footnote <file> --path <index> (--text <text> | --content <json>)`,
     details: [
       "Replace the paragraph of one editable footnote definition, keeping its label.",
       "Definitions contain one paragraph without footnote references.",
@@ -476,14 +477,14 @@ const COMMANDS: CommandSpec[] = [
     name: "insert-divider",
     group: "Edit — insert blocks",
     summary: "Insert a divider (thematic break) at a top-level index",
-    usage: "ieumdoc insert-divider <file> --at <index|end>",
+    usage: `${brand.cliCommand} insert-divider <file> --at <index|end>`,
     details: ["Insert a top-level divider, written as a Markdown thematic break."],
   },
   {
     name: "update-heading-level",
     group: "Edit — structure",
     summary: "Change an editable Heading's level through Core",
-    usage: "ieumdoc update-heading-level <file> --path <index> --from <1-6> --to <1-6>",
+    usage: `${brand.cliCommand} update-heading-level <file> --path <index> --from <1-6> --to <1-6>`,
     details: [
       "Change one editable top-level Heading from its current level to another level.",
       "The current level must match --from.",
@@ -494,7 +495,7 @@ const COMMANDS: CommandSpec[] = [
     name: "convert-block",
     group: "Edit — structure",
     summary: "Convert a Paragraph or Heading to another text block kind",
-    usage: "ieumdoc convert-block <file> --path <index> --to <paragraph|heading> [--level <1-6>]",
+    usage: `${brand.cliCommand} convert-block <file> --path <index> --to <paragraph|heading> [--level <1-6>]`,
     details: [
       "Convert one top-level Paragraph to a Heading, a Heading to a Paragraph,",
       "or a Heading to another level. Inline content is kept.",
@@ -507,7 +508,7 @@ const COMMANDS: CommandSpec[] = [
     name: "insert-equation",
     group: "Edit — insert blocks",
     summary: "Insert an Equation block at a top-level index",
-    usage: "ieumdoc insert-equation <file> --at <index|end> --latex <latex> [--label <label>]",
+    usage: `${brand.cliCommand} insert-equation <file> --at <index|end> --latex <latex> [--label <label>]`,
     details: [
       "Insert an Equation block at a top-level index.",
       "An empty Equation is saved with dollar fences.",
@@ -518,7 +519,7 @@ const COMMANDS: CommandSpec[] = [
     name: "insert-figure",
     group: "Edit — insert blocks",
     summary: "Insert a Figure block at a top-level index",
-    usage: "ieumdoc insert-figure <file> --at <index|end> [--image <url> | --mermaid <source>] [--alt <text>] [--caption <text> | --caption-content <json>] [--label <label>]",
+    usage: `${brand.cliCommand} insert-figure <file> --at <index|end> [--image <url> | --mermaid <source>] [--alt <text>] [--caption <text> | --caption-content <json>] [--label <label>]`,
     details: [
       "Insert a Figure block at a top-level index.",
       ...FIGURE_NOTE,
@@ -531,7 +532,7 @@ const COMMANDS: CommandSpec[] = [
     name: "update-media-references",
     group: "Edit — text and content",
     summary: "Replace exact Figure media sources in one document through Core",
-    usage: "ieumdoc update-media-references <file> --from <source> --to <source>",
+    usage: `${brand.cliCommand} update-media-references <file> --from <source> --to <source>`,
     details: ["Replace every matching Figure image source, preserving caption, alt and label.",
       "Sources match exactly. No filesystem traversal, image rename or URL normalization is performed.",
       "Uses canonical validation and the normal revision-checked write, dry-run and batch contracts."],
@@ -540,7 +541,7 @@ const COMMANDS: CommandSpec[] = [
     name: "update-figure",
     group: "Edit — text and content",
     summary: "Update a Figure's image, Mermaid source, alt text, or caption through Core",
-    usage: "ieumdoc update-figure <file> --path <indexes> [--image <url> | --mermaid <source>] [--alt <text>] [--caption <text> | --caption-content <json>]",
+    usage: `${brand.cliCommand} update-figure <file> --path <indexes> [--image <url> | --mermaid <source>] [--alt <text>] [--caption <text> | --caption-content <json>]`,
     details: [
       "Update one top-level Figure through Core. Omitted properties are unchanged.",
       ...FIGURE_NOTE,
@@ -554,7 +555,7 @@ const COMMANDS: CommandSpec[] = [
     name: "remove-block",
     group: "Edit — structure",
     summary: "Remove a top-level block",
-    usage: "ieumdoc remove-block <file> --at <index>",
+    usage: `${brand.cliCommand} remove-block <file> --at <index>`,
     details: ["Remove one top-level block only. Removing a heading does not remove its section content.",
       "Use remove-section instead when removing a heading with its content and subsections."],
   },
@@ -562,7 +563,7 @@ const COMMANDS: CommandSpec[] = [
     name: "move-block",
     group: "Edit — structure",
     summary: "Move a top-level block",
-    usage: "ieumdoc move-block <file> --from <index> --to <index>",
+    usage: `${brand.cliCommand} move-block <file> --from <index> --to <index>`,
     details: ["Move one top-level block only; moving a heading does not move its section content.",
       "Use move-section instead when moving a heading with its content and subsections.",
       "Footnote definitions are written after the body in first-reference",
@@ -572,7 +573,7 @@ const COMMANDS: CommandSpec[] = [
     name: "move-section",
     group: "Edit — structure",
     summary: "Move a heading's section",
-    usage: "ieumdoc move-section <file> --from <heading index> --to <index>",
+    usage: `${brand.cliCommand} move-section <file> --from <heading index> --to <index>`,
     details: [
       "Move the section a top-level heading opens: its label targets, content and deeper sections.",
       "--to is the start of another section or the block count (the end). Heading levels are kept.",
@@ -585,7 +586,7 @@ const COMMANDS: CommandSpec[] = [
     name: "remove-section",
     group: "Edit — structure",
     summary: "Remove a heading's section",
-    usage: "ieumdoc remove-section <file> --at <heading index>",
+    usage: `${brand.cliCommand} remove-section <file> --at <heading index>`,
     details: ["Remove the section a top-level heading opens: its label targets, content and deeper sections.",
       "Footnote definitions (endnotes) are kept. Removing the last reference to one is refused without writing.",
       "Use remove-block instead when removing just one top-level block."],
@@ -594,7 +595,7 @@ const COMMANDS: CommandSpec[] = [
     name: "insert-table",
     group: "Edit — tables",
     summary: "Insert a Markdown table at a top-level index",
-    usage: "ieumdoc insert-table <file> --at <index|end> --cells <json> [--align <json>] [--caption <text> | --caption-content <json>] [--label <label>]",
+    usage: `${brand.cliCommand} insert-table <file> --at <index|end> --cells <json> [--align <json>] [--caption <text> | --caption-content <json>] [--label <label>]`,
     details: [
       "Insert a Markdown table at a top-level index.",
       "--cells is a JSON array of rows, each an array of cells; the first row is the header row.",
@@ -611,7 +612,7 @@ const COMMANDS: CommandSpec[] = [
     name: "insert-list",
     group: "Edit — insert blocks",
     summary: "Insert a bullet or numbered list at a top-level index",
-    usage: "ieumdoc insert-list <file> --at <index|end> --list <json>",
+    usage: `${brand.cliCommand} insert-list <file> --at <index|end> --list <json>`,
     details: [
       "Insert a bullet or numbered list, optionally with nested lists, at a top-level index.",
       ...LIST_NOTE,
@@ -621,7 +622,7 @@ const COMMANDS: CommandSpec[] = [
     name: "update-list",
     group: "Edit — text and content",
     summary: "Replace the content of an editable list through Core",
-    usage: "ieumdoc update-list <file> --path <index> --list <json>",
+    usage: `${brand.cliCommand} update-list <file> --path <index> --list <json>`,
     details: [
       "Replace the kind, numbering, items and nesting of one editable top-level list.",
       ...LIST_NOTE,
@@ -634,7 +635,7 @@ const COMMANDS: CommandSpec[] = [
     name: "insert-code-block",
     group: "Edit — insert blocks",
     summary: "Insert a fenced code block at a top-level index",
-    usage: "ieumdoc insert-code-block <file> --at <index|end> --code <text> [--language <name>]",
+    usage: `${brand.cliCommand} insert-code-block <file> --at <index|end> --code <text> [--language <name>]`,
     details: [
       "Insert a fenced code block at a top-level index. The code is kept exactly, including blank lines and indentation.",
       ...CODE_NOTE,
@@ -644,7 +645,7 @@ const COMMANDS: CommandSpec[] = [
     name: "update-code-block",
     group: "Edit — text and content",
     summary: "Replace the language or code of a code block through Core",
-    usage: "ieumdoc update-code-block <file> --path <index> [--language <name>] [--code <text>]",
+    usage: `${brand.cliCommand} update-code-block <file> --path <index> [--language <name>] [--code <text>]`,
     details: [
       "Update one editable top-level code block. Omitted properties are unchanged.",
       ...CODE_NOTE,
@@ -656,7 +657,7 @@ const COMMANDS: CommandSpec[] = [
     name: "insert-table-row",
     group: "Edit — tables",
     summary: "Insert an empty row into a Markdown table",
-    usage: "ieumdoc insert-table-row <file> --path <table> --at <row>",
+    usage: `${brand.cliCommand} insert-table-row <file> --path <table> --at <row>`,
     details: [
       "Insert an empty body row into a top-level Markdown table.",
       "Row 0 is the header row, so --at is from 1 to the row count (the end).",
@@ -667,7 +668,7 @@ const COMMANDS: CommandSpec[] = [
     name: "insert-table-column",
     group: "Edit — tables",
     summary: "Insert an empty column into a Markdown table",
-    usage: "ieumdoc insert-table-column <file> --path <table> --at <column>",
+    usage: `${brand.cliCommand} insert-table-column <file> --path <table> --at <column>`,
     details: [
       "Insert an empty column, header cell included, into a top-level Markdown table.",
       "--at is from 0 to the column count (the end).",
@@ -678,7 +679,7 @@ const COMMANDS: CommandSpec[] = [
     name: "remove-table-row",
     group: "Edit — tables",
     summary: "Remove a body row from a Markdown table",
-    usage: "ieumdoc remove-table-row <file> --path <table> --at <row>",
+    usage: `${brand.cliCommand} remove-table-row <file> --path <table> --at <row>`,
     details: [
       "Remove a body row from a top-level Markdown table.",
       "Row 0 is the header row and cannot be removed, so --at is from 1 to the last row.",
@@ -689,7 +690,7 @@ const COMMANDS: CommandSpec[] = [
     name: "remove-table-column",
     group: "Edit — tables",
     summary: "Remove a column from a Markdown table",
-    usage: "ieumdoc remove-table-column <file> --path <table> --at <column>",
+    usage: `${brand.cliCommand} remove-table-column <file> --path <table> --at <column>`,
     details: [
       "Remove a column, header cell included, from a top-level Markdown table.",
       "A table keeps at least one column; use remove-block to remove the whole table.",
@@ -700,7 +701,7 @@ const COMMANDS: CommandSpec[] = [
     name: "move-table-row",
     group: "Edit — tables",
     summary: "Move a body row within a Markdown table",
-    usage: "ieumdoc move-table-row <file> --path <table> --from <row> --to <row>",
+    usage: `${brand.cliCommand} move-table-row <file> --path <table> --from <row> --to <row>`,
     details: [
       "Move a body row of a top-level Markdown table. Row 0 is the header row and stays first.",
       ...PATH_NOTE,
@@ -710,7 +711,7 @@ const COMMANDS: CommandSpec[] = [
     name: "move-table-column",
     group: "Edit — tables",
     summary: "Move a column within a Markdown table",
-    usage: "ieumdoc move-table-column <file> --path <table> --from <column> --to <column>",
+    usage: `${brand.cliCommand} move-table-column <file> --path <table> --from <column> --to <column>`,
     details: [
       "Move a column, header cell and alignment included, within a top-level Markdown table.",
       ...PATH_NOTE,
@@ -720,7 +721,7 @@ const COMMANDS: CommandSpec[] = [
     name: "update-table-alignment",
     group: "Edit — tables",
     summary: "Set or clear the alignment of a Markdown table column",
-    usage: "ieumdoc update-table-alignment <file> --path <table> --column <column> --align <left|center|right|none>",
+    usage: `${brand.cliCommand} update-table-alignment <file> --path <table> --column <column> --align <left|center|right|none>`,
     details: [
       "Set the alignment of one column of a top-level Markdown table, or clear it with none.",
       ...PATH_NOTE,
@@ -730,35 +731,35 @@ const COMMANDS: CommandSpec[] = [
     name: "update-reference-templates",
     group: "Edit — labels, footnotes and numbering",
     summary: "Set document reference templates through Core",
-    usage: "ieumdoc update-reference-templates <file> [--figure <template>] [--table <template>] [--equation <template>] [--reset <figure|table|equation|all>]",
+    usage: `${brand.cliCommand} update-reference-templates <file> [--figure <template>] [--table <template>] [--equation <template>] [--reset <figure|table|equation|all>]`,
     details: ["Templates contain %s (or {number}). Omitted kinds are unchanged. --reset restores MyST defaults; it cannot also set the same kind."],
   },
   {
     name: "update-title",
     group: "Edit — labels, footnotes and numbering",
     summary: "Set or remove the single-line frontmatter document title through Core",
-    usage: "ieumdoc update-title <file> (--text <text> | --remove)",
+    usage: `${brand.cliCommand} update-title <file> (--text <text> | --remove)`,
     details: ["An empty --text stores an empty title. --remove deletes the field. Body headings and labels are unchanged."],
   },
   {
     name: "update-heading-numbering",
     group: "Edit — labels, footnotes and numbering",
     summary: "Enable or disable document heading numbers through Core",
-    usage: "ieumdoc update-heading-numbering <file> --enabled <true|false>",
+    usage: `${brand.cliCommand} update-heading-numbering <file> --enabled <true|false>`,
     details: ["H1-H6 are numbered body sections. Only numbering settings are written, never heading text."],
   },
   {
     name: "update-table-caption",
     group: "Edit — tables",
     summary: "Set or remove a table caption through Core",
-    usage: "ieumdoc update-table-caption <file> --path <table> (--text <text> | --content <json>)",
+    usage: `${brand.cliCommand} update-table-caption <file> --path <table> (--text <text> | --content <json>)`,
     details: ["Set a single-line caption; empty text removes it. Every table remains a numbered table directive, with or without a caption or label."],
   },
   {
     name: "update-table-cell",
     group: "Edit — tables",
     summary: "Replace the content of a Markdown table cell through Core",
-    usage: "ieumdoc update-table-cell <file> --path <table,row,cell> (--text <text> | --content <json>)",
+    usage: `${brand.cliCommand} update-table-cell <file> --path <table,row,cell> (--text <text> | --content <json>)`,
     details: [
       "Replace the whole content of one cell in a top-level Markdown table. Use an empty --text to clear it.",
       "--content is Core InlineContent JSON (marks, links, inline math and references) without line breaks.",
@@ -770,13 +771,13 @@ const COMMANDS: CommandSpec[] = [
     name: "update-node-text",
     group: "Edit — text and content",
     summary: "Update text at a NodePath through Core",
-    usage: "ieumdoc update-node-text <file> --path <indexes> --from <text> --to <text>",
+    usage: `${brand.cliCommand} update-node-text <file> --path <indexes> --from <text> --to <text>`,
     details: [
       "Substitute text at a known Core NodePath.",
       "Use update-heading or update-quote instead when replacing the entire heading or quote content.",
       "",
       "Use:",
-      "  ieumdoc inspect <file>",
+      `  ${brand.cliCommand} inspect <file>`,
       "",
       "to discover paths and editable targets.",
       "",
@@ -787,7 +788,7 @@ const COMMANDS: CommandSpec[] = [
     name: "update-equation-latex",
     group: "Edit — text and content",
     summary: "Update Equation LaTeX through Core",
-    usage: "ieumdoc update-equation-latex <file> --path <indexes> --from <latex> --to <latex>",
+    usage: `${brand.cliCommand} update-equation-latex <file> --path <indexes> --from <latex> --to <latex>`,
     details: [
       "Update one Equation's LaTeX source through Core.",
       "The label and document structure must remain unchanged.",
@@ -798,7 +799,7 @@ const COMMANDS: CommandSpec[] = [
     name: "insert-target",
     group: "Edit — labels, footnotes and numbering",
     summary: "Label the next block, typically a section heading, with a (label)= target",
-    usage: "ieumdoc insert-target <file> --at <index|end> --label <label>",
+    usage: `${brand.cliCommand} insert-target <file> --at <index|end> --label <label>`,
     details: [
       "Insert a (label)= target at a top-level index. Before a heading, {ref}`label` references name that section.",
       "A section label uses 1-100 ASCII letters, digits or | @ < > * . / _ - + : characters and must not name another target.",
@@ -809,7 +810,7 @@ const COMMANDS: CommandSpec[] = [
     name: "update-enumerator",
     group: "Edit — labels, footnotes and numbering",
     summary: "Set or clear a fixed Equation, Figure or Table number through Core",
-    usage: "ieumdoc update-enumerator <file> --path <index> --enumerator <number>",
+    usage: `${brand.cliCommand} update-enumerator <file> --path <index> --enumerator <number>`,
     details: [
       "Set an authored number string, such as 17, A.3 or 4-2. Use an empty --enumerator to clear it.",
       "Fixed numbers survive moves and are used by references. Missing or duplicate numbers warn without blocking writes.",
@@ -821,7 +822,7 @@ const COMMANDS: CommandSpec[] = [
     name: "update-label",
     group: "Edit — labels, footnotes and numbering",
     summary: "Set, change, or remove an Equation, Figure, Table or target label through Core",
-    usage: "ieumdoc update-label <file> --path <index> --label <label> [--update-references <true|false>]",
+    usage: `${brand.cliCommand} update-label <file> --path <index> --label <label> [--update-references <true|false>]`,
     details: [
       "Set the label (reference target name) of one top-level Equation, Figure or Table. Use an empty --label to remove it.",
       "A (label)= target can be renamed but not emptied; remove it with remove-block.",
@@ -1383,18 +1384,18 @@ function isCommandHelpRequest(args: string[]): boolean {
 function topLevelHelp(): string {
   const width = Math.max(...COMMANDS.map((command) => command.name.length));
   const lines = [
-    "IeumDoc CLI",
+    `${brand.name.en} CLI`,
     "",
     "Usage:",
-    "  ieumdoc <command> [options]",
-    "  ieumdoc --version  Show the build version and commit (use alone).",
+    `  ${brand.cliCommand} <command> [options]`,
+    `  ${brand.cliCommand} --version  Show the build version and commit (use alone).`,
     "",
     "Start here:",
-    "  Before editing, use ieumdoc inspect <file> --format json for current paths and revision.",
+    `  Before editing, use ${brand.cliCommand} inspect <file> --format json for current paths and revision.`,
     "  One edit: choose a command below. Multiple edits: use apply-batch.",
     "  Use --if-revision to guard edits and --dry-run to preview them.",
     "  Batch paths use each preceding step's result; they are not tracked automatically.",
-    "  Details: ieumdoc help <command>",
+    `  Details: ${brand.cliCommand} help <command>`,
     "",
     "Commands:",
     ...HELP_GROUPS.flatMap((group) => [

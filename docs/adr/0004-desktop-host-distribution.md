@@ -17,9 +17,9 @@ Litzio는 Vite 개발 서버의 local Host adapter로만 실행되었다. 사용
 
 Litzio는 다음을 채택한다.
 
-- **Desktop Host**: Electron 기반 `apps/desktop`을 Windows 제품 Host로 둔다. Editor의 production build를 그대로 싣고, custom protocol `ieumdoc://app`에서 Editor 정적 파일과 기존 `apps/editor/server`의 document/asset handler를 같은 프로세스 안에서 호출한다. TCP listener와 새 HTTP 서버를 만들지 않는다.
+- **Desktop Host**: Electron 기반 `apps/desktop`을 Windows 제품 Host로 둔다. Editor의 production build를 그대로 싣고, custom protocol(공식 기본값 `litzio://app`)에서 Editor 정적 파일과 기존 `apps/editor/server`의 document/asset handler를 같은 프로세스 안에서 호출한다. TCP listener와 새 HTTP 서버를 만들지 않는다.
 - **Host 코드 재사용**: `apps/editor/server`의 handler는 Vite dev server와 Desktop Host가 함께 쓰는 Host 구현이 된다. Desktop은 Vite runtime(`ssrLoadModule`)이 아니라 handler를 직접 import해 번들한다. Desktop은 별도의 문서 저장 규칙, Markdown 처리나 경로 정책을 구현하지 않는다. 문서 의미와 write contract는 계속 Core([ADR-0002](0002-document-persistence-semantic-ownership.md))가 소유하고, 파일 교체는 CLI와 같은 File commit을 쓴다.
-- **배포**: electron-builder의 per-user NSIS installer(x64)를 기본 배포 형식으로 한다. Portable exe는 공식 배포하지 않는다. App ID `io.github.ieumbird.ieumdoc`, product name `IeumDoc`, 사용자 데이터 `%APPDATA%\IeumDoc`은 첫 공개 후 바꾸지 않는다.
+- **배포**: electron-builder의 per-user NSIS installer(x64)를 기본 배포 형식으로 한다. Portable exe는 공식 배포하지 않는다. 제품 식별자는 [#859 브랜드 결정](../guides/branding.md)에 따라 설정에서 정한다. 공식 기본값은 앱 ID `io.github.litzio.litzio`, 표시 이름 `Litzio`, 사용자 데이터 `%APPDATA%\litzio`이며 과거 Beta 데이터 이전은 하지 않는다.
 - **업데이트**: electron-updater의 GitHub provider와 GitHub Releases를 쓴다. 채널은 Stable과 Beta 둘이며 같은 앱의 사용자 설정이다. 최초 실행 기본값은 설치 버전에 따라 Stable 또는 Beta이며, 저장된 유효한 사용자 선택을 우선한다. Stable은 GitHub의 정식 최신 Release만, Beta는 Beta와 Stable을 함께 받는다. 설치된 버전보다 낮은 버전으로는 채널을 바꿔도 내려가지 않는다.
 - **설치 승인**: 업데이트 확인은 자동이지만 다운로드와 설치는 사용자가 각각 승인한다. 일반 종료는 설치 승인이 아니다. 설치를 위한 재시작은 Editor가 미저장 작업이 없다고 답하고 창이 정상적으로 닫힌 뒤에만 시작한다.
 - **릴리즈**: GitHub Actions가 Windows에서 빌드·검증한다. Beta는 검증된 unsigned installer를 신뢰할 수 있는 master 이력의 기존 `vX.Y.Z-beta.N` tag에 GitHub Prerelease로 게시할 수 있다. 소유자가 승인한 릴리스는 master에서 workflow를 수동 실행하며, 검증 성공 후 별도 environment 승인 없이 게시한다(2026-10-28 소유자 결정; 종전 required reviewer 승인 단계를 대체). `master` 배포 제한은 유지한다. 서명되지 않았고 Windows 경고가 나타날 수 있음을 알린다. Stable 공개와 Signed 모드는 Authenticode 서명을 요구한다. 게시 권한과 실제 환경 보호 규칙은 [Desktop contract](../design/desktop-distribution-v1.md)를 따른다.
@@ -83,6 +83,10 @@ range and compares existing CLI commands through the shim with standalone Node e
 The owner's additional decision adds a common `--version` option: build-injected product/package
 version and commit identify the executable distribution without runtime manifest reads. Real-user
 Windows acceptance remains explicitly separate from CI.
+
+## Amendment: product branding (#859, 2026-10-31)
+
+Discussion #856의 소유자 결정은 최초 공개 후 식별자 고정 규칙을 대체한다. [단일 브랜드 설정](../guides/branding.md)이 표시 이름·프로토콜·앱 ID·설치/데이터/CLI 폴더·업데이트 주소를 소유한다. 공식 기본값은 Litzio다. 과거 Beta의 폴더·저장소·업데이트 경로 이전은 하지 않으며, 위 #604의 당시 경로도 현행 기본값은 브랜드 안내를 따른다. 고정 내부 패키지와 Host API는 브랜드와 독립적이다.
 
 ## Non-decisions
 

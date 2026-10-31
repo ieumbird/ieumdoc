@@ -19,7 +19,7 @@ test("registry values travel losslessly on stdin, with fixed argv even for long 
     const environment = windowsEnvironment();
     for (const value of ["short", 'C:\\한글 도구\\"quoted";%VAR%\\bin;;'.repeat(220)]) {
       const previous = { value, kind: "ExpandString" as const };
-      const next = { ...previous, value: `${value};C:\\IeumDoc\\bin` };
+      const next = { ...previous, value: `${value};C:\\Litzio\\bin` };
       await environment.write(previous, next);
       const call = calls.at(-1)!;
       assert.deepEqual(JSON.parse(Buffer.from(call.input, "base64").toString("utf8")), { previous, next });

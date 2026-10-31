@@ -45,7 +45,7 @@ async (page, { openPath, activeDocument, expect, recoveryRecords, screenshots, t
   await expect(page.getByTestId('save')).toBeEnabled();
   if (screenshots) {
     await configure('ko','dark');
-    await expect(page.getByTestId('text-mode-notice').filter({visible:true})).toHaveText('텍스트 모드 · 이음독 문서가 아닙니다');
+    await expect(page.getByTestId('text-mode-notice').filter({visible:true})).toHaveText('텍스트 모드 · Litzio 문서가 아닙니다');
     for (const width of [1440,640]) {
       await page.setViewportSize({width,height:900});
       await page.screenshot({path:`tmp/text-mode-captures/after-open-ko-dark-${width}.png`});
@@ -146,7 +146,7 @@ async (page, { openPath, activeDocument, expect, recoveryRecords, screenshots, t
 
     for (const [language,theme] of [['en','light'],['ko','dark']]) {
       await configure(language,theme);
-      await expect(page.getByTestId('text-mode-notice').filter({visible:true})).toHaveText(language === 'ko' ? '텍스트 모드 · 이음독 문서가 아닙니다' : 'Text mode · Not an IeumDoc document');
+      await expect(page.getByTestId('text-mode-notice').filter({visible:true})).toHaveText(language === 'ko' ? '텍스트 모드 · Litzio 문서가 아닙니다' : 'Text mode · Not a Litzio document');
       for (const width of [1440,640]) {
         await page.setViewportSize({width,height:900});
         const geometry = await input().evaluate(node => { const r=node.getBoundingClientRect(); return {left:r.left,right:r.right,window:innerWidth}; });

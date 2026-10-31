@@ -82,7 +82,7 @@ export function serialize(document: MystDocument): string {
   } catch (error) {
     assertNoSerializationDiagnostics(file, document);
     throw new SemanticLossError("serializer failed", { code: "serialization-failed", cause: error,
-      action: "IeumDoc could not serialize this document. Keep your edits and report this error; no specific content cause was identified." });
+      action: "Could not serialize this document. Keep your edits and report this error; no specific content cause was identified." });
   }
   assertNoSerializationDiagnostics(file, document);
   // Normalize the complete output, including preserved source, before semantic verification.

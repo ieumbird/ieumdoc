@@ -1,6 +1,6 @@
 // Actual collection/Host refusals, snapshot invalidation and keyboard navigation. No validation mock.
 async (page, { openPath, reloadDocument, expect, screenshots }) => {
-  await page.evaluate(() => localStorage.setItem('ieumdoc.uiLanguage', 'en'));
+  await page.evaluate(() => localStorage.setItem('litzio.uiLanguage', 'en'));
   await page.reload();
   const origin = page.url().split('/').slice(0,3).join('/');
   const loaded = await (await page.request.get(`${origin}/api/document`)).json();

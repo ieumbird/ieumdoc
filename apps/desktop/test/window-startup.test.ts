@@ -9,6 +9,7 @@ import { runInNewContext } from "node:vm";
 import { test } from "node:test";
 import { transformSync } from "esbuild";
 import { ExplorerFolders } from "../src/explorer.ts";
+import { brand } from "../../../brand.ts";
 
 import type { UpdateState } from "../../editor/shared/desktop-bridge.ts";
 
@@ -29,7 +30,7 @@ async function start(options: { startupError?: boolean; logError?: boolean; open
     visible = false; minimized = false; shows = 0; focused = false; destroyed = false;
     background = ""; overlay: unknown;
     webContents = Object.assign(new EventEmitter(), {
-      mainFrame: { url: "ieumdoc://app/index.html" }, setWindowOpenHandler() {}, send() {},
+      mainFrame: { url: "litzio://app/index.html" }, setWindowOpenHandler() {}, send() {},
     });
     constructor(_options: unknown) { super(); windows.push(this); }
     isDestroyed() { return this.destroyed; }
@@ -46,10 +47,11 @@ async function start(options: { startupError?: boolean; logError?: boolean; open
   const app = Object.assign(new EventEmitter(), {
     isPackaged: false, requestSingleInstanceLock: () => options.lock !== false,
     quit: () => quits++, exit: (code: number) => { assert.equal(code, 1); exits++; },
-    whenReady: () => Promise.resolve(), getPath: () => "/fake-user-data", getVersion: () => "0.0.2-beta.4",
+    setAppUserModelId() {}, setPath() {}, whenReady: () => Promise.resolve(), getPath: () => "/fake-user-data", getVersion: () => "0.0.2-beta.4",
   });
   const require = createRequire(import.meta.url);
   const dependencies: Record<string, unknown> = {
+    "../../../brand.ts": { brand },
     "electron": {
       app, BrowserWindow: Window, dialog: { showErrorBox: (_title: string, message: string) => alerts.push(message) },
       ipcMain: { handle: (name: string, handler: (event: unknown, ...args: unknown[]) => unknown) => handlers.set(name, handler), on() {} },
@@ -58,11 +60,11 @@ async function start(options: { startupError?: boolean; logError?: boolean; open
       shell: { openPath: async (directory: string) => { opened.push(directory); return options.openError ?? ""; } },
     },
     "node:fs": {
-      mkdirSync(directory: string) { if (options.logError) throw new Error("log directory denied"); directories.push(directory); },
+      mkdirSync(directory: string) { if (options.logError && directory.endsWith("logs")) throw new Error("log directory denied"); directories.push(directory); },
       appendFileSync: (_file: string, message: string) => logs.push(message), existsSync: () => false,
     },
     "electron-updater": { autoUpdater: {} }, "js-yaml": {},
-    "./host-protocol.ts": { ORIGIN: "ieumdoc://app", SCHEME: "ieumdoc", createProtocolHandler() {} },
+    "./host-protocol.ts": { ORIGIN: "litzio://app", SCHEME: "litzio", createProtocolHandler() {} },
     "./explorer.ts": { ExplorerFolders },
     "./first-document.ts": { firstDocument() {} },
     "./preferences.ts": { readPreferences: () => ({ channel: "beta", seenUpdate: null }), writePreferences: (_file: string, value: unknown) => preferences.push(JSON.parse(JSON.stringify(value))) },
@@ -169,9 +171,9 @@ test("renderer startup failures notify and reveal before paint; subframe failure
   for (const kind of ["did-fail-load", "render-process-gone", "load-rejection"]) {
     const h = await start({ loadError: kind === "load-rejection" });
     if (kind === "did-fail-load") {
-      h.window.webContents.emit(kind, {}, -105, "missing resource", "ieumdoc://app/frame", false);
+      h.window.webContents.emit(kind, {}, -105, "missing resource", "litzio://app/frame", false);
       assert.equal(h.window.shows, 0);
-      h.window.webContents.emit(kind, {}, -105, "missing page", "ieumdoc://app/index.html", true);
+      h.window.webContents.emit(kind, {}, -105, "missing page", "litzio://app/index.html", true);
     } else if (kind === "render-process-gone") h.window.webContents.emit(kind, {}, { reason: "crashed", exitCode: 1 });
     assert.equal(h.window.shows, 1, kind);
     assert.equal(h.alerts.length, 1, kind);

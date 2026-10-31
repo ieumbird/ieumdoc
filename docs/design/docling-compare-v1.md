@@ -98,7 +98,9 @@ Bbox overlays, correspondence wires and the conversion-note strip are new
 comparison-specific visual patterns, not generic Editor conventions.
 Confirmation state, SQLite, correction, AI proposals, source mutation and post-edit
 relinking are outside this contract. No new CLI command is needed for read-only UI;
-headless conversion remains `ieumdoc docling convert`.
+headless conversion remains `litzio docling convert`.
+
+Brand defaults and packager overrides follow [the branding guide](../guides/branding.md) (#859). Product identity is separate from the fixed internal Host API; earlier verification records do not establish a migration from old Beta builds.
 
 ## Verification on 2026-10-30
 

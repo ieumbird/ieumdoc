@@ -37,7 +37,7 @@ async (page, { expect, screenshots = false }) => {
   await expect(mode()).toHaveCount(1);
   await configure('en','system');
   const assertChoice = async value => {
-    await expect.poll(() => page.evaluate(() => localStorage.getItem('ieumdoc.theme'))).toBe(value);
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('litzio.theme'))).toBe(value);
     await expect(page.locator('html')).toHaveAttribute('data-theme',value === 'system' ? 'light' : value);
   };
   await page.emulateMedia({colorScheme:'light'});
@@ -128,7 +128,7 @@ async (page, { expect, screenshots = false }) => {
   await page.evaluate(() => {
     const original = Storage.prototype.setItem;
     window.__restoreThemeStorage = () => { Storage.prototype.setItem = original; };
-    Storage.prototype.setItem = function(key, value) { if (key === 'ieumdoc.theme') throw Error('Storage refused'); return original.call(this,key,value); };
+    Storage.prototype.setItem = function(key, value) { if (key === 'litzio.theme') throw Error('Storage refused'); return original.call(this,key,value); };
   });
   await mode().click(); await menu().getByRole('menuitemradio',{name:'라이트',exact:true}).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme','light');

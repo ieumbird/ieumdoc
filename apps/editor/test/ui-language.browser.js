@@ -280,7 +280,7 @@ async (page, { openPath, screenshots }) => {
     check(await page.evaluate(() => window.accentAtFirstUi === 'teal' && document.documentElement.dataset.accent === 'teal'), 'Saved accent must apply at the first mounted UI');
     check(await page.evaluate(() => window.themeAtFirstUi === 'dark' && document.documentElement.dataset.theme === 'dark'), 'Saved theme must apply at the first mounted UI');
     check(await page.evaluate(() => window.pageAtFirstUi === 'flat'), 'Page style must restore before first mounted UI');
-    check(!disk.source.includes('pageBackground') && !disk.source.includes('uiLanguage') && !disk.source.includes('accentColor') && !disk.source.includes('ieumdoc.theme'), 'Display preference leaked into document');
+    check(!disk.source.includes('pageBackground') && !disk.source.includes('uiLanguage') && !disk.source.includes('accentColor') && !disk.source.includes('litzio.theme'), 'Display preference leaked into document');
     await settings('ko');
     check(await page.getByRole('combobox',{name:'테마',exact:true}).inputValue() === 'dark' &&
       await page.getByRole('option',{name:'시스템',exact:true}).count() === 1, 'Korean theme labels are missing');
@@ -294,15 +294,15 @@ async (page, { openPath, screenshots }) => {
     await page.getByTestId('ui-language').selectOption('en');
     await closeSettings();
     // Malformed and disabled storage fall back safely on startup. The live choice still works.
-    await page.evaluate(() => { localStorage.setItem('ieumdoc.accentColor', 'unknown'); localStorage.setItem('ieumdoc.theme', 'unknown'); localStorage.setItem('ieumdoc.pageBackground', 'unknown'); });
+    await page.evaluate(() => { localStorage.setItem('litzio.accentColor', 'unknown'); localStorage.setItem('litzio.theme', 'unknown'); localStorage.setItem('litzio.pageBackground', 'unknown'); });
     await page.reload(); await ready();
     check(await page.evaluate(() => window.accentAtFirstUi === 'blue'), 'Invalid accent must fall back to blue before mounting');
     check(await page.evaluate(() => window.themeAtFirstUi === 'light'), 'Invalid theme must fall back to System before mounting');
     check(await page.evaluate(() => window.pageAtFirstUi === 'paper'), 'Invalid page background must default to paper');
     await page.addInitScript(() => {
       const get = Storage.prototype.getItem, set = Storage.prototype.setItem;
-      Storage.prototype.getItem = function(key) { if (['ieumdoc.accentColor','ieumdoc.theme','ieumdoc.pageBackground'].includes(key)) throw Error('blocked'); return get.call(this, key); };
-      Storage.prototype.setItem = function(key, value) { if (['ieumdoc.accentColor','ieumdoc.theme','ieumdoc.pageBackground'].includes(key)) throw Error('blocked'); return set.call(this, key, value); };
+      Storage.prototype.getItem = function(key) { if (['litzio.accentColor','litzio.theme','litzio.pageBackground'].includes(key)) throw Error('blocked'); return get.call(this, key); };
+      Storage.prototype.setItem = function(key, value) { if (['litzio.accentColor','litzio.theme','litzio.pageBackground'].includes(key)) throw Error('blocked'); return set.call(this, key, value); };
     });
     await page.reload(); await ready();
     check(await page.evaluate(() => window.accentAtFirstUi === 'blue'), 'Unavailable accent store must not block startup');
@@ -332,7 +332,7 @@ async (page, { openPath, screenshots }) => {
     return { accentResults, captureMetadata, firstUiAccent: true, invalidAndUnavailableStorage: true, editorPreserved: true, draftAndSelectionPreserved: true, undoRedo: true, liveError: true, saveReload: true, conflictPreserved: true, persisted: true };
   } finally {
     await original.dispose();
-    await page.evaluate(() => { localStorage.setItem('ieumdoc.uiLanguage', 'en'); document.documentElement.dataset.accent = 'blue'; });
+    await page.evaluate(() => { localStorage.setItem('litzio.uiLanguage', 'en'); document.documentElement.dataset.accent = 'blue'; });
     await page.setViewportSize({ width: 1280, height: 720 });
   }
 }

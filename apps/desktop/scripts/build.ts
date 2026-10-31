@@ -8,12 +8,13 @@ import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } fr
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
+import { brand } from "../../../brand.ts";
 
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repo = path.resolve(desktop, "../..");
 const stage = path.join(desktop, "build", "app");
 const manifest = JSON.parse(readFileSync(path.join(desktop, "package.json"), "utf8")) as {
-  productName: string; version: string; description: string; author: string; license: string;
+  version: string; license: string;
 };
 
 /** The app version: package.json's, or LITZIO_TEST_VERSION for the update test's builds only. */
@@ -38,7 +39,10 @@ export async function buildDesktop(): Promise<string> {
   rmSync(stagedCli, { recursive: true, force: true });
   cpSync(cliBuild, stagedCli, { recursive: true });
   // Runtime window icon (also used by the development Electron shell).
-  cpSync(path.join(desktop, "assets", "icon.ico"), path.join(stage, "icon.ico"));
+  cpSync(path.join(repo, brand.icons.ico), path.join(stage, "icon.ico"));
+  const installer = readFileSync(path.join(desktop, "installer/cli.nsh"), "utf8")
+    .replaceAll("@EXECUTABLE@", brand.executableName).replaceAll("@PRODUCT@", brand.name.en).replaceAll("@CLI_FOLDER@", brand.folders.cli);
+  writeFileSync(path.join(desktop, "build/cli.nsh"), installer);
 
   const requireSigned = process.env.LITZIO_REQUIRE_SIGNED_UPDATES === "1";
   await build({
@@ -73,18 +77,18 @@ export async function buildDesktop(): Promise<string> {
   });
 
   cpSync(path.join(repo, "apps", "editor", "samples"), path.join(stage, "sample"), { recursive: true });
-  // The app's own package.json: its name decides the user data and updater cache folders. Keep it.
+  // App/package identity decides the installer directory and updater cache, independently of UI names.
   writeFileSync(path.join(stage, "package.json"), `${JSON.stringify({
-    name: "ieumdoc",
-    productName: manifest.productName,
+    name: brand.appName,
+    productName: brand.name.en,
     version: appVersion(),
-    description: manifest.description,
-    author: manifest.author,
+    description: `${brand.name.en} desktop editor`,
+    author: `${brand.name.en} contributors`,
     license: manifest.license,
     type: "module",
     main: "main.mjs",
   }, null, 2)}\n`);
-  console.log(`staged ${manifest.productName} ${appVersion()} in ${path.relative(repo, stage)}${requireSigned ? " (signed updates required)" : ""}`);
+  console.log(`staged ${brand.name.en} ${appVersion()} in ${path.relative(repo, stage)}${requireSigned ? " (signed updates required)" : ""}`);
   return stage;
 }
 

@@ -269,7 +269,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "source-view": {
     files: [
       ...technical,
-      // Source View must equal the canonical Markdown `ieumdoc format` writes, i.e. Core serialize.
+      // Source View must equal the canonical Markdown `litzio format` writes, i.e. Core serialize.
       { name: "expected.md", create: () => serialize(parse(readFileSync(path.join(DOCUMENT_DIR, "technical-document.md"), "utf8"))) },
       fixture("writable.md"),
       { name: "wrapping.md", create: () => serialize(parse(nativeSource("# Source wrapping\n\n" +

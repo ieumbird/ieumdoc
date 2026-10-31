@@ -14,7 +14,7 @@ for (const leftover of ["staging", "publication"] as const) {
   test(`image rename skips only private ${leftover} while retaining ordinary document reference checks`, t => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "litzio-private-rename-"));
     t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-    const privateFolder = path.join(root, leftover === "staging" ? ".ieumdoc-plugin-interrupted" : "paper.docling");
+    const privateFolder = path.join(root, leftover === "staging" ? ".litzio-plugin-interrupted" : "paper.docling");
     fs.mkdirSync(privateFolder);
     if (leftover === "publication") fs.writeFileSync(path.join(privateFolder, INCOMPLETE), "interrupted-request");
     const reference = nativeSource(":::{figure} ./.ordinary/old.svg\n:alt: Keep\n\nCaption\n:::\n");

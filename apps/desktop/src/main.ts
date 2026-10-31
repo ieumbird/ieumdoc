@@ -1,4 +1,5 @@
-// Litzio Desktop: one window with the Editor, the local Host behind `ieumdoc://app`, preferences
+import { brand } from "../../../brand.ts";
+// Litzio Desktop: one window with the Editor, the local Host behind the configured app origin, preferences
 // and updates. Documents are read and written only through the existing Host handlers.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync } from "node:fs";
 import path from "node:path";
@@ -22,6 +23,14 @@ import { windowsEnvironment } from "./windows-environment.ts";
 declare const __LITZIO_REQUIRE_SIGNED_UPDATES__: boolean;
 
 protocol.registerSchemesAsPrivileged([{ scheme: SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
+
+app.setAppUserModelId(brand.appId);
+// Explicit automation/operator profile overrides remain authoritative.
+if (!process.argv.some(arg => arg === "--user-data-dir" || arg.startsWith("--user-data-dir="))) {
+  const directory = path.join(app.getPath("appData"), brand.folders.desktopData);
+  mkdirSync(directory, { recursive: true });
+  app.setPath("userData", directory);
+}
 
 const appRoot = path.dirname(fileURLToPath(import.meta.url));
 const preferencesFile = () => path.join(app.getPath("userData"), "preferences.json");
@@ -130,7 +139,7 @@ function askEditorToRestart(target: BrowserWindow): Promise<RestartCheck> {
   const id = ++restartRequest;
   return new Promise((resolve) => {
     const refuse = (reason: string) => finish({ ok: false, reason });
-    const timer = setTimeout(() => refuse("IeumDoc could not confirm that your work is saved."), RESTART_CHECK_TIMEOUT_MS);
+    const timer = setTimeout(() => refuse("Could not confirm that your work is saved."), RESTART_CHECK_TIMEOUT_MS);
     const gone = () => refuse("The editor closed before it answered.");
     target.webContents.once("render-process-gone", gone);
     function finish(check: RestartCheck) {
@@ -147,7 +156,7 @@ function askEditorToRestart(target: BrowserWindow): Promise<RestartCheck> {
 async function installUpdate(): Promise<RestartCheck> {
   const target = window;
   if (!target || updates.state.phase !== "downloaded") return { ok: false, reason: "No downloaded update is ready to install." };
-  if (restartAnswers.size) return { ok: false, reason: "IeumDoc is already checking whether it may restart." };
+  if (restartAnswers.size) return { ok: false, reason: "Already checking whether the app may restart." };
   // No input reaches the Editor between its answer and the window closing.
   target.setEnabled(false);
   const check = await askEditorToRestart(target);
@@ -236,7 +245,7 @@ function createWindow(): void {
   appearanceReady = false;
   startupPending = true;
   const created = new BrowserWindow({
-    width: 1400, height: 900, minWidth: 640, minHeight: 480, title: "IeumDoc", show: false,
+    width: 1400, height: 900, minWidth: 640, minHeight: 480, title: brand.name.en, show: false,
     // --layout-header-row (40px) minus --border-width (1px): native opaque paint must
     // stop before the web separator. Packaged tests check these tokens and OS pixels.
     titleBarStyle: "hidden", titleBarOverlay: { height: 39 },
@@ -257,7 +266,7 @@ function createWindow(): void {
   const failed = (reason: string) => {
     if (!startupPending) return;
     showStartupWindow(reason);
-    dialog.showErrorBox("IeumDoc", `The editor could not start.\n${reason}`);
+    dialog.showErrorBox(brand.name.en, `The editor could not start.\n${reason}`);
   };
   created.webContents.on("did-fail-load", (_event, code, description, _url, isMainFrame) => {
     if (isMainFrame) failed(`renderer load failed (${code}): ${description}`);
@@ -278,7 +287,7 @@ function createWindow(): void {
     }
     const leave = dialog.showMessageBoxSync(created, {
       type: "warning", buttons: ["Close without saving", "Keep editing"], defaultId: 1, cancelId: 1, noLink: true,
-      title: "IeumDoc", message: "Open documents have unsaved changes or work in progress.", detail: "Close without saving the original files. Local recovery keeps only the last successfully recorded applied edits; unapplied drafts and later changes may be lost. Keep editing to finish and save each document first.",
+      title: brand.name.en, message: "Open documents have unsaved changes or work in progress.", detail: "Close without saving the original files. Local recovery keeps only the last successfully recorded applied edits; unapplied drafts and later changes may be lost. Keep editing to finish and save each document first.",
     }) === 0;
     if (leave) event.preventDefault();
   });
@@ -360,7 +369,7 @@ if (!app.requestSingleInstanceLock()) {
   }).catch(error => {
     log(`startup failed: ${String(error)}`);
     try {
-      dialog.showErrorBox("IeumDoc", `IeumDoc could not start.\n${String(error)}`);
+      dialog.showErrorBox(brand.name.en, `${brand.name.en} could not start.\n${String(error)}`);
     } finally {
       app.exit(1);
     }

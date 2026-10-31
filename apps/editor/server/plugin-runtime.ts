@@ -1,3 +1,4 @@
+import { brand } from "../../../brand.ts";
 import { fork, type ChildProcess } from "node:child_process";
 import { createReadStream } from "node:fs";
 import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
@@ -61,7 +62,7 @@ export class PluginRuntime implements ConversionExecutor {
       if (!installation.entry || installation.workerApi !== 1) throw new Error("Plugin has no compatible worker.");
       const entry = path.join(installation.directory, installation.entry);
       if (digest(await readFile(entry)) !== installation.sha256) throw new Error("Installed worker hash mismatch.");
-      staging = await mkdtemp(path.join(path.dirname(job.output), ".ieumdoc-plugin-"));
+      staging = await mkdtemp(path.join(path.dirname(job.output), `.${brand.appName}-plugin-`));
       receipt.staging = staging;
       this.store.update(receipt);
       await mkdir(path.join(staging, "temp"));
@@ -108,7 +109,7 @@ export class PluginRuntime implements ConversionExecutor {
       if (outputOwned) await rm(job.output, { recursive: true, force: true });
       job.state = execution.stopped === "cancelled" ? "cancelled" : "error";
       receipt.status = job.state;
-      job.error = execution.stopped === "cancelled" ? "Cancelled; only IeumDoc waiting stopped. The server task may continue."
+      job.error = execution.stopped === "cancelled" ? "Cancelled; only local waiting stopped. The server task may continue."
         : execution.stopped === "timeout" ? "Docling worker timed out. The server task may continue."
         : error instanceof Error ? error.message : String(error);
       job.failure ??= { code: execution.stopped === "timeout" ? "timeout" : "output", taskId: job.progress.taskId };

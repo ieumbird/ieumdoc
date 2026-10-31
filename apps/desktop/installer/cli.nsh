@@ -4,7 +4,7 @@
     GetTempFileName $6
     System::Call 'Kernel32::SetEnvironmentVariable(t "ELECTRON_RUN_AS_NODE", t "1") i.r0'
     ${if} ${FileExists} "$INSTDIR\resources\uninstall-cli.cjs"
-      nsExec::ExecToStack '"$INSTDIR\IeumDoc.exe" "$INSTDIR\resources\uninstall-cli.cjs" --uninstall "$6"'
+      nsExec::ExecToStack '"$INSTDIR\@EXECUTABLE@.exe" "$INSTDIR\resources\uninstall-cli.cjs" --uninstall "$6"'
       Pop $0
       Pop $1
       ; A GUI RunAsNode process may not expose stderr to nsExec; use the helper's own report.
@@ -26,10 +26,10 @@
     ClearErrors
     ${if} $0 != 0
       ; Optional cleanup must not block application removal. Never delete untrusted files here.
-      StrCpy $3 "IeumDoc CLI cleanup incomplete. App removal will continue.$\r$\nRemaining files or PATH entry may be at: $LOCALAPPDATA\IeumDoc\bin$\r$\nOpen Windows Environment Variables > User Path and remove only that bin entry. Inspect the bin files; preserve files whose ownership is uncertain.$\r$\nHelper result: $0$\r$\n$1"
-      CreateDirectory "$LOCALAPPDATA\IeumDoc\uninstall-logs"
+      StrCpy $3 "@PRODUCT@ CLI cleanup incomplete. App removal will continue.$\r$\nRemaining files or PATH entry may be at: $LOCALAPPDATA\@CLI_FOLDER@\bin$\r$\nOpen Windows Environment Variables > User Path and remove only that bin entry. Inspect the bin files; preserve files whose ownership is uncertain.$\r$\nHelper result: $0$\r$\n$1"
+      CreateDirectory "$LOCALAPPDATA\@CLI_FOLDER@\uninstall-logs"
       ClearErrors
-      GetTempFileName $2 "$LOCALAPPDATA\IeumDoc\uninstall-logs"
+      GetTempFileName $2 "$LOCALAPPDATA\@CLI_FOLDER@\uninstall-logs"
       ${if} ${Errors}
         GetTempFileName $2 "$TEMP"
       ${endif}

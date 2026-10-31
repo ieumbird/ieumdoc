@@ -1,3 +1,4 @@
+import { brand } from "../../../brand.ts";
 import { parseArgs } from "node:util";
 import { startHttpHost } from "../../../apps/editor/server/http-host.ts";
 
@@ -16,7 +17,7 @@ export async function serve(args: string[], editorDir: string): Promise<void> {
     throw new Error("--port must be an integer from 1 to 65535.");
   }
   const host = await startHttpHost({ roots: values.root ?? [], editorDir, port, host: values.host, publicOrigin: values["public-origin"] });
-  process.stdout.write(`IeumDoc HTTP: ${host.url}\nAllowed folders:\n${host.roots.map(root => `  ${root}`).join("\n")}\n`);
+  process.stdout.write(`${brand.name.en} HTTP: ${host.url}\nAllowed folders:\n${host.roots.map(root => `  ${root}`).join("\n")}\n`);
   const stop = () => {
     process.off("SIGINT", stop);
     process.off("SIGTERM", stop);

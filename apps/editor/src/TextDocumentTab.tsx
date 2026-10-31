@@ -98,7 +98,7 @@ function useTextSession(initial: TextFileResponse, restored: TextSessionSnapshot
     busy, busyRef, setStatus, switching: status === "opening", status, save, load,
     reload: async () => { if (busyRef.current) return; if (dirty()) setReloadDialog(true); else await load(pathRef.current); },
     reloadFromDisk: async () => { await load(pathRef.current); }, reloadDialog, setReloadDialog,
-    pendingWork: () => busyRef.current ? i18n.t("IeumDoc is still working on the document. Try again in a moment.") : dirty() ? i18n.t("Save your changes, then restart to update.") : null,
+    pendingWork: () => busyRef.current ? i18n.t("{{product}} is still working on the document. Try again in a moment.") : dirty() ? i18n.t("Save your changes, then restart to update.") : null,
     discardRecovery: () => recorder.discard(), suspendRecovery: () => recorder.cancel(),
     resumeRecovery: () => { if (dirty()) recorder.edit(); },
     relocate(next: string) { pathRef.current = next; setOpenedPath(next); if (dirty()) recorder.edit(); },
@@ -123,7 +123,7 @@ export const TextDocumentTab = memo(function TextDocumentTab({ id, file, restore
       data-document-tab={id} data-active={focused ? "true" : "false"} data-visible={active ? "true" : "false"} data-group-index={groupIndex}
       style={{ "--editor-group-index": groupIndex } as CSSProperties} onFocusCapture={() => onFocus(id)} onPointerDownCapture={() => onFocus(id)}>
       <div className="text-document">
-        <p className="text-mode-notice" data-testid="text-mode-notice">{i18n.t("Text mode · Not an IeumDoc document")}</p>
+        <p className="text-mode-notice" data-testid="text-mode-notice">{i18n.t("Text mode · Not a {{product}} document")}</p>
         <textarea ref={session.input} className="text-document-input" data-testid="text-editor" aria-label={i18n.t("Text editor")}
           defaultValue={session.initialText} onChange={event => session.change(event.currentTarget.value)} spellCheck={false} wrap="off" />
       </div>

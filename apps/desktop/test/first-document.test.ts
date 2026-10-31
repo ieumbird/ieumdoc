@@ -51,7 +51,7 @@ test("sample version replaces edited old copies once and preserves same-version 
     fs.writeFileSync(path.join(copy, "diagram.svg"), "edited diagram");
     const first = firstDocument([], dir, dir);
     assert.ok(first.samples);
-    assert.equal(fs.readFileSync(path.join(copy, ".ieumdoc-sample"), "utf8"), "IeumDoc managed sample 1\n");
+    assert.equal(fs.readFileSync(path.join(copy, ".litzio-sample"), "utf8"), "litzio managed sample 1\n");
     assert.equal(fs.existsSync(path.join(copy, "technical-document.md")), false);
     for (const language of ["ko", "en"] as const) {
       const file: string = first.samples[language];
@@ -99,7 +99,7 @@ test("unowned, incomplete legacy and mixed sample folders are preserved and repo
         fs.unlinkSync(path.join(copy, "ko/converter-control.md"));
         fs.mkdirSync(path.join(copy, "ko/converter-control.md"));
       }
-      if (layout === "unmarked-v2") fs.unlinkSync(path.join(copy, ".ieumdoc-sample"));
+      if (layout === "unmarked-v2") fs.unlinkSync(path.join(copy, ".litzio-sample"));
     } else {
       fs.mkdirSync(copy);
       fs.writeFileSync(path.join(copy, layout === "personal" ? "personal.md" : "technical-document.md"), "personal work");
@@ -170,7 +170,7 @@ test("failed staged installation restores the old sample and never advertises th
   fs.writeFileSync(path.join(source, "version"), "next version");
   const rename = fs.renameSync;
   const mocked = t.mock.method(fs, "renameSync", (...[from, to]: Parameters<typeof fs.renameSync>) => {
-    if (String(from).includes(".ieumdoc-sample-stage-") && !String(from).endsWith("-previous") && to === copy) throw new Error("injected installation failure");
+    if (String(from).includes(".litzio-sample-stage-") && !String(from).endsWith("-previous") && to === copy) throw new Error("injected installation failure");
     return rename(from,to);
   });
   syncBuiltinESMExports();

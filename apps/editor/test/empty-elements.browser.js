@@ -110,7 +110,7 @@ async (page, { openPath, reloadDocument, expect, screenshots }) => {
     expect(await read()).toBe(stored);
   } finally {
     // Preserve the shared persistent profile while restoring this scenario's preference.
-    await page.evaluate(() => localStorage.setItem('ieumdoc.uiLanguage', 'en'));
+    await page.evaluate(() => localStorage.setItem('litzio.uiLanguage', 'en'));
   }
   return {emptySaveReload:true, whitespaceInsertAndUpdate:true, displayOnlyGuidance:true, languageSwitch:true, typingUndo:true};
 }

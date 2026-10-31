@@ -15,7 +15,7 @@ async (page, { expect, openFolderPicker, doclingFixture: fixture, screenshots })
     return route.continue();
   };
   await page.route('**/api/docling-conversion', transport);
-  await page.evaluate(() => { localStorage.setItem('ieumdoc.uiLanguage', 'en'); localStorage.setItem('ieumdoc.theme', 'light'); });
+  await page.evaluate(() => { localStorage.setItem('litzio.uiLanguage', 'en'); localStorage.setItem('litzio.theme', 'light'); });
   const initialRecovery = page.waitForResponse(response => response.url().endsWith('/api/docling-conversion') && response.request().method() === 'GET' && response.ok());
   await page.reload();
   await initialRecovery;
@@ -228,7 +228,7 @@ async (page, { expect, openFolderPicker, doclingFixture: fixture, screenshots })
     await expectComparison();
   } finally { releaseUi(); await page.unroute('**/api/ui-plugins?*asset=ui.mjs*', slowUi); }
   if (screenshots) {
-    await page.evaluate(() => localStorage.setItem('ieumdoc.uiLanguage', 'ko'));
+    await page.evaluate(() => localStorage.setItem('litzio.uiLanguage', 'ko'));
     await page.reload();
     await page.setViewportSize({ width: 640, height: 1000 });
     await page.getByRole('button', { name: '설정', exact: true }).click();

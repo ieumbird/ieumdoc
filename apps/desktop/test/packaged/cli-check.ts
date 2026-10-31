@@ -20,11 +20,11 @@ export function verifyPackagedCli(exe: string, shim: string, folder: string, exp
     { cwd: folder, env, windowsVerbatimArguments: true, windowsHide: true, encoding: "utf8", timeout: 20_000 });
   const version = run(["--version"]);
   assert.equal(version.status, 0, version.stderr);
-  assert.match(version.stdout, new RegExp(`^ieumdoc ${expectedVersion.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\(desktop, (?:[a-f0-9]{12,40}|unknown)\\)\\r?\\n$`));
+  assert.match(version.stdout, new RegExp(`^litzio ${expectedVersion.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\(desktop, (?:[a-f0-9]{12,40}|unknown)\\)\\r?\\n$`));
   assert.equal(version.stderr, "");
   const good = path.join(folder, "한글 문서 & (test) 😀.md"), bad = path.join(folder, "invalid.md");
   writeFileSync(good, "---\nlitzio: 1\n---\n\n# CLI check\n\nContent.\n");
-  writeFileSync(bad, "Not an IeumDoc document.\n");
+  writeFileSync(bad, "Not a Litzio document.\n");
   for (const [args, status] of [[['help'], 0], [['check', good, '--format', 'json'], 0], [['check', bad, '--format', 'json'], 1]] as const) {
     const actual = run([...args]);
     const independent = spawnSync(process.execPath, [path.join(standalone, "cli.mjs"), ...args], { cwd: folder, env, encoding: "utf8", timeout: 20_000 });

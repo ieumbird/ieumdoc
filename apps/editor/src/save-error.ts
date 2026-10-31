@@ -7,7 +7,7 @@ import type { SupportedEdits } from "../shared/document-protocol.ts";
 import { TABLE_CELL_SOURCE_ATTR } from "./tiptap-projection.ts";
 
 const diagnosticGuidance = {
-  "native-marker": "Invalid marker → Open an IeumDoc document or create one.",
+  "native-marker": "Invalid marker → Open a {{product}} document or create one.",
   "native-metadata": "Unsupported settings → Check document frontmatter.",
   "native-content": "Unsupported content or nesting → Remove or replace it.",
   "invalid-structure": "Invalid structure → Keep edits and report technical details.",
@@ -122,7 +122,7 @@ function saveErrorScope(error: SaveContentError, submitted?: TiptapJSON, edits?:
 function saveErrorGuidance(error: SaveContentError, blockType?: string): string {
   const guidance = diagnostic(error.code, blockType);
   if (["collect", "replay", "serialize"].includes(error.phase) && guidance) return i18n.t(guidance);
-  return i18n.t(error.phase === "revision" ? "Keep your edits; the file changed outside IeumDoc. Copy applied content from Source before deciding whether to Reload."
+  return i18n.t(error.phase === "revision" ? "Keep your edits; the file changed outside {{product}}. Copy applied content from Source before deciding whether to Reload."
     : error.phase === "transport" ? "Keep your edits and check the connection and disk version. The save result is unconfirmed."
     : error.phase === "file" ? "Keep your edits and check the file path and write permissions."
     : "Keep your edits and review the reported location and technical details before saving again.");

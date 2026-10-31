@@ -6,7 +6,7 @@ import type { RecoveryRecord } from "./recovery-storage.ts";
 import type { SessionSnapshot } from "./DocumentTab.tsx";
 
 export function prepareRecovery(record: RecoveryRecord): SessionSnapshot {
-  if (record.version !== 1) throw new Error("This recovery format is not supported by this version of IeumDoc.");
+  if (record.version !== 1) throw new Error("This recovery format is not supported by this editor version.");
   const snapshot = record.snapshot;
   if (snapshot?.kind === "text") {
     if (snapshot.file?.kind !== "text" || typeof record.id !== "string" || !record.id ||

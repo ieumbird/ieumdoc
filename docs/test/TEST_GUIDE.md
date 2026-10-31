@@ -6,7 +6,7 @@
 
 기능별 계약은 다음에서 찾는다.
 
-- CLI 명령과 입력 조건: `pnpm ieumdoc help`는 Start here(현재 경로/revision 조회, 단건/배치 선택, revision 보호/미리보기, 배치 경로 수명)와 모든 명령의 용도별 그룹을 표시한다. `pnpm ieumdoc help <command>`에서 옵션과 혼동하기 쉬운 명령의 선택 기준을 확인한다.
+- CLI 명령과 입력 조건: `pnpm cli help`는 Start here(현재 경로/revision 조회, 단건/배치 선택, revision 보호/미리보기, 배치 경로 수명)와 모든 명령의 용도별 그룹을 표시한다. `pnpm cli help <command>`에서 옵션과 혼동하기 쉬운 명령의 선택 기준을 확인한다.
 - 설계와 경계: [`docs/design/`](../design/), [`docs/adr/`](../adr/)
 - 동작 근거: Core·CLI·Editor·Desktop 테스트와 `apps/editor/test/*.browser.js`; Windows package/install/update는 [검증 진입점](README.md#windows-desktop-regression)을 따른다.
 

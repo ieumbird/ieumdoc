@@ -1,3 +1,4 @@
+import { productName } from "../../../../brand.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n.ts";
 import type { ReactNode } from "react";
@@ -31,10 +32,10 @@ export function DocumentStart({ mark, recovery, recent, sample, busy, onNewDocum
     <section className="document-start" aria-labelledby="document-start-title" data-testid="document-start">
       <p className="document-start-product">
         {mark ? <img className="document-start-mark" src={mark} alt="" /> : null}
-        IeumDoc
+        {productName(i18n.language)}
       </p>
-      <h1 id="document-start-title" className="document-start-title">{i18n.t("Start an IeumDoc document")}</h1>
-      <p className="document-start-text">{i18n.t("Create a document, or open a folder to continue working on an IeumDoc document.")}</p>
+      <h1 id="document-start-title" className="document-start-title">{i18n.t("Start a {{product}} document")}</h1>
+      <p className="document-start-text">{i18n.t("Create a document, or open a folder to continue working on a {{product}} document.")}</p>
       <div className="document-start-actions">
         <Button size="sm" disabled={busy} onClick={event => onNewDocument(event.currentTarget)}>{i18n.t("New document…")}</Button>
         <Button size="sm" variant="outline" disabled={busy} onClick={event => onOpenFolder(event.currentTarget)}>

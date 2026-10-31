@@ -1,6 +1,6 @@
 // #838: viewport collisions must not cover the selection or intercept unrelated clicks.
 async (page, { openPath, activeDocument, expect, screenshots }) => {
-  await page.evaluate(() => localStorage.setItem('ieumdoc.uiLanguage', 'en'));
+  await page.evaluate(() => localStorage.setItem('litzio.uiLanguage', 'en'));
   await page.reload();
   await page.locator('[data-testid="status"][data-operation="ready"]').waitFor({ state: 'attached' });
   const origin = page.url().split('/').slice(0, 3).join('/');
@@ -55,8 +55,8 @@ async (page, { openPath, activeDocument, expect, screenshots }) => {
   for (const [width, theme, language] of states) {
     await page.setViewportSize({ width, height: 900 });
     await page.evaluate(({ theme, language }) => {
-      localStorage.setItem('ieumdoc.theme', theme);
-      localStorage.setItem('ieumdoc.uiLanguage', language);
+      localStorage.setItem('litzio.theme', theme);
+      localStorage.setItem('litzio.uiLanguage', language);
     }, { theme, language });
     await page.reload();
     await text.waitFor();

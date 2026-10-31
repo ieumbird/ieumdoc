@@ -1,11 +1,12 @@
 // Run before styles and the application bundle, including under the production self-only CSP.
 // Only light/dark are explicit overrides; absent, invalid or unavailable storage follows the OS.
 (() => {
+  const prefix = decodeURIComponent(document.currentScript.dataset.storagePrefix);
   let page;
-  try { page = localStorage.getItem("ieumdoc.pageBackground"); } catch { /* Storage is optional. */ }
+  try { page = localStorage.getItem(`${prefix}.pageBackground`); } catch { /* Storage is optional. */ }
   document.documentElement.dataset.page = page === "flat" ? "flat" : "paper";
   let choice;
-  try { choice = localStorage.getItem("ieumdoc.theme"); } catch { /* Storage is optional. */ }
+  try { choice = localStorage.getItem(`${prefix}.theme`); } catch { /* Storage is optional. */ }
   const theme = choice === "light" || choice === "dark" ? choice
     : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   document.documentElement.dataset.theme = theme;

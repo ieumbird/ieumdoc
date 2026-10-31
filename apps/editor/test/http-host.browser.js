@@ -11,7 +11,7 @@ async (page, { openFolderPicker, openPath, waitForActivePath, reloadDocument, bi
   const join = (...parts) => parts.join(sep);
   const fileA = join(a, 'fixture', 'a.md'), fileB = join(b, 'fixture', 'b.md');
   const stale = a + '-outside';
-  await page.evaluate(({stale, valid}) => localStorage.setItem('ieumdoc.recentFolders', JSON.stringify([stale, valid])), {stale, valid:join(a, 'fixture')});
+  await page.evaluate(({stale, valid}) => localStorage.setItem('litzio.recentFolders', JSON.stringify([stale, valid])), {stale, valid:join(a, 'fixture')});
   await page.reload(); await ready();
   check(await page.getByText(stale, {exact:true}).filter({visible:true}).count() === 0, 'Stale outside Recent must be hidden');
   const sidebar = page.getByTestId('sidebar');

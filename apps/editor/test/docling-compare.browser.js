@@ -10,8 +10,8 @@ async (page, { expect, screenshots }) => {
   const comparisonHints = [];
   for (const [width, theme, language] of [[1440, 'light', 'en'], [640, 'dark', 'ko']]) {
     await page.evaluate(({ theme, language }) => {
-      localStorage.setItem('ieumdoc.uiLanguage', language);
-      localStorage.setItem('ieumdoc.theme', theme);
+      localStorage.setItem('litzio.uiLanguage', language);
+      localStorage.setItem('litzio.theme', theme);
     }, { theme, language });
     await page.setViewportSize({ width, height: 1000 });
     await page.reload();
@@ -38,7 +38,7 @@ async (page, { expect, screenshots }) => {
     await expect(picker).toBeHidden();
   }
   expect(comparisonHints).toEqual([0, 0]);
-  await page.evaluate(() => { localStorage.setItem('ieumdoc.uiLanguage', 'en'); localStorage.setItem('ieumdoc.theme', 'light'); });
+  await page.evaluate(() => { localStorage.setItem('litzio.uiLanguage', 'en'); localStorage.setItem('litzio.theme', 'light'); });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.reload();
   const open = async name => {
@@ -265,8 +265,8 @@ async (page, { expect, screenshots }) => {
     // Same page/selection as the original review pairs; captures are manual evidence.
     for (const [width, theme, language] of [[1440, 'light', 'en'], [640, 'dark', 'ko']]) {
       await page.evaluate(({ theme, language }) => {
-        localStorage.setItem('ieumdoc.uiLanguage', language);
-        localStorage.setItem('ieumdoc.theme', theme);
+        localStorage.setItem('litzio.uiLanguage', language);
+        localStorage.setItem('litzio.theme', theme);
       }, { theme, language });
       await page.setViewportSize({ width, height: 1000 });
       await page.reload();
@@ -303,7 +303,7 @@ async (page, { expect, screenshots }) => {
       await page.mouse.move(0, 0);
       await page.screenshot({ path: `tmp/815-evidence/after-${width}-${theme}-${language}.png` });
     }
-    await page.evaluate(() => { localStorage.setItem('ieumdoc.uiLanguage', 'en'); localStorage.setItem('ieumdoc.theme', 'light'); });
+    await page.evaluate(() => { localStorage.setItem('litzio.uiLanguage', 'en'); localStorage.setItem('litzio.theme', 'light'); });
   }
   return { initialImages, totalPages: Object.keys(snapshot.map.pages).length, visiblePages, correspondenceCounts, firstRegion,
     readOnly: true, staleConnections: 0, endnotes: true };

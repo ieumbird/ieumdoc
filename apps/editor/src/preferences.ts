@@ -1,3 +1,4 @@
+import { brand } from "../../../brand.ts";
 /**
  * User display and navigation preferences. They belong to this browser, never to a document: nothing here is
  * written to Markdown or sent to the Host. Their visual values live in `styles/tokens.css`.
@@ -6,7 +7,7 @@ export type DocumentWidth = "standard" | "wide";
 
 export const PAGE_BACKGROUNDS = ["paper", "flat"] as const;
 export type PageBackground = typeof PAGE_BACKGROUNDS[number];
-export const PAGE_BACKGROUND_KEY = "ieumdoc.pageBackground";
+export const PAGE_BACKGROUND_KEY = `${brand.storagePrefix}.pageBackground`;
 
 export function readPageBackground(): PageBackground {
   try {
@@ -25,7 +26,7 @@ export function writePageBackground(page: PageBackground): boolean {
 export const THEME_LABELS = { system: "System", light: "Light", dark: "Dark" } as const;
 export const THEMES = ["system", "light", "dark"] as const;
 export type ThemePreference = typeof THEMES[number];
-export const THEME_KEY = "ieumdoc.theme";
+export const THEME_KEY = `${brand.storagePrefix}.theme`;
 
 export function readTheme(): ThemePreference {
   try {
@@ -44,7 +45,7 @@ export function writeTheme(theme: ThemePreference): boolean {
 
 export const ACCENT_COLORS = ["blue", "violet", "plum", "teal", "green", "graphite"] as const;
 export type AccentColor = typeof ACCENT_COLORS[number];
-export const ACCENT_COLOR_KEY = "ieumdoc.accentColor";
+export const ACCENT_COLOR_KEY = `${brand.storagePrefix}.accentColor`;
 
 export function readAccentColor(): AccentColor {
   try {
@@ -63,7 +64,7 @@ export function writeAccentColor(color: AccentColor): boolean {
 }
 
 export type UiLanguage = "ko" | "en";
-export const UI_LANGUAGE_KEY = "ieumdoc.uiLanguage";
+export const UI_LANGUAGE_KEY = `${brand.storagePrefix}.uiLanguage`;
 
 export function readUiLanguage(): UiLanguage {
   try {
@@ -83,7 +84,7 @@ export function writeUiLanguage(language: UiLanguage): boolean {
   } catch { return false; }
 }
 
-const DOCUMENT_WIDTH_KEY = "ieumdoc.documentWidth";
+const DOCUMENT_WIDTH_KEY = `${brand.storagePrefix}.documentWidth`;
 
 export function readDocumentWidth(): DocumentWidth {
   try {
@@ -102,7 +103,7 @@ export function writeDocumentWidth(width: DocumentWidth): void {
   }
 }
 
-const RECENT_FOLDERS_KEY = "ieumdoc.recentFolders";
+const RECENT_FOLDERS_KEY = `${brand.storagePrefix}.recentFolders`;
 const RECENT_FOLDER_LIMIT = 5;
 
 /** Display filtering only; the Host still authorizes each filesystem request. */
@@ -127,7 +128,7 @@ export function readRecentFolders(): string[] {
   }
 }
 
-const OPEN_FOLDERS_KEY = "ieumdoc.openFolders";
+const OPEN_FOLDERS_KEY = `${brand.storagePrefix}.openFolders`;
 
 /**
  * The sidebar's opened folders, in order, for this browser and Host origin. Only paths are stored;
@@ -150,7 +151,7 @@ export function writeOpenFolders(folders: readonly string[]): void {
   }
 }
 
-const COLLAPSED_FOLDER_SECTIONS_KEY = "ieumdoc.collapsedFolderSections";
+const COLLAPSED_FOLDER_SECTIONS_KEY = `${brand.storagePrefix}.collapsedFolderSections`;
 
 /** Collapsed opened roots only, in the same browser/origin boundary as openFolders. */
 export function readCollapsedFolderSections(): string[] {
@@ -165,7 +166,7 @@ export function writeCollapsedFolderSections(roots: readonly string[]): void {
   catch { /* Disabled storage leaves section visibility usable for this page. */ }
 }
 
-const OPEN_TABS_KEY = "ieumdoc.openTabs";
+const OPEN_TABS_KEY = `${brand.storagePrefix}.openTabs`;
 export type OpenTabsPreference = { paths: string[]; activePath: string | null };
 
 /** null means no usable preference; an empty list deliberately starts without a document. */

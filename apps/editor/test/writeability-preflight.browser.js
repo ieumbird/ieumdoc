@@ -92,7 +92,7 @@ async (page, { openDocument }) => {
   await page.getByRole('button', {name:'Keep editing', exact:true}).click();
 
   // Exercise an actual default fallback, without higher-priority remembered tabs.
-  await page.evaluate(() => localStorage.removeItem('ieumdoc.openTabs'));
+  await page.evaluate(() => localStorage.removeItem('litzio.openTabs'));
   // Initial admission failure has no document installed.
   await page.route('**/api/document', route => route.fulfill({status:400, json:refusal}));
   await page.reload();

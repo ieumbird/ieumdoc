@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { ownedListeners, ownedProcessTree, processTree, type ProcessRecord } from "./packaged/process-tree.ts";
 
 const record = (pid: number, parentPid: number, created: string): ProcessRecord =>
-  ({ pid, parentPid, created, image: "C:\\Apps\\IeumDoc\\IeumDoc.exe", workingSet: 1024 });
+  ({ pid, parentPid, created, image: "C:\\Apps\\Litzio\\Litzio.exe", workingSet: 1024 });
 
 test("a reused root or descendant PID cannot adopt older system processes and their listeners", () => {
   const root = record(100, 50, "2026-10-26T01:08:29.6520000Z");
@@ -57,7 +57,7 @@ test("an already owned orphan listener survives its helper exiting and the helpe
 test("a first-observed orphan app listener is owned even when its parent PID already names a younger helper", () => {
   const root = record(100, 50, "2026-10-26T01:08:29.0000000Z");
   const replacementHelper = record(200, 100, "2026-10-26T01:08:32.0000000Z");
-  const listener = { ...record(300, 200, "2026-10-26T01:08:31.0000000Z"), image: "c:\\apps\\IEUMDOC\\helpers\\listener.exe" };
+  const listener = { ...record(300, 200, "2026-10-26T01:08:31.0000000Z"), image: "c:\\apps\\Litzio\\helpers\\listener.exe" };
   const all = [listener, replacementHelper, root];
   const owned = ownedProcessTree(all, root);
   assert.deepEqual(ownedListeners(owned, all, [{ pid: 300, address: "127.0.0.1:1234" }]), ["127.0.0.1:1234"]);
@@ -67,7 +67,7 @@ test("a first-observed orphan app listener is owned even when its parent PID alr
 test("ambiguous ancestry after root creation fails unless the executable is under the app directory", () => {
   const root = record(100, 50, "2026-10-26T01:08:29.0000000Z");
   const helper = record(200, 100, "2026-10-26T01:08:32.0000000Z");
-  for (const image of [null, "C:\\Windows\\System32\\external.exe", "C:\\Apps\\IeumDoc-other\\listener.exe"]) {
+  for (const image of [null, "C:\\Windows\\System32\\external.exe", "C:\\Apps\\Litzio-other\\listener.exe"]) {
     const listener = { ...record(300, 200, root.created), image };
     assert.throws(() => ownedProcessTree([root, helper, listener], root), /Ambiguous ownership.*PID 300.*parent PID 200/);
     const older = { ...listener, created: "2026-10-26T01:08:28.9999999Z" };

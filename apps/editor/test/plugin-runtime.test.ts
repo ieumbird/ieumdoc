@@ -51,7 +51,7 @@ test("readable document endpoints do not require listing an ancestor outside the
   const parent = directory("unlistable-parent"), allowed = path.join(parent, "allowed"); mkdirSync(allowed);
   const document = path.join(allowed, "document.md"), source = "---\nlitzio: 1\n---\n\nReadable without listing its ancestor.\n";
   writeFileSync(document, source);
-  const staging = path.join(allowed, ".ieumdoc-plugin-private"); mkdirSync(staging);
+  const staging = path.join(allowed, ".litzio-plugin-private"); mkdirSync(staging);
   writeFileSync(path.join(staging, "document.md"), source);
   const access = new RootAccess([allowed]);
   const original = fs.readdirSync;
@@ -83,7 +83,7 @@ test("readable document endpoints do not require listing an ancestor outside the
 });
 
 test("private staging document endpoints reject filesystem aliases without hiding ordinary siblings", async t => {
-  const root = directory("private-aliases"), staging = path.join(root, ".ieumdoc-plugin-private");
+  const root = directory("private-aliases"), staging = path.join(root, ".litzio-plugin-private");
   mkdirSync(staging);
   const source = "---\nlitzio: 1\n---\n\nPrivate staging text.\n";
   writeFileSync(path.join(staging, "document.md"), source);
@@ -234,7 +234,7 @@ test("a new owner session at the identical live PID cannot revive an interrupted
 
 test("worker kill during a partial REST download and deadline leave Host alive and results private", async t => {
   const root = directory("faults"), input = path.join(root, "source.pdf");
-  const otherStaging = path.join(root, ".ieumdoc-plugin-other-request"); mkdirSync(otherStaging);
+  const otherStaging = path.join(root, ".litzio-plugin-other-request"); mkdirSync(otherStaging);
   const otherFile = path.join(otherStaging, "document.md"); writeFileSync(otherFile, "another request's retained output");
   writeFileSync(input, "%PDF-1.7\nimmutable"); const original = readFileSync(input);
   const sourceJson = fileURLToPath(new URL("../../../packages/docling/test/fixtures/synthetic/document.json", import.meta.url));

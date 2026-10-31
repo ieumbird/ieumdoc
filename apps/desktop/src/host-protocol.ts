@@ -1,6 +1,7 @@
+import { brand } from "../../../brand.ts";
 import { PLUGIN_UI } from "@litzio/plugin-api/config";
 import { createDoclingHost } from "../../editor/server/docling.ts";
-// The `ieumdoc://app` origin: the Editor's production build and the existing local Host handlers,
+// The the configured app origin origin: the Editor's production build and the existing local Host handlers,
 // answered in-process. No TCP port is opened. Host paths, document rules and Save stay in
 // apps/editor/server and Core; this file only turns fetch Requests into the Node shapes they read.
 import { randomBytes } from "node:crypto";
@@ -14,7 +15,7 @@ import { handleDocumentRequest } from "../../editor/server/document-api.ts";
 import { requestQuery } from "../../editor/server/request-query.ts";
 import type { DocumentStartResponse, SampleAvailability } from "../../editor/shared/document-protocol.ts";
 
-export const SCHEME = "ieumdoc";
+export const SCHEME = brand.protocol;
 export const ORIGIN = `${SCHEME}://app`;
 
 /** The Host routes the Vite dev server forwards, with the same handlers. */

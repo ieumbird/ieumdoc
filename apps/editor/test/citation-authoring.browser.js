@@ -571,7 +571,7 @@ async (page, { openFolderPicker, openPath, waitForActivePath, reloadDocument, wa
     await page.keyboard.press('Escape');
     await koreanCenter.waitFor({ state: 'detached' });
   } finally {
-    await page.evaluate(() => localStorage.setItem('ieumdoc.uiLanguage', 'en'));
+    await page.evaluate(() => localStorage.setItem('litzio.uiLanguage', 'en'));
   }
   return { codeFocusCases, commandInsertion: true, slashInsert: true, formInsert: true, editRemove: true, undoRedo: true, saveReload: true, nestedInline: true, citationOnlyList: true, nestedReferenceRename: true, bibHash };
 }

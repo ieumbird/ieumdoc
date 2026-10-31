@@ -210,7 +210,7 @@ test('ordinary CI retains small diagnostics and screen evidence without distribu
     'tmp/desktop-update/v*/beta.yml',
     'tmp/desktop-uninstall/*-dialogs.txt',
     'tmp/desktop-uninstall/*-cleanup.txt',
-    '~/AppData/Local/IeumDoc/uninstall-logs/*.tmp',
+    '~/AppData/Local/litzio/uninstall-logs/*.tmp',
   ]), 'diagnostics must explicitly select generated evidence, never whole install/profile/cache trees');
   const caption = desktop.find(step => step.with.name === 'desktop-caption-pixels');
   assert.equal(caption.if, 'always()');

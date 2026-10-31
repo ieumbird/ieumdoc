@@ -27,7 +27,7 @@ export function doclingFailureMessage(failure?: ConversionFailure): string {
     case "not-ready": return "The Docling server is not ready. Ask its operator to finish startup, then check the connection again.";
     case "version": case "openapi": return "The Docling server is incompatible. Check Settings and use docling-serve 1.32.0.";
     case "server": return "The Docling server could not process the PDF. Ask its operator to check this task in the server logs and verify the profile models.";
-    default: return "IeumDoc could not create the conversion bundle. Check the PDF, result folder permissions and server logs.";
+    default: return "Could not create the conversion bundle. Check the PDF, result folder permissions and server logs.";
   }
 }
 export type ConversionJob = {

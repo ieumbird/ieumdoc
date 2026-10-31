@@ -1,7 +1,7 @@
 import { i18n, type MessageKey } from "./i18n.ts";
 
 const reasons = [
-  "This recovery format is not supported by this version of IeumDoc.",
+  "This recovery format is not supported by this editor version.",
   "The recovery opening source or saved checkpoint is incomplete.",
   "Editor content would be lost", "Unsupported editor field", "Editor snapshot must contain a doc",
   "Invalid editor deletion metadata", "Invalid editor heading numbering", "Missing editor block locator",

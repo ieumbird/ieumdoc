@@ -34,7 +34,7 @@ export function FilePreviewDialog({ entry, root, returnFocus, onClose }: {
           <DialogDescription>{i18n.t(image ? "Read-only image preview" : "File information")}</DialogDescription>
         </DialogHeader>
         <p className="[overflow-wrap:anywhere] text-muted-foreground">{entry.path}</p>
-        {image ? <FileImagePreview key={entry.path} entry={entry} root={root} /> : <p>{i18n.t("This file cannot be edited in IeumDoc.")}</p>}
+        {image ? <FileImagePreview key={entry.path} entry={entry} root={root} /> : <p>{i18n.t("This file cannot be edited in {{product}}.")}</p>}
       </DialogContent>
     </Dialog>
   );

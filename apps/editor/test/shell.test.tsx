@@ -101,7 +101,7 @@ test("displayed shortcuts match existing bindings on Windows and macOS", () => {
   }
 });
 
-test("the guide retains the curated IeumDoc editing commands", () => {
+test("the guide retains the curated Litzio editing commands", () => {
   const labels = new Set(keyboardShortcutGroups().flatMap(group => group.entries.map(entry => entry.label)));
   for (const label of ["Command center", "Save", "Undo", "Redo", "New block", "Apply properties", "Line break",
     "Heading level / list indent", "Bullet list", "Numbered list", "Code block", "Go to document end",
@@ -248,7 +248,7 @@ test("collapsed section preferences contain only root paths and tolerate malform
   try {
     Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
       getItem: () => saved, setItem: (key: string, value: string) => {
-        assert.equal(key, "ieumdoc.collapsedFolderSections"); saved = value;
+        assert.equal(key, "litzio.collapsedFolderSections"); saved = value;
       },
     } });
     assert.deepEqual(readCollapsedFolderSections(), []);
@@ -522,7 +522,7 @@ test("sidebar without a folder offers only Open folder, and collapses", () => {
   assert.match(open, /aria-label="Collapse Explorer"/);
   const collapsed = renderToStaticMarkup(<Sidebar onFileAction={async () => ""} fileActionsDisabled={false} isFileDirty={() => false} open={false} documentPath={PATH} onToggle={noop} onOpenFolder={noop} onSettings={noop} />);
   assert.match(collapsed, /<button\b(?=[^>]*aria-label="Expand Explorer")(?=[^>]*title="Expand Explorer")(?=[^>]*aria-controls="sidebar-files")(?=[^>]*aria-expanded="false")/);
-  assert.doesNotMatch(collapsed, /Open file…|IeumDoc/);
+  assert.doesNotMatch(collapsed, /Open file…|Litzio/);
   assert.match(collapsed, /id="sidebar-files"[^>]*hidden/);
   assert.doesNotMatch(collapsed, /sidebar-tools|sidebar-display|aria-label="Display"/);
   assert.match(collapsed, /<button\b(?=[^>]*aria-label="Settings")(?=[^>]*title="Settings")/);
@@ -588,7 +588,7 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
     <Sidebar onFileAction={async () => ""} fileActionsDisabled={false} isFileDirty={() => false} open documentPath={PATH} folders={[{ ...folder, nodes: new Map([[mixed.path, mixed]]), expanded: new Set() }]}
       onToggle={noop} onOpenFolder={noop} />,
   );
-  assert.match(marked, /<li\b(?=[^>]*data-foreign="true")(?=[^>]*aria-description="Not an IeumDoc document")[^>]*>/);
+  assert.match(marked, /<li\b(?=[^>]*data-foreign="true")(?=[^>]*aria-description="Not a Litzio document")[^>]*>/);
   assert.equal(marked.match(/data-foreign/g)?.length, 1, "only the unmarked file");
   try {
     void i18n.changeLanguage("ko");
@@ -596,8 +596,8 @@ test("sidebar folder is a tree under the chosen folder that marks the open docum
       <Sidebar onFileAction={async () => ""} fileActionsDisabled={false} isFileDirty={() => false} open documentPath={PATH} folders={[{ ...folder, nodes: new Map([[mixed.path, mixed]]), expanded: new Set() }]}
         onToggle={noop} onOpenFolder={noop} />,
     );
-    assert.match(localized, /title="C:\\docs\\plain.md\n이음독 문서가 아님"/);
-    assert.match(localized, /aria-description="이음독 문서가 아님"/);
+    assert.match(localized, /title="C:\\docs\\plain.md\nLitzio 문서가 아님"/);
+    assert.match(localized, /aria-description="Litzio 문서가 아님"/);
     assert.match(localized, /aria-label="docs 폴더 접기"/);
   } finally { void i18n.changeLanguage("en"); }
 });

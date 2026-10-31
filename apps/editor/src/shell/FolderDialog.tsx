@@ -47,7 +47,7 @@ const inside = (folder: string) => (endsWithSeparator(folder) ? folder : folder 
 const folderName = (folder: string) => splitDocumentPath(folder.replace(/(?<=.)[\\/]+$/, "")).name || folder;
 
 /**
- * Choose a folder, or an image, on the Host without leaving IeumDoc. The path field is the single
+ * Choose a folder, or an image, on the Host without leaving the editor. The path field is the single
  * source: the list shows the folder up to its last separator, filtered by typed text after it; Open
  * opens exactly the typed path. Moving into a folder never opens it.
  */

@@ -1,4 +1,4 @@
-// The `ieumdoc://app` handler with the real Host handlers: Editor files, document requests and
+// The `litzio://app` handler with the real Host handlers: Editor files, document requests and
 // Save go through the same code as the development server; paths cannot leave their folders.
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -11,7 +11,7 @@ const root = mkdtempSync(path.join(os.tmpdir(), "litzio-protocol-"));
 after(() => rmSync(root, { recursive: true, force: true }));
 const editorDir = path.join(root, "editor");
 mkdirSync(path.join(editorDir, "assets"), { recursive: true });
-writeFileSync(path.join(editorDir, "index.html"), "<!doctype html><title>IeumDoc</title>");
+writeFileSync(path.join(editorDir, "index.html"), "<!doctype html><title>Litzio</title>");
 writeFileSync(path.join(editorDir, "assets", "app.js"), "export {};");
 writeFileSync(path.join(root, "secret.txt"), "outside");
 const documents = path.join(root, "documents");
@@ -92,7 +92,7 @@ test("nothing outside the Editor build is served, including through encoded path
     // Creating symlinks needs Developer Mode or elevation on Windows.
   }
   if (linked) assert.equal((await get("/link.txt")).status, 404);
-  assert.equal((await handle(new Request("ieumdoc://other/index.html"))).status, 404);
+  assert.equal((await handle(new Request("litzio://other/index.html"))).status, 404);
   assert.equal((await handle(new Request(`${ORIGIN}/index.html`, { method: "POST", body: "x" }))).status, 405);
 });
 
