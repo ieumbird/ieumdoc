@@ -7,6 +7,7 @@
 // It installs Litzio for the current user and uninstalls it afterwards. It refuses to run if
 // Litzio is already installed or has user data on this machine.
 import assert from "node:assert/strict";
+import { brand } from "../../../../brand.ts";
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
@@ -33,9 +34,9 @@ const [OLD, NEW] = LIVE ? ["0.0.2-beta.3", "0.0.2-beta.4"]
 const NATIVE_PREFIX = LIVE && OLD === "0.0.1-beta.3" ? "" : "---\nlitzio: 1\n---\n\n";
 const CHANNEL_FILE = BETA ? "beta.yml" : "latest.yml";
 const { owner, repo: name } = RELEASE_REPOSITORY;
-const appData = path.join(process.env.APPDATA!, "Litzio");
+const appData = path.join(process.env.APPDATA!, brand.folders.desktopData);
 const updaterCache = path.join(process.env.LOCALAPPDATA!, "litzio-updater");
-const defaultInstall = path.join(process.env.LOCALAPPDATA!, "Programs", "Litzio");
+const defaultInstall = path.join(process.env.LOCALAPPDATA!, "Programs", brand.appName);
 
 function powershell(script: string): string {
   return execFileSync("powershell", ["-NoProfile", "-Command", script], { encoding: "utf8" }).trim();
@@ -135,7 +136,7 @@ test("installs per user, then updates from Settings only after the open document
   requireCleanUser();
   const cliEnvironment = windowsEnvironment();
   const originalUserPath = !LIVE ? (await cliEnvironment.read()).user : null;
-  const cliBin = path.join(process.env.LOCALAPPDATA!, "Litzio", "bin");
+  const cliBin = path.join(process.env.LOCALAPPDATA!, brand.folders.cli, "bin");
   if (!LIVE) assert.equal(existsSync(cliBin), false, "CLI integration already exists; use a disposable Windows account");
   const freshTerminalEnvironment = async () => {
     const snapshot = await cliEnvironment.read();

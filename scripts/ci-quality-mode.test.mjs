@@ -210,8 +210,11 @@ test('ordinary CI retains small diagnostics and screen evidence without distribu
     'tmp/desktop-update/v*/beta.yml',
     'tmp/desktop-uninstall/*-dialogs.txt',
     'tmp/desktop-uninstall/*-cleanup.txt',
-    '~/AppData/Local/litzio/uninstall-logs/*.tmp',
   ]), 'diagnostics must explicitly select generated evidence, never whole install/profile/cache trees');
+  const uninstall = desktop.find(step => step.with.name === 'desktop-uninstall-logs');
+  assert.equal(uninstall.if, 'failure()');
+  assert.equal(uninstall.with.path, '${{ steps.uninstall_logs.outputs.path }}', 'brand-selected user logs must have their own artifact root across Windows drives');
+  assert.equal(uninstall.with['if-no-files-found'], 'ignore');
   const caption = desktop.find(step => step.with.name === 'desktop-caption-pixels');
   assert.equal(caption.if, 'always()');
   assert.equal(caption.with.path, 'tmp/desktop-e2e/caption-pixels/');

@@ -325,7 +325,19 @@ jobs:
             tmp/desktop-update/v*/beta.yml
             tmp/desktop-uninstall/*-dialogs.txt
             tmp/desktop-uninstall/*-cleanup.txt
-            ~/AppData/Local/litzio/uninstall-logs/*.tmp
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Locate brand uninstall diagnostics
+        if: failure()
+        id: uninstall_logs
+        run: node --input-type=module -e "import { brand } from './brand.ts'; import path from 'node:path'; import { appendFileSync } from 'node:fs'; appendFileSync(process.env.GITHUB_OUTPUT, 'path=' + path.join(process.env.LOCALAPPDATA, brand.folders.cli, 'uninstall-logs', '*.tmp') + '\n');"
+      # The runner's C: user folder cannot share an artifact root with its D: checkout.
+      - name: Upload durable uninstall diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: desktop-uninstall-logs
+          path: ${{ steps.uninstall_logs.outputs.path }}
           if-no-files-found: ignore
           retention-days: 7
 

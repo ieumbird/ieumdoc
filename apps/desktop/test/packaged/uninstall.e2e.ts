@@ -7,12 +7,13 @@ import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { CliIntegration } from "../../src/cli-integration.ts";
 import { windowsEnvironment } from "../../src/windows-environment.ts";
+import { brand } from "../../../../brand.ts";
 
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const work = path.resolve(desktop, "../../tmp/desktop-uninstall");
 const local = process.env.LOCALAPPDATA!;
-const logFolder = path.join(local, "Litzio", "uninstall-logs");
-const bin = path.join(local, "Litzio", "bin");
+const logFolder = path.join(local, brand.folders.cli, "uninstall-logs");
+const bin = path.join(local, brand.folders.cli, "bin");
 const environment = windowsEnvironment();
 function entries(): string {
   return execFileSync("powershell.exe", ["-NoProfile", "-Command",
