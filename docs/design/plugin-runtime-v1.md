@@ -3,7 +3,7 @@
 - Status: Implemented
 - Last verified: 2026-10-31 (#853 and PR #855 review: shared Host tests, filesystem alias denial, ancestor-listing permission regression, scoped image-reference scans and shutdown/admission races; real Docling remains manual and packaged Desktop is checked by CI).
 - Authority: [ADR-0012](../adr/0012-plugin-runtime-and-ui-contributions.md), with [ADR-0004](../adr/0004-desktop-host-distribution.md) and [ADR-0005](../adr/0005-http-host.md).
-- Scope: trusted local worker execution in Vite, in-process Desktop and independent `ieumdoc serve`. UI connections remain static under [ADR-0011](../adr/0011-code-module-boundary.md).
+- Scope: trusted local worker execution in Vite, in-process Desktop and independent `ieumdoc serve`. The same registration also supports [UI contributions](plugin-ui-v1.md) under ADR-0012 (#857).
 
 ## Installation and API
 
@@ -16,13 +16,15 @@ A worker manifest is JSON with `id` (lowercase ASCII identifier), `version`
 (1–128 letters/digits, underscore, dot, plus or hyphen), `workerApi: 1` and
 `entry: "worker.cjs"`. The entry is a self-contained Node CommonJS bundle beside
 the manifest. Registration copies its bytes into `installed/<SHA-256>/worker.cjs`
-and stores the selected manifest and hash. Each admission pins that installation;
+and stores the selected manifest and hash. With #857, the directory SHA-256 is
+the complete installation revision (manifest plus worker/UI hashes), and optional
+UI assets share that immutable directory. Each admission pins that installation;
 the runtime checks its hash before execution. Re-registering changes future work
 only. API mismatch is refused before registration or execution. Worker API 1
 accepts the Docling PDF request shape; it is not a general document API.
 
 The first-party Docling bundle ships with the CLI and Desktop, and Vite builds
-the same entry at startup. First conversion registers it only if no Docling
+the same entry at startup. UI discovery or first conversion registers it only if no Docling
 registration exists. Explicit unregistration is never silently reversed. Existing
 registrations stay pinned until explicit re-registration, including app updates.
 This preserves the existing conversion screen without adding an install UI.
@@ -38,8 +40,8 @@ The thin shared Host surface is available without restarting:
 | `GET /api/docling-conversion?id=<UUID>` | Read that receipt, subject to this Host's input/output Root checks. Without `id`, retain the current process-local UI snapshot. |
 
 HTTP retains its Origin/Host/body limits. Desktop uses the same handler through
-`ieumdoc://app`, with no TCP listener. No UI plugin assets or contributions are
-served here. Registration is explicit trusted code execution, without an OS
+`ieumdoc://app`, with no TCP listener. #857 adds the read-only UI listing/asset
+surface described in [Plugin UI contributions](plugin-ui-v1.md). Registration is explicit trusted code execution, without an OS
 sandbox, download, approval workflow or additional permissions model.
 
 ## Identity, durable state and recovery
@@ -152,7 +154,7 @@ The existing `docling-server` and `docling-compare` browser scenarios exercise t
 unchanged screens. Real Docling verification remains an explicit
 [manual check](../test/README.md#docling-worker-runtime-853); synthetic REST does
 not establish OCR/model readiness or fidelity. ADR-0012's UI compatibility and
-disposal adoption conditions remain separate work. No new Core semantics are
+disposal conditions are implemented separately by [#857](plugin-ui-v1.md). No new Core semantics are
 introduced: existing headless `docling convert-pdf` remains the CLI surface;
 registration is available through the shared Host API and adds no semantic CLI
 operation.

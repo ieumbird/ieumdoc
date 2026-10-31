@@ -111,7 +111,7 @@ test("packaged in-process Host forks its shipped Docling worker and opens a comp
   try {
     const launched = await launch(userData, [], { IEUMDOC_PLUGINS_DIR: path.join(folder, "plugins"), IEUMDOC_DOCLING_SETTINGS_FILE: path.join(folder, "settings.json") });
     app = launched.app;
-    await verifyPackagedWorker(async (endpoint, method = "GET", body) => {
+    const output = await verifyPackagedWorker(async (endpoint, method = "GET", body) => {
       const response = await launched.page.evaluate(async ({ endpoint, method, body }) => {
         const response = await fetch(`/api/${endpoint}`, { method,
           ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }) });
@@ -119,6 +119,22 @@ test("packaged in-process Host forks its shipped Docling worker and opens a comp
       }, { endpoint, method, body });
       return new Response(response.text, { status: response.status });
     }, folder, fake.url);
+    const page = launched.page, timeOrigin = await page.evaluate(() => performance.timeOrigin);
+    await page.getByRole("button", { name: "Docling comparison", exact: true }).click();
+    await page.getByTestId("folder-path").fill(output);
+    await page.getByTestId("folder-open").click();
+    const comparison = page.locator(".docling-tab[data-active=true]");
+    await expect(comparison.locator(".docling-source img").first()).toBeVisible();
+    await expect(comparison.locator(".ProseMirror")).toBeVisible();
+    const tabId = await comparison.getAttribute("aria-labelledby");
+    const manifest = await app.evaluate(() => process.resourcesPath + "/cli/docling-worker/manifest.json");
+    assert.equal(await page.evaluate(async () => (await fetch("/api/worker-plugins", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: "docling" }) })).status), 200);
+    await expect(comparison.getByText("Plugin is disabled.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Docling comparison", exact: true })).toHaveCount(0);
+    assert.equal(await page.evaluate(async manifest => (await fetch("/api/worker-plugins", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ manifest }) })).status, manifest), 200);
+    await expect(comparison.locator(".docling-source img").first()).toBeVisible();
+    assert.equal(await comparison.getAttribute("aria-labelledby"), tabId);
+    assert.equal(await page.evaluate(() => performance.timeOrigin), timeOrigin);
   } finally {
     if (app) await closeApp(app);
     await fake.close();

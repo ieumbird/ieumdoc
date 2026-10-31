@@ -1,0 +1,10 @@
+{
+  "name": "@document-plugins/api",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": { "./ui": "./src/ui.ts", "./config": "./src/config.ts" },
+  "dependencies": { "@ieumdoc/core": "workspace:*" },
+  "devDependencies": { "@types/react": "^19.1.13" }
+}

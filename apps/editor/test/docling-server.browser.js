@@ -209,6 +209,24 @@ async (page, { expect, openFolderPicker, doclingFixture: fixture, screenshots })
     await expect(center.locator(':scope > button')).toHaveAccessibleName('Notifications: none');
     await expect(center.locator('li[data-severity]')).toHaveCount(0);
   } finally { releaseInitial(); await page.unroute('**/api/docling-conversion', oldSnapshot); }
+  // An accepted in-flight job may finish while its UI ESM is still loading.
+  // Keep the real worker/Host result; only hold the browser's module response.
+  let releaseUi, scriptRequested;
+  const uiGate = new Promise(resolve => { releaseUi = resolve; });
+  const requestedUi = new Promise(resolve => { scriptRequested = resolve; });
+  const slowUi = async route => { scriptRequested(); await uiGate; await route.continue(); };
+  fixture.mode('pending');
+  const accepted = await page.request.post(endpoint, { headers: { Origin: page.url().split('/').slice(0, 3).join('/') }, data: { path: fixture.input } });
+  expect(accepted.ok()).toBe(true);
+  await page.route('**/api/ui-plugins?*asset=ui.mjs*', slowUi);
+  try {
+    const runningRead = page.waitForResponse(async response => response.url() === endpoint && response.request().method() === 'GET' && response.ok() && (await response.json())?.state === 'running');
+    await page.reload(); await requestedUi; await runningRead;
+    const completedRead = page.waitForResponse(async response => response.url() === endpoint && response.request().method() === 'GET' && response.ok() && (await response.json())?.state === 'success');
+    fixture.mode('success'); await completedRead;
+    releaseUi();
+    await expectComparison();
+  } finally { releaseUi(); await page.unroute('**/api/ui-plugins?*asset=ui.mjs*', slowUi); }
   if (screenshots) {
     await page.evaluate(() => localStorage.setItem('ieumdoc.uiLanguage', 'ko'));
     await page.reload();

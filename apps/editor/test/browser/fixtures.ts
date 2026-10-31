@@ -55,6 +55,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   ], scenarios: ["short-field-errors", "ui-prose-wrap", "draft-notice-layout", "read-view"] },
   "docling-server": { files: [{ name: "paper.pdf", create: () => readFileSync(path.join(REPOSITORY_ROOT, "packages/docling/test/fixtures/synthetic/source.pdf")) }], scenarios: ["docling-server"] },
   "docling-compare": { files: [], scenarios: ["docling-compare"] },
+  "plugin-ui": { files: [{ name: "document.md", create: () => nativeSource("# Plugin boundary\n\nOrdinary editable content.\n") }], scenarios: ["plugin-ui"] },
   "caption-selection": { files: [
     { name: "selection.md", create: () => nativeSource("# Caption selection\n\nBefore.\n\n" +
       ":::{figure} ./diagram.svg\n:name: fig-a\n\n**Upper** caption alpha\n:::\n\n" +

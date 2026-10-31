@@ -25,7 +25,7 @@ export class PluginRuntime implements ConversionExecutor {
   constructor(directory: string, private bundledManifest: string, private timeoutMs = 1_800_000) {
     this.store = new PluginStore(directory);
   }
-  private ensureBundled() {
+  ensureBundled() {
     // Seed the first-party worker once; explicit unregistration remains durable.
     if (!this.store.list().some(item => item.id === "docling")) this.store.register(this.bundledManifest, true);
   }
@@ -58,6 +58,7 @@ export class PluginRuntime implements ConversionExecutor {
     const timer = setTimeout(() => { execution.stopped = "timeout"; execution.child?.kill(); }, this.timeoutMs);
     const stopped = () => { if (this.closed || execution.stopped) throw new Error(execution.stopped ?? "The plugin runtime is closing."); };
     try {
+      if (!installation.entry || installation.workerApi !== 1) throw new Error("Plugin has no compatible worker.");
       const entry = path.join(installation.directory, installation.entry);
       if (digest(await readFile(entry)) !== installation.sha256) throw new Error("Installed worker hash mismatch.");
       staging = await mkdtemp(path.join(path.dirname(job.output), ".ieumdoc-plugin-"));

@@ -1,10 +1,12 @@
 # Docling comparison v1
 
 - Status: Implemented
-- Last verified: 2026-10-31 (#815 fixed Read surface and reverse correspondence).
+- Last verified: 2026-10-31 (#815 fixed Read surface/reverse correspondence; #857 dynamic UI contribution with unchanged comparison behavior).
 - Authority: owner decisions in [#766](https://github.com/ieumbird/ieumdoc/discussions/766), [#767](https://github.com/ieumbird/ieumdoc/discussions/767), [#769](https://github.com/ieumbird/ieumdoc/issues/769), under [ADR-0011](../adr/0011-code-module-boundary.md).
 
-The sidebar footer's **Docling comparison** action, above Settings, opens the shared folder picker for
+The Docling plugin contributes its sidebar footer's **Docling comparison** action,
+tab kind and conversion command through [Plugin UI contributions](plugin-ui-v1.md).
+Its action, above Settings, opens the shared folder picker for
 a conversion folder containing `document.md` and `document.docling-map.json`.
 The picker shows the comparison-specific description in English and Korean,
 without the folder-opening hint about choosing documents in the sidebar (#840).
@@ -19,6 +21,9 @@ document tab naming is unchanged. Opening the same conversion
 selects its existing comparison tab. An ordinary editable tab of the same file
 is independent. Comparison tabs have no Save, draft, recovery or mutation session.
 Closing one needs no unsaved-change decision. They are not restored at startup.
+Disabling the plugin unmounts its content but retains the same shell tab and
+opening snapshot with a disabled message. Re-registration reconstructs the view
+without reloading the window; transient source selection/scroll reset.
 The module entry stays outside Explorer's folder navigation and empty-state help.
 It does not interrupt Collapse Explorer → Open folder keyboard order and is hidden
 with the other Explorer navigation when the sidebar collapses.

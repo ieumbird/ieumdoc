@@ -2,6 +2,7 @@ import path from "node:path";
 import { REPOSITORY_ROOT } from "./fixtures.ts";
 
 type ExpectedConsoleErrorRule = {
+  text?: string;
   status?: number;
   networkError?: string;
   pathname: string;
@@ -11,6 +12,7 @@ type ExpectedConsoleErrorRule = {
 };
 
 const EXPECTED_CONSOLE_ERRORS: Record<string, ExpectedConsoleErrorRule[]> = {
+  "plugin-ui": [{ text: "PLUGIN_UI_RENDER_FIXTURE", pathname: "", minimum: 1, description: "the synthetic plugin throws during render; its tab error boundary retains the native editing session" }],
   "text-mode": [
     {status:400, pathname:"/api/document", minimum:1, description:"a text session cannot raw-save a file that has become native"},
     {status:409, pathname:"/api/document", minimum:1, description:"recovered text refuses an external revision without losing local input"},
@@ -122,7 +124,7 @@ export function classifyConsoleErrors(scenario: string, messages: string[]) {
     } catch {
       // A malformed or non-HTTP console location cannot match an expected response.
     }
-    const ruleIndex = rules.findIndex((rule) => (rule.networkError ? message.includes(rule.networkError) : status === rule.status) && url?.pathname === rule.pathname &&
+    const ruleIndex = rules.findIndex((rule) => rule.text ? !message.startsWith("Uncaught page error:") && message.includes(rule.text) : (rule.networkError ? message.includes(rule.networkError) : status === rule.status) && url?.pathname === rule.pathname &&
       (!rule.queryPath || rule.queryPath === url.searchParams.get("path")));
     if (ruleIndex < 0) {
       unexpected.push(message);

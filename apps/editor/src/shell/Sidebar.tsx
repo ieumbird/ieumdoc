@@ -4,7 +4,7 @@ import { ContextMenu, type ContextMenuAction } from "@/components/ui/context-men
 import { FileActionDialog, type FileAction, type FileActionHandler } from "./FileActionDialog.tsx";
 import { FilePreviewDialog } from "./FilePreviewDialog.tsx";
 import { useTranslation } from "react-i18next";
-import { i18n } from "../i18n.ts";
+import { i18n, type MessageKey } from "../i18n.ts";
 import { useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
 import { Check, Monitor, Pencil, Trash2, ChevronRight, Ellipsis, File, Files as FilesIcon, Image as ImageIcon, FileText, FileX, Folder, FolderOpen, FolderPlus, PanelLeftClose, PanelRightOpen, Plus, RotateCw, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
@@ -13,7 +13,7 @@ import { splitDocumentPath } from "./document-path.ts";
 import { treeKey, visibleTreeItems, type FolderTreeState, type TreeItem } from "./folder-tree.ts";
 
 type SidebarProps = {
-  onDoclingCompare?(returnFocus: HTMLElement): void;
+  contributions?: { id: string; label: string; run(returnFocus: HTMLElement): void }[];
   onDoclingConvert?(path: string, returnFocus: HTMLElement): void;
   doclingBusy?: boolean;
   onFileAction: FileActionHandler;
@@ -56,7 +56,7 @@ type SidebarProps = {
 export function Sidebar({
   onFileAction, fileActionsDisabled, isFileDirty, open, documentPath, onToggle, toggleRef, onOpenFolder, onNewDocument, recent = [], onOpenRecent, onNew, onNewFolder,
   folders = [], focusFolder, onFolderFocused, onToggleFolder, onToggleSection, onOpenDocument, onOpenRight, openRightDisabled, onCloseFolder, onRefreshFolder, onRevealFolder, onSettings, updateVersion,
-  theme = "system", onThemeChange, onDoclingCompare, onDoclingConvert, doclingBusy,
+  theme = "system", onThemeChange, contributions = [], onDoclingConvert, doclingBusy,
 }: SidebarProps) {
   useTranslation();
   return (
@@ -129,10 +129,10 @@ export function Sidebar({
           </section>
         )}
       </div>
-      {onSettings || onDoclingCompare ? (
+      {onSettings || contributions.length ? (
         <div className="sidebar-footer">
-          {open && onDoclingCompare ? <Button size="sm" variant="ghost" className="min-w-0 justify-start" disabled={fileActionsDisabled}
-            onClick={event => onDoclingCompare(event.currentTarget)}><FileText aria-hidden="true" />{i18n.t("Docling comparison")}</Button> : null}
+          {open ? contributions.map(item => <Button key={item.id} size="sm" variant="ghost" className="min-w-0 justify-start" disabled={fileActionsDisabled}
+            onClick={event => item.run(event.currentTarget)}><FileText aria-hidden="true" />{i18n.t(item.label as MessageKey)}</Button>) : null}
           <div className="sidebar-preferences">
             {onSettings ? <SettingsEntry iconOnly={!open} onOpen={onSettings} updateVersion={updateVersion} /> : null}
             {onThemeChange ? <DropdownMenu>

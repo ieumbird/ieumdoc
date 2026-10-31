@@ -1,3 +1,4 @@
+import { PLUGIN_UI } from "@document-plugins/api/config";
 import { createDoclingHost } from "../../editor/server/docling.ts";
 // The `ieumdoc://app` origin: the Editor's production build and the existing local Host handlers,
 // answered in-process. No TCP port is opened. Host paths, document rules and Save stay in
@@ -17,7 +18,7 @@ export const SCHEME = "ieumdoc";
 export const ORIGIN = `${SCHEME}://app`;
 
 /** The Host routes the Vite dev server forwards, with the same handlers. */
-const DOCUMENT_ROUTES = new Set(["/api/worker-plugins", "/api/docling-settings", "/api/docling-check", "/api/docling-conversion", "/api/file", "/api/bibliography", "/api/file-preview", "/api/document", "/api/folder", "/api/folder-browse", "/api/folder-places", "/api/document-source", "/api/docling-compare", "/api/figure-validation"]);
+const DOCUMENT_ROUTES = new Set([PLUGIN_UI.route, "/api/worker-plugins", "/api/docling-settings", "/api/docling-check", "/api/docling-conversion", "/api/file", "/api/bibliography", "/api/file-preview", "/api/document", "/api/folder", "/api/folder-browse", "/api/folder-places", "/api/document-source", "/api/docling-compare", "/api/figure-validation"]);
 
 type NodeResponse = { statusCode: number; setHeader(name: string, value: string): void; end(data?: string | Buffer): void };
 type Handler = (req: IncomingMessage, res: ServerResponse, notFound: () => void) => Promise<void> | void;

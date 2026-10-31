@@ -224,7 +224,7 @@ jobs:
       - run: pnpm --filter @ieumdoc/cli test:packaged
       - name: Check Windows filesystem and HTTP boundaries
         if: runner.os == 'Windows'
-        run: pnpm --filter @ieumdoc/editor exec tsx --test test/http-host.test.ts test/plugin-runtime.test.ts test/file-operations.test.ts
+        run: pnpm --filter @ieumdoc/editor exec tsx --test test/http-host.test.ts test/plugin-ui.test.ts test/plugin-runtime.test.ts test/file-operations.test.ts
       - name: Cache Playwright browsers
         if: runner.os == 'Linux'
         uses: actions/cache@v6

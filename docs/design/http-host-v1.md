@@ -20,6 +20,9 @@ Docling service on the browser device. See the
 [Korean administrator guide](../guides/docling-server.md). Worker admission,
 shared installation/request receipts and uncertain/no-replay
 recovery follow [Host worker plugins](plugin-runtime-v1.md), under ADR-0012.
+The same Host also serves enabled, revision/hash-checked installed UI ESM/CSS
+through [Plugin UI contributions](plugin-ui-v1.md) (#857), retaining its CSP and
+document Root policy. Registration checks every supplied source asset against Roots.
 The process-local current snapshot is not a persistent queue or document backend.
 
 ## Build and run

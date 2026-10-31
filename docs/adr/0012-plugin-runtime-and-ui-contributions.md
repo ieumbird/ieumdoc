@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Decision date: 2026-10-31
-- Last verified: 2026-10-31 (owner-approved decision and two historical spike records compared with ADR-0004/0005/0007/0011 and implemented contracts; #853 Host worker implementation and synthetic crash/identity verification; UI adoption and real Docling remain pending).
+- Last verified: 2026-10-31 (#853 Host worker and #857 UI manifest/assets/contributions, React compatibility, disposal/re-registration and failure-isolation verification; real Docling remains manual).
 - Authority: owner approval in [Discussion #767](https://github.com/ieumbird/ieumdoc/discussions/767#discussioncomment-19307920), under [AGENTS.md](../../AGENTS.md). Related: [ADR-0011](0011-code-module-boundary.md), [ADR-0004](0004-desktop-host-distribution.md), [ADR-0005](0005-http-host.md), [ADR-0007](0007-editing-session-lifetime.md), [staged Host decision #834](https://github.com/ieumbird/ieumdoc/discussions/834#discussioncomment-19307667).
 - Supersedes: the static/no-registration/no-dynamic-loading boundary and process-local-only conversion task state in ADR-0011; its Core, package, external-data and thin-interface boundaries remain Accepted.
 
@@ -174,6 +174,33 @@ Condition 2 is covered by required Windows packaged CI, not a local packaging ru
 Conditions 4 and 5, UI manifests/contributions, conversion-dialog migration, AI
 installation/approval, OS sandbox and daemon remain outside #853. The full UI
 plugin boundary is not claimed as adopted by this Host-only implementation.
+
+## UI implementation progress (#857)
+
+[Plugin UI contributions v1](../design/plugin-ui-v1.md) implements conditions 4
+and 5. A brand-independent API 1/React 19 manifest is checked at registration and
+before asset loading. A lexical ESM factory binds React/JSX imports to the exact
+renderer instances supplied by the Host; no second React copy or global bridge
+is introduced. Same-origin, hash-checked assets retain existing CSP on Desktop
+and serve. Command Center, tab kinds and expanded-sidebar actions attach live.
+Docling reuses its #815 reading/matching view through this boundary.
+
+Detachment unmounts views before disposal/style removal and preserves disabled
+tab identity and snapshot. Independent activation generations reject late loads
+and detached calls. Re-registering identical content reuses the ESM URL but
+creates a fresh activation; distinct revisions remain in the realm until window
+close. ESM memory unloading is explicitly not claimed. Tests cover compatibility
+refusal, late loading, disposer/style lifetime, render/evaluation failure and
+ordinary document identity/unsaved input. Required packaged Desktop CI exercises
+actual UI loading and re-registration alongside the shared Desktop/HTTP tests.
+
+Conditions 4/5 are resolved for this trusted UI contract, while real-service
+condition 1 remains manual. Settings plugin management, conversion-dialog
+migration and official plugin install/update/removal remain subsequent work.
+The AI agent framework will be a default-included provider-neutral plugin, and
+Docling remains bundled until its official installation flow is available, per
+the later decisions in Discussion #767. The AI plugin and official installer are
+not implemented in #857.
 
 ## Non-decisions
 
