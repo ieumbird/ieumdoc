@@ -13,7 +13,7 @@ This stage prepared three alternatives. The user selected **B — 날개와 문�
 
 ## Existing GitHub identity
 
-The current [Ieumbird organization](https://github.com/ieumbird) avatar is a right-facing bird: dark navy head/body, cyan/teal wing and beak, and a white flowing link-shaped gap inside the wing. The live [Litzio repository](https://github.com/ieumbird/ieumdoc) header and generated social preview use that same organization avatar. No separate Litzio product mark was found in the repository's tracked assets or README. The Windows packaging configuration currently specifies no custom icon.
+The current [Ieumbird organization](https://github.com/ieumbird) avatar is a right-facing bird: dark navy head/body, cyan/teal wing and beak, and a white flowing link-shaped gap inside the wing. The live [IeumDoc repository](https://github.com/ieumbird/ieumdoc) header and generated social preview use that same organization avatar. No separate Litzio product mark was found in the repository's tracked assets or README. The Windows packaging configuration currently specifies no custom icon.
 
 - [Downloaded organization reference](assets/app-icon-170/github-ieumbird-reference.png), from [GitHub avatar](https://avatars.githubusercontent.com/u/331890781?v=4).
 - [Downloaded repository social preview](assets/app-icon-170/github-ieumdoc-reference.png), retrieved from the live repository's `og:image` metadata.
