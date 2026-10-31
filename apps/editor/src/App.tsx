@@ -304,7 +304,7 @@ function EditorApp() {
   }
   const save = () => session?.save();
   const showSource = () => nativeSession?.showSource();
-  const setView = (next: "visual" | "source") => nativeSession?.setView(next);
+  const setView = (next: "read" | "visual" | "source") => nativeSession?.setView(next);
   const reload = () => session?.reload();
   const reloadFromDisk = () => session?.reloadFromDisk();
   const setReloadDialog = (open: boolean) => session?.setReloadDialog(open);
@@ -973,7 +973,7 @@ function EditorApp() {
     ...folders.trees.map(tree => ({ id: 'refresh-folder:' + tree.root, kind: "command" as const,
       label: i18n.t("Refresh folder"), detail: tree.root, icon: RotateCw,
       keywords: ["refresh folder", "폴더 새로고침"], run: () => folders.refreshRoot(tree.root) })),
-    { id: "save", kind: "command", label: i18n.t("Save"), icon: Save, disabled: !session || busy,
+    { id: "save", kind: "command", label: i18n.t("Save"), icon: Save, disabled: !session || busy || view === "read",
       keywords: ["save", "저장"], shortcut: SAVE_SHORTCUT.label, run: () => { void save(); } },
     { id: "save-comparison", kind: "command", label: i18n.t("Changes before saving"), icon: FileDiff,
       disabled: !document || !(documentDirty || draftActive) || busy, takesFocus: true, keywords: ["diff compare save preview", "저장 전 변경 내용 보기"],
@@ -982,10 +982,12 @@ function EditorApp() {
       keywords: ["reload", "다시 불러오기", "새로고침"], run: () => { void reload(); } },
     { id: "copy-path", kind: "command", label: i18n.t("Copy path"), icon: Copy, disabled: !session || busy,
       keywords: ["copy path", "경로 복사"], run: () => { void copyPath(); } },
-    { id: "visual", kind: "command", label: i18n.t("Visual"), icon: FileText, disabled: !document || busy, takesFocus: true,
+    ...(session?.kind === "text" ? [] : [{ id: "read", kind: "command" as const, label: i18n.t("View: Read"), icon: FileText, disabled: !document || busy, takesFocus: true,
+      keywords: ["read view", "읽기 보기"], run: () => { globalThis.document.querySelector<HTMLElement>(`[data-editor-group="${navigation.focused}"] [data-testid="view-read"]`)?.focus(); setView("read"); } },
+    { id: "visual", kind: "command" as const, label: i18n.t("View: Edit"), icon: FileText, disabled: !document || busy, takesFocus: true,
       keywords: ["visual view", "비주얼 보기"], run: () => { globalThis.document.querySelector<HTMLElement>(`[data-editor-group="${navigation.focused}"] [data-testid="view-visual"]`)?.focus(); setView("visual"); } },
-    { id: "source", kind: "command", label: i18n.t("Source"), icon: SquareCode, disabled: !document || busy, takesFocus: true,
-      keywords: ["source markdown", "소스 보기"], run: () => { globalThis.document.querySelector<HTMLElement>(`[data-editor-group="${navigation.focused}"] [data-testid="view-source"]`)?.focus(); void showSource(); } },
+    { id: "source", kind: "command" as const, label: i18n.t("View: Source"), icon: SquareCode, disabled: !document || busy, takesFocus: true,
+      keywords: ["source markdown", "소스 보기"], run: () => { globalThis.document.querySelector<HTMLElement>(`[data-editor-group="${navigation.focused}"] [data-testid="view-source"]`)?.focus(); void showSource(); } }]),
     { id: "outline", kind: "command", label: i18n.t(panelOpen ? "Hide outline" : "Show outline"), icon: PanelRight, takesFocus: true, disabled: session?.kind === "text",
       keywords: ["outline", "개요"], run: () => { outlineToggle.current?.focus(); choosePanelOpen(!panelOpen); } },
     { id: "sidebar", kind: "command", label: i18n.t(sidebarOpen ? "Collapse Explorer" : "Expand Explorer"), icon: PanelLeft,
@@ -1123,8 +1125,8 @@ function EditorApp() {
               textMode={owner?.kind === "text"}
               view={owner?.kind === "native" ? owner.view : "visual"}
               viewDisabled={!owner || groupBusy}
-              onViewChange={(next) => { if (owner?.kind === "native") { if (next === "source") void owner.showSource(); else owner.setView("visual"); } }}
-              saveDisabled={!owner || groupBusy}
+              onViewChange={(next) => { if (owner?.kind === "native") { if (next === "source") void owner.showSource(); else owner.setView(next); } }}
+              saveDisabled={!owner || groupBusy || owner.kind === "native" && owner.view === "read"}
               onSave={() => void owner?.save()}
               onCompare={owner?.kind === "text" ? undefined : () => compareBeforeSave(fileActionsToggle.current, owner)}
               compareDisabled={!(owner?.documentDirty || owner?.draftActive) || groupBusy}
@@ -1306,6 +1308,7 @@ function EditorApp() {
         pending={continuationPending}
         documentName={splitDocumentPath(continuation?.session.openedPath ?? "").name}
         hasDrafts={continuation?.session.draftActive ?? false}
+        readOnly={continuation?.session.kind === "native" && continuation.session.view === "read"}
         finalFocus={() => continuationReturnFocus.current?.isConnected ? continuationReturnFocus.current
           : (activeId ? globalThis.document.getElementById(`tab-${activeId}`) : globalThis.document.querySelector<HTMLElement>('[data-testid="document-start"] button')) ?? true}
         onSave={() => void continueSession(true)}

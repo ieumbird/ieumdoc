@@ -32,6 +32,12 @@ async (page, { openPath, activeDocument, expect, recoveryRecords, screenshots, t
   };
   const nativeBefore = await read(file('native.md'));
   await openPath(page,file('foreign.md'));
+  await expect(page.locator('[data-testid=view-read], [data-testid=view-visual], [data-testid=view-source]')).toHaveCount(0);
+  await page.keyboard.press('Control+Slash');
+  const commandCenter = page.getByRole('dialog', {name:'Command center',exact:true});
+  await commandCenter.getByRole('combobox').fill('> View:');
+  await expect(commandCenter.getByRole('option', {name:/^View: (Read|Edit|Source)$/})).toHaveCount(0);
+  await page.keyboard.press('Escape');
   await expect(input()).toHaveValue('# 일반 Markdown\n\n**서식이 아닌 텍스트**와 <kbd>Ctrl</kbd>\n');
   await expect(activeDocument(page).locator('.document-editor')).toHaveCount(0);
   await expect(page.getByTestId('view-source')).toHaveCount(0);

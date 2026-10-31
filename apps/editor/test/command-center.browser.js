@@ -580,7 +580,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await ready();
   check((await editor().innerText()).includes('command center edit'), 'Reload lost the saved content');
   result.tabStateAndSaveReload = true;
-  await run('Source');
+  await run('View: Source');
   await activeDocument(page).getByTestId('source-view').waitFor();
   await open('> undo');
   check(await center().getByRole('option',{name:'Undo',exact:true}).getAttribute('aria-disabled')==='true', 'History available in Source view');
@@ -592,7 +592,7 @@ async (page, { openPath, waitForActivePath, activeDocument, screenshots = false 
   await activeDocument(page).getByTestId('source-view').waitFor();
   check(await page.getByRole('tab',{name:'technical-1.md',exact:true}).evaluate(n => n===document.activeElement),
     'Selecting a Source tab lost its view or focused the hidden editor');
-  await run('Visual');
+  await run('View: Edit');
   await editor().waitFor();
   check(await page.getByTestId('view-visual').evaluate(n => n===document.activeElement), 'View command left focus in hidden content');
 

@@ -195,7 +195,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
   }
 
   async function save(): Promise<boolean> {
-    if (!isCurrent() || !document || !editorRef.current || !openedPath || !sessionBase.current || busy) return false;
+    if (!isCurrent() || view === "read" || !document || !editorRef.current || !openedPath || !sessionBase.current || busy) return false;
     const editor = editorRef.current;
     const base = sessionBase.current;
     setError("");
@@ -273,9 +273,9 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
     }
     return null;
   }
-  /** Document navigation always lands in the Visual view. */
+  /** Navigation preserves Read; Source navigation returns to the rendered document. */
   function revealItem(item: OutlineItem): void {
-    if (view === "visual") {
+    if (view !== "source") {
       editorRef.current?.revealItem(item);
       return;
     }
@@ -380,7 +380,7 @@ export function useDocumentSession(initial: DocumentFileResponse, restored?: Pic
     revealSaveLocation(index: number) {
       const location = saveLocations[index];
       if (!location) return;
-      if (view === "visual") { editorRef.current?.revealSaveLocation(location); return; }
+      if (view !== "source") { editorRef.current?.revealSaveLocation(location); return; }
       setView("visual");
       requestAnimationFrame(() => { if (isCurrent()) editorRef.current?.revealSaveLocation(location); });
     },

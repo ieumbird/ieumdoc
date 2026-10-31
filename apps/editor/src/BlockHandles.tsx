@@ -10,6 +10,7 @@ import { GripVertical, Plus } from "lucide-react";
 import { saveErrorBadge, type SaveErrorLocation } from "./save-error.ts";
 
 type BlockHandlesProps = {
+  readOnly?: boolean;
   editor: Editor;
   saveLocations: readonly SaveErrorLocation[];
   /** Block whose menu is open; its controls stay visible. */
@@ -53,7 +54,7 @@ const HandleControls = memo(function HandleControls({ index, name, endnote, bloc
   </>;
 });
 
-export const BlockHandles = memo(function BlockHandles({ editor, saveLocations, menuIndex, onInsert, onOpenMenu, moveBlockedHint }: BlockHandlesProps) {
+export const BlockHandles = memo(function BlockHandles({ readOnly = false, editor, saveLocations, menuIndex, onInsert, onOpenMenu, moveBlockedHint }: BlockHandlesProps) {
   useTranslation();
   const gutter = useRef<HTMLDivElement>(null);
   const drag = useRef<{ index: number; doc: ProseMirrorNode } | null>(null);
@@ -250,7 +251,7 @@ export const BlockHandles = memo(function BlockHandles({ editor, saveLocations, 
     setMoving({top: block.top, height: block.height});
   }, [editor]);
   return <div className="block-gutter" ref={gutter}>
-    {blocks.map((block, index) => {
+    {!readOnly && blocks.map((block, index) => {
       const blocked = block.endnote ? i18n.t(ENDNOTE_HINT)
         : moveBlockedHint?.(index);
       return <div key={index} className={`block-controls${active === index || menuIndex === index ? " visible" : ""}`}

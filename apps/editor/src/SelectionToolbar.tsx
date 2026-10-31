@@ -7,7 +7,7 @@ import { useEditorState } from "@tiptap/react";
 import { canEditEndnoteAt, endnoteAt, endnoteEditorToken } from "./endnotes.ts";
 import { Bold, Bookmark, Code, Italic, Link2, Sigma, Strikethrough, Subscript, Superscript } from "lucide-react";
 import { useEffect, useId, useRef, useState, type CSSProperties, type RefObject } from "react";
-import { useEditorVisible } from "./editor-visibility.ts";
+import { useEditorAuthoring } from "./editor-visibility.ts";
 import type { DraftListener } from "./node-views/shared.ts";
 import { FieldError } from "./ui/primitives.tsx";
 import { Input } from "@/components/ui/input.tsx";
@@ -193,7 +193,7 @@ export function LinkForm({ editor, draft, style, anchor, onClose, onDraftChange 
   onDraftChange: DraftListener;
 }) {
   useTranslation();
-  const visible = useEditorVisible();
+  const visible = useEditorAuthoring();
   const formId = useId();
   const mounted = useRef(false);
   useEffect(() => { mounted.current = true; }, []);

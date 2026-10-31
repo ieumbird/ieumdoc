@@ -43,7 +43,7 @@ async (page, { screenshots = false, openPath, reloadDocument, expect, recoveryRe
     return preview;
   };
   const showVisual = async () => {
-    await page.getByRole('button', {name:'Visual', exact:true}).click();
+    await page.getByRole('button', {name:'Edit', exact:true}).click();
     await editor.waitFor();
   };
   const result = {};

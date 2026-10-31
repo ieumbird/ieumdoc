@@ -86,7 +86,7 @@ async page => {
     'An empty Save changed the canonical empty file or wrote placeholder content');
   await page.getByRole('button', {name:'Source', exact:true}).click();
   check((await page.locator('.source-view-text').innerText()).trim() === '---\nieumdoc: 1\n---', 'The hint leaked into Source');
-  await page.getByRole('button', {name:'Visual', exact:true}).click();
+  await page.getByRole('button', {name:'Edit', exact:true}).click();
 
   // Width/alignment and Wide preferences are covered by layout-rules. Here the empty surface
   // must still fill the viewport and remain distinguishable, including in the narrow layout.

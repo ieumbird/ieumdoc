@@ -318,7 +318,7 @@ async (page, { openPath, reloadDocument, activeDocument, recoveryRecords, expect
   check(await editor().isVisible(), 'B inherited A Source view');
   await activate('technical-1.md');
   check(await activeDocument(page).getByTestId('source-view').isVisible(), 'A lost its Source view');
-  await page.getByRole('button',{name:'Visual',exact:true}).click();
+  await page.getByRole('button',{name:'Edit',exact:true}).click();
   for (const [name, path, own, other] of [['technical-1.md',a,'A independent','B independent'], ['technical-2.md',b,'B independent','A independent']]) {
     await activate(name);
     await page.getByTestId('save').click();

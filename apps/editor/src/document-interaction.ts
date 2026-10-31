@@ -278,9 +278,9 @@ export function documentInteraction(reject: (reason?: UiMessage) => void): Exten
       };
       return {
         "Mod-a": () => {
-          const { view, isEditable } = this.editor;
+          const { view } = this.editor;
           const { state } = view;
-          if (!isEditable || view.composing) return false;
+          if (view.composing) return false;
           view.dispatch(selectAllTransaction(state, scopedState));
           scopedState = view.state;
           return true;

@@ -14,8 +14,8 @@ import type { UiMessage } from "./ui-message.ts";
 import { useTranslation } from "react-i18next";
 import { i18n } from "./i18n.ts";
 import { prepareEditorSnapshot, type EditorSnapshot } from "./editor-snapshot.ts";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useReducer, useRef, useState, type CSSProperties, type RefObject } from "react";
-import { useEditorVisible } from "./editor-visibility.ts";
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useImperativeHandle, useReducer, useRef, useState, type CSSProperties, type RefObject } from "react";
+import { EditorAuthoring, useEditorVisible } from "./editor-visibility.ts";
 import { closeHistory } from "@tiptap/pm/history";
 import {
   BLOCK_COMMANDS,
@@ -57,7 +57,7 @@ import { appliedDocument, freshBlockPath, toTiptapDocument, type TiptapJSON } fr
 import { MARKDOWN_INPUT_RULES } from "./markdown-input-rules.ts";
 import { currentOutlineItem, documentOutline, documentTargets, sameOutline, type DocumentOutline, type NavigationList, type OutlineItem } from "./outline.ts";
 import { documentEnd, runHistoryShortcut } from "./document-interaction.ts";
-import { NodeSelection, TextSelection } from "@tiptap/pm/state";
+import { NodeSelection, Plugin, Selection, TextSelection } from "@tiptap/pm/state";
 import type { SaveErrorLocation } from "./save-error.ts";
 
 type BlockMenu = { kind: "insert" | "block" | "list-format"; index: number; top: number };
@@ -108,6 +108,8 @@ function caretRoom(paper: RefObject<HTMLElement | null>, side: number) {
 }
 
 type DocumentEditorProps = {
+  /** Reuse rendering/navigation while keeping forms and history alive. */
+  readOnly?: boolean;
   settingsExpanded?: boolean;
   onSettingsExpandedChange?(expanded: boolean): void;
   settingsDisabled?: boolean;
@@ -138,7 +140,7 @@ type DocumentEditorProps = {
 };
 
 export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { settingsExpanded = false, onSettingsExpandedChange, settingsDisabled = false, document, bibliography, initialSnapshot, documentPath, onStructuralReject, onNotice, onDraftChange, onAssetPendingChange, onAssetError, onAssetChange, onDirtyChange, onAppliedEdit, onSaveLocationsChange, onHeadingNumberingChange, onReferenceTemplatesChange, validateFigure, chooseImage, renameImage, onOutlineChange },
+  { readOnly = false, settingsExpanded = false, onSettingsExpandedChange, settingsDisabled = false, document, bibliography, initialSnapshot, documentPath, onStructuralReject, onNotice, onDraftChange, onAssetPendingChange, onAssetError, onAssetChange, onDirtyChange, onAppliedEdit, onSaveLocationsChange, onHeadingNumberingChange, onReferenceTemplatesChange, validateFigure, chooseImage, renameImage, onOutlineChange },
   ref,
 ) {
   useTranslation();
@@ -226,11 +228,63 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       initialDeletedPaths.push(...restored.editorDocument.attrs!.deletedPaths as string[]);
     }
     return {
-      editable: true,
+      editable: !readOnly,
       immediatelyRender: true,
       shouldRerenderOnTransaction: true,
       extensions: [
         ...extensions,
+        // editable:false stops native input. Explicit keymaps, commands and async form
+        // completions also dispatch transactions, so reject every content change here.
+        Extension.create({
+          name: "readOnlyBoundary",
+          priority: 10000,
+          addProseMirrorPlugins() {
+            const current = this.editor;
+            return [new Plugin({
+              filterTransaction: tr => current.isEditable || !tr.docChanged,
+              props: {
+                // ProseMirror skips its editable keydown handler in Read. Route
+                // navigation/copy through the existing keymaps, retaining its state.
+                handleDOMEvents: { keydown: (view, event) => {
+                  if (current.isEditable) return false;
+                  const navigation = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown", "Tab", "Escape"].includes(event.key);
+                  const copy = (event.ctrlKey || event.metaKey) && ["a", "c"].includes(event.key.toLowerCase());
+                  if (!navigation && !copy && (event.key.length === 1 || ["Enter", "Backspace", "Delete"].includes(event.key))) {
+                    event.preventDefault(); return true;
+                  }
+                  if (view.someProp("handleKeyDown", handler => handler(view, event))) {
+                    event.preventDefault(); return true;
+                  }
+                  const { selection } = view.state;
+                  if (selection instanceof NodeSelection && /^Arrow/.test(event.key) && !event.shiftKey) {
+                    const backward = event.key === "ArrowLeft" || event.key === "ArrowUp";
+                    view.dispatch(view.state.tr.setSelection(Selection.near(backward ? selection.$from : selection.$to, backward ? -1 : 1)).scrollIntoView());
+                    event.preventDefault(); return true;
+                  }
+                  // Chromium does not move a caret on a noneditable surface by
+                  // default. Delegate movement/extension to its native Selection;
+                  // ProseMirror maps the result and owns selection/scrolling.
+                  if (selection instanceof TextSelection && /^(Arrow(Left|Right|Up|Down)|Home|End)$/.test(event.key)) {
+                    const native = view.dom.ownerDocument.getSelection();
+                    const backward = ["ArrowLeft", "ArrowUp", "Home"].includes(event.key);
+                    const granularity = event.key === "Home" || event.key === "End" ? (event.ctrlKey || event.metaKey ? "documentboundary" : "lineboundary")
+                      : event.key === "ArrowUp" || event.key === "ArrowDown" ? "line"
+                      : event.ctrlKey || event.altKey ? "word" : "character";
+                    native?.modify(event.shiftKey ? "extend" : "move", backward ? "backward" : "forward", granularity);
+                    if (native?.anchorNode && native.focusNode && view.dom.contains(native.anchorNode) && view.dom.contains(native.focusNode)) {
+                      view.dispatch(view.state.tr.setSelection(TextSelection.between(
+                        view.state.doc.resolve(view.posAtDOM(native.anchorNode, native.anchorOffset)),
+                        view.state.doc.resolve(view.posAtDOM(native.focusNode, native.focusOffset)),
+                      )).scrollIntoView());
+                    }
+                    event.preventDefault(); return true;
+                  }
+                  return false;
+                } },
+              },
+            })];
+          },
+        }),
         Placeholder.configure({ placeholder: () => i18n.t("Start writing, or type / to add a block.") }),
         // Tab from a text selection enters its formatting toolbar, after table and list Tab keys.
         Extension.create({
@@ -324,11 +378,19 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         attributes: {
           class: "document-editor",
           spellcheck: "false",
+          tabindex: "0",
         },
       },
     };
   });
   const editor = useEditor(editorOptions);
+  useLayoutEffect(() => {
+    if (!editor || editor.isEditable === !readOnly) return;
+    editor.setEditable(!readOnly, false);
+    // Notify NodeViews/selectors without an update event or a document/history edit.
+    editor.view.dispatch(editor.state.tr.setMeta("addToHistory", false));
+    setBlockMenu(null);
+  }, [editor, readOnly]);
   const settings = useEditorState({ editor, selector: ({ editor: current }) => current ? {
     headingNumbering: Boolean(current.state.doc.attrs.headingNumbering),
     referenceTemplates: current.state.doc.attrs.referenceTemplates as ReferenceTemplates | null,
@@ -410,6 +472,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       : node.type.name === "table" || cell ? TextSelection.near(editor.state.doc.resolve(target + 1))
       : NodeSelection.create(editor.state.doc, pos);
     editor.view.dispatch(editor.state.tr.setSelection(selection));
+    if (!editor.isEditable) editor.view.dom.focus({ preventScroll: true });
     editor.view.focus();
     const element = editor.view.nodeDOM(pos);
     if (element instanceof HTMLElement) {
@@ -423,7 +486,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   useImperativeHandle(
     ref,
     () => ({
-      getFocusTarget() { return editor?.isEditable ? editor.view.dom : null; },
+      getFocusTarget() { return editor?.view.dom ?? null; },
       canUndo() { return Boolean(editor?.isEditable && editor.can().undo()); },
       canRedo() { return Boolean(editor?.isEditable && editor.can().redo()); },
       // The center releases modal focus before dispatch, just like inline insertion below.
@@ -714,7 +777,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
       ? { top: coords.bottom - hostRect.top + 4, left: coords.left - hostRect.left }
       : { top: coords.top - hostRect.top - 4, left: coords.left - hostRect.left };
   };
-  const formatting = focused ? formattableSelection(editor.state) : null;
+  const formatting = !readOnly && focused ? formattableSelection(editor.state) : null;
   const caretAnchor = (from: number, to = from, side: OverlayAnchor["side"] = "top", hideWhenDetached = false): OverlayAnchor => ({
     side, hideWhenDetached,
     rect: () => {
@@ -727,16 +790,21 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
   const linkStyle = linkDraft ? caretStyle(linkDraft.from, false) : undefined;
   const referenceStyle = referenceDraft ? caretStyle(referenceDraft.from, false) : undefined;
   const citationStyle = citationDraft !== null && citationDraft <= editor.state.doc.content.size ? caretStyle(citationDraft, false) : undefined;
-  const slashStyle = slashOpen && slash ? caretStyle(slash.from, true) : undefined;
-  const blockMenuStyle: CSSProperties | undefined = visible && blockMenu ? { top: blockMenu.top + 32, left: "var(--space-2)" } : undefined;
+  const slashStyle = !readOnly && slashOpen && slash ? caretStyle(slash.from, true) : undefined;
+  const blockMenuStyle: CSSProperties | undefined = visible && !readOnly && blockMenu ? { top: blockMenu.top + 32, left: "var(--space-2)" } : undefined;
 
   return (
-    <article className={`document${empty ? " document--empty" : ""}`} data-testid="document-editor" ref={host}
+    <EditorAuthoring value={!readOnly}><article data-read-only={readOnly}
+      onMouseDownCapture={event => {
+        if (readOnly && event.button === 0 && event.target instanceof Element && event.target.closest(".document-editor")) {
+          editor.view.dom.focus({ preventScroll: true });
+        }
+      }} className={`document${empty ? " document--empty" : ""}`} data-testid="document-editor" ref={host}
       onMouseDown={(event) => {
         // The paper extends below the editor content, including in a brand-new document.
         if (event.button === 0 && event.target === event.currentTarget && focusEnd(event.clientY)) event.preventDefault();
       }}>
-      {settings ? <DocumentSettings ref={documentSettings} {...settings} expanded={settingsExpanded}
+      {settings && !readOnly ? <DocumentSettings ref={documentSettings} {...settings} expanded={settingsExpanded}
         onExpandedChange={value => onSettingsExpandedChange?.(value)} disabled={settingsDisabled}
         onToggleHeadingNumbering={toggleHeadingNumbering} onReferenceStyleChange={setReferenceStyle}
         onConnectBibliography={target => bibliographyControls.current?.connect(target)} /> : null}
@@ -749,7 +817,7 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
         </BibliographyContent>
       </ImageRenameContext.Provider></DocumentPathContext.Provider>
       {visible ? <BlockHandles
-        editor={editor}
+        readOnly={readOnly} editor={editor}
         saveLocations={saveLocations}
         menuIndex={blockMenu?.index}
         onInsert={insertBlockMenu}
@@ -909,6 +977,6 @@ export const DocumentEditor = forwardRef<DocumentEditorHandle, DocumentEditorPro
           }}
         />
       ) : null}
-    </article>
+    </article></EditorAuthoring>
   );
 });

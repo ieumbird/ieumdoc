@@ -10,7 +10,7 @@ import { i18n } from "../i18n.ts";
 import { PropertyForm } from "../block-properties.tsx";
 import { MetadataLabel, MetadataProperties } from "../metadata-properties.tsx";
 import { NumberField, useNumberDraft } from "../numbering-properties.tsx";
-import { useEditorVisible } from "../editor-visibility.ts";
+import { useEditorAuthoring } from "../editor-visibility.ts";
 import { useBlockNumber, useCaptionNumberText } from "../cross-reference.tsx";
 import { renderEquation } from "../equation-render.ts";
 import { isNewBlockPath } from "../tiptap-document.ts";
@@ -32,7 +32,7 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
   useTranslation();
   const editable = useEditorState({ editor, selector: ({ editor: current }) => current.isEditable });
   const formId = useId();
-  const visible = useEditorVisible();
+  const visible = useEditorAuthoring();
   const label = String(node.attrs.label ?? "");
   const number = useBlockNumber(editor, getPos, "equation");
   const numbered = useCaptionNumberText(editor, getPos, "equation");
@@ -127,18 +127,18 @@ function EquationView({ node, editor, selected, getPos, view, onDraftChange }: R
     <NodeViewWrapper
       className="equation"
       data-block="equation"
-      data-editing={editing || properties}
+      data-editing={editable && (editing || properties)}
       data-selected={selected}
       data-source-path={String(node.attrs.sourcePath ?? "")}
       contentEditable={false}
     >
       <p ref={anchor} className="block-kind block-metadata"><MetadataLabel kind={kind} label={label} onEdit={editable && !editing && !properties ? beginProperties : undefined} /></p>
-      {hasUnappliedDraft ? (
+      {editable && hasUnappliedDraft ? (
         <p className="draft-status" role="status" data-testid="equation-draft-status">{i18n.t(editing
           ? "Unapplied changes are not saved. Apply to include them, or Cancel."
           : "Unapplied equation properties are not saved. Choose Done or press Esc to cancel.")}</p>
       ) : null}
-      {!editing ? (
+      {!editable || !editing ? (
         <>
           {/* The computed number sits right of the formula, as MyST renders it; it is never saved. */}
           <div className="equation-row">

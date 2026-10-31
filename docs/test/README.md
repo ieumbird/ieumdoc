@@ -206,6 +206,14 @@ No broad `nodeReset` guard or #502 resolution is claimed.
 
 ### Scenario coverage
 
+`read-view` (#849) verifies native Read/Edit/Source controls and commands, blocked input,
+clipboard/drop/assets/history/Save/explicit transactions, retained source/metadata/inline
+and link drafts (including a late image-validation response), unchanged recovery/revision,
+native copy, block/text keyboard navigation, hover, reading previews, Outline, tab/group
+independence and close/reopen protection. `pnpm browser:test read-view --screenshots`
+adds manual 1440px light/English, 640px dark/Korean, split-group and paired tab-control
+captures under `tmp/read-view-849/`. Its browser uses the checkout's persistent profile.
+
 `source-view` checks canonical/applied content, Save/Reload and retained Visual drafts/history. At 1440/375px it also checks long paragraphs and unbroken URLs for horizontal overflow, one number per source line, continuation alignment, unchanged source/disk/dirty state, and exact native selection/Copy (with Chromium's existing terminal-newline omission). `pnpm browser:test source-view --screenshots` adds manual-review captures under `tmp/source-wrap-captures/`; screenshots are not pass/fail assertions.
 
 `command-center`는 상단 검색창의 취소·포커스 복귀, Ctrl/Cmd+/·명령 전용 모드와 Ctrl/Cmd+P 인쇄 통과, IME와 모달 단축키 경계, 문서 전환 시 미저장 내용·선택·history·속성 초안 보존, 기존 명령의 실제 Save → Reload와 저장 중 제한, 같은 파일명 구분 및 한영 검색을 검증한다. `link-authoring`은 Ctrl/Cmd+'로 기존 링크 폼 열기·적용, 실제 Save → Reload와 이전 폼의 지연 포커스 회귀도 검사한다. 단축키·표시·ARIA와 후보별 Chrome/Edge 자동 검사 방법은 [shortcut contract](../design/editor-ux-shell-v1.md#shortcut-contract-381)에 있다. `pnpm browser:test command-center --screenshots`는 1440/1024/768/375px 진입점·검색창과 한국어 검색 화면을 `tmp/command-center/`에 저장한다. `layout-rules`는 모든 지원 폭에서 제목 줄 40px와 탭 줄 33px로 고정된 두 줄 배치, 제목 줄 검색의 가운데 정렬과 탭 줄 오른쪽 문서 동작의 bounds·비겹침을 함께 검사한다.

@@ -18,7 +18,7 @@ type DocumentActionsProps = {
   unsaved?: boolean;
   draftNotice?: string;
   view: DocumentView;
-  /** Both views unavailable, e.g. no document or an operation in flight. */
+  /** All views unavailable, e.g. no document or an operation in flight. */
   viewDisabled?: boolean;
   onViewChange(view: DocumentView): void;
   saveDisabled: boolean;
@@ -82,9 +82,14 @@ export function DocumentActions({
   const StatusIcon = idle ? (unsaved ? Circle : Check)
     : status.endsWith("failed") || status === "save-conflict" ? TriangleAlert : LoaderCircle;
   return (
-    <div className="top-bar-actions">
+    <div className="top-bar-actions" data-compact={compact || undefined}>
       {!textMode ? <div className="top-bar-group" role="group" aria-label={i18n.t("View controls")}>
         <div className="view-toggle" role="group" aria-label={i18n.t("Document view")}>
+          <Button type="button" variant="ghost" size="sm" className="view-toggle-option"
+            aria-pressed={view === "read"} onClick={() => onViewChange("read")} disabled={viewDisabled}
+            data-testid="view-read" data-segment-label={i18n.t("Read")}>
+            <span className="view-toggle-label">{i18n.t("Read")}</span>
+          </Button>
           <Button
             type="button"
             variant="ghost"
@@ -94,8 +99,8 @@ export function DocumentActions({
             onClick={() => onViewChange("visual")}
             disabled={viewDisabled}
             data-testid="view-visual"
-            data-segment-label={i18n.t("Visual")}
-          ><span className="view-toggle-label">{i18n.t("Visual")}</span></Button>
+            data-segment-label={i18n.t("Edit")}
+          ><span className="view-toggle-label">{i18n.t("Edit")}</span></Button>
           <Button {...sourceProps}><span className="view-toggle-label">{i18n.t("Source")}</span></Button>
         </div>
         {onToggleWide && !compact ? <Button type="button" size="icon-sm" variant="ghost" className="top-bar-toggle"

@@ -201,7 +201,7 @@ async (page, { openPath, activeDocument, expect, screenshots = false }) => {
   // Command Center and Outline use focus, including a move from the other visible editor.
   await surface(bid).locator('.document-editor').focus();
   await expect(page.getByTestId('outline').getByRole('button').first()).toContainText('Group B');
-  await command('Source');
+  await command('View: Source');
   await expect(surface(bid).getByTestId('source-view')).toBeVisible();
   check(await surface(aid).locator('.document-editor').isVisible(), 'Command Center used another group');
   await left.getByTestId('view-visual').click();

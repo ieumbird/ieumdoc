@@ -60,7 +60,7 @@ export function TableView({ node, editor, getPos, selected, onDraftChange }: Rea
     close(!outside);
   };
   return <NodeViewWrapper className="table-block" data-block="table" data-table-block="" data-source-path={sourcePath}
-    data-selected={selected ? "true" : "false"} data-editing={editing ? "true" : "false"}>
+    data-selected={selected ? "true" : "false"} data-editing={editable && editing ? "true" : "false"}>
     <p ref={anchor} className="block-kind block-metadata" contentEditable={false} onMouseDown={event => {
       const position = getPos();
       if (typeof position !== "number") return;

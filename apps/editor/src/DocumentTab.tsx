@@ -51,7 +51,7 @@ const NativeDocumentTab = memo(function NativeDocumentTab({ settingsDisabled, id
   return (
     <NotificationScope value={{ name: splitDocumentPath(session.openedPath).name, reveal(action) {
       onReveal(id);
-      session.setView("visual");
+      if (session.view === "source") session.setView("visual");
       requestAnimationFrame(() => { if (session.isCurrent()) action(); });
     } }}>
     <MessageArea error={session.error} errorCause={session.errorCause} notice={session.notice} noticeCause={session.noticeCause} noticeAction={session.noticeAction}
@@ -70,8 +70,8 @@ const NativeDocumentTab = memo(function NativeDocumentTab({ settingsDisabled, id
           </article>
         ) : null}
         <div hidden={session.view === "source"}>
-          <EditorVisibility value={active && session.view === "visual"}>
-            <DocumentEditor key={session.editorGeneration} ref={session.editorRef}
+          <EditorVisibility value={active && session.view !== "source"}>
+            <DocumentEditor key={session.editorGeneration} ref={session.editorRef} readOnly={session.view === "read"}
               settingsExpanded={settingsExpanded} onSettingsExpandedChange={setSettingsExpanded} settingsDisabled={settingsDisabled || session.busy}
               document={session.document} bibliography={session.bibliography} initialSnapshot={session.initialEditorSnapshot} documentPath={session.openedPath} {...session.editorCallbacks} />
           </EditorVisibility>

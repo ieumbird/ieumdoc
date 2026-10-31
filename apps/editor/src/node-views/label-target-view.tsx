@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { NodeViewWrapper, type ReactNodeViewProps } from "@tiptap/react";
+import { NodeViewWrapper, useEditorState, type ReactNodeViewProps } from "@tiptap/react";
 import { labelKey, targetLabelError } from "@ieumdoc/core/label";
 import { FieldError } from "../ui/primitives.tsx";
 import { Input } from "@/components/ui/input.tsx";
@@ -22,6 +22,7 @@ function sectionLabelError(doc: ProseMirrorNode, own: number, label: string): st
 
 export function LabelTargetView({ node, editor, getPos, selected }: ReactNodeViewProps) {
   useTranslation();
+  const editable = useEditorState({ editor, selector: ({ editor: current }) => current.isEditable });
   const formId = useId();
   const label = String(node.attrs.label ?? "");
   const anchor = useRef<HTMLParagraphElement>(null);
@@ -50,9 +51,9 @@ export function LabelTargetView({ node, editor, getPos, selected }: ReactNodeVie
   return (
     <NodeViewWrapper as="div" className="label-target" data-block="label-target" data-testid="label-target"
       data-label={label} data-source-path={String(node.attrs.sourcePath ?? "")} data-selected={selected ? "true" : "false"}
-      data-editing={editing ? "true" : "false"} contentEditable={false}>
+      data-editing={editable && editing ? "true" : "false"} contentEditable={false}>
       <p ref={anchor} className="label-target-content">
-        {editor.isEditable ? (
+        {editable ? (
           <button type="button" className="label-target-edit" aria-label={i18n.t("Edit section label {{label}}", { label: label })} data-testid="label-target-edit"
             title={i18n.t("Section label: {ref} references to it name the heading below")}
             onClick={() => { if (editing) return; setDraft(label); setError(""); setEditing(true); }}>§ {label}</button>

@@ -3,6 +3,7 @@
 Role: alignment, spacing, control dimensions and deliberate geometry exceptions; [Visual Language](editor-visual-language-v1.md) owns visual roles and [UI patterns](ui-patterns-v1.md) owns repeated interaction targets.
 
 - Status: Implemented
+- Read view (#849): the existing 28px view track holds Read/Edit/Source; 640px and compact groups use `--space-1` inline segment padding (matching Document navigation), retain a readable filename/full close target, the icon draft indicator and fixed Save. Only the tablist scrolls; no extra header row or document offset is added. See the [view contract](editor-ux-shell-v1.md#read--edit--source-849).
 - Contract cross-check: 2026-10-30 (#777 inventory and #785 document/code comparison at master `e6eb3282`; control exceptions moved here, no geometry changes or browser rerun).
 - Form content viewport verification: 2026-10-30 (#782; [계약·검사·전후 캡처](#form-content-viewport-782)).
 - Outline display update: 2026-10-29 (#719; single-line ellipsis, full title tooltip and accessible name; [evidence](../reviews/editor-visual-language-history-2026-10-30.md#single-line-outline-719)).

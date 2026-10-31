@@ -32,6 +32,11 @@ const technical = [document("technical-document.md"), document("diagram.svg")];
 
 /** Scratch directory under `tmp/` → the files a fresh copy holds, and the scenarios using it. */
 export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: string[] }> = {
+  "read-view": { files: [
+    { name: "reading.md", create: () => nativeSource("# Reading document\n\n(section-one)=\n## Section one\n\nRead this [link](https://example.com) and $x+1$. Note[^detail]. Reference {eq}`eq-one`. Citation {cite}`missing`.\n\n```{math}\n:label: eq-one\nx=1\n```\n\n:::{figure} ./diagram.svg\n:name: fig-one\n:alt: Diagram\n\nImage caption\n:::\n\n:::{table} Table caption\n:name: tbl-one\n\n| Header |\n| --- |\n| Cell |\n:::\n\n:::{figure}\n:name: fig-flow\n\n```{mermaid}\ngraph LR\n  A --> B\n```\n\nFlow caption\n:::\n\n```python\nprint('reading')\n```\n\n[^detail]: Reading preview content.\n") },
+    { name: "other.md", create: () => nativeSource("# Other document\n\nIndependent editing session.\n") },
+    document("diagram.svg"),
+  ], scenarios: ["read-view"] },
   "text-mode": { files: [
     { name: "foreign.md", create: () => "# 일반 Markdown\n\n**서식이 아닌 텍스트**와 <kbd>Ctrl</kbd>\n" },
     { name: "notes.txt", create: () => "일반 텍스트 파일\n탭과 공백, 줄바꿈을 그대로 편집합니다.\n" },
@@ -47,7 +52,7 @@ export const SCRATCH_DIRS: Record<string, { files: ScratchFile[]; scenarios: str
   "short-fields": { files: [
     { name: "fields.md", create: () => nativeSource("# Property fields\n\n(section-one)=\n## Section one\n\nA [link](https://example.com) and $x+1$.\n\n```{math}\n:label: eq-one\n\nx=1\n```\n\n:::{figure} ./diagram.svg\n:name: fig-one\n:alt: Diagram\n\nImage caption\n:::\n\n:::{table} Table caption\n:name: tbl-one\n\n| Header |\n| --- |\n| Cell |\n:::\n\n:::{figure}\n:name: fig-flow\n\n```{mermaid}\ngraph LR\n  A --> B\n```\n\nFlow caption\n:::\n") },
     document("diagram.svg"),
-  ], scenarios: ["short-field-errors", "ui-prose-wrap", "draft-notice-layout"] },
+  ], scenarios: ["short-field-errors", "ui-prose-wrap", "draft-notice-layout", "read-view"] },
   "docling-server": { files: [{ name: "paper.pdf", create: () => readFileSync(path.join(REPOSITORY_ROOT, "packages/docling/test/fixtures/synthetic/source.pdf")) }], scenarios: ["docling-server"] },
   "docling-compare": { files: [], scenarios: ["docling-compare"] },
   "caption-selection": { files: [
