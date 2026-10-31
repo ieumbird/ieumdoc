@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { fork, spawnSync, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
@@ -44,6 +46,41 @@ async function kill(process: ChildProcess) {
   if (process.exitCode !== null || process.signalCode !== null) return;
   const exited = once(process, "exit"); process.kill("SIGKILL"); await exited;
 }
+
+test("readable document endpoints do not require listing an ancestor outside the allowed Root", async t => {
+  const parent = directory("unlistable-parent"), allowed = path.join(parent, "allowed"); mkdirSync(allowed);
+  const document = path.join(allowed, "document.md"), source = "---\nieumdoc: 1\n---\n\nReadable without listing its ancestor.\n";
+  writeFileSync(document, source);
+  const staging = path.join(allowed, ".ieumdoc-plugin-private"); mkdirSync(staging);
+  writeFileSync(path.join(staging, "document.md"), source);
+  const access = new RootAccess([allowed]);
+  const original = fs.readdirSync;
+  // Deterministic FILE_LIST_DIRECTORY/EACCES fault: retain real read/stat and
+  // child Root access without changing this machine's ACLs or assuming chmod.
+  const listing = t.mock.method(fs, "readdirSync", (...args: Parameters<typeof fs.readdirSync>) => {
+    if (path.resolve(String(args[0])) === parent) throw Object.assign(new Error("ancestor listing denied"), { code: "EACCES" });
+    return original(...args);
+  });
+  syncBuiltinESMExports();
+  try {
+    assert.throws(() => fs.readdirSync(parent), { code: "EACCES" });
+    assert.equal(readFileSync(document, "utf8"), source);
+    assert.equal(statSync(document).isFile(), true);
+    for (const policy of [null, access]) {
+      const server = createServer((req, res) => { void handleDocumentRequest(req, res, () => { res.statusCode = 404; res.end(); }, policy); });
+      await listenForFetch(server);
+      t.after(async () => { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); });
+      const url = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/document?`;
+      const response = await fetch(url + new URLSearchParams({ path: document }));
+      assert.equal(response.status, 200, `${policy ? "Root" : "local"} must allow the readable document`);
+      assert.equal((await response.json()).source, source);
+      assert.equal(accessPath(document, policy), document);
+      const privateResponse = await fetch(url + new URLSearchParams({ path: path.join(staging, "document.md") }));
+      assert.equal(privateResponse.status, 403, "staging remains private without ancestor enumeration");
+    }
+    assert.throws(() => fs.readdirSync(parent), { code: "EACCES" }, "the ancestor remains unlistable throughout the reads");
+  } finally { listing.mock.restore(); syncBuiltinESMExports(); }
+});
 
 test("private staging document endpoints reject filesystem aliases without hiding ordinary siblings", async t => {
   const root = directory("private-aliases"), staging = path.join(root, ".ieumdoc-plugin-private");

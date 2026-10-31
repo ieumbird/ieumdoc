@@ -1,7 +1,7 @@
 # Host worker plugins v1
 
 - Status: Implemented
-- Last verified: 2026-10-31 (#853 and PR #855 review: shared Host tests, filesystem alias denial, scoped image-reference scans and shutdown/admission races; real Docling remains manual and packaged Desktop is checked by CI).
+- Last verified: 2026-10-31 (#853 and PR #855 review: shared Host tests, filesystem alias denial, ancestor-listing permission regression, scoped image-reference scans and shutdown/admission races; real Docling remains manual and packaged Desktop is checked by CI).
 - Authority: [ADR-0012](../adr/0012-plugin-runtime-and-ui-contributions.md), with [ADR-0004](../adr/0004-desktop-host-distribution.md) and [ADR-0005](../adr/0005-http-host.md).
 - Scope: trusted local worker execution in Vite, in-process Desktop and independent `ieumdoc serve`. UI connections remain static under [ADR-0011](../adr/0011-code-module-boundary.md).
 
@@ -91,10 +91,12 @@ No local Docling service is launched. A remote task may survive any local stop.
 Each execution has a private sibling `.ieumdoc-plugin-*` directory. Worker OS
 temporary files and its complete bundle stay inside it. All ordinary Host file
 surfaces refuse private paths, including symlink, Windows case and 8.3 aliases
-and local Desktop/Vite. The actual reserved directory entry is identified by its
-filesystem device/inode, using integer identities rather than the caller's path
-spelling or Unicode case folding. A private candidate disappearing during cleanup
-does not turn an unrelated sibling into private data.
+and local Desktop/Vite. Native OS realpath resolves actual case, short names and
+links; JS realpath alone can preserve a Windows caller's spelling. Only actual
+reserved directory candidates need a directory-type check. There is no sibling
+or ancestor enumeration, no Unicode case folding and no new listing permission
+requirement above an allowed Root. Both lexical and resolved paths are checked;
+a missing new leaf is checked through its nearest existing ancestor.
 The module uses only public Core operations and validates its native bundle;
 original PDF/JSON remain unchanged. Input SHA-256 and Root/real-parent access
 are checked again before publication.
@@ -141,6 +143,10 @@ Review regressions additionally cover real document endpoints through Windows
 case/available 8.3 and junction aliases, unrelated image renames with retained
 private data, ordinary hidden-folder references, a partial HTTP body completing
 after close begins, and closing before fork or during an actual running worker.
+The ancestor-permission regression injects EACCES only for listing the parent
+above an allowed Root, retains real file reads/stat and verifies local/Root
+document endpoints return 200 with unchanged source while staging returns 403.
+This is deterministic error injection, not a claim of changing actual OS ACLs.
 
 The existing `docling-server` and `docling-compare` browser scenarios exercise the
 unchanged screens. Real Docling verification remains an explicit

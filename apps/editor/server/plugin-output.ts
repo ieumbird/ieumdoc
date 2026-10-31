@@ -1,9 +1,9 @@
-import { existsSync, readdirSync, realpathSync, statSync } from "node:fs";
+import { existsSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
 
 export const INCOMPLETE = ".ieumdoc-incomplete";
 function directoryStat(folder: string) {
-  try { const stat = statSync(folder, { bigint: true }); return stat.isDirectory() ? stat : undefined; }
+  try { const stat = statSync(folder); return stat.isDirectory() ? stat : undefined; }
   catch (error) {
     if (["ENOENT", "ENOTDIR"].includes((error as NodeJS.ErrnoException).code ?? "")) return undefined;
     throw error;
@@ -14,24 +14,24 @@ function directoryStat(folder: string) {
 export function isPrivatePluginPath(value: string): boolean {
   const check = (target: string) => {
     for (let current = path.resolve(target); ; current = path.dirname(current)) {
-      const stat = directoryStat(current), parent = path.dirname(current);
-      if (stat) {
-        if (existsSync(path.join(current, INCOMPLETE))) return true;
-        // realpath on Windows can preserve the requested case, and 8.3 names
-        // need not contain our prefix at all. Match the actual directory entry
-        // by filesystem identity rather than normalizing the requested spelling.
-        if (parent !== current) for (const entry of readdirSync(parent, { withFileTypes: true })) {
-          if (!entry.isDirectory() || !entry.name.startsWith(".ieumdoc-plugin-")) continue;
-          const candidate = directoryStat(path.join(parent, entry.name));
-          if (candidate && candidate.dev === stat.dev && candidate.ino === stat.ino) return true;
-        }
+      if (existsSync(path.join(current, INCOMPLETE))) return true;
+      if (path.basename(current).startsWith(".ieumdoc-plugin-") && directoryStat(current)) {
+        // A reserved spelling may itself be a symlink to an ordinary directory.
+        if (path.basename(realpathSync.native(current)).startsWith(".ieumdoc-plugin-")) return true;
       }
       if (path.dirname(current) === current) return false;
     }
   };
   if (check(value)) return true;
   for (let current = path.resolve(value); ; current = path.dirname(current)) {
-    if (existsSync(current)) return check(realpathSync(current));
+    try {
+      // The native OS resolution expands Windows case/8.3/junction aliases;
+      // JS realpath can retain their spelling. No ancestor directory listing
+      // or metadata read of an unrelated normal ancestor is required.
+      return check(realpathSync.native(current));
+    } catch (error) {
+      if (!["ENOENT", "ENOTDIR"].includes((error as NodeJS.ErrnoException).code ?? "")) throw error;
+    }
     if (path.dirname(current) === current) return false;
   }
 }
