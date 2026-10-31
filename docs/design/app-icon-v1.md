@@ -1,61 +1,34 @@
 # Desktop app icon v1
 
 - Status: Implemented
-- Last verified: 2026-10-13 (Windows implementation for #170; validation evidence below).
-- Scope: Windows Desktop EXE, NSIS installer/uninstaller, shortcuts and runtime window. Brand/icon selection follows [the packager guide](../guides/branding.md) (#859); source SVG title defaults to Litzio. Versions and release publication follow the Desktop contract.
-- Authority: [ADR-0004](../adr/0004-desktop-host-distribution.md), [Desktop distribution](desktop-distribution-v1.md), and the user's [B concept selection](app-icon-v1-plan.md).
+- Last verified: 2026-10-31 (#864; approved PNG sources, ICO frame selection, Editor captures and targeted checks; native packaging/install proof belongs to Windows CI).
+- Authority: [ADR-0004](../adr/0004-desktop-host-distribution.md), [Desktop distribution](desktop-distribution-v1.md), [Discussion #856](https://github.com/litzio/litzio/discussions/856) and [packager guide](../guides/branding.md).
+- Scope: Desktop EXE, window/taskbar, NSIS installer/uninstaller and shortcuts, Editor product marks and favicon.
 
 ## Artwork and provenance
 
-The mark combines a navy document with a folded corner, a cyan wing and an open white connecting gap. The white rounded tile preserves contrast on light and dark Windows surfaces; outside its corners is transparent. It has no text, fonts, embedded bitmap or external SVG resources.
+The owner approved the image-generation results on 2026-10-31: a transparent ribbon L whose twist evokes Litz wire and whose upper fold evokes a document page. These PNGs replace the earlier document/wing SVG selected in [the historical #170 record](app-icon-v1-plan.md). No hand-authored SVG reconstruction, background tile, added shadow or pixel edits are part of this change.
 
-- Editable original: [icon.svg](../../apps/desktop/assets/icon.svg).
-- Windows asset: [icon.ico](../../apps/desktop/assets/icon.ico), with 16, 24, 32, 48, 64, 128 and 256 px frames.
-- [Production preview](assets/app-icon-170/production.png).
-- Palette: navy `#083b66`, cyan `#00adbd`, lower wing `#009eaf`, white `#ffffff`.
+- [Base original, 1024px](../../apps/desktop/assets/litzio-icon-1024.png): 48px and larger Windows frames and on-screen product marks.
+- [Simplified original, 1024px](../../apps/desktop/assets/litzio-icon-small-1024.png): 16–32px Windows frames and favicon.
+- [Windows ICO](../../apps/desktop/assets/icon.ico): 16, 24 and 32px from the simplified original; 48, 64, 128 and 256px from the base original.
 
-The SVG paths were authored for Litzio on 2026-10-13 by Codex, refining the B raster concept explicitly selected by the user. The concept was created with the built-in image generation tool; the [prompts and input references](app-icon-v1-plan.md#existing-github-identity) are retained. The original GitHub organization avatar informed the family colors and wing/link motif. Its downloaded pixels and the rejected concepts are review references and are not shipped in the application. No stock icon pack, external font, or third-party SVG was used. The authored SVG and derived ICO are supplied under the repository's [MIT license](../../LICENSE).
+The approved files are preserved byte for byte and supplied under the repository [MIT license](../../LICENSE). The known accepted limitation is that the dark ribbon face partially blends into dark backgrounds at 16/24px. Changing artwork requires a subsequent owner decision; no monochrome variant was approved for this delivery.
 
 ## Regeneration and integration
 
-From the repository root after the frozen install:
-
 ```powershell
 pnpm --filter @litzio/desktop icons
-pnpm --filter @litzio/desktop package
 ```
 
-`icons` uses the icon toolset already pinned and checksum-verified by electron-builder 26.15.3 (icons 1.1.0). It renders the SVG and writes the tracked ICO; no additional image dependency or custom encoder is introduced. The helper uses an internal builder entry point, so a builder upgrade must recheck regeneration. Packaging uses the committed ICO and does not need icon conversion. Commit the SVG and regenerated ICO together.
+The helper uses the checksum-verified icons 1.1.0 toolset pinned by electron-builder 26.15.3 to resize both configured PNGs with Lanczos and encode their ICO frames. It then merges the unchanged encoded frames, choosing the source by size. Recheck this internal tool entry point on builder upgrades. Commit both original PNGs and the regenerated ICO together. Packaging consumes the committed ICO.
 
-The same ICO is configured for `win.icon`, `nsis.installerIcon` and `nsis.uninstallerIcon`. The Desktop build copies it beside the bundled main module, and `BrowserWindow.icon` uses that copy for development and packaged windows. NSIS shortcuts continue to point to the application EXE; product name, App ID, shortcut name, update channels and package version stay unchanged.
+`brand.ts` owns `icons.png`, `icons.smallPng` and `icons.ico`. Vite resolves the two PNG aliases for the Editor marks and favicon; Desktop build copies the configured ICO beside main, and BrowserWindow uses it. `win.icon`, `nsis.installerIcon` and `nsis.uninstallerIcon` use that same configured ICO. NSIS shortcuts point to the application EXE. The alternate-brand CI swaps the two approved source files to create a distinct configured identity, then verifies the built ICO and exact Editor/favicon PNG bytes.
 
-This is Host artwork only. It introduces no document semantic operation and therefore no Core or CLI command.
+About and README explain the name: Litzio (리치오) connects input/output (I/O) with Litz wire. About uses the configured product name in both languages. This artwork/copy change has no document semantics and needs no Core operation or CLI command.
 
-## Verification
+## Verification boundary
 
-Verified on Windows 11 build 26200, at 2560 × 1440 and 96 DPI (100%), on 2026-10-13:
+Local checks cover original hashes, seven ICO frames and their source selection, deterministic regeneration, targeted Desktop tests/typecheck, Editor build, documentation and browser regressions. Manual captures cover 16/24/32/48/256px on light/dark surfaces and Editor at 1440/640px including Korean Dark. Captures are reproducible review artifacts under `tmp/864-icon`, not committed source assets.
 
-| Check | Result |
-| --- | --- |
-| Frozen dependency install, Desktop typecheck and existing Desktop tests | Passed; 38 tests |
-| Clean normal-version Windows package | Passed; no default-icon fallback; native extraction shows the B mark in both EXE and installer |
-| `verify-release.ts --tag v0.0.1-beta.2` | Passed: executable versions, metadata, size, SHA-512 and recomputed blockmap |
-| Existing packaged regressions | 8 passed, including Save/reopen, image assets, conflict, close protection and update settings |
-| Actual NSIS install/update regression | Passed: local-feed 0.0.1 → 0.0.2, saved document preservation, relaunch and uninstall; followed by another clean normal-version package |
-| Separate normal-version install and visual inspection | EXE, installer, NSIS-created Desktop/Start menu shortcuts, running window and taskbar show the same mark |
-| Repeated `icons` export | Byte-identical ICO; SHA-256 `7e46053a059187d8eaf7835df88ed7cbbf8a2442060bc5fb111e571cb69934e9` |
-| Documentation and diff whitespace checks | Passed |
-
-![Windows Explorer: Desktop shortcut, app EXE, installer, Start menu shortcut](assets/app-icon-170/windows-explorer.png)
-
-The Explorer capture shows unmodified hard links to the installed EXE and built installer, and byte-preserving copies of the two shortcuts created by NSIS, gathered in a temporary inspection folder. The shortcut copies are named by origin for comparison. Both originals had target and icon location pointing to the installed `IeumDoc.exe` (icon index 0). This is a native Explorer capture, not a rendered mockup.
-
-- [Installed window and title-bar icon](assets/app-icon-170/windows-app.png)
-- [Running taskbar button](assets/app-icon-170/windows-taskbar.png)
-- [Installer in its original build folder](assets/app-icon-170/windows-installer.png)
-
-![Windows ICO rendering on light and dark backgrounds at 16, 20, 24, 32, 40, 48, 64 and 128 px](assets/app-icon-170/windows-sizes.png)
-
-The size sheet uses Windows `System.Drawing.Icon` loading/drawing from the actual ICO. 16/20/24/32 px cover the pixel sizes of a 16 px slot at 100/125/150/200%. The document/wing silhouette remains identifiable; the finest gap detail naturally reduces at 16 px. 20 and 40 px are interpolated by Windows because the converter supplies the standard seven frames; they are softer than native-size frames. The OS display scale itself was left at 100%; the sheet is a size/contrast check, not evidence of changing every system scale setting.
-
-The test installation, registry entry, original shortcuts, app data, updater cache and task-started app/Explorer windows were removed after verification. Existing published Beta assets were not replaced; a subsequent approved Beta release will carry the icon.
+Windows packaging, native EXE/installer resources, actual installation/update/uninstallation and alternate-brand coinstallation are verified by the existing required Windows CI. They are not run locally for #864. Historical #170 native screenshots remain in their historical files and do not prove the new mark's native appearance.

@@ -2,7 +2,7 @@
 // update notifications and the restart check the Desktop app asks before installing. The browser
 // Editor without the bridge shows common recovery Settings only. Updater behavior itself is tested in apps/desktop.
 // pnpm browser:test desktop-updates
-async (page, { screenshots = false, openPath }) => {
+async (page, { screenshots = false, openPath, brand }) => {
   page.setDefaultTimeout(15000);
   const check = (value, message) => { if (!value) throw new Error(message); };
   const ready = () => page.locator('[data-testid="status"][data-operation="ready"]').waitFor({state:'attached'});
@@ -316,6 +316,7 @@ async (page, { screenshots = false, openPath }) => {
   await page.waitForFunction(() => document.activeElement?.textContent === 'Back to document', undefined, {timeout:5_000});
   await dialog.getByRole('button',{name:'About & updates',exact:true}).click();
   check(await page.getByTestId('app-version').innerText() === '0.2.0', 'About does not show the version');
+  check(await dialog.getByText(`${brand.name.en} connects input/output (I/O) with Litz wire.`, {exact:true}).isVisible(), 'About does not explain the product name');
   const stable = page.getByRole('radio', {name:/^Stable/});
   const beta = page.getByRole('radio', {name:/^Beta/});
   check(await stable.isChecked() && !await beta.isChecked(), 'Stable is not the default channel');
@@ -549,6 +550,7 @@ async (page, { screenshots = false, openPath }) => {
   }
   await koreanSettings.click(); await dialog.waitFor(); await dot.waitFor({state:'detached'});
   check(await dialog.getByRole('button',{name:'정보·업데이트',exact:true}).getAttribute('aria-current') === 'page', 'Korean cue did not open About');
+  check(await dialog.getByText(`${brand.name.ko}(리치오)는 Litz wire로 입출력(I/O)을 잇는다는 뜻입니다.`, {exact:true}).isVisible(), 'Korean About does not explain the product name');
   await capture('update-highlight-ko-light-640');
   await push({phase:'available',version:'0.3.0-beta.4',prerelease:true});
   await page.waitForFunction(() => window.__desktop.info.seenUpdate === '0.3.0-beta.4');

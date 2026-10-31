@@ -16,7 +16,8 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
-      "@brand-icon": fileURLToPath(new URL(`../../${brand.icons.svg}`, import.meta.url)),
+      "@brand-icon": fileURLToPath(new URL(`../../${brand.icons.png}`, import.meta.url)),
+      "@brand-small-icon": fileURLToPath(new URL(`../../${brand.icons.smallPng}`, import.meta.url)),
     },
   },
   plugins: [

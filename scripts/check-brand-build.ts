@@ -20,7 +20,7 @@ const iconHash = createHash("sha256").update(readFileSync(path.join(repo, brand.
 writeFileSync(path.join(work, "official.json"), JSON.stringify({ brand, config: packageConfiguration(version, false), pluginHashes, iconHash }));
 const alternate = {
   ...brand, name: { en: "Brand Proof", ko: "브랜드 검증" },
-  icons: { svg: "tmp/brand-build/alternate.svg", ico: "tmp/brand-build/alternate.ico" },
+  icons: { png: "tmp/brand-build/alternate.png", smallPng: "tmp/brand-build/alternate-small.png", ico: "tmp/brand-build/alternate.ico" },
   appId: "io.github.litzio.brandproof", appName: "brandproof", executableName: "BrandProof", protocol: "brandproof",
   folders: { desktopData: "brandproof-data", cli: "brandproof-cli", shared: ".brandproof", plugins: "extensions" },
   cliCommand: "brandproof", storagePrefix: "brandproof",
@@ -29,7 +29,9 @@ const alternate = {
 };
 for (const key of ["appId", "appName", "protocol", "cliCommand", "storagePrefix"] as const) assert.notEqual(alternate[key], brand[key]);
 for (const key of ["desktopData", "cli", "shared"] as const) assert.notEqual(alternate.folders[key], brand.folders[key]);
-writeFileSync(path.join(work, "alternate.svg"), readFileSync(path.join(repo, brand.icons.svg), "utf8").replaceAll("Litzio", alternate.name.en).replaceAll("#083b66", "#4d2a85"));
+// Swap the two approved artworks to make a distinct test identity without editing pixels.
+copyFileSync(path.join(repo, brand.icons.smallPng), path.join(work, "alternate.png"));
+copyFileSync(path.join(repo, brand.icons.png), path.join(work, "alternate-small.png"));
 try {
   writeFileSync(sourceFile, `/** Alternate CI packager configuration. */\nexport const brand = ${JSON.stringify(alternate, null, 2)} as const;\n` + source.slice(source.indexOf("export function productName")));
   const verify = `pnpm --filter @litzio/desktop exec tsx scripts/verify-release.ts --tag v${version}`;

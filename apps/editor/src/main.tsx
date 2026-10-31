@@ -7,12 +7,12 @@ import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "katex/dist/katex.min.css";
 import "./index.css";
 import "./styles.css";
-// The product mark, shared with the Desktop app icon (its editable original), as the tab icon.
-import productIcon from "../../desktop/assets/icon.svg?url";
+// The configured simplified mark is shared with small Windows icon frames.
+import productIcon from "@brand-small-icon";
 
 const icon = document.createElement("link");
 icon.rel = "icon";
-icon.type = "image/svg+xml";
+icon.type = "image/png";
 icon.href = productIcon;
 document.head.append(icon);
 

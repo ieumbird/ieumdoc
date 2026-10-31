@@ -1,7 +1,11 @@
 /** Packager-owned product identity. Internal @litzio/* packages and Host APIs never depend on it. */
 export const brand = {
   name: { en: "Litzio", ko: "Litzio" },
-  icons: { svg: "apps/desktop/assets/icon.svg", ico: "apps/desktop/assets/icon.ico" },
+  icons: {
+    png: "apps/desktop/assets/litzio-icon-1024.png",
+    smallPng: "apps/desktop/assets/litzio-icon-small-1024.png",
+    ico: "apps/desktop/assets/icon.ico",
+  },
   appId: "io.github.litzio.litzio",
   appName: "litzio",
   executableName: "Litzio",
