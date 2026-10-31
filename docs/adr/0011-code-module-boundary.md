@@ -4,7 +4,7 @@
 - Decision date: 2026-10-30
 - Last verified: 2026-10-31 (#853 Host worker execution/crash tests and #857 command/tab/sidebar UI contribution boundary; Settings/dialog remain shell-owned).
 - Previous verification: 2026-10-30 (Docling module/CLI, comparison tab/reading surface and shared Host; package boundary and browser tests).
-- Authority: owner decisions in [Discussion #766](https://github.com/ieumbird/ieumdoc/discussions/766) and [Discussion #767](https://github.com/ieumbird/ieumdoc/discussions/767), under [AGENTS.md](../../AGENTS.md).
+- Authority: owner decisions in [Discussion #766](https://github.com/litzio/litzio/discussions/766) and [Discussion #767](https://github.com/litzio/litzio/discussions/767), under [AGENTS.md](../../AGENTS.md).
 - Superseded in part: [ADR-0012](0012-plugin-runtime-and-ui-contributions.md) replaces the static/no-registration/no-dynamic-loading boundary and extends process-local-only conversion state with shared request records. The remaining boundaries stay Accepted.
 
 The static connections and transient-task text below preserve the original
@@ -41,7 +41,7 @@ are in [Docling conversion](../design/docling-conversion-v1.md).
 This records the package, dependency direction, external module data and CLI
 boundary demonstrated by the first module. No registration framework, dynamic
 loading, marketplace, database or compatibility infrastructure is introduced.
-[#769](https://github.com/ieumbird/ieumdoc/issues/769) establishes two explicit
+[#769](https://github.com/litzio/litzio/issues/769) establishes two explicit
 Editor connections: a sidebar action choosing a conversion folder and a read-only
 comparison tab in the existing tab groups. The shell owns tab lifetime, folder
 selection, translation and shared notification controls. Comparison tabs have no

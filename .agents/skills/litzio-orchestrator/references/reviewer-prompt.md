@@ -3,7 +3,7 @@
 리뷰어는 구현에 참여하지 않은 새 agent다. CONTRIBUTING 2단계의 위험 PR에만 붙인다. 구현자의 worktree에서 실행해 브라우저 profile을 재사용한다. 재검토는 바뀐 diff와 지적 사항의 해결만 확인 범위로 준다. 중점 확인 항목은 그 PR의 실제 위험에 맞게 구체적으로 쓴다(데이터 손실 경로, 구조 변경이 기존 라이브러리 가정을 깨는지, 호환성, 접근성, 반응형 경계 등).
 
 ```text
-너는 IeumDoc PR #<N>(https://github.com/ieumbird/ieumdoc/pull/<N>)의 독립 리뷰어다. 구현에 참여하지 않았다. 이 worktree는 구현자의 worktree다. 파일을 수정하거나 커밋·push하지 마라. 브라우저 검증은 이 worktree에서 `pnpm browser:test`(persistent profile)로, 다른 실행과 겹치지 않는 전용 포트로 실행한다. <계정 잠금 임계값이 켜진 PC면 SKILL.md 3절의 카운터 대기 규칙을 여기에 붙인다> Edge 채널, 패키지된 Desktop 검사, 새 profile probe는 로컬에서 실행하지 않는다. 하위 agent를 띄우지 마라.
+너는 Litzio PR #<N>(https://github.com/litzio/litzio/pull/<N>)의 독립 리뷰어다. 구현에 참여하지 않았다. 이 worktree는 구현자의 worktree다. 파일을 수정하거나 커밋·push하지 마라. 브라우저 검증은 이 worktree에서 `pnpm browser:test`(persistent profile)로, 다른 실행과 겹치지 않는 전용 포트로 실행한다. <계정 잠금 임계값이 켜진 PC면 SKILL.md 3절의 카운터 대기 규칙을 여기에 붙인다> Edge 채널, 패키지된 Desktop 검사, 새 profile probe는 로컬에서 실행하지 않는다. 하위 agent를 띄우지 마라.
 
 ## 배경
 <이슈와 소유자가 승인한 결정, 오케스트레이터가 추가로 정한 사항, 이미 알려진 무관한 실패>

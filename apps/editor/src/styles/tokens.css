@@ -72,7 +72,7 @@
   --layout-document-tab-height: 2rem;
   --layout-document-tab-max-width: 16rem;
   /* Pretendard glyph variants for UI and document text. `cv08` gives capital I its serifs, so
-   * "IeumDoc" never reads as "leumDoc" and a variable I stays distinct from l. */
+   * An uppercase I stays distinct from a lowercase l, including in variables. */
   --font-feature-sans: "cv08";
   /* Start without a document: its centered column and the product mark above its title. */
   --layout-start-width: 40rem;

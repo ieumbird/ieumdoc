@@ -21,7 +21,7 @@
 
 ## Text files in the Editor (#817)
 
-The owner's [2026-10-31 decision](https://github.com/ieumbird/ieumdoc/issues/817)
+The owner's [2026-10-31 decision](https://github.com/litzio/litzio/issues/817)
 adds a separate text document kind: existing `.txt` files and `.md` files refused by
 Core's existing native admission open automatically in text mode. `.txt` is always
 text, even with native-looking content. No Editor-side Markdown support rules are added.

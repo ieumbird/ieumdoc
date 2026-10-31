@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Print IeumDoc PR merge-queue states, or wait until one of them merges, closes or leaves the queue.
+// Print Litzio PR merge-queue states, or wait until one of them merges, closes or leaves the queue.
 // Usage: node queue-watch.mjs [--wait] [--minutes <max, default 55>] <pr> [<pr> ...]
 import { execFileSync } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -12,11 +12,11 @@ const prs = argv.filter((value, index) => /^\d+$/.test(value) && (minutesIndex <
 if (!prs.length) throw new Error('Usage: queue-watch.mjs [--wait] [--minutes <max>] <pr> [<pr> ...]');
 
 const remote = execFileSync('git', ['remote', 'get-url', 'origin'], { encoding: 'utf8' }).trim();
-if (!/github\.com[/:]ieumbird\/ieumdoc(\.git)?$/.test(remote)) throw new Error('This script only runs inside the ieumbird/ieumdoc repository');
+if (!/github\.com[/:]litzio\/litzio(\.git)?$/.test(remote)) throw new Error('This script only runs inside the litzio/litzio repository');
 
 const read = () => {
   const fields = prs.map(pr => `p${pr}:pullRequest(number:${pr}){number state isInMergeQueue mergeable}`).join(' ');
-  const output = execFileSync('gh', ['api', 'graphql', '-f', `query={repository(owner:"ieumbird",name:"ieumdoc"){${fields}}}`], { encoding: 'utf8' });
+  const output = execFileSync('gh', ['api', 'graphql', '-f', `query={repository(owner:"litzio",name:"litzio"){${fields}}}`], { encoding: 'utf8' });
   return Object.values(JSON.parse(output).data.repository);
 };
 const label = pr => pr.state === 'MERGED' ? 'MERGED' : pr.state === 'CLOSED' ? 'CLOSED'

@@ -2,14 +2,14 @@
 
 - Status: Accepted
 - Last verified: 2026-10-14 (post-#234 implementation status and current design contract/supersession links checked).
-- Authority: product and architectural decision under [AGENTS.md](../../AGENTS.md). Related: [#232](https://github.com/ieumbird/ieumdoc/issues/232) · [ADR-0001](0001-single-document-editor-architecture.md) · [ADR-0002](0002-document-persistence-semantic-ownership.md) · [ADR-0004](0004-desktop-host-distribution.md)
+- Authority: product and architectural decision under [AGENTS.md](../../AGENTS.md). Related: [#232](https://github.com/litzio/litzio/issues/232) · [ADR-0001](0001-single-document-editor-architecture.md) · [ADR-0002](0002-document-persistence-semantic-ownership.md) · [ADR-0004](0004-desktop-host-distribution.md)
 - Decision date: 2026-10-14
 
-이 문서는 승인된 지원 경계를 기록한다. 네이티브 문서 경계는 [#234](https://github.com/ieumbird/ieumdoc/pull/234)에서 구현되었으며, 현재 동작은 [Native document support](../design/document-support-v1.md)의 Implemented 계약을 따른다. [Block source editing](../design/block-source-editing-v1.md)은 Superseded 상태로 당시 계약을 보존한다. 아래 Context와 Evidence는 결정 당시의 계약과 관찰 기록이다.
+이 문서는 승인된 지원 경계를 기록한다. 네이티브 문서 경계는 [#234](https://github.com/litzio/litzio/pull/234)에서 구현되었으며, 현재 동작은 [Native document support](../design/document-support-v1.md)의 Implemented 계약을 따른다. [Block source editing](../design/block-source-editing-v1.md)은 Superseded 상태로 당시 계약을 보존한다. 아래 Context와 Evidence는 결정 당시의 계약과 관찰 기록이다.
 
 ## Amendment: separate text editing (#817, 2026-10-31)
 
-[#817](https://github.com/ieumbird/ieumdoc/issues/817)의 소유자 결정에 따라 미호환 `.md`와
+[#817](https://github.com/litzio/litzio/issues/817)의 소유자 결정에 따라 미호환 `.md`와
 `.txt`는 Editor에서 별도의 텍스트 종류로 자동으로 연다. 이는 아래 네이티브 수용 거부를
 부분 편집이나 Source 교체로 완화하는 것이 아니다. 네이티브 판정·의미·쓰기는 Core가
 계속 소유하며, 텍스트 저장은 현재 파일이 네이티브가 아님을 확인한 뒤 공용 File commit으로
@@ -48,7 +48,7 @@ Litzio는 **Markdown을 영속 형식으로 쓰는 구조화 기술문서 에디
 
 ### Authoring and preservation
 
-- 미지원 내용을 포함한 부분 편집, 미지원 블록의 원문 보존·표시를 위한 호환성 기능, 범용 블록 소스 교체([#102](https://github.com/ieumbird/ieumdoc/issues/102))를 폐지한다. Editor의 Edit source, Core의 `replaceBlockSource`, CLI의 `replace-block-source`를 모두 포함한다.
+- 미지원 내용을 포함한 부분 편집, 미지원 블록의 원문 보존·표시를 위한 호환성 기능, 범용 블록 소스 교체([#102](https://github.com/litzio/litzio/issues/102))를 폐지한다. Editor의 Edit source, Core의 `replaceBlockSource`, CLI의 `replace-block-source`를 모두 포함한다.
 - 제목 번호 메타데이터, 라벨 편집, 수식과 코드 블록 편집, 이 기능들이 공유하는 초안 보호는 유지한다. 미지원 내용의 보존 기능 폐지를 이유로 네이티브 저작 기능을 제거하지 않는다.
 - 문서 전체 Source 보기는 유지한다. 열린 네이티브 문서의 적용된 내용을 Core를 통해 읽기 전용 Markdown으로 확인·복사하는 기능이며, 열기를 거부한 문서를 보여 주는 용도로 확장하지 않는다.
 

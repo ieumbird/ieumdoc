@@ -6,7 +6,7 @@
 - Last verified: 2026-10-16 (#296 PR3: Windows production Host with actual Chrome process crashes, same-profile/origin restart, local Restore, real Save/Reload and external 409 preservation; HTTP boundary tests. Linux execution remains required CI).
 - Previous verification: 2026-10-15 (ADR-0006 route/validation cleanup by code/test comparison; no runtime regressions rerun). Previous verification: 2026-10-13 (real TCP boundaries, packaged Node-only execution and production browser Save/Reload; Windows/Linux package and browser checks are required in CI).
 - Authority: [ADR-0005](../adr/0005-http-host.md), [Filesystem Host boundary](filesystem-host-boundary-v1.md), [Editing session and Save](editing-session-save-v1.md).
-- Scope: single-operator HTTP Editor with fixed allowed server folders ([#186](https://github.com/ieumbird/ieumdoc/issues/186)).
+- Scope: single-operator HTTP Editor with fixed allowed server folders ([#186](https://github.com/litzio/litzio/issues/186)).
 
 Bibliography reads reuse the shared stateless Host and existing Root checks through the dedicated
 `/api/bibliography` endpoint. Only declarations of an admitted, revision-matched document are read;
@@ -129,4 +129,4 @@ Recovery is client-local: a server restart alone proves nothing about browser pe
 a changed scheme/host/port/profile has a different IndexedDB store. See the
 [recovery contract](editing-session-save-v1.md#host-persistence-verification-296-pr3) for durability limits.
 
-The 2026-10-13 dependency audit still reports 16 existing transitive advisories (5 high, 10 moderate, 1 low). This change reuses the already locked esbuild build tool and changes no resolved dependency versions; it does not remediate those advisories. Core parser configuration and the local markdown-it patch remain unchanged, and build-only tooling is not a Host runtime. MyST remediation remains tracked in [#11](https://github.com/ieumbird/ieumdoc/issues/11); the historical [dependency review](../reviews/myst-security-alignment-v1.md) is context, not current security assurance.
+The 2026-10-13 dependency audit still reports 16 existing transitive advisories (5 high, 10 moderate, 1 low). This change reuses the already locked esbuild build tool and changes no resolved dependency versions; it does not remediate those advisories. Core parser configuration and the local markdown-it patch remain unchanged, and build-only tooling is not a Host runtime. MyST remediation remains tracked in [#11](https://github.com/litzio/litzio/issues/11); the historical [dependency review](../reviews/myst-security-alignment-v1.md) is context, not current security assurance.

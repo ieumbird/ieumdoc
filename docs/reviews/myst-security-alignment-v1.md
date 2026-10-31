@@ -4,7 +4,7 @@
 
 - Status: Historical
 - Last verified: 2026-10-23 (current authority link updated; historical experiments/audits below not rerun).
-- Scope: Historical security review with current follow-up tracked in [issue #11](https://github.com/ieumbird/ieumdoc/issues/11). No permanent assurance of current security.
+- Scope: Historical security review with current follow-up tracked in [issue #11](https://github.com/litzio/litzio/issues/11). No permanent assurance of current security.
 - Current authority: [Document support](../design/document-support-v1.md) for the current parse/write contract; [Parser security boundary](../design/parser-security-v1.md) for public diagnostic reachability, additional backports and current patch removal conditions.
 
 Current Core explicitly disables smartquotes in [parse.ts](../../packages/core/src/myst/parse.ts); the reachability row and advisory counts below belong to the original audit, not a fresh audit. The existing [canonical input safety addendum](#addendum-canonical-input-safety-v1) records that change. Dependency upgrades and removal of the pinned patch remain tracked in issue #11.

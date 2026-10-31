@@ -5,7 +5,7 @@
 - Previous verification: 2026-10-20 (master `3417f5ae949506f4d5acf4cb56186e6d219a5dad`의 Host 경계 재대조, BibTeX 유형 변환·MyST role·일반 `@`·CLI 재실행. 서식 후보의 기존 Node 실행·browser bundle 측정은 비교 근거로 유지. 당시 실제 브라우저·제품 통합 검증은 미실행).
 - Authority: 승인된 product and architectural decision. 단위 A·B·C는 [Citations](../design/citations-v1.md)에 구현되었으며 단위 D는 각각 별도 결정이다. [AGENTS.md](../../AGENTS.md), [ADR-0002](0002-document-persistence-semantic-ownership.md), [ADR-0006](0006-native-document-boundary.md)가 우선한다. 현재 지원은 [Native document support](../design/document-support-v1.md)를 따른다.
 - Decision date: 2026-10-20
-- Related: [결정 이슈 #327](https://github.com/ieumbird/ieumdoc/issues/327), [사용자 요구 #265](https://github.com/ieumbird/ieumdoc/issues/265), [일반 `@` 텍스트 결함 #328](https://github.com/ieumbird/ieumdoc/issues/328), [Discussion #154](https://github.com/ieumbird/ieumdoc/discussions/154), [#155](https://github.com/ieumbird/ieumdoc/discussions/155), [#257](https://github.com/ieumbird/ieumdoc/discussions/257), [Filesystem Host boundary](../design/filesystem-host-boundary-v1.md).
+- Related: [결정 이슈 #327](https://github.com/litzio/litzio/issues/327), [사용자 요구 #265](https://github.com/litzio/litzio/issues/265), [일반 `@` 텍스트 결함 #328](https://github.com/litzio/litzio/issues/328), [Discussion #154](https://github.com/litzio/litzio/discussions/154), [#155](https://github.com/litzio/litzio/discussions/155), [#257](https://github.com/litzio/litzio/discussions/257), [Filesystem Host boundary](../design/filesystem-host-boundary-v1.md).
 
 Implementation update (2026-10-23): units A, B and C are implemented in [Citations v1](../design/citations-v1.md). The experiments below retain their original historical scope; unit D extensions remain separate decisions.
 
@@ -77,7 +77,7 @@ MyST의 선언 이름과 자료 형식은 재사용하지만, 원격 bibliograph
 
 canonical 규칙은 단일 narrative `cite`를 `{cite}`, narrative `citeGroup`을 `{cite:t}`, parenthetical group을 `{cite:p}`로 쓰는 것이다. 다중 `{cite}`는 이미 parser에서 narrative group이 되므로 `{cite:t}`로 쓰는 것은 **의미 변경이 아닌 철자 정규화**다. 단일 `{cite:t}`의 group도 임의로 풀지 않는다. narrative를 parenthetical로 바꾸지 않고, 같은 numeric 표시를 갖는다는 이유로 원래 role 의미를 합치지 않는다. 저자명은 작성자가 본문에 쓰며 narrative 저자명 자동 출력은 보류한다.
 
-`@`와 대괄호 shorthand는 role과 구분할 원문/tokenizer 근거가 필요하다. 현재 lifted AST만 넓게 수용하면 `Contact @kim`의 일반 텍스트 의도를 판단하지 못한 채 인용으로 승격할 수 있다. **인용 지원은 [#328](https://github.com/ieumbird/ieumdoc/issues/328)의 해결이 아니다.** 권고는 명시적 role만 인용으로 생성하고, 일반 텍스트 `@`는 canonical writer가 필요한 문맥에서 escape하여 다시 text로 읽히게 하는 것이다. 입력의 맨 `@이름`을 일반 텍스트로 다루는 parser 경계는 #328에서 확정·검증한다. 대괄호 citation-like 입력은 첫 범위에서 자동 해석·평문화하지 않고 지원 role 또는 명시적 literal escape를 안내하며 거부한다.
+`@`와 대괄호 shorthand는 role과 구분할 원문/tokenizer 근거가 필요하다. 현재 lifted AST만 넓게 수용하면 `Contact @kim`의 일반 텍스트 의도를 판단하지 못한 채 인용으로 승격할 수 있다. **인용 지원은 [#328](https://github.com/litzio/litzio/issues/328)의 해결이 아니다.** 권고는 명시적 role만 인용으로 생성하고, 일반 텍스트 `@`는 canonical writer가 필요한 문맥에서 escape하여 다시 text로 읽히게 하는 것이다. 입력의 맨 `@이름`을 일반 텍스트로 다루는 parser 경계는 #328에서 확정·검증한다. 대괄호 citation-like 입력은 첫 범위에서 자동 해석·평문화하지 않고 지원 role 또는 명시적 literal escape를 안내하며 거부한다.
 
 MyST의 `extensions.citations:false`는 bare·bracket shorthand를 끄고 role을 유지하는 후보지만, 대괄호 locator까지 text가 되는 것도 직접 확인했다. 따라서 옵션 하나만 바꾸고 해결됐다고 하지 않는다. 기존 tokenizer 근거를 이용한 shorthand 안내/거부와 일반 텍스트 escape, 명시적 role의 보존을 함께 검증해야 한다. #328을 독립 작업으로 유지하되 A 배포 전에 이 경계를 맞춘다. 현재 `\@kim`도 writer가 escape를 제거해 재파싱 시 인용이 되므로, escape를 지금 가능한 해결책으로 안내하지 않는다.
 
@@ -333,7 +333,7 @@ console.log(plugins.input.chain(bib, { target: "@biblatex/entries+list" }));
 | `Use @param and @username.` | 두 narrative cite로 파싱하고 두 `{cite}` role로 출력 | 둘 다 exit 1 |
 | `mail me at a@b.com` | text 유지, writer 결과도 동일 | 둘 다 exit 0 |
 
-실패한 CLI 쓰기는 모두 fixture의 SHA-256이 그대로였다. check는 모든 입력에서 파일을 바꾸지 않았다. `a@b.com`의 성공한 삽입만 파일이 바뀌었다. 이 결과는 [#328](https://github.com/ieumbird/ieumdoc/issues/328)의 재현이며 Visual Editor 재현·수정 완료 근거는 아니다.
+실패한 CLI 쓰기는 모두 fixture의 SHA-256이 그대로였다. check는 모든 입력에서 파일을 바꾸지 않았다. `a@b.com`의 성공한 삽입만 파일이 바뀌었다. 이 결과는 [#328](https://github.com/litzio/litzio/issues/328)의 재현이며 Visual Editor 재현·수정 완료 근거는 아니다.
 
 세 role 각각의 단일·다중 키 6개를 다시 실행했을 때 위치를 제외한 AST가 모두 보존됐다. 다중 `{cite}`는 `{cite:t}`로 정규화됐고 kind·키·순서에는 차이가 없었다. bare `@key`와 `[@key]`도 기본 MyST에서는 인용으로 파싱되고 role로 직렬화됐다. 이 사실은 shorthand를 첫 네이티브 인용 계약으로 채택했다는 뜻이 아니다.
 

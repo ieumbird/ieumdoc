@@ -2,7 +2,7 @@
 
 ## Project status
 
-Litzio는 **초기 Beta** 단계다. Windows x64 unsigned [v0.0.2-beta.4](https://github.com/ieumbird/ieumdoc/releases/tag/v0.0.2-beta.4)가 공개되었고 Stable은 아직 없다. 공개 결과와 검증 범위는 [배포 기록](docs/releases/v0.0.2-beta.4.md)을 따른다. 직전 공개 결과는 [v0.0.2-beta.3 기록](docs/releases/v0.0.2-beta.3.md)에 보존한다. 일반 사용자 설치는 [README](README.md#windows-desktop), 개발자 빌드와 릴리즈는 아래 절차를 따른다. Visual Editor의 Vite 개발 실행도 유지한다. 공개 API와 문서 지원 범위는 바뀔 수 있다.
+Litzio는 **초기 Beta** 단계다. Windows x64 unsigned [v0.0.2-beta.4](https://github.com/litzio/litzio/releases/tag/v0.0.2-beta.4)가 공개되었고 Stable은 아직 없다. 공개 결과와 검증 범위는 [배포 기록](docs/releases/v0.0.2-beta.4.md)을 따른다. 직전 공개 결과는 [v0.0.2-beta.3 기록](docs/releases/v0.0.2-beta.3.md)에 보존한다. 일반 사용자 설치는 [README](README.md#windows-desktop), 개발자 빌드와 릴리즈는 아래 절차를 따른다. Visual Editor의 Vite 개발 실행도 유지한다. 공개 API와 문서 지원 범위는 바뀔 수 있다.
 
 제품 브랜드·아이콘·배포 식별자는 [패키저용 안내](docs/guides/branding.md)와 `brand.ts`를 따른다. 공식 기본값은 Litzio이며 이전 공개 Beta의 데이터/업데이트 경로를 이전하지 않는다.
 
@@ -50,7 +50,7 @@ pnpm --filter @litzio/editor build
 
 ### Review and sequential merge
 
-모든 PR은 다음 순서를 따른다. 구현은 독립 worktree에서 병렬로 진행할 수 있으며, 통합 담당자가 승인된 PR을 GitHub merge queue에 넣는다. Queue가 최신 master와 앞선 PR을 합친 결과를 검증하고 순서대로 병합한다. Queue는 2026-10-26부터 활성화되어 있다([#537 검증 기록](https://github.com/ieumbird/ieumdoc/issues/537)).
+모든 PR은 다음 순서를 따른다. 구현은 독립 worktree에서 병렬로 진행할 수 있으며, 통합 담당자가 승인된 PR을 GitHub merge queue에 넣는다. Queue가 최신 master와 앞선 PR을 합친 결과를 검증하고 순서대로 병합한다. Queue는 2026-10-26부터 활성화되어 있다([#537 검증 기록](https://github.com/litzio/litzio/issues/537)).
 
 1. PR의 정확한 현재 head에서 필수 CI 검사가 모두 통과해야 한다. 이전 head의 성공으로 대신하지 않는다. master가 이동했다는 이유만으로 최신 master를 PR branch에 직접 merge하거나 다시 검토받을 필요는 없다.
 2. 승인은 PR의 위험에 따라 두 가지 중 하나로 한다(2026-10-30 소유자 결정). 어느 쪽이든 구현자 자신의 판단은 승인을 대신하지 않는다.
@@ -88,7 +88,7 @@ gh api graphql -f query='mutation($id:ID!,$oid:GitObjectID!){enqueuePullRequest(
 Queue의 PR 번호·순서·상태·검증 head와 `merge_group` 실행은 다음 읽기 전용 명령으로 확인한다. Queue의 `headCommit.oid`와 run의 `headSha`를 대조하고 해당 실행의 결과·artifact를 확인한다.
 
 ```bash
-gh api graphql -f query='query{repository(owner:"ieumbird",name:"ieumdoc"){mergeQueue(branch:"master"){entries(first:100){nodes{position state pullRequest{number} headCommit{oid}}}}}}'
+gh api graphql -f query='query{repository(owner:"litzio",name:"litzio"){mergeQueue(branch:"master"){entries(first:100){nodes{position state pullRequest{number} headCommit{oid}}}}}}'
 gh run list --event merge_group --json databaseId,headSha,status,conclusion,url
 ```
 

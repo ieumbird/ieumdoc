@@ -66,7 +66,7 @@ subsequent dirty recording uses the new locator and a fresh nonce. Other paths a
 keep their permissions. No new store or path tombstone is added. No file reread or semantic rewrite
 occurs. Storage failure after disk success is visible and does not pretend the disk operation failed.
 
-Deletion/rename recovery barriers match path strings. Until [#372](https://github.com/ieumbird/ieumdoc/issues/372)
+Deletion/rename recovery barriers match path strings. Until [#372](https://github.com/litzio/litzio/issues/372)
 decides Windows locator identity, case-only aliases (for example, a different spelling in URL
 `?path=`) are treated as separate paths. Another window's delayed first recovery write may then
 leave an old-path record. There is no data loss; the extra record can be discarded.
@@ -209,7 +209,7 @@ claim that arbitrary old/future JSON or inconsistent source/revision/edit checkp
 The producer excludes temporary empty locators from deletion tracking. The existing Host replay
 and canonical checks still govern Save.
 
-Owner decision (2026-10-29, [#705](https://github.com/ieumbird/ieumdoc/issues/705)) ends
+Owner decision (2026-10-29, [#705](https://github.com/litzio/litzio/issues/705)) ends
 the #331 and pre-#577 recovery exceptions under [AGENTS.md](../../AGENTS.md)'s rule
 excluding historical-data compatibility unless migration is explicitly requested.
 Empty deletion sentinels, missing table-caption children and former `attrs.caption`
@@ -670,7 +670,7 @@ Historical switching, dismissal and retained-error evidence: [Save, switching an
 ## Tab navigation memory (#383)
 
 Under [ADR-0007 decision 3](../adr/0007-editing-session-lifetime.md#3-여러-문서를-탭으로-열어-두고-탭마다-독립된-세션을-가진다)
-and the owner-approved [#380 decision](https://github.com/ieumbird/ieumdoc/issues/380),
+and the owner-approved [#380 decision](https://github.com/litzio/litzio/issues/380),
 `litzio.openTabs` in origin-local `localStorage` holds only `{ paths, activePath }`:
 Host-normalized document paths in flattened left-to-right group/tab order and the focused active
 document path (or null). Editor groups themselves are page memory; Reload restores one group.

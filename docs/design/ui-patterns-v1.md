@@ -14,7 +14,7 @@
 
 UI 작업 전에 해당 패턴과 **같은 패턴을 쓰는 다른 사용처**를 읽고 확인한다. 새 불일치를 발견하면 같은 PR에서 아래 목록에 ID·패턴·사용처·목표·후속 이슈를 등록한다. 일부 화면에만 먼저 적용하면 나머지 화면의 후속 이슈를 등록한다.
 
-구현 PR은 해당 패턴 절의 현재 기준과 관련 Implemented 계약·검증 근거를 갱신한다. 불일치의 진행 상태는 연결된 GitHub 이슈의 열림·닫힘으로 관리하며 공유 표에 해결/미해결을 표시하거나 구현 진행에 따라 행을 수정·삭제하지 않는다. 목록은 고정된 추적 정보만 유지하고, 새 불일치나 목표·범위·이슈 연결이 바뀔 때 갱신한다([#806](https://github.com/ieumbird/ieumdoc/issues/806)).
+구현 PR은 해당 패턴 절의 현재 기준과 관련 Implemented 계약·검증 근거를 갱신한다. 불일치의 진행 상태는 연결된 GitHub 이슈의 열림·닫힘으로 관리하며 공유 표에 해결/미해결을 표시하거나 구현 진행에 따라 행을 수정·삭제하지 않는다. 목록은 고정된 추적 정보만 유지하고, 새 불일치나 목표·범위·이슈 연결이 바뀔 때 갱신한다([#806](https://github.com/litzio/litzio/issues/806)).
 
 U ID와 파일·화면·캡처의 대응은 [사용처 지도][usage]를 재사용한다. 아래 기준 구현은 **명시한 부분만** 목표에 맞는 현재 구현이며, 컴포넌트 전체가 모든 패턴을 충족한다는 뜻이 아니다. 알려진 불일치 없음은 이 조사 범위에서의 판단이며 전체 동작 재검증을 뜻하지 않는다. 목표의 대안과 과거 근거는 인벤토리에 남긴다.
 
@@ -75,7 +75,7 @@ Label 입력칸에 focus를 준다(#847). 이미지/pending Figure·Mermaid·수
 - **목표:** 빈 제목은 기존 slot 높이를 유지한 작은 ‘제목 추가(선택)’이며 입력하면 title typography를 쓴다. title과 H1은 분리한다. pending Figure에는 ‘이미지 선택 / Mermaid 작성’ 진입을 보이며 진입만으로 내용을 확정하지 않는다. 빈 caption의 muted italic hint·선택 시 숨김·번호/최소 클릭 영역은 유지한다. 빈 검색·자원 목록은 작성 빈칸과 구별한다.
 - **현재 기준:** [DocumentTitle](../../apps/editor/src/document-title.tsx)은 기존 title slot 높이를 유지하며 작은 UI 서체의 `제목 추가(선택)` / `Add a title (optional)`을 보이고, 입력 즉시 제목 서체로 전환한다. [pending Figure][figure-view]는 `이미지 선택` / `Mermaid 작성` 버튼으로 기존 picker·원문 편집을 연다. 선택 진입·취소만으로 문서 내용을 확정하지 않는다. [빈 caption hint](editor-visual-language-v1.md#state-rules), 빈 본문의 작성 안내와 빈 목록의 항목 안내는 기존 규칙을 유지한다. 검색·자원 목록의 빈 결과와는 구별한다.
 - **사용처:** U01/U03–U06 빈 그림·원문·표·미주, U12 제목·본문, U21 검색/탐색, U23/U25 파일·참고문헌 빈 상태.
-- **결정·불일치:** [소유자 결정 P06][decision]. D06은 [#786](https://github.com/ieumbird/ieumdoc/issues/786)에서 해소했다. [제목 계약](document-editing-v1.md#document-title-255)·[그림 계약](figure-authoring-v1.md#editor-session-states)과 [전후 캡처](figure-authoring-v1.md#empty-authoring-entry-786)를 따른다. 기존 caption·선택·clipboard 규칙은 유지한다.
+- **결정·불일치:** [소유자 결정 P06][decision]. D06은 [#786](https://github.com/litzio/litzio/issues/786)에서 해소했다. [제목 계약](document-editing-v1.md#document-title-255)·[그림 계약](figure-authoring-v1.md#editor-session-states)과 [전후 캡처](figure-authoring-v1.md#empty-authoring-entry-786)를 따른다. 기존 caption·선택·clipboard 규칙은 유지한다.
 
 ## P07 입력 오류와 알림 센터
 
@@ -90,7 +90,7 @@ Label 입력칸에 focus를 준다(#847). 이미지/pending Figure·Mermaid·수
 - **초안 상태 검증 (#839):** `draft-notice-layout`에서 절 label 한 글자 입력·되돌림·취소의 문서 좌표·scrollTop 불변, 탭 줄 바로 아래의 문서 viewport와 기존 paper 간격, Source 첫 줄의 가림 없음, 전문 tooltip의 hover/focus와 접근성 이름을 검사한다. 수정 전 상단 띠는 1440px에서 47px, 640px에서 67px 문서를 밀었다. 새 상태 표시는 두 폭 모두 이동 0px이며 평소 추가 공간도 0px다. [1440px 평소 Before](assets/draft-notice-839/before-1440-idle.png) / [After](assets/draft-notice-839/after-1440-idle.png), [초안 Before](assets/draft-notice-839/before-1440-draft.png) / [After](assets/draft-notice-839/after-1440-draft.png), [640px 평소 Before](assets/draft-notice-839/before-640-idle.png) / [After](assets/draft-notice-839/after-640-idle.png), [초안 Before](assets/draft-notice-839/before-640-draft.png) / [After](assets/draft-notice-839/after-640-draft.png), [640px 전문](assets/draft-notice-839/after-640-explanation.png), [Source](assets/draft-notice-839/after-640-source.png), [촬영 조건·해시](assets/draft-notice-839/capture-metadata.json). 탭·저장·더보기 간격과 잘림, 정렬, 한국어 어절 줄바꿈·다크는 자기 캡처에서 확인한 수동 근거다.
 - **현재 기준 — 입력칸 (#789):** `FieldError`의 짧은 오류문을 해당 입력 바로 아래에 두고, 입력의 `aria-invalid`와 고유한 `aria-describedby`로 연결하며 거절된 값을 보존한다. 그림의 label·이미지 경로·alt·파일 이름, Mermaid 원문의 빈 값·label, 수식·표·절 label, 인라인 LaTeX·링크 URL과 기존 NumberField 오류가 이 표현을 쓴다. label 중복은 Core 거절을 표시하고 번호 제출 규칙은 #776 그대로다. 특정 입력으로 귀속할 수 없는 폼 내부 Host/검증 실패 Notice는 폼 문맥에 유지하고, 적용 문서 경고는 위 창 단위 센터로 보낸다. 기존 인용 오류 동작은 동결 범위로 유지한다. `short-field-errors`에서 수정 전 오류 연결 검사 실패와 수정 후 통과를 확인했다(2026-10-30).
 - **사용처:** U01–U16 문서 폼·번호·메시지·렌더 실패, U22–U25 설정·파일·복구·참고문헌 알림.
-- **결정·불일치:** [소유자 결정 P07][decision]이 인벤토리의 scope별 요약 추천을 대체한다. 알림이 없으면 숨긴다는 이전 목표는 [#837](https://github.com/ieumbird/ieumdoc/issues/837)의 소유자 결정으로 대체했다. 알림 센터의 추적은 D07, 입력칸 오류는 D09다.
+- **결정·불일치:** [소유자 결정 P07][decision]이 인벤토리의 scope별 요약 추천을 대체한다. 알림이 없으면 숨긴다는 이전 목표는 [#837](https://github.com/litzio/litzio/issues/837)의 소유자 결정으로 대체했다. 알림 센터의 추적은 D07, 입력칸 오류는 D09다.
 
 ### 빈 알림 센터 시각 근거 (#837)
 
@@ -131,7 +131,7 @@ After는 #792 작업 소스로 촬영했다. source/disk 쓰기 없이 번호 �
 - **목적·사용/비사용:** 미주·인용·상대 이미지 링크를 읽는 중 문맥을 보충한다. 편집 폼이나 일반 URL/교차참조 tooltip·이동을 같은 카드로 바꾸지 않는다.
 - **목표·현재 기준:** [ReadingPreview](../../apps/editor/src/ReadingPreview.tsx)의 공통 폭 상한·간격·그룹 경계, Esc dismiss, 입력 중 억제와 focus/selection 비탈취를 유지한다. 오류도 읽기 정보다. 카드 안 Edit/Apply·재귀 preview를 넣지 않으며 긴 콘텐츠 생략은 이번 결정에 포함되지 않는다.
 - **사용처:** U15 미주·인용·이미지 링크 읽기, U08–U10 링크·인용·교차참조의 읽기 진입 경계.
-- **결정·불일치:** [소유자 결정 P08][decision], [현재 읽기 계약](editor-ux-shell-v1.md#endnote-and-citation-reading-previews-752). 채택 목표와 알려진 불일치 없음. 미주 미리보기는 이동 안내 문구 없이 본문을 표시하고 원래 참조의 접근성 이름과 클릭 이동을 유지한다([#773](https://github.com/ieumbird/ieumdoc/issues/773), `reference-preview` 검증). 같은 패턴의 인용·이미지 링크 표면과 동작은 유지한다.
+- **결정·불일치:** [소유자 결정 P08][decision], [현재 읽기 계약](editor-ux-shell-v1.md#endnote-and-citation-reading-previews-752). 채택 목표와 알려진 불일치 없음. 미주 미리보기는 이동 안내 문구 없이 본문을 표시하고 원래 참조의 접근성 이름과 클릭 이동을 유지한다([#773](https://github.com/litzio/litzio/issues/773), `reference-preview` 검증). 같은 패턴의 인용·이미지 링크 표면과 동작은 유지한다.
 
 ## P09 metadata와 블록 도구
 
@@ -185,18 +185,18 @@ padding을 쓴다. 선택하면 interaction-soft fill과 interaction border를 �
 
 | ID · 패턴 | 사용처 · 목표 | 후속 이슈 |
 | --- | --- | --- |
-| D01 · P02/P11 | U01–U05 다섯 폼의 자동/고정 세그먼트·빈 고정 차단·자동 표시 번호를 공용 NumberField로 통일 | [#776](https://github.com/ieumbird/ieumdoc/issues/776) |
-| D02 · P01 | U10 교차참조·U08 링크와 U05/U07/U11 폼의 경계를 가용 콘텐츠 viewport로 통일. U09 인용은 공용 훅 변경만 포함하며 동결 기능 전용 변경은 제외 | [#782](https://github.com/ieumbird/ieumdoc/issues/782) |
-| D03 · P01/P04 | U05 표·U11 절 label의 대상 전체 팝오버·Done/바깥 pointer 적용·Esc 취소 ([현재 계약](#p04-적용취소완료)) | [#791](https://github.com/ieumbird/ieumdoc/issues/791) |
-| D04 · P01/P03/P04/P09 | U04 수식의 작은 metadata 진입을 원문 폼 진입과 분리 ([현재 계약](document-editing-v1.md#continuous-editing)) | [#788](https://github.com/ieumbird/ieumdoc/issues/788) |
-| D05 · P04 | U08 링크·U10 교차참조의 명시적 적용/취소와 초안 유지. U09 인용은 ADR-0008 동결로 제외 | [#790](https://github.com/ieumbird/ieumdoc/issues/790) |
-| D06 · P06 | U12 빈 제목에 선택적 제목 추가 안내, U01 pending Figure에 이미지 선택 / Mermaid 작성 진입 제공. 기존 caption·본문·목록의 빈 상태와 선택·clipboard 의미 유지 | [#786](https://github.com/ieumbird/ieumdoc/issues/786) |
-| D07 · P02/P07/P12 | U03/U14/U16의 적용 문서·지속 앱 문제를 Docling과 같은 창별 센터로 집계하고 위치 이동·해결/닫기/재발 처리. 입력·열린 비교 화면의 문맥 오류는 유지 | [#792](https://github.com/ieumbird/ieumdoc/issues/792) |
-| D08 · P03/P09/P10 | U05 표의 상단 속성 진입·동작 메뉴 삭제 ([계약·검증](table-interaction-v1.md#whole-table-tools-793)) | [#793](https://github.com/ieumbird/ieumdoc/issues/793) |
-| D09 · P05/P07 | U03–U05/U07–U11 짧은 속성 필드의 fill과 U01–U11 필드 오류 연결 통일(기존 연결은 보존) | [#789](https://github.com/ieumbird/ieumdoc/issues/789) |
-| D10 · P04 | U06 완료/취소(Done/Cancel), 그림과 같은 번역 재사용·기존 동작 유지 | [#787](https://github.com/ieumbird/ieumdoc/issues/787) |
+| D01 · P02/P11 | U01–U05 다섯 폼의 자동/고정 세그먼트·빈 고정 차단·자동 표시 번호를 공용 NumberField로 통일 | [#776](https://github.com/litzio/litzio/issues/776) |
+| D02 · P01 | U10 교차참조·U08 링크와 U05/U07/U11 폼의 경계를 가용 콘텐츠 viewport로 통일. U09 인용은 공용 훅 변경만 포함하며 동결 기능 전용 변경은 제외 | [#782](https://github.com/litzio/litzio/issues/782) |
+| D03 · P01/P04 | U05 표·U11 절 label의 대상 전체 팝오버·Done/바깥 pointer 적용·Esc 취소 ([현재 계약](#p04-적용취소완료)) | [#791](https://github.com/litzio/litzio/issues/791) |
+| D04 · P01/P03/P04/P09 | U04 수식의 작은 metadata 진입을 원문 폼 진입과 분리 ([현재 계약](document-editing-v1.md#continuous-editing)) | [#788](https://github.com/litzio/litzio/issues/788) |
+| D05 · P04 | U08 링크·U10 교차참조의 명시적 적용/취소와 초안 유지. U09 인용은 ADR-0008 동결로 제외 | [#790](https://github.com/litzio/litzio/issues/790) |
+| D06 · P06 | U12 빈 제목에 선택적 제목 추가 안내, U01 pending Figure에 이미지 선택 / Mermaid 작성 진입 제공. 기존 caption·본문·목록의 빈 상태와 선택·clipboard 의미 유지 | [#786](https://github.com/litzio/litzio/issues/786) |
+| D07 · P02/P07/P12 | U03/U14/U16의 적용 문서·지속 앱 문제를 Docling과 같은 창별 센터로 집계하고 위치 이동·해결/닫기/재발 처리. 입력·열린 비교 화면의 문맥 오류는 유지 | [#792](https://github.com/litzio/litzio/issues/792) |
+| D08 · P03/P09/P10 | U05 표의 상단 속성 진입·동작 메뉴 삭제 ([계약·검증](table-interaction-v1.md#whole-table-tools-793)) | [#793](https://github.com/litzio/litzio/issues/793) |
+| D09 · P05/P07 | U03–U05/U07–U11 짧은 속성 필드의 fill과 U01–U11 필드 오류 연결 통일(기존 연결은 보존) | [#789](https://github.com/litzio/litzio/issues/789) |
+| D10 · P04 | U06 완료/취소(Done/Cancel), 그림과 같은 번역 재사용·기존 동작 유지 | [#787](https://github.com/litzio/litzio/issues/787) |
 
-[decision]: https://github.com/ieumbird/ieumdoc/issues/777#issuecomment-6510554436
+[decision]: https://github.com/litzio/litzio/issues/777#issuecomment-6510554436
 [inventory]: ../reviews/ui-pattern-inventory-777.md
 [usage]: ../reviews/ui-pattern-inventory-777.md#사용처-지도
 [figure-view]: ../../apps/editor/src/node-views/figure-view.tsx

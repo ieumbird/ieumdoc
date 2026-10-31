@@ -8,7 +8,7 @@
 
 ## Context
 
-[#186](https://github.com/ieumbird/ieumdoc/issues/186) requires a production Editor served from a workstation or Linux server, without Vite or Electron, and selection among separate operator-approved document folders. The existing local file handlers have no server-wide root allowlist. Desktop's custom protocol remains appropriate for the installed Windows app.
+[#186](https://github.com/litzio/litzio/issues/186) requires a production Editor served from a workstation or Linux server, without Vite or Electron, and selection among separate operator-approved document folders. The existing local file handlers have no server-wide root allowlist. Desktop's custom protocol remains appropriate for the installed Windows app.
 
 ## Decision
 

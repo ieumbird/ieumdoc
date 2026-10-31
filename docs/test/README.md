@@ -23,7 +23,7 @@ git diff --check
 
 CI quality는 문서 전용 PR과 merge group에서 문서·checker tests, diff/whitespace, issue 정책, AI provenance validator·event commit 검사와 경로 분류 회귀만 실행한다. 제품 테스트·typecheck·Editor build는 생략한다. `node --test scripts/ci-quality-mode.test.mjs scripts/ci-execution-policy.test.mjs`는 PR merge-base diff와 group 전체 base..head diff, 문서·Editor·설치기·lockfile·다중 PR·삭제/rename·diff 실패, master push의 같은 SHA 성공 run 재사용/API 실패 fallback, aggregate와 캐시 갱신 조건을 검증한다. queue head별 CI가 서로 취소되지 않는지도 검사한다. smartquotes 대형 패치 검사는 기본 Core suite에서 분리한 `pnpm --filter @litzio/core test:smartquotes`이며 의존성·patch·parser 경로 변경 때 선택한다. 정확한 allowlist·실행 조건·캐시 key/scope는 [Verification matrix](../../CONTRIBUTING.md#verification-matrix)를 따른다. 로컬 probe와 PR CI만으로 실제 merge_group 실행을 검증했다고 보고하지 않는다.
 
-병합은 [독립 승인 후 merge queue 절차](../../CONTRIBUTING.md#review-and-sequential-merge)와 [Enqueue 명령·상태 확인](../../CONTRIBUTING.md#enqueue)을 따른다. Queue는 최신 master와 합친 결과의 전체 diff에 경로 규칙을 적용하고 필수 검사 `Core, CLI, Editor, and browser regressions`를 보고한다. `node --test scripts/commit-provenance.test.mjs`는 PR 고유 commit과 agent 작성 merge 검사를 유지하면서 GitHub 생성 queue merge는 건너뛰는지 확인한다. Queue 실패는 artifact부터 조사한다. Queue는 2026-10-26부터 활성화되어 있으며, [#537 검증 기록](https://github.com/ieumbird/ieumdoc/issues/537)에 [PR #543](https://github.com/ieumbird/ieumdoc/pull/543)의 실제 [merge_group 실행](https://github.com/ieumbird/ieumdoc/actions/runs/40313330979)과 queue 병합 결과가 있다. 이후 PR도 해당 queue head의 실제 실행 결과를 확인하며, 로컬 probe와 PR CI만으로 실제 queue 병합 성공을 주장하지 않는다.
+병합은 [독립 승인 후 merge queue 절차](../../CONTRIBUTING.md#review-and-sequential-merge)와 [Enqueue 명령·상태 확인](../../CONTRIBUTING.md#enqueue)을 따른다. Queue는 최신 master와 합친 결과의 전체 diff에 경로 규칙을 적용하고 필수 검사 `Core, CLI, Editor, and browser regressions`를 보고한다. `node --test scripts/commit-provenance.test.mjs`는 PR 고유 commit과 agent 작성 merge 검사를 유지하면서 GitHub 생성 queue merge는 건너뛰는지 확인한다. Queue 실패는 artifact부터 조사한다. Queue는 2026-10-26부터 활성화되어 있으며, [#537 검증 기록](https://github.com/litzio/litzio/issues/537)에 [PR #543](https://github.com/litzio/litzio/pull/543)의 실제 [merge_group 실행](https://github.com/litzio/litzio/actions/runs/40313330979)과 queue 병합 결과가 있다. 이후 PR도 해당 queue head의 실제 실행 결과를 확인하며, 로컬 probe와 PR CI만으로 실제 queue 병합 성공을 주장하지 않는다.
 
 ## Browser regression
 
@@ -53,14 +53,14 @@ timeouts take precedence. Fixed `waitForTimeout` delays and arbitrary JavaScript
 are not bounded by the action default; the scenario limit remains their backstop. Retries stay at 0;
 shard assignment and CI job limits are unchanged.
 
-Measurement basis for [#549](https://github.com/ieumbird/ieumdoc/issues/549), 2026-10-26:
+Measurement basis for [#549](https://github.com/litzio/litzio/issues/549), 2026-10-26:
 
 - The five most recent successful master CI runs were read with `gh run view --log`:
-  [40315514715](https://github.com/ieumbird/ieumdoc/actions/runs/40315514715),
-  [40314149215](https://github.com/ieumbird/ieumdoc/actions/runs/40314149215),
-  [40310266799](https://github.com/ieumbird/ieumdoc/actions/runs/40310266799),
-  [40307984898](https://github.com/ieumbird/ieumdoc/actions/runs/40307984898), and
-  [40304484272](https://github.com/ieumbird/ieumdoc/actions/runs/40304484272).
+  [40315514715](https://github.com/litzio/litzio/actions/runs/40315514715),
+  [40314149215](https://github.com/litzio/litzio/actions/runs/40314149215),
+  [40310266799](https://github.com/litzio/litzio/actions/runs/40310266799),
+  [40307984898](https://github.com/litzio/litzio/actions/runs/40307984898), and
+  [40304484272](https://github.com/litzio/litzio/actions/runs/40304484272).
   Across 310 passing test results (58 Editor scenarios plus HTTP Host and crash recovery on both
   OSes per run), the maximum was `folder-memory`, **58.8 seconds**, in 40304484272.
   HTTP crash recovery peaked at 18.0 seconds across the same runs.
@@ -340,7 +340,7 @@ Success fixtures contain `litzio: 1` and supported content. Core owns syntax/sup
 
 `pnpm browser:test recovery-storage recovery recovery-structure` checks actual IndexedDB ordering/deletion barriers and the user recovery flow with real Vite files. `recovery-structure` adds New/title/Enter, Equation/Table/Figure content and captions, dirty Restore → Save → Reload, readable fallback and live Korean/English refusal reasons. `pnpm browser:test recovery --screenshots` combines those UI assertions with 1440/375px captures of empty/list/prompt/settings/clear/failure/incompatible states in `tmp/296/`; `pnpm browser:test recovery-structure --screenshots` captures the structured recovery/fallback in `tmp/331-*.png`. The snapshot initialization/Save replay semantics remain covered by `document-session` and Editor tests; they are not repeated as a Host semantic matrix.
 
-To verify recovery across production HTTP browser and packaged Desktop process restarts ([#296](https://github.com/ieumbird/ieumdoc/issues/296)), run after the builds described above:
+To verify recovery across production HTTP browser and packaged Desktop process restarts ([#296](https://github.com/litzio/litzio/issues/296)), run after the builds described above:
 
 ```bash
 pnpm browser:test http-host
@@ -406,7 +406,7 @@ were empty in these preserved failures.
 | `document-title`, run 40252460131 / first attempt | Product/engine defect: after Add a title focused H1, the delayed 20ms focus check could overwrite the paragraph's native caret before selectionchange read it. The retained state stayed at H1 position 1 (133–138). | Hold that actual engine callback and release it at paragraph mouseup. The check must respect the later pointer; the original empty-title removal and clean-document assertions remain. |
 | `citations`, run 40246268525 / job 121328398849 | Test wait: the #448 helper could mistake the closing Reload modal's enabled buttons and retained focus for an interactive discard prompt. It returned before final focus reached File actions (134); Backspace went to that button (135). | A prompt must still have `data-open`. Hold the final File actions focus and assert Reload has not returned, then retain the exact canonical-byte comparison. |
 
-The table selection reset is tracked separately in [#502](https://github.com/ieumbird/ieumdoc/issues/502).
+The table selection reset is tracked separately in [#502](https://github.com/litzio/litzio/issues/502).
 `table-authoring` remains identical to master, including its failure-only diagnostics. No wait is
 added to conceal that reset, and this PR does not claim to fix it.
 
@@ -420,7 +420,7 @@ Redo left the citation present, but cannot establish the key target or history t
 failure. Citation authoring's Redo assertions remain unchanged. #421 and the separate fast text-caret synchronization issue #416 are
 not claimed fixed by #489.
 
-`figure-draft-race`의 미주 case는 본문을 한 번 클릭한 직후 native anchor/focus가 모두 클릭한 본문 text offset에 있고 collapsed이며 EditorView focus가 유지되는지 대기 없이 단언한다. 즉시 engine snapshot도 결과에 보존한다. 이후 기본 assertion 제한시간 안에서 같은 native 위치·focus와 정확한 engine TextSelection이 일치하면 곧바로 입력하고, 본문 삽입 위치·미주 전체 노드 불변·readonly 복귀 및 기존 Save/Reload를 검사한다. 다른 네 case의 즉시 engine 단언은 유지한다. 이는 [#416 소유자 결정](https://github.com/ieumbird/ieumdoc/issues/416#issuecomment-6494573226)의 경계에 따른 [#811](https://github.com/ieumbird/ieumdoc/issues/811)의 테스트 관찰 조정이며, CI의 native/engine 불일치 구간에서 실제 입력이 안전하다고 입증하거나 제품을 수정한 것은 아니다. #839부터 문서가 안내 표시로 움직이지 않으므로 다섯 독립 case는 서로 다른 본문 내부 offset을 클릭한다. 이전 case와 같은 좌표를 500ms 안에 반복해 ProseMirror가 double/triple click으로 묶는 것을 피하며, 각 위치의 정확한 caret·입력 단언은 유지한다. 추가 클릭·selection 지정·강제 flush·sleep이나 timeout/retry 변경은 사용하지 않는다.
+`figure-draft-race`의 미주 case는 본문을 한 번 클릭한 직후 native anchor/focus가 모두 클릭한 본문 text offset에 있고 collapsed이며 EditorView focus가 유지되는지 대기 없이 단언한다. 즉시 engine snapshot도 결과에 보존한다. 이후 기본 assertion 제한시간 안에서 같은 native 위치·focus와 정확한 engine TextSelection이 일치하면 곧바로 입력하고, 본문 삽입 위치·미주 전체 노드 불변·readonly 복귀 및 기존 Save/Reload를 검사한다. 다른 네 case의 즉시 engine 단언은 유지한다. 이는 [#416 소유자 결정](https://github.com/litzio/litzio/issues/416#issuecomment-6494573226)의 경계에 따른 [#811](https://github.com/litzio/litzio/issues/811)의 테스트 관찰 조정이며, CI의 native/engine 불일치 구간에서 실제 입력이 안전하다고 입증하거나 제품을 수정한 것은 아니다. #839부터 문서가 안내 표시로 움직이지 않으므로 다섯 독립 case는 서로 다른 본문 내부 offset을 클릭한다. 이전 case와 같은 좌표를 500ms 안에 반복해 ProseMirror가 double/triple click으로 묶는 것을 피하며, 각 위치의 정확한 caret·입력 단언은 유지한다. 추가 클릭·selection 지정·강제 flush·sleep이나 timeout/retry 변경은 사용하지 않는다.
 
 ### Cross-reference regression history (#407)
 
@@ -446,7 +446,7 @@ test's `tmp/browser-results/http-recovery-*/host-recovery-proof.json` (also atta
 
 The prior final-v3 two-page
 ticket p95 around 2.4s remains a limitation, not a recording deadline.
-This prior measurement was documented on 2026-10-16 in [the Host recovery verification commit](https://github.com/ieumbird/ieumdoc/commit/ef1c09a63002827a38f2ea230e134c973cdb9344); the [recovery contract](../design/editing-session-save-v1.md#local-recovery-records-296-pr2) identifies it as a known limitation, not a guarantee or a new PR3 measurement.
+This prior measurement was documented on 2026-10-16 in [the Host recovery verification commit](https://github.com/litzio/litzio/commit/ef1c09a63002827a38f2ea230e134c973cdb9344); the [recovery contract](../design/editing-session-save-v1.md#local-recovery-records-296-pr2) identifies it as a known limitation, not a guarantee or a new PR3 measurement.
 
 ## Docling app conversion (#797)
 

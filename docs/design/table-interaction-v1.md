@@ -253,7 +253,7 @@ does not claim to fix rapid click-to-Tab product behavior.
 
 Completed evidence: the [original Linux failure bundle](assets/table-handles-517/ci-selection/linux-original-artifacts.zip)
 preserves the actual screenshot, DOM/ARIA, input events, trace and shard log from
-[run 40292844193 / job 121471910574](https://github.com/ieumbird/ieumdoc/actions/runs/40292844193/job/121471910574).
+[run 40292844193 / job 121471910574](https://github.com/litzio/litzio/actions/runs/40292844193/job/121471910574).
 The [timeline and original-file hashes](assets/table-handles-517/ci-selection/investigation.json)
 record event 19 (native Intro offset 16, engine position 1), event 20 (H2, document
 change, Undo depth 1) and event 22 (selectionchange), plus the actual click/Tab trace
@@ -315,7 +315,7 @@ and immediate notice/action revocation after that transaction, using the final e
 These review fixes change invalidation only; the captures below retain their original #474 provenance.
 
 PR #478 integration investigation (2026-10-26, head `4cb4805`): the
-[failed Linux browser job](https://github.com/ieumbird/ieumdoc/actions/runs/40250078219/job/121339875529)
+[failed Linux browser job](https://github.com/litzio/litzio/actions/runs/40250078219/job/121339875529)
 failed in the selected-table Backspace check. Its downloaded screenshot/ARIA snapshot had no
 deletion notice or Undo button, but `browser-state.json` had `editorFocused=true` and both
 tables were still present. The input recorder showed table NodeSelection 59–102 (event 674),

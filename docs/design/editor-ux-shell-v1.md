@@ -364,7 +364,7 @@ native scrollbar at the right edge only in the document area (#694 follow-up). T
 not scroll; the DOM title strip and its bottom boundary extend across the whole viewport.
 This removes interruption caused by the root scrollbar. Browser geometry/captures do not
 verify native window-control overlay painting; overlay height, Settings gutter and native
-pixel verification belong to [#694](https://github.com/ieumbird/ieumdoc/issues/694). Its content keeps
+pixel verification belong to [#694](https://github.com/litzio/litzio/issues/694). Its content keeps
 the existing Sidebar/Document panel insets, centered column, paper dimensions and measured
 header clearance. The shell reserves the viewport's actual native scrollbar width only below
 the full-width title strip, observed on
@@ -415,7 +415,7 @@ the container compositor. Existing layout and overlay geometry checks remain aut
 their measured contracts; captures are the manual visual evidence.
 
 The final [32-state geometry record](assets/document-scroll-488/geometry.json) and After PNGs
-come from [CI run 40778182959](https://github.com/ieumbird/ieumdoc/actions/runs/40778182959),
+come from [CI run 40778182959](https://github.com/litzio/litzio/actions/runs/40778182959),
 product code `93e4b9a36e1de344a3b11a9c5fbcc5096fff7214`, Linux pinned Chromium
 154.0.8037.0. All measured states have root scroll 0, root height 900px, a 1px title-strip
 bottom border reaching exactly 640/1440px, and a document viewport starting at the measured
@@ -1391,7 +1391,7 @@ existing wide Folder dialog width token. At 1280/1440px each entry has its name 
 right on one line; at 375px rows may wrap within the viewport without horizontal overflow.
 It creates no document/history change and has no opening shortcut. These are Editor history,
 focus and help interactions, so they introduce no Core operation or CLI command. Desktop Hangul
-IME delivery of Ctrl+Y/Ctrl+Z reuses the guarded matcher integrated from [#481](https://github.com/ieumbird/ieumdoc/pull/481).
+IME delivery of Ctrl+Y/Ctrl+Z reuses the guarded matcher integrated from [#481](https://github.com/litzio/litzio/pull/481).
 
 Historical command-center captures and keyboard probes: [Command center verification](#command-center-verification-363) and [Command center keyboard verification](#command-center-keyboard-verification-386).
 
@@ -1405,7 +1405,7 @@ restrictions. The center must be opened while editor content itself has focus; f
 property controls (including their buttons), popovers, node-view controls and other shell
 controls cannot use a retained body selection to insert. Code, Source and non-caret
 selections cannot insert.
-Known limitation ([#416](https://github.com/ieumbird/ieumdoc/issues/416)): the engine may not yet have read a selection made within a few tens of milliseconds of the shortcut.
+Known limitation ([#416](https://github.com/litzio/litzio/issues/416)): the engine may not yet have read a selection made within a few tens of milliseconds of the shortcut.
 The center releases modal focus before opening the form. Escape returns to the same editor
 caret without a document/history change; Apply uses the existing insertion function, returns
 editor focus and creates one undo step. Outside dismissal retains the clicked control's focus.
@@ -1612,7 +1612,7 @@ validation, Apply/Remove, Escape and blur dismissal. Apply/Remove/Escape return 
 through ProseMirror, so a previous form cannot later blur a newly opened link form. It does nothing behind a modal or during IME
 composition. No Core operation or CLI counterpart is needed for this focus/selection interaction.
 
-Selection follows [#378](https://github.com/ieumbird/ieumdoc/issues/378). The two-key bindings are
+Selection follows [#378](https://github.com/litzio/litzio/issues/378). The two-key bindings are
 **Ctrl/Cmd+/** (slash character) for the center and **Ctrl/Cmd+'** (apostrophe character)
 for links. Neither uses Alt/AltGr or Shift. The old Ctrl/Cmd+Alt+Shift+P/K bindings are removed;
 Ctrl/Cmd+P and Ctrl/Cmd+Shift+P remain unhandled so browser printing is preserved.
@@ -1687,7 +1687,7 @@ Historical layout-specific failures and browser probes: [Shortcut layout verific
 
 ### Unified action menus (#516)
 
-Owner decision D2/M1 (2026-10-26, [#507](https://github.com/ieumbird/ieumdoc/issues/507)):
+Owner decision D2/M1 (2026-10-26, [#507](https://github.com/litzio/litzio/issues/507)):
 block `⠿`, `+`, slash and table row/column/table menus reuse `CommandMenu` with
 action-specific 16px pinned lucide line icons, labels, optional real hints and group
 separators. `+`/slash retain their Markdown-input hints as key chips; block actions
@@ -1901,7 +1901,7 @@ tree remains visible, and names/actions/document geometry match the existing col
 The earlier disclosure captures and their metadata below remain historical evidence.
 
 The first persistence CI at `e9d58bbdb0626f1c6e481685e6687970dfaa7ed9`
-([run 40136117318](https://github.com/ieumbird/ieumdoc/actions/runs/40136117318)) passed quality,
+([run 40136117318](https://github.com/litzio/litzio/actions/runs/40136117318)) passed quality,
 Desktop/HTTP and browser shard 1/2, including folder-memory; shard 2/2 passed folder-navigation
 but failed file-preview's phone archive-row click. Its input-events artifact shows Escape targeting
 the still-focused tree row, then focus moving to Expand sidebar: the preview image was visible
@@ -1949,7 +1949,7 @@ The 200px sidebar and wrapped Korean/unbroken names retain their geometry and re
 These are visual/navigation checks, not new document semantics or platform packaging evidence.
 
 The first full CI at implementation head `6e5bf3f1df5689088efaeb7e635640a20277c092`
-([run 40133576414](https://github.com/ieumbird/ieumdoc/actions/runs/40133576414)) passed quality,
+([run 40133576414](https://github.com/litzio/litzio/actions/runs/40133576414)) passed quality,
 Desktop/HTTP and browser shard 2/2, but shard 1/2 failed in cross-reference: its partial button-name
 query also matched the new `Collapse folder cross-reference` control. The unchanged scenario
 reproduced that strict-mode ambiguity locally. Scope its existing selection-toolbar action to
@@ -2573,7 +2573,7 @@ Settings while preserving its draft/history checks.
 
 ## Collapsed rail Files and Settings (#671)
 
-The owner decision is recorded in [#671](https://github.com/ieumbird/ieumdoc/issues/671).
+The owner decision is recorded in [#671](https://github.com/litzio/litzio/issues/671).
 The 48px rail keeps Files on the document-tab row and Settings at the expanded
 footer's vertical position. The same Settings entry has a text or icon-only variant,
 so a later #665 indicator can apply to both; no update indicator is implemented here.

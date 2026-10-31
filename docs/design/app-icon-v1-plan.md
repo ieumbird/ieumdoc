@@ -2,7 +2,7 @@
 
 - Status: Historical
 - Last verified: 2026-10-13 (live GitHub avatar/social preview and current Desktop packaging inspected; the user selected B — wing and document).
-- Scope: preparation and the selected icon direction for [#170](https://github.com/ieumbird/ieumdoc/issues/170). B was selected as the concept. The subsequent [app icon contract](app-icon-v1.md) owns production artwork, integration and verification. No release is authorized by this document.
+- Scope: preparation and the selected icon direction for [#170](https://github.com/litzio/litzio/issues/170). B was selected as the concept. The subsequent [app icon contract](app-icon-v1.md) owns production artwork, integration and verification. No release is authorized by this document.
 - Authority: [AGENTS.md](../../AGENTS.md), [Desktop distribution](desktop-distribution-v1.md), and the user's visual selection.
 
 ## Working state
@@ -13,7 +13,7 @@ This stage prepared three alternatives. The user selected **B — 날개와 문�
 
 ## Existing GitHub identity
 
-The current [Ieumbird organization](https://github.com/ieumbird) avatar is a right-facing bird: dark navy head/body, cyan/teal wing and beak, and a white flowing link-shaped gap inside the wing. The live [IeumDoc repository](https://github.com/ieumbird/ieumdoc) header and generated social preview use that same organization avatar. No separate Litzio product mark was found in the repository's tracked assets or README. The Windows packaging configuration currently specifies no custom icon.
+The current [Ieumbird organization](https://github.com/ieumbird) avatar is a right-facing bird: dark navy head/body, cyan/teal wing and beak, and a white flowing link-shaped gap inside the wing. The live [IeumDoc repository](https://github.com/litzio/litzio) header and generated social preview use that same organization avatar. No separate Litzio product mark was found in the repository's tracked assets or README. The Windows packaging configuration currently specifies no custom icon.
 
 - [Downloaded organization reference](assets/app-icon-170/github-ieumbird-reference.png), from [GitHub avatar](https://avatars.githubusercontent.com/u/331890781?v=4).
 - [Downloaded repository social preview](assets/app-icon-170/github-ieumdoc-reference.png), retrieved from the live repository's `og:image` metadata.

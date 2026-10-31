@@ -4,18 +4,18 @@
 
 - Status: Historical
 - Last verified: 2026-10-26; actual Windows Chrome computed-style audit and disposable same-state mockups on `48aabb312a0c8cb71c620747d5d25f370f2b7817`.
-- Scope: review / proposal for [#507](https://github.com/ieumbird/ieumdoc/issues/507), following [Discussion #318](https://github.com/ieumbird/ieumdoc/discussions/318). No product behavior or current contract is adopted by this record.
+- Scope: review / proposal for [#507](https://github.com/litzio/litzio/issues/507), following [Discussion #318](https://github.com/litzio/litzio/discussions/318). No product behavior or current contract is adopted by this record.
 - Authority: [AGENTS](../../AGENTS.md), [ADR-0001](../adr/0001-single-document-editor-architecture.md), [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md), [Visual Language](../design/editor-visual-language-v1.md), [Layout Rules](../design/editor-layout-rules-v1.md), [UX Shell](../design/editor-ux-shell-v1.md), [Table interaction](../design/table-interaction-v1.md). Lifecycle follows [documentation governance](../contributing/documentation-governance.md).
 
 ## 소유자 결정 (2026-10-26)
 
 아래 후속 작업을 채택했습니다. 이 기록은 Historical 상태를 유지하며, 현재 계약의 변경은 각 구현 PR에서 수행합니다.
 
-- **A: A1 채택** — 세그먼트 탭·목록 배경·블록 외곽선: [#515](https://github.com/ieumbird/ieumdoc/issues/515).
-- **B: B2 채택** — 가벼운 hover/focus 핸들: [#517](https://github.com/ieumbird/ieumdoc/issues/517). B3 도구 막대와 우클릭 행·열 선택은 별도 검토: [#518](https://github.com/ieumbird/ieumdoc/issues/518).
+- **A: A1 채택** — 세그먼트 탭·목록 배경·블록 외곽선: [#515](https://github.com/litzio/litzio/issues/515).
+- **B: B2 채택** — 가벼운 hover/focus 핸들: [#517](https://github.com/litzio/litzio/issues/517). B3 도구 막대와 우클릭 행·열 선택은 별도 검토: [#518](https://github.com/litzio/litzio/issues/518).
 - **C: C1 채택** — 본문 17px 유지, 변경 없음.
-- **D: D2 채택** — 메뉴 형식 통일, 문단·제목 변환, 위·아래 이동, 빨간 삭제: [#516](https://github.com/ieumbird/ieumdoc/issues/516). 복제([#519](https://github.com/ieumbird/ieumdoc/issues/519))와 목록 변환([#520](https://github.com/ieumbird/ieumdoc/issues/520))은 후속 작업으로 분리합니다.
-- **공통 규칙** — 컨트롤·색 규칙(B1/C1)과 회귀 방지 검사: [#514](https://github.com/ieumbird/ieumdoc/issues/514).
+- **D: D2 채택** — 메뉴 형식 통일, 문단·제목 변환, 위·아래 이동, 빨간 삭제: [#516](https://github.com/litzio/litzio/issues/516). 복제([#519](https://github.com/litzio/litzio/issues/519))와 목록 변환([#520](https://github.com/litzio/litzio/issues/520))은 후속 작업으로 분리합니다.
+- **공통 규칙** — 컨트롤·색 규칙(B1/C1)과 회귀 방지 검사: [#514](https://github.com/litzio/litzio/issues/514).
 
 ## 소유자 검토 요약
 

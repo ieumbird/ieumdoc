@@ -11,7 +11,7 @@ export const brand = {
   cliCommand: "litzio",
   storagePrefix: "litzio",
   updates: {
-    repository: { owner: "ieumbird", repo: "ieumdoc" },
+    repository: { owner: "litzio", repo: "litzio" },
     channels: { stable: "latest", beta: "beta" },
   },
   // No official plugin catalog is published yet. Its installer is subsequent ADR-0012 work.

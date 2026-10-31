@@ -367,7 +367,7 @@ Get-Content -Raw -Encoding utf8 "<임시 폴더>/operations.json" | pnpm cli app
 - Host는 `root`와 `path`를 신뢰 경계 밖 입력으로 다룬다. `path`는 lexical로도, symlink를 해석한 real path로도 `root` 안이어야 한다. directory가 아니거나 없거나 읽을 수 없으면 명시적 오류다. Host는 요청 사이에 아무것도 기억하지 않는다.
 - Host가 반환한 정규화 경로로 열린 탭을 식별한다. 요청 경로가 이미 열린 탭 경로와 정확히 같으면 Host GET 없이 그 세션을 활성화하므로, 디스크에서 파일이 사라지거나 읽을 수 없게 되어도 열린 세션을 유지한다. 일치하지 않는 경로·별칭은 기존 `GET /api/document`로 읽고 반환된 정규화 경로를 다시 비교한다. 성공한 새 경로만 탭을 추가하며 기존 경로는 해당 탭을 활성화한다. Open/New는 기존 세션을 버리지 않아 미저장 확인을 하지 않는다. Save / Don't save / Cancel은 단일 탭 닫기에 사용한다([편집 세션 계약](editing-session-save-v1.md#switching-and-recovery)). 진행 중인 Save/Source/asset/Open/New는 전환을 막는다. 문서를 열거나 만들면 그 문서를 담은 각 열린 folder 안의 상위 folder들을 펼치고 다시 list한다. 외부 변경은 watch하지 않는다. 늦은 listing은 더 새 요청을 덮거나 접힌 folder를 다시 펼치지 않는다. Host는 탭이나 영속 세션을 저장하지 않는다.
 - `.md` 파일 open 범위는 넓어지지 않는다. Host는 이전부터 임의 `.md` 경로를 열 수 있고, listing은 이름·종류와 native 표식 여부만 보여 준다. 표식 판정 규칙은 Core가 소유하며 Host는 Markdown이나 frontmatter를 따로 해석하지 않는다.
-- Git 감지, `.ieumdoc/` 설정, index DB, watch service, 검색 인프라는 포함하지 않는다. CLI 명령도 없다. folder listing은 문서 의미를 바꾸는 operation이 아니라 interface/Host 탐색이며, headless 환경에서는 shell의 파일 목록으로 충분하다. native 표식 여부도 읽기 전용 표시이며, headless에서 문서를 실제로 받아들이는지는 기존 CLI 명령이 같은 Core admission으로 판정한다.
+- Git 감지, `.litzio/` 설정, index DB, watch service, 검색 인프라는 포함하지 않는다. CLI 명령도 없다. folder listing은 문서 의미를 바꾸는 operation이 아니라 interface/Host 탐색이며, headless 환경에서는 shell의 파일 목록으로 충분하다. native 표식 여부도 읽기 전용 표시이며, headless에서 문서를 실제로 받아들이는지는 기존 CLI 명령이 같은 Core admission으로 판정한다.
 
 ### Read-only folder preview (#217)
 
@@ -382,7 +382,7 @@ Get-Content -Raw -Encoding utf8 "<임시 폴더>/operations.json" | pnpm cli app
 - [Folder picker](folder-picker-v1.md)는 앱 안에서 경로를 고른다. OS 선택창, upload, 별도 복사본은 없다. Open을 누르기 전의 탐색은 sidebar와 문서를 바꾸지 않는다.
 - `GET /api/folder-browse?path=<folder>`는 `{ path, crumbs, entries }`를 돌려준다. `crumbs`는 filesystem root부터 해당 folder까지의 `{ name, path }` 목록이며 Host가 계산한다. 정렬과 hidden/symlink 제외는 Folder listing v1과 같지만, 폴더 선택은 기존 `.md` 필터, 이미지 선택은 기존 이미지 필터를 유지한다. 선택 전 탐색은 이름과 종류만 돌려주고 파일 내용(`native`)은 읽지 않는다. 선택 전의 탐색은 sidebar의 `root` 제한을 사용하지 않는다.
 - `GET /api/folder-places`는 `{ places: [{ kind, name, path }] }`를 돌려준다. Home, 실제 존재하는 Documents, Windows drive roots 또는 `/`가 시작점이다. Host는 탐색 위치나 최근 목록을 저장하지 않는다.
-- Recent는 이 Browser의 `ieumdoc.recentFolders` preference다. 성공한 Open만 기록하며, Recent 자체는 복원 목록이 아니다. 별도의 `ieumdoc.openFolders` preference가 위 Folder listing v1과 [ADR-0009](../adr/0009-multiple-opened-folders.md)에 따라 sidebar folder를 복원한다. 문서 내용·의미와 무관하므로 Core operation이나 CLI command를 추가하지 않는다.
+- Recent는 이 Browser의 `litzio.recentFolders` preference다. 성공한 Open만 기록하며, Recent 자체는 복원 목록이 아니다. 별도의 `litzio.openFolders` preference가 위 Folder listing v1과 [ADR-0009](../adr/0009-multiple-opened-folders.md)에 따라 sidebar folder를 복원한다. 문서 내용·의미와 무관하므로 Core operation이나 CLI command를 추가하지 않는다.
 
 ### Folder creation v1
 
@@ -476,7 +476,7 @@ refreshes already-loaded parent listings. Updated document locators are absolute
 unreadable/non-native `.md` names are relative to the requested root and shown in a notice.
 Asset rollback keeps its signed-receipt API and is not broadened by this user-confirmed file API.
 
-Deletion/rename recovery barriers match path strings. Until [#372](https://github.com/ieumbird/ieumdoc/issues/372)
+Deletion/rename recovery barriers match path strings. Until [#372](https://github.com/litzio/litzio/issues/372)
 decides Windows locator identity, case-only aliases (for example, a different spelling in URL
 `?path=`) are treated as separate paths. Another window's delayed first recovery write may then
 leave an old-path record. There is no data loss; the extra record can be discarded.
@@ -567,7 +567,7 @@ new Core or CLI operation.
 
 - workspace file 또는 project concept. Sidebar의 열린 folder 목록은 경로만 기억하는 탐색 상태일 뿐 workspace가 아니다([ADR-0009](../adr/0009-multiple-opened-folders.md)).
 - Git repository detection, recent workspace, 일반 재귀 filesystem scan, 검색 또는 index (Sidebar의 lazy tree UI는 위 Folder listing v1, 이미지 이름 변경의 요청별 참조 검사는 위 File deletion and rename 범위다)
-- `.ieumdoc/`, workspace config 또는 문서 간 탐색 기록. 여러 문서를 탭으로 여는 기능은 [ADR-0007](../adr/0007-editing-session-lifetime.md)과 [편집 세션 계약](editing-session-save-v1.md#switching-and-recovery)의 현재 범위이며, Host는 탭 상태를 소유하지 않는다.
+- `.litzio/`, workspace config 또는 문서 간 탐색 기록. 여러 문서를 탭으로 여는 기능은 [ADR-0007](../adr/0007-editing-session-lifetime.md)과 [편집 세션 계약](editing-session-save-v1.md#switching-and-recovery)의 현재 범위이며, Host는 탭 상태를 소유하지 않는다.
 - 특정 HTTP API, localhost server 또는 production backend architecture
 - browser file upload 또는 Browser File System Access API를 기본 architecture로 채택하는 결정
 - database, remote document service 또는 별도 document storage를 SSOT로 추가하는 결정

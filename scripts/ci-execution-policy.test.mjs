@@ -76,8 +76,8 @@ test('actual group diff includes successive PR commits, removed paths and both s
 });
 
 const successful = { event: 'merge_group', head_sha: sha, conclusion: 'success', status: 'completed',
-  html_url: 'https://github.com/ieumbird/ieumdoc/actions/runs/123' };
-const apiInputs = { repository: 'ieumbird/ieumdoc', sha, token: 'test-token' };
+  html_url: 'https://github.com/litzio/litzio/actions/runs/123' };
+const apiInputs = { repository: 'litzio/litzio', sha, token: 'test-token' };
 const response = runs => async (url, options) => {
   assert.match(url, /\/actions\/workflows\/ci.yml\/runs\?event=merge_group&head_sha=a{40}&status=success/);
   assert.equal(options.headers.Authorization, 'Bearer test-token');

@@ -5,7 +5,7 @@
 - Status: Historical
 - Last verified: 2026-10-23 (final source 7a214dcb: Editor 271/271, typecheck/build, eight browser regressions, actual four-condition input and complete canonical Save/Reload verification; mixed 2000 input target unmet).
 - Scope: Editor adapter lookups, handle rendering and display numbering; [Continuous editing](../design/document-editing-v1.md) and [ADR-0003](../adr/0003-document-addressing-identity-boundary.md) remain authoritative.
-- Issue: [#349](https://github.com/ieumbird/ieumdoc/issues/349).
+- Issue: [#349](https://github.com/litzio/litzio/issues/349).
 
 ## Final actual UI acceptance
 
@@ -25,7 +25,7 @@ original revision scope.
 The provisional **2000-block input p95 100ms target passes for plain and remains unmet for
 mixed**. The 5000-block cases are stress evidence, not the routine acceptance gate. The user
 accepted the current bounded improvement for #349; the unmet mixed-document 100ms target is
-tracked separately in [#362](https://github.com/ieumbird/ieumdoc/issues/362).
+tracked separately in [#362](https://github.com/litzio/litzio/issues/362).
 Preservation success does not convert the mixed result into a performance pass. No threshold
 was increased and no outlier was removed.
 

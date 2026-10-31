@@ -48,7 +48,7 @@ Product: 비개발자용 Git 연동의 지원 여부와 사용자 경험 검토
 
 ## 웹에서 등록
 
-[템플릿 선택](https://github.com/ieumbird/ieumdoc/issues/new/choose)에서 유형을 선택하고 영역과 최소 정보를 입력한다.
+[템플릿 선택](https://github.com/litzio/litzio/issues/new/choose)에서 유형을 선택하고 영역과 최소 정보를 입력한다.
 제목의 영역과 폼에서 고른 영역은 같아야 한다. 일반 사용자에게 빈 이슈 선택은 숨긴다.
 GitHub 정책상 write 이상 권한 사용자는 빈 이슈를 만들 수 있으므로 이것만으로 모든 경로가 강제되지는 않는다.
 
@@ -81,7 +81,7 @@ pnpm issue:create --input issue.json --publish
 
 첫 명령은 네트워크 요청 없이 생성될 제목·본문·라벨을 출력한다.
 `--publish`를 붙인 명령만 필수 정보 검사 후 `gh issue create`로 게시하고 실제 등록 결과를 확인한다.
-대상 기본값은 `ieumbird/ieumdoc`이며 다른 대상은 `--repo owner/repo`로 명시한다.
+대상 기본값은 `litzio/litzio`이며 다른 대상은 `--repo owner/repo`로 명시한다.
 게시 성공 URL 이후 검증 오류가 나면 이미 생성된 이슈를 확인하고 중복 등록하지 않는다.
 
 기존 이슈나 직접 만든 본문은 `{ "title": "...", "body": "...", "labels": ["type:enhancement"] }` JSON으로

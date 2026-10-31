@@ -171,7 +171,7 @@ Caption, label, cell and shape edits preserve it. Plain GFM inputs acquire the s
 wrapper when a number is set; every official write already uses that wrapper, including
 without caption, label or number. The [shared fixed-number rules](heading-numbering-v1.md#fixed-numbers-720)
 define warning-only consistency checks. `{list-table}` and `{csv-table}` remain unsupported,
-following the [#597 owner decision](https://github.com/ieumbird/ieumdoc/issues/597).
+following the [#597 owner decision](https://github.com/litzio/litzio/issues/597).
 
 No new CLI option is needed for #584: `format`, `insert-table`, caption/Label edits and
 `apply-batch` already use the Core write path; `inspect` already projects Core numbers.
@@ -207,7 +207,7 @@ input controls. Verify Core/CLI, typecheck, docs and all PR CI checks.
 
 ## Cell code and math preservation (#622)
 
-Keep `{table}` + GFM as decided in [#597](https://github.com/ieumbird/ieumdoc/issues/597).
+Keep `{table}` + GFM as decided in [#597](https://github.com/litzio/litzio/issues/597).
 The canonical writer adds one backslash before every pipe in inline code and math
 inside grid cells, including inside marks and links. The pinned MyST/markdown-it
 table splitter removes exactly that one backslash before inline parsing, regardless

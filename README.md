@@ -16,7 +16,7 @@ Currently available as a Windows Beta. The primary documentation is in Korean.
 
 ## 설치하고 시작하기
 
-1. [Releases 목록](https://github.com/ieumbird/ieumdoc/releases)에서 사용할 Beta의 **Assets**를 열고 `IeumDoc-Setup-<버전>.exe`를 내려받아 실행합니다. 현재 사용자에게 설치하며 관리자 권한이나 별도 Node.js·pnpm이 필요하지 않습니다.
+1. [Releases 목록](https://github.com/litzio/litzio/releases)에서 사용할 Beta의 **Assets**를 열고 `IeumDoc-Setup-<버전>.exe`를 내려받아 실행합니다. 현재 사용자에게 설치하며 관리자 권한이나 별도 Node.js·pnpm이 필요하지 않습니다.
 2. **unsigned Beta**이므로 알 수 없는 게시자 또는 SmartScreen 경고가 나타날 수 있습니다. 공식 저장소의 다운로드인지 확인하고 PC의 보안 정책을 따르세요.
 3. 시작 화면에서 sample을 선택하거나 **Open folder**로 폴더를 연 뒤 Sidebar의 `.md` 또는 `.txt` 파일을 선택합니다. **New file**로 새 문서를 만들고, 편집 후 **Save**로 저장할 수 있습니다.
 
@@ -64,8 +64,8 @@ Settings → About에서 버전·업데이트를 확인합니다. 업데이트 �
 개발 checkout의 시작 예입니다. Node.js·pnpm 요구 버전과 검증 절차는 [기여 안내](CONTRIBUTING.md#development-requirements)를 먼저 확인하세요.
 
 ```bash
-git clone https://github.com/ieumbird/ieumdoc.git
-cd ieumdoc
+git clone https://github.com/litzio/litzio.git
+cd litzio
 pnpm install --frozen-lockfile
 pnpm editor
 ```
@@ -112,5 +112,5 @@ Editor와 CLI는 Core를 연결하며, 향후 AI 인터페이스도 같은 의�
 ## 문서·기여·라이선스
 
 [문서 색인](docs/README.md)에서 현재 계약·설계 결정·릴리스 기록·검증 안내를 찾을 수 있습니다.
-개발·검증·PR 절차는 [CONTRIBUTING](CONTRIBUTING.md), AI agent의 작업 제약은 [AGENTS](AGENTS.md)를 따릅니다. 제안과 문제 보고에는 [이슈 작성 안내](docs/contributing/issues.md)와 [표준 템플릿](https://github.com/ieumbird/ieumdoc/issues/new/choose)을 사용하세요.
+개발·검증·PR 절차는 [CONTRIBUTING](CONTRIBUTING.md), AI agent의 작업 제약은 [AGENTS](AGENTS.md)를 따릅니다. 제안과 문제 보고에는 [이슈 작성 안내](docs/contributing/issues.md)와 [표준 템플릿](https://github.com/litzio/litzio/issues/new/choose)을 사용하세요.
 [MIT License](LICENSE)에 따라 사용·수정·재배포할 수 있습니다.

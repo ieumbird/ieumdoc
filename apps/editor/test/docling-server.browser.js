@@ -43,7 +43,7 @@ async (page, { expect, openFolderPicker, doclingFixture: fixture, screenshots })
   expect(await page.locator('#docling-server-result').textContent()).toContain('ready and compatible');
   expect(await page.locator('#docling-server-result').textContent()).toContain('differs from the profile');
   await addressRow();
-  await expect(page.getByRole('link', { name: 'Server setup guide' })).toHaveAttribute('href', 'https://github.com/ieumbird/ieumdoc/blob/master/docs/guides/docling-server.md');
+  await expect(page.getByRole('link', { name: 'Server setup guide' })).toHaveAttribute('href', 'https://github.com/litzio/litzio/blob/master/docs/guides/docling-server.md');
   await expect(page.getByTestId('settings-dialog')).toContainText('not conversion models');
   await capture('settings-success-en-1440');
   // A → delayed B → A: Check must save and inspect the final displayed address A.

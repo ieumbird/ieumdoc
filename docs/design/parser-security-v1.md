@@ -3,7 +3,7 @@
 - Status: Implemented
 - Last verified: 2026-10-29 (CI probe selection tests and targeted MyST/quote-boundary/standalone smartquotes regressions; full public API/Core/typecheck/build/browser evidence and audit snapshot below remain dated 2026-10-23).
 - Scope: Core's pinned MyST parser and source diagnostics, under [Native document support](document-support-v1.md) and [ADR-0002](../adr/0002-document-persistence-semantic-ownership.md).
-- Related: immediate bug [#346](https://github.com/ieumbird/ieumdoc/issues/346); long-term upstream migration and patch removal [#11](https://github.com/ieumbird/ieumdoc/issues/11).
+- Related: immediate bug [#346](https://github.com/litzio/litzio/issues/346); long-term upstream migration and patch removal [#11](https://github.com/litzio/litzio/issues/11).
 
 ## Current boundary
 
@@ -114,7 +114,7 @@ spans on both public admission and reference diagnostics for repeated emails and
 every expected URL must still be recognized. It uses small inputs, not timing thresholds.
 The earlier 512-case, space-separated email/link/text sample missed adjacent/concatenated URL
 changes. Its zero differences do not establish recognizer equivalence. The
-[independent review](https://github.com/ieumbird/ieumdoc/pull/357#issuecomment-6359189380)
+[independent review](https://github.com/litzio/litzio/pull/357#issuecomment-6359189380)
 identified those changes; the public API examples above were then reproduced locally. Existing
 canonical fixtures and the explicit escaped-output checks support canonical preservation, not
 unchanged admission or diagnostics for all handwritten source.

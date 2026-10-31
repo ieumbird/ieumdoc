@@ -18,7 +18,7 @@ const input = () => {
   return JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
 };
 const gh = (arguments_, stdin) => execFileSync('gh', arguments_, { encoding: 'utf8', input: stdin, stdio: ['pipe', 'pipe', 'pipe'] });
-const repository = () => option('--repo') ?? 'ieumbird/ieumdoc';
+const repository = () => option('--repo') ?? 'litzio/litzio';
 
 try {
   if (command === 'forms') {

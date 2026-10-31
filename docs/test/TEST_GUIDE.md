@@ -74,7 +74,7 @@ Playwright가 browser job의 dev server와 browser 수명을 관리하며 실패
 - `console-errors.json`: console/pageerror 원문과 예상·예상 밖·누락 분류. console 검사만 실패한 경우에도 위 진단을 저장한다.
 - `saved-source-<번호>-expected.md`, `saved-source-<번호>-actual.md`: 공통 `assertSavedSource(actual, expected, message)`를 사용하는 저장 비교가 실패했을 때의 정확한 문자열. assertion 메시지에도 diff가 표시된다. 현재 `citations`의 원문/반복 Save/Merge 비교에 적용한다.
 
-결과 디렉터리는 다음 `browser:test` 시작 시 초기화되므로 다음 실행 전에 복사한다. scratch fixture 재준비는 이 결과 디렉터리를 지우지 않는다. CI 실패 시 `editor-browser-ci-logs-<shard>` (1–4) artifact가 결과 디렉터리 전체와 `editor-vite.log`를 포함한다. HTTP scenario 실패는 `http-host-diagnostics-<OS>`에 같은 결과 경로를 업로드한다. 여러 upload 경로의 공통 상위 경로 때문에 artifact 안에서는 `ieumdoc/ieumdoc/tmp/browser-results/`처럼 checkout prefix 아래 있을 수 있다.
+결과 디렉터리는 다음 `browser:test` 시작 시 초기화되므로 다음 실행 전에 복사한다. scratch fixture 재준비는 이 결과 디렉터리를 지우지 않는다. CI 실패 시 `editor-browser-ci-logs-<shard>` (1–4) artifact가 결과 디렉터리 전체와 `editor-vite.log`를 포함한다. HTTP scenario 실패는 `http-host-diagnostics-<OS>`에 같은 결과 경로를 업로드한다. 여러 upload 경로의 공통 상위 경로 때문에 artifact 안에서는 `litzio/litzio/tmp/browser-results/`처럼 checkout prefix 아래 있을 수 있다.
 
 artifact를 내려받아 `trace.zip`을 찾은 뒤 `pnpm exec playwright show-trace <trace.zip 경로>`로 action 순서·selector·좌표·API 로그를 조사하고, 실패 시점의 UI는 `error-context.md`, `test-failed.png`, `browser-state.json`을 함께 본다. 저장 차이는 `git diff --no-index -- <expected.md> <actual.md>`로 확인한다(diff가 있으면 exit 1). 진단 저장은 실패 시에만 하며, 성공 시 기존 scenario-result 이외의 영구 파일은 추가하지 않는다.
 

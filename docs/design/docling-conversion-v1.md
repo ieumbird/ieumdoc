@@ -4,7 +4,7 @@
 - Worker boundary verified: 2026-10-31 (#853 synthetic REST/shared Host tests; real service and packaged checks follow the plugin contract).
 - Last verified: 2026-10-30 (module/CLI tests, public and synthetic fixtures, canonical reopen, local IEEE conversion and NIST PDF REST conversion).
 - Scope: `@litzio/docling` and thin CLI, under [ADR-0011](../adr/0011-code-module-boundary.md).
-- Decisions: [#766](https://github.com/ieumbird/ieumdoc/discussions/766), [#767](https://github.com/ieumbird/ieumdoc/discussions/767), table flattening [#778](https://github.com/ieumbird/ieumdoc/issues/778); implementation [#768](https://github.com/ieumbird/ieumdoc/issues/768), [#780](https://github.com/ieumbird/ieumdoc/issues/780).
+- Decisions: [#766](https://github.com/litzio/litzio/discussions/766), [#767](https://github.com/litzio/litzio/discussions/767), table flattening [#778](https://github.com/litzio/litzio/issues/778); implementation [#768](https://github.com/litzio/litzio/issues/768), [#780](https://github.com/litzio/litzio/issues/780).
 
 Brand defaults and packager overrides follow [the branding guide](../guides/branding.md) (#859). Product identity is separate from the fixed internal Host API; earlier verification records do not establish a migration from old Beta builds.
 
@@ -192,7 +192,7 @@ Success opens the existing Docling comparison tab. Failure uses the same single
 window NotificationCenter as stale comparison maps, with Go to problem opening
 the conversion dialog. Retry removes that cause; new failures can appear again.
 This adopts P07 only for Docling; aggregation of existing shell/document errors
-remains [#792](https://github.com/ieumbird/ieumdoc/issues/792).
+remains [#792](https://github.com/litzio/litzio/issues/792).
 
 Public `failure.message`, `error_message` and result `errors[].error_message`
 are interpreted in the module, with short translated cause/action text and task
