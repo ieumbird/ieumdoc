@@ -32,6 +32,6 @@ export function doclingFailureMessage(failure?: ConversionFailure): string {
 }
 export type ConversionJob = {
   id: string; input: string; output: string; startedAt: number;
-  state: "running" | "success" | "error" | "cancelled";
+  state: "running" | "success" | "error" | "cancelled" | "uncertain";
   progress: PdfProgress; error?: string; failure?: ConversionFailure;
 };

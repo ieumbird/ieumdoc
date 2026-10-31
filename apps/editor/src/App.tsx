@@ -169,7 +169,8 @@ function EditorApp() {
         if (problem) setConversionNotice({ id: job.id, message: problem });
         else { setConversionOpen(false); setConversionNotice(null); }
       });
-    } else if (job.state === "error") setConversionNotice({ id: job.id, message: `${i18n.t(doclingFailureMessage(job.failure) as MessageKey)}${job.failure?.taskId ? ` (${i18n.t("Server task")}: ${job.failure.taskId})` : ""}` });
+    } else if (job.state === "uncertain") setConversionNotice({ id: job.id, message: job.error ?? "Conversion result is uncertain; inspect the recorded request before starting another." });
+    else if (job.state === "error") setConversionNotice({ id: job.id, message: `${i18n.t(doclingFailureMessage(job.failure) as MessageKey)}${job.failure?.taskId ? ` (${i18n.t("Server task")}: ${job.failure.taskId})` : ""}` });
   }, [converter.job?.id, converter.job?.state]);
   const compareReturn = useRef<HTMLElement | null>(null);
   const [navigation, navigate] = useReducer(editorGroups, initialEditorGroups);

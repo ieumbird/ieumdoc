@@ -98,6 +98,7 @@ import { assertUnicode, commitFile, decodeUtf8, preflightFileCommit, textRevisio
 import { resolveMediaPath } from "../../../apps/editor/server/document-path.ts";
 import { figureMediaPath } from "../../../apps/editor/shared/figure-media-path.ts";
 import { convertDoclingFile, convertDoclingPdf } from "@ieumdoc/docling";
+import { moduleCommand } from "../../../apps/editor/server/module-runtime.ts";
 
 const HELP_GROUPS = [
   "Create and inspect",
@@ -178,6 +179,10 @@ const CODE_NOTE = [
 ];
 const ADMONITION_KIND_NOTE = `Kinds: ${ADMONITION_VARIANTS.join(", ")}.`;
 const COMMANDS: CommandSpec[] = [
+  { name: "module", group: "Serve", summary: "Manage the trusted Docling runtime spike (user-wide disk registry).",
+    usage: "ieumdoc module register <manifest.json> | enable | disable | list",
+    details: ["Spike only. Hosts opt in with IEUMDOC_MODULE_RUNTIME=1; registration takes effect without restart.",
+      "Disable rejects new IDs; accepted workers drain. No sandbox, daemon or automatic replay."] },
   {
     name: "apply-batch",
     group: "Edit — batch",
@@ -873,6 +878,10 @@ function main(argv: string[]): number {
     process.stdout.write(commandHelp(command));
     return 0;
   }
+  if (command === "module") {
+    if (!(rest[0] === "register" && rest.length === 2) && !(rest.length === 1 && ["list", "enable", "disable"].includes(rest[0]))) throw new Error(commandHelp(command));
+    process.stdout.write(JSON.stringify(moduleCommand(rest[0], rest[1])) + "\n"); return 0;
+  }
   if (command === "docling") {
     if (rest.length !== 4 || rest[0] !== "convert" || rest[2] !== "--output" ||
         rest[1].startsWith("-") || rest[3].startsWith("-")) throw new Error(commandHelp(command));
@@ -1411,7 +1420,7 @@ function topLevelHelp(): string {
 function commandHelp(name: string): string {
   const spec = findCommand(name);
   if (!spec) return topLevelHelp();
-  if (name === "docling") return ["Usage:", `  ${spec.usage}`, "", ...spec.details, ""].join("\n");
+  if (name === "docling" || name === "module") return ["Usage:", `  ${spec.usage}`, "", ...spec.details, ""].join("\n");
   const editing = isEditCommand(name);
   const addressed = /--(?:at|path|from) <(?:index|heading index|table)/.test(spec.usage);
   return ["Usage:", `  ${spec.usage}${editing ? " [--if-revision <revision>] [--dry-run [--format <text|json>]]" : ""}`, "", ...spec.details,

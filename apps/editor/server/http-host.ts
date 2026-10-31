@@ -11,7 +11,7 @@ import { RootAccess } from "./file-access.ts";
 import { requestQuery } from "./request-query.ts";
 
 export const MAX_JSON_BYTES = 32 * 1024 * 1024;
-const DOCUMENT_ROUTES = new Set(["/api/docling-settings", "/api/docling-check", "/api/docling-conversion", "/api/file", "/api/bibliography", "/api/file-preview", "/api/document", "/api/folder", "/api/folder-browse", "/api/folder-places",
+const DOCUMENT_ROUTES = new Set(["/api/docling-module", "/api/docling-settings", "/api/docling-check", "/api/docling-conversion", "/api/file", "/api/bibliography", "/api/file-preview", "/api/document", "/api/folder", "/api/folder-browse", "/api/folder-places",
   "/api/document-source", "/api/docling-compare", "/api/figure-validation"]);
 
 export type HttpHostOptions = {

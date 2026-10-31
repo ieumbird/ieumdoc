@@ -1,0 +1,112 @@
+{
+  "startedAt": "2026-10-31T02:48:29.305Z",
+  "platform": "win32",
+  "node": "v24.21.0",
+  "scope": "development Electron + built CLI; fake REST, real worker/converter/Core",
+  "measurements": [
+    {
+      "host": "Desktop in-process",
+      "id": "6ccc8963-e26b-4a65-95ca-b13498020881",
+      "readyMs": 128,
+      "elapsedMs": 2335,
+      "workerPid": 41284
+    },
+    {
+      "host": "CLI serve",
+      "id": "8493707a-a459-46d2-a76b-a6a18070b2ea",
+      "readyMs": 156,
+      "elapsedMs": 2438,
+      "workerPid": 43280
+    },
+    {
+      "host": "Desktop",
+      "injection": "kill during partial REST download",
+      "elapsedMs": 2195,
+      "partialBytes": 31
+    },
+    {
+      "host": "HTTP",
+      "injection": "kill during partial REST download",
+      "elapsedMs": 2236,
+      "partialBytes": 31
+    },
+    {
+      "host": "Desktop",
+      "injection": "350ms deadline",
+      "elapsedMs": 383
+    },
+    {
+      "host": "HTTP",
+      "injection": "350ms deadline",
+      "elapsedMs": 372
+    }
+  ],
+  "checks": {
+    "a": {
+      "result": "pass",
+      "evidence": "Development Desktop worker performed full REST→Core conversion and shared comparison read (synthetic service, no real OCR)."
+    },
+    "h": {
+      "result": "pass",
+      "evidence": "Desktop registered in default ~/.ieumdoc/modules; independently started built ieumdoc serve read that registration and converted without registering."
+    },
+    "e": {
+      "result": "pass",
+      "evidence": "Same UUID submitted concurrently through both live Hosts returned one run; external submission count did not increase."
+    },
+    "d": {
+      "result": "pass",
+      "evidence": "Killed real converter in both Hosts after response.json had nonempty partial bytes. Final folder absent, staging route returned 403, staging removed after worker exit."
+    },
+    "f": {
+      "result": "pass",
+      "evidence": "Desktop disabled the shared registration. New UUIDs refused by both live Hosts; already accepted Desktop conversion drained to success."
+    },
+    "b": {
+      "result": "pass",
+      "evidence": "Force-kill and 350ms deadline left both Hosts responding; actual Desktop contenteditable accepted text after both failures."
+    },
+    "g": {
+      "result": "pass",
+      "evidence": "Real development Electron at ieumdoc://app and independently spawned built cli.mjs serve both converted, isolated kills/timeouts and read comparison; HTTP restart retained uncertain without replay."
+    },
+    "c": {
+      "result": "pass",
+      "evidence": "SHA-256 of input PDF and committed source PDF/JSON unchanged after every scenario.",
+      "sha256": {
+        "pdf": "c12e081b7e2cbc2625a431a5964f70a6843a778d7dcb66b5004213c75f31f4af",
+        "json": "0122e7c86148279a926e2d0625bf3a62d509e81afeefe65a97c4011e48bf9e87"
+      }
+    }
+  },
+  "desktopReadyMs": 1257,
+  "restart": {
+    "state": "uncertain",
+    "noReplay": true,
+    "requestId": "65e57252-3a5d-44e5-88ee-2bdd1781a34b"
+  },
+  "success": true,
+  "cleanup": {
+    "ownedPids": [
+      48820,
+      32164,
+      42632,
+      53880,
+      30852,
+      12052
+    ],
+    "workerPids": [
+      41284,
+      43280,
+      53672,
+      24620,
+      7616,
+      52684,
+      40500,
+      13060,
+      55576
+    ],
+    "alive": []
+  },
+  "finishedAt": "2026-10-31T02:48:45.588Z"
+}

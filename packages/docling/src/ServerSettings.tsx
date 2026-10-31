@@ -111,7 +111,7 @@ export function useDoclingConversion(base: string) {
           const recovered = value && recovery.current && value.input === recovery.current.input && value.id !== recovery.current.previousId;
           // Only in-flight work is observed after a page reload. Completed tabs are not restored.
           // An uncertain POST can already have completed before this recovery read.
-          if (job || value?.state === "running" || recovered) setJob(value);
+          if (job || value?.state === "running" || value?.state === "uncertain" || recovered) setJob(value);
           setReadProblem("");
           // An unchanged older snapshot does not resolve a rejected/lost start.
           if (recovered) setProblem("");
@@ -131,7 +131,7 @@ export function useDoclingConversion(base: string) {
     if (pendingRef.current || recovering || !observedReady) return;
     generation.current++; pendingRef.current = true; setPending(true); setProblem("");
     try {
-      const value = await request<ConversionJob>(base, "conversion", "POST", { path });
+      const value = await request<ConversionJob>(base, "conversion", "POST", { path, id: crypto.randomUUID() });
       observed.current = value; setJob(value);
     } catch (error) {
       setProblem(error instanceof Error ? error.message : String(error));

@@ -123,6 +123,9 @@ export class RootAccess {
 }
 
 export function accessPath(value: string, access: FileAccess, create = false): string {
+  if (process.env.IEUMDOC_MODULE_RUNTIME === "1" && typeof value === "string" && value.split(/[\\/]/u).some(part => part.startsWith(".ieumdoc-module-"))) {
+    throw new FileAccessError("Module staging is private until complete publication.");
+  }
   if (!access) assertUnicode(value);
   return access ? access.resolve(value, create) : value;
 }

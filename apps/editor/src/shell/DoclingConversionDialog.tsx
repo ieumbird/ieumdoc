@@ -30,11 +30,12 @@ export function DoclingConversionDialog({ open, input, job, pending, problem, re
       <p className="[overflow-wrap:anywhere]">{input}</p>
       <p>{i18n.t("Results go beside the PDF in a new name.docling folder. Existing names get -2, -3, and so on; existing folders are never overwritten.")}</p>
       {current ? <div role="status" aria-live="polite" className="[overflow-wrap:anywhere]">
-        <p>{i18n.t(current.state === "running" ? phases[current.progress.phase] : current.state === "cancelled" ? "IeumDoc waiting stopped. The server task may continue." : current.state === "success" ? "Conversion complete." : "Docling conversion failed.")}</p>
+        {current.state !== "uncertain" ? <p>{i18n.t(current.state === "running" ? phases[current.progress.phase] : current.state === "cancelled" ? "IeumDoc waiting stopped. The server task may continue." : current.state === "success" ? "Conversion complete." : "Docling conversion failed.")}</p> : null}
         <p>{i18n.t("Elapsed: {{seconds}} s", { seconds: Math.max(0, Math.floor((now - current.startedAt) / 1000)) })}</p>
         {current.progress.taskId ? <p>{i18n.t("Server task")}: {current.progress.taskId}</p> : null}
         <p>{i18n.t("Result folder")}: {current.output}</p>
         {current.state === "error" ? <p>{i18n.t(doclingFailureMessage(current.failure) as MessageKey)}</p> : null}
+        {current.state === "uncertain" ? <p>{current.error}</p> : null}
       </div> : null}
       {problem ? <p role="alert">{problem}</p> : null}
       <p>{i18n.t("Stopping cancels only IeumDoc requests and waiting. It does not cancel the Docling server task.")}</p>

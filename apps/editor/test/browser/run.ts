@@ -5,7 +5,9 @@ import { pathToFileURL } from "node:url";
 import { prepareBrowserFixtures, REPOSITORY_ROOT } from "./fixtures.ts";
 import { HTTP_SCENARIOS, selectBrowserScenarios, STABLE_SCENARIOS } from "./scenarios.ts";
 
-try {
+if (process.argv.slice(2).join(" ") === "docling-runtime") {
+  await import("../../../desktop/test/docling-runtime-spike.ts");
+} else try {
   const { scenarios, screenshots, shard } = selectBrowserScenarios(process.argv.slice(2));
   if (scenarios.some(name => HTTP_SCENARIOS.includes(name))) {
     if (!process.env.IEUMDOC_BROWSER_URL && !existsSync(path.join(REPOSITORY_ROOT, "packages/cli/dist/cli.mjs"))) {

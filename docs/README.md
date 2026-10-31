@@ -6,6 +6,8 @@
 
 ## Architecture decisions
 
+Branch-only historical experiment: [Docling runtime spike](reviews/docling-plugin-runtime-spike.md).
+
 | Document | Status | Authority / description |
 | --- | --- | --- |
 | [ADR-0001: Single-document editor](adr/0001-single-document-editor-architecture.md) | Accepted | 현재 architecture 규범. 하나의 Tiptap/ProseMirror state가 문서 편집 세션을 소유한다. |

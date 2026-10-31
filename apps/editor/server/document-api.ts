@@ -1,6 +1,7 @@
 import { readBibliographySources } from "./bibliography.ts";
 import { loadDoclingComparison } from "./docling-compare.ts";
 import type { DoclingHost } from "@ieumdoc/docling/server";
+import { ModuleDoclingHost } from "./module-runtime.ts";
 import { MAX_ASSET_BYTES } from "../shared/asset-policy.ts";
 import { ImageValidationError, validateImage } from "./image-validation.ts";
 import fs, { readFileSync, statSync, writeFileSync } from "node:fs";
@@ -270,15 +271,20 @@ export async function handleDocumentRequest(
   try { query = requestQuery(req.url ?? ""); }
   catch (error) { failure(error); return; }
   const url = new URL(req.url ?? "", "http://localhost").pathname;
-  if (["/api/docling-settings", "/api/docling-check", "/api/docling-conversion"].includes(url)) {
+  if (["/api/docling-module", "/api/docling-settings", "/api/docling-check", "/api/docling-conversion"].includes(url)) {
     if (!docling) { sendJson(res, 503, { error: "Docling is unavailable on this Host." }); return; }
-    const methods = url === "/api/docling-settings" ? ["GET", "PUT"] : url === "/api/docling-check" ? ["POST"] : ["GET", "POST", "DELETE"];
+    const methods = url === "/api/docling-module" ? ["GET", "POST"] : url === "/api/docling-settings" ? ["GET", "PUT"] : url === "/api/docling-check" ? ["POST"] : ["GET", "POST", "DELETE"];
     if (!methods.includes(req.method ?? "")) { res.statusCode = 405; res.end(); return; }
     try {
       const body = req.method === "GET" ? undefined : JSON.parse(await readBody(req));
+      if (url === "/api/docling-module") {
+        if (!(docling instanceof ModuleDoclingHost)) throw new Error("Module runtime is disabled (spike opt-in required).");
+        sendJson(res, 200, docling.module(req.method === "GET" ? "list" : body.action, body?.manifest)); return;
+      }
       const result = url === "/api/docling-settings" ? req.method === "GET" ? docling.settings() : docling.configure(body.server)
         : url === "/api/docling-check" ? await docling.check()
-        : req.method === "GET" ? docling.current() : req.method === "DELETE" ? await docling.cancel(body.id) : docling.start(body.path);
+        : req.method === "GET" ? docling instanceof ModuleDoclingHost ? docling.current(query.get("id") ?? undefined) : docling.current()
+        : req.method === "DELETE" ? await docling.cancel(body.id) : docling instanceof ModuleDoclingHost ? docling.start(body.path, body.id) : docling.start(body.path);
       sendJson(res, 200, result);
     } catch (error) { failure(error); }
     return;

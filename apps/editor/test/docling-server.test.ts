@@ -6,10 +6,35 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import test from "node:test";
 import { createDoclingHost } from "../server/docling.ts";
+import { moduleCommand } from "../server/module-runtime.ts";
 import { RootAccess } from "../server/file-access.ts";
 import { handleDocumentRequest } from "../server/document-api.ts";
 import { listenForFetch } from "../../../test/helpers/fetch-server.ts";
 import { fakeDoclingServer } from "./helpers/docling-server.ts";
+
+test("module registration validates the manifest before enabling a private bundled copy and persists disable", t => {
+  const root = mkdtempSync(path.join(tmpdir(), "ieumdoc-manifest-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const modules = path.join(root, "modules"), manifest = path.join(root, "manifest.json"), entry = path.join(root, "worker.cjs");
+  writeFileSync(entry, "// trusted fixture worker\n");
+  const valid = { id: "docling", version: "0.0.0-spike", hostApiVersion: 1, entrypoint: "worker.cjs",
+    permissions: ["read-input", "write-staging", "network-docling"] };
+  for (const changed of [{ hostApiVersion: 2 }, { version: undefined }, { entrypoint: "../escape.cjs" }, { permissions: ["read-input"] }]) {
+    writeFileSync(manifest, JSON.stringify({ ...valid, ...changed }));
+    assert.throws(() => moduleCommand("register", manifest, modules), /Unsupported Docling manifest/u);
+    assert.equal(moduleCommand("list", undefined, modules), null);
+  }
+  writeFileSync(manifest, JSON.stringify(valid));
+  const registered = moduleCommand("register", manifest, modules)!;
+  assert.equal(registered.enabled, true);
+  assert.notEqual(registered.directory, root);
+  writeFileSync(entry, "// source changed after registration\n");
+  assert.equal(readFileSync(path.join(registered.directory, "worker.cjs"), "utf8"), "// trusted fixture worker\n");
+  moduleCommand("disable", undefined, modules);
+  assert.equal(moduleCommand("list", undefined, modules)!.enabled, false);
+  moduleCommand("enable", undefined, modules);
+  assert.equal(moduleCommand("list", undefined, modules)!.enabled, true);
+});
 
 test("shared Host persists device settings, checks the real HTTP service and safely completes, fails and cancels conversion", async t => {
   const root = mkdtempSync(path.join(tmpdir(), "ieumdoc-docling-host-"));

@@ -5,6 +5,13 @@
 - Scope: `@ieumdoc/docling` and thin CLI, under [ADR-0011](../adr/0011-code-module-boundary.md).
 - Decisions: [#766](https://github.com/ieumbird/ieumdoc/discussions/766), [#767](https://github.com/ieumbird/ieumdoc/discussions/767), table flattening [#778](https://github.com/ieumbird/ieumdoc/issues/778); implementation [#768](https://github.com/ieumbird/ieumdoc/issues/768), [#780](https://github.com/ieumbird/ieumdoc/issues/780).
 
+Branch-only opt-in: `IEUMDOC_MODULE_RUNTIME=1` replaces transient in-process PDF
+execution with the [runtime spike](../reviews/docling-plugin-runtime-spike.md).
+Its persisted request receipts, worker publication and live registration are an
+experiment outside the accepted ADR-0011 contract. Default behavior below stays
+the current product contract. Conversion requests now also carry a caller UUID;
+the opt-in Host requires and persists it. The comparison read contract is unchanged.
+
 ## Input and output
 
 `ieumdoc docling convert <document.json> --output <new-folder>` converts the

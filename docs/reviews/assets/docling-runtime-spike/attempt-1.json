@@ -1,0 +1,52 @@
+{
+  "startedAt": "2026-10-31T02:44:46.329Z",
+  "platform": "win32",
+  "node": "v24.21.0",
+  "scope": "development Electron + built CLI; fake REST, real worker/converter/Core",
+  "measurements": [
+    {
+      "host": "Desktop in-process",
+      "id": "46e9f722-d9e4-43fb-996f-b36747a429d2",
+      "readyMs": 135,
+      "elapsedMs": 2377,
+      "workerPid": 56188
+    },
+    {
+      "host": "CLI serve",
+      "id": "26912b50-1a12-4a29-ace7-44dbbe01a695",
+      "readyMs": 153,
+      "elapsedMs": 2478,
+      "workerPid": 30648
+    }
+  ],
+  "checks": {
+    "a": {
+      "result": "pass",
+      "evidence": "Development Desktop worker performed full REST→Core conversion and shared comparison read (synthetic service, no real OCR)."
+    },
+    "h": {
+      "result": "pass",
+      "evidence": "Desktop registered in default ~/.ieumdoc/modules; independently started built ieumdoc serve read that registration and converted without registering."
+    },
+    "e": {
+      "result": "pass",
+      "evidence": "Same UUID submitted concurrently through both live Hosts returned one run; external submission count did not increase."
+    }
+  },
+  "desktopReadyMs": 1609,
+  "success": false,
+  "error": "page.evaluate: SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input\n    at eval (eval at evaluate (:367:30), <anonymous>:1:247)\n    at async <anonymous>:393:30\n    at sendDesktop (C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\spike-docling-plugin\\apps\\desktop\\test\\docling-runtime-spike.ts:95:70)\n    at <anonymous> (C:\\Users\\swBaek\\.paseo\\worktrees\\3icu9gjp\\spike-docling-plugin\\apps\\desktop\\test\\docling-runtime-spike.ts:126:31)",
+  "cleanup": {
+    "ownedPids": [
+      58928,
+      26736
+    ],
+    "workerPids": [
+      56188,
+      30648,
+      35932
+    ],
+    "alive": []
+  },
+  "finishedAt": "2026-10-31T02:44:57.859Z"
+}
